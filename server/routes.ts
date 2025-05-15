@@ -14,6 +14,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import aiAgentRoutes from "./routes/ai-agents";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -350,6 +351,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
+  
+  // Register AI agent routes
+  app.use('/api/ai', aiAgentRoutes);
   
   const httpServer = createServer(app);
   return httpServer;
