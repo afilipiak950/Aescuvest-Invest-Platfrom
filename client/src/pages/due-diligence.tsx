@@ -372,6 +372,12 @@ export default function DueDiligence() {
                   >
                     Commercial
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="ai-agents"
+                    className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
+                  >
+                    AI Agents
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="legal">
@@ -400,6 +406,12 @@ export default function DueDiligence() {
                     analysis={analyses?.find(a => a.agentType === 'Commercial')}
                     isLoading={isLoadingAnalyses}
                   />
+                </TabsContent>
+                
+                <TabsContent value="ai-agents">
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
