@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import PageHeader from '@/components/layout/page-header';
 import DocumentList from '@/components/due-diligence/document-list';
 import AgentCard from '@/components/due-diligence/agent-card';
+import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
