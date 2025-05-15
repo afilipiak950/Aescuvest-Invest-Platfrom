@@ -14,8 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 const loginSchema = z.object({
   email: z
     .string()
-    .min(1, { message: "Email is required" })
-    .email({ message: "Invalid email address" }),
+    .min(1, { message: "Username or email is required" }),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters" }),
@@ -27,8 +26,12 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [_, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
+
+  // Extract redirect URL from query parameters if present
+  const params = new URLSearchParams(location.split('?')[1]);
+  const redirectTo = params.get('redirect') || '/';
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -50,7 +53,8 @@ export default function LoginPage() {
           title: "Login Successful",
           description: "You have been logged in successfully.",
         });
-        setLocation("/");
+        // Use the redirect URL if available
+        setLocation(redirectTo);
       } else {
         setError(result.error || "Failed to login. Please try again.");
       }
