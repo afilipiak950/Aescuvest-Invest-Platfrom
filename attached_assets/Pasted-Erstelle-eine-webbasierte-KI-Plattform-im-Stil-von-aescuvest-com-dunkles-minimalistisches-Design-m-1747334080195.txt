@@ -1,0 +1,95 @@
+Erstelle eine webbasierte KI-Plattform im Stil von aescuvest.com (dunkles, minimalistisches Design mit klarem Typografie-Fokus und grünen Akzenten) zur Automatisierung des Venture-Capital-Investitionsprozesses. Die Plattform soll durch KI-Agenten unterstützt werden und folgende Funktionen und Module beinhalten:
+
+## 🔐 AUTH & DASHBOARD
+- Authentifizierung für verschiedene Nutzerrollen (z. B. Analyst, Partner, Admin)
+- Dashboard mit Übersicht zu:
+  - Offenen Investmentanfragen
+  - Zu prüfenden Datenräumen
+  - Letzten generierten Investmentmemos
+  - Matched Investors & Status
+
+## 📥 MODUL 1: DEAL INTAKE & SCREENING
+- Upload-Funktion für neue Investmentanfragen (Pitch Decks, One-Pager, Links)
+- Formular für manuelle Eingabe (Name, Sektor, Phase, etc.)
+- KI-Agent analysiert Einreichung nach Kriterien:
+  - HealthTech-Relevanz
+  - Finanzierungsphase
+  - Marktgröße
+  - Regulatory Readiness
+- Ausgabe: Scoring + Erste Empfehlung + Screening-Dokument (PDF/HTML)
+
+## 📊 MODUL 2: DUE DILIGENCE ANALYSE
+- Dokumentenupload (Google Drive Integration)
+- KI-Agenten:
+  - 📁 Legal Agent – prüft rechtliche Dokumente (z. B. Gesellschaftsverträge, NDAs)
+  - 💸 Finance Agent – prüft Cap Table, Financials, Burn Rate
+  - 🧪 Medical Agent – analysiert MedTech-Kriterien, Zulassungen, Studien
+  - 📈 Commercial Agent – prüft Markt, Wettbewerber, Go-to-Market
+- Erkenntnisse werden als kommentierte Zusammenfassung + Red Flags angezeigt
+- Kollaborationsfunktion (Kommentare, Tasks)
+
+## 📝 MODUL 3: INVESTMENT MEMO GENERATOR
+- Generiert vollständige Investmentmemos inkl.:
+  - Executive Summary
+  - Produkt & Markt
+  - Team
+  - Finanzkennzahlen
+  - SWOT
+  - Dealstruktur & Term Sheet Auszüge
+- Möglichkeit zur Nachbearbeitung (Texteditor)
+- Export als PDF/Google Doc
+- Feedbackschleife möglich: Kommentare durch Analysten
+
+## 🤝 MODUL 4: INVESTOR MATCHING
+- Verbindung zum Affinity CRM
+- KI-Agent analysiert bestehende Investorprofile
+- Matching-Algorithmus: Vorschläge für passende Investoren je Deal
+- Automatisiertes Outreach-Template (anpassbar)
+- Trackingsystem für Ansprache (Status, Reaktionen, Follow-ups)
+
+## 🔄 MODUL 5: WORKFLOW AUTOMATION
+- Reminder-Funktionen (z. B. Follow-up, Memo-Deadline)
+- DocuSign-Integration: Signaturstatus von NDAs & Term Sheets verfolgen
+- Reporting-Modul (Erfolg, Zeitersparnis, Conversion)
+
+## ⚙️ SYSTEM-INTEGRATION
+- Google Drive: Datenupload + Ordnerstruktur lesen
+- CRM: Affinity API Integration
+- DocuSign API Integration für Dokumentstatus
+- Optionale Anbindung an Notion für internes Task-Tracking
+
+## 🌐 USER INTERFACE / UX DESIGN
+- Visuelles Design basierend auf aescuvest.com (siehe Screenshot)
+- Dunkelblauer Hintergrund, helle Headlines, grüne Interaktionspunkte
+- Smooth Scrolling & Hover-Effekte
+- Responsive Design (Web & Tablet optimiert)
+- Seiten:
+  - Home (mit Vision, Mission, zuletzt analysierte Deals)
+  - Screening Übersicht
+  - Due Diligence Workspace
+  - Memo-Editor
+  - Investor Matching
+  - Settings (Integrationen & Zugriffsrechte)
+  - Benutzerverwaltung
+
+## 🧠 KI-INFRASTRUKTUR
+- Agents mit OpenAI API / Langchain
+- Nutzung von Tools wie:
+  - DocumentQA für Datenräume
+  - Retrieval-Augmented Generation (RAG) zur Memo-Erstellung
+- KI-Feedback-Loop:
+  - User kann Feedback geben, KI lernt daraus
+  - Trainingsdaten aus annotierten alten Memos möglich
+
+## 📦 ZUKUNFT / SCALING
+- Multitenancy-fähig (z. B. Subdomain je VC)
+- Logging aller KI-Aktivitäten (Audit Trail)
+- Admin-Panel zur Analyse der Nutzung
+
+## 🧩 TECH STACK VORSCHLAG
+- Frontend: React (Next.js / Tailwind für Aescuvest-Design)
+- Backend: Supabase oder Node.js mit Express
+- KI: OpenAI, Langchain, Pinecone (für RAG)
+- Deployment: Vercel / Replit / Railway
+
+Bitte baue die Grundstruktur als Replit-Projekt mit Mock-Daten, dummy KI-Antworten und Platzhalterseiten für jedes Modul.
