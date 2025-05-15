@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth, AuthUser } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
+import { AuthUser } from '../types/user';
 
 interface AuthContextProps {
   user: AuthUser | null;
@@ -36,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const value = {
-    user: auth.user,
+  const value: AuthContextProps = {
+    user: auth.user ?? null,
     isLoading: auth.isLoading,
     isAuthenticated: auth.isAuthenticated,
     isAdmin: auth.isAdmin,

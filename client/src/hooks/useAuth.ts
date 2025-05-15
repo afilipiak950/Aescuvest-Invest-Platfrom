@@ -1,32 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/queryClient';
-import { User } from '../../shared/schema';
-
-export interface AuthUser extends Omit<User, 'password'> {}
-
-interface LoginData {
-  email: string;
-  password: string;
-}
-
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role?: string;
-}
-
-interface AuthResponse {
-  user: AuthUser;
-  token: string;
-  message: string;
-}
+import { AuthUser, LoginData, RegisterData, AuthResponse } from '../types/user';
 
 export function useAuth() {
   const queryClient = useQueryClient();
   
   // Get current user
-  const { data: user, isLoading, error } = useQuery<AuthUser>({
+  const { data: user, isLoading, error } = useQuery<AuthUser | null>({
     queryKey: ['currentUser'],
     queryFn: async () => {
       // Check if token exists in localStorage
@@ -100,7 +80,7 @@ export function useAuth() {
   };
   
   return {
-    user,
+    user: user as AuthUser | null,
     isLoading,
     error,
     isAuthenticated: !!user,
