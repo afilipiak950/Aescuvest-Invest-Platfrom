@@ -30,22 +30,38 @@ export async function handleApiResponse(response: Response) {
 
 // Default fetcher function for queries
 export const defaultFetcher = async (url: string) => {
-  const response = await fetch(`${baseUrl}${url}`);
+  const headers: HeadersInit = {};
+  
+  // Add auth token if available
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  const response = await fetch(`${baseUrl}${url}`, { headers });
   return handleApiResponse(response);
 };
 
 // Function for making API requests (POST, PUT, DELETE, etc)
-export const apiRequest = async (
+export const apiRequest = async <T = any>(
   url: string,
   options: RequestInit = {}
-) => {
+): Promise<T> => {
   try {
+    // Add auth token if available
+    const token = localStorage.getItem('auth_token');
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${baseUrl}${url}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
     
     return handleApiResponse(response);

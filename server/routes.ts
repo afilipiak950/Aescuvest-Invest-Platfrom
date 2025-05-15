@@ -15,6 +15,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import aiAgentRoutes from "./routes/ai-agents";
+import authRoutes from "./routes/auth";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -57,33 +58,8 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth routes
-  app.post('/api/auth/login', async (req: Request, res: Response) => {
-    try {
-      const { email, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
-      }
-      
-      const user = await storage.getUserByEmail(email);
-      
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
-      
-      // In a real app, we'd set up a session/JWT here
-      return res.status(200).json({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      });
-    } catch (error) {
-      console.error('Login error:', error);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+  // Mount auth routes
+  app.use('/api/auth', authRoutes);
   
   // Deal routes
   app.get('/api/deals', async (req: Request, res: Response) => {
