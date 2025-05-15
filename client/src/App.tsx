@@ -16,6 +16,8 @@ import InvestorMatching from "@/pages/investor-matching";
 import WorkflowAutomation from "@/pages/workflow-automation";
 import AIInvestorMatching from "@/pages/ai-investor-matching";
 import AIWorkflowAutomation from "@/pages/ai-workflow-automation";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 
 function App() {
@@ -30,6 +32,8 @@ function App() {
                 <Navbar />
                 <main className="flex-1 overflow-y-auto">
                   <Switch>
+                    <Route path="/login" component={Login} />
+                    <Route path="/register" component={Register} />
                     <Route path="/" component={Dashboard} />
                     <Route path="/deal-intake" component={DealIntake} />
                     <Route path="/due-diligence" component={DueDiligence} />
