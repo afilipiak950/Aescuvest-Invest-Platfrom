@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
@@ -34,14 +35,46 @@ function App() {
                   <Switch>
                     <Route path="/login" component={Login} />
                     <Route path="/register" component={Register} />
-                    <Route path="/" component={Dashboard} />
-                    <Route path="/deal-intake" component={DealIntake} />
-                    <Route path="/due-diligence" component={DueDiligence} />
-                    <Route path="/memo-generator" component={MemoGenerator} />
-                    <Route path="/investor-matching" component={InvestorMatching} />
-                    <Route path="/workflow" component={WorkflowAutomation} />
-                    <Route path="/ai-investor-matching/:dealId" component={AIInvestorMatching} />
-                    <Route path="/ai-workflow-automation" component={AIWorkflowAutomation} />
+                    <Route path="/">
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/deal-intake">
+                      <ProtectedRoute>
+                        <DealIntake />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/due-diligence">
+                      <ProtectedRoute>
+                        <DueDiligence />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/memo-generator">
+                      <ProtectedRoute>
+                        <MemoGenerator />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/investor-matching">
+                      <ProtectedRoute>
+                        <InvestorMatching />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/workflow">
+                      <ProtectedRoute>
+                        <WorkflowAutomation />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/ai-investor-matching/:dealId">
+                      <ProtectedRoute>
+                        <AIInvestorMatching />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/ai-workflow-automation">
+                      <ProtectedRoute>
+                        <AIWorkflowAutomation />
+                      </ProtectedRoute>
+                    </Route>
                     <Route component={NotFound} />
                   </Switch>
                 </main>

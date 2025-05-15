@@ -1,59 +1,130 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { AuthUser } from '../types/user';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
+import { User } from '@shared/schema';
 
-interface AuthContextProps {
-  user: AuthUser | null;
-  isLoading: boolean;
+interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
-  isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  role?: string;
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const auth = useAuth();
+const AuthContext = createContext<AuthContextType | null>(null);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
   
-  // Login handler
-  const handleLogin = async (email: string, password: string) => {
+  const { data: fetchedUser, isLoading } = useQuery({
+    queryKey: ['/api/auth/me'],
+    retry: false,
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      if (data) {
+        setUser(data);
+      }
+    },
+    onError: () => {
+      setUser(null);
+    }
+  });
+
+  const login = async (email: string, password: string) => {
     try {
-      await auth.login.mutateAsync({ email, password });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: data.message || 'Login failed' };
+      }
+
+      // Refresh the current user data
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      throw error;
+      return { success: false, error: 'An unexpected error occurred' };
     }
   };
-  
-  // Register handler
-  const handleRegister = async (name: string, email: string, password: string) => {
+
+  const register = async (userData: RegisterData) => {
     try {
-      await auth.register.mutateAsync({ name, email, password });
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: data.message || 'Registration failed' };
+      }
+
+      return { success: true };
     } catch (error) {
       console.error('Registration error:', error);
-      throw error;
+      return { success: false, error: 'An unexpected error occurred' };
     }
   };
-  
-  const value: AuthContextProps = {
-    user: auth.user ?? null,
-    isLoading: auth.isLoading,
-    isAuthenticated: auth.isAuthenticated,
-    isAdmin: auth.isAdmin,
-    login: handleLogin,
-    register: handleRegister,
-    logout: auth.logout,
+
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      setUser(null);
+      
+      // Clear all query cache upon logout
+      queryClient.clear();
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    register,
+    logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+};
 
-export function useAuthContext() {
+export const useAuthContext = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuthContext must be used within an AuthProvider');
   }
   return context;
-}
+};
