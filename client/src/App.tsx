@@ -24,14 +24,23 @@ import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 
 function AppContent() {
-  const [location] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
   
   // Auth pages - don't show sidebar/navbar
   const isAuthPage = location === '/login' || location === '/register';
   
-  // Only show AuthenticatedLayout if user is authenticated and not on auth pages
-  const showAuthenticatedLayout = isAuthenticated && !isAuthPage;
+  // Redirect to dashboard if user is authenticated and on login/register page
+  if (isAuthenticated && isAuthPage) {
+    setLocation('/');
+    return <div>Redirecting...</div>;
+  }
+  
+  // Redirect to login if not authenticated and not on auth pages
+  if (!isAuthenticated && !isAuthPage && !isLoading) {
+    setLocation('/login');
+    return <div>Redirecting to login...</div>;
+  }
   
   return (
     <ThemeProvider defaultTheme="dark">
@@ -42,50 +51,46 @@ function AppContent() {
             <Switch>
               <Route path="/login" component={Login} />
               <Route path="/register" component={Register} />
+              <Route component={NotFound} />
             </Switch>
           </div>
-        ) : (
+        ) : isAuthenticated ? (
           // Protected routes with authenticated layout
-          showAuthenticatedLayout ? (
-            <AuthenticatedLayout>
-              <Switch>
-                <Route path="/">
-                  <Dashboard />
-                </Route>
-                <Route path="/deal-intake">
-                  <DealIntake />
-                </Route>
-                <Route path="/due-diligence">
-                  <DueDiligence />
-                </Route>
-                <Route path="/memo-generator">
-                  <MemoGenerator />
-                </Route>
-                <Route path="/investor-matching">
-                  <InvestorMatching />
-                </Route>
-                <Route path="/workflow">
-                  <WorkflowAutomation />
-                </Route>
-                <Route path="/ai-investor-matching/:dealId">
-                  <AIInvestorMatching />
-                </Route>
-                <Route path="/ai-workflow-automation">
-                  <AIWorkflowAutomation />
-                </Route>
-                <Route component={NotFound} />
-              </Switch>
-            </AuthenticatedLayout>
-          ) : (
-            // Redirect to login if not authenticated
+          <AuthenticatedLayout>
             <Switch>
-              <Route>
-                <ProtectedRoute>
-                  <div>Loading...</div>
-                </ProtectedRoute>
+              <Route path="/">
+                <Dashboard />
               </Route>
+              <Route path="/deal-intake">
+                <DealIntake />
+              </Route>
+              <Route path="/due-diligence">
+                <DueDiligence />
+              </Route>
+              <Route path="/memo-generator">
+                <MemoGenerator />
+              </Route>
+              <Route path="/investor-matching">
+                <InvestorMatching />
+              </Route>
+              <Route path="/workflow">
+                <WorkflowAutomation />
+              </Route>
+              <Route path="/ai-investor-matching/:dealId">
+                <AIInvestorMatching />
+              </Route>
+              <Route path="/ai-workflow-automation">
+                <AIWorkflowAutomation />
+              </Route>
+              <Route component={NotFound} />
             </Switch>
-          )
+          </AuthenticatedLayout>
+        ) : (
+          // Show loading state when determining auth state
+          <div className="flex h-screen w-full items-center justify-center">
+            <div className="animate-spin mr-2 h-6 w-6 border-t-2 border-primary border-r-2 rounded-full"></div>
+            <span>Loading...</span>
+          </div>
         )}
         <Toaster />
       </TooltipProvider>

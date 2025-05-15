@@ -26,12 +26,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [location, setLocation] = useLocation();
   const { toast } = useToast();
-
-  // Extract redirect URL from query parameters if present
-  const params = new URLSearchParams(location.split('?')[1]);
-  const redirectTo = params.get('redirect') || '/';
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -53,8 +48,7 @@ export default function LoginPage() {
           title: "Login Successful",
           description: "You have been logged in successfully.",
         });
-        // Use the redirect URL if available
-        setLocation(redirectTo);
+        // App.tsx will handle the redirect automatically based on auth state
       } else {
         setError(result.error || "Failed to login. Please try again.");
       }
@@ -165,7 +159,7 @@ export default function LoginPage() {
                 className="text-primary hover:underline"
                 onClick={(e) => {
                   e.preventDefault();
-                  setLocation('/register');
+                  window.location.href = '/register';
                 }}
               >
                 Sign Up
