@@ -59,10 +59,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: data.message || 'Login failed' };
       }
 
-      // Refresh the current user data
-      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      // Immediately set the user data from the response
+      if (data.user) {
+        setUser(data.user);
+      }
       
-      return { success: true };
+      // Also refresh the current user data in the background
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      
+      return { success: true, user: data.user };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: 'An unexpected error occurred' };

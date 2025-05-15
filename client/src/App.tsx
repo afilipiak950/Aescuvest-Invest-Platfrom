@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./hooks/useAuth";
+import { useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 import Navbar from "@/components/layout/navbar";
@@ -25,22 +26,28 @@ import NotFound from "@/pages/not-found";
 
 function AppContent() {
   const [location, setLocation] = useLocation();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   
   // Auth pages - don't show sidebar/navbar
   const isAuthPage = location === '/login' || location === '/register';
   
-  // Redirect to dashboard if user is authenticated and on login/register page
-  if (isAuthenticated && isAuthPage) {
-    setLocation('/');
-    return <div>Redirecting...</div>;
-  }
-  
-  // Redirect to login if not authenticated and not on auth pages
-  if (!isAuthenticated && !isAuthPage && !isLoading) {
-    setLocation('/login');
-    return <div>Redirecting to login...</div>;
-  }
+  // Force redirection based on auth state
+  useEffect(() => {
+    // Don't redirect during loading
+    if (isLoading) return;
+    
+    // Redirect authenticated users away from auth pages to dashboard
+    if (isAuthenticated && user && isAuthPage) {
+      console.log("Auth state: Authenticated, redirecting from auth page to dashboard");
+      setLocation('/');
+    }
+    
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated && !isAuthPage) {
+      console.log("Auth state: Not authenticated, redirecting to login");
+      setLocation('/login');
+    }
+  }, [isAuthenticated, isLoading, isAuthPage, location, user, setLocation]);
   
   return (
     <ThemeProvider defaultTheme="dark">
