@@ -91,3 +91,19 @@ export function getStatusColor(status: string): string {
 export function generateId(): string {
   return Math.random().toString(36).substr(2, 9);
 }
+
+// Generate random color for UI elements
+export function getRandomColor(): string {
+  const colors = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-amber-500',
+    'bg-purple-500',
+    'bg-indigo-500',
+    'bg-pink-500',
+    'bg-red-500',
+    'bg-teal-500',
+  ];
+  
+  return colors[Math.floor(Math.random() * colors.length)];
+}

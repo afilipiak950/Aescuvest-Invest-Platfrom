@@ -14,6 +14,7 @@ import MemoGenerator from "@/pages/memo-generator";
 import InvestorMatching from "@/pages/investor-matching";
 import WorkflowAutomation from "@/pages/workflow-automation";
 import AIInvestorMatching from "@/pages/ai-investor-matching";
+import AIWorkflowAutomation from "@/pages/ai-workflow-automation";
 import NotFound from "@/pages/not-found";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
                   <Route path="/investor-matching" component={InvestorMatching} />
                   <Route path="/workflow" component={WorkflowAutomation} />
                   <Route path="/ai-investor-matching/:dealId" component={AIInvestorMatching} />
+                  <Route path="/ai-workflow-automation" component={AIWorkflowAutomation} />
                   <Route component={NotFound} />
                 </Switch>
               </main>
