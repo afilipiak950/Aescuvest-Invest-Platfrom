@@ -61,7 +61,7 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Login user
+    // Login user (email field may contain username or email)
     const { email, password } = validationResult.data;
     const result = await loginUser(email, password);
     

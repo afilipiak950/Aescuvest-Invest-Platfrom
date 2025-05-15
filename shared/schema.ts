@@ -29,7 +29,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 // Login schema for validation
 export const loginUserSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().min(1, "Email or username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 

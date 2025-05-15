@@ -58,15 +58,21 @@ export async function registerUser(userData: Omit<InsertUser, 'password'> & { pa
 }
 
 /**
- * Login a user with email and password
+ * Login a user with email or username and password
  */
-export async function loginUser(email: string, password: string): Promise<{
+export async function loginUser(emailOrUsername: string, password: string): Promise<{
   user: Omit<User, 'password'>;
   token: string;
 } | null> {
   try {
-    // Find user by email
-    const user = await storage.getUserByEmail(email);
+    // Try to find user by email first
+    let user = await storage.getUserByEmail(emailOrUsername);
+    
+    // If not found by email, try by username (using the email field)
+    if (!user) {
+      user = await storage.getUserByEmail(emailOrUsername);
+    }
+    
     if (!user) {
       return null; // User not found
     }
