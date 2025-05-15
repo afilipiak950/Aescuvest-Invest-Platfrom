@@ -65,13 +65,8 @@ export async function loginUser(emailOrUsername: string, password: string): Prom
   token: string;
 } | null> {
   try {
-    // Try to find user by email first
-    let user = await storage.getUserByEmail(emailOrUsername);
-    
-    // If not found by email, try by username (using the email field)
-    if (!user) {
-      user = await storage.getUserByEmail(emailOrUsername);
-    }
+    // Try to find user by email/username (since we're storing username in the email field)
+    const user = await storage.getUserByEmail(emailOrUsername);
     
     if (!user) {
       return null; // User not found

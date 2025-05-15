@@ -105,7 +105,7 @@ export default function LoginPage() {
                         <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-500" />
                         <FormControl>
                           <Input 
-                            placeholder="Email Address" 
+                            placeholder="Username or Email" 
                             className="pl-10 py-6 bg-gray-900/50 border-gray-800 focus:border-primary" 
                             {...field} 
                           />
