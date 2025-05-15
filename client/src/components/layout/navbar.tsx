@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Menu, X } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
   { label: 'DASHBOARD', href: '/' },
@@ -13,11 +14,17 @@ const navItems = [
 ];
 
 export default function Navbar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { logout, user } = useAuth();
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+  
+  const handleLogout = async () => {
+    await logout();
+    setLocation('/login');
   };
   
   return (
@@ -51,12 +58,23 @@ export default function Navbar() {
         </div>
         
         <div className="flex items-center">
-          <Button 
-            variant="outline" 
-            className="border-primary text-primary hover:bg-primary hover:text-dark transition duration-300 rounded-full"
-          >
-            LOG OUT
-          </Button>
+          {user ? (
+            <Button 
+              variant="outline" 
+              className="border-primary text-primary hover:bg-primary hover:text-dark transition duration-300 rounded-full"
+              onClick={handleLogout}
+            >
+              LOG OUT
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="border-primary text-primary hover:bg-primary hover:text-dark transition duration-300 rounded-full"
+              onClick={() => setLocation('/login')}
+            >
+              LOG IN
+            </Button>
+          )}
           <button 
             className="md:hidden ml-4 text-gray-400 hover:text-white"
             onClick={toggleMobileMenu}
