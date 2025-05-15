@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@lib/queryClient';
-import { User } from '@shared/schema';
+import { apiRequest } from '../lib/queryClient';
+import { User } from '../../shared/schema';
 
 export interface AuthUser extends Omit<User, 'password'> {}
 
