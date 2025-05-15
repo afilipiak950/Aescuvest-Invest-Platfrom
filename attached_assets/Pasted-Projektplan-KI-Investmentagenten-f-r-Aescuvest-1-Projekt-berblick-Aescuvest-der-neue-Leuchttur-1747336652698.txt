@@ -1,0 +1,83 @@
+Projektplan – KI-Investmentagenten für Aescuvest
+1. Projektüberblick
+Aescuvest, der neue Leuchtturm im Healthcare-Investment mit 100 Millionen AUM und 
+prominenter Unterstützung (shoutout Leo), bekommt ein AI-Upgrade: Intellywave 
+entwickelt ein maßgeschneidertes, agentisches System, das den gesamten 
+Investmentprozess von Sourcing über Due Diligence bis zur Investorenkommunikation 
+abdeckt – skalierbar, smart und smooth.
+2. Projektumfang
+§1.1 Agentic Founder Success Team
+Automatisierte Vorqualifikation eingehender Investment-Anfragen und 
+Erstkommunikation mit Gründern.
+• Allocation Agent: Erkennt Anfragen aus E-Mails & Socials, bewertet sie und 
+routet richtig.
+• Communication Agent: Antwortet mit smarten Vorlagen („kein Fit“, „Pitchdeck 
+bitte“, Follow-ups).
+• Document Agent: Legt automatisch Datensätze im CRM an, samt Dokumenten.
+• Routing Agent: Spielt qualifizierte Leads an Patrick & Olivier weiter.
+§1.2 Agentic Due Diligence Team
+Strukturierte Analyse auf mehreren Ebenen – damit kein Risiko übersehen wird.
+• Clinical Research Agent: Analysiert Studienlage & regulatorische Risiken.
+• Legal Audit Agent: Checkt Cap Table, Legal-Struktur & rechtliche Risiken.
+• Commercial Audit Agent: Nimmt Businessmodell, Markt & Skalierung unter die 
+Lupe.
+• HR Agent: Durchleuchtet Verträge, HR-Risiken & Retention.
+• Financial Audit Agent: Liest Bilanzen, Finanzkennzahlen & Debt-Level.
+• IP Agent: Bewertet Schutzrechte, Patente & technologische Moats.
+• Research Agent: Liefert Marktanalysen & Makrorisiken.
+§1.3 Agentic Advisory Team
+Verbindet spannende Deals mit passenden Investoren – smart & automatisiert.
+• Teaser Agent: Erstellt NDAsichere Opportunity-Teaser aus IMs.
+• Matching Agent: Findet relevante Investoren via Matching-Logik.
+• Communication Agent: Verschickt Teaser, vereinbart Termine, erstellt KalenderEvents.
+§1.4 Wissensdatenbank & Systemintegration
+Ein zentrales Gehirn für alle Agenten – verknüpft CRM, Affinity & Datenräume. Zusätzlich 
+wird ein individuelles Wissensprofil für Patrick aufgebaut, um Matching & Routing zu 
+verfeinern.
+§1.5 Aescuvest Deal-Frontend
+Ein zentrales Dashboard für den Überblick & die Steuerung aller Opportunities:
+• Übersichtliche Pipeline
+• Detailansichten mit Dokumenten & Analytics
+• Live-Stats & KPIs
+• Später: Advisory-Matching direkt aus dem Interface
+3. Projektphasen & Zeitplan
+Der Aufbau der agentischen Teams findet parallel statt mit einem erwarteten 
+phasenbasiertem Rollout.
+Teil 1: Aufbau des Founder Success Teams
+• Scoring Logik, Aufbau Datenbank 
+• CRM-Integration & erstes internes Testing
+• Vorläufiger Go-Live Zeitpunkt Founder Success Team: Ende Woche 4
+Teil 2: Aufbau des Advisory Teams
+• Aufbau Advisory-Team
+• Integration Affinity & Matching-Logik
+• Vorläufiger Go-Live Zeitpunkt: spätestens nach 8 Wochen
+Teil 3: Aufbau des agentischen DD Teams
+• Aufbau Due Diligence Infrastruktur (OCR, Supabase, Agenten)
+• Prompt-Tuning & Validierung
+• Vorläufiger Go-Live Zeitpunkt DD-Team: nach 12 Wochen
+Pufferphase: Woche 14–18
+• Finalisierung, Testing, Onboarding
+• Optimierung & Bugfixes
+• Alles glattziehen, bevor’s richtig losgeht
+4. Ressourcen & Pricing
+§2 Vergütung
+Zwei Zahlungsoptionen zur Auswahl:
+§2.1 Einmalzahlung:
+• Betrag: 25.000 EUR netto
+• Fällig bei Vertragsunterzeichnung
+§2.2 Ratenzahlung:
+• Gesamtbetrag: 30.000 EUR netto
+• Zahlbar in 12 Monatsraten à 2.500 EUR netto
+• Erste Rate fällig bei Vertragsunterzeichnung
+§2.3 Monatliche Nutzungsgebühr (ab Go-Live):
+• Grundpauschale (ab DD-Team): 2.000 EUR/Monat
+• Founder Success Team: 1 EUR pro automatisiertem Ticket
+• Advisory Team: 30 EUR pro erfolgreichem Investoren-Termin
+Aktivitätsklausel: Die Gebühren gelten nur, wenn das jeweilige Team aktiv war (mind. 1 
+Aktivität in den letzten 29 Tagen).
+5. Closing
+Hey Patrick, hey Olivier – wir sind hyped! Mit euch bauen wir nicht nur ein starkes 
+Investment-Team auf, sondern setzen echte Maßstäbe in der KI-Welt. Menschlich, 
+maschinell, mega effizient.
+Let’s shoot for the stars – mit Stil, Verstand und einem Glas Champagner auf den 
+nächsten Closing Call 
