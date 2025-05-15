@@ -1,14 +1,16 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
+import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 import Dashboard from "@/pages/dashboard";
 import DealIntake from "@/pages/deal-intake";
 import DueDiligence from "@/pages/due-diligence";
@@ -21,68 +23,81 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 
+function AppContent() {
+  const [location] = useLocation();
+  const { isAuthenticated } = useAuth();
+  
+  // Auth pages - don't show sidebar/navbar
+  const isAuthPage = location === '/login' || location === '/register';
+  
+  // Only show AuthenticatedLayout if user is authenticated and not on auth pages
+  const showAuthenticatedLayout = isAuthenticated && !isAuthPage;
+  
+  return (
+    <ThemeProvider defaultTheme="dark">
+      <TooltipProvider>
+        {isAuthPage ? (
+          // Login/Register pages - full screen without nav/sidebar
+          <div className="h-screen bg-dark text-white">
+            <Switch>
+              <Route path="/login" component={Login} />
+              <Route path="/register" component={Register} />
+            </Switch>
+          </div>
+        ) : (
+          // Protected routes with authenticated layout
+          showAuthenticatedLayout ? (
+            <AuthenticatedLayout>
+              <Switch>
+                <Route path="/">
+                  <Dashboard />
+                </Route>
+                <Route path="/deal-intake">
+                  <DealIntake />
+                </Route>
+                <Route path="/due-diligence">
+                  <DueDiligence />
+                </Route>
+                <Route path="/memo-generator">
+                  <MemoGenerator />
+                </Route>
+                <Route path="/investor-matching">
+                  <InvestorMatching />
+                </Route>
+                <Route path="/workflow">
+                  <WorkflowAutomation />
+                </Route>
+                <Route path="/ai-investor-matching/:dealId">
+                  <AIInvestorMatching />
+                </Route>
+                <Route path="/ai-workflow-automation">
+                  <AIWorkflowAutomation />
+                </Route>
+                <Route component={NotFound} />
+              </Switch>
+            </AuthenticatedLayout>
+          ) : (
+            // Redirect to login if not authenticated
+            <Switch>
+              <Route>
+                <ProtectedRoute>
+                  <div>Loading...</div>
+                </ProtectedRoute>
+              </Route>
+            </Switch>
+          )
+        )}
+        <Toaster />
+      </TooltipProvider>
+    </ThemeProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider defaultTheme="dark">
-          <TooltipProvider>
-            <div className="flex h-screen overflow-hidden bg-dark text-white">
-              <Sidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <Navbar />
-                <main className="flex-1 overflow-y-auto">
-                  <Switch>
-                    <Route path="/login" component={Login} />
-                    <Route path="/register" component={Register} />
-                    <Route path="/">
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/deal-intake">
-                      <ProtectedRoute>
-                        <DealIntake />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/due-diligence">
-                      <ProtectedRoute>
-                        <DueDiligence />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/memo-generator">
-                      <ProtectedRoute>
-                        <MemoGenerator />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/investor-matching">
-                      <ProtectedRoute>
-                        <InvestorMatching />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/workflow">
-                      <ProtectedRoute>
-                        <WorkflowAutomation />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/ai-investor-matching/:dealId">
-                      <ProtectedRoute>
-                        <AIInvestorMatching />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/ai-workflow-automation">
-                      <ProtectedRoute>
-                        <AIWorkflowAutomation />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route component={NotFound} />
-                  </Switch>
-                </main>
-              </div>
-            </div>
-            <Toaster />
-          </TooltipProvider>
-        </ThemeProvider>
+        <AppContent />
       </AuthProvider>
     </QueryClientProvider>
   );
