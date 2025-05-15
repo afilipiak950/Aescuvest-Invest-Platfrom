@@ -32,15 +32,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     queryKey: ['/api/auth/me'],
     retry: false,
     refetchOnWindowFocus: false,
-    onSuccess: (data) => {
-      if (data) {
-        setUser(data);
-      }
-    },
-    onError: () => {
+  });
+  
+  useEffect(() => {
+    if (fetchedUser) {
+      setUser(fetchedUser as User);
+    } else {
       setUser(null);
     }
-  });
+  }, [fetchedUser]);
 
   const login = async (email: string, password: string) => {
     try {

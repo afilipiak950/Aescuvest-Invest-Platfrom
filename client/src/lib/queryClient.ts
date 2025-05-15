@@ -38,7 +38,10 @@ export const defaultFetcher = async (url: string) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  const response = await fetch(`${baseUrl}${url}`, { headers });
+  const response = await fetch(`${baseUrl}${url}`, { 
+    headers,
+    credentials: 'include' // Include cookies for auth
+  });
   return handleApiResponse(response);
 };
 
@@ -62,6 +65,7 @@ export const apiRequest = async <T = any>(
     const response = await fetch(`${baseUrl}${url}`, {
       ...options,
       headers,
+      credentials: 'include', // Include cookies for auth
     });
     
     return handleApiResponse(response);

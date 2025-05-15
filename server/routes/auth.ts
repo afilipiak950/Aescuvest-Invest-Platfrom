@@ -123,4 +123,20 @@ router.get('/users', authenticate, requireAdmin, async (req: Request, res: Respo
   }
 });
 
+/**
+ * @route POST /api/auth/logout
+ * @desc Logout user
+ * @access Public
+ */
+router.post('/logout', (req: Request, res: Response) => {
+  try {
+    // In a token-based auth system, the client is responsible for removing the token
+    // This endpoint is provided as a convenience for clients to call when logging out
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Error in /logout:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;
