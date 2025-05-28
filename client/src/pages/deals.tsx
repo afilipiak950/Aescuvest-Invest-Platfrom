@@ -52,6 +52,7 @@ export default function DealsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sectorFilter, setSectorFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const { data: deals = [], isLoading } = useQuery<Deal[]>({
     queryKey: ['/api/deals'],
@@ -69,24 +70,49 @@ export default function DealsPage() {
   const uniqueSectors = Array.from(new Set(deals.map(deal => deal.sector)));
   const uniqueStatuses = Array.from(new Set(deals.map(deal => deal.status)));
 
+  if (showCreateForm) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowCreateForm(false)}
+            className="mb-4 bg-dark-lighter hover:bg-dark border-dark-lighter"
+          >
+            ← Zurück zur Deal-Übersicht
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">Neuen Deal anlegen</h1>
+          <p className="text-gray-400">Erstelle eine neue Investment-Opportunity im System</p>
+        </div>
+
+        <Card className="bg-dark-light border-dark-lighter">
+          <CardContent className="pt-6">
+            <DealForm />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Deal Management</h1>
-        <p className="text-gray-400">Verwalte alle Investment-Opportunities und erstelle neue Deals</p>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Deal Management</h1>
+            <p className="text-gray-400">Verwalte alle Investment-Opportunities</p>
+          </div>
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            className="bg-primary hover:bg-primary-hover text-white"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Neuen Deal erstellen
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 bg-dark-light">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-primary">
-            Alle Deals
-          </TabsTrigger>
-          <TabsTrigger value="create" className="data-[state=active]:bg-primary">
-            Neuen Deal anlegen
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
+      <div className="space-y-6">
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card className="bg-dark-light border-dark-lighter">
@@ -301,20 +327,7 @@ export default function DealsPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="create" className="space-y-6">
-          <Card className="bg-dark-light border-dark-lighter">
-            <CardHeader>
-              <CardTitle>Neuen Deal anlegen</CardTitle>
-              <p className="text-gray-400">Erstelle eine neue Investment-Opportunity im System</p>
-            </CardHeader>
-            <CardContent>
-              <DealForm />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
+        </div>
+      </div>
+    );
+  }
