@@ -1,10 +1,69 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import multer from "multer";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Setup multer for file uploads BEFORE any other middleware
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
+
+// CRITICAL: Register upload route IMMEDIATELY, before any other middleware
+console.log('🚀 REGISTERING UPLOAD ROUTE DIRECTLY IN SERVER');
+app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
+  console.log('🎯 UPLOAD ROUTE HIT IN MAIN SERVER!');
+  console.log('Method:', req.method, 'URL:', req.url);
+  console.log('Files received:', req.files?.length || 0);
+  console.log('Body dealId:', req.body?.dealId);
+  
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    
+    const files = req.files as Express.Multer.File[];
+    const dealId = req.body.dealId;
+    
+    if (!files || files.length === 0) {
+      console.log('❌ No files found');
+      return res.status(400).json({ 
+        success: false,
+        message: 'No files uploaded' 
+      });
+    }
+
+    const uploadedFiles = files.map((file, index) => ({
+      id: `file_${Date.now()}_${index}`,
+      name: file.originalname,
+      size: file.size,
+      type: file.mimetype,
+      status: 'uploaded'
+    }));
+
+    console.log('✅ SUCCESS! Responding with JSON for', uploadedFiles.length, 'files');
+    
+    return res.status(200).json({
+      success: true,
+      message: `${uploadedFiles.length} file(s) uploaded successfully`,
+      files: uploadedFiles,
+      dealId: dealId || null
+    });
+
+  } catch (error) {
+    console.error('💥 UPLOAD ERROR IN MAIN SERVER:', error);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ 
+      success: false,
+      message: 'Upload failed', 
+      error: String(error) 
+    });
+  }
+});
 
 // Setup persistent sessions with PostgreSQL
 const pgStore = connectPg(session);

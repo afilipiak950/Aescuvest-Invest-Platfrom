@@ -64,6 +64,13 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // CRITICAL TEST: Simple test route to verify Express is working
+  console.log('🚀 REGISTERING TEST ROUTE');
+  app.get('/api/test-route', (req: Request, res: Response) => {
+    console.log('🎯 TEST ROUTE HIT!');
+    res.json({ message: 'Express route working!', timestamp: new Date().toISOString() });
+  });
+  
   // URGENT DEBUG: Direct route registration to bypass middleware issues
   console.log('🔧 Registering DIRECT upload route...');
   app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
