@@ -48,25 +48,44 @@ export class EmailInboxService {
     }
 
     try {
+      console.log('Testing IMAP connection to:', this.config.host, 'port:', this.config.port);
+      
       const client = new ImapFlow({
         host: this.config.host,
         port: this.config.port,
         secure: this.config.secure,
         auth: {
           user: this.config.username,
-          pass: decodeURIComponent(this.config.password), // Handle URL-encoded special characters
+          pass: this.config.password, // Don't decode - keep password as-is
         },
+        logger: false // Disable logging for cleaner output
       });
 
       await client.connect();
+      console.log('IMAP connection successful');
       await client.logout();
       
       return { success: true };
     } catch (error) {
       console.error('IMAP connection test failed:', error);
+      
+      let errorMessage = 'Unknown connection error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Provide specific error messages for common issues
+        if (errorMessage.includes('authentication')) {
+          errorMessage = 'Authentication failed. For Outlook, you need an App Password instead of your regular password.';
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED')) {
+          errorMessage = 'Connection timeout. Check server address and port.';
+        } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
+          errorMessage = 'SSL/TLS certificate error. Try with different security settings.';
+        }
+      }
+      
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown connection error' 
+        error: errorMessage
       };
     }
   }
