@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Link } from 'wouter';
 import * as LucideIcons from 'lucide-react';
 
 interface Action {
@@ -44,10 +45,10 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
                 asChild={!!action.href}
               >
                 {action.href ? (
-                  <a href={action.href}>
+                  <Link href={action.href}>
                     {action.icon && renderIcon(action.icon)}
                     <span>{action.label}</span>
-                  </a>
+                  </Link>
                 ) : (
                   <>
                     {action.icon && renderIcon(action.icon)}
