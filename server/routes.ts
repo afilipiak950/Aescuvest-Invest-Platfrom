@@ -18,6 +18,7 @@ import aiAgentRoutes from "./routes/ai-agents";
 import authRoutes from "./routes/auth";
 import emailRoutes from "./routes/email";
 import inboxRoutes from "./routes/inbox";
+import microsoftAuthRoutes from "./routes/microsoftAuth";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -338,6 +339,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register AI agent routes
   app.use('/api/ai', aiAgentRoutes);
+  
+  // Register Microsoft OAuth routes
+  app.use('/api/microsoft', microsoftAuthRoutes);
+  
+  // Register other routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/email', emailRoutes);
+  app.use('/api/inbox', inboxRoutes);
   
   const httpServer = createServer(app);
   return httpServer;

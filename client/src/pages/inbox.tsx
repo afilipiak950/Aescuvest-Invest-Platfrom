@@ -157,6 +157,37 @@ export default function InboxPage() {
     configMutation.mutate(imapConfig);
   };
 
+  // Microsoft 365 OAuth authentication
+  const handleMicrosoftAuth = async () => {
+    try {
+      const response = await fetch('/api/microsoft/auth-url', {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get authorization URL');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.authUrl) {
+        // Open Microsoft login in new window
+        window.open(data.authUrl, '_blank');
+        
+        toast({
+          title: "Microsoft-Anmeldung geöffnet",
+          description: "Melde dich in dem neuen Fenster mit deinen Microsoft 365-Zugangsdaten an.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Fehler bei Microsoft-Anmeldung",
+        description: "Konnte Anmeldung nicht starten. Versuche es erneut.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleViewEmail = (email: EmailMessage) => {
     setSelectedEmail(email);
     setEmailDialogOpen(true);
@@ -214,27 +245,19 @@ export default function InboxPage() {
               </DialogHeader>
 
               <div className="space-y-4">
-                {/* Outlook Quick Setup */}
-                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-blue-300 mb-2">✨ Outlook Schnell-Setup</h3>
+                {/* Microsoft 365 OAuth Setup */}
+                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-green-300 mb-2">🚀 Microsoft 365 Business - Sichere Anmeldung</h3>
                   <p className="text-xs text-gray-400 mb-3">
-                    Für ideas@aescuvest.vc (Outlook) verwende diese Einstellungen:
+                    Für Business-Accounts: Einfach mit deinen normalen Microsoft-Zugangsdaten anmelden
                   </p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setImapConfig({
-                        host: 'outlook.office365.com',
-                        port: 993,
-                        secure: true,
-                        username: 'ideas@aescuvest.vc',
-                        password: ''
-                      });
-                    }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 border-blue-500"
+                    onClick={handleMicrosoftAuth}
+                    className="w-full bg-green-600 hover:bg-green-700 border-green-500"
                   >
-                    Outlook-Einstellungen laden
+                    Mit Microsoft 365 verbinden
                   </Button>
                 </div>
 
