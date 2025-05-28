@@ -1,8 +1,34 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Setup persistent sessions with PostgreSQL
+const pgStore = connectPg(session);
+const sessionStore = new pgStore({
+  conString: process.env.DATABASE_URL,
+  createTableIfMissing: true,
+  ttl: 30 * 24 * 60 * 60, // 30 days in seconds
+  tableName: "user_sessions",
+});
+
+// Configure session middleware
+app.use(session({
+  store: sessionStore,
+  secret: process.env.JWT_SECRET || 'investment-platform-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+  },
+  name: 'aescuvest-session'
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
