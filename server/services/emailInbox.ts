@@ -1,3 +1,4 @@
+// @ts-ignore - No types available for imapflow
 import { ImapFlow } from 'imapflow';
 import { parseEmailForDealInfo, generateFounderResponse } from './emailParser';
 import { MailService } from '@sendgrid/mail';
