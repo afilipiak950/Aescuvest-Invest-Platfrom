@@ -53,7 +53,8 @@ export async function getMicrosoftAuthUrl(redirectUri: string): Promise<string> 
       `&redirect_uri=${redirectUriEncoded}` +
       `&scope=${scopes}` +
       `&state=${state}` +
-      `&response_mode=query`;
+      `&response_mode=query` +
+      `&prompt=consent`;
     
     console.log('[Microsoft OAuth Service] Manual auth URL created:', authUrl);
     
