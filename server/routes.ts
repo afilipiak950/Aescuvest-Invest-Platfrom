@@ -17,6 +17,7 @@ import fs from "fs";
 import aiAgentRoutes from "./routes/ai-agents";
 import authRoutes from "./routes/auth";
 import emailRoutes from "./routes/email";
+import inboxRoutes from "./routes/inbox";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -64,6 +65,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount email routes
   app.use('/api/email', emailRoutes);
+  
+  // Mount inbox routes
+  app.use('/api/inbox', inboxRoutes);
   
   // Deal routes
   app.get('/api/deals', async (req: Request, res: Response) => {
