@@ -171,13 +171,28 @@ export default function InboxPage() {
       const data = await response.json();
       
       if (data.success && data.authUrl) {
-        // Open Microsoft login in new window
-        window.open(data.authUrl, '_blank');
+        console.log('Microsoft auth response:', data);
+        console.log('Auth URL type:', typeof data.authUrl);
+        console.log('Auth URL value:', data.authUrl);
         
-        toast({
-          title: "Microsoft-Anmeldung geöffnet",
-          description: "Melde dich in dem neuen Fenster mit deinen Microsoft 365-Zugangsdaten an.",
-        });
+        // Ensure authUrl is a string
+        const authUrl = typeof data.authUrl === 'string' ? data.authUrl : String(data.authUrl);
+        
+        if (authUrl && authUrl !== '[object Object]' && authUrl.startsWith('http')) {
+          // Open Microsoft login in new window
+          window.open(authUrl, '_blank');
+          
+          toast({
+            title: "Microsoft-Anmeldung geöffnet",
+            description: "Melde dich in dem neuen Fenster mit deinen Microsoft 365-Zugangsdaten an.",
+          });
+        } else {
+          toast({
+            title: "Fehler bei Microsoft-Anmeldung",
+            description: `Ungültige Auth-URL: ${authUrl}`,
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
