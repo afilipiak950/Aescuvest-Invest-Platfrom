@@ -5,7 +5,6 @@ import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: List, label: 'All Deals', href: '/all-deals' },
-  { icon: Briefcase, label: 'Deals', href: '/deals' },
   { icon: Mail, label: 'Inbox', href: '/inbox' },
   { icon: FileUp, label: 'Deal Intake', href: '/deal-intake' },
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },

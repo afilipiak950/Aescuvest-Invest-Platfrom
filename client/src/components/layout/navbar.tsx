@@ -10,7 +10,6 @@ const navItems = [
   { label: 'DASHBOARD', href: '/' },
   { label: 'ALL DEALS', href: '/all-deals' },
   { label: 'INBOX', href: '/inbox' },
-  { label: 'DEALS', href: '/deal-intake' },
   { label: 'ANALYSIS', href: '/due-diligence' },
   { label: 'INVESTORS', href: '/investor-matching' },
   { label: 'SETTINGS', href: '#' }
