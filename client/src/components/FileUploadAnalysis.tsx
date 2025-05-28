@@ -38,21 +38,48 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
 
   const uploadMutation = useMutation({
     mutationFn: async (fileList: FileList) => {
+      console.log('Starting upload mutation with files:', fileList.length);
+      
       const formData = new FormData();
-      Array.from(fileList).forEach(file => formData.append('files', file));
-      if (dealId) formData.append('dealId', dealId);
+      Array.from(fileList).forEach(file => {
+        console.log('Adding file to FormData:', file.name, file.type, file.size);
+        formData.append('files', file);
+      });
+      
+      if (dealId) {
+        console.log('Adding dealId to FormData:', dealId);
+        formData.append('dealId', dealId);
+      }
 
+      console.log('Sending request to /api/documents/upload-analyze');
+      
       const response = await fetch('/api/documents/upload-analyze', {
         method: 'POST',
         body: formData,
         credentials: 'include'
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorText = await response.text();
+        console.error('Upload failed with response:', errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
-      return response.json();
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+      
+      try {
+        const result = JSON.parse(responseText);
+        console.log('Parsed JSON result:', result);
+        return result;
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        console.error('Response text that failed to parse:', responseText);
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`);
+      }
     },
     onSuccess: (data) => {
       toast({
