@@ -89,9 +89,10 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
         title: "Files Processed Successfully!",
         description: `${data.files.length} file(s) analyzed. AI insights ready for review.`,
       });
-      // Start processing each file
-      data.files.forEach((file: any) => {
-        processFile(file);
+      // Start processing each file with the analysis data
+      data.files.forEach((file: any, index: number) => {
+        const analysis = data.analyses[index];
+        processFileWithAnalysis(file, analysis);
       });
     },
     onError: (error) => {
@@ -103,7 +104,7 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
     }
   });
 
-  const processFile = async (uploadedFile: any) => {
+  const processFileWithAnalysis = async (uploadedFile: any, analysis: any) => {
     const fileId = uploadedFile.id;
     
     // Add file to state
