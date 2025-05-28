@@ -17,55 +17,61 @@ router.post('/config', authenticate, requireAdmin, (req: Request, res: Response)
   try {
     const { host, port, secure, username, password } = req.body;
 
+    // Validation
     if (!host || !username || !password) {
       return res.status(400).json({
+        success: false,
         message: 'Missing required fields: host, username, password'
       });
     }
 
-    // Validate input types
-    if (typeof host !== 'string' || typeof username !== 'string' || typeof password !== 'string') {
-      return res.status(400).json({
-        message: 'Invalid input types'
+    // Create safe config object
+    const config: ImapConfig = {
+      host: String(host).trim(),
+      port: Number(port) || (secure ? 993 : 143),
+      secure: Boolean(secure),
+      username: String(username).trim(),
+      password: String(password),
+    };
+
+    // Save config safely without any async operations that could crash
+    try {
+      emailInboxService.setConfig(config);
+      console.log('IMAP config saved successfully:', { 
+        host: config.host, 
+        port: config.port, 
+        secure: config.secure, 
+        username: config.username 
+      });
+    } catch (configError) {
+      console.error('Config save error:', configError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save configuration',
+        error: 'Configuration service error'
       });
     }
 
-    const config: ImapConfig = {
-      host,
-      port: port || (secure ? 993 : 143),
-      secure: secure !== false, // Default to secure
-      username,
-      password,
-    };
-
-    // Test connection
-    emailInboxService.setConfig(config);
-    
-    // Skip IMAP connection test for now - it's causing the HTML error
-    console.log('IMAP config saved (test skipped):', { host, port, secure, username });
-
-    res.json({
+    // Return success immediately
+    return res.status(200).json({
+      success: true,
       message: 'IMAP configuration saved successfully',
       config: {
         host: config.host,
         port: config.port,
         secure: config.secure,
         username: config.username,
-        // Don't return password in response
-      },
-      note: 'Configuration saved. Connection test temporarily disabled.'
+      }
     });
 
   } catch (error) {
-    console.error('Error configuring IMAP:', error);
+    console.error('Inbox config route error:', error);
     
-    // Ensure we always return JSON
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    res.status(500).json({
-      message: 'Failed to configure IMAP settings',
-      error: errorMessage,
-      details: 'Server encountered an unexpected error'
+    // Absolutely ensure JSON response
+    return res.status(500).json({
+      success: false,
+      message: 'Configuration failed',
+      error: error instanceof Error ? error.message : 'Unknown server error'
     });
   }
 });
