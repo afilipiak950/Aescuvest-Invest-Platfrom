@@ -53,7 +53,7 @@ router.get('/callback', async (req: Request, res: Response) => {
       return res.status(400).send('Authorization code missing');
     }
     
-    const redirectUri = `${req.protocol}://${req.hostname}/api/microsoft/callback`;
+    const redirectUri = `https://${req.hostname}/api/microsoft/callback`;
     const tokens = await exchangeCodeForTokens(code, redirectUri);
     
     // Store tokens (in production, store securely in database)
