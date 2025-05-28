@@ -18,7 +18,7 @@ router.get('/auth-url', authenticate, requireAdmin, async (req: Request, res: Re
     console.log('[Microsoft OAuth] Protocol:', req.protocol);
     console.log('[Microsoft OAuth] Hostname:', req.hostname);
     
-    const redirectUri = `${req.protocol}://${req.hostname}/api/microsoft/callback`;
+    const redirectUri = `https://${req.hostname}/api/microsoft/callback`;
     console.log('[Microsoft OAuth] Redirect URI:', redirectUri);
     
     const authUrl = await getMicrosoftAuthUrl(redirectUri);
