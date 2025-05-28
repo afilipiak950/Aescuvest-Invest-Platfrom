@@ -12,10 +12,10 @@ let microsoftTokens: any = null;
  * @desc Get Microsoft OAuth2 authorization URL
  * @access Private (Admin only)
  */
-router.get('/auth-url', authenticate, requireAdmin, (req: Request, res: Response) => {
+router.get('/auth-url', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const redirectUri = `${req.protocol}://${req.hostname}/api/microsoft/callback`;
-    const authUrl = getMicrosoftAuthUrl(redirectUri);
+    const authUrl = await getMicrosoftAuthUrl(redirectUri);
     
     res.json({
       success: true,

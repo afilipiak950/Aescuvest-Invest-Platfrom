@@ -3,9 +3,18 @@ import { ConfidentialClientApplication, AuthenticationResult } from '@azure/msal
 // Microsoft 365 OAuth2 configuration
 const msalConfig = {
   auth: {
-    clientId: process.env.MICROSOFT_CLIENT_ID || '',
-    clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
+    clientId: process.env.MICROSOFT_CLIENT_ID!,
+    clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
     authority: 'https://login.microsoftonline.com/common'
+  },
+  system: {
+    loggerOptions: {
+      loggerCallback(loglevel: any, message: string) {
+        console.log(`[Microsoft OAuth] ${message}`);
+      },
+      piiLoggingEnabled: false,
+      logLevel: 1, // Info level for debugging
+    }
   }
 };
 
@@ -20,13 +29,13 @@ export interface MicrosoftTokens {
 /**
  * Get authorization URL for Microsoft OAuth2
  */
-export function getMicrosoftAuthUrl(redirectUri: string): string {
+export async function getMicrosoftAuthUrl(redirectUri: string): Promise<string> {
   const authCodeUrlParameters = {
     scopes: ['https://outlook.office.com/IMAP.AccessAsUser.All', 'offline_access'],
     redirectUri: redirectUri,
   };
 
-  return msalInstance.getAuthCodeUrl(authCodeUrlParameters);
+  return await msalInstance.getAuthCodeUrl(authCodeUrlParameters);
 }
 
 /**
