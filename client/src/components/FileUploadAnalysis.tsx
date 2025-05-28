@@ -51,9 +51,9 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
         formData.append('dealId', dealId);
       }
 
-      console.log('Sending request to /api/documents/upload-analyze');
+      console.log('Sending request to /api/auth/upload-files');
       
-      const response = await fetch('/api/documents/upload-analyze', {
+      const response = await fetch('/api/auth/upload-files', {
         method: 'POST',
         body: formData,
         credentials: 'include'
