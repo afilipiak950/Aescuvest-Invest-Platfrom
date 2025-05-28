@@ -28,19 +28,37 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   
-  const { data: fetchedUser, isLoading } = useQuery({
-    queryKey: ['/api/auth/me'],
+  // Check session first (persistent login), then fall back to JWT
+  const { data: sessionData, isLoading: sessionLoading } = useQuery({
+    queryKey: ['/api/auth/session'],
     retry: false,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
   });
-  
+
+  // Only check JWT if session is not authenticated
+  const { data: fetchedUser, isLoading: userLoading } = useQuery({
+    queryKey: ['/api/auth/me'],
+    retry: false,
+    enabled: !sessionData?.authenticated, // Only run if session check failed
+    refetchOnWindowFocus: false,
+  });
+
+  const isLoading = sessionLoading || (userLoading && !sessionData?.authenticated);
+
+  // Update user state when session or user data changes
   useEffect(() => {
-    if (fetchedUser) {
-      setUser(fetchedUser as User);
+    if (sessionData?.authenticated && sessionData?.user) {
+      console.log('Auth state: Authenticated via session, user:', sessionData.user.email);
+      setUser(sessionData.user);
+    } else if (fetchedUser) {
+      console.log('Auth state: Authenticated via JWT, user:', fetchedUser.email);
+      setUser(fetchedUser);
     } else {
+      console.log('Auth state: Not authenticated, redirecting to login');
       setUser(null);
     }
-  }, [fetchedUser]);
+  }, [sessionData, fetchedUser]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -64,7 +82,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(data.user);
       }
       
-      // Also refresh the current user data in the background
+      // Refresh both session and user data in the background
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/session'] });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       
       return { success: true, user: data.user };
