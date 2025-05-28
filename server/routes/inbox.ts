@@ -21,6 +21,13 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
       });
     }
 
+    // Validate input types
+    if (typeof host !== 'string' || typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({
+        message: 'Invalid input types'
+      });
+    }
+
     const config: ImapConfig = {
       host,
       port: port || (secure ? 993 : 143),
@@ -55,9 +62,14 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
 
   } catch (error) {
     console.error('Error configuring IMAP:', error);
+    
+    // Ensure we always return JSON
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
     res.status(500).json({
       message: 'Failed to configure IMAP settings',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage,
+      details: 'Server encountered an unexpected error'
     });
   }
 });
