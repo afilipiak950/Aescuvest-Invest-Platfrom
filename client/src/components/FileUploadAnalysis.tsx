@@ -92,7 +92,7 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
       // Step 1: OCR Processing
       updateFileStatus(fileId, 'processing', 20);
       
-      const ocrResponse = await fetch('/api/ai-agents/ocr/extract', {
+      const ocrResponse = await fetch('/api/documents/ocr/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -119,7 +119,7 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
       for (const analysis of analysisTypes) {
         updateFileStatus(fileId, 'analyzing', analysis.progress);
         
-        const analysisResponse = await fetch('/api/ai-agents/analyze', {
+        const analysisResponse = await fetch('/api/documents/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
