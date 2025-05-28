@@ -5,7 +5,7 @@ import { InsertUser, User, UserRole } from '@shared/schema';
 
 // JWT secret key - in production, use env variable
 const JWT_SECRET = process.env.JWT_SECRET || 'investment-platform-secret-key';
-const JWT_EXPIRY = '24h'; // Token expires in 24 hours
+const JWT_EXPIRY = '30d'; // Token expires in 30 days
 
 interface TokenPayload {
   userId: number;
