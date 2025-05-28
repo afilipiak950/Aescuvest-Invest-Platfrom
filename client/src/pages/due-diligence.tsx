@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/page-header';
 import DocumentList from '@/components/due-diligence/document-list';
 import AgentCard from '@/components/due-diligence/agent-card';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
+import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -317,6 +318,9 @@ export default function DueDiligence() {
         </div>
       ) : currentDeal ? (
         <>
+          {/* File Upload & Analysis */}
+          <FileUploadAnalysis dealId={selectedDeal} />
+          
           {/* Documents */}
           <Card className="bg-dark-light border-dark-lighter mb-6">
             <CardHeader className="pb-3">
