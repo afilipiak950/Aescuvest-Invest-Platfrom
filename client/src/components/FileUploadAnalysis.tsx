@@ -136,25 +136,14 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
         { key: 'competitiveAnalysis', name: 'Competitive Analysis', progress: 90 }
       ];
 
-      for (const analysis of analysisTypes) {
-        updateFileStatus(fileId, 'analyzing', analysis.progress);
+      for (const analysisType of analysisTypes) {
+        updateFileStatus(fileId, 'analyzing', analysisType.progress);
         
-        const analysisResponse = await fetch('/api/documents/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            documentId: fileId,
-            analysisType: analysis.key,
-            extractedText: ocrResult.extractedText,
-            prompt: getPredefinedPrompt(analysis.key)
-          })
-        });
-
-        if (analysisResponse.ok) {
-          const result = await analysisResponse.json();
-          (analyses as any)[analysis.key] = result.analysis;
-        }
+        // Use the pre-generated analysis from client-side processing
+        (analyses as any)[analysisType.key] = (analysis as any)[analysisType.key];
+        
+        // Small delay to simulate processing
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // Complete
