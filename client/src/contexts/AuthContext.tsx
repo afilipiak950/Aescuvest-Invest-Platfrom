@@ -26,14 +26,23 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize from localStorage to maintain state across reloads
+    const storedUser = localStorage.getItem('auth_user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   
   // Check session status on app load (persistent login)
   const { data: sessionData, isLoading } = useQuery({
     queryKey: ['/api/auth/session'],
-    retry: false,
-    staleTime: Infinity, // Don't auto-refresh, only when explicitly invalidated
+    retry: (failureCount, error: any) => {
+      // Only retry if it's a network error, not auth failure
+      return failureCount < 2 && error?.status !== 401;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60 * 1000, // Refresh every 10 minutes
+    initialData: user ? { authenticated: true, user } : undefined,
   });
 
   // Update user state when session data changes
@@ -42,9 +51,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (sessionData.authenticated && sessionData.user) {
         console.log('Auth state: Authenticated via session, user:', sessionData.user.email);
         setUser(sessionData.user);
+        // Persist to localStorage for permanent login
+        localStorage.setItem('auth_user', JSON.stringify(sessionData.user));
       } else {
-        console.log('Auth state: Not authenticated, redirecting to login');
+        console.log('Auth state: Not authenticated, clearing stored data');
         setUser(null);
+        localStorage.removeItem('auth_user');
       }
     }
   }, [sessionData]);
@@ -69,6 +81,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Immediately set the user data from the response
       if (data.user) {
         setUser(data.user);
+        // Persist to localStorage for permanent login
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
       }
       
       // Refresh both session and user data in the background
@@ -113,6 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       
       setUser(null);
+      // Clear localStorage on logout
+      localStorage.removeItem('auth_user');
       
       // Clear all query cache upon logout
       queryClient.clear();

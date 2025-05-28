@@ -75,11 +75,9 @@ router.post('/login', async (req: Request, res: Response) => {
     (req.session as any).userRole = result.user.role;
     (req.session as any).stayLoggedIn = stayLoggedIn;
     
-    // Set extended session duration if stayLoggedIn is true
-    if (stayLoggedIn) {
-      req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
-      console.log('Extended session set for 90 days for user:', result.user.email);
-    }
+    // Set extended session duration - always use long-lived sessions for persistence
+    req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days for permanent login
+    console.log('Extended session set for 90 days for user:', result.user.email);
     
     // Force session save before sending response
     req.session.save((err) => {
