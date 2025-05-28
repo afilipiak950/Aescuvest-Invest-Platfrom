@@ -62,7 +62,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Login user (email field may contain username or email)
-    const { email, password } = validationResult.data;
+    const { email, password, stayLoggedIn } = validationResult.data;
     const result = await loginUser(email, password);
     
     if (!result) {
@@ -73,6 +73,13 @@ router.post('/login', async (req: Request, res: Response) => {
     (req.session as any).userId = result.user.id;
     (req.session as any).userEmail = result.user.email;
     (req.session as any).userRole = result.user.role;
+    (req.session as any).stayLoggedIn = stayLoggedIn;
+    
+    // Set extended session duration if stayLoggedIn is true
+    if (stayLoggedIn) {
+      req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
+      console.log('Extended session set for 90 days for user:', result.user.email);
+    }
     
     // Force session save before sending response
     req.session.save((err) => {
@@ -84,7 +91,8 @@ router.post('/login', async (req: Request, res: Response) => {
         res.json({
           message: 'Login successful',
           user: result.user,
-          token: result.token
+          token: result.token,
+          stayLoggedIn: stayLoggedIn
         });
       }
     });

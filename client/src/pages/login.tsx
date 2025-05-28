@@ -19,6 +19,7 @@ const loginSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters" }),
+  stayLoggedIn: z.boolean().default(false),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -34,6 +35,7 @@ export default function LoginPage() {
     defaultValues: {
       email: "",
       password: "",
+      stayLoggedIn: false,
     },
   });
 
@@ -42,12 +44,12 @@ export default function LoginPage() {
     setError(null);
     
     try {
-      const result = await login(data.email, data.password);
+      const result = await login(data.email, data.password, data.stayLoggedIn);
       
       if (result.success) {
         toast({
           title: "Login Successful",
-          description: "You have been logged in successfully.",
+          description: data.stayLoggedIn ? "You will stay logged in permanently." : "You have been logged in successfully.",
         });
         // App.tsx will handle the redirect automatically based on auth state
       } else {
@@ -139,6 +141,28 @@ export default function LoginPage() {
                         </FormControl>
                       </div>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="stayLoggedIn"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="h-4 w-4 text-primary bg-gray-900 border-gray-600 rounded focus:ring-primary focus:ring-2"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <label className="text-sm font-medium text-gray-300">
+                          Angemeldet bleiben (90 Tage)
+                        </label>
+                      </div>
                     </FormItem>
                   )}
                 />
