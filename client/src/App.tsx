@@ -20,6 +20,7 @@ import InvestorMatching from "@/pages/investor-matching";
 import WorkflowAutomation from "@/pages/workflow-automation";
 import AIInvestorMatching from "@/pages/ai-investor-matching";
 import AIWorkflowAutomation from "@/pages/ai-workflow-automation";
+import EmailTestPage from "@/pages/email-test";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
@@ -88,6 +89,9 @@ function AppContent() {
               </Route>
               <Route path="/ai-workflow-automation">
                 <AIWorkflowAutomation />
+              </Route>
+              <Route path="/email-test">
+                <EmailTestPage />
               </Route>
               <Route component={NotFound} />
             </Switch>
