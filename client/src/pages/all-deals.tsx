@@ -215,9 +215,11 @@ export default function AllDealsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" className="bg-dark-lighter hover:bg-dark border-dark-lighter text-white">
-              All Deals
-            </Button>
+            <Link href="/deal-intake">
+              <Button variant="outline" className="bg-primary hover:bg-primary/80 border-primary text-white">
+                Create Deal
+              </Button>
+            </Link>
           </div>
         </div>
 
