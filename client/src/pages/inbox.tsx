@@ -214,13 +214,37 @@ export default function InboxPage() {
               </DialogHeader>
 
               <div className="space-y-4">
+                {/* Outlook Quick Setup */}
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-blue-300 mb-2">✨ Outlook Schnell-Setup</h3>
+                  <p className="text-xs text-gray-400 mb-3">
+                    Für ideas@aescuvest.vc (Outlook) verwende diese Einstellungen:
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setImapConfig({
+                        host: 'outlook.office365.com',
+                        port: 993,
+                        secure: true,
+                        username: 'ideas@aescuvest.vc',
+                        password: ''
+                      });
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 border-blue-500"
+                  >
+                    Outlook-Einstellungen laden
+                  </Button>
+                </div>
+
                 <div>
                   <Label htmlFor="host">IMAP Server</Label>
                   <Input
                     id="host"
                     value={imapConfig.host}
                     onChange={(e) => setImapConfig({ ...imapConfig, host: e.target.value })}
-                    placeholder="imap.gmail.com"
+                    placeholder="outlook.office365.com"
                     className="bg-gray-800 border-gray-700"
                   />
                 </div>
@@ -264,8 +288,30 @@ export default function InboxPage() {
                     type="password"
                     value={imapConfig.password}
                     onChange={(e) => setImapConfig({ ...imapConfig, password: e.target.value })}
+                    placeholder="Dein Microsoft App-Passwort (16 Zeichen)"
                     className="bg-gray-800 border-gray-700"
                   />
+                  
+                  {/* App-Passwort Hilfe für Outlook */}
+                  {imapConfig.host.includes('outlook') && (
+                    <div className="mt-2 bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
+                      <h4 className="text-xs font-medium text-yellow-300 mb-1">🔑 Microsoft App-Passwort benötigt</h4>
+                      <div className="text-xs text-gray-400 space-y-1">
+                        <p>1. Gehe zu: <span className="text-blue-400">account.microsoft.com</span></p>
+                        <p>2. Klicke auf "Sicherheit" → "Erweiterte Sicherheitsoptionen"</p>
+                        <p>3. Suche "App-Passwörter" und erstelle ein neues</p>
+                        <p>4. Kopiere das 16-stellige Passwort hierher</p>
+                      </div>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-blue-400 text-xs mt-1"
+                        onClick={() => window.open('https://account.microsoft.com/security', '_blank')}
+                      >
+                        Microsoft-Sicherheitseinstellungen öffnen →
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Button 
