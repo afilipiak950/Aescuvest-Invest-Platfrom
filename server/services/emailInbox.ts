@@ -54,7 +54,7 @@ export class EmailInboxService {
         secure: this.config.secure,
         auth: {
           user: this.config.username,
-          pass: this.config.password,
+          pass: decodeURIComponent(this.config.password), // Handle URL-encoded special characters
         },
       });
 
@@ -89,7 +89,7 @@ export class EmailInboxService {
       secure: this.config.secure,
       auth: {
         user: this.config.username,
-        pass: this.config.password,
+        pass: decodeURIComponent(this.config.password), // Handle URL-encoded special characters
       },
     });
 
