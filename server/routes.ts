@@ -16,6 +16,7 @@ import path from "path";
 import fs from "fs";
 import aiAgentRoutes from "./routes/ai-agents";
 import authRoutes from "./routes/auth";
+import emailRoutes from "./routes/email";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -60,6 +61,9 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Mount auth routes
   app.use('/api/auth', authRoutes);
+  
+  // Mount email routes
+  app.use('/api/email', emailRoutes);
   
   // Deal routes
   app.get('/api/deals', async (req: Request, res: Response) => {
