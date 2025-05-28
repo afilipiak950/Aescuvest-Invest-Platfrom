@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Plus, Eye, FileText, Users, TrendingUp, Search, Filter } from 'lucide-react';
+import { Plus, Eye, FileText, Users, TrendingUp, Search, Filter, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,104 +95,133 @@ export default function DealsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Deal Management</h1>
-            <p className="text-gray-400">Verwalte alle Investment-Opportunities</p>
+    <div className="min-h-screen bg-gradient-to-br from-dark via-dark-light to-dark">
+      {/* Header Section */}
+      <div className="border-b border-dark-lighter bg-dark/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-3">
+                Investment Deals
+              </h1>
+              <p className="text-gray-400 text-lg">
+                Verwalte dein Deal-Portfolio und entdecke neue Opportunities
+              </p>
+            </div>
+            
+            {/* Create Deal Button - Premium Design */}
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Deals verwalten</p>
+                <p className="text-2xl font-bold text-white">{deals.length}</p>
+              </div>
+              <Button 
+                onClick={() => setShowCreateForm(true)}
+                className="bg-gradient-to-r from-primary to-primary-hover hover:from-primary-hover hover:to-primary text-white px-8 py-3 h-auto text-lg font-semibold shadow-xl hover:shadow-primary/25 transition-all duration-300 transform hover:scale-105"
+              >
+                <Plus className="mr-3 h-5 w-5" />
+                Create New Deal
+              </Button>
+            </div>
           </div>
-          <Button 
-            onClick={() => setShowCreateForm(true)}
-            className="bg-primary hover:bg-primary-hover text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Neuen Deal erstellen
-          </Button>
         </div>
       </div>
 
-      <div className="space-y-6">
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Total Deals</CardTitle>
-                <FileText className="h-4 w-4 text-gray-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{deals.length}</div>
-                <p className="text-xs text-gray-400 mt-1">Aktive Opportunities</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">In Due Diligence</CardTitle>
-                <Users className="h-4 w-4 text-gray-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {deals.filter(deal => deal.status === 'Due Diligence').length}
+      <div className="container mx-auto px-6 py-8 space-y-8">
+        {/* Modern Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-br from-dark-light to-dark border-dark-lighter/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm font-medium mb-1">Total Portfolio</p>
+                  <p className="text-3xl font-bold text-white">{deals.length}</p>
+                  <p className="text-green-400 text-xs mt-1">↗ Active deals</p>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Deals in Prüfung</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Avg. AI Score</CardTitle>
-                <TrendingUp className="h-4 w-4 text-gray-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {deals.length > 0 ? Math.round(deals.reduce((acc, deal) => acc + (deal.aiScore || 0), 0) / deals.length) : 0}
+                <div className="h-12 w-12 bg-primary/20 rounded-xl flex items-center justify-center">
+                  <Briefcase className="h-6 w-6 text-primary" />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Durchschnittlicher Score</p>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">This Month</CardTitle>
-                <Plus className="h-4 w-4 text-gray-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {deals.filter(deal => {
-                    const dealDate = new Date(deal.createdAt);
-                    const now = new Date();
-                    return dealDate.getMonth() === now.getMonth() && dealDate.getFullYear() === now.getFullYear();
-                  }).length}
+          <Card className="bg-gradient-to-br from-dark-light to-dark border-dark-lighter/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm font-medium mb-1">Due Diligence</p>
+                  <p className="text-3xl font-bold text-white">
+                    {deals.filter(deal => deal.status === 'Due Diligence').length}
+                  </p>
+                  <p className="text-blue-400 text-xs mt-1">↻ In review</p>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Neue Deals</p>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="h-12 w-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                  <Search className="h-6 w-6 text-blue-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Filters */}
-          <Card className="bg-dark-light border-dark-lighter">
-            <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Suche nach Unternehmen oder Beschreibung..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-dark border-dark-lighter focus:ring-primary"
-                    />
-                  </div>
+          <Card className="bg-gradient-to-br from-dark-light to-dark border-dark-lighter/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm font-medium mb-1">AI Score Avg</p>
+                  <p className="text-3xl font-bold text-white">
+                    {deals.length > 0 ? Math.round(deals.reduce((acc, deal) => acc + (deal.aiScore || 0), 0) / deals.length) : 0}
+                  </p>
+                  <p className="text-purple-400 text-xs mt-1">⚡ AI powered</p>
                 </div>
-                
+                <div className="h-12 w-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-purple-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-dark-light to-dark border-dark-lighter/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm font-medium mb-1">This Month</p>
+                  <p className="text-3xl font-bold text-white">
+                    {deals.filter(deal => {
+                      const dealDate = new Date(deal.createdAt);
+                      const now = new Date();
+                      return dealDate.getMonth() === now.getMonth() && dealDate.getFullYear() === now.getFullYear();
+                    }).length}
+                  </p>
+                  <p className="text-orange-400 text-xs mt-1">✨ New opportunities</p>
+                </div>
+                <div className="h-12 w-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                  <Plus className="h-6 w-6 text-orange-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Modern Search & Filter Bar */}
+        <Card className="bg-gradient-to-r from-dark-light/80 to-dark/80 border-dark-lighter/50 backdrop-blur-md">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row gap-6 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  placeholder="Search companies, descriptions, or sectors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-12 pr-4 py-3 bg-dark/50 border-dark-lighter/50 focus:ring-2 focus:ring-primary/50 focus:border-primary text-white placeholder-gray-400 text-lg"
+                />
+              </div>
+              
+              <div className="flex gap-4">
                 <Select value={sectorFilter} onValueChange={setSectorFilter}>
-                  <SelectTrigger className="w-full md:w-48 bg-dark border-dark-lighter">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Sektor" />
+                  <SelectTrigger className="w-48 bg-dark/50 border-dark-lighter/50 focus:ring-2 focus:ring-primary/50">
+                    <SelectValue placeholder="All Sectors" />
                   </SelectTrigger>
-                  <SelectContent className="bg-dark-lighter border-dark-lighter">
-                    <SelectItem value="all">Alle Sektoren</SelectItem>
+                  <SelectContent className="bg-dark border-dark-lighter">
+                    <SelectItem value="all">All Sectors</SelectItem>
                     {uniqueSectors.map(sector => (
                       <SelectItem key={sector} value={sector}>{sector}</SelectItem>
                     ))}
@@ -200,131 +229,169 @@ export default function DealsPage() {
                 </Select>
 
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-48 bg-dark border-dark-lighter">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Status" />
+                  <SelectTrigger className="w-48 bg-dark/50 border-dark-lighter/50 focus:ring-2 focus:ring-primary/50">
+                    <SelectValue placeholder="All Status" />
                   </SelectTrigger>
-                  <SelectContent className="bg-dark-lighter border-dark-lighter">
-                    <SelectItem value="all">Alle Status</SelectItem>
+                  <SelectContent className="bg-dark border-dark-lighter">
+                    <SelectItem value="all">All Status</SelectItem>
                     {uniqueStatuses.map(status => (
                       <SelectItem key={status} value={status}>{status}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Deals Table */}
-          <Card className="bg-dark-light border-dark-lighter">
-            <CardHeader>
-              <CardTitle>Alle Deals ({filteredDeals.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="flex items-center space-x-4">
-                      <Skeleton className="h-12 w-12 rounded-full" />
-                      <div className="space-y-2 flex-1">
-                        <Skeleton className="h-4 w-[250px]" />
-                        <Skeleton className="h-4 w-[200px]" />
-                      </div>
+        {/* Premium Deals Table */}
+        <Card className="bg-gradient-to-br from-dark-light/90 to-dark/90 border-dark-lighter/50 backdrop-blur-md shadow-2xl">
+          <CardHeader className="border-b border-dark-lighter/50 pb-6">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Portfolio Overview ({filteredDeals.length} deals)
+              </CardTitle>
+              <div className="text-sm text-gray-400">
+                Last updated: {new Date().toLocaleDateString('de-DE')}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-8 space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-6 p-4">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-5 w-[300px]" />
+                      <Skeleton className="h-4 w-[200px]" />
                     </div>
-                  ))}
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredDeals.length === 0 ? (
+              <div className="text-center py-16 px-8">
+                <div className="mx-auto w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <Briefcase className="h-12 w-12 text-primary" />
                 </div>
-              ) : filteredDeals.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Keine Deals gefunden</h3>
-                  <p className="text-gray-400 mb-4">
-                    {searchTerm || sectorFilter !== 'all' || statusFilter !== 'all' 
-                      ? 'Keine Deals entsprechen den aktuellen Filterkriterien.'
-                      : 'Erstelle deinen ersten Deal, um loszulegen.'
-                    }
-                  </p>
-                  <Button onClick={() => {
-                    setSearchTerm('');
-                    setSectorFilter('all');
-                    setStatusFilter('all');
-                  }}>
-                    Filter zurücksetzen
+                <h3 className="text-xl font-semibold text-white mb-3">No deals found</h3>
+                <p className="text-gray-400 text-lg mb-6 max-w-md mx-auto">
+                  {searchTerm || sectorFilter !== 'all' || statusFilter !== 'all' 
+                    ? 'No deals match your current filter criteria. Try adjusting your search.'
+                    : 'Start building your investment portfolio by creating your first deal.'
+                  }
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSectorFilter('all');
+                      setStatusFilter('all');
+                    }}
+                    className="bg-dark-lighter hover:bg-dark border-dark-lighter"
+                  >
+                    Clear Filters
+                  </Button>
+                  <Button 
+                    onClick={() => setShowCreateForm(true)}
+                    className="bg-primary hover:bg-primary-hover"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Deal
                   </Button>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="border-b border-dark-lighter">
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Unternehmen</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Sektor</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Stage</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Funding</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">AI Score</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Erstellt</th>
-                        <th className="px-6 py-4 text-right text-sm font-medium text-gray-400">Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDeals.map((deal) => {
-                        const firstLetter = deal.companyName.charAt(0);
-                        const bgColor = getRandomColor();
-                        
-                        return (
-                          <tr key={deal.id} className="border-b border-dark-lighter hover:bg-dark-lighter/50 transition">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className={cn("flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center font-semibold text-sm", bgColor)}>
-                                  {firstLetter}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-dark/30">
+                    <tr className="border-b border-dark-lighter/50">
+                      <th className="px-8 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Company</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Sector</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Stage</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Funding</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">AI Score</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Created</th>
+                      <th className="px-8 py-5 text-right text-sm font-semibold text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-lighter/30">
+                    {filteredDeals.map((deal, index) => {
+                      const firstLetter = deal.companyName.charAt(0);
+                      const bgColor = getRandomColor();
+                      
+                      return (
+                        <tr key={deal.id} className="hover:bg-dark-lighter/20 transition-all duration-200 group">
+                          <td className="px-8 py-6 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className={cn("flex-shrink-0 h-12 w-12 rounded-xl flex items-center justify-center font-bold text-sm shadow-lg", bgColor)}>
+                                {firstLetter}
+                              </div>
+                              <div className="ml-4">
+                                <div className="font-semibold text-white text-lg group-hover:text-primary transition-colors">
+                                  {deal.companyName}
                                 </div>
-                                <div className="ml-4">
-                                  <div className="font-medium text-white">{deal.companyName}</div>
-                                  <div className="text-gray-400 text-sm truncate max-w-[200px]">
-                                    {deal.description}
-                                  </div>
+                                <div className="text-gray-400 text-sm mt-1 truncate max-w-[250px]">
+                                  {deal.description}
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Badge variant="outline" className="border-gray-600 text-gray-300">
-                                {deal.sector}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                              {deal.stage}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                              {deal.fundingAmount ? `€${(deal.fundingAmount / 1000000).toFixed(1)}M` : 'N/A'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Badge className={cn("border", getScoreColor(deal.aiScore || 0))}>
-                                {deal.aiScore || 0}/100
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Badge className={cn("border", getStatusColor(deal.status))}>
-                                {deal.status}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-400 text-sm">
-                              {new Date(deal.createdAt).toLocaleDateString('de-DE')}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <Link href={`/due-diligence?deal=${deal.id}`}>
-                                <Button variant="ghost" size="sm" className="text-primary hover:text-primary-hover">
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Anzeigen
-                                </Button>
-                              </Link>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-6 whitespace-nowrap">
+                            <Badge variant="outline" className="border-gray-500/50 text-gray-300 bg-gray-500/10 font-medium">
+                              {deal.sector}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-6 whitespace-nowrap">
+                            <span className="text-gray-300 font-medium">{deal.stage}</span>
+                          </td>
+                          <td className="px-6 py-6 whitespace-nowrap">
+                            <span className="text-white font-semibold">
+                              {deal.fundingAmount ? `€${(deal.fundingAmount / 1000000).toFixed(1)}M` : 'TBD'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-6 whitespace-nowrap">
+                            <Badge className={cn("border font-semibold", getScoreColor(deal.aiScore || 0))}>
+                              {deal.aiScore || 0}/100
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-6 whitespace-nowrap">
+                            <Badge className={cn("border font-medium", getStatusColor(deal.status))}>
+                              {deal.status}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-6 whitespace-nowrap">
+                            <span className="text-gray-400 text-sm">
+                              {new Date(deal.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          </td>
+                          <td className="px-8 py-6 whitespace-nowrap text-right">
+                            <Link href={`/due-diligence?deal=${deal.id}`}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-primary hover:text-white hover:bg-primary/20 transition-all duration-200 font-medium"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Deal
+                              </Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
             </CardContent>
           </Card>
         </div>
