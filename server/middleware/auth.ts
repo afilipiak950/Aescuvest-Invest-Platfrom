@@ -19,25 +19,45 @@ declare global {
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
+    let user = null;
+    let userId = null;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'No token provided, authorization denied' });
+    // First, check if user is authenticated via session (persistent login)
+    if ((req.session as any)?.userId) {
+      userId = (req.session as any).userId;
+      user = await storage.getUser(userId);
     }
     
-    const token = authHeader.split(' ')[1];
-    
-    // Verify token
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return res.status(401).json({ message: 'Token is invalid or expired' });
-    }
-    
-    // Get user from database
-    const user = await storage.getUser(decoded.userId);
+    // If no session, try JWT token
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No authentication provided' });
+      }
+      
+      const token = authHeader.split(' ')[1];
+      
+      // Verify token
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: 'Token is invalid or expired' });
+      }
+      
+      // Get user from database
+      user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      
+      // Store in session for future requests
+      (req.session as any).userId = user.id;
+      (req.session as any).userEmail = user.email;
+      (req.session as any).userRole = user.role;
+    }
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication failed' });
     }
     
     // Add user data to request

@@ -105,6 +105,34 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
 });
 
 /**
+ * @route GET /api/auth/session
+ * @desc Check session status and get user if authenticated
+ * @access Public
+ */
+router.get('/session', async (req: Request, res: Response) => {
+  try {
+    // Check if user is authenticated via session
+    if ((req.session as any)?.userId) {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      
+      if (user) {
+        const { password, ...userWithoutPassword } = user;
+        return res.json({ 
+          authenticated: true, 
+          user: userWithoutPassword 
+        });
+      }
+    }
+    
+    res.json({ authenticated: false });
+  } catch (error) {
+    console.error('Error in /session:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
  * @route GET /api/auth/users
  * @desc Get all users (admin only)
  * @access Private (Admin only)
