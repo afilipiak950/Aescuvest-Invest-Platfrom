@@ -14,6 +14,7 @@ import Sidebar from "@/components/layout/sidebar";
 import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 import Dashboard from "@/pages/dashboard";
 import DealsPage from "@/pages/deals";
+import AllDealsPage from "@/pages/all-deals";
 import DealIntake from "@/pages/deal-intake";
 import DueDiligence from "@/pages/due-diligence";
 import MemoGenerator from "@/pages/memo-generator";
@@ -70,6 +71,9 @@ function AppContent() {
             <Switch>
               <Route path="/">
                 <Dashboard />
+              </Route>
+              <Route path="/all-deals">
+                <AllDealsPage />
               </Route>
               <Route path="/deals">
                 <DealsPage />
