@@ -203,6 +203,40 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
       // Complete - move to processed documents
       updateFileStatus(fileId, 'complete', 100, undefined, analyses);
       
+      // Save document permanently to database
+      const documentData = {
+        name: uploadedFile.name,
+        type: uploadedFile.type,
+        size: uploadedFile.size,
+        path: uploadedFile.path || '',
+        ocrText: (analyses as any).ocrText || '',
+        analyses: JSON.stringify({
+          summary: (analyses as any).summary || '',
+          marketResearch: (analyses as any).marketResearch || '',
+          financialAnalysis: (analyses as any).financialAnalysis || '',
+          riskAssessment: (analyses as any).riskAssessment || '',
+          competitiveAnalysis: (analyses as any).competitiveAnalysis || ''
+        }),
+        status: 'Processed'
+      };
+
+      // Save to database
+      try {
+        const saveResponse = await fetch('/api/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(documentData)
+        });
+
+        if (saveResponse.ok) {
+          const savedDoc = await saveResponse.json();
+          console.log('✅ Document saved to database:', savedDoc.id);
+        }
+      } catch (error) {
+        console.error('❌ Failed to save document to database:', error);
+      }
+      
       // Add to processed documents list
       const processedDoc: ProcessedDocument = {
         id: fileId,

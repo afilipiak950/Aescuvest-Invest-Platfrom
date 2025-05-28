@@ -60,12 +60,14 @@ export const insertDealSchema = createInsertSchema(deals).omit({
 // Documents
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
-  dealId: integer("deal_id").notNull().references(() => deals.id),
+  dealId: integer("deal_id").references(() => deals.id),
   name: text("name").notNull(),
   type: text("type").notNull(),
   path: text("path").notNull(),
   size: integer("size").notNull(),
   status: text("status").notNull().default("Pending"),
+  ocrText: text("ocr_text"),
+  analyses: text("analyses"), // JSON string for AI analyses
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 

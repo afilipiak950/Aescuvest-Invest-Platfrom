@@ -4,9 +4,27 @@ import path from 'path';
 
 const router = express.Router();
 
-// Setup multer for file uploads
+// Setup multer for file uploads with proper file storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    // Create uploads directory if it doesn't exist
+    const fs = require('fs');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // Keep original filename with timestamp to avoid conflicts
+    const timestamp = Date.now();
+    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `${timestamp}_${originalName}`);
+  }
+});
+
 const upload = multer({
-  dest: 'uploads/',
+  storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
@@ -51,14 +69,18 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
 
     console.log('✅ Processing files:', files.map(f => f.originalname));
 
-    const uploadedFiles = files.map(file => ({
-      id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: file.originalname,
-      size: file.size,
-      type: file.mimetype,
-      status: 'uploaded',
-      path: file.path
-    }));
+    const uploadedFiles = files.map(file => {
+      console.log(`📄 File uploaded to: ${file.path}`);
+      return {
+        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+        status: 'uploaded',
+        path: file.path,
+        filename: file.filename // This is the actual filename on disk
+      };
+    });
 
     // Start AI analysis for each file
     const analyses = uploadedFiles.map(file => ({
