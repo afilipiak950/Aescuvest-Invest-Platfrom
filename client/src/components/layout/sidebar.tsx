@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User } from 'lucide-react';
+import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail } from 'lucide-react';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: Mail, label: 'Inbox', href: '/inbox' },
   { icon: FileUp, label: 'Deal Intake', href: '/deal-intake' },
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },
   { icon: FileText, label: 'Memo Generator', href: '/memo-generator' },
