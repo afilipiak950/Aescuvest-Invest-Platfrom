@@ -20,6 +20,7 @@ import authRoutes from "./routes/auth";
 import emailRoutes from "./routes/email";
 import inboxRoutes from "./routes/inbox";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
+import documentUploadRoutes from "./routes/document-upload";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -63,54 +64,8 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // CRITICAL: Upload routes MUST be registered FIRST before any middleware
-  console.log('🚀 Registering upload route at /api/documents/upload-analyze');
-  app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
-    try {
-      console.log('🎯 UPLOAD ROUTE HIT!');
-      console.log('Method:', req.method);
-      console.log('URL:', req.url);
-      console.log('Files received:', req.files?.length || 0);
-      
-      // Force JSON response
-      res.setHeader('Content-Type', 'application/json');
-      
-      const files = req.files as Express.Multer.File[];
-      const dealId = req.body.dealId;
-      
-      if (!files || files.length === 0) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'No files uploaded' 
-        });
-      }
-
-      const uploadedFiles = files.map(file => ({
-        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-        status: 'uploaded'
-      }));
-
-      console.log('✅ Sending successful response');
-      return res.status(200).json({
-        success: true,
-        message: 'Files uploaded successfully',
-        files: uploadedFiles,
-        dealId: dealId
-      });
-
-    } catch (error) {
-      console.error('💥 Upload error:', error);
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(500).json({ 
-        success: false,
-        message: 'Upload failed', 
-        error: String(error) 
-      });
-    }
-  });
+  // Register document upload routes
+  app.use('/api/documents', documentUploadRoutes);
   
   // Mount auth routes
   app.use('/api/auth', authRoutes);
