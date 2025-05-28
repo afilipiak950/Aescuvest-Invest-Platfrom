@@ -11,7 +11,9 @@ const router = Router();
  * @desc Configure IMAP settings
  * @access Private (Admin only)
  */
-router.post('/config', authenticate, requireAdmin, async (req: Request, res: Response) => {
+router.post('/config', authenticate, requireAdmin, (req: Request, res: Response) => {
+  // Force JSON response header IMMEDIATELY
+  res.setHeader('Content-Type', 'application/json');
   try {
     const { host, port, secure, username, password } = req.body;
 

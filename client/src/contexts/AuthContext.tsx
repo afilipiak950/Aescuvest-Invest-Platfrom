@@ -28,37 +28,26 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   
-  // Check session first (persistent login), then fall back to JWT
-  const { data: sessionData, isLoading: sessionLoading } = useQuery({
+  // Check session status on app load (persistent login)
+  const { data: sessionData, isLoading } = useQuery({
     queryKey: ['/api/auth/session'],
     retry: false,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: Infinity, // Don't auto-refresh, only when explicitly invalidated
     refetchOnWindowFocus: false,
   });
 
-  // Only check JWT if session is not authenticated
-  const { data: fetchedUser, isLoading: userLoading } = useQuery({
-    queryKey: ['/api/auth/me'],
-    retry: false,
-    enabled: !sessionData?.authenticated, // Only run if session check failed
-    refetchOnWindowFocus: false,
-  });
-
-  const isLoading = sessionLoading || (userLoading && !sessionData?.authenticated);
-
-  // Update user state when session or user data changes
+  // Update user state when session data changes
   useEffect(() => {
-    if (sessionData?.authenticated && sessionData?.user) {
-      console.log('Auth state: Authenticated via session, user:', sessionData.user.email);
-      setUser(sessionData.user);
-    } else if (fetchedUser) {
-      console.log('Auth state: Authenticated via JWT, user:', fetchedUser.email);
-      setUser(fetchedUser);
-    } else {
-      console.log('Auth state: Not authenticated, redirecting to login');
-      setUser(null);
+    if (sessionData) {
+      if (sessionData.authenticated && sessionData.user) {
+        console.log('Auth state: Authenticated via session, user:', sessionData.user.email);
+        setUser(sessionData.user);
+      } else {
+        console.log('Auth state: Not authenticated, redirecting to login');
+        setUser(null);
+      }
     }
-  }, [sessionData, fetchedUser]);
+  }, [sessionData]);
 
   const login = async (email: string, password: string) => {
     try {

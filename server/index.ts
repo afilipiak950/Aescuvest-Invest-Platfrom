@@ -21,10 +21,12 @@ app.use(session({
   secret: process.env.JWT_SECRET || 'investment-platform-secret-key',
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Reset maxAge on every request
   cookie: {
     secure: false, // Set to true in production with HTTPS
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+    sameSite: 'lax'
   },
   name: 'aescuvest-session'
 }));

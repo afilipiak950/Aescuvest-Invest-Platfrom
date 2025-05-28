@@ -73,6 +73,15 @@ router.post('/login', async (req: Request, res: Response) => {
     (req.session as any).userId = result.user.id;
     (req.session as any).userEmail = result.user.email;
     (req.session as any).userRole = result.user.role;
+    
+    // Force session save
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+      } else {
+        console.log('Session saved successfully for user:', result.user.email);
+      }
+    });
 
     res.json({
       message: 'Login successful',
