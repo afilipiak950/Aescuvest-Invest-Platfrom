@@ -14,18 +14,28 @@ let microsoftTokens: any = null;
  */
 router.get('/auth-url', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
+    console.log('[Microsoft OAuth] Starting auth URL generation...');
+    console.log('[Microsoft OAuth] Protocol:', req.protocol);
+    console.log('[Microsoft OAuth] Hostname:', req.hostname);
+    
     const redirectUri = `${req.protocol}://${req.hostname}/api/microsoft/callback`;
+    console.log('[Microsoft OAuth] Redirect URI:', redirectUri);
+    
     const authUrl = await getMicrosoftAuthUrl(redirectUri);
+    console.log('[Microsoft OAuth] Generated auth URL:', authUrl);
     
     res.json({
       success: true,
       authUrl: authUrl
     });
   } catch (error) {
-    console.error('Error generating Microsoft auth URL:', error);
+    console.error('[Microsoft OAuth] Error generating auth URL:', error);
+    console.error('[Microsoft OAuth] Error details:', error.message);
+    console.error('[Microsoft OAuth] Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate authorization URL'
+      error: 'Failed to generate authorization URL',
+      details: error.message
     });
   }
 });

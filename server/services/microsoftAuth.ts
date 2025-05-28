@@ -30,12 +30,35 @@ export interface MicrosoftTokens {
  * Get authorization URL for Microsoft OAuth2
  */
 export async function getMicrosoftAuthUrl(redirectUri: string): Promise<string> {
-  const authCodeUrlParameters = {
-    scopes: ['https://outlook.office.com/IMAP.AccessAsUser.All', 'offline_access'],
-    redirectUri: redirectUri,
-  };
+  try {
+    console.log('[Microsoft OAuth Service] Creating auth URL...');
+    console.log('[Microsoft OAuth Service] Client ID:', process.env.MICROSOFT_CLIENT_ID ? 'SET' : 'NOT SET');
+    console.log('[Microsoft OAuth Service] Client Secret:', process.env.MICROSOFT_CLIENT_SECRET ? 'SET' : 'NOT SET');
+    console.log('[Microsoft OAuth Service] Redirect URI:', redirectUri);
+    
+    const authCodeUrlParameters = {
+      scopes: [
+        'https://graph.microsoft.com/Mail.Read',
+        'https://graph.microsoft.com/Mail.ReadWrite',
+        'offline_access'
+      ],
+      redirectUri: redirectUri,
+    };
 
-  return await msalInstance.getAuthCodeUrl(authCodeUrlParameters);
+    console.log('[Microsoft OAuth Service] Auth parameters:', authCodeUrlParameters);
+    
+    const authUrl = await msalInstance.getAuthCodeUrl(authCodeUrlParameters);
+    console.log('[Microsoft OAuth Service] Generated URL length:', authUrl?.length || 0);
+    
+    if (!authUrl || authUrl.length === 0) {
+      throw new Error('Generated auth URL is empty');
+    }
+    
+    return authUrl;
+  } catch (error) {
+    console.error('[Microsoft OAuth Service] Error in getMicrosoftAuthUrl:', error);
+    throw error;
+  }
 }
 
 /**
