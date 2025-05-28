@@ -352,11 +352,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document upload and analysis with Mistral OCR
   app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
     try {
-      console.log('Upload request received');
+      console.log('=== UPLOAD ROUTE HIT ===');
+      console.log('Request method:', req.method);
+      console.log('Request URL:', req.url);
+      console.log('Request headers:', req.headers);
+      
+      // Set JSON content type immediately
+      res.setHeader('Content-Type', 'application/json');
+      
       const files = req.files as Express.Multer.File[];
       const dealId = req.body.dealId;
       
       console.log('Files received:', files?.length || 0);
+      console.log('Deal ID:', dealId);
       
       if (!files || files.length === 0) {
         console.log('No files found in request');
