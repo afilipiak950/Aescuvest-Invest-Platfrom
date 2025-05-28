@@ -348,6 +348,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/email', emailRoutes);
   app.use('/api/inbox', inboxRoutes);
   
+  // Import and register document analysis routes
+  const documentAnalysisRoutes = require('./routes/document-analysis').default;
+  app.use('/api/documents', documentAnalysisRoutes);
+  
   const httpServer = createServer(app);
   return httpServer;
 }
