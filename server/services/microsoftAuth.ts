@@ -36,54 +36,34 @@ export interface MicrosoftTokens {
  */
 export async function getMicrosoftAuthUrl(redirectUri: string): Promise<string> {
   try {
-    console.log('[Microsoft OAuth Service] Creating auth URL...');
+    console.log('[Microsoft OAuth Service] Creating auth URL manually...');
     console.log('[Microsoft OAuth Service] Client ID:', process.env.MICROSOFT_CLIENT_ID?.substring(0, 8) + '...');
     console.log('[Microsoft OAuth Service] Redirect URI:', redirectUri);
     
-    // Create a new MSAL instance to ensure fresh configuration
-    const freshMsalConfig = {
-      auth: {
-        clientId: process.env.MICROSOFT_CLIENT_ID!,
-        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
-        authority: 'https://login.microsoftonline.com/common'
-      }
-    };
+    // Manual Microsoft OAuth2 URL construction - bypassing MSAL issues
+    const clientId = process.env.MICROSOFT_CLIENT_ID!;
+    const scopes = encodeURIComponent('https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite offline_access');
+    const responseType = 'code';
+    const redirectUriEncoded = encodeURIComponent(redirectUri);
+    const state = Math.random().toString(36).substring(2, 15);
     
-    const freshMsalInstance = new ConfidentialClientApplication(freshMsalConfig);
+    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize` +
+      `?client_id=${clientId}` +
+      `&response_type=${responseType}` +
+      `&redirect_uri=${redirectUriEncoded}` +
+      `&scope=${scopes}` +
+      `&state=${state}` +
+      `&response_mode=query`;
     
-    const authCodeUrlParameters = {
-      scopes: [
-        'https://graph.microsoft.com/Mail.Read',
-        'https://graph.microsoft.com/Mail.ReadWrite',
-        'offline_access'
-      ],
-      redirectUri: redirectUri,
-    };
-
-    console.log('[Microsoft OAuth Service] Auth parameters:', authCodeUrlParameters);
+    console.log('[Microsoft OAuth Service] Manual auth URL created:', authUrl);
     
-    const authUrl = await freshMsalInstance.getAuthCodeUrl(authCodeUrlParameters);
-    console.log('[Microsoft OAuth Service] Raw auth URL result:', typeof authUrl, authUrl);
-    
-    // Handle different return types from MSAL
-    let finalAuthUrl: string;
-    if (typeof authUrl === 'string') {
-      finalAuthUrl = authUrl;
-    } else if (authUrl && typeof authUrl === 'object' && 'toString' in authUrl) {
-      finalAuthUrl = authUrl.toString();
-    } else {
-      throw new Error(`MSAL returned unexpected type: ${typeof authUrl}`);
+    if (!authUrl || !authUrl.startsWith('http')) {
+      throw new Error(`Invalid manual auth URL: ${authUrl}`);
     }
     
-    console.log('[Microsoft OAuth Service] Final auth URL:', finalAuthUrl);
-    
-    if (!finalAuthUrl || finalAuthUrl.length === 0 || !finalAuthUrl.startsWith('http')) {
-      throw new Error(`Invalid auth URL generated: ${finalAuthUrl}`);
-    }
-    
-    return finalAuthUrl;
+    return authUrl;
   } catch (error) {
-    console.error('[Microsoft OAuth Service] Error in getMicrosoftAuthUrl:', error);
+    console.error('[Microsoft OAuth Service] Error creating manual auth URL:', error);
     throw error;
   }
 }
