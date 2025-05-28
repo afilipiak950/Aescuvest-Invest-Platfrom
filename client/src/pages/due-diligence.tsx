@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/page-header';
 import DocumentList from '@/components/due-diligence/document-list';
 import AgentCard from '@/components/due-diligence/agent-card';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
+import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
