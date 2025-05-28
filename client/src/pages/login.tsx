@@ -19,7 +19,7 @@ const loginSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters" }),
-  stayLoggedIn: z.boolean().default(false),
+  stayLoggedIn: z.boolean().default(true),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -35,7 +35,7 @@ export default function LoginPage() {
     defaultValues: {
       email: "",
       password: "",
-      stayLoggedIn: false,
+      stayLoggedIn: true,
     },
   });
 
