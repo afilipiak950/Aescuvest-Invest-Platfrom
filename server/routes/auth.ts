@@ -1,10 +1,19 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { loginUserSchema, insertUserSchema, UserRole } from '@shared/schema';
 import { loginUser, registerUser } from '../services/auth';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { storage } from '../storage';
 
 const router = Router();
+
+// Setup multer for file uploads
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
 
 /**
  * @route POST /api/auth/register
@@ -192,6 +201,59 @@ router.post('/logout', (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error in /logout:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @route POST /api/auth/upload-files
+ * @desc Upload files for analysis
+ * @access Public
+ */
+router.post('/upload-files', upload.array('files', 10), async (req: Request, res: Response) => {
+  console.log('🎯 AUTH UPLOAD ROUTE HIT!');
+  console.log('Method:', req.method, 'URL:', req.url);
+  console.log('Files received:', req.files?.length || 0);
+  console.log('Deal ID:', req.body?.dealId);
+  
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    
+    const files = req.files as Express.Multer.File[];
+    const dealId = req.body.dealId;
+    
+    if (!files || files.length === 0) {
+      console.log('❌ No files found');
+      return res.status(400).json({ 
+        success: false,
+        message: 'No files uploaded' 
+      });
+    }
+
+    const uploadedFiles = files.map((file, index) => ({
+      id: `file_${Date.now()}_${index}`,
+      name: file.originalname,
+      size: file.size,
+      type: file.mimetype,
+      status: 'uploaded'
+    }));
+
+    console.log('✅ SUCCESS! Responding with JSON for', uploadedFiles.length, 'files');
+    
+    return res.status(200).json({
+      success: true,
+      message: `${uploadedFiles.length} file(s) uploaded successfully`,
+      files: uploadedFiles,
+      dealId: dealId || null
+    });
+
+  } catch (error) {
+    console.error('💥 UPLOAD ERROR IN AUTH ROUTE:', error);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ 
+      success: false,
+      message: 'Upload failed', 
+      error: String(error) 
+    });
   }
 });
 
