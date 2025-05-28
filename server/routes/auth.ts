@@ -135,9 +135,17 @@ router.get('/users', authenticate, requireAdmin, async (req: Request, res: Respo
  */
 router.post('/logout', (req: Request, res: Response) => {
   try {
-    // In a token-based auth system, the client is responsible for removing the token
-    // This endpoint is provided as a convenience for clients to call when logging out
-    res.status(200).json({ message: 'Logout successful' });
+    // Destroy the session for persistent logout
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Error destroying session:', err);
+        return res.status(500).json({ message: 'Logout failed' });
+      }
+      
+      // Clear the session cookie
+      res.clearCookie('aescuvest-session');
+      res.status(200).json({ message: 'Logout successful' });
+    });
   } catch (error) {
     console.error('Error in /logout:', error);
     res.status(500).json({ message: 'Server error' });
