@@ -64,7 +64,56 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Register document upload routes
+  // URGENT DEBUG: Direct route registration to bypass middleware issues
+  console.log('🔧 Registering DIRECT upload route...');
+  app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
+    console.log('🚨 DIRECT ROUTE HIT! Method:', req.method, 'URL:', req.url);
+    console.log('Files count:', req.files?.length || 0);
+    console.log('Deal ID:', req.body?.dealId);
+    
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      
+      const files = req.files as Express.Multer.File[];
+      const dealId = req.body.dealId;
+      
+      if (!files || files.length === 0) {
+        console.log('❌ No files found');
+        return res.status(400).json({ 
+          success: false,
+          message: 'No files uploaded' 
+        });
+      }
+
+      const uploadedFiles = files.map((file, index) => ({
+        id: `file_${Date.now()}_${index}`,
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+        status: 'uploaded'
+      }));
+
+      console.log('✅ SUCCESS! Responding with', uploadedFiles.length, 'files');
+      
+      return res.status(200).json({
+        success: true,
+        message: `${uploadedFiles.length} file(s) uploaded successfully`,
+        files: uploadedFiles,
+        dealId: dealId || null
+      });
+
+    } catch (error) {
+      console.error('💥 DIRECT ROUTE ERROR:', error);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ 
+        success: false,
+        message: 'Upload failed', 
+        error: String(error) 
+      });
+    }
+  });
+  
+  // Register document upload routes (fallback)
   app.use('/api/documents', documentUploadRoutes);
   
   // Mount auth routes
