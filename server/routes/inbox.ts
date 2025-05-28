@@ -34,9 +34,11 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
     const testResult = await emailInboxService.testConnection();
 
     if (!testResult.success) {
+      console.error('IMAP connection test failed:', testResult.error);
       return res.status(400).json({
         message: 'IMAP connection failed',
-        error: testResult.error
+        error: testResult.error,
+        details: 'Please check your credentials and server settings'
       });
     }
 

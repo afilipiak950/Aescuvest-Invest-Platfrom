@@ -74,8 +74,15 @@ export default function InboxPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to configure IMAP');
+        const errorText = await response.text();
+        console.error('IMAP config error:', errorText);
+        
+        try {
+          const error = JSON.parse(errorText);
+          throw new Error(error.error || error.message || 'Failed to configure IMAP');
+        } catch (parseError) {
+          throw new Error(`Server error: ${response.status}. Please check server logs.`);
+        }
       }
 
       return response.json();
