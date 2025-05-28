@@ -65,7 +65,14 @@ export default function LoginPage() {
       <div className="w-full h-full flex">
         {/* Left side - Hero image/content */}
         <div className="hidden lg:flex lg:w-1/2 bg-navy relative overflow-hidden">
-          <div className="absolute inset-0 flex flex-col justify-center p-16 z-10">
+          <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-16 z-10">
+            <div className="mb-8">
+              <img 
+                src="/attached_assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png" 
+                alt="Aescuvest Logo" 
+                className="h-16 w-auto mx-auto mb-6"
+              />
+            </div>
             <h1 className="text-5xl font-bold text-white leading-tight mb-6">
               AI-Powered<br />Investment<br />Platform
             </h1>
@@ -73,7 +80,7 @@ export default function LoginPage() {
               Transforming investment workflows with artificial intelligence
             </p>
           </div>
-          <div className="absolute bottom-10 left-16 text-white/50 text-sm z-10">
+          <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-white/50 text-sm z-10">
             VISION. VENTURE. VALUE.
           </div>
         </div>
