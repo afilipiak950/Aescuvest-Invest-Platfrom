@@ -62,6 +62,56 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // CRITICAL: Upload routes MUST be registered FIRST before any middleware
+  console.log('🚀 Registering upload route at /api/documents/upload-analyze');
+  app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
+    try {
+      console.log('🎯 UPLOAD ROUTE HIT!');
+      console.log('Method:', req.method);
+      console.log('URL:', req.url);
+      console.log('Files received:', req.files?.length || 0);
+      
+      // Force JSON response
+      res.setHeader('Content-Type', 'application/json');
+      
+      const files = req.files as Express.Multer.File[];
+      const dealId = req.body.dealId;
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'No files uploaded' 
+        });
+      }
+
+      const uploadedFiles = files.map(file => ({
+        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+        status: 'uploaded'
+      }));
+
+      console.log('✅ Sending successful response');
+      return res.status(200).json({
+        success: true,
+        message: 'Files uploaded successfully',
+        files: uploadedFiles,
+        dealId: dealId
+      });
+
+    } catch (error) {
+      console.error('💥 Upload error:', error);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ 
+        success: false,
+        message: 'Upload failed', 
+        error: String(error) 
+      });
+    }
+  });
+  
   // Mount auth routes
   app.use('/api/auth', authRoutes);
   
@@ -348,54 +398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/auth', authRoutes);
   app.use('/api/email', emailRoutes);
   app.use('/api/inbox', inboxRoutes);
-  
-  // Document upload and analysis with Mistral OCR
-  app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
-    try {
-      console.log('=== UPLOAD ROUTE HIT ===');
-      console.log('Request method:', req.method);
-      console.log('Request URL:', req.url);
-      console.log('Request headers:', req.headers);
-      
-      // Set JSON content type immediately
-      res.setHeader('Content-Type', 'application/json');
-      
-      const files = req.files as Express.Multer.File[];
-      const dealId = req.body.dealId;
-      
-      console.log('Files received:', files?.length || 0);
-      console.log('Deal ID:', dealId);
-      
-      if (!files || files.length === 0) {
-        console.log('No files found in request');
-        return res.status(400).json({ message: 'No files uploaded' });
-      }
 
-      const uploadedFiles = files.map(file => {
-        console.log('Processing file:', file.originalname);
-        return {
-          id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: file.originalname,
-          size: file.size,
-          type: file.mimetype,
-          path: file.path
-        };
-      });
-
-      console.log('Sending response for uploaded files:', uploadedFiles.length);
-      
-      res.setHeader('Content-Type', 'application/json');
-      res.json({
-        message: 'Files uploaded successfully',
-        files: uploadedFiles
-      });
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      res.setHeader('Content-Type', 'application/json');
-      res.status(500).json({ message: 'Upload failed', error: String(error) });
-    }
-  });
+  // REMOVED: Duplicate route that was causing conflicts
 
   // OCR text extraction with Mistral
   app.post('/api/documents/ocr/extract', async (req: Request, res: Response) => {
