@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { authenticate } from '../middleware/auth';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -77,38 +79,51 @@ router.post('/upload-analyze', authenticate, upload.array('files', 10), async (r
  */
 router.post('/ocr/extract', authenticate, async (req, res) => {
   try {
-    const { documentId } = req.body;
+    const { documentId, fileName, fileType } = req.body;
     
     if (!documentId) {
       return res.status(400).json({ message: 'Document ID required' });
     }
 
-    // For demo purposes, simulate OCR extraction
-    // In production, you would use actual OCR service like Tesseract, AWS Textract, etc.
-    const simulatedText = `
-    EXECUTIVE SUMMARY
+    // Use Mistral OCR to extract actual document content
+    const uploadsDir = path.join(process.cwd(), 'uploads');
     
-    This document contains key information about the investment opportunity including:
+    // Find the uploaded file
+    let filePath = null;
+    if (fileName) {
+      filePath = path.join(uploadsDir, fileName);
+    }
     
-    • Company Overview: Technology startup focused on AI-powered solutions
-    • Market Opportunity: $2.5B addressable market with 15% annual growth
-    • Financial Projections: Revenue expected to reach $10M by year 3
-    • Funding Requirements: Seeking $5M Series A funding
-    • Competitive Advantage: Proprietary AI algorithms with patent protection
-    • Team: Experienced founders with previous exits in the technology sector
-    • Risks: Market competition, regulatory changes, technology risks
-    • Use of Funds: 60% product development, 25% marketing, 15% operations
-    
-    The company has demonstrated strong traction with early customers and is positioned 
-    for significant growth in the emerging AI market segment.
-    `;
+    // If file not found by name, search by documentId
+    if (!filePath || !fs.existsSync(filePath)) {
+      const files = fs.readdirSync(uploadsDir).filter(f => f.includes(documentId));
+      if (files.length > 0) {
+        filePath = path.join(uploadsDir, files[0]);
+      }
+    }
 
-    res.json({
-      documentId,
-      extractedText: simulatedText,
-      confidence: 0.95,
-      processingTime: '2.3s'
-    });
+    if (filePath && fs.existsSync(filePath)) {
+      console.log(`🔍 Processing document: ${filePath} with Mistral OCR`);
+      
+      // Use actual Mistral OCR service
+      const { mistralOCR } = await import('../services/mistralOCR');
+      const ocrResult = await mistralOCR.extractText(filePath, fileType || 'application/pdf');
+      
+      console.log(`✅ OCR extraction completed: ${ocrResult.extractedText.length} characters`);
+      
+      res.json({
+        documentId,
+        extractedText: ocrResult.extractedText,
+        confidence: ocrResult.confidence,
+        processingTime: ocrResult.processingTime
+      });
+    } else {
+      console.log(`⚠️ Document file not found for ID: ${documentId}`);
+      res.status(404).json({ 
+        message: 'Document file not found',
+        documentId 
+      });
+    }
 
   } catch (error) {
     console.error('OCR extraction error:', error);
