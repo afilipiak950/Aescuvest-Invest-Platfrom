@@ -90,7 +90,7 @@ class MistralOCRServiceImpl implements MistralOCRService {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-small',
+        model: 'mistral-ocr-latest',
         document: {
           type: 'document_url',
           document_url: `data:application/pdf;base64,${base64File}`
