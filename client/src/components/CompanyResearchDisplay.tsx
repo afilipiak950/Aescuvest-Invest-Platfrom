@@ -26,7 +26,7 @@ export function CompanyResearchDisplay({ dealId }: CompanyResearchProps) {
   const { data: researchData, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/research`],
     enabled: !!dealId
-  });
+  }) as { data: any; isLoading: boolean; refetch: () => void };
 
   const handleRefreshResearch = async () => {
     setIsRefreshing(true);
