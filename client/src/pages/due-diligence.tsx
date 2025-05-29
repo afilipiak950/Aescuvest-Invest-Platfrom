@@ -242,7 +242,7 @@ export default function DueDiligence() {
     enabled: !!selectedDeal
   });
 
-  const currentDeal = deals?.find((deal: any) => deal.id.toString() === selectedDeal);
+  const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -280,11 +280,11 @@ export default function DueDiligence() {
                   <SelectValue placeholder="Select a deal" />
                 </SelectTrigger>
                 <SelectContent className="bg-dark-lighter border-dark-lighter">
-                  {deals?.map(deal => (
+                  {Array.isArray(deals) ? deals.map((deal: any) => (
                     <SelectItem key={deal.id} value={deal.id.toString()}>
                       {deal.companyName}
                     </SelectItem>
-                  ))}
+                  )) : null}
                 </SelectContent>
               </Select>
             </div>
@@ -340,7 +340,7 @@ export default function DueDiligence() {
               </div>
             </CardHeader>
             <CardContent>
-              <DocumentList documents={documents || []} />
+              <DocumentList documents={Array.isArray(documents) ? documents : []} />
             </CardContent>
           </Card>
           
@@ -386,28 +386,28 @@ export default function DueDiligence() {
                 
                 <TabsContent value="legal">
                   <AgentCard 
-                    analysis={analyses?.find(a => a.agentType === 'Legal')}
+                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Legal') : undefined}
                     isLoading={isLoadingAnalyses}
                   />
                 </TabsContent>
                 
                 <TabsContent value="finance">
                   <AgentCard 
-                    analysis={analyses?.find(a => a.agentType === 'Finance')}
+                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Finance') : undefined}
                     isLoading={isLoadingAnalyses}
                   />
                 </TabsContent>
                 
                 <TabsContent value="medical">
                   <AgentCard 
-                    analysis={analyses?.find(a => a.agentType === 'Medical')}
+                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Medical') : undefined}
                     isLoading={isLoadingAnalyses}
                   />
                 </TabsContent>
                 
                 <TabsContent value="commercial">
                   <AgentCard 
-                    analysis={analyses?.find(a => a.agentType === 'Commercial')}
+                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Commercial') : undefined}
                     isLoading={isLoadingAnalyses}
                   />
                 </TabsContent>
