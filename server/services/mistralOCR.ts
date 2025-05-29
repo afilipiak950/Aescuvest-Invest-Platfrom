@@ -111,59 +111,52 @@ class MistralOCRServiceImpl implements MistralOCRService {
       };
     }
 
-    // For PDFs, use Mistral's OCR capability with pixtral model
+    // For PDFs, use Mistral's dedicated OCR API endpoint
     const fileBuffer = await fs.readFile(filePath);
     const base64File = fileBuffer.toString('base64');
 
-    console.log(`🔍 Processing PDF with Mistral OCR: ${filePath}`);
+    console.log(`🔍 Processing PDF with Mistral OCR API: ${filePath}`);
     console.log(`📄 File size: ${fileBuffer.length} bytes`);
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    // Use the correct Mistral OCR API endpoint
+    const response = await fetch(`${this.baseUrl}/ocr/process`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'pixtral-12b-2409',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Please extract all text content from this PDF document. Provide a complete, accurate transcription that preserves:
-                - All headings, paragraphs, and text blocks
-                - Financial data, numbers, and metrics
-                - Company information and contact details
-                - Bullet points, lists, and structured content
-                - Tables and charts (describe content)
-                - Maintain logical reading order and document structure
-                
-                Return only the extracted text content without additional commentary.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${base64File}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1
+        model: 'mistral-ocr-latest',
+        document: {
+          type: 'document_url',
+          document_url: `data:application/pdf;base64,${base64File}`
+        },
+        include_image_base64: false
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Mistral API error: ${response.status} - ${errorText}`);
-      throw new Error(`Mistral API error: ${response.status} ${response.statusText}`);
+      console.error(`❌ Mistral OCR API error: ${response.status} - ${errorText}`);
+      throw new Error(`Mistral OCR API error: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
-    const extractedText = result.choices[0]?.message?.content || '';
+    console.log('🔍 Mistral OCR Response:', JSON.stringify(result, null, 2));
+    
+    // Extract text from the OCR response structure
+    let extractedText = '';
+    if (result.text) {
+      extractedText = result.text;
+    } else if (result.content) {
+      extractedText = result.content;
+    } else if (result.extracted_text) {
+      extractedText = result.extracted_text;
+    } else {
+      console.log('⚠️ Unknown OCR response structure, using fallback');
+      extractedText = JSON.stringify(result, null, 2);
+    }
+
     const processingTime = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
 
     console.log(`✅ OCR completed: ${extractedText.length} characters extracted`);
