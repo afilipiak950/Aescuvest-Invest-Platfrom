@@ -237,7 +237,7 @@ export default function DueDiligence() {
 
   // Fetch real analysis data
   const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
-    queryKey: ['/api/analyses', selectedDeal],
+    queryKey: [`/api/analyses/${selectedDeal}`],
     retry: false,
     enabled: !!selectedDeal
   });
