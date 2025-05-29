@@ -52,6 +52,7 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
   const [processedDocuments, setProcessedDocuments] = useState<ProcessedDocument[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<ProcessedDocument | null>(null);
+  const [isUploadVisible, setIsUploadVisible] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -335,15 +336,29 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
 
   return (
     <div className="space-y-6">
-      {/* Upload Area */}
-      <Card className="bg-dark-light border-dark-lighter">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Document Upload & AI Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Upload Toggle Button */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-white">Documents</h3>
+        <Button
+          onClick={() => setIsUploadVisible(!isUploadVisible)}
+          variant="outline"
+          className="bg-primary hover:bg-primary/90 text-white border-primary"
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          {isUploadVisible ? 'Hide Upload' : 'Upload Files'}
+        </Button>
+      </div>
+
+      {/* Upload Area - Only visible when toggled */}
+      {isUploadVisible && (
+        <Card className="bg-dark-light border-dark-lighter">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Document Upload & AI Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
           <div
             className={cn(
               "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
@@ -388,7 +403,8 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
             </Button>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* File List */}
       {files.length > 0 && (
