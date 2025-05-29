@@ -157,6 +157,12 @@ export default function DueDiligence() {
                   >
                     AI Scoring
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="pitchbook"
+                    className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
+                  >
+                    Pitchbook
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="basic-info">
@@ -295,6 +301,95 @@ export default function DueDiligence() {
                     dealId={parseInt(selectedDeal)} 
                     overallScore={currentDeal.aiScore}
                   />
+                </TabsContent>
+
+                <TabsContent value="pitchbook">
+                  <div className="space-y-6">
+                    <Card className="bg-dark border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <div className="h-8 w-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                            <svg className="h-4 w-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                          </div>
+                          Pitchbook Integration
+                        </CardTitle>
+                        <CardDescription>
+                          Market intelligence and company data from Pitchbook API
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="border-2 border-dashed border-dark-lighter rounded-lg p-8 text-center">
+                          <div className="mx-auto w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
+                            <svg className="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-lg font-semibold text-white mb-2">Pitchbook API Integration</h3>
+                          <p className="text-gray-400 mb-4 max-w-md mx-auto">
+                            This section will display comprehensive market data, funding history, and competitive analysis from Pitchbook once the API integration is implemented.
+                          </p>
+                          <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600/20 border border-blue-600/30 rounded-lg text-blue-400 text-sm">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Coming Soon
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Card className="bg-dark-lighter border-dark-lighter">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-base text-gray-300">Planned Features</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                Company financials and metrics
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                Funding rounds and investors
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                Market comparables
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                Competitive landscape
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-dark-lighter border-dark-lighter">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-base text-gray-300">Data Sources</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                Real-time market data
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                Verified company information
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                Industry benchmarks
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                Investment trends
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
