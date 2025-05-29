@@ -493,13 +493,9 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
                         </DialogHeader>
                         
                         <Tabs defaultValue="ocr" className="flex-1 flex flex-col overflow-hidden">
-                          <TabsList className="grid w-full grid-cols-6">
+                          <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="ocr">OCR Text</TabsTrigger>
-                            <TabsTrigger value="summary">Summary</TabsTrigger>
-                            <TabsTrigger value="market">Market</TabsTrigger>
-                            <TabsTrigger value="financial">Financial</TabsTrigger>
-                            <TabsTrigger value="risks">Risks</TabsTrigger>
-                            <TabsTrigger value="competitive">Competitive</TabsTrigger>
+                            <TabsTrigger value="summary">AI Summary</TabsTrigger>
                           </TabsList>
                           
                           <div className="flex-1 overflow-y-auto mt-4">
@@ -527,49 +523,7 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
                               </div>
                             </TabsContent>
                             
-                            <TabsContent value="market" className="h-full">
-                              <div className="bg-gray-900 rounded-lg p-4 h-full">
-                                <h4 className="font-medium mb-3 flex items-center gap-2">
-                                  📊 Market Research Analysis
-                                </h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-wrap">
-                                  {doc.analyses.marketResearch}
-                                </div>
-                              </div>
-                            </TabsContent>
-                            
-                            <TabsContent value="financial" className="h-full">
-                              <div className="bg-gray-900 rounded-lg p-4 h-full">
-                                <h4 className="font-medium mb-3 flex items-center gap-2">
-                                  💰 Financial Analysis
-                                </h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-wrap">
-                                  {doc.analyses.financialAnalysis}
-                                </div>
-                              </div>
-                            </TabsContent>
-                            
-                            <TabsContent value="risks" className="h-full">
-                              <div className="bg-gray-900 rounded-lg p-4 h-full">
-                                <h4 className="font-medium mb-3 flex items-center gap-2">
-                                  ⚠️ Risk Assessment
-                                </h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-wrap">
-                                  {doc.analyses.riskAssessment}
-                                </div>
-                              </div>
-                            </TabsContent>
-                            
-                            <TabsContent value="competitive" className="h-full">
-                              <div className="bg-gray-900 rounded-lg p-4 h-full">
-                                <h4 className="font-medium mb-3 flex items-center gap-2">
-                                  🏆 Competitive Analysis
-                                </h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-wrap">
-                                  {doc.analyses.competitiveAnalysis}
-                                </div>
-                              </div>
-                            </TabsContent>
+
                           </div>
                         </Tabs>
                       </DialogContent>
