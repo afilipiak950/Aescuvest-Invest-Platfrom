@@ -21,6 +21,7 @@ export default function DueDiligence() {
   const [activeAgent, setActiveAgent] = useState<string>('legal');
   const [isUploading, setIsUploading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showUploadField, setShowUploadField] = useState(false);
 
   // Fetch real deals from database
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
@@ -52,10 +53,7 @@ export default function DueDiligence() {
   };
 
   const handleFileUpload = async () => {
-    setIsUploading(true);
-    // Simulate file upload
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsUploading(false);
+    setShowUploadField(!showUploadField);
   };
 
   return (
@@ -94,10 +92,9 @@ export default function DueDiligence() {
                 variant="outline"
                 className="bg-dark-lighter hover:bg-dark border-dark-lighter"
                 onClick={handleFileUpload}
-                disabled={isUploading}
               >
-                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Upload Files
+                <Upload className="mr-2 h-4 w-4" />
+                {showUploadField ? 'Hide Upload' : 'Upload Files'}
               </Button>
               
               <Button
@@ -111,6 +108,19 @@ export default function DueDiligence() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Upload Field - Shows when Upload Files button is clicked */}
+      {showUploadField && (
+        <Card className="bg-dark-light border-dark-lighter mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Upload Documents</CardTitle>
+            <CardDescription>Upload documents for AI analysis and due diligence review</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FileUploadAnalysis dealId={selectedDeal} />
+          </CardContent>
+        </Card>
+      )}
       
       {isLoadingDeals ? (
         <div className="flex justify-center py-20">
@@ -239,8 +249,6 @@ export default function DueDiligence() {
             </CardContent>
           </Card>
 
-          {/* File Upload & Analysis */}
-          <FileUploadAnalysis dealId={selectedDeal} />
           
           {/* Documents */}
           <Card className="bg-dark-light border-dark-lighter mb-6">
