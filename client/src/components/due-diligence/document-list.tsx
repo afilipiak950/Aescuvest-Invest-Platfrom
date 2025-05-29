@@ -11,9 +11,6 @@ interface DocumentListProps {
 }
 
 export default function DocumentList({ documents }: DocumentListProps) {
-  // Debug logging to see what data we're receiving
-  console.log('DocumentList received documents:', documents);
-  
   if (!documents || documents.length === 0) {
     return (
       <div className="text-center py-6">

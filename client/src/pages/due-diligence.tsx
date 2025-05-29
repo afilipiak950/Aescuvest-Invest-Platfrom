@@ -30,7 +30,7 @@ export default function DueDiligence() {
 
   // Fetch real documents for selected deal
   const { data: documents, isLoading: isLoadingDocuments } = useQuery({
-    queryKey: ['/api/deals', selectedDeal, 'documents'],
+    queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: false,
     enabled: !!selectedDeal
   });
