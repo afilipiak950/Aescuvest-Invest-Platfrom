@@ -37,8 +37,22 @@ app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req:
       });
     }
 
+    // Verify files are actually saved to disk
+    const fs = require('fs');
     const uploadedFiles = files.map((file, index) => {
-      console.log(`📁 File ${index}: ${file.originalname} saved to ${file.path}`);
+      console.log(`📁 File ${index}: ${file.originalname}`);
+      console.log(`   - Original path: ${file.path}`);
+      console.log(`   - Filename: ${file.filename}`);
+      console.log(`   - Size: ${file.size} bytes`);
+      
+      // Check if file exists on disk
+      if (fs.existsSync(file.path)) {
+        const stats = fs.statSync(file.path);
+        console.log(`   ✅ File confirmed on disk: ${stats.size} bytes`);
+      } else {
+        console.log(`   ❌ File NOT found on disk: ${file.path}`);
+      }
+      
       return {
         id: `file_${Date.now()}_${index}`,
         name: file.originalname,
