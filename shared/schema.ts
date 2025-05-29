@@ -246,3 +246,34 @@ export type InsertEvaluationCriteria = z.infer<typeof insertEvaluationCriteriaSc
 
 export type EvaluationResult = typeof evaluationResults.$inferSelect;
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
+
+// Company Research table
+export const companyResearch = pgTable("company_research", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").references(() => deals.id).notNull(),
+  // Executive Information
+  ceoProfile: json("ceo_profile"),
+  keyTeamMembers: json("key_team_members"),
+  // Financial Information
+  financialData: json("financial_data"),
+  // Market Analysis
+  marketAnalysis: json("market_analysis"),
+  // External Links
+  externalLinks: json("external_links"),
+  // Business Intelligence
+  businessIntelligence: json("business_intelligence"),
+  // Risk Assessment
+  riskFactors: json("risk_factors"),
+  // Investment Highlights
+  investmentHighlights: json("investment_highlights"),
+  // Status tracking
+  researchStatus: varchar("research_status", { length: 50 }).default("pending").notNull(),
+  researchCompletedAt: timestamp("research_completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCompanyResearchSchema = createInsertSchema(companyResearch);
+
+export type CompanyResearch = typeof companyResearch.$inferSelect;
+export type InsertCompanyResearch = z.infer<typeof insertCompanyResearchSchema>;
