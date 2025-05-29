@@ -19,23 +19,27 @@ export default function AIAssistant() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center">
                 <Check className="h-4 w-4 text-primary mr-2" />
-                <span>HealthTech relevance</span>
+                <span>Healthcare sector compliance (25%)</span>
               </li>
               <li className="flex items-center">
                 <Check className="h-4 w-4 text-primary mr-2" />
-                <span>Market size analysis</span>
+                <span>Biotech exclusion criteria (20%)</span>
               </li>
               <li className="flex items-center">
                 <Check className="h-4 w-4 text-primary mr-2" />
-                <span>Competitive landscape</span>
+                <span>EU/Israel headquarters (15%)</span>
               </li>
               <li className="flex items-center">
                 <Check className="h-4 w-4 text-primary mr-2" />
-                <span>Regulatory readiness</span>
+                <span>Series A-C stage fit (20%)</span>
               </li>
               <li className="flex items-center">
                 <Check className="h-4 w-4 text-primary mr-2" />
-                <span>Team background check</span>
+                <span>Ownership feasibility (10%)</span>
+              </li>
+              <li className="flex items-center">
+                <Check className="h-4 w-4 text-primary mr-2" />
+                <span>Platform business model (10%)</span>
               </li>
             </ul>
           </div>

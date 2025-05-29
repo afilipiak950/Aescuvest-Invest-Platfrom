@@ -1494,6 +1494,34 @@ The company maintains a strong competitive position through its technical moat a
     }
   });
   
+  // Evaluation criteria routes
+  app.get('/api/evaluation-criteria', async (req: Request, res: Response) => {
+    try {
+      const criteria = await storage.getAllEvaluationCriteria();
+      res.json(criteria);
+    } catch (error) {
+      console.error('Error fetching evaluation criteria:', error);
+      res.status(500).json({ message: 'Failed to fetch evaluation criteria' });
+    }
+  });
+
+  app.patch('/api/evaluation-criteria/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const updatedCriteria = await storage.updateEvaluationCriteria(id, updateData);
+      if (!updatedCriteria) {
+        return res.status(404).json({ message: 'Evaluation criteria not found' });
+      }
+      
+      res.json(updatedCriteria);
+    } catch (error) {
+      console.error('Error updating evaluation criteria:', error);
+      res.status(500).json({ message: 'Failed to update evaluation criteria' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -67,15 +67,15 @@ export interface IStorage {
   toggleAutomation(id: number): Promise<Automation | undefined>;
   
   // Evaluation criteria methods
-  getAllEvaluationCriteria(): Promise<EvaluationCriteria[]>;
-  getEvaluationCriteriaById(id: number): Promise<EvaluationCriteria | undefined>;
-  createEvaluationCriteria(criteria: InsertEvaluationCriteria): Promise<EvaluationCriteria>;
-  updateEvaluationCriteria(id: number, data: Partial<EvaluationCriteria>): Promise<EvaluationCriteria | undefined>;
+  getAllEvaluationCriteria(): Promise<any[]>;
+  getEvaluationCriteriaById(id: number): Promise<any | undefined>;
+  createEvaluationCriteria(criteria: any): Promise<any>;
+  updateEvaluationCriteria(id: number, data: any): Promise<any | undefined>;
   
   // Evaluation results methods
-  getAllEvaluationResults(): Promise<EvaluationResult[]>;
-  getEvaluationResultsByDealId(dealId: number): Promise<EvaluationResult[]>;
-  createEvaluationResult(result: InsertEvaluationResult): Promise<EvaluationResult>;
+  getAllEvaluationResults(): Promise<any[]>;
+  getEvaluationResultsByDealId(dealId: number): Promise<any[]>;
+  createEvaluationResult(result: any): Promise<any>;
 }
 
 // Database implementation of the storage interface
@@ -345,6 +345,44 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updatedAutomation;
+  }
+
+  // Evaluation criteria methods
+  async getAllEvaluationCriteria(): Promise<any[]> {
+    // Return default criteria for now
+    return [
+      { id: 1, name: "Sector", description: "Must be in Healthcare", weight: 25, isActive: true },
+      { id: 2, name: "Biotech Exclusion", description: "No wet-lab biotech", weight: 20, isActive: true },
+      { id: 3, name: "HQ Geography", description: "EU or Israel only", weight: 15, isActive: true },
+      { id: 4, name: "Stage", description: "Series A-C preferred", weight: 20, isActive: true },
+      { id: 5, name: "Ownership Feasibility", description: "20-30% post-money stake possible", weight: 10, isActive: true },
+      { id: 6, name: "Business Model Fit", description: "Platform logic preferred", weight: 10, isActive: true }
+    ];
+  }
+
+  async getEvaluationCriteriaById(id: number): Promise<any | undefined> {
+    const criteria = await this.getAllEvaluationCriteria();
+    return criteria.find(c => c.id === id);
+  }
+
+  async createEvaluationCriteria(criteria: any): Promise<any> {
+    return criteria;
+  }
+
+  async updateEvaluationCriteria(id: number, data: any): Promise<any | undefined> {
+    return { id, ...data };
+  }
+
+  async getAllEvaluationResults(): Promise<any[]> {
+    return [];
+  }
+
+  async getEvaluationResultsByDealId(dealId: number): Promise<any[]> {
+    return [];
+  }
+
+  async createEvaluationResult(result: any): Promise<any> {
+    return result;
   }
 }
 
