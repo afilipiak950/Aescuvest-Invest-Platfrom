@@ -415,54 +415,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OCR text extraction with Mistral
   app.post('/api/documents/ocr/extract', async (req: Request, res: Response) => {
     try {
-      const { documentId } = req.body;
+      console.log('🎯 OCR EXTRACT ENDPOINT HIT');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { documentId, fileName, fileType } = req.body;
       
       if (!documentId) {
+        console.log('❌ No documentId provided');
         return res.status(400).json({ message: 'Document ID required' });
       }
 
-      // Use Mistral OCR for text extraction
-      const result = {
-        extractedText: `
-EXECUTIVE SUMMARY
+      // Get the actual file path from uploads directory
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      console.log(`📁 Checking uploads directory: ${uploadsDir}`);
+      
+      // First, ensure uploads directory exists
+      if (!fs.existsSync(uploadsDir)) {
+        console.log('📁 Creating uploads directory');
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
 
-Company: Innovation Tech Solutions
-Founded: 2023
-Location: Berlin, Germany
+      // Check if files exist and list them all
+      console.log('🔍 DEBUGGING FILE SEARCH:');
+      let filePath = null;
+      try {
+        const allFiles = fs.readdirSync(uploadsDir);
+        console.log(`📂 Total files in uploads: ${allFiles.length}`);
+        console.log(`📂 All files: [${allFiles.join(', ')}]`);
+        
+        if (allFiles.length > 0) {
+          // Show detailed info about each file
+          allFiles.forEach((file, index) => {
+            const fullPath = path.join(uploadsDir, file);
+            const stats = fs.statSync(fullPath);
+            console.log(`📄 File ${index + 1}: ${file}`);
+            console.log(`   - Size: ${stats.size} bytes`);
+            console.log(`   - Modified: ${stats.mtime}`);
+            console.log(`   - Full path: ${fullPath}`);
+          });
 
-BUSINESS OVERVIEW
-Innovation Tech Solutions develops AI-powered enterprise software that helps companies automate complex business processes. Our platform reduces operational costs by 40% and increases efficiency by 60%.
+          // Use the most recent file
+          const stats = allFiles.map(f => ({
+            name: f,
+            path: path.join(uploadsDir, f),
+            mtime: fs.statSync(path.join(uploadsDir, f)).mtime
+          }));
+          stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+          filePath = stats[0].path;
+          console.log(`✅ SELECTED FILE: ${stats[0].name} at ${filePath}`);
+        } else {
+          console.log('❌ NO FILES FOUND IN UPLOADS DIRECTORY');
+        }
+      } catch (error) {
+        console.error(`❌ Error scanning uploads directory:`, error);
+      }
 
-MARKET OPPORTUNITY
-- Total Addressable Market: $12.5B
-- Current Market Share: 0.3%
-- Projected Growth Rate: 28% annually
-- Target Industries: Manufacturing, Healthcare, Finance
-
-FINANCIAL HIGHLIGHTS
-Current Revenue: €1.8M ARR
-Projected Revenue Year 2: €5.2M
-Projected Revenue Year 3: €14.7M
-Gross Margin: 85%
-Customer Acquisition Cost: €2,100
-Lifetime Value: €24,500
-
-FUNDING REQUEST
-Seeking €6M Series A for:
-- Product Development: 50%
-- Market Expansion: 30% 
-- Team Growth: 20%
-        `,
-        confidence: 0.92,
-        processingTime: '2.1s'
-      };
-
-      res.json({
-        documentId,
-        extractedText: result.extractedText,
-        confidence: result.confidence,
-        processingTime: result.processingTime
-      });
+      if (filePath && fs.existsSync(filePath)) {
+        console.log(`🚀 STARTING MISTRAL OCR PROCESSING: ${filePath}`);
+        
+        // Use actual Mistral OCR service
+        const { mistralOCRService } = await import('./services/mistralOCR');
+        console.log('📦 Mistral OCR service imported successfully');
+        
+        const ocrResult = await mistralOCRService.extractText(filePath, fileType || 'application/pdf');
+        
+        console.log(`✅ OCR COMPLETED: ${ocrResult.extractedText.length} characters extracted`);
+        console.log(`📊 Confidence: ${ocrResult.confidence}`);
+        console.log(`⏱️ Processing time: ${ocrResult.processingTime}`);
+        console.log(`📝 Text preview: ${ocrResult.extractedText.substring(0, 200)}...`);
+        
+        res.json({
+          documentId,
+          extractedText: ocrResult.extractedText,
+          confidence: ocrResult.confidence,
+          processingTime: ocrResult.processingTime
+        });
+      } else {
+        console.log(`❌ FILE NOT FOUND OR INACCESSIBLE: ${filePath}`);
+        
+        // Return an error instead of placeholder data
+        res.status(404).json({
+          documentId,
+          extractedText: '[ERROR] File not found on server. Upload may have failed.',
+          confidence: 0.0,
+          processingTime: '0.0s'
+        });
+      }
 
     } catch (error) {
       console.error('OCR extraction error:', error);
