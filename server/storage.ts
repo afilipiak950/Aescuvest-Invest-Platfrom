@@ -131,7 +131,7 @@ export class DatabaseStorage implements IStorage {
   async updateDealAiScore(id: number, score: number): Promise<Deal | undefined> {
     const [updatedDeal] = await db
       .update(deals)
-      .set({ aiScore: score })
+      .set({ aiScore: score.toString() })
       .where(eq(deals.id, id))
       .returning();
     return updatedDeal;
