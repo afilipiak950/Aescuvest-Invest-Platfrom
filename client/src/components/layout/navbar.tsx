@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png";
+import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
 
 const navItems = [
   { label: 'DASHBOARD', href: '/' },
@@ -35,7 +35,7 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           <img 
-            src={aescuvestLogo}
+            src={aescuvestLogoFull}
             alt="Aescuvest" 
             className="h-8 w-auto"
           />
