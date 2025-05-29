@@ -402,38 +402,38 @@ export class DatabaseStorage implements IStorage {
         researchStatus: "completed",
         lastUpdated: new Date().toISOString(),
         
-        // Executive Team Analysis
-        executiveTeam: {
-          ceo: {
-            name: "Elon Musk",
-            title: "Chief Executive Officer & Product Architect",
-            linkedinUrl: "https://linkedin.com/in/elon-musk",
-            background: "Visionary entrepreneur leading the transition to sustainable energy and space exploration with Tesla, SpaceX, and other breakthrough companies",
-            experience: "25+ years building transformative technology companies from PayPal to Tesla to SpaceX",
-            previousCompanies: ["PayPal", "Zip2", "SpaceX", "Neuralink", "The Boring Company"],
-            education: "Bachelor of Science in Physics (University of Pennsylvania), Bachelor of Economics (Wharton School)",
-            achievements: [
-              "Built Tesla into world's most valuable automaker ($789B market cap)",
-              "Named Time Person of the Year 2021 for accelerating sustainable transportation",
-              "Successfully developed reusable rocket technology reducing space costs by 90%",
-              "Advanced neural interface technology with Neuralink brain-computer interfaces"
-            ]
-          },
-          cto: {
-            name: "Drew Baglino",
-            title: "Senior VP of Powertrain & Energy Engineering",
-            linkedinUrl: "https://linkedin.com/in/drew-baglino",
-            background: "Technical leader driving Tesla's battery technology revolution and energy storage innovations",
-            experience: "15+ years at Tesla, leading development of 4680 battery cells and Gigafactory scaling"
-          },
-          cfo: {
-            name: "Vaibhav Taneja",
-            title: "Chief Financial Officer",
-            linkedinUrl: "https://linkedin.com/in/vaibhav-taneja",
-            background: "Financial executive with automotive and global operations expertise",
-            experience: "20+ years in financial leadership including automotive industry and international expansion"
-          }
+        // CEO Profile (main executive focus)
+        ceoProfile: {
+          name: "Elon Musk",
+          title: "Chief Executive Officer & Product Architect",
+          linkedinUrl: "https://linkedin.com/in/elon-musk",
+          background: "Visionary entrepreneur leading the transition to sustainable energy and space exploration with Tesla, SpaceX, and other breakthrough companies. Known for revolutionizing electric vehicles, space exploration, and neural technology interfaces.",
+          experience: "25+ years building transformative technology companies from PayPal to Tesla to SpaceX. Track record of scaling companies from startup to industry leadership positions.",
+          previousCompanies: ["PayPal", "Zip2", "SpaceX", "Neuralink", "The Boring Company"],
+          education: "Bachelor of Science in Physics (University of Pennsylvania), Bachelor of Economics (Wharton School)",
+          achievements: [
+            "Built Tesla into world's most valuable automaker ($789B market cap)",
+            "Named Time Person of the Year 2021 for accelerating sustainable transportation", 
+            "Successfully developed reusable rocket technology reducing space costs by 90%",
+            "Advanced neural interface technology with Neuralink brain-computer interfaces"
+          ]
         },
+
+        // Key Team Members
+        keyTeamMembers: [
+          {
+            name: "Drew Baglino",
+            role: "Senior VP of Powertrain & Energy Engineering",
+            linkedinUrl: "https://linkedin.com/in/drew-baglino",
+            background: "Technical leader driving Tesla's battery technology revolution and energy storage innovations. Led development of 4680 battery cells and Gigafactory scaling."
+          },
+          {
+            name: "Vaibhav Taneja",
+            role: "Chief Financial Officer", 
+            linkedinUrl: "https://linkedin.com/in/vaibhav-taneja",
+            background: "Financial executive with automotive and global operations expertise. 20+ years in financial leadership including automotive industry and international expansion."
+          }
+        ],
 
         // Financial Intelligence
         financialInsights: {
