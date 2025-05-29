@@ -14,34 +14,59 @@ export default function DealIntake() {
     setIsSubmitting(true);
     
     try {
-      // In a real app, you would upload files and form data to an API
-      // const formDataToSend = new FormData();
-      // Object.entries(formData).forEach(([key, value]) => {
-      //   formDataToSend.append(key, value as string);
-      // });
+      // Create the deal first
+      const dealResponse = await fetch('/api/deals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: formData.companyName,
+          sector: formData.sector,
+          stage: formData.stage,
+          fundingAmount: formData.fundingAmount || null,
+          website: formData.website || null,
+          location: formData.location || null,
+          description: formData.description,
+          status: 'Under Review'
+        })
+      });
       
-      // files.forEach(file => {
-      //   formDataToSend.append('files', file);
-      // });
+      if (!dealResponse.ok) {
+        throw new Error('Failed to create deal');
+      }
       
-      // const response = await fetch('/api/deals', {
-      //   method: 'POST',
-      //   body: formDataToSend
-      // });
+      const newDeal = await dealResponse.json();
       
-      // if (!response.ok) throw new Error('Failed to submit deal');
-      
-      // Simulating API request
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Upload documents if any files were provided
+      if (files.length > 0) {
+        const formDataToSend = new FormData();
+        formDataToSend.append('dealId', newDeal.id.toString());
+        
+        files.forEach(file => {
+          formDataToSend.append('files', file);
+        });
+        
+        const uploadResponse = await fetch('/api/documents', {
+          method: 'POST',
+          body: formDataToSend
+        });
+        
+        if (!uploadResponse.ok) {
+          console.warn('Deal created but document upload failed');
+        }
+      }
       
       toast({
         title: "Success!",
-        description: "Deal has been submitted for AI analysis.",
+        description: `Deal "${formData.companyName}" has been created and submitted for AI analysis.`,
         variant: "default",
       });
       
-      // Clear form and files in a real application
-      // You might also redirect to a new page or show results
+      // Clear form and files
+      setUploadedFiles([]);
+      // You might also redirect to the new deal page
+      window.location.href = '/deals';
     } catch (error) {
       console.error('Error submitting deal:', error);
       toast({
