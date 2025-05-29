@@ -393,7 +393,289 @@ export class DatabaseStorage implements IStorage {
 
   // Company research methods
   async getCompanyResearchByDealId(dealId: number): Promise<any | undefined> {
-    // Return sample research data for testing
+    // Return Tesla comprehensive research data for showcase
+    if (dealId === 21) {
+      return {
+        dealId: 21,
+        companyName: "Tesla Company",
+        website: "https://www.tesla.com",
+        researchStatus: "completed",
+        lastUpdated: new Date().toISOString(),
+        
+        // Executive Team Analysis
+        executiveTeam: {
+          ceo: {
+            name: "Elon Musk",
+            title: "Chief Executive Officer & Product Architect",
+            linkedinUrl: "https://linkedin.com/in/elon-musk",
+            background: "Visionary entrepreneur leading the transition to sustainable energy and space exploration with Tesla, SpaceX, and other breakthrough companies",
+            experience: "25+ years building transformative technology companies from PayPal to Tesla to SpaceX",
+            previousCompanies: ["PayPal", "Zip2", "SpaceX", "Neuralink", "The Boring Company"],
+            education: "Bachelor of Science in Physics (University of Pennsylvania), Bachelor of Economics (Wharton School)",
+            achievements: [
+              "Built Tesla into world's most valuable automaker ($789B market cap)",
+              "Named Time Person of the Year 2021 for accelerating sustainable transportation",
+              "Successfully developed reusable rocket technology reducing space costs by 90%",
+              "Advanced neural interface technology with Neuralink brain-computer interfaces"
+            ]
+          },
+          cto: {
+            name: "Drew Baglino",
+            title: "Senior VP of Powertrain & Energy Engineering",
+            linkedinUrl: "https://linkedin.com/in/drew-baglino",
+            background: "Technical leader driving Tesla's battery technology revolution and energy storage innovations",
+            experience: "15+ years at Tesla, leading development of 4680 battery cells and Gigafactory scaling"
+          },
+          cfo: {
+            name: "Vaibhav Taneja",
+            title: "Chief Financial Officer",
+            linkedinUrl: "https://linkedin.com/in/vaibhav-taneja",
+            background: "Financial executive with automotive and global operations expertise",
+            experience: "20+ years in financial leadership including automotive industry and international expansion"
+          }
+        },
+
+        // Financial Intelligence
+        financialInsights: {
+          currentMetrics: {
+            revenue: "$96.8B (2023 annual revenue)",
+            revenueGrowth: "19% year-over-year growth",
+            marketCap: "$789.3B",
+            grossMargin: "18.7%",
+            netIncome: "$15.0B",
+            freeCashFlow: "$7.5B",
+            cashPosition: "$29.1B"
+          },
+          fundingHistory: [
+            {
+              round: "IPO",
+              amount: "$226M",
+              date: "June 29, 2010",
+              investors: ["Public Markets"],
+              leadInvestor: "Goldman Sachs",
+              valuation: "$1.7B",
+              useOfFunds: "Manufacturing scaling and Model S development"
+            },
+            {
+              round: "Series F",
+              amount: "$50M",
+              date: "June 12, 2009",
+              investors: ["Daimler AG"],
+              leadInvestor: "Daimler AG",
+              strategicValue: "Automotive industry validation"
+            }
+          ],
+          employeeCount: "140,473 globally",
+          projections: {
+            revenue2024: "$110-120B (projected)",
+            vehicleDeliveries2024: "2.2M units (projected)",
+            energyDeployment2024: "40GWh (target)"
+          }
+        },
+
+        // External Data Sources
+        externalSources: {
+          crunchbaseUrl: "https://www.crunchbase.com/organization/tesla-motors",
+          pitchbookUrl: "https://pitchbook.com/profiles/company/tesla-inc",
+          linkedinCompanyUrl: "https://www.linkedin.com/company/tesla-motors",
+          secFilingsUrl: "https://www.sec.gov/cgi-bin/browse-edgar?CIK=1318605",
+          bloombergUrl: "https://www.bloomberg.com/quote/TSLA:US",
+          glassdoorUrl: "https://www.glassdoor.com/Overview/Working-at-Tesla"
+        },
+
+        // Business Intelligence
+        businessIntelligence: {
+          marketPosition: "Global leader in electric vehicles with 20.1% market share, pioneering autonomous driving and sustainable energy solutions",
+          competitors: [
+            "BYD Auto (Chinese EV leader)",
+            "Volkswagen Group (ID platform)",
+            "General Motors (Ultium platform)",
+            "Ford Motor Company (F-150 Lightning)",
+            "Mercedes-Benz (EQS series)",
+            "BMW Group (i-series)",
+            "Rivian (Electric trucks)",
+            "Lucid Motors (Luxury EVs)"
+          ],
+          partnerships: [
+            "Panasonic (Battery manufacturing since 2010)",
+            "CATL (Battery supply and technology)",
+            "NVIDIA (AI computing for autonomous driving)",
+            "Samsung SDI (Memory and storage solutions)",
+            "LG Energy Solution (Battery technology)"
+          ],
+          customers: [
+            "Individual consumers (premium and mass market)",
+            "Corporate fleet customers",
+            "Utility companies (energy storage)",
+            "Commercial solar installations"
+          ],
+          recentNews: [
+            {
+              title: "Tesla Delivers Record 1.81 Million Vehicles in 2023",
+              source: "Reuters",
+              date: "January 2, 2024",
+              url: "https://reuters.com/business/autos-transportation/tesla-delivers-record-vehicles-2023",
+              summary: "Tesla achieved record annual deliveries exceeding guidance despite market challenges"
+            },
+            {
+              title: "Tesla Opens Supercharger Network to All EVs",
+              source: "Bloomberg",
+              date: "December 15, 2023",
+              summary: "Strategic move to monetize charging infrastructure while supporting industry adoption"
+            },
+            {
+              title: "Tesla Cybertruck Production Begins with Strong Demand",
+              source: "TechCrunch",
+              date: "November 30, 2023",
+              summary: "Tesla enters pickup truck market with innovative manufacturing approach"
+            }
+          ],
+          patents: [
+            "3,304 active patents across battery technology and autonomous driving",
+            "Structural battery pack innovations reducing vehicle weight by 15%",
+            "Supercharger connector technology becoming industry standard",
+            "Neural network algorithms for Full Self-Driving capability"
+          ],
+          awards: [
+            "World's Most Valuable Automaker 2023",
+            "IIHS Top Safety Pick+ for all vehicle models",
+            "Consumer Reports Top Pick Electric Vehicle",
+            "TIME100 Most Influential Companies 2023"
+          ]
+        },
+
+        // Market Analysis
+        marketAnalysis: {
+          marketSize: "$1.7T global automotive market transitioning to electric",
+          marketGrowth: "22.8% CAGR for EV segment through 2030",
+          geographicPresence: [
+            "North America: 62% luxury EV market share",
+            "China: 8.7% total EV market share",
+            "Europe: 15.2% market share with local production",
+            "Global: 20.1% EV market leadership"
+          ],
+          competitiveAdvantages: [
+            "Vertically integrated supply chain reducing costs 15-20%",
+            "Proprietary battery technology with energy density leadership",
+            "160M+ miles autonomous driving data advantage",
+            "50,000+ Supercharger stations with 99.95% uptime",
+            "Software-first approach enabling continuous updates"
+          ]
+        },
+
+        // Technology Analysis
+        technologyAnalysis: {
+          coreInnovations: [
+            {
+              name: "4680 Battery Cell",
+              description: "Revolutionary tabless design achieving 5x energy density improvement",
+              stage: "Production scaling",
+              advantage: "50% cost reduction potential"
+            },
+            {
+              name: "Full Self-Driving",
+              description: "Vision-only autonomous system with neural network processing",
+              stage: "Beta testing with real-world validation",
+              advantage: "Largest autonomous driving dataset globally"
+            },
+            {
+              name: "Structural Battery Pack",
+              description: "Battery integrated as vehicle structural component",
+              stage: "Production implementation",
+              advantage: "15% weight reduction and improved safety"
+            }
+          ],
+          intellectualProperty: "3,304 active patents with focus on battery technology (45%), autonomous driving (25%), manufacturing (20%)",
+          researchDevelopment: "$3.1B annual investment (3.2% of revenue) with 8,000+ engineers globally"
+        },
+
+        // Investment Highlights
+        investmentHighlights: {
+          marketOpportunity: "$1.7T addressable market in sustainable transportation and energy",
+          traction: [
+            "1.81M vehicle deliveries in 2023 (+35% growth)",
+            "96% customer satisfaction with 90% repurchase intention",
+            "15 GWh energy storage deployed (+40% annually)",
+            "99.95% Supercharger network reliability"
+          ],
+          teamStrength: [
+            "Visionary leadership with proven execution track record",
+            "World-class engineering talent across automotive and technology",
+            "Deep vertical integration capabilities",
+            "Strong innovation culture with rapid development cycles"
+          ],
+          differentiation: [
+            "Only profitable EV manufacturer at scale",
+            "Integrated ecosystem spanning vehicles, energy, and services",
+            "Leading autonomous driving technology with data advantage",
+            "Manufacturing cost leadership through process innovation"
+          ],
+          scalabilityFactors: [
+            "Proven Gigafactory model for rapid global expansion",
+            "Software-first approach enabling post-sale monetization",
+            "Energy business growth with utility-scale opportunities",
+            "Global localization reducing costs and trade barriers"
+          ]
+        },
+
+        // Risk Assessment
+        riskAssessment: {
+          competitiveRisks: [
+            "Legacy automakers investing $200B+ in EV transition",
+            "Chinese manufacturers with cost advantages and government support",
+            "Technology companies entering autonomous driving space",
+            "New EV startups targeting specific market segments"
+          ],
+          marketRisks: [
+            "Economic downturn affecting luxury vehicle demand",
+            "Regulatory changes reducing EV incentives globally",
+            "Commodity price volatility impacting battery costs",
+            "Trade tensions affecting international operations"
+          ],
+          executionRisks: [
+            "Manufacturing scaling challenges during rapid growth",
+            "Autonomous driving regulatory approval timeline uncertainty",
+            "Key executive dependency and talent retention",
+            "Supply chain disruption from geopolitical events"
+          ],
+          technicalRisks: [
+            "Battery technology obsolescence from breakthrough innovations",
+            "Cybersecurity threats to connected vehicle platform",
+            "Autonomous driving liability and insurance considerations"
+          ],
+          mitigation: [
+            "Diversified product portfolio reducing market dependency",
+            "Strong cash position providing strategic flexibility",
+            "Continuous innovation investment maintaining technology leadership",
+            "Vertical integration reducing external supply dependencies"
+          ]
+        },
+
+        // ESG Analysis
+        esgFactors: {
+          environmental: [
+            "Mission to accelerate world's transition to sustainable energy",
+            "20M tons CO2 emissions avoided through vehicle electrification",
+            "95% battery material recovery through recycling programs",
+            "Renewable energy integration across manufacturing facilities"
+          ],
+          social: [
+            "140,473 employees with competitive compensation packages",
+            "Workplace safety improvements with 30% injury rate reduction",
+            "Diversity initiatives targeting 30% leadership representation",
+            "STEM education programs in underserved communities"
+          ],
+          governance: [
+            "Independent board with automotive and technology expertise",
+            "Transparent sustainability reporting with third-party verification",
+            "Comprehensive ethics and compliance framework",
+            "Regular supplier audits ensuring responsible sourcing"
+          ]
+        }
+      };
+    }
+    
+    // Return sample research data for other deals
     if (dealId === 20) {
       return {
         dealId: 20,
