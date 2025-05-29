@@ -18,7 +18,7 @@ import { Deal, AgentAnalysis, Document } from '@/types';
 
 export default function DueDiligence() {
   const [selectedDeal, setSelectedDeal] = useState<string>('1'); // Default to first deal
-  const [activeAgent, setActiveAgent] = useState<string>('legal');
+  const [activeAgent, setActiveAgent] = useState<string>('company-info');
   const [isUploading, setIsUploading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -153,6 +153,12 @@ export default function DueDiligence() {
               <Tabs value={activeAgent} onValueChange={setActiveAgent} className="w-full">
                 <TabsList className="border-b border-dark-lighter bg-transparent mb-6 w-full justify-start">
                   <TabsTrigger
+                    value="company-info"
+                    className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
+                  >
+                    Company Information
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="legal"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
@@ -183,6 +189,120 @@ export default function DueDiligence() {
                     AI Agents
                   </TabsTrigger>
                 </TabsList>
+                
+                <TabsContent value="company-info">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="bg-dark border-dark-lighter">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Basic Information</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Company Name</label>
+                            <p className="text-white font-semibold">{currentDeal.companyName}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Description</label>
+                            <p className="text-gray-300">{currentDeal.description}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Sector</label>
+                            <p className="text-white">{currentDeal.sector}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Stage</label>
+                            <p className="text-white">{currentDeal.stage}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-dark border-dark-lighter">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Contact & Financial</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Location</label>
+                            <p className="text-white">{currentDeal.location || 'Not specified'}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Website</label>
+                            {currentDeal.website ? (
+                              <a 
+                                href={currentDeal.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-primary-hover underline"
+                              >
+                                {currentDeal.website}
+                              </a>
+                            ) : (
+                              <p className="text-gray-400">Not provided</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Funding Amount</label>
+                            <p className="text-white font-semibold">
+                              {currentDeal.fundingAmount 
+                                ? `$${(currentDeal.fundingAmount / 1000000).toFixed(1)}M` 
+                                : 'Not specified'
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">AI Score</label>
+                            <p className="text-white font-semibold">
+                              {currentDeal.aiScore ? `${currentDeal.aiScore}/100` : 'Pending evaluation'}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <Card className="bg-dark border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Submission Details</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Created At</label>
+                            <p className="text-white">
+                              {new Date(currentDeal.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Last Updated</label>
+                            <p className="text-white">
+                              {new Date(currentDeal.updatedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Status</label>
+                            <div className="inline-block">
+                              <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-sm font-medium border border-blue-600/30">
+                                {currentDeal.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
                 
                 <TabsContent value="legal">
                   <AgentCard 
