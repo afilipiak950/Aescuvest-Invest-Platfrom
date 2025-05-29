@@ -1639,9 +1639,8 @@ The company maintains a strong competitive position through its technical moat a
       // Get company research data
       const companyResearch = await storage.getCompanyResearchByDealId(dealId);
 
-      // Import and use AI evaluation engine
-      const { AIEvaluationEngine } = await import('../services/aiEvaluationEngine');
-      const evaluationEngine = new AIEvaluationEngine();
+      // Use AI evaluation functionality directly
+      const { analyzeCompanyAgainstCriteria } = await import('./services/directAIEvaluation');
 
       // Prepare company data
       const companyData = {
