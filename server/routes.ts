@@ -92,13 +92,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const uploadedFiles = files.map((file, index) => ({
-        id: `file_${Date.now()}_${index}`,
-        name: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-        status: 'uploaded'
-      }));
+      const uploadedFiles = files.map((file, index) => {
+        console.log(`📁 Processing file ${index}: ${file.originalname}`);
+        console.log(`   - File path: ${file.path}`);
+        console.log(`   - File size: ${file.size} bytes`);
+        console.log(`   - Filename: ${file.filename}`);
+        
+        // Verify file exists on disk
+        const fs = require('fs');
+        if (fs.existsSync(file.path)) {
+          const stats = fs.statSync(file.path);
+          console.log(`   ✅ File confirmed on disk: ${stats.size} bytes`);
+        } else {
+          console.log(`   ❌ File NOT found on disk: ${file.path}`);
+        }
+        
+        return {
+          id: `file_${Date.now()}_${index}`,
+          name: file.originalname,
+          size: file.size,
+          type: file.mimetype,
+          status: 'uploaded',
+          path: file.path,
+          filename: file.filename
+        };
+      });
 
       console.log('✅ SUCCESS! Responding with', uploadedFiles.length, 'files');
       
