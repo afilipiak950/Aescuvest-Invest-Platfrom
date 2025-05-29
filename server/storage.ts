@@ -9,7 +9,7 @@ import {
   automations, Automation, InsertAutomation,
   companyResearch
 } from "@shared/schema";
-import { db } from './db';
+import { db, pool } from './db';
 import { eq, and, desc } from 'drizzle-orm';
 
 // Storage interface with all the CRUD methods we need
