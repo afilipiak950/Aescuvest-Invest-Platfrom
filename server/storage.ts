@@ -76,6 +76,11 @@ export interface IStorage {
   getAllEvaluationResults(): Promise<any[]>;
   getEvaluationResultsByDealId(dealId: number): Promise<any[]>;
   createEvaluationResult(result: any): Promise<any>;
+  
+  // Company research methods
+  getCompanyResearchByDealId(dealId: number): Promise<any | undefined>;
+  createCompanyResearch(research: any): Promise<any>;
+  updateCompanyResearchStatus(dealId: number, status: string): Promise<any | undefined>;
 }
 
 // Database implementation of the storage interface

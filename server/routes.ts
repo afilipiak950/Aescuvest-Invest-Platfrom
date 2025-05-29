@@ -202,6 +202,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Started background AI evaluation for deal ${deal.id}: ${deal.companyName}`);
       }
       
+      // Trigger automated company research for all deals
+      if (deal.companyName) {
+        // Start comprehensive company research in background
+        processCompanyResearchForDeal(deal.id, deal.companyName, deal.website, deal.sector)
+          .catch(error => {
+            console.error(`Background company research failed for deal ${deal.id}:`, error);
+          });
+        
+        console.log(`Started background company research for deal ${deal.id}: ${deal.companyName}`);
+      }
+      
       return res.status(201).json(deal);
     } catch (error) {
       console.error('Error creating deal:', error);
