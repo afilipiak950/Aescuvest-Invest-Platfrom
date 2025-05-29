@@ -65,6 +65,17 @@ export interface IStorage {
   getAutomationById(id: number): Promise<Automation | undefined>;
   createAutomation(automation: InsertAutomation): Promise<Automation>;
   toggleAutomation(id: number): Promise<Automation | undefined>;
+  
+  // Evaluation criteria methods
+  getAllEvaluationCriteria(): Promise<EvaluationCriteria[]>;
+  getEvaluationCriteriaById(id: number): Promise<EvaluationCriteria | undefined>;
+  createEvaluationCriteria(criteria: InsertEvaluationCriteria): Promise<EvaluationCriteria>;
+  updateEvaluationCriteria(id: number, data: Partial<EvaluationCriteria>): Promise<EvaluationCriteria | undefined>;
+  
+  // Evaluation results methods
+  getAllEvaluationResults(): Promise<EvaluationResult[]>;
+  getEvaluationResultsByDealId(dealId: number): Promise<EvaluationResult[]>;
+  createEvaluationResult(result: InsertEvaluationResult): Promise<EvaluationResult>;
 }
 
 // Database implementation of the storage interface

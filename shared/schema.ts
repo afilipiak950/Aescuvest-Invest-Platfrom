@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -207,3 +207,42 @@ export type InsertInvestorMatch = z.infer<typeof insertInvestorMatchSchema>;
 
 export type Automation = typeof automations.$inferSelect;
 export type InsertAutomation = z.infer<typeof insertAutomationSchema>;
+
+// AI Evaluation Criteria table
+export const evaluationCriteria = pgTable("evaluation_criteria", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description").notNull(),
+  weight: integer("weight").notNull().default(20), // Weight percentage (0-100)
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Evaluation Results table
+export const evaluationResults = pgTable("evaluation_results", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").references(() => deals.id, { onDelete: "cascade" }),
+  criteriaId: integer("criteria_id").references(() => evaluationCriteria.id),
+  score: integer("score").notNull(), // Score 0-100 for this criteria
+  analysis: text("analysis"), // AI's detailed analysis for this criteria
+  confidence: integer("confidence"), // AI confidence level 0-100
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEvaluationCriteriaSchema = createInsertSchema(evaluationCriteria).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEvaluationResultSchema = createInsertSchema(evaluationResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type EvaluationCriteria = typeof evaluationCriteria.$inferSelect;
+export type InsertEvaluationCriteria = z.infer<typeof insertEvaluationCriteriaSchema>;
+
+export type EvaluationResult = typeof evaluationResults.$inferSelect;
+export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;

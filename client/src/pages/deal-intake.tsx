@@ -71,8 +71,8 @@ export default function DealIntake() {
       
       // Clear form and files
       setUploadedFiles([]);
-      // You might also redirect to the new deal page
-      window.location.href = '/deals';
+      // Redirect to all deals page
+      window.location.href = '/all-deals';
     } catch (error) {
       console.error('Error submitting deal:', error);
       toast({
