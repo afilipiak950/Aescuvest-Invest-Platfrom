@@ -190,13 +190,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const deal = await storage.createDeal(result.data);
       
-      // Generate a random AI score for demo purposes
-      const aiScore = Math.floor(Math.random() * 35) + 65; // 65-100
+      // Trigger intelligent AI evaluation if website is provided
+      let aiScore = 0;
+      let evaluationResult = null;
+      
+      if (deal.website && deal.companyName && deal.sector) {
+        try {
+          // Import evaluation service
+          const { evaluateWebsite } = await import('./services/aiEvaluation');
+          
+          // Default evaluation criteria
+          const criteria = [
+            { id: 1, name: "Sector", description: "Must be in Healthcare", weight: 25 },
+            { id: 2, name: "Biotech Exclusion", description: "No wet-lab biotech", weight: 20 },
+            { id: 3, name: "HQ Geography", description: "EU or Israel only", weight: 15 },
+            { id: 4, name: "Stage", description: "Series A-C preferred", weight: 20 },
+            { id: 5, name: "Ownership Feasibility", description: "20-30% post-money stake possible", weight: 10 },
+            { id: 6, name: "Business Model Fit", description: "Platform logic preferred", weight: 10 }
+          ];
+
+          evaluationResult = await evaluateWebsite(deal.website, deal.companyName, deal.sector, criteria);
+          aiScore = evaluationResult.overallScore;
+          
+          console.log(`AI Evaluation completed for ${deal.companyName}: ${aiScore}/100`);
+        } catch (error) {
+          console.error('Error during AI evaluation:', error);
+          // Fall back to a neutral score if evaluation fails
+          aiScore = 50;
+        }
+      } else {
+        // No website provided, use neutral score
+        aiScore = 50;
+      }
+      
       await storage.updateDealAiScore(deal.id, aiScore);
       
       return res.status(201).json({
         ...deal,
-        aiScore
+        aiScore,
+        evaluation: evaluationResult
       });
     } catch (error) {
       console.error('Error creating deal:', error);
