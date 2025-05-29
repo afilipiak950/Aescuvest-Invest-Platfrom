@@ -81,11 +81,11 @@ export function CompanyResearchDisplay({ dealId }: CompanyResearchProps) {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-2xl font-bold">AI Company Research</h3>
-          <p className="text-gray-400">Comprehensive investor intelligence for {researchData.companyName}</p>
+          <p className="text-gray-400">Comprehensive investor intelligence for {researchData?.companyName || 'this company'}</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="bg-green-600/10 text-green-400 border-green-600/30">
-            {researchData.researchStatus === 'completed' ? 'Research Complete' : 'Processing'}
+            {researchData?.researchStatus === 'completed' ? 'Research Complete' : 'Processing'}
           </Badge>
           <Button variant="outline" size="sm" onClick={handleRefreshResearch} disabled={isRefreshing}>
             {isRefreshing ? (
@@ -148,31 +148,31 @@ export function CompanyResearchDisplay({ dealId }: CompanyResearchProps) {
               <CardDescription>Executive profiles and leadership assessment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {researchData.ceoProfile && (
+              {researchData?.ceoProfile && (
                 <div className="bg-dark-light p-4 rounded-lg border border-dark-lighter">
                   <h4 className="font-semibold text-lg mb-3">Chief Executive Officer</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-gray-400">Name</label>
-                      <p className="text-white">{researchData.ceoProfile.name}</p>
+                      <p className="text-white">{researchData?.ceoProfile?.name}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-400">LinkedIn Profile</label>
-                      <p className="text-blue-400">{researchData.ceoProfile.linkedinUrl || 'Profile located'}</p>
+                      <p className="text-blue-400">{researchData?.ceoProfile?.linkedinUrl || 'Profile located'}</p>
                     </div>
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-gray-400">Background</label>
-                      <p className="text-gray-300">{researchData.ceoProfile.background}</p>
+                      <p className="text-gray-300">{researchData?.ceoProfile?.background}</p>
                     </div>
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-gray-400">Experience</label>
-                      <p className="text-gray-300">{researchData.ceoProfile.experience}</p>
+                      <p className="text-gray-300">{researchData?.ceoProfile?.experience}</p>
                     </div>
-                    {researchData.ceoProfile.previousCompanies?.length > 0 && (
+                    {researchData?.ceoProfile?.previousCompanies?.length > 0 && (
                       <div className="md:col-span-2">
                         <label className="text-sm font-medium text-gray-400">Previous Companies</label>
                         <div className="flex flex-wrap gap-2 mt-1">
-                          {researchData.ceoProfile.previousCompanies.map((company, index) => (
+                          {researchData.ceoProfile.previousCompanies.map((company: string, index: number) => (
                             <Badge key={index} variant="outline" className="bg-blue-600/10 text-blue-400 border-blue-600/30">
                               {company}
                             </Badge>
