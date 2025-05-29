@@ -1589,62 +1589,12 @@ The company maintains a strong competitive position through its technical moat a
         return res.status(404).json({ message: 'Deal not found' });
       }
 
-      // Return research data structure for display
-      const researchData = {
-        dealId,
-        companyName: deal.companyName,
-        researchStatus: 'completed',
-        lastUpdated: new Date().toISOString(),
-        ceoProfile: {
-          name: "Research Available",
-          background: "CEO background analysis completed",
-          experience: "Professional experience documented",
-          previousCompanies: ["Previous company analysis available"],
-          linkedinUrl: "LinkedIn profile located"
-        },
-        financialInsights: {
-          fundingHistory: [
-            {
-              round: "Research shows funding rounds",
-              amount: "Investment amounts identified",
-              date: "Funding timeline documented",
-              investors: ["Investor list compiled"]
-            }
-          ],
-          revenue: "Revenue estimates available",
-          valuation: "Valuation analysis completed",
-          employeeCount: "Team size documented"
-        },
-        externalSources: {
-          pitchbookUrl: "Pitchbook profile found",
-          crunchbaseUrl: "Crunchbase data located", 
-          northdataUrl: "European database checked",
-          linkedinCompanyUrl: "Company page identified"
-        },
-        businessIntelligence: {
-          competitors: ["Competitive landscape mapped"],
-          marketPosition: "Market positioning analyzed",
-          recentNews: [
-            {
-              title: "Recent developments tracked",
-              source: "News sources monitored",
-              date: "Timeline documented"
-            }
-          ],
-          partnerships: ["Strategic partnerships identified"]
-        },
-        investmentHighlights: {
-          traction: ["Growth metrics documented"],
-          teamStrength: ["Leadership assessment completed"],
-          marketOpportunity: "Market opportunity sized",
-          differentiation: ["Competitive advantages identified"]
-        },
-        riskAssessment: {
-          competitiveRisks: ["Competition analysis completed"],
-          marketRisks: ["Market risks evaluated"],
-          executionRisks: ["Execution challenges assessed"]
-        }
-      };
+      // Get comprehensive research data from storage
+      const researchData = await storage.getCompanyResearchByDealId(dealId);
+      
+      if (!researchData) {
+        return res.status(404).json({ message: 'Research data not available for this deal' });
+      }
 
       res.json(researchData);
     } catch (error) {
