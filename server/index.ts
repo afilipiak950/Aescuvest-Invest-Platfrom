@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import multer from "multer";
+import fs from "fs";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -38,7 +39,6 @@ app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req:
     }
 
     // Verify files are actually saved to disk
-    const fs = require('fs');
     const uploadedFiles = files.map((file, index) => {
       console.log(`📁 File ${index}: ${file.originalname}`);
       console.log(`   - Original path: ${file.path}`);
