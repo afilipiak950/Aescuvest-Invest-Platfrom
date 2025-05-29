@@ -285,34 +285,37 @@ export default function Pipeline() {
                         onDragStart={(e) => handleDragStart(e, deal)}
                         className="bg-dark border-dark-lighter hover:bg-dark-lighter/50 transition-all cursor-move hover:shadow-lg"
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3 mb-3">
-                            <div className={cn("flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center font-semibold text-white", bgColor)}>
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-2 mb-2">
+                            <div className={cn("flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center font-semibold text-white text-xs", bgColor)}>
                               {firstLetter}
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-white text-sm mb-1 truncate">
                                 {deal.companyName}
                               </h3>
-                              <p className="text-xs text-gray-400 mb-2 line-clamp-2">
-                                {deal.description}
-                              </p>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
+                              <div className="flex items-center gap-1 flex-wrap mb-2">
+                                <Badge variant="secondary" className="text-xs bg-blue-500/20 text-blue-300 border-blue-500/30">
                                   {deal.sector}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
+                                <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-300 border-purple-500/30">
                                   {deal.stage}
                                 </Badge>
+                                <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
+                                  Private Co.
+                                </Badge>
                               </div>
+                              <p className="text-xs text-gray-400 mb-2 line-clamp-1">
+                                {deal.description}
+                              </p>
                             </div>
                           </div>
 
                           {/* Deal Metrics */}
-                          <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-3 w-3 text-gray-400" />
-                              <span className="text-xs text-gray-300">
+                              <span className="text-xs text-gray-300 font-medium">
                                 {deal.fundingAmount 
                                   ? `€${(deal.fundingAmount / 1000000).toFixed(1)}M` 
                                   : 'TBD'
@@ -328,7 +331,7 @@ export default function Pipeline() {
                           </div>
 
                           {/* Created Date */}
-                          <div className="flex items-center gap-1 mb-3">
+                          <div className="flex items-center gap-1 mb-2">
                             <Calendar className="h-3 w-3 text-gray-400" />
                             <span className="text-xs text-gray-400">
                               {new Date(deal.createdAt).toLocaleDateString('en-US', { 
