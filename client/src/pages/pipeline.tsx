@@ -213,14 +213,15 @@ export default function Pipeline() {
   }
 
   return (
-    <div className="min-h-screen bg-dark text-white p-6">
-      <PageHeader
-        title="Investment Pipeline"
-        description="Manage deals through the investment process with drag & drop"
-      />
+    <div className="min-h-screen bg-dark text-white">
+      <div className="container mx-auto px-4 py-6">
+        <PageHeader
+          title="Investment Pipeline"
+          description="Manage deals through the investment process with drag & drop"
+        />
 
-      {/* Pipeline Overview Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+        {/* Pipeline Overview Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
         {stagesWithCounts.map((stage) => {
           const Icon = stage.icon;
           return (
@@ -241,9 +242,9 @@ export default function Pipeline() {
         })}
       </div>
 
-      {/* Kanban Board */}
-      <div className="overflow-x-auto">
-        <div className="flex gap-6 min-w-max pb-6">
+        {/* Kanban Board */}
+        <div className="overflow-x-auto">
+          <div className="flex gap-4 min-w-max pb-4">
           {stagesWithCounts.map((stage) => {
             const Icon = stage.icon;
             const stageDeals = dealsByStage[stage.id] || [];
@@ -251,7 +252,7 @@ export default function Pipeline() {
             return (
               <div
                 key={stage.id}
-                className="flex-shrink-0 w-80"
+                className="flex-shrink-0 w-72"
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, stage.id)}
               >
@@ -365,6 +366,7 @@ export default function Pipeline() {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
     </div>
