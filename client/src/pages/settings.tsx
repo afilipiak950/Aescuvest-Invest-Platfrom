@@ -33,6 +33,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import EvaluationCriteriaManager from '@/components/EvaluationCriteriaManager';
 
 interface UserSettings {
   id: number;
@@ -238,6 +239,9 @@ export default function SettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="api" className="data-[state=active]:bg-primary">
               API Access
+            </TabsTrigger>
+            <TabsTrigger value="evaluation" className="data-[state=active]:bg-primary">
+              AI Evaluation
             </TabsTrigger>
             {user?.role === 'admin' && (
               <TabsTrigger value="system" className="data-[state=active]:bg-primary">
@@ -692,6 +696,24 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* AI Evaluation Criteria */}
+          <TabsContent value="evaluation" className="space-y-6">
+            <Card className="bg-dark-light border-dark-lighter">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5" />
+                  AI Evaluation Criteria
+                </CardTitle>
+                <CardDescription>
+                  Configure investment criteria weights for automated deal scoring
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EvaluationCriteriaManager />
               </CardContent>
             </Card>
           </TabsContent>
