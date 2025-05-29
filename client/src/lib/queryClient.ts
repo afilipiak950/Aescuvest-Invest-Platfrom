@@ -7,6 +7,7 @@ const baseUrl = '';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      queryFn: ({ queryKey }) => defaultFetcher(queryKey[0] as string),
       refetchOnWindowFocus: false,
       retry: 1,
     },
