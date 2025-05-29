@@ -187,7 +187,7 @@ async function researchExecutiveTeam(companyName: string, website?: string) {
     - Notable achievements or recognitions
     - LinkedIn profiles when available
     
-    Return comprehensive but factual information only. If information is not available, state "Information not publicly available" rather than making assumptions.
+    Return comprehensive but factual information only as JSON format. If information is not available, state "Information not publicly available" rather than making assumptions.
   `;
 
   const response = await openai.chat.completions.create({
