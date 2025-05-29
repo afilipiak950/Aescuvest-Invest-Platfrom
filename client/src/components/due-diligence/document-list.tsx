@@ -23,7 +23,7 @@ export default function DocumentList({ documents }: DocumentListProps) {
   }
 
   const getFileIcon = (fileType: string) => {
-    switch (fileType.toLowerCase()) {
+    switch ((fileType || '').toLowerCase()) {
       case 'pdf':
         return <FileText className="h-6 w-6 text-red-400" />;
       case 'xlsx':
