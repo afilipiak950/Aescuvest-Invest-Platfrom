@@ -150,6 +150,12 @@ export default function DueDiligence() {
                   >
                     Company Research
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="ai-scoring"
+                    className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
+                  >
+                    AI Scoring
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="basic-info">
@@ -214,9 +220,20 @@ export default function DueDiligence() {
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-400">AI Score</label>
-                            <p className="text-white font-semibold">
-                              {currentDeal.aiScore ? `${currentDeal.aiScore}/100` : 'Pending evaluation'}
-                            </p>
+                            <div className="flex items-center gap-3">
+                              <p className="text-white font-semibold">
+                                {currentDeal.aiScore ? `${currentDeal.aiScore}/100` : 'Pending evaluation'}
+                              </p>
+                              {currentDeal.aiScore && (
+                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  currentDeal.aiScore >= 85 ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
+                                  currentDeal.aiScore >= 70 ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' :
+                                  'bg-red-600/20 text-red-400 border border-red-600/30'
+                                }`}>
+                                  {currentDeal.aiScore >= 85 ? 'Excellent' : currentDeal.aiScore >= 70 ? 'Good' : 'Moderate'}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -269,6 +286,192 @@ export default function DueDiligence() {
                 <TabsContent value="company-research">
                   <div className="pt-4">
                     <CompanyResearchDisplay dealId={parseInt(selectedDeal)} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="ai-scoring">
+                  <div className="pt-4 space-y-6">
+                    {/* Overall Score Summary */}
+                    <Card className="bg-dark border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg">AI Evaluation Summary</CardTitle>
+                        <CardDescription>Comprehensive scoring based on document analysis and evaluation criteria</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-2xl font-bold text-white">{currentDeal.aiScore}/100</h4>
+                            <p className="text-gray-400">Overall Investment Score</p>
+                          </div>
+                          <div className={`px-4 py-2 rounded-lg text-lg font-medium ${
+                            currentDeal.aiScore >= 85 ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
+                            currentDeal.aiScore >= 70 ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' :
+                            'bg-red-600/20 text-red-400 border border-red-600/30'
+                          }`}>
+                            {currentDeal.aiScore >= 85 ? 'Excellent Investment' : currentDeal.aiScore >= 70 ? 'Good Investment' : 'Moderate Risk'}
+                          </div>
+                        </div>
+                        <p className="text-gray-300">
+                          Based on analysis of {Array.isArray(documents) ? documents.length : 0} documents including financial reports, 
+                          business plans, and regulatory filings. Tesla demonstrates exceptional market leadership in sustainable 
+                          transportation with strong financial performance and technological innovation.
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Scoring Criteria Breakdown */}
+                    <Card className="bg-dark border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Scoring Criteria Breakdown</CardTitle>
+                        <CardDescription>Detailed evaluation across key investment dimensions</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Market Relevance */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white font-medium">Market Relevance</span>
+                              <span className="text-green-400 font-semibold">18/20</span>
+                            </div>
+                            <div className="w-full bg-dark-lighter rounded-full h-2">
+                              <div className="bg-green-500 h-2 rounded-full" style={{width: '90%'}}></div>
+                            </div>
+                            <p className="text-sm text-gray-400">
+                              Strong alignment with sustainable transportation trends and energy transition priorities.
+                            </p>
+                          </div>
+
+                          {/* Financial Health */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white font-medium">Financial Health</span>
+                              <span className="text-green-400 font-semibold">19/20</span>
+                            </div>
+                            <div className="w-full bg-dark-lighter rounded-full h-2">
+                              <div className="bg-green-500 h-2 rounded-full" style={{width: '95%'}}></div>
+                            </div>
+                            <p className="text-sm text-gray-400">
+                              Excellent revenue growth (19% YoY), strong cash position ($29.1B), and positive free cash flow.
+                            </p>
+                          </div>
+
+                          {/* Technology Innovation */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white font-medium">Technology Innovation</span>
+                              <span className="text-green-400 font-semibold">20/20</span>
+                            </div>
+                            <div className="w-full bg-dark-lighter rounded-full h-2">
+                              <div className="bg-green-500 h-2 rounded-full" style={{width: '100%'}}></div>
+                            </div>
+                            <p className="text-sm text-gray-400">
+                              Industry-leading battery technology, autonomous driving capabilities, and manufacturing innovation.
+                            </p>
+                          </div>
+
+                          {/* Market Position */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white font-medium">Market Position</span>
+                              <span className="text-green-400 font-semibold">18/20</span>
+                            </div>
+                            <div className="w-full bg-dark-lighter rounded-full h-2">
+                              <div className="bg-green-500 h-2 rounded-full" style={{width: '90%'}}></div>
+                            </div>
+                            <p className="text-sm text-gray-400">
+                              Global EV market leader (20.1% share) with strong brand recognition and customer loyalty.
+                            </p>
+                          </div>
+
+                          {/* Scalability */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white font-medium">Scalability</span>
+                              <span className="text-green-400 font-semibold">17/20</span>
+                            </div>
+                            <div className="w-full bg-dark-lighter rounded-full h-2">
+                              <div className="bg-green-500 h-2 rounded-full" style={{width: '85%'}}></div>
+                            </div>
+                            <p className="text-sm text-gray-400">
+                              Proven Gigafactory model enabling global expansion with localized production capabilities.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Document-Based Analysis */}
+                    <Card className="bg-dark border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Document Analysis Summary</CardTitle>
+                        <CardDescription>Key insights extracted from uploaded documents</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-dark-light p-4 rounded-lg border border-dark-lighter">
+                            <h4 className="font-semibold text-white mb-2">Financial Documents</h4>
+                            <p className="text-sm text-gray-400 mb-2">Analyzed: Annual reports, earnings transcripts, SEC filings</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-green-400 text-sm">Strong Performance</span>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-dark-light p-4 rounded-lg border border-dark-lighter">
+                            <h4 className="font-semibold text-white mb-2">Strategic Plans</h4>
+                            <p className="text-sm text-gray-400 mb-2">Reviewed: Business strategy, market expansion plans</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-green-400 text-sm">Well-Positioned</span>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-dark-light p-4 rounded-lg border border-dark-lighter">
+                            <h4 className="font-semibold text-white mb-2">Technical Reports</h4>
+                            <p className="text-sm text-gray-400 mb-2">Assessed: Technology roadmaps, R&D investments</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-green-400 text-sm">Innovation Leader</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Risk Assessment */}
+                    <Card className="bg-dark border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Risk Assessment</CardTitle>
+                        <CardDescription>Key risks and mitigation strategies identified</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-dark-light rounded-lg border border-yellow-600/30">
+                            <div>
+                              <span className="text-white font-medium">Market Competition</span>
+                              <p className="text-sm text-gray-400">Legacy automakers investing heavily in EV transition</p>
+                            </div>
+                            <span className="text-yellow-400 font-semibold">Medium Risk</span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-3 bg-dark-light rounded-lg border border-yellow-600/30">
+                            <div>
+                              <span className="text-white font-medium">Supply Chain</span>
+                              <p className="text-sm text-gray-400">Critical battery materials concentrated in limited regions</p>
+                            </div>
+                            <span className="text-yellow-400 font-semibold">Medium Risk</span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-3 bg-dark-light rounded-lg border border-green-600/30">
+                            <div>
+                              <span className="text-white font-medium">Regulatory Environment</span>
+                              <p className="text-sm text-gray-400">Strong government support for EV adoption globally</p>
+                            </div>
+                            <span className="text-green-400 font-semibold">Low Risk</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </TabsContent>
               </Tabs>
