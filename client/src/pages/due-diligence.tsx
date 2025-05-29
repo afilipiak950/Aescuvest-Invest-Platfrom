@@ -222,28 +222,27 @@ export default function DueDiligence() {
   const [isUploading, setIsUploading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Simulate fetch deals query
+  // Fetch real deals from database
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
     queryKey: ['/api/deals'],
-    queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      return mockDeals;
-    }
+    retry: false,
   });
 
-  // Simulate fetch analysis query
-  const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
-    queryKey: ['/api/analyses', selectedDeal],
-    queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockAgentAnalyses;
-    },
+  // Fetch real documents for selected deal
+  const { data: documents, isLoading: isLoadingDocuments } = useQuery({
+    queryKey: ['/api/deals', selectedDeal, 'documents'],
+    retry: false,
     enabled: !!selectedDeal
   });
 
-  const currentDeal = deals?.find(deal => deal.id.toString() === selectedDeal);
+  // Fetch real analysis data
+  const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
+    queryKey: ['/api/analyses', selectedDeal],
+    retry: false,
+    enabled: !!selectedDeal
+  });
+
+  const currentDeal = deals?.find((deal: any) => deal.id.toString() === selectedDeal);
   
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -341,7 +340,7 @@ export default function DueDiligence() {
               </div>
             </CardHeader>
             <CardContent>
-              <DocumentList documents={currentDeal.documents} />
+              <DocumentList documents={documents || []} />
             </CardContent>
           </Card>
           

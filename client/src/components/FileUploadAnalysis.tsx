@@ -196,6 +196,7 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
         type: uploadedFile.type,
         size: uploadedFile.size,
         path: uploadedFile.path || '',
+        dealId: dealId || 1, // Include dealId for database storage
         ocrText: (analyses as any).ocrText || '',
         analyses: JSON.stringify({
           summary: (analyses as any).summary || '',
@@ -219,6 +220,9 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
         if (saveResponse.ok) {
           const savedDoc = await saveResponse.json();
           console.log('✅ Document saved to database:', savedDoc.id);
+          
+          // Refresh documents list
+          queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'documents'] });
         }
       } catch (error) {
         console.error('❌ Failed to save document to database:', error);
