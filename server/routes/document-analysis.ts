@@ -137,8 +137,8 @@ router.post('/ocr/extract', authenticate, async (req, res) => {
       console.log(`🔍 Processing document: ${filePath} with Mistral OCR`);
       
       // Use actual Mistral OCR service
-      const { mistralOCR } = await import('../services/mistralOCR');
-      const ocrResult = await mistralOCR.extractText(filePath, fileType || 'application/pdf');
+      const { mistralOCRService } = await import('../services/mistralOCR');
+      const ocrResult = await mistralOCRService.extractText(filePath, fileType || 'application/pdf');
       
       console.log(`✅ OCR extraction completed: ${ocrResult.extractedText.length} characters`);
       
@@ -152,8 +152,8 @@ router.post('/ocr/extract', authenticate, async (req, res) => {
       console.log(`⚠️ No PDF files found in uploads directory`);
       
       // Fallback: Use Mistral OCR service for demo content based on document type
-      const { mistralOCR } = await import('../services/mistralOCR');
-      const fallbackResult = await mistralOCR.extractText('', fileType || 'application/pdf');
+      const { mistralOCRService } = await import('../services/mistralOCR');
+      const fallbackResult = await mistralOCRService.extractText('', fileType || 'application/pdf');
       
       res.json({
         documentId,
