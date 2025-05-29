@@ -18,6 +18,7 @@ import fs from "fs";
 import aiAgentRoutes from "./routes/ai-agents";
 import authRoutes from "./routes/auth";
 import emailRoutes from "./routes/email";
+import { processAIEvaluationForDeal } from './services/aiEvaluation';
 import inboxRoutes from "./routes/inbox";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
 import documentUploadRoutes from "./routes/document-upload";
@@ -190,49 +191,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const deal = await storage.createDeal(result.data);
       
-      // Trigger intelligent AI evaluation if website is provided
-      let aiScore = 0;
-      let evaluationResult = null;
-      
-      if (deal.website && deal.companyName && deal.sector) {
-        try {
-          // Import evaluation service
-          const { evaluateWebsite } = await import('./services/aiEvaluation');
-          
-          // Default evaluation criteria
-          const criteria = [
-            { id: 1, name: "Sector", description: "Must be in Healthcare", weight: 25 },
-            { id: 2, name: "Biotech Exclusion", description: "No wet-lab biotech", weight: 20 },
-            { id: 3, name: "HQ Geography", description: "EU or Israel only", weight: 15 },
-            { id: 4, name: "Stage", description: "Series A-C preferred", weight: 20 },
-            { id: 5, name: "Ownership Feasibility", description: "20-30% post-money stake possible", weight: 10 },
-            { id: 6, name: "Business Model Fit", description: "Platform logic preferred", weight: 10 }
-          ];
-
-          evaluationResult = await evaluateWebsite(deal.website, deal.companyName, deal.sector, criteria);
-          aiScore = evaluationResult.overallScore;
-          
-          console.log(`AI Evaluation completed for ${deal.companyName}: ${aiScore}/100`);
-        } catch (error) {
-          console.error('Error during AI evaluation:', error);
-          // Fall back to a neutral score if evaluation fails
-          aiScore = 50;
-        }
-      } else {
-        // No website provided, use neutral score
-        aiScore = 50;
+      // Trigger background AI evaluation if website is provided
+      if (deal.website && deal.companyName) {
+        // Start AI evaluation in background - don't wait for completion
+        processAIEvaluationForDeal(deal.id, deal.website, deal.companyName)
+          .catch(error => {
+            console.error(`Background AI evaluation failed for deal ${deal.id}:`, error);
+          });
+        
+        console.log(`Started background AI evaluation for deal ${deal.id}: ${deal.companyName}`);
       }
       
-      await storage.updateDealAiScore(deal.id, aiScore);
-      
-      return res.status(201).json({
-        ...deal,
-        aiScore,
-        evaluation: evaluationResult
-      });
+      return res.status(201).json(deal);
     } catch (error) {
       console.error('Error creating deal:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // AI Evaluation results route
+  app.get('/api/deals/:dealId/evaluation', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const evaluationResults = await storage.getEvaluationResultsByDealId(dealId);
+      
+      if (evaluationResults.length === 0) {
+        return res.status(404).json({ message: 'No evaluation results found for this deal' });
+      }
+      
+      // Get the most recent evaluation
+      const latestEvaluation = evaluationResults[0];
+      
+      res.json({
+        overallScore: latestEvaluation.overallScore,
+        recommendation: latestEvaluation.recommendation,
+        criterionScores: JSON.parse(latestEvaluation.criterionScores || '[]'),
+        summary: latestEvaluation.summary,
+        keyFindings: JSON.parse(latestEvaluation.keyFindings || '[]'),
+        redFlags: JSON.parse(latestEvaluation.redFlags || '[]'),
+        evaluatedAt: latestEvaluation.evaluatedAt
+      });
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+      res.status(500).json({ message: 'Failed to fetch evaluation results' });
     }
   });
   
