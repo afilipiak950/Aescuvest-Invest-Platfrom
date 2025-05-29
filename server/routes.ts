@@ -1639,49 +1639,130 @@ The company maintains a strong competitive position through its technical moat a
       // Get company research data
       const companyResearch = await storage.getCompanyResearchByDealId(dealId);
 
-      // Use AI evaluation functionality directly
-      const { analyzeCompanyAgainstCriteria } = await import('./services/directAIEvaluation');
+      // Use OpenAI directly for evaluation
+      const openai = new (await import('openai')).default({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
 
       // Prepare company data
       const companyData = {
         companyName: deal.companyName,
-        sector: deal.sector || 'Not specified',
-        location: deal.location || 'Not specified',
-        website: deal.website || '',
-        stage: deal.stage || 'Not specified',
-        fundingAmount: deal.fundingAmount || 0,
-        description: deal.description || ''
+        description: deal.description,
+        website: deal.website,
+        location: deal.location,
+        executiveSummary: companyResearch?.executiveSummary,
+        productMarket: companyResearch?.productMarket,
+        team: companyResearch?.team,
+        financials: companyResearch?.financials,
+        risks: companyResearch?.risks
       };
 
-      // Run AI evaluation
-      const evaluationResult = await evaluationEngine.evaluateAllCriteria(
-        companyData,
-        criteria,
-        companyResearch
-      );
+      // Run AI evaluation for each criterion
+      const evaluationResults = [];
+      
+      for (const criterion of criteria) {
+        try {
+          const prompt = `
+You are an expert investment analyst evaluating companies against specific criteria.
+
+Company Information:
+- Name: ${companyData.companyName}
+- Description: ${companyData.description || 'Not provided'}
+- Website: ${companyData.website || 'Not provided'}
+- Location: ${companyData.location || 'Not provided'}
+- Executive Summary: ${companyData.executiveSummary || 'Not provided'}
+- Product/Market: ${companyData.productMarket || 'Not provided'}
+
+Evaluation Criterion:
+- Name: ${criterion.name}
+- Description: ${criterion.description}
+
+Please evaluate this company against the criterion and provide:
+1. A score from 1-10 (1 = poor fit, 10 = excellent fit)
+2. Detailed reasoning for the score
+3. Confidence level (0-1, where 1 = very confident)
+4. Risk level (low/medium/high)
+
+Respond in JSON format:
+{
+  "score": number,
+  "reasoning": "detailed explanation",
+  "confidence": number,
+  "riskLevel": "low|medium|high"
+}
+`;
+
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert investment analyst. Provide accurate, data-driven evaluations based on the information provided. Always respond in valid JSON format.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.3
+          });
+
+          const analysisResult = JSON.parse(response.choices[0].message.content || '{}');
+          
+          evaluationResults.push({
+            criterionId: criterion.id,
+            criterionName: criterion.name,
+            score: Math.max(1, Math.min(10, analysisResult.score || 5)),
+            reasoning: analysisResult.reasoning || 'Analysis completed',
+            confidence: Math.max(0, Math.min(1, analysisResult.confidence || 0.5)),
+            riskLevel: ['low', 'medium', 'high'].includes(analysisResult.riskLevel) 
+              ? analysisResult.riskLevel 
+              : 'medium'
+          });
+        } catch (error) {
+          console.error(`Error evaluating criterion ${criterion.name}:`, error);
+          evaluationResults.push({
+            criterionId: criterion.id,
+            criterionName: criterion.name,
+            score: 5,
+            reasoning: 'Unable to evaluate due to technical error. Manual review required.',
+            confidence: 0,
+            riskLevel: 'medium'
+          });
+        }
+      }
 
       // Store results in database
-      for (const evaluation of evaluationResult.evaluations) {
+      for (const evaluation of evaluationResults) {
         await storage.createEvaluationResult({
           dealId: dealId,
-          criteriaId: evaluation.criteriaId,
+          criteriaId: evaluation.criterionId,
           score: evaluation.score,
           reasoning: evaluation.reasoning,
-          keyFactors: evaluation.keyFactors,
+          keyFactors: [],
           riskLevel: evaluation.riskLevel,
           confidence: evaluation.confidence,
           createdAt: new Date()
         });
       }
 
+      // Calculate overall score
+      const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
+      const weightedScore = evaluationResults.reduce((sum, evaluation) => {
+        const criterion = criteria.find(c => c.id === evaluation.criterionId);
+        return sum + (evaluation.score * (criterion?.weight || 0));
+      }, 0);
+      const overallScore = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 10) / 10 : 0;
+
       // Update deal AI score
-      await storage.updateDealAiScore(dealId, evaluationResult.weightedScore);
+      await storage.updateDealAiScore(dealId, overallScore);
 
       res.json({
         message: 'AI evaluation completed successfully',
-        overallScore: evaluationResult.overallScore,
-        weightedScore: evaluationResult.weightedScore,
-        evaluations: evaluationResult.evaluations
+        overallScore: overallScore,
+        weightedScore: overallScore,
+        evaluations: evaluationResults
       });
 
     } catch (error) {
