@@ -18,14 +18,14 @@ export default function DealIntake() {
         companyName: formData.companyName,
         sector: formData.sector,
         stage: formData.stage,
-        fundingAmount: formData.fundingAmount || null,
+        fundingAmount: formData.fundingAmount ? parseInt(formData.fundingAmount, 10) : null,
         website: formData.website || null,
         location: formData.location || null,
         description: formData.description,
         status: 'Under Review'
       };
       
-      console.log('Sending deal payload:', dealPayload);
+
       
       // Create the deal first
       const dealResponse = await fetch('/api/deals', {
