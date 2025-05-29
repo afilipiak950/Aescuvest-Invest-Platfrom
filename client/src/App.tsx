@@ -15,6 +15,7 @@ import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 import Dashboard from "@/pages/dashboard";
 import DealsPage from "@/pages/deals";
 import AllDealsPage from "@/pages/all-deals";
+import Pipeline from "@/pages/pipeline";
 import DealIntake from "@/pages/deal-intake";
 import DueDiligence from "@/pages/due-diligence";
 import MemoGenerator from "@/pages/memo-generator";
@@ -78,6 +79,9 @@ function AppContent() {
               </Route>
               <Route path="/deals">
                 <DealsPage />
+              </Route>
+              <Route path="/pipeline">
+                <Pipeline />
               </Route>
               <Route path="/deal-intake">
                 <DealIntake />

@@ -256,6 +256,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Update deal status endpoint for pipeline drag & drop
+  app.patch('/api/deals/:id/status', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.id);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const { status } = req.body;
+      if (!status || typeof status !== 'string') {
+        return res.status(400).json({ message: 'Valid status is required' });
+      }
+
+      const validStatuses = [
+        'submitted', 'screening', 'under-review', 'negotiating', 
+        'final-review', 'invested', 'rejected', 'declined'
+      ];
+      
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          message: 'Invalid status', 
+          validStatuses 
+        });
+      }
+
+      const updatedDeal = await storage.updateDealStatus(dealId, status);
+      if (!updatedDeal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      return res.status(200).json({ 
+        message: 'Deal status updated successfully', 
+        deal: updatedDeal 
+      });
+    } catch (error) {
+      console.error('Error updating deal status:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
   
   // AI Evaluation results route
   app.get('/api/deals/:dealId/evaluation', async (req: Request, res: Response) => {
