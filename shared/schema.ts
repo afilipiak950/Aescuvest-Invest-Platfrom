@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -44,7 +44,7 @@ export const deals = pgTable("deals", {
   location: text("location"),
   website: text("website"),
   fundingAmount: integer("funding_amount"),
-  aiScore: integer("ai_score"),
+  aiScore: text("ai_score"),
   status: text("status").notNull().default("New Submission"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
