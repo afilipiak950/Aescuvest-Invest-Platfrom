@@ -273,8 +273,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const existingAnalyses = await storage.getAnalysesByDealId(dealId);
       
-      // If no analyses exist, generate comprehensive detailed analysis results
-      if (existingAnalyses.length === 0) {
+      // Only generate dummy analysis for existing demo deals (IDs 1-17)
+      // New deals should only show analysis if they have real documents
+      if (existingAnalyses.length === 0 && dealId <= 17) {
         const detailedAnalyses = [
           {
             id: 1,
