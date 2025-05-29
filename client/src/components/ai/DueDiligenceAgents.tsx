@@ -211,7 +211,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {doc.type.toUpperCase()} • {(doc.size / 1024).toFixed(0)} KB
+                      {doc.type?.toUpperCase() || 'UNKNOWN'} • {(doc.size / 1024).toFixed(0)} KB
                     </div>
                   </div>
                 ))}
