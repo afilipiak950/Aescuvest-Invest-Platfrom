@@ -1,6 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, Brain, RefreshCw, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface EvaluationCriteria {
   id: number;
@@ -16,6 +21,9 @@ interface EvaluationResult {
   criteriaId: number;
   score: number;
   reasoning: string;
+  keyFactors?: string[];
+  riskLevel?: 'low' | 'medium' | 'high';
+  confidence?: number;
   createdAt: string;
 }
 
@@ -25,12 +33,38 @@ interface DynamicAIScoringProps {
 }
 
 export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScoringProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: criteria, isLoading: loadingCriteria } = useQuery<EvaluationCriteria[]>({
     queryKey: ["/api/evaluation-criteria"],
   });
 
   const { data: evaluationResults, isLoading: loadingResults } = useQuery<EvaluationResult[]>({
     queryKey: ["/api/deals", dealId, "evaluation"],
+  });
+
+  const runAIEvaluation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/deals/${dealId}/evaluate`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "AI Evaluation Complete",
+        description: `Analysis completed with ${data.evaluations?.length || 0} criteria evaluated.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'evaluation'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "AI Evaluation Failed",
+        description: error.message || "Failed to complete AI evaluation. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   if (loadingCriteria || loadingResults) {

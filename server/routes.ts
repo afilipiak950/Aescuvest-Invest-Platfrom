@@ -1619,6 +1619,81 @@ The company maintains a strong competitive position through its technical moat a
     }
   });
 
+  // Trigger AI evaluation for a deal
+  app.post('/api/deals/:dealId/evaluate', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Get deal data
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      // Get evaluation criteria
+      const criteria = await storage.getAllEvaluationCriteria();
+      if (!criteria || criteria.length === 0) {
+        return res.status(400).json({ message: 'No evaluation criteria configured' });
+      }
+
+      // Get company research data
+      const companyResearch = await storage.getCompanyResearchByDealId(dealId);
+
+      // Import and use AI evaluation engine
+      const { AIEvaluationEngine } = await import('../services/aiEvaluationEngine');
+      const evaluationEngine = new AIEvaluationEngine();
+
+      // Prepare company data
+      const companyData = {
+        companyName: deal.companyName,
+        sector: deal.sector || 'Not specified',
+        location: deal.location || 'Not specified',
+        website: deal.website || '',
+        stage: deal.stage || 'Not specified',
+        fundingAmount: deal.fundingAmount || 0,
+        description: deal.description || ''
+      };
+
+      // Run AI evaluation
+      const evaluationResult = await evaluationEngine.evaluateAllCriteria(
+        companyData,
+        criteria,
+        companyResearch
+      );
+
+      // Store results in database
+      for (const evaluation of evaluationResult.evaluations) {
+        await storage.createEvaluationResult({
+          dealId: dealId,
+          criteriaId: evaluation.criteriaId,
+          score: evaluation.score,
+          reasoning: evaluation.reasoning,
+          keyFactors: evaluation.keyFactors,
+          riskLevel: evaluation.riskLevel,
+          confidence: evaluation.confidence,
+          createdAt: new Date()
+        });
+      }
+
+      // Update deal AI score
+      await storage.updateDealAiScore(dealId, evaluationResult.weightedScore);
+
+      res.json({
+        message: 'AI evaluation completed successfully',
+        overallScore: evaluationResult.overallScore,
+        weightedScore: evaluationResult.weightedScore,
+        evaluations: evaluationResult.evaluations
+      });
+
+    } catch (error) {
+      console.error('Error running AI evaluation:', error);
+      res.status(500).json({ 
+        message: 'Failed to run AI evaluation',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
