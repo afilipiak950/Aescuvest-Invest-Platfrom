@@ -73,7 +73,7 @@ class MistralOCRServiceImpl implements MistralOCRService {
   }
 
   private async extractTextFromPDF(filePath: string, startTime: number): Promise<OCRResult> {
-    console.log(`🔍 Processing PDF with Mistral Chat API: ${filePath}`);
+    console.log(`🔍 Processing PDF with Mistral OCR API: ${filePath}`);
     
     // Read and encode the PDF file
     const fileBuffer = await fs.readFile(filePath);
@@ -82,52 +82,46 @@ class MistralOCRServiceImpl implements MistralOCRService {
     console.log(`📄 File size: ${fileBuffer.length} bytes`);
     console.log(`📄 Base64 length: ${base64File.length} characters`);
 
-    // Use Mistral's chat completions endpoint with document understanding as per documentation
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    // Use Mistral's OCR endpoint as per official documentation
+    const response = await fetch(`${this.baseUrl}/ocr/process`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract all text content from this document. Provide complete transcription preserving structure, formatting, headings, numbers, and all textual information.'
-              },
-              {
-                type: 'document_url',
-                document_url: `data:application/pdf;base64,${base64File}`
-              }
-            ]
-          }
-        ]
+        model: 'mistral-ocr-latest',
+        document: {
+          type: 'document_url',
+          document_url: `data:application/pdf;base64,${base64File}`
+        },
+        include_image_base64: false
       })
     });
 
-    console.log(`📡 Chat API Response status: ${response.status}`);
+    console.log(`📡 OCR API Response status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Mistral Chat API error: ${response.status} - ${errorText}`);
-      throw new Error(`Mistral Chat API error: ${response.status} ${response.statusText} - ${errorText}`);
+      console.error(`❌ Mistral OCR API error: ${response.status} - ${errorText}`);
+      throw new Error(`Mistral OCR API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('🔍 Mistral Chat Response structure:', Object.keys(result));
+    console.log('🔍 Mistral OCR Response structure:', Object.keys(result));
     
-    // Extract text from the chat completions response structure
+    // Extract text from the OCR response structure
     let extractedText = '';
     
-    if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-      extractedText = result.choices[0].message.content;
+    if (result.text) {
+      extractedText = result.text;
+    } else if (result.content) {
+      extractedText = result.content;
+    } else if (result.extracted_text) {
+      extractedText = result.extracted_text;
     } else {
-      console.log('⚠️ Unexpected response structure');
-      console.log('🔍 Full Chat Response:', JSON.stringify(result, null, 2));
+      console.log('⚠️ Unexpected OCR response structure');
+      console.log('🔍 Full OCR Response:', JSON.stringify(result, null, 2));
       extractedText = JSON.stringify(result, null, 2);
     }
 
