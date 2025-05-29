@@ -7,6 +7,7 @@ import AgentCard from '@/components/due-diligence/AgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
+import { CompanyResearchDisplay } from '@/components/CompanyResearchDisplay';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -311,6 +312,12 @@ export default function DueDiligence() {
                   >
                     AI Agents
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="company-research"
+                    className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
+                  >
+                    Company Research
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="legal">
@@ -344,6 +351,12 @@ export default function DueDiligence() {
                 <TabsContent value="ai-agents">
                   <div className="pt-4">
                     <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="company-research">
+                  <div className="pt-4">
+                    <CompanyResearchDisplay dealId={parseInt(selectedDeal)} />
                   </div>
                 </TabsContent>
               </Tabs>
