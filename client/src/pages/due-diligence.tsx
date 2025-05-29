@@ -3,7 +3,7 @@ import { useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import PageHeader from '@/components/layout/page-header';
 import DocumentList from '@/components/due-diligence/document-list';
-import AgentCard from '@/components/due-diligence/agent-card';
+import AgentCard from '@/components/due-diligence/AgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
