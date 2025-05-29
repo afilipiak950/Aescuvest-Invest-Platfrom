@@ -118,8 +118,9 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
   };
 
   const handleGenerateReport = () => {
-    const completedAgentTypes = analyses
-      ?.filter(analysis => analysis.status === 'Complete')
+    const analysesArray = Array.isArray(analyses) ? analyses : [];
+    const completedAgentTypes = analysesArray
+      .filter(analysis => analysis.status === 'completed')
       .map(analysis => analysis.agentType);
     
     if (!completedAgentTypes || completedAgentTypes.length === 0) {
@@ -135,7 +136,8 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
   };
 
   // Group analyses by agent type
-  const analysesByAgent = analyses?.reduce((acc: any, analysis: any) => {
+  const analysesArray = Array.isArray(analyses) ? analyses : [];
+  const analysesByAgent = analysesArray.reduce((acc: any, analysis: any) => {
     if (!acc[analysis.agentType]) {
       acc[analysis.agentType] = [];
     }
@@ -151,7 +153,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
           <Button 
             variant="default" 
             onClick={handleGenerateReport}
-            disabled={generateReport.isPending || !analyses?.some(a => a.status === 'Complete')}
+            disabled={generateReport.isPending || !analysesArray.some(a => a.status === 'completed')}
           >
             Generate Comprehensive Report
           </Button>
