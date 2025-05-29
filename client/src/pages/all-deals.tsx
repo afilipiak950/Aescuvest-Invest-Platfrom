@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Deal } from '@shared/schema';
+import { AIScoreBadge } from '@/components/ai/AIEvaluationDisplay';
 
 const getScoreColor = (score: number) => {
   if (score >= 80) return 'bg-green-500/20 text-green-400 border-green-500/30';
