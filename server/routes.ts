@@ -1330,6 +1330,71 @@ The company maintains a strong competitive position through its technical moat a
       res.status(500).json({ message: 'Failed to change password' });
     }
   });
+
+  // AI-powered company description generation
+  app.post('/api/ai/generate-company-description', async (req: Request, res: Response) => {
+    try {
+      const { website } = req.body;
+      
+      if (!website) {
+        return res.status(400).json({ message: 'Website URL is required' });
+      }
+
+      // Fetch website content
+      const websiteResponse = await fetch(website, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Aescuvest-Bot/1.0)'
+        }
+      });
+
+      if (!websiteResponse.ok) {
+        return res.status(400).json({ message: 'Unable to fetch website content' });
+      }
+
+      const htmlContent = await websiteResponse.text();
+      
+      // Extract text content from HTML (basic extraction)
+      const textContent = htmlContent
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 8000); // Limit content length
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: 'OpenAI API key not configured' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert business analyst specializing in venture capital due diligence. Generate a comprehensive yet concise company description (2-3 paragraphs, 150-250 words) suitable for investment analysis based on the provided website content."
+          },
+          {
+            role: "user",
+            content: `Analyze this website content and generate a professional company description for investment purposes. Focus on: business model, target market, key value proposition, competitive advantages, and growth potential.\n\nWebsite: ${website}\n\nContent: ${textContent}`
+          }
+        ],
+        max_tokens: 400,
+        temperature: 0.7
+      });
+
+      const description = completion.choices[0]?.message?.content || '';
+      
+      res.json({ description });
+    } catch (error) {
+      console.error('Error generating company description:', error);
+      res.status(500).json({ message: 'Failed to generate company description' });
+    }
+  });
   
   const httpServer = createServer(app);
   return httpServer;
