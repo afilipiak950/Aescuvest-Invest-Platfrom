@@ -188,23 +188,28 @@ router.post('/analyze', authenticate, async (req, res) => {
 
     // Use OpenAI for analysis
     if (process.env.OPENAI_API_KEY) {
+      console.log('🤖 Using OpenAI for analysis');
+      console.log('📝 Extracted text length:', extractedText.length);
+      console.log('📋 Analysis type:', analysisType);
+      
       const response = await openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
           {
             role: "system",
-            content: "You are an expert investment analyst providing detailed, professional analysis of business documents."
+            content: "You are an expert investment analyst providing detailed, professional analysis of business documents. Always provide comprehensive, well-structured analysis with clear sections and key insights."
           },
           {
             role: "user",
             content: `${prompt}\n\nDocument content:\n${extractedText}`
           }
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.3
       });
 
       analysis = response.choices[0].message.content || 'Analysis could not be completed';
+      console.log('✅ OpenAI analysis completed:', analysis.length, 'characters');
     } 
     // Fallback to Anthropic if available
     else if (anthropic && process.env.ANTHROPIC_API_KEY) {
