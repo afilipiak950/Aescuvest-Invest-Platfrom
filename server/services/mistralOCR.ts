@@ -111,9 +111,12 @@ class MistralOCRServiceImpl implements MistralOCRService {
       };
     }
 
-    // For PDFs and Word docs, use Mistral's document analysis
+    // For PDFs, use Mistral's OCR capability with pixtral model
     const fileBuffer = await fs.readFile(filePath);
     const base64File = fileBuffer.toString('base64');
+
+    console.log(`🔍 Processing PDF with Mistral OCR: ${filePath}`);
+    console.log(`📄 File size: ${fileBuffer.length} bytes`);
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -122,18 +125,30 @@ class MistralOCRServiceImpl implements MistralOCRService {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
+        model: 'pixtral-12b-2409',
         messages: [
           {
             role: 'user',
-            content: `Extract all text content from this ${fileType} document. Provide a complete, well-structured extraction that includes:
-            - All textual content in logical order
-            - Financial data and numbers with proper formatting
-            - Company information and contact details
-            - Any charts, tables, or structured data descriptions
-            - Key business metrics and projections
-            
-            Base64 document: ${base64File.substring(0, 50000)}...` // Limit for API
+            content: [
+              {
+                type: 'text',
+                text: `Please extract all text content from this PDF document. Provide a complete, accurate transcription that preserves:
+                - All headings, paragraphs, and text blocks
+                - Financial data, numbers, and metrics
+                - Company information and contact details
+                - Bullet points, lists, and structured content
+                - Tables and charts (describe content)
+                - Maintain logical reading order and document structure
+                
+                Return only the extracted text content without additional commentary.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:application/pdf;base64,${base64File}`
+                }
+              }
+            ]
           }
         ],
         max_tokens: 4000,
@@ -142,16 +157,20 @@ class MistralOCRServiceImpl implements MistralOCRService {
     });
 
     if (!response.ok) {
-      throw new Error(`Mistral API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`❌ Mistral API error: ${response.status} - ${errorText}`);
+      throw new Error(`Mistral API error: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
     const extractedText = result.choices[0]?.message?.content || '';
     const processingTime = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
 
+    console.log(`✅ OCR completed: ${extractedText.length} characters extracted`);
+
     return {
       extractedText,
-      confidence: 0.9,
+      confidence: 0.95,
       processingTime
     };
   }

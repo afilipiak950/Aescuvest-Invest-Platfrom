@@ -69,8 +69,20 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
 
     console.log('✅ Processing files:', files.map(f => f.originalname));
 
-    const uploadedFiles = files.map(file => {
+    const uploadedFiles = await Promise.all(files.map(async (file) => {
       console.log(`📄 File uploaded to: ${file.path}`);
+      console.log(`📄 Filename on disk: ${file.filename}`);
+      
+      // Verify file was actually written
+      const fs = require('fs');
+      if (fs.existsSync(file.path)) {
+        const stats = fs.statSync(file.path);
+        console.log(`✅ File confirmed on disk: ${stats.size} bytes`);
+      } else {
+        console.log(`❌ File not found on disk: ${file.path}`);
+      }
+      
+      // Ensure we return the correct file information for OCR processing
       return {
         id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: file.originalname,
@@ -78,9 +90,10 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
         type: file.mimetype,
         status: 'uploaded',
         path: file.path,
-        filename: file.filename // This is the actual filename on disk
+        filename: file.filename,
+        diskPath: file.path // Full path to the file on disk
       };
-    });
+    }));
 
     // Start AI analysis for each file
     const analyses = uploadedFiles.map(file => ({

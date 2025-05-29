@@ -99,18 +99,35 @@ router.post('/ocr/extract', authenticate, async (req, res) => {
       const allFiles = fs.readdirSync(uploadsDir);
       console.log(`🔍 Available files in uploads: ${allFiles.join(', ')}`);
       
-      // Look for any PDF files if we can't find the exact documentId
-      const pdfFiles = allFiles.filter(f => f.toLowerCase().endsWith('.pdf'));
-      if (pdfFiles.length > 0) {
-        // Use the most recent PDF file
-        const stats = pdfFiles.map(f => ({
-          name: f,
-          path: path.join(uploadsDir, f),
-          mtime: fs.statSync(path.join(uploadsDir, f)).mtime
-        }));
-        stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
-        filePath = stats[0].path;
-        console.log(`📄 Using most recent PDF: ${stats[0].name}`);
+      if (allFiles.length > 0) {
+        // Use the most recent file that matches our criteria
+        const relevantFiles = allFiles.filter(f => 
+          f.toLowerCase().endsWith('.pdf') || 
+          f.toLowerCase().includes('pdf') ||
+          f.toLowerCase().includes(documentId.substring(5, 15)) // Match part of documentId
+        );
+        
+        if (relevantFiles.length > 0) {
+          // Use the most recent relevant file
+          const stats = relevantFiles.map(f => ({
+            name: f,
+            path: path.join(uploadsDir, f),
+            mtime: fs.statSync(path.join(uploadsDir, f)).mtime
+          }));
+          stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+          filePath = stats[0].path;
+          console.log(`📄 Using file: ${stats[0].name} (${stats[0].path})`);
+        } else {
+          // Fallback: use the most recent file
+          const stats = allFiles.map(f => ({
+            name: f,
+            path: path.join(uploadsDir, f),
+            mtime: fs.statSync(path.join(uploadsDir, f)).mtime
+          }));
+          stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+          filePath = stats[0].path;
+          console.log(`📄 Using most recent file: ${stats[0].name}`);
+        }
       }
     } catch (error) {
       console.log(`⚠️ Error scanning uploads directory: ${error}`);
