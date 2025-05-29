@@ -270,13 +270,13 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
 
   const getPredefinedPrompt = (analysisType: string): string => {
     const prompts = {
-      summary: "Create a comprehensive investment summary based on the document content. Include key highlights, investment thesis, and overall recommendation.",
-      marketResearch: "Analyze the market opportunity, competition, and positioning based on the document. Focus on market size, growth potential, and competitive landscape.",
-      financialAnalysis: "Extract and analyze all financial information from the document. Include revenue projections, funding requirements, and key financial metrics.",
-      riskAssessment: "Identify and evaluate potential risks mentioned in the document. Categorize risks and provide an overall risk assessment.",
-      competitiveAnalysis: "Analyze competitive positioning, advantages, and market differentiation strategies presented in the document."
+      summary: "Analyze this document and provide a comprehensive, intelligent summary. First determine what type of document this is (business plan, medical records, legal document, project plan, etc.), then provide a detailed summary that fits the document type. Include all key points, important details, and main findings. Structure your response with clear sections and be thorough.",
+      marketResearch: "Based on the document content, provide relevant contextual analysis. If this is a business document, analyze market opportunity and competition. If it's a medical document, discuss relevant medical context. If it's a project plan, analyze the project scope and requirements. Adapt your analysis to fit the document type.",
+      financialAnalysis: "Extract and analyze any financial, cost, or numeric information from the document. This could include pricing, budgets, costs, financial projections, billing information, or any monetary values. Present the findings clearly and explain their significance in context.",
+      riskAssessment: "Identify potential risks, challenges, or concerns mentioned in the document. These could be business risks, medical risks, project risks, legal risks, or any other type of risk depending on the document. Categorize and evaluate each risk appropriately.",
+      competitiveAnalysis: "Analyze any competitive elements, alternatives, or comparative aspects mentioned in the document. For business documents, focus on competition. For medical documents, discuss treatment alternatives. For project documents, analyze different approaches. Adapt to the document context."
     };
-    return prompts[analysisType as keyof typeof prompts] || "Analyze this document and provide relevant insights.";
+    return prompts[analysisType as keyof typeof prompts] || "Analyze this document and provide relevant insights appropriate to its content and type.";
   };
 
   const handleFileUpload = (uploadedFiles: FileList) => {
