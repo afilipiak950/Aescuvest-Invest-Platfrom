@@ -126,8 +126,8 @@ export default function DueDiligence() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="text-xl font-bold">{currentDeal.companyName}</CardTitle>
-                  <CardDescription>{currentDeal.description} • {currentDeal.stage}</CardDescription>
+                  <CardTitle className="text-xl font-bold">Documents</CardTitle>
+                  <CardDescription>Uploaded documents for analysis</CardDescription>
                 </div>
                 <div className="flex space-x-2">
                   <Button variant="outline" className="bg-dark-lighter hover:bg-dark border-dark-lighter">
