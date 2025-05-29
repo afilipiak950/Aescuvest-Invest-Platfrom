@@ -12,7 +12,7 @@ const navItems = [
   { label: 'INBOX', href: '/inbox' },
   { label: 'ANALYSIS', href: '/due-diligence' },
   { label: 'INVESTORS', href: '/investor-matching' },
-  { label: 'SETTINGS', href: '#' }
+  { label: 'SETTINGS', href: '/settings' }
 ];
 
 export default function Navbar() {

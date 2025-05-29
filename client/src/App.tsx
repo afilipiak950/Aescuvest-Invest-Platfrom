@@ -24,6 +24,7 @@ import AIInvestorMatching from "@/pages/ai-investor-matching";
 import AIWorkflowAutomation from "@/pages/ai-workflow-automation";
 import EmailTestPage from "@/pages/email-test";
 import InboxPage from "@/pages/inbox";
+import SettingsPage from "@/pages/settings";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
@@ -104,6 +105,9 @@ function AppContent() {
               </Route>
               <Route path="/inbox">
                 <InboxPage />
+              </Route>
+              <Route path="/settings">
+                <SettingsPage />
               </Route>
               <Route component={NotFound} />
             </Switch>

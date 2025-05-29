@@ -709,6 +709,166 @@ The company maintains a strong competitive position through its technical moat a
 
     return analyses[analysisType] || 'Analysis type not supported';
   }
+
+  // Settings API routes
+  app.get('/api/settings/user', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Mock user settings data - in production this would come from database
+      const userSettings = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        preferences: {
+          theme: 'dark',
+          language: 'en',
+          timezone: 'Europe/Berlin',
+          emailNotifications: true,
+          pushNotifications: false,
+          weeklyReports: true,
+          dealAlerts: true,
+          documentAnalysisNotifications: true
+        },
+        security: {
+          twoFactorEnabled: false,
+          sessionTimeout: 60,
+          passwordLastChanged: '2024-05-15'
+        },
+        apiAccess: {
+          hasApiKey: false,
+          apiKeyCreated: null,
+          requestsThisMonth: 247,
+          rateLimit: 1000
+        }
+      };
+
+      res.json(userSettings);
+    } catch (error) {
+      console.error('Error fetching user settings:', error);
+      res.status(500).json({ message: 'Failed to fetch user settings' });
+    }
+  });
+
+  app.patch('/api/settings/user', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      // In production, this would update the database
+      console.log('Updating user settings for user:', userId, req.body);
+      
+      res.json({ 
+        success: true, 
+        message: 'User settings updated successfully' 
+      });
+    } catch (error) {
+      console.error('Error updating user settings:', error);
+      res.status(500).json({ message: 'Failed to update user settings' });
+    }
+  });
+
+  app.get('/api/settings/system', authenticate, async (req: any, res: Response) => {
+    try {
+      const user = await storage.getUser(req.userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Admin rights required.' });
+      }
+
+      // Mock system settings data
+      const systemSettings = {
+        aiModels: {
+          ocrModel: 'mistral-ocr-latest',
+          analysisModel: 'gpt-4o',
+          summaryModel: 'gpt-4o'
+        },
+        integrations: {
+          emailService: 'sendgrid',
+          crmConnected: false,
+          documentStorage: 'local'
+        },
+        automation: {
+          autoAnalyzeDocuments: true,
+          autoGenerateReports: false,
+          autoMatchInvestors: false,
+          analysisFrequency: 'immediate'
+        }
+      };
+
+      res.json(systemSettings);
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+      res.status(500).json({ message: 'Failed to fetch system settings' });
+    }
+  });
+
+  app.patch('/api/settings/system', authenticate, async (req: any, res: Response) => {
+    try {
+      const user = await storage.getUser(req.userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Admin rights required.' });
+      }
+
+      console.log('Updating system settings:', req.body);
+      
+      res.json({ 
+        success: true, 
+        message: 'System settings updated successfully' 
+      });
+    } catch (error) {
+      console.error('Error updating system settings:', error);
+      res.status(500).json({ message: 'Failed to update system settings' });
+    }
+  });
+
+  app.post('/api/settings/generate-api-key', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      // In production, generate a real API key and store it
+      const apiKey = `aesc_${randomUUID().replace(/-/g, '')}`;
+      
+      console.log('Generated API key for user:', userId);
+      
+      res.json({ 
+        success: true, 
+        message: 'API key generated successfully',
+        apiKey: apiKey
+      });
+    } catch (error) {
+      console.error('Error generating API key:', error);
+      res.status(500).json({ message: 'Failed to generate API key' });
+    }
+  });
+
+  app.post('/api/settings/change-password', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      const { newPassword } = req.body;
+      
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ 
+          message: 'Password must be at least 8 characters long' 
+        });
+      }
+
+      // In production, hash the password and update the database
+      console.log('Password changed for user:', userId);
+      
+      res.json({ 
+        success: true, 
+        message: 'Password changed successfully' 
+      });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
   
   const httpServer = createServer(app);
   return httpServer;
