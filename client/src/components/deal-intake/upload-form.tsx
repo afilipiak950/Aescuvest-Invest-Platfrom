@@ -45,6 +45,7 @@ export default function UploadForm({
   isSubmitting 
 }: UploadFormProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -76,6 +77,38 @@ export default function UploadForm({
     }
   };
   
+  const generateCompanyDescription = async (website: string) => {
+    if (!website || !website.trim()) return;
+    
+    setIsGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/ai/generate-company-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        form.setValue('description', data.description);
+      }
+    } catch (error) {
+      console.error('Failed to generate description:', error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const handleWebsiteBlur = () => {
+    const website = form.getValues('website');
+    const currentDescription = form.getValues('description');
+    
+    // Only auto-generate if description is empty and website is provided
+    if (website && !currentDescription) {
+      generateCompanyDescription(website);
+    }
+  };
+
   const handleSubmit = (data: FormValues) => {
     onSubmit(data, uploadedFiles);
   };
@@ -114,8 +147,9 @@ export default function UploadForm({
                       <FormLabel className="text-gray-300">Website</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="https://" 
+                          placeholder="https://company.com" 
                           {...field} 
+                          onBlur={handleWebsiteBlur}
                           className="bg-dark-lighter border-dark-lighter focus:ring-primary"
                         />
                       </FormControl>
@@ -223,11 +257,20 @@ export default function UploadForm({
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Company Description</FormLabel>
+                    <FormLabel className="text-gray-300 flex items-center gap-2">
+                      Company Description
+                      {isGeneratingDescription && (
+                        <span className="text-xs text-primary flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Generating from website...
+                        </span>
+                      )}
+                    </FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Brief description of the company and its product..." 
+                        placeholder={isGeneratingDescription ? "Analyzing website content..." : "Brief description of the company and its product..."}
                         {...field} 
+                        disabled={isGeneratingDescription}
                         className="bg-dark-lighter border-dark-lighter focus:ring-primary h-24 resize-none"
                       />
                     </FormControl>
