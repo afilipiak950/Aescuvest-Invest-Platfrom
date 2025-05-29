@@ -37,13 +37,18 @@ app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req:
       });
     }
 
-    const uploadedFiles = files.map((file, index) => ({
-      id: `file_${Date.now()}_${index}`,
-      name: file.originalname,
-      size: file.size,
-      type: file.mimetype,
-      status: 'uploaded'
-    }));
+    const uploadedFiles = files.map((file, index) => {
+      console.log(`📁 File ${index}: ${file.originalname} saved to ${file.path}`);
+      return {
+        id: `file_${Date.now()}_${index}`,
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+        status: 'uploaded',
+        path: file.path,
+        filename: file.filename
+      };
+    });
 
     console.log('✅ SUCCESS! Responding with JSON for', uploadedFiles.length, 'files');
     

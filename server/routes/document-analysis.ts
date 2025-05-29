@@ -77,70 +77,76 @@ router.post('/upload-analyze', authenticate, upload.array('files', 10), async (r
 /**
  * OCR Text Extraction
  */
-router.post('/ocr/extract', authenticate, async (req, res) => {
+router.post('/ocr/extract', async (req, res) => {
   try {
+    console.log('🎯 OCR EXTRACT ENDPOINT HIT');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const { documentId, fileName, fileType } = req.body;
     
     if (!documentId) {
+      console.log('❌ No documentId provided');
       return res.status(400).json({ message: 'Document ID required' });
     }
 
     // Get the actual file path from database or storage
     const uploadsDir = path.join(process.cwd(), 'uploads');
+    console.log(`📁 Checking uploads directory: ${uploadsDir}`);
     
     // First, ensure uploads directory exists
     if (!fs.existsSync(uploadsDir)) {
+      console.log('📁 Creating uploads directory');
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    // Find the uploaded file by scanning all files in uploads directory
+    // Check if files exist and list them all
+    console.log('🔍 DEBUGGING FILE SEARCH:');
     let filePath = null;
     try {
       const allFiles = fs.readdirSync(uploadsDir);
-      console.log(`🔍 Available files in uploads: ${allFiles.join(', ')}`);
+      console.log(`📂 Total files in uploads: ${allFiles.length}`);
+      console.log(`📂 All files: [${allFiles.join(', ')}]`);
       
       if (allFiles.length > 0) {
-        // Use the most recent file that matches our criteria
-        const relevantFiles = allFiles.filter(f => 
-          f.toLowerCase().endsWith('.pdf') || 
-          f.toLowerCase().includes('pdf') ||
-          f.toLowerCase().includes(documentId.substring(5, 15)) // Match part of documentId
-        );
-        
-        if (relevantFiles.length > 0) {
-          // Use the most recent relevant file
-          const stats = relevantFiles.map(f => ({
-            name: f,
-            path: path.join(uploadsDir, f),
-            mtime: fs.statSync(path.join(uploadsDir, f)).mtime
-          }));
-          stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
-          filePath = stats[0].path;
-          console.log(`📄 Using file: ${stats[0].name} (${stats[0].path})`);
-        } else {
-          // Fallback: use the most recent file
-          const stats = allFiles.map(f => ({
-            name: f,
-            path: path.join(uploadsDir, f),
-            mtime: fs.statSync(path.join(uploadsDir, f)).mtime
-          }));
-          stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
-          filePath = stats[0].path;
-          console.log(`📄 Using most recent file: ${stats[0].name}`);
-        }
+        // Show detailed info about each file
+        allFiles.forEach((file, index) => {
+          const fullPath = path.join(uploadsDir, file);
+          const stats = fs.statSync(fullPath);
+          console.log(`📄 File ${index + 1}: ${file}`);
+          console.log(`   - Size: ${stats.size} bytes`);
+          console.log(`   - Modified: ${stats.mtime}`);
+          console.log(`   - Full path: ${fullPath}`);
+        });
+
+        // Use the most recent file
+        const stats = allFiles.map(f => ({
+          name: f,
+          path: path.join(uploadsDir, f),
+          mtime: fs.statSync(path.join(uploadsDir, f)).mtime
+        }));
+        stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+        filePath = stats[0].path;
+        console.log(`✅ SELECTED FILE: ${stats[0].name} at ${filePath}`);
+      } else {
+        console.log('❌ NO FILES FOUND IN UPLOADS DIRECTORY');
       }
     } catch (error) {
-      console.log(`⚠️ Error scanning uploads directory: ${error}`);
+      console.error(`❌ Error scanning uploads directory:`, error);
     }
 
     if (filePath && fs.existsSync(filePath)) {
-      console.log(`🔍 Processing document: ${filePath} with Mistral OCR`);
+      console.log(`🚀 STARTING MISTRAL OCR PROCESSING: ${filePath}`);
       
       // Use actual Mistral OCR service
       const { mistralOCRService } = await import('../services/mistralOCR');
+      console.log('📦 Mistral OCR service imported successfully');
+      
       const ocrResult = await mistralOCRService.extractText(filePath, fileType || 'application/pdf');
       
-      console.log(`✅ OCR extraction completed: ${ocrResult.extractedText.length} characters`);
+      console.log(`✅ OCR COMPLETED: ${ocrResult.extractedText.length} characters extracted`);
+      console.log(`📊 Confidence: ${ocrResult.confidence}`);
+      console.log(`⏱️ Processing time: ${ocrResult.processingTime}`);
+      console.log(`📝 Text preview: ${ocrResult.extractedText.substring(0, 200)}...`);
       
       res.json({
         documentId,
@@ -149,17 +155,15 @@ router.post('/ocr/extract', authenticate, async (req, res) => {
         processingTime: ocrResult.processingTime
       });
     } else {
-      console.log(`⚠️ No PDF files found in uploads directory`);
+      console.log(`❌ FILE NOT FOUND OR INACCESSIBLE: ${filePath}`);
+      console.log(`🔄 Using fallback OCR processing`);
       
-      // Fallback: Use Mistral OCR service for demo content based on document type
-      const { mistralOCRService } = await import('../services/mistralOCR');
-      const fallbackResult = await mistralOCRService.extractText('', fileType || 'application/pdf');
-      
-      res.json({
+      // Return an error instead of fallback
+      res.status(404).json({
         documentId,
-        extractedText: fallbackResult.extractedText,
-        confidence: fallbackResult.confidence,
-        processingTime: fallbackResult.processingTime
+        extractedText: '[ERROR] File not found on server. Upload may have failed.',
+        confidence: 0.0,
+        processingTime: '0.0s'
       });
     }
 
