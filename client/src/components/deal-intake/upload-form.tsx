@@ -46,6 +46,7 @@ export default function UploadForm({
 }: UploadFormProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingLocation, setIsGeneratingLocation] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -99,13 +100,41 @@ export default function UploadForm({
     }
   };
 
+  const generateCompanyLocation = async (website: string) => {
+    if (!website || !website.trim()) return;
+    
+    setIsGeneratingLocation(true);
+    try {
+      const response = await fetch('/api/ai/generate-company-location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        form.setValue('location', data.location);
+      }
+    } catch (error) {
+      console.error('Failed to generate location:', error);
+    } finally {
+      setIsGeneratingLocation(false);
+    }
+  };
+
   const handleWebsiteBlur = () => {
     const website = form.getValues('website');
     const currentDescription = form.getValues('description');
+    const currentLocation = form.getValues('location');
     
-    // Only auto-generate if description is empty and website is provided
+    // Auto-generate description if empty and website is provided
     if (website && !currentDescription) {
       generateCompanyDescription(website);
+    }
+    
+    // Auto-generate location if empty and website is provided
+    if (website && !currentLocation) {
+      generateCompanyLocation(website);
     }
   };
 
@@ -238,11 +267,20 @@ export default function UploadForm({
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-300">Location</FormLabel>
+                      <FormLabel className="text-gray-300 flex items-center gap-2">
+                        Location
+                        {isGeneratingLocation && (
+                          <span className="text-xs text-primary flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Detecting location...
+                          </span>
+                        )}
+                      </FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="City, Country" 
+                          placeholder={isGeneratingLocation ? "Analyzing company location..." : "City, Country"}
                           {...field} 
+                          disabled={isGeneratingLocation}
                           className="bg-dark-lighter border-dark-lighter focus:ring-primary"
                         />
                       </FormControl>

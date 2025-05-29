@@ -1395,6 +1395,71 @@ The company maintains a strong competitive position through its technical moat a
       res.status(500).json({ message: 'Failed to generate company description' });
     }
   });
+
+  // AI-powered company location detection
+  app.post('/api/ai/generate-company-location', async (req: Request, res: Response) => {
+    try {
+      const { website } = req.body;
+      
+      if (!website) {
+        return res.status(400).json({ message: 'Website URL is required' });
+      }
+
+      // Fetch website content
+      const websiteResponse = await fetch(website, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Aescuvest-Bot/1.0)'
+        }
+      });
+
+      if (!websiteResponse.ok) {
+        return res.status(400).json({ message: 'Unable to fetch website content' });
+      }
+
+      const htmlContent = await websiteResponse.text();
+      
+      // Extract text content from HTML
+      const textContent = htmlContent
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 8000);
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: 'OpenAI API key not configured' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert at extracting company location information from website content. Extract the headquarters or main office location and return it in the format: 'City, Country'. Be precise and use the actual city and country names. If multiple locations are mentioned, prioritize the headquarters or main office."
+          },
+          {
+            role: "user",
+            content: `Analyze this website content and extract the company's headquarters location. Look for contact information, about pages, office addresses, or any mentions of where the company is based.\n\nWebsite: ${website}\n\nContent: ${textContent}`
+          }
+        ],
+        max_tokens: 50,
+        temperature: 0.3
+      });
+
+      const location = completion.choices[0]?.message?.content?.trim() || '';
+      
+      res.json({ location });
+    } catch (error) {
+      console.error('Error generating company location:', error);
+      res.status(500).json({ message: 'Failed to generate company location' });
+    }
+  });
   
   const httpServer = createServer(app);
   return httpServer;
