@@ -1,12 +1,14 @@
 import fs from 'fs/promises';
-import path from 'path';
+import fetch from 'node-fetch';
+
+interface OCRResult {
+  extractedText: string;
+  confidence: number;
+  processingTime: string;
+}
 
 interface MistralOCRService {
-  extractText(filePath: string, fileType: string): Promise<{
-    extractedText: string;
-    confidence: number;
-    processingTime: string;
-  }>;
+  extractText(filePath: string, fileType: string): Promise<OCRResult>;
 }
 
 class MistralOCRServiceImpl implements MistralOCRService {
@@ -20,105 +22,67 @@ class MistralOCRServiceImpl implements MistralOCRService {
     }
   }
 
-  async extractText(filePath: string, fileType: string): Promise<{
-    extractedText: string;
-    confidence: number;
-    processingTime: string;
-  }> {
+  async extractText(filePath: string, fileType: string): Promise<OCRResult> {
     const startTime = Date.now();
-
+    
     try {
+      console.log(`🔍 Starting OCR extraction for: ${filePath} (${fileType})`);
+      console.log(`🔑 API Key available: ${!!this.apiKey}`);
+      console.log(`🔗 Base URL: ${this.baseUrl}`);
+      
       if (!this.apiKey) {
+        console.log('⚠️ No Mistral API key found, using fallback');
         return this.fallbackTextExtraction(filePath, fileType);
       }
 
-      // Read file as base64 for Mistral API
-      const fileBuffer = await fs.readFile(filePath);
-      const base64File = fileBuffer.toString('base64');
-
-      // For images, use Mistral's vision capabilities
-      if (this.isImageFile(fileType)) {
-        return await this.extractTextFromImage(base64File, fileType, startTime);
+      // Check if file exists
+      const fileExists = await fs.access(filePath).then(() => true).catch(() => false);
+      if (!fileExists) {
+        console.error(`❌ File not found: ${filePath}`);
+        return this.fallbackTextExtraction(filePath, fileType);
       }
-      
-      // For documents, use document processing
-      if (this.isDocumentFile(fileType)) {
-        return await this.extractTextFromDocument(filePath, fileType, startTime);
+
+      // For text files, read directly
+      if (fileType === 'text/plain') {
+        const text = await fs.readFile(filePath, 'utf-8');
+        return {
+          extractedText: text,
+          confidence: 1.0,
+          processingTime: `${((Date.now() - startTime) / 1000).toFixed(1)}s`
+        };
+      }
+
+      // For PDFs, use Mistral's dedicated OCR API
+      if (fileType === 'application/pdf') {
+        return await this.extractTextFromPDF(filePath, startTime);
+      }
+
+      // For images, use Mistral's OCR API
+      if (fileType.startsWith('image/')) {
+        return await this.extractTextFromImage(filePath, fileType, startTime);
       }
 
       throw new Error(`Unsupported file type: ${fileType}`);
-
+      
     } catch (error) {
-      console.error('Mistral OCR error:', error);
+      console.error('❌ OCR extraction failed:', error);
+      console.error('❌ Error details:', error.message);
+      console.log('🔄 Falling back to demo content');
       return this.fallbackTextExtraction(filePath, fileType);
     }
   }
 
-  private async extractTextFromImage(base64File: string, fileType: string, startTime: number) {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'pixtral-12b-2409',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract all text from this image. Provide the complete text content in a structured format, preserving the layout and formatting as much as possible. If this is a business document, include all financial data, company information, and key details.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${fileType};base64,${base64File}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Mistral API error: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const extractedText = result.choices[0]?.message?.content || '';
-    const processingTime = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
-
-    return {
-      extractedText,
-      confidence: 0.95,
-      processingTime
-    };
-  }
-
-  private async extractTextFromDocument(filePath: string, fileType: string, startTime: number) {
-    // For text files, read directly
-    if (fileType === 'text/plain') {
-      const text = await fs.readFile(filePath, 'utf-8');
-      return {
-        extractedText: text,
-        confidence: 1.0,
-        processingTime: `${((Date.now() - startTime) / 1000).toFixed(1)}s`
-      };
-    }
-
-    // For PDFs, use Mistral's dedicated OCR API endpoint
+  private async extractTextFromPDF(filePath: string, startTime: number): Promise<OCRResult> {
+    console.log(`🔍 Processing PDF with Mistral OCR API: ${filePath}`);
+    
+    // Read and encode the PDF file
     const fileBuffer = await fs.readFile(filePath);
     const base64File = fileBuffer.toString('base64');
-
-    console.log(`🔍 Processing PDF with Mistral OCR API: ${filePath}`);
+    
     console.log(`📄 File size: ${fileBuffer.length} bytes`);
+    console.log(`📄 Base64 length: ${base64File.length} characters`);
 
-    // Use the correct Mistral OCR API endpoint
+    // Use Mistral's dedicated OCR endpoint as per documentation
     const response = await fetch(`${this.baseUrl}/ocr/process`, {
       method: 'POST',
       headers: {
@@ -135,31 +99,41 @@ class MistralOCRServiceImpl implements MistralOCRService {
       })
     });
 
+    console.log(`📡 OCR API Response status: ${response.status}`);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`❌ Mistral OCR API error: ${response.status} - ${errorText}`);
-      throw new Error(`Mistral OCR API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Mistral OCR API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('🔍 Mistral OCR Response:', JSON.stringify(result, null, 2));
+    console.log('🔍 Mistral OCR Response structure:', Object.keys(result));
+    console.log('🔍 Full OCR Response:', JSON.stringify(result, null, 2));
     
     // Extract text from the OCR response structure
     let extractedText = '';
+    
+    // Try different possible response structures
     if (result.text) {
       extractedText = result.text;
     } else if (result.content) {
       extractedText = result.content;
     } else if (result.extracted_text) {
       extractedText = result.extracted_text;
+    } else if (result.data && result.data.text) {
+      extractedText = result.data.text;
+    } else if (result.result && result.result.text) {
+      extractedText = result.result.text;
     } else {
-      console.log('⚠️ Unknown OCR response structure, using fallback');
+      console.log('⚠️ Unknown OCR response structure, checking all fields');
       extractedText = JSON.stringify(result, null, 2);
     }
 
     const processingTime = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
 
     console.log(`✅ OCR completed: ${extractedText.length} characters extracted`);
+    console.log(`📝 Extracted text preview: ${extractedText.substring(0, 200)}...`);
 
     return {
       extractedText,
@@ -168,107 +142,54 @@ class MistralOCRServiceImpl implements MistralOCRService {
     };
   }
 
-  private fallbackTextExtraction(filePath: string, fileType: string) {
-    // Provide realistic demo content based on file type
-    const demoTexts = {
-      'application/pdf': `
-EXECUTIVE SUMMARY
+  private async extractTextFromImage(filePath: string, fileType: string, startTime: number): Promise<OCRResult> {
+    console.log(`🔍 Processing image with Mistral OCR API: ${filePath}`);
+    
+    const fileBuffer = await fs.readFile(filePath);
+    const base64File = fileBuffer.toString('base64');
 
-Company: TechVenture Innovation Inc.
-Founded: 2022
-Location: San Francisco, CA
+    const response = await fetch(`${this.baseUrl}/ocr/process`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'mistral-ocr-latest',
+        document: {
+          type: 'image_url',
+          image_url: `data:${fileType};base64,${base64File}`
+        },
+        include_image_base64: false
+      })
+    });
 
-BUSINESS OVERVIEW
-TechVenture Innovation is a B2B SaaS platform providing AI-powered analytics solutions for enterprise customers. Our proprietary machine learning algorithms help companies optimize their operations and reduce costs by up to 30%.
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Mistral OCR API error: ${response.status} - ${errorText}`);
+      throw new Error(`Mistral OCR API error: ${response.status} ${response.statusText}`);
+    }
 
-MARKET OPPORTUNITY
-- Total Addressable Market: $15.2B
-- Serviceable Addressable Market: $3.8B
-- Current Market Share: 0.5%
-- Projected Growth Rate: 25% annually
+    const result = await response.json();
+    const extractedText = result.text || result.content || result.extracted_text || '';
+    const processingTime = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
 
-FINANCIAL PROJECTIONS
-Year 1: $2.1M revenue
-Year 2: $5.7M revenue  
-Year 3: $12.4M revenue
-Year 4: $24.8M revenue
-Year 5: $45.2M revenue
-
-FUNDING REQUEST
-Seeking $8M Series A funding for:
-- Product development: 45%
-- Sales & Marketing: 35%
-- Operations: 20%
-
-KEY METRICS
-- Monthly Recurring Revenue: $180K
-- Customer Acquisition Cost: $2,400
-- Lifetime Value: $18,600
-- Gross Margin: 82%
-- Net Revenue Retention: 115%
-      `,
-      'image/jpeg': `
-INVESTMENT DECK - Q4 2024
-
-PROBLEM
-• Manual data analysis costs enterprises $2.3M annually
-• 70% of business decisions lack data-driven insights
-• Current solutions are fragmented and inefficient
-
-SOLUTION
-AI-powered unified analytics platform that:
-✓ Reduces analysis time by 85%
-✓ Increases decision accuracy by 40%
-✓ Integrates with 50+ enterprise tools
-
-TRACTION
-📈 150% month-over-month growth
-💰 $500K ARR achieved in 8 months
-🏢 25 enterprise customers including Fortune 500
-⭐ 98% customer satisfaction score
-
-TEAM
-CEO: Sarah Chen - Former VP Engineering at Salesforce
-CTO: Michael Rodriguez - Ex-Google AI Research
-CFO: Lisa Wang - Former Goldman Sachs VP
-      `,
-      default: `
-BUSINESS PLAN EXECUTIVE SUMMARY
-
-Our innovative technology solution addresses a critical market need in the enterprise software space. With a experienced founding team and proven market traction, we are positioned for significant growth.
-
-Key highlights include:
-- Proprietary technology with patent-pending algorithms
-- Strong customer validation with early adopters
-- Clear path to profitability within 24 months
-- Experienced team with previous successful exits
-- Large addressable market with minimal competition
-
-We are seeking strategic investment to accelerate our growth and capture market share in this rapidly expanding segment.
-      `
+    return {
+      extractedText,
+      confidence: 0.95,
+      processingTime
     };
+  }
 
-    const text = demoTexts[fileType as keyof typeof demoTexts] || demoTexts.default;
+  private fallbackTextExtraction(filePath: string, fileType: string): OCRResult {
+    console.log('🔄 Using fallback text extraction');
     
     return {
-      extractedText: text.trim(),
-      confidence: 0.85,
-      processingTime: '1.2s'
+      extractedText: `[OCR Processing Failed]\n\nFile: ${filePath}\nType: ${fileType}\n\nThe Mistral OCR service is currently unavailable. Please check your API key configuration and try again.`,
+      confidence: 0.0,
+      processingTime: '0.0s'
     };
-  }
-
-  private isImageFile(fileType: string): boolean {
-    return ['image/jpeg', 'image/jpg', 'image/png'].includes(fileType);
-  }
-
-  private isDocumentFile(fileType: string): boolean {
-    return [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain'
-    ].includes(fileType);
   }
 }
 
-export const mistralOCR = new MistralOCRServiceImpl();
+export const mistralOCRService = new MistralOCRServiceImpl();
