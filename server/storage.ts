@@ -384,7 +384,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEvaluationResultsByDealId(dealId: number): Promise<any[]> {
-    return [];
+    try {
+      const results = await pool.query(`
+        SELECT * FROM evaluation_results 
+        WHERE deal_id = $1 
+        ORDER BY created_at DESC
+      `, [dealId]);
+      
+      return results.rows.map(row => ({
+        id: row.id,
+        dealId: row.deal_id,
+        criteriaId: row.criteria_id,
+        score: row.score,
+        reasoning: row.reasoning,
+        createdAt: row.created_at
+      }));
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+      return [];
+    }
   }
 
   async createEvaluationResult(result: any): Promise<any> {

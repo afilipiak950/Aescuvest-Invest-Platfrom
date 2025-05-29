@@ -268,22 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const evaluationResults = await storage.getEvaluationResultsByDealId(dealId);
       
-      if (evaluationResults.length === 0) {
-        return res.status(404).json({ message: 'No evaluation results found for this deal' });
-      }
-      
-      // Get the most recent evaluation
-      const latestEvaluation = evaluationResults[0];
-      
-      res.json({
-        overallScore: latestEvaluation.overallScore,
-        recommendation: latestEvaluation.recommendation,
-        criterionScores: JSON.parse(latestEvaluation.criterionScores || '[]'),
-        summary: latestEvaluation.summary,
-        keyFindings: JSON.parse(latestEvaluation.keyFindings || '[]'),
-        redFlags: JSON.parse(latestEvaluation.redFlags || '[]'),
-        evaluatedAt: latestEvaluation.evaluatedAt
-      });
+      res.json(evaluationResults);
     } catch (error) {
       console.error('Error fetching evaluation results:', error);
       res.status(500).json({ message: 'Failed to fetch evaluation results' });
