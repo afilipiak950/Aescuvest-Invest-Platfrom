@@ -82,33 +82,19 @@ class MistralOCRServiceImpl implements MistralOCRService {
     console.log(`📄 File size: ${fileBuffer.length} bytes`);
     console.log(`📄 Base64 length: ${base64File.length} characters`);
 
-    // Try Mistral's chat completions with vision capability for document processing
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    // Use Mistral's correct OCR endpoint as per API documentation
+    const response = await fetch(`${this.baseUrl}/ocr`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Please extract all text content from this PDF document. Preserve the structure, formatting, and provide a complete transcription of all readable text.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${base64File}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 4000
+        model: 'mistral-small',
+        document: {
+          type: 'document_url',
+          document_url: `data:application/pdf;base64,${base64File}`
+        }
       })
     });
 
@@ -121,16 +107,20 @@ class MistralOCRServiceImpl implements MistralOCRService {
     }
 
     const result = await response.json();
-    console.log('🔍 Mistral Response structure:', Object.keys(result));
+    console.log('🔍 Mistral OCR Response structure:', Object.keys(result));
     
-    // Extract text from the chat completions response structure
+    // Extract text from the OCR response according to API docs
     let extractedText = '';
     
-    if (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-      extractedText = result.choices[0].message.content;
+    if (result.text) {
+      extractedText = result.text;
+    } else if (result.content) {
+      extractedText = result.content;
+    } else if (result.extracted_text) {
+      extractedText = result.extracted_text;
     } else {
-      console.log('⚠️ Unexpected response structure');
-      console.log('🔍 Full Response:', JSON.stringify(result, null, 2));
+      console.log('⚠️ Unexpected OCR response structure');
+      console.log('🔍 Full OCR Response:', JSON.stringify(result, null, 2));
       extractedText = JSON.stringify(result, null, 2);
     }
 
