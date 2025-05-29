@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams } from 'wouter';
+import { useState, useEffect } from 'react';
+import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import PageHeader from '@/components/layout/page-header';
 import DocumentList from '@/components/due-diligence/document-list';
@@ -19,11 +19,21 @@ import { Deal, AgentAnalysis, Document } from '@/types';
 
 
 export default function DueDiligence() {
+  const [location] = useLocation();
   const [selectedDeal, setSelectedDeal] = useState<string>('1'); // Default to first deal
   const [activeAgent, setActiveAgent] = useState<string>('legal');
   const [isUploading, setIsUploading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showUploadField, setShowUploadField] = useState(false);
+
+  // Parse URL parameters and set selected deal
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const dealParam = searchParams.get('deal');
+    if (dealParam) {
+      setSelectedDeal(dealParam);
+    }
+  }, [location]);
 
   // Fetch real deals from database
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
