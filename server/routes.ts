@@ -31,19 +31,24 @@ async function processCompanyResearchForDeal(
   try {
     console.log(`🔍 Starting automated research for deal ${dealId}: ${companyName}`);
     
-    // Conduct comprehensive AI research
-    const researchData = await companyResearchService.conductAutomatedResearch(
+    // Use real AI-powered research service
+    const { performComprehensiveResearch } = await import('./services/realCompanyResearch');
+    
+    // Conduct comprehensive AI research with OpenAI
+    const researchData = await performComprehensiveResearch(
       companyName, 
-      website, 
-      sector
+      website || undefined, 
+      dealId
     );
     
-    // Store research data (simplified storage for now)
-    console.log(`📊 Research completed for ${companyName}:`, {
-      ceoFound: !!researchData.ceoProfile?.name,
-      financialDataFound: !!researchData.financialInsights,
-      externalLinksFound: !!researchData.externalSources,
-      businessIntelFound: !!researchData.businessIntelligence
+    // Save the research data to storage
+    await storage.createCompanyResearch(researchData);
+    
+    console.log(`📊 AI research completed for ${companyName}:`, {
+      executiveTeamFound: !!researchData.executiveTeam?.ceo?.name,
+      financialDataFound: researchData.financialInsights?.fundingHistory?.length > 0,
+      externalLinksGenerated: Object.keys(researchData.externalSources || {}).length,
+      businessIntelFound: researchData.businessIntelligence?.competitors?.length > 0
     });
     
     console.log(`✅ Company research completed for deal ${dealId}`);
