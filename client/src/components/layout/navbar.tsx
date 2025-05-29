@@ -9,6 +9,7 @@ import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png
 const navItems = [
   { label: 'DASHBOARD', href: '/' },
   { label: 'ALL DEALS', href: '/all-deals' },
+  { label: 'PIPELINE', href: '/pipeline' },
   { label: 'INBOX', href: '/inbox' },
   { label: 'ANALYSIS', href: '/due-diligence' },
   { label: 'INVESTORS', href: '/investor-matching' },
