@@ -39,8 +39,8 @@ export default function EvaluationCriteriaManager() {
   });
 
   // Update local criteria when data changes
-  useState(() => {
-    if (criteria && criteria.length > 0) {
+  useEffect(() => {
+    if (criteria && Array.isArray(criteria) && criteria.length > 0) {
       setLocalCriteria(criteria);
     }
   }, [criteria]);
