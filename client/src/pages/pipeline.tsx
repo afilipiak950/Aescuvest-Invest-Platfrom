@@ -181,7 +181,7 @@ export default function Pipeline() {
     return 'text-red-400';
   };
 
-  const getRandomColor = () => {
+  const getConsistentColor = (id: number) => {
     const colors = [
       'bg-blue-500',
       'bg-purple-500',
@@ -192,7 +192,7 @@ export default function Pipeline() {
       'bg-pink-500',
       'bg-teal-500',
     ];
-    return colors[Math.floor(Math.random() * colors.length)];
+    return colors[id % colors.length];
   };
 
   if (isLoading) {
@@ -276,7 +276,7 @@ export default function Pipeline() {
                 <div className="space-y-3 min-h-[200px]">
                   {stageDeals.map((deal) => {
                     const firstLetter = deal.companyName.charAt(0);
-                    const bgColor = getRandomColor();
+                    const bgColor = getConsistentColor(deal.id);
                     
                     return (
                       <Card
