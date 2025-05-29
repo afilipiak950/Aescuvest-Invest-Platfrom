@@ -293,6 +293,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'Standard corporate structure with appropriate director and shareholder protections. Clean cap table with proper equity allocation.'
               },
               {
+                category: 'Board Governance',
+                finding: 'Independent directors comprise 60% of board with relevant expertise',
+                status: 'confirmed',
+                confidence: 92,
+                impact: 'low',
+                details: 'Board includes former FDA regulatory executive, healthcare M&A specialist, and digital health entrepreneur. Quarterly meetings documented with proper minutes.'
+              },
+              {
                 category: 'Intellectual Property',
                 finding: 'Patent portfolio exists but coverage gaps identified',
                 status: 'investigate',
@@ -301,12 +309,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'Core technology patents filed but international protection limited. Trade secret agreements in place for employees.'
               },
               {
+                category: 'IP Portfolio Analysis',
+                finding: '23 patents filed, 18 granted across core technology areas',
+                status: 'confirmed',
+                confidence: 88,
+                impact: 'low',
+                details: 'Strong patent portfolio covering AI algorithms, data processing methods, and user interface innovations. Freedom to operate analysis completed for key markets.'
+              },
+              {
+                category: 'Employment Agreements',
+                finding: 'All employees have signed IP assignment and non-compete agreements',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Comprehensive employment contracts with proper IP assignment clauses. Non-compete periods range from 12-24 months depending on role level.'
+              },
+              {
                 category: 'Regulatory Compliance',
                 finding: 'FDA pathway unclear for medical device classification',
                 status: 'red_flag',
                 confidence: 89,
                 impact: 'high',
                 details: 'Product may require Class II medical device approval which could significantly impact timeline and cost. Regulatory strategy needs refinement.'
+              },
+              {
+                category: 'Data Privacy Compliance',
+                finding: 'GDPR and HIPAA compliance frameworks implemented',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Data processing agreements in place with all vendors. Regular privacy impact assessments conducted. DPO appointed and privacy by design principles followed.'
+              },
+              {
+                category: 'Litigation History',
+                finding: 'No material litigation identified in past 5 years',
+                status: 'confirmed',
+                confidence: 96,
+                impact: 'low',
+                details: 'Clean litigation history with only minor contract disputes resolved through mediation. No IP litigation or regulatory enforcement actions.'
+              },
+              {
+                category: 'Contracts Review',
+                finding: 'Key commercial agreements contain unfavorable termination clauses',
+                status: 'investigate',
+                confidence: 78,
+                impact: 'medium',
+                details: 'Major customer contracts include 30-day termination clauses without cause. Supplier agreements have similar provisions that could impact operations.'
+              },
+              {
+                category: 'Insurance Coverage',
+                finding: 'Professional liability coverage insufficient for healthcare sector',
+                status: 'red_flag',
+                confidence: 91,
+                impact: 'medium',
+                details: 'Current coverage of $2M may be inadequate for medical device liability. Cyber insurance limits also below industry standards for health tech.'
               }
             ],
             recommendations: [
@@ -336,12 +392,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'ARR of $2.1M with 95% retention rate. Clear path to $10M ARR within 24 months based on current pipeline.'
               },
               {
+                category: 'Revenue Quality',
+                finding: '87% of revenue is recurring with multi-year contracts',
+                status: 'confirmed',
+                confidence: 93,
+                impact: 'low',
+                details: 'Average contract length 2.3 years with annual payment terms. Strong upsell/cross-sell contributing 23% of new ARR.'
+              },
+              {
                 category: 'Unit Economics',
                 finding: 'LTV/CAC ratio of 4.2x indicates healthy business model',
                 status: 'confirmed',
                 confidence: 91,
                 impact: 'low',
                 details: 'Customer acquisition cost of $1,200 with lifetime value of $5,040. Payback period of 8 months is reasonable for enterprise SaaS.'
+              },
+              {
+                category: 'Gross Margins',
+                finding: 'Gross margins of 78% with improving trend',
+                status: 'confirmed',
+                confidence: 89,
+                impact: 'low',
+                details: 'Margins improved from 71% to 78% over past 12 months due to infrastructure optimization and pricing discipline.'
               },
               {
                 category: 'Customer Concentration',
@@ -358,6 +430,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 confidence: 85,
                 impact: 'medium',
                 details: 'Monthly burn of $180k with $2.5M cash. Growth investment may accelerate burn without corresponding revenue increase.'
+              },
+              {
+                category: 'Working Capital',
+                finding: 'Strong cash collection with 32-day average DSO',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Excellent collections process with 98% of invoices paid within terms. Automated billing and payment systems in place.'
+              },
+              {
+                category: 'Financial Controls',
+                finding: 'SOX-compliant financial controls implemented',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Monthly financial close process, segregation of duties, and independent audit trail. Big 4 audit firm engaged for annual review.'
+              },
+              {
+                category: 'Burn Rate Trend',
+                finding: 'Burn rate increased 34% in last quarter due to hiring',
+                status: 'investigate',
+                confidence: 92,
+                impact: 'medium',
+                details: 'Engineering headcount doubled Q/Q driving increased burn. Need to monitor R&D efficiency and timeline to profitability.'
+              },
+              {
+                category: 'Revenue Forecasting',
+                finding: 'Sales pipeline visibility limited beyond 6 months',
+                status: 'red_flag',
+                confidence: 81,
+                impact: 'medium',
+                details: 'CRM data quality issues and long enterprise sales cycles create forecasting challenges. 43% variance in quarterly predictions.'
+              },
+              {
+                category: 'Pricing Strategy',
+                finding: 'Recent 15% price increase shows minimal churn impact',
+                status: 'confirmed',
+                confidence: 86,
+                impact: 'low',
+                details: 'Price elasticity testing shows room for additional increases. Customer value metrics support premium positioning.'
+              },
+              {
+                category: 'Capital Structure',
+                finding: 'Clean cap table with appropriate option pool',
+                status: 'confirmed',
+                confidence: 97,
+                impact: 'low',
+                details: '15% option pool remains with no liquidation preferences. Founder ownership at 65% provides strong alignment.'
               }
             ],
             recommendations: [
@@ -387,12 +507,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'n=45 patients with statistically significant improvement over standard of care. Safety profile acceptable with manageable side effects.'
               },
               {
+                category: 'Safety Profile',
+                finding: 'Favorable safety data with no serious adverse events',
+                status: 'confirmed',
+                confidence: 88,
+                impact: 'low',
+                details: 'Complete safety dataset shows mild to moderate side effects in 23% of patients. No drug-related serious adverse events or deaths reported.'
+              },
+              {
                 category: 'Scientific Advisory Board',
                 finding: 'Strong advisory team with key opinion leaders',
                 status: 'confirmed',
                 confidence: 89,
                 impact: 'low',
                 details: 'Board includes 3 department heads from top-tier medical centers. Active engagement in study design and regulatory strategy.'
+              },
+              {
+                category: 'Clinical Development Plan',
+                finding: 'Phase II trial design approved by FDA in pre-IND meeting',
+                status: 'confirmed',
+                confidence: 91,
+                impact: 'low',
+                details: 'FDA provided written feedback on primary endpoints and study design. 300-patient pivotal trial planned with interim analysis at 150 patients.'
+              },
+              {
+                category: 'Medical Affairs Team',
+                finding: 'Experienced medical affairs leadership with regulatory expertise',
+                status: 'confirmed',
+                confidence: 85,
+                impact: 'low',
+                details: 'Chief Medical Officer with 15+ years regulatory experience. Former FDA reviewer on medical affairs team.'
               },
               {
                 category: 'Manufacturing Scale',
@@ -403,12 +547,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'Current CMO capacity limited to clinical supply. Commercial manufacturing partner identification required.'
               },
               {
+                category: 'Quality Systems',
+                finding: 'ISO 13485 certification completed with minor findings',
+                status: 'confirmed',
+                confidence: 86,
+                impact: 'low',
+                details: 'Quality management system audit completed with 3 minor non-conformities addressed. Annual surveillance audits scheduled.'
+              },
+              {
+                category: 'Biomarker Strategy',
+                finding: 'Companion diagnostic development behind schedule',
+                status: 'red_flag',
+                confidence: 83,
+                impact: 'high',
+                details: 'Biomarker assay development 6 months behind target. May impact patient stratification and regulatory approval timeline.'
+              },
+              {
                 category: 'Regulatory Timeline',
                 finding: 'FDA approval pathway may extend 24-36 months',
                 status: 'red_flag',
                 confidence: 84,
                 impact: 'high',
                 details: 'Recent FDA guidance changes may require additional studies. Regulatory consulting firm recommends conservative timeline.'
+              },
+              {
+                category: 'Intellectual Property in Medical',
+                finding: 'Method of treatment patents provide strong protection',
+                status: 'confirmed',
+                confidence: 90,
+                impact: 'low',
+                details: 'Composition of matter and method of treatment patents filed in major markets. Patent estate analysis shows 12+ years of exclusivity.'
+              },
+              {
+                category: 'Clinical Data Management',
+                finding: 'Electronic data capture system meets FDA 21 CFR Part 11',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Clinical trial data management platform validated for regulatory submissions. Audit trail and data integrity controls in place.'
+              },
+              {
+                category: 'Pharmacovigilance',
+                finding: 'Global safety database established with qualified person',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Safety database operational in EU and US. Qualified person for pharmacovigilance appointed with appropriate training.'
               }
             ],
             recommendations: [
@@ -438,12 +622,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'Third-party market research confirms addressable market size. Multiple analyst reports align on growth projections.'
               },
               {
+                category: 'Market Penetration Strategy',
+                finding: 'Serviceable addressable market estimated at $2.1B within 5 years',
+                status: 'confirmed',
+                confidence: 88,
+                impact: 'low',
+                details: 'Conservative penetration analysis based on adoption curves and customer feedback. Early adopter segment represents immediate $340M opportunity.'
+              },
+              {
                 category: 'Customer Validation',
                 finding: 'Strong product-market fit with early adopters',
                 status: 'confirmed',
                 confidence: 87,
                 impact: 'low',
                 details: 'Net Promoter Score of 73 with 89% customer satisfaction. Multiple case studies demonstrate clear ROI for customers.'
+              },
+              {
+                category: 'Customer Segmentation',
+                finding: 'Mid-market segment shows highest conversion rates at 34%',
+                status: 'confirmed',
+                confidence: 91,
+                impact: 'low',
+                details: 'Companies with 100-1000 employees demonstrate fastest adoption. Enterprise segment requires longer sales cycles but higher ACV.'
               },
               {
                 category: 'Competitive Positioning',
@@ -454,12 +654,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: 'Market incumbents showing increased R&D investment in competing technologies. First-mover advantage may be temporary.'
               },
               {
+                category: 'Competitive Analysis',
+                finding: 'No direct competitor offers complete feature parity',
+                status: 'confirmed',
+                confidence: 85,
+                impact: 'low',
+                details: 'Feature gap analysis shows 18-month lead over closest competitor. Patent portfolio provides additional protection for core differentiators.'
+              },
+              {
+                category: 'Channel Strategy',
+                finding: 'Partner ecosystem contributing 42% of qualified pipeline',
+                status: 'confirmed',
+                confidence: 89,
+                impact: 'low',
+                details: 'System integrator partnerships driving enterprise opportunities. Channel conflict managed through territory assignments and deal registration.'
+              },
+              {
+                category: 'Brand Recognition',
+                finding: 'Limited awareness outside target customer segments',
+                status: 'investigate',
+                confidence: 76,
+                impact: 'medium',
+                details: 'Brand recognition at 18% among target buyers. Industry analyst coverage improving with recent Gartner inclusion in Magic Quadrant.'
+              },
+              {
                 category: 'Sales Execution',
                 finding: 'Sales team lacks enterprise experience',
                 status: 'red_flag',
                 confidence: 83,
                 impact: 'high',
                 details: 'Current team successful with SMB but enterprise deals require different skill set. Recent quota misses concerning.'
+              },
+              {
+                category: 'Sales Productivity',
+                finding: 'Average deal size increased 67% year-over-year',
+                status: 'confirmed',
+                confidence: 92,
+                impact: 'low',
+                details: 'Upselling and cross-selling initiatives driving ACV growth from $28K to $47K. Customer expansion revenue represents 31% of total bookings.'
+              },
+              {
+                category: 'Market Timing',
+                finding: 'Regulatory changes driving immediate buying urgency',
+                status: 'confirmed',
+                confidence: 86,
+                impact: 'low',
+                details: 'New compliance requirements create 12-18 month implementation window. Customer budget cycles align with regulatory deadlines.'
+              },
+              {
+                category: 'International Opportunity',
+                finding: 'European market showing strong early interest',
+                status: 'confirmed',
+                confidence: 79,
+                impact: 'low',
+                details: 'UK and German pilot customers demonstrating similar usage patterns. GDPR compliance framework positions well for EU expansion.'
+              },
+              {
+                category: 'Customer Success Metrics',
+                finding: 'Time-to-value averages 6.2 weeks with 94% implementation success',
+                status: 'confirmed',
+                confidence: 93,
+                impact: 'low',
+                details: 'Customer onboarding process refined through 50+ implementations. Professional services team maintains high satisfaction scores.'
               }
             ],
             recommendations: [
