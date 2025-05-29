@@ -14,26 +14,32 @@ export default function DealIntake() {
     setIsSubmitting(true);
     
     try {
+      const dealPayload = {
+        companyName: formData.companyName,
+        sector: formData.sector,
+        stage: formData.stage,
+        fundingAmount: formData.fundingAmount || null,
+        website: formData.website || null,
+        location: formData.location || null,
+        description: formData.description,
+        status: 'Under Review'
+      };
+      
+      console.log('Sending deal payload:', dealPayload);
+      
       // Create the deal first
       const dealResponse = await fetch('/api/deals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          companyName: formData.companyName,
-          sector: formData.sector,
-          stage: formData.stage,
-          fundingAmount: formData.fundingAmount || null,
-          website: formData.website || null,
-          location: formData.location || null,
-          description: formData.description,
-          status: 'Under Review'
-        })
+        body: JSON.stringify(dealPayload)
       });
       
       if (!dealResponse.ok) {
-        throw new Error('Failed to create deal');
+        const errorData = await dealResponse.json();
+        console.error('Deal creation failed:', errorData);
+        throw new Error(`Failed to create deal: ${JSON.stringify(errorData)}`);
       }
       
       const newDeal = await dealResponse.json();

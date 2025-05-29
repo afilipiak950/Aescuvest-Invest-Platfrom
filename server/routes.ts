@@ -182,9 +182,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/deals', async (req: Request, res: Response) => {
     try {
+      console.log('Received deal creation request:', req.body);
       const result = insertDealSchema.safeParse(req.body);
       
       if (!result.success) {
+        console.log('Validation failed:', result.error.errors);
         return handleValidationError(res, result.error);
       }
       
