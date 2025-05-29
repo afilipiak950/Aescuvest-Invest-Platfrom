@@ -294,17 +294,7 @@ export default function Pipeline() {
                               <h3 className="font-semibold text-white text-sm mb-1 truncate">
                                 {deal.companyName}
                               </h3>
-                              <div className="flex items-center gap-1 flex-wrap mb-2">
-                                <Badge variant="secondary" className="text-xs bg-blue-500/20 text-blue-300 border-blue-500/30">
-                                  {deal.sector}
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-300 border-purple-500/30">
-                                  {deal.stage}
-                                </Badge>
-                                <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
-                                  Private Co.
-                                </Badge>
-                              </div>
+
                               <p className="text-xs text-gray-400 mb-2 line-clamp-1">
                                 {deal.description}
                               </p>
