@@ -17,24 +17,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface AnalysisItem {
-  category: string;
-  finding: string;
-  status: 'confirmed' | 'investigate' | 'red_flag';
-  confidence: number;
-  impact: 'high' | 'medium' | 'low';
-  details?: string;
+interface FindingItem {
+  id: number;
+  type: 'positive' | 'warning' | 'negative' | 'neutral';
+  content: string;
 }
 
 interface AgentAnalysis {
   id: number;
   agentType: string;
   status: string;
-  confidence: number;
-  summary: string;
-  findings: AnalysisItem[];
+  progress: number;
+  findings: FindingItem[];
   recommendations: string[];
-  lastUpdated: string;
 }
 
 interface AgentCardProps {
@@ -42,14 +37,16 @@ interface AgentCardProps {
   isLoading?: boolean;
 }
 
-const StatusIcon = ({ status }: { status: 'confirmed' | 'investigate' | 'red_flag' }) => {
-  switch (status) {
-    case 'confirmed':
+const StatusIcon = ({ type }: { type: 'positive' | 'warning' | 'negative' | 'neutral' }) => {
+  switch (type) {
+    case 'positive':
       return <CheckCircle className="w-4 h-4 text-green-400" />;
-    case 'investigate':
+    case 'warning':
       return <AlertTriangle className="w-4 h-4 text-amber-400" />;
-    case 'red_flag':
+    case 'negative':
       return <XCircle className="w-4 h-4 text-red-400" />;
+    case 'neutral':
+      return <Clock className="w-4 h-4 text-blue-400" />;
     default:
       return <Clock className="w-4 h-4 text-gray-400" />;
   }
@@ -150,48 +147,28 @@ export default function AgentCard({ analysis, isLoading }: AgentCardProps) {
             {getAgentIcon(analysis.agentType)}
             {analysis.agentType} Analysis
           </CardTitle>
-          <StatusBadge status={analysis.status} confidence={analysis.confidence} />
+          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+            {analysis.status} ({analysis.progress}%)
+          </Badge>
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-400">
-          <span>Confidence: {analysis.confidence}%</span>
-          <Progress value={analysis.confidence} className="w-24 h-2" />
-          <span>Updated: {analysis.lastUpdated}</span>
+          <span>Progress: {analysis.progress}%</span>
+          <Progress value={analysis.progress} className="w-24 h-2" />
+          <span>Findings: {analysis.findings.length} items</span>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Summary */}
-        <div>
-          <h4 className="font-medium mb-2 text-white">Executive Summary</h4>
-          <p className="text-gray-300 text-sm leading-relaxed">{analysis.summary}</p>
-        </div>
-
-        <Separator className="bg-dark-lighter" />
-
         {/* Detailed Findings */}
         <div>
-          <h4 className="font-medium mb-4 text-white">Detailed Findings</h4>
-          <div className="space-y-4">
+          <h4 className="font-medium mb-4 text-white">Investment Analysis Findings</h4>
+          <div className="space-y-3">
             {analysis.findings.map((finding, index) => (
-              <div key={index} className="border border-dark-lighter rounded-lg p-4 bg-dark-light/50">
+              <div key={finding.id} className="border border-dark-lighter rounded-lg p-4 bg-dark-light/50">
                 <div className="flex items-start gap-3">
-                  <StatusIcon status={finding.status} />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h5 className="font-medium text-white">{finding.category}</h5>
-                      <div className="flex items-center gap-2">
-                        <ImpactIndicator impact={finding.impact} />
-                        <Badge variant="outline" className="text-xs">
-                          {finding.confidence}% confidence
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm">{finding.finding}</p>
-                    {finding.details && (
-                      <div className="mt-2 p-3 bg-dark/50 rounded border-l-2 border-gray-600">
-                        <p className="text-gray-400 text-xs">{finding.details}</p>
-                      </div>
-                    )}
+                  <StatusIcon type={finding.type} />
+                  <div className="flex-1">
+                    <p className="text-gray-300 text-sm leading-relaxed">{finding.content}</p>
                   </div>
                 </div>
               </div>
