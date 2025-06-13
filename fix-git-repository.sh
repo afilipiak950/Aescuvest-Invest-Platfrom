@@ -1,23 +1,31 @@
 #!/bin/bash
 
-echo "🔧 Fixing Git repository issues..."
+echo "Repairing Git repository..."
 
-# Step 1: Remove any lock files that might exist
-echo "🧹 Removing Git lock files..."
+# Remove all lock files
+echo "Removing lock files..."
 find .git -name "*.lock" -type f -delete 2>/dev/null || true
 
-# Step 2: Fix the malformed remote URL
-echo "🔗 Fixing Git remote configuration..."
-git config --unset remote.origin.url 2>/dev/null || true
-git config --unset remote.origin.fetch 2>/dev/null || true
+# Reset Git configuration if corrupted
+echo "Resetting Git configuration..."
+git config --global --unset-all core.autocrlf 2>/dev/null || true
+git config core.autocrlf false
 
-# Step 3: Re-add the remote with correct format
-echo "📡 Re-adding Git remote..."
-git remote add origin https://github.com/afilipiak950/Aescuvest-Invest-Platfrom.git 2>/dev/null || true
+# Fix remote URL if needed
+echo "Checking remote configuration..."
+CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
+if [[ "$CURRENT_REMOTE" == *"Aescuvest-v2"* ]]; then
+    git remote set-url origin https://github.com/afilipiak950/Aescuvest-Invest-Platfrom.git
+fi
 
-# Step 4: Verify the fix
-echo "✅ Verifying Git repository status..."
+# Clean Git index if corrupted
+echo "Cleaning Git index..."
+git reset --mixed HEAD 2>/dev/null || true
+
+# Verify repair
+echo "Testing Git operations..."
+git status
 git remote -v
-git status --porcelain
 
-echo "🎉 Git repository fixed successfully!"
+echo "Git repository repair complete!"
+echo "You can now commit and push changes normally."
