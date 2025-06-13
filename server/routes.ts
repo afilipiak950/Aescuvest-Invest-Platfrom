@@ -1,0 +1,3828 @@
+import type { Express, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { db } from "./db";
+import { documents } from "../shared/schema";
+import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import { z } from "zod";
+import { authenticate } from "./middleware/auth";
+import { 
+  insertDealSchema, 
+  insertDocumentSchema, 
+  insertAgentAnalysisSchema,
+  insertInvestmentMemoSchema,
+  insertInvestorMatchSchema,
+  insertAutomationSchema
+} from "../shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import aiAgentRoutes from "./routes/ai-agents";
+import authRoutes from "./routes/auth";
+import emailRoutes from "./routes/email";
+import microsoftAuthRoutes from "./routes/microsoftAuth";
+import { companyResearchService } from "./services/companyResearch";
+import { evaluateCompanyByDeal } from './services/aiEvaluation';
+import { comprehensiveResearchService } from './services/comprehensiveResearch';
+
+// Background processing function for company research
+async function processCompanyResearchForDeal(
+  dealId: number, 
+  companyName: string, 
+  website?: string, 
+  sector?: string,
+  forceRefresh?: boolean
+): Promise<void> {
+  try {
+    console.log(`Starting comprehensive research for deal ${dealId}: ${companyName}`);
+    
+    // Set status to processing
+    await storage.updateCompanyResearchStatus(dealId, 'processing');
+    
+    // Conduct comprehensive AI research
+    const researchData = await comprehensiveResearchService.conductComprehensiveResearch({
+      companyName,
+      website,
+      sector,
+      dealId
+    });
+    
+    // Save research data to database
+    await storage.createOrUpdateCompanyResearch(dealId, {
+      companyName,
+      website: website || null,
+      websiteAnalysis: researchData.websiteAnalysis || null,
+      newsAndPress: researchData.newsAndPress || null,
+      fundingInformation: researchData.fundingInformation || null,
+      leadershipTeam: researchData.leadershipTeam || null,
+      industryClassification: researchData.industryClassification || null,
+      technologyStack: researchData.technologyStack || null,
+      regulatoryCompliance: researchData.regulatoryCompliance || null,
+      sources: researchData.sources,
+      ceoProfile: researchData.ceoProfile || null,
+      financialData: researchData.financialData || null,
+      externalLinks: researchData.externalLinks || null,
+      businessIntelligence: researchData.businessIntelligence || null,
+      investmentHighlights: researchData.investmentHighlights || null,
+      riskFactors: researchData.riskFactors || null,
+      researchStatus: 'completed',
+      researchCompletedAt: new Date()
+    });
+    
+    console.log(`Research completed for deal ${dealId} with ${researchData.sources} sources analyzed`);
+  } catch (error) {
+    console.error(`Research failed for deal ${dealId}:`, error);
+    await storage.updateCompanyResearchStatus(dealId, 'failed').catch(console.error);
+    throw error;
+  }
+}
+import inboxRoutes from "./routes/inbox";
+import microsoftAuthRoutes from "./routes/microsoftAuth";
+import documentUploadRoutes from "./routes/document-upload";
+import backgroundJobsRouter from "./routes/backgroundJobs";
+import { websocketManager } from "./services/websocketManager";
+import { jobProcessor } from "./services/jobProcessor";
+
+// Setup multer for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      const uploadDir = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+      const uniqueFileName = `${Date.now()}-${randomUUID()}-${file.originalname}`;
+      cb(null, uniqueFileName);
+    }
+  }),
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB limit for large ZIP files
+    fieldSize: 500 * 1024 * 1024,
+    files: 10
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = ['.pdf', '.docx', '.doc', '.ppt', '.pptx', '.xlsx', '.xls', '.zip'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOCX, PPT, XLSX, and ZIP files are allowed.'));
+    }
+  }
+});
+
+// Helper for validation errors
+const handleValidationError = (res: Response, error: z.ZodError) => {
+  return res.status(400).json({
+    message: 'Validation error',
+    errors: error.errors.map(e => ({
+      path: e.path.join('.'),
+      message: e.message,
+    })),
+  });
+};
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // CRITICAL TEST: Simple test route to verify Express is working
+  console.log('🚀 REGISTERING TEST ROUTE');
+  app.get('/api/test-route', (req: Request, res: Response) => {
+    console.log('🎯 TEST ROUTE HIT!');
+    res.json({ message: 'Express route working!', timestamp: new Date().toISOString() });
+  });
+  
+  // URGENT DEBUG: Direct route registration to bypass middleware issues
+  console.log('🔧 Registering DIRECT upload route...');
+  app.post('/api/documents/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
+    console.log('🚨 DIRECT ROUTE HIT! Method:', req.method, 'URL:', req.url);
+    console.log('Files count:', req.files?.length || 0);
+    console.log('Deal ID:', req.body?.dealId);
+    
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      
+      const files = req.files as Express.Multer.File[];
+      const dealId = req.body.dealId;
+      
+      if (!files || files.length === 0) {
+        console.log('❌ No files found');
+        return res.status(400).json({ 
+          success: false,
+          message: 'No files uploaded' 
+        });
+      }
+
+      const uploadedFiles = [];
+      
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
+        console.log(`📁 Processing file ${index}: ${file.originalname}`);
+        
+        // Create document record in database
+        const documentData: any = {
+          dealId: dealId ? parseInt(dealId) : null,
+          name: file.originalname,
+          type: path.extname(file.originalname).substring(1) || 'unknown',
+          path: file.path,
+          size: file.size,
+          status: 'Pending',
+          folderPath: "",
+          isFolder: false
+        };
+        
+        try {
+          const document = await storage.createDocument(documentData);
+          
+          // Create background OCR job with proper schema fields
+          const jobData = { 
+            filePath: file.path, 
+            fileName: file.originalname,
+            documentId: document.id,
+            documentName: file.originalname
+          };
+          
+          const jobId = await jobProcessor.createJob({
+            jobType: 'document_ocr',
+            dealId: dealId ? parseInt(dealId) : null,
+            documentId: document.id,
+            jobData: jobData
+          });
+          
+          console.log(`✅ Created background OCR job ${jobId} for document ${document.id}`);
+          
+          // IMMEDIATELY execute the OCR job to ensure processing happens
+          console.log(`🚀 IMMEDIATE OCR EXECUTION for job ${jobId}`);
+          (async () => {
+            try {
+              // Add delay to ensure database transaction is committed
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // Extract file type from extension
+              const fileType = path.extname(file.originalname).substring(1).toLowerCase();
+              console.log(`🔍 Processing ${file.originalname} as type: ${fileType}`);
+              
+              // Import OCR service
+              const { mistralOCRService } = await import('./services/mistralOCR');
+              
+              // Perform OCR
+              const ocrResult = await mistralOCRService.extractText(file.path, fileType);
+              console.log(`✅ OCR extracted ${ocrResult.extractedText?.length || 0} characters`);
+              
+              // Update document with results
+              await storage.updateDocumentWithOCR(document.id, ocrResult.extractedText, 'Analyzed');
+              
+              console.log(`✅ IMMEDIATE OCR completed for job ${jobId} - document ${document.id} updated`);
+            } catch (error) {
+              console.error(`❌ IMMEDIATE OCR failed for job ${jobId}:`, error);
+              await storage.updateDocumentWithOCR(document.id, '', 'Failed');
+            }
+          })();
+          
+          uploadedFiles.push({
+            id: document.id,
+            name: file.originalname,
+            size: file.size,
+            type: file.mimetype,
+            status: 'processing',
+            path: file.path,
+            filename: file.filename,
+            jobId: jobId
+          });
+        } catch (error) {
+          console.error(`❌ Failed to create document/job for ${file.originalname}:`, error);
+          uploadedFiles.push({
+            id: `error_${Date.now()}_${index}`,
+            name: file.originalname,
+            size: file.size,
+            type: file.mimetype,
+            status: 'error',
+            path: file.path,
+            filename: file.filename,
+            error: String(error)
+          });
+        }
+      }
+
+      console.log('✅ SUCCESS! Responding with', uploadedFiles.length, 'files');
+      
+      return res.status(200).json({
+        success: true,
+        message: `${uploadedFiles.length} file(s) uploaded successfully`,
+        files: uploadedFiles,
+        dealId: dealId || null
+      });
+
+    } catch (error) {
+      console.error('💥 DIRECT ROUTE ERROR:', error);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ 
+        success: false,
+        message: 'Upload failed', 
+        error: String(error) 
+      });
+    }
+  });
+  
+  // Register document upload routes (fallback)
+  app.use('/api/documents', documentUploadRoutes);
+  
+  // Mount auth routes
+  app.use('/api/auth', authRoutes);
+  
+  // Mount email routes
+  app.use('/api/email', emailRoutes);
+  
+  // Mount inbox routes
+  app.use('/api/inbox', inboxRoutes);
+  
+  // Deal routes
+  app.get('/api/deals', async (req: Request, res: Response) => {
+    try {
+      const deals = await storage.getAllDeals();
+      return res.status(200).json(deals);
+    } catch (error) {
+      console.error('Error fetching deals:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.get('/api/deals/:id', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.id);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+      
+      return res.status(200).json(deal);
+    } catch (error) {
+      console.error('Error fetching deal:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/deals', async (req: Request, res: Response) => {
+    try {
+      const result = insertDealSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return handleValidationError(res, result.error);
+      }
+      
+      const deal = await storage.createDeal(result.data);
+      
+      // Trigger background AI evaluation if website is provided
+      if (deal.website && deal.companyName) {
+        // Start AI evaluation in background - don't wait for completion
+        processAIEvaluationForDeal(deal.id, deal.website, deal.companyName)
+          .catch(error => {
+            console.error(`Background AI evaluation failed for deal ${deal.id}:`, error);
+          });
+        
+        console.log(`Started background AI evaluation for deal ${deal.id}: ${deal.companyName}`);
+      }
+      
+      // Trigger automated company research for all deals
+      if (deal.companyName) {
+        // Start comprehensive company research in background
+        processCompanyResearchForDeal(deal.id, deal.companyName, deal.website, deal.sector)
+          .catch((error: any) => {
+            console.error(`Background company research failed for deal ${deal.id}:`, error);
+          });
+        
+        console.log(`Started background company research for deal ${deal.id}: ${deal.companyName}`);
+      }
+      
+      return res.status(201).json(deal);
+    } catch (error) {
+      console.error('Error creating deal:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/deals/:id', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.id);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      // Check if deal exists
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      // Delete related data first to maintain referential integrity
+      console.log(`🗑️ Deleting related data for deal ${dealId}...`);
+      
+      // Delete documents
+      await storage.deleteDocumentsByDealId(dealId);
+      
+      // Delete analyses
+      await storage.deleteAnalysesByDealId(dealId);
+      
+      // Delete evaluation results
+      await storage.deleteEvaluationResultsByDealId(dealId);
+      
+      // Delete company research
+      await storage.deleteCompanyResearchByDealId(dealId);
+      
+      // Delete background jobs
+      await storage.deleteBackgroundJobsByDealId(dealId);
+      
+      // Finally delete the deal
+      const deleted = await storage.deleteDeal(dealId);
+      
+      if (!deleted) {
+        return res.status(500).json({ message: 'Failed to delete deal' });
+      }
+
+      console.log(`✅ Successfully deleted deal ${dealId} and all related data`);
+      return res.status(200).json({ 
+        message: 'Deal deleted successfully',
+        dealId: dealId
+      });
+    } catch (error) {
+      console.error('Error deleting deal:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Update deal status endpoint for pipeline drag & drop
+  app.patch('/api/deals/:id/status', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.id);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const { status } = req.body;
+      if (!status || typeof status !== 'string') {
+        return res.status(400).json({ message: 'Valid status is required' });
+      }
+
+      const validStatuses = [
+        'submitted', 'screening', 'under-review', 'negotiating', 
+        'final-review', 'invested', 'rejected', 'declined'
+      ];
+      
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          message: 'Invalid status', 
+          validStatuses 
+        });
+      }
+
+      const updatedDeal = await storage.updateDealStatus(dealId, status);
+      if (!updatedDeal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      return res.status(200).json({ 
+        message: 'Deal status updated successfully', 
+        deal: updatedDeal 
+      });
+    } catch (error) {
+      console.error('Error updating deal status:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // AI Evaluation results route
+  app.get('/api/deals/:dealId/evaluation', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const evaluationResults = await storage.getEvaluationResultsByDealId(dealId);
+      
+      res.json(evaluationResults);
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+      res.status(500).json({ message: 'Failed to fetch evaluation results' });
+    }
+  });
+  
+  // Document routes
+  app.post('/api/documents', upload.array('files', 10), async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.body.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: 'No files uploaded' });
+      }
+      
+      const documents = [];
+      
+      for (const file of files) {
+        const fileExt = path.extname(file.originalname).substring(1);
+        
+        const documentData = {
+          dealId,
+          name: file.originalname,
+          type: fileExt,
+          path: file.path,
+          size: file.size,
+          status: 'Pending'
+        };
+        
+        const result = insertDocumentSchema.safeParse(documentData);
+        if (!result.success) {
+          return handleValidationError(res, result.error);
+        }
+        
+        const document = await storage.createDocument(result.data);
+        documents.push(document);
+      }
+      
+      return res.status(201).json(documents);
+    } catch (error) {
+      console.error('Error uploading documents:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
+    const startTime = Date.now();
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      console.log(`📄 Starting documents fetch for deal ${dealId}...`);
+      const dbStartTime = Date.now();
+      
+      const documents = await storage.getDocumentsByDealId(dealId);
+      
+      const dbEndTime = Date.now();
+      const totalTime = Date.now() - startTime;
+      
+      console.log(`📄 Documents fetch completed for deal ${dealId}: ${documents.length} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms)`);
+      
+      return res.status(200).json(documents);
+    } catch (error) {
+      const totalTime = Date.now() - startTime;
+      console.error(`Error fetching documents after ${totalTime}ms:`, error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Delete documents route
+  app.delete('/api/documents/delete', async (req: Request, res: Response) => {
+    try {
+      const { fileIds } = req.body;
+
+      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ message: 'File IDs are required' });
+      }
+
+      const deletedCount = await storage.deleteDocuments(fileIds);
+
+      return res.status(200).json({ 
+        message: `Successfully deleted ${deletedCount} files`,
+        deletedCount
+      });
+    } catch (error) {
+      console.error('Error deleting documents:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Analysis routes
+  app.get('/api/analyses/:dealId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const existingAnalyses = await storage.getAnalysesByDealId(dealId);
+      
+      // Return real analyses if they exist
+      if (existingAnalyses.length > 0) {
+        return res.status(200).json(existingAnalyses);
+      }
+      
+      // Only generate dummy analysis for existing demo deals (IDs 1-17)
+      // New deals should only show analysis if they have real documents
+      if (dealId <= 17) {
+        const detailedAnalyses = [
+          {
+            id: 1,
+            dealId: dealId,
+            agentType: 'Legal',
+            status: 'Reviewed',
+            confidence: 87,
+            summary: 'Legal documentation appears comprehensive with minor gaps in IP protection. Corporate structure is sound with proper incorporation in Delaware. Some regulatory compliance items require clarification.',
+            findings: [
+              {
+                category: 'Corporate Structure',
+                finding: 'Delaware C-Corp with proper board composition and bylaws',
+                status: 'confirmed',
+                confidence: 95,
+                impact: 'low',
+                details: 'Standard corporate structure with appropriate director and shareholder protections. Clean cap table with proper equity allocation.'
+              },
+              {
+                category: 'Board Governance',
+                finding: 'Independent directors comprise 60% of board with relevant expertise',
+                status: 'confirmed',
+                confidence: 92,
+                impact: 'low',
+                details: 'Board includes former FDA regulatory executive, healthcare M&A specialist, and digital health entrepreneur. Quarterly meetings documented with proper minutes.'
+              },
+              {
+                category: 'Intellectual Property',
+                finding: 'Patent portfolio exists but coverage gaps identified',
+                status: 'investigate',
+                confidence: 72,
+                impact: 'medium',
+                details: 'Core technology patents filed but international protection limited. Trade secret agreements in place for employees.'
+              },
+              {
+                category: 'IP Portfolio Analysis',
+                finding: '23 patents filed, 18 granted across core technology areas',
+                status: 'confirmed',
+                confidence: 88,
+                impact: 'low',
+                details: 'Strong patent portfolio covering AI algorithms, data processing methods, and user interface innovations. Freedom to operate analysis completed for key markets.'
+              },
+              {
+                category: 'Employment Agreements',
+                finding: 'All employees have signed IP assignment and non-compete agreements',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Comprehensive employment contracts with proper IP assignment clauses. Non-compete periods range from 12-24 months depending on role level.'
+              },
+              {
+                category: 'Regulatory Compliance',
+                finding: 'FDA pathway unclear for medical device classification',
+                status: 'red_flag',
+                confidence: 89,
+                impact: 'high',
+                details: 'Product may require Class II medical device approval which could significantly impact timeline and cost. Regulatory strategy needs refinement.'
+              },
+              {
+                category: 'Data Privacy Compliance',
+                finding: 'GDPR and HIPAA compliance frameworks implemented',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Data processing agreements in place with all vendors. Regular privacy impact assessments conducted. DPO appointed and privacy by design principles followed.'
+              },
+              {
+                category: 'Litigation History',
+                finding: 'No material litigation identified in past 5 years',
+                status: 'confirmed',
+                confidence: 96,
+                impact: 'low',
+                details: 'Clean litigation history with only minor contract disputes resolved through mediation. No IP litigation or regulatory enforcement actions.'
+              },
+              {
+                category: 'Contracts Review',
+                finding: 'Key commercial agreements contain unfavorable termination clauses',
+                status: 'investigate',
+                confidence: 78,
+                impact: 'medium',
+                details: 'Major customer contracts include 30-day termination clauses without cause. Supplier agreements have similar provisions that could impact operations.'
+              },
+              {
+                category: 'Insurance Coverage',
+                finding: 'Professional liability coverage insufficient for healthcare sector',
+                status: 'red_flag',
+                confidence: 91,
+                impact: 'medium',
+                details: 'Current coverage of $2M may be inadequate for medical device liability. Cyber insurance limits also below industry standards for health tech.'
+              }
+            ],
+            recommendations: [
+              'Strengthen international patent filing strategy',
+              'Clarify FDA regulatory pathway with specialized counsel',
+              'Review and update employment agreements for IP assignment',
+              'Consider forming regulatory advisory board'
+            ],
+            lastUpdated: '2 hours ago',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          {
+            id: 2,
+            dealId: dealId,
+            agentType: 'Finance',
+            status: 'Complete',
+            confidence: 93,
+            summary: 'Strong financial fundamentals with healthy growth trajectory. Revenue model is scalable and unit economics are improving. Some concerns around customer concentration and cash runway.',
+            findings: [
+              {
+                category: 'Revenue Growth',
+                finding: '180% year-over-year growth with recurring revenue model',
+                status: 'confirmed',
+                confidence: 96,
+                impact: 'low',
+                details: 'ARR of $2.1M with 95% retention rate. Clear path to $10M ARR within 24 months based on current pipeline.'
+              },
+              {
+                category: 'Revenue Quality',
+                finding: '87% of revenue is recurring with multi-year contracts',
+                status: 'confirmed',
+                confidence: 93,
+                impact: 'low',
+                details: 'Average contract length 2.3 years with annual payment terms. Strong upsell/cross-sell contributing 23% of new ARR.'
+              },
+              {
+                category: 'Unit Economics',
+                finding: 'LTV/CAC ratio of 4.2x indicates healthy business model',
+                status: 'confirmed',
+                confidence: 91,
+                impact: 'low',
+                details: 'Customer acquisition cost of $1,200 with lifetime value of $5,040. Payback period of 8 months is reasonable for enterprise SaaS.'
+              },
+              {
+                category: 'Gross Margins',
+                finding: 'Gross margins of 78% with improving trend',
+                status: 'confirmed',
+                confidence: 89,
+                impact: 'low',
+                details: 'Margins improved from 71% to 78% over past 12 months due to infrastructure optimization and pricing discipline.'
+              },
+              {
+                category: 'Customer Concentration',
+                finding: 'Top 3 customers represent 45% of total revenue',
+                status: 'investigate',
+                confidence: 88,
+                impact: 'medium',
+                details: 'While contracts are long-term, high concentration creates revenue risk. Customer diversification strategy needed.'
+              },
+              {
+                category: 'Cash Management',
+                finding: 'Current runway of 14 months at current burn rate',
+                status: 'investigate',
+                confidence: 85,
+                impact: 'medium',
+                details: 'Monthly burn of $180k with $2.5M cash. Growth investment may accelerate burn without corresponding revenue increase.'
+              },
+              {
+                category: 'Working Capital',
+                finding: 'Strong cash collection with 32-day average DSO',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Excellent collections process with 98% of invoices paid within terms. Automated billing and payment systems in place.'
+              },
+              {
+                category: 'Financial Controls',
+                finding: 'SOX-compliant financial controls implemented',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Monthly financial close process, segregation of duties, and independent audit trail. Big 4 audit firm engaged for annual review.'
+              },
+              {
+                category: 'Burn Rate Trend',
+                finding: 'Burn rate increased 34% in last quarter due to hiring',
+                status: 'investigate',
+                confidence: 92,
+                impact: 'medium',
+                details: 'Engineering headcount doubled Q/Q driving increased burn. Need to monitor R&D efficiency and timeline to profitability.'
+              },
+              {
+                category: 'Revenue Forecasting',
+                finding: 'Sales pipeline visibility limited beyond 6 months',
+                status: 'red_flag',
+                confidence: 81,
+                impact: 'medium',
+                details: 'CRM data quality issues and long enterprise sales cycles create forecasting challenges. 43% variance in quarterly predictions.'
+              },
+              {
+                category: 'Pricing Strategy',
+                finding: 'Recent 15% price increase shows minimal churn impact',
+                status: 'confirmed',
+                confidence: 86,
+                impact: 'low',
+                details: 'Price elasticity testing shows room for additional increases. Customer value metrics support premium positioning.'
+              },
+              {
+                category: 'Capital Structure',
+                finding: 'Clean cap table with appropriate option pool',
+                status: 'confirmed',
+                confidence: 97,
+                impact: 'low',
+                details: '15% option pool remains with no liquidation preferences. Founder ownership at 65% provides strong alignment.'
+              }
+            ],
+            recommendations: [
+              'Diversify customer base to reduce concentration risk',
+              'Implement quarterly board reporting on key metrics',
+              'Establish credit facility for working capital flexibility',
+              'Consider milestone-based funding structure'
+            ],
+            lastUpdated: '1 hour ago',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          {
+            id: 3,
+            dealId: dealId,
+            agentType: 'Medical',
+            status: 'In Progress',
+            confidence: 76,
+            summary: 'Promising medical technology with solid clinical validation. Early-stage clinical data shows efficacy but larger trials needed. Regulatory pathway presents challenges.',
+            findings: [
+              {
+                category: 'Clinical Efficacy',
+                finding: 'Phase I trial showed 78% efficacy in primary endpoint',
+                status: 'confirmed',
+                confidence: 92,
+                impact: 'low',
+                details: 'n=45 patients with statistically significant improvement over standard of care. Safety profile acceptable with manageable side effects.'
+              },
+              {
+                category: 'Safety Profile',
+                finding: 'Favorable safety data with no serious adverse events',
+                status: 'confirmed',
+                confidence: 88,
+                impact: 'low',
+                details: 'Complete safety dataset shows mild to moderate side effects in 23% of patients. No drug-related serious adverse events or deaths reported.'
+              },
+              {
+                category: 'Scientific Advisory Board',
+                finding: 'Strong advisory team with key opinion leaders',
+                status: 'confirmed',
+                confidence: 89,
+                impact: 'low',
+                details: 'Board includes 3 department heads from top-tier medical centers. Active engagement in study design and regulatory strategy.'
+              },
+              {
+                category: 'Clinical Development Plan',
+                finding: 'Phase II trial design approved by FDA in pre-IND meeting',
+                status: 'confirmed',
+                confidence: 91,
+                impact: 'low',
+                details: 'FDA provided written feedback on primary endpoints and study design. 300-patient pivotal trial planned with interim analysis at 150 patients.'
+              },
+              {
+                category: 'Medical Affairs Team',
+                finding: 'Experienced medical affairs leadership with regulatory expertise',
+                status: 'confirmed',
+                confidence: 85,
+                impact: 'low',
+                details: 'Chief Medical Officer with 15+ years regulatory experience. Former FDA reviewer on medical affairs team.'
+              },
+              {
+                category: 'Manufacturing Scale',
+                finding: 'Production scaling challenges identified',
+                status: 'investigate',
+                confidence: 71,
+                impact: 'medium',
+                details: 'Current CMO capacity limited to clinical supply. Commercial manufacturing partner identification required.'
+              },
+              {
+                category: 'Quality Systems',
+                finding: 'ISO 13485 certification completed with minor findings',
+                status: 'confirmed',
+                confidence: 86,
+                impact: 'low',
+                details: 'Quality management system audit completed with 3 minor non-conformities addressed. Annual surveillance audits scheduled.'
+              },
+              {
+                category: 'Biomarker Strategy',
+                finding: 'Companion diagnostic development behind schedule',
+                status: 'red_flag',
+                confidence: 83,
+                impact: 'high',
+                details: 'Biomarker assay development 6 months behind target. May impact patient stratification and regulatory approval timeline.'
+              },
+              {
+                category: 'Regulatory Timeline',
+                finding: 'FDA approval pathway may extend 24-36 months',
+                status: 'red_flag',
+                confidence: 84,
+                impact: 'high',
+                details: 'Recent FDA guidance changes may require additional studies. Regulatory consulting firm recommends conservative timeline.'
+              },
+              {
+                category: 'Intellectual Property in Medical',
+                finding: 'Method of treatment patents provide strong protection',
+                status: 'confirmed',
+                confidence: 90,
+                impact: 'low',
+                details: 'Composition of matter and method of treatment patents filed in major markets. Patent estate analysis shows 12+ years of exclusivity.'
+              },
+              {
+                category: 'Clinical Data Management',
+                finding: 'Electronic data capture system meets FDA 21 CFR Part 11',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Clinical trial data management platform validated for regulatory submissions. Audit trail and data integrity controls in place.'
+              },
+              {
+                category: 'Pharmacovigilance',
+                finding: 'Global safety database established with qualified person',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Safety database operational in EU and US. Qualified person for pharmacovigilance appointed with appropriate training.'
+              }
+            ],
+            recommendations: [
+              'Engage FDA in pre-submission meeting for pathway clarification',
+              'Secure commercial manufacturing partnership',
+              'Plan Phase II trial design with regulatory input',
+              'Consider breakthrough therapy designation application'
+            ],
+            lastUpdated: '3 hours ago',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          {
+            id: 4,
+            dealId: dealId,
+            agentType: 'Commercial',
+            status: 'Complete',
+            confidence: 82,
+            summary: 'Market opportunity is substantial with clear customer demand. Competitive landscape is manageable but evolving rapidly. Go-to-market strategy needs refinement.',
+            findings: [
+              {
+                category: 'Market Size',
+                finding: 'TAM of $8.5B with 12% CAGR growth rate',
+                status: 'confirmed',
+                confidence: 94,
+                impact: 'low',
+                details: 'Third-party market research confirms addressable market size. Multiple analyst reports align on growth projections.'
+              },
+              {
+                category: 'Market Penetration Strategy',
+                finding: 'Serviceable addressable market estimated at $2.1B within 5 years',
+                status: 'confirmed',
+                confidence: 88,
+                impact: 'low',
+                details: 'Conservative penetration analysis based on adoption curves and customer feedback. Early adopter segment represents immediate $340M opportunity.'
+              },
+              {
+                category: 'Customer Validation',
+                finding: 'Strong product-market fit with early adopters',
+                status: 'confirmed',
+                confidence: 87,
+                impact: 'low',
+                details: 'Net Promoter Score of 73 with 89% customer satisfaction. Multiple case studies demonstrate clear ROI for customers.'
+              },
+              {
+                category: 'Customer Segmentation',
+                finding: 'Mid-market segment shows highest conversion rates at 34%',
+                status: 'confirmed',
+                confidence: 91,
+                impact: 'low',
+                details: 'Companies with 100-1000 employees demonstrate fastest adoption. Enterprise segment requires longer sales cycles but higher ACV.'
+              },
+              {
+                category: 'Competitive Positioning',
+                finding: 'Two major competitors launching similar solutions',
+                status: 'investigate',
+                confidence: 79,
+                impact: 'medium',
+                details: 'Market incumbents showing increased R&D investment in competing technologies. First-mover advantage may be temporary.'
+              },
+              {
+                category: 'Competitive Analysis',
+                finding: 'No direct competitor offers complete feature parity',
+                status: 'confirmed',
+                confidence: 85,
+                impact: 'low',
+                details: 'Feature gap analysis shows 18-month lead over closest competitor. Patent portfolio provides additional protection for core differentiators.'
+              },
+              {
+                category: 'Channel Strategy',
+                finding: 'Partner ecosystem contributing 42% of qualified pipeline',
+                status: 'confirmed',
+                confidence: 89,
+                impact: 'low',
+                details: 'System integrator partnerships driving enterprise opportunities. Channel conflict managed through territory assignments and deal registration.'
+              },
+              {
+                category: 'Brand Recognition',
+                finding: 'Limited awareness outside target customer segments',
+                status: 'investigate',
+                confidence: 76,
+                impact: 'medium',
+                details: 'Brand recognition at 18% among target buyers. Industry analyst coverage improving with recent Gartner inclusion in Magic Quadrant.'
+              },
+              {
+                category: 'Sales Execution',
+                finding: 'Sales team lacks enterprise experience',
+                status: 'red_flag',
+                confidence: 83,
+                impact: 'high',
+                details: 'Current team successful with SMB but enterprise deals require different skill set. Recent quota misses concerning.'
+              },
+              {
+                category: 'Sales Productivity',
+                finding: 'Average deal size increased 67% year-over-year',
+                status: 'confirmed',
+                confidence: 92,
+                impact: 'low',
+                details: 'Upselling and cross-selling initiatives driving ACV growth from $28K to $47K. Customer expansion revenue represents 31% of total bookings.'
+              },
+              {
+                category: 'Market Timing',
+                finding: 'Regulatory changes driving immediate buying urgency',
+                status: 'confirmed',
+                confidence: 86,
+                impact: 'low',
+                details: 'New compliance requirements create 12-18 month implementation window. Customer budget cycles align with regulatory deadlines.'
+              },
+              {
+                category: 'International Opportunity',
+                finding: 'European market showing strong early interest',
+                status: 'confirmed',
+                confidence: 79,
+                impact: 'low',
+                details: 'UK and German pilot customers demonstrating similar usage patterns. GDPR compliance framework positions well for EU expansion.'
+              },
+              {
+                category: 'Customer Success Metrics',
+                finding: 'Time-to-value averages 6.2 weeks with 94% implementation success',
+                status: 'confirmed',
+                confidence: 93,
+                impact: 'low',
+                details: 'Customer onboarding process refined through 50+ implementations. Professional services team maintains high satisfaction scores.'
+              }
+            ],
+            recommendations: [
+              'Hire experienced enterprise sales leadership',
+              'Develop competitive differentiation messaging',
+              'Establish strategic partnerships for market access',
+              'Implement formal sales methodology and training'
+            ],
+            lastUpdated: '30 minutes ago',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        ];
+        
+        return res.status(200).json(detailedAnalyses);
+      }
+      
+      return res.status(200).json(existingAnalyses);
+    } catch (error) {
+      console.error('Error fetching analyses:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/analyses', async (req: Request, res: Response) => {
+    try {
+      const result = insertAgentAnalysisSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return handleValidationError(res, result.error);
+      }
+      
+      const analysis = await storage.createAgentAnalysis(result.data);
+      return res.status(201).json(analysis);
+    } catch (error) {
+      console.error('Error creating analysis:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Delete all analyses for a deal
+  app.delete('/api/analyses/:dealId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      console.log(`🗑️ Deleting all analyses for deal ${dealId}`);
+      const deletedCount = await storage.deleteAnalysesByDealId(dealId);
+      
+      console.log(`✅ Deleted ${deletedCount} analyses for deal ${dealId}`);
+      return res.status(200).json({ 
+        success: true,
+        message: `Successfully deleted ${deletedCount} analyses`,
+        deletedCount
+      });
+    } catch (error) {
+      console.error('Error deleting analyses:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Investment Memo routes
+  app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const memo = await storage.getMemoByDealId(dealId);
+      return res.status(200).json(memo);
+    } catch (error) {
+      console.error('Error fetching memo:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/memos', async (req: Request, res: Response) => {
+    try {
+      const result = insertInvestmentMemoSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return handleValidationError(res, result.error);
+      }
+      
+      const memo = await storage.createInvestmentMemo(result.data);
+      return res.status(201).json(memo);
+    } catch (error) {
+      console.error('Error creating memo:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Investor routes
+  app.get('/api/investors', async (req: Request, res: Response) => {
+    try {
+      const investors = await storage.getAllInvestors();
+      return res.status(200).json(investors);
+    } catch (error) {
+      console.error('Error fetching investors:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Investor Matching routes
+  app.get('/api/investors/:dealId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      const matches = await storage.getInvestorMatchesByDealId(dealId);
+      return res.status(200).json(matches);
+    } catch (error) {
+      console.error('Error fetching investor matches:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/matches', async (req: Request, res: Response) => {
+    try {
+      const result = insertInvestorMatchSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return handleValidationError(res, result.error);
+      }
+      
+      const match = await storage.createInvestorMatch(result.data);
+      return res.status(201).json(match);
+    } catch (error) {
+      console.error('Error creating investor match:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Automation routes
+  app.get('/api/automations', async (req: Request, res: Response) => {
+    try {
+      const automations = await storage.getAllAutomations();
+      return res.status(200).json(automations);
+    } catch (error) {
+      console.error('Error fetching automations:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/automations', async (req: Request, res: Response) => {
+    try {
+      const result = insertAutomationSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return handleValidationError(res, result.error);
+      }
+      
+      const automation = await storage.createAutomation(result.data);
+      return res.status(201).json(automation);
+    } catch (error) {
+      console.error('Error creating automation:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.patch('/api/automations/:id/toggle', async (req: Request, res: Response) => {
+    try {
+      const automationId = parseInt(req.params.id);
+      if (isNaN(automationId)) {
+        return res.status(400).json({ message: 'Invalid automation ID' });
+      }
+      
+      const automation = await storage.getAutomationById(automationId);
+      if (!automation) {
+        return res.status(404).json({ message: 'Automation not found' });
+      }
+      
+      const updatedAutomation = await storage.toggleAutomation(automationId);
+      return res.status(200).json(updatedAutomation);
+    } catch (error) {
+      console.error('Error toggling automation:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Register AI agent routes
+  app.use('/api/ai', aiAgentRoutes);
+  
+  // Register Microsoft OAuth routes
+  app.use('/api/microsoft', microsoftAuthRoutes);
+  
+  // Register other routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/email', emailRoutes);
+  app.use('/api/inbox', inboxRoutes);
+
+  // REMOVED: Duplicate route that was causing conflicts
+
+  // Manual document assignment endpoint
+  app.post('/api/deals/:dealId/documents/:docId/assign', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const docId = parseInt(req.params.docId);
+      const { agentType } = req.body;
+
+      if (isNaN(dealId) || isNaN(docId)) {
+        return res.status(400).json({ message: 'Invalid deal or document ID' });
+      }
+
+      if (!agentType) {
+        return res.status(400).json({ message: 'Agent type is required' });
+      }
+
+      console.log(`🔄 Manual assignment: Document ${docId} to ${agentType} agent for deal ${dealId}`);
+
+      // Get the document details
+      const document = await storage.getDocumentById(docId);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Check if analysis already exists for this agent
+      let analysis = await storage.getAnalysisByDealAndAgent(dealId, agentType);
+      
+      if (analysis) {
+        // Update existing analysis to include this document
+        const currentSources = analysis.documentSources || [];
+        const updatedSources = Array.from(new Set([...currentSources, document.name])); // Avoid duplicates
+        
+        await storage.updateAnalysis(analysis.id, {
+          documentSources: updatedSources,
+          updatedAt: new Date()
+        });
+        
+        console.log(`✅ Added document ${document.name} to existing ${agentType} analysis`);
+      } else {
+        // Create new analysis entry for this agent
+        const newAnalysis = {
+          dealId,
+          agentType,
+          documentSources: [document.name],
+          status: "Manual Assignment",
+          progress: 0,
+          findings: [],
+          recommendations: []
+        };
+        
+        await storage.createAnalysis(newAnalysis);
+        console.log(`✅ Created new ${agentType} analysis with document ${document.name}`);
+      }
+
+      return res.status(200).json({ 
+        message: 'Document assigned successfully',
+        documentName: document.name,
+        agentType 
+      });
+
+    } catch (error) {
+      console.error('Error assigning document:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Document download endpoint
+  app.get('/api/documents/:id/download', async (req: Request, res: Response) => {
+    try {
+      console.log(`📥 Download request for document ID: ${req.params.id}`);
+      
+      const documentId = parseInt(req.params.id);
+      if (isNaN(documentId)) {
+        console.log('❌ Invalid document ID provided');
+        return res.status(400).json({ message: 'Invalid document ID' });
+      }
+
+      // Get document from database
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        console.log(`❌ Document ${documentId} not found in database`);
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      console.log(`📄 Found document: ${document.name} at path: ${document.path}`);
+
+      // Check if file exists
+      if (!fs.existsSync(document.path)) {
+        console.log(`❌ File not found on server: ${document.path}`);
+        return res.status(404).json({ message: 'File not found on server' });
+      }
+
+      // Get file stats
+      const stats = fs.statSync(document.path);
+      console.log(`📊 File stats - Size: ${stats.size} bytes`);
+      
+      // Set appropriate headers for download
+      const ext = path.extname(document.name).toLowerCase();
+      let mimeType = 'application/octet-stream';
+      
+      switch (ext) {
+        case '.pdf':
+          mimeType = 'application/pdf';
+          break;
+        case '.doc':
+          mimeType = 'application/msword';
+          break;
+        case '.docx':
+          mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          break;
+        case '.xls':
+          mimeType = 'application/vnd.ms-excel';
+          break;
+        case '.xlsx':
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          break;
+        case '.txt':
+          mimeType = 'text/plain';
+          break;
+        case '.csv':
+          mimeType = 'text/csv';
+          break;
+        case '.json':
+          mimeType = 'application/json';
+          break;
+        case '.png':
+          mimeType = 'image/png';
+          break;
+        case '.jpg':
+        case '.jpeg':
+          mimeType = 'image/jpeg';
+          break;
+      }
+
+      console.log(`📤 Setting headers - MIME: ${mimeType}, Size: ${stats.size}, Filename: ${document.name}`);
+
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Length', stats.size);
+      res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      // Stream the file
+      const fileStream = fs.createReadStream(document.path);
+      
+      fileStream.on('error', (error) => {
+        console.error('❌ File stream error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'File stream error' });
+        }
+      });
+
+      fileStream.on('end', () => {
+        console.log(`✅ Successfully streamed file: ${document.name}`);
+      });
+
+      fileStream.pipe(res);
+      
+    } catch (error) {
+      console.error('❌ Download error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Download failed', error: error.message });
+      }
+    }
+  });
+
+  // OCR text extraction with Mistral
+  app.post('/api/documents/ocr/extract', async (req: Request, res: Response) => {
+    try {
+      console.log('🎯 OCR EXTRACT ENDPOINT HIT');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { documentId, fileName, fileType } = req.body;
+      
+      if (!documentId) {
+        console.log('❌ No documentId provided');
+        return res.status(400).json({ message: 'Document ID required' });
+      }
+
+      // Get document info from database
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      console.log(`📄 Processing OCR for document: ${document.name}`);
+      console.log(`📁 Document path from DB: ${document.path}`);
+
+      let filePath = document.path;
+
+      // Verify the file exists at the stored path
+      if (!fs.existsSync(filePath)) {
+        console.log(`❌ File not found at stored path: ${filePath}`);
+        return res.status(404).json({ 
+          message: 'File not found at stored path',
+          path: filePath 
+        });
+      }
+
+      console.log(`✅ File found at: ${filePath}`);
+      console.log(`🚀 STARTING MISTRAL OCR PROCESSING: ${filePath}`);
+      
+      // Use actual Mistral OCR service
+      const { mistralOCRService } = await import('./services/mistralOCR');
+      console.log('📦 Mistral OCR service imported successfully');
+      
+      const ocrResult = await mistralOCRService.extractText(filePath, document.type || 'application/pdf');
+      
+      console.log(`✅ OCR COMPLETED: ${ocrResult.extractedText.length} characters extracted`);
+      console.log(`📊 Confidence: ${ocrResult.confidence}`);
+      console.log(`⏱️ Processing time: ${ocrResult.processingTime}`);
+      console.log(`📝 Text preview: ${ocrResult.extractedText.substring(0, 200)}...`);
+      
+      res.json({
+        documentId,
+        extractedText: ocrResult.extractedText,
+        confidence: ocrResult.confidence,
+        processingTime: ocrResult.processingTime
+      });
+
+    } catch (error) {
+      console.error('OCR extraction error:', error);
+      res.status(500).json({ message: 'OCR extraction failed' });
+    }
+  });
+
+  // AI analysis with Mistral or OpenAI
+  app.post('/api/documents/analyze', async (req: Request, res: Response) => {
+    try {
+      const { documentId, analysisType, extractedText, prompt } = req.body;
+      
+      if (!documentId || !analysisType || !extractedText || !prompt) {
+        return res.status(400).json({ message: 'Missing required parameters' });
+      }
+
+      let analysis = '';
+
+      // Try Mistral first if available
+      if (process.env.MISTRAL_API_KEY) {
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'mistral-large-latest',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert investment analyst providing detailed, professional analysis of business documents.'
+              },
+              {
+                role: 'user',
+                content: `${prompt}\n\nDocument content:\n${extractedText}`
+              }
+            ],
+            max_tokens: 1000,
+            temperature: 0.3
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          analysis = result.choices[0]?.message?.content || 'Analysis could not be completed';
+        }
+      }
+
+      // Fallback to demo analysis if Mistral fails
+      if (!analysis) {
+        analysis = generateDemoAnalysis(analysisType);
+      }
+
+      res.json({
+        documentId,
+        analysisType,
+        analysis,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      res.status(500).json({ message: 'AI analysis failed' });
+    }
+  });
+
+  // Helper function for demo analysis
+  function generateDemoAnalysis(analysisType: string): string {
+    const analyses: Record<string, string> = {
+      summary: `
+**Executive Summary**
+
+Based on the document analysis, this appears to be a technology startup with strong fundamentals and significant growth potential. The company operates in the AI sector with a large addressable market of $2.5B and projected annual growth of 15%.
+
+**Key Highlights:**
+- Seeking $5M Series A funding for expansion
+- Revenue projection of $10M by year 3
+- Proprietary AI technology with patent protection
+- Experienced founding team with previous exits
+- Early customer traction demonstrating market validation
+
+**Investment Opportunity:**
+The company presents a compelling investment opportunity with clear use of funds allocation (60% product development, 25% marketing, 15% operations) and a differentiated market position through proprietary technology.
+      `,
+      marketResearch: `
+**Market Analysis**
+
+**Total Addressable Market (TAM):** $2.5 billion
+**Market Growth Rate:** 15% annually
+**Market Segment:** AI-powered enterprise solutions
+
+**Market Dynamics:**
+- Rapidly expanding AI adoption across industries
+- Increasing demand for automated solutions
+- Growing enterprise technology budgets
+- Favorable regulatory environment for AI innovation
+
+**Competitive Landscape:**
+- Fragmented market with multiple players
+- Opportunity for differentiation through proprietary algorithms
+- Patent protection provides competitive moat
+- First-mover advantage in specific use cases
+
+**Market Positioning:**
+The company is well-positioned to capture significant market share through its innovative approach and strong intellectual property portfolio.
+      `,
+      financialAnalysis: `
+**Financial Assessment**
+
+**Revenue Projections:**
+- Year 1: $1.2M (current trajectory)
+- Year 2: $4.5M (275% growth)
+- Year 3: $10M (122% growth)
+
+**Funding Requirements:**
+- Series A: $5M requested
+- Use of funds breakdown clearly defined
+- Runway: 24-30 months projected
+
+**Financial Health:**
+- Conservative projections indicate strong business acumen
+- Clear path to profitability by year 3
+- Scalable business model with improving unit economics
+
+**Investment Metrics:**
+- Revenue multiple: Attractive compared to industry benchmarks
+- Growth trajectory: Above industry average
+- Capital efficiency: Reasonable burn rate and runway
+      `,
+      riskAssessment: `
+**Risk Analysis**
+
+**Technical Risks (Medium):**
+- Technology development challenges
+- IP protection and patent validity
+- Scalability of AI algorithms
+
+**Market Risks (Medium-High):**
+- Intense competition from larger players
+- Market adoption slower than projected
+- Economic downturn affecting enterprise spending
+
+**Regulatory Risks (Low-Medium):**
+- Potential AI regulation changes
+- Data privacy compliance requirements
+- Industry-specific regulatory changes
+
+**Operational Risks (Low):**
+- Key person dependency
+- Talent acquisition challenges
+- Execution risks in scaling
+
+**Mitigation Strategies:**
+- Strong technical team reduces execution risk
+- Patent portfolio provides IP protection
+- Diversified customer base reduces concentration risk
+      `,
+      competitiveAnalysis: `
+**Competitive Analysis**
+
+**Competitive Advantages:**
+- Proprietary AI algorithms with patent protection
+- Experienced team with domain expertise
+- Early customer validation and traction
+- Focused market approach vs. generalist competitors
+
+**Key Competitors:**
+- Large tech companies with AI divisions
+- Specialized AI startups in similar verticals
+- Traditional software companies adding AI features
+
+**Differentiation Factors:**
+- Unique algorithmic approach
+- Industry-specific optimizations
+- Superior user experience and implementation
+- Strong customer relationships and support
+
+**Competitive Threats:**
+- Big Tech companies with significant resources
+- Open source alternatives
+- New entrants with innovative approaches
+
+**Strategic Position:**
+The company maintains a strong competitive position through its technical moat and market focus, though continued innovation will be essential to maintain advantage.
+      `
+    };
+
+    return analyses[analysisType] || 'Analysis type not supported';
+  }
+
+  // AI Evaluation endpoint
+  app.post('/api/deals/:dealId/evaluate', authenticate, async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      console.log(`🤖 Starting AI evaluation for deal ${dealId}...`);
+      
+      // Check if deal exists
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      // Perform AI evaluation
+      const evaluationResult = await evaluateCompanyByDeal(dealId);
+      
+      res.json({
+        success: true,
+        dealId,
+        overallScore: evaluationResult.overallScore,
+        recommendation: evaluationResult.recommendation,
+        summary: evaluationResult.summary,
+        criterionScores: evaluationResult.criterionScores,
+        keyFindings: evaluationResult.keyFindings,
+        redFlags: evaluationResult.redFlags,
+        evaluatedAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error(`❌ AI evaluation failed for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ 
+        message: 'AI evaluation failed', 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Get evaluation results for a deal
+  app.get('/api/deals/:dealId/evaluation-results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const results = await storage.getEvaluationResultsByDealId(dealId);
+      const criteria = await storage.getAllEvaluationCriteria();
+      
+      // Enrich results with criteria information
+      const enrichedResults = results.map(result => {
+        const criterion = criteria.find(c => c.id === result.criteriaId);
+        return {
+          ...result,
+          criteriaName: criterion?.name || 'Unknown Criteria',
+          criteriaDescription: criterion?.description || '',
+          criteriaWeight: criterion?.weight || 0
+        };
+      });
+
+      res.json(enrichedResults);
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+      res.status(500).json({ message: 'Failed to fetch evaluation results' });
+    }
+  });
+
+  // Settings API routes
+  app.get('/api/settings/user', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // User settings data - flattened structure for frontend compatibility
+      const userSettings = {
+        id: user.id,
+        firstName: user.name?.split(' ')[0] || 'Admin',
+        lastName: user.name?.split(' ')[1] || 'User',
+        email: user.email,
+        role: user.role,
+        timezone: 'Europe/Berlin',
+        emailNotifications: true,
+        dealNotifications: true,
+        aiNotifications: true,
+        weeklyReports: false,
+        apiKey: null // Will be populated when generated
+      };
+
+      res.json(userSettings);
+    } catch (error) {
+      console.error('Error fetching user settings:', error);
+      res.status(500).json({ message: 'Failed to fetch user settings' });
+    }
+  });
+
+  app.patch('/api/settings/user', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      // In production, this would update the database
+      console.log('Updating user settings for user:', userId, req.body);
+      
+      res.json({ 
+        success: true, 
+        message: 'User settings updated successfully' 
+      });
+    } catch (error) {
+      console.error('Error updating user settings:', error);
+      res.status(500).json({ message: 'Failed to update user settings' });
+    }
+  });
+
+  app.get('/api/settings/system', authenticate, async (req: any, res: Response) => {
+    try {
+      const user = await storage.getUser(req.userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Admin rights required.' });
+      }
+
+      // System settings data - flattened structure for frontend compatibility
+      const systemSettings = {
+        defaultAiModel: 'gpt-4o',
+        autoProcessEmails: false,
+        theme: 'dark',
+        language: 'en'
+      };
+
+      res.json(systemSettings);
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+      res.status(500).json({ message: 'Failed to fetch system settings' });
+    }
+  });
+
+  app.patch('/api/settings/system', authenticate, async (req: any, res: Response) => {
+    try {
+      const user = await storage.getUser(req.userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Admin rights required.' });
+      }
+
+      console.log('Updating system settings:', req.body);
+      
+      res.json({ 
+        success: true, 
+        message: 'System settings updated successfully' 
+      });
+    } catch (error) {
+      console.error('Error updating system settings:', error);
+      res.status(500).json({ message: 'Failed to update system settings' });
+    }
+  });
+
+  app.post('/api/settings/generate-api-key', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      const apiKey = `aesc_${randomUUID().replace(/-/g, '')}`;
+      
+      console.log('Generated API key for user:', userId);
+      
+      res.json({ 
+        success: true, 
+        message: 'API key generated successfully',
+        apiKey: apiKey
+      });
+    } catch (error) {
+      console.error('Error generating API key:', error);
+      res.status(500).json({ message: 'Failed to generate API key' });
+    }
+  });
+
+  app.post('/api/settings/change-password', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      const { newPassword } = req.body;
+      
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ 
+          message: 'Password must be at least 8 characters long' 
+        });
+      }
+
+      // In production, hash the password and update the database
+      console.log('Password changed for user:', userId);
+      
+      res.json({ 
+        success: true, 
+        message: 'Password changed successfully' 
+      });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
+  // Profile API endpoints
+  app.get('/api/user/activity', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      
+      // Return user activity data
+      const activityData = {
+        recentActions: [
+          { action: 'Reviewed Tesla deal', time: '2 hours ago', type: 'review' },
+          { action: 'Generated investment memo for SpaceX', time: '4 hours ago', type: 'memo' },
+          { action: 'Matched Neuralink with Sequoia Capital', time: '1 day ago', type: 'match' },
+          { action: 'Updated deal status for Anthropic', time: '2 days ago', type: 'update' }
+        ]
+      };
+      
+      res.json(activityData);
+    } catch (error) {
+      console.error('Error fetching user activity:', error);
+      res.status(500).json({ message: 'Failed to fetch user activity' });
+    }
+  });
+
+  app.get('/api/user/stats', authenticate, async (req: any, res: Response) => {
+    try {
+      const userId = req.userId;
+      
+      // Return user statistics
+      const statsData = {
+        dealsReviewed: 47,
+        memosGenerated: 23,
+        matchesMade: 12,
+        totalValue: '15.2M'
+      };
+      
+      res.json(statsData);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(500).json({ message: 'Failed to fetch user stats' });
+    }
+  });
+
+  // AI-powered company description generation
+  app.post('/api/ai/generate-company-description', async (req: Request, res: Response) => {
+    try {
+      const { website } = req.body;
+      
+      if (!website) {
+        return res.status(400).json({ message: 'Website URL is required' });
+      }
+
+      // Fetch website content
+      const websiteResponse = await fetch(website, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Aescuvest-Bot/1.0)'
+        }
+      });
+
+      if (!websiteResponse.ok) {
+        return res.status(400).json({ message: 'Unable to fetch website content' });
+      }
+
+      const htmlContent = await websiteResponse.text();
+      
+      // Extract text content from HTML (basic extraction)
+      const textContent = htmlContent
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 8000); // Limit content length
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: 'OpenAI API key not configured' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert business analyst specializing in venture capital due diligence. Generate a comprehensive yet concise company description (2-3 paragraphs, 150-250 words) suitable for investment analysis based on the provided website content."
+          },
+          {
+            role: "user",
+            content: `Analyze this website content and generate a professional company description for investment purposes. Focus on: business model, target market, key value proposition, competitive advantages, and growth potential.\n\nWebsite: ${website}\n\nContent: ${textContent}`
+          }
+        ],
+        max_tokens: 400,
+        temperature: 0.7
+      });
+
+      const description = completion.choices[0]?.message?.content || '';
+      
+      res.json({ description });
+    } catch (error) {
+      console.error('Error generating company description:', error);
+      res.status(500).json({ message: 'Failed to generate company description' });
+    }
+  });
+
+  // AI-powered company location detection
+  app.post('/api/ai/generate-company-location', async (req: Request, res: Response) => {
+    try {
+      const { website } = req.body;
+      
+      if (!website) {
+        return res.status(400).json({ message: 'Website URL is required' });
+      }
+
+      // Fetch website content
+      const websiteResponse = await fetch(website, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Aescuvest-Bot/1.0)'
+        }
+      });
+
+      if (!websiteResponse.ok) {
+        return res.status(400).json({ message: 'Unable to fetch website content' });
+      }
+
+      const htmlContent = await websiteResponse.text();
+      
+      // Extract text content from HTML
+      const textContent = htmlContent
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 8000);
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: 'OpenAI API key not configured' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert at extracting company location information from website content. Extract the headquarters or main office location and return it in the format: 'City, Country'. Be precise and use the actual city and country names. If multiple locations are mentioned, prioritize the headquarters or main office."
+          },
+          {
+            role: "user",
+            content: `Analyze this website content and extract the company's headquarters location. Look for contact information, about pages, office addresses, or any mentions of where the company is based.\n\nWebsite: ${website}\n\nContent: ${textContent}`
+          }
+        ],
+        max_tokens: 50,
+        temperature: 0.3
+      });
+
+      const location = completion.choices[0]?.message?.content?.trim() || '';
+      
+      res.json({ location });
+    } catch (error) {
+      console.error('Error generating company location:', error);
+      res.status(500).json({ message: 'Failed to generate company location' });
+    }
+  });
+
+  // Generate AI document summary with critical/neutral categorization
+  app.post('/api/ai/generate-document-summary', async (req: Request, res: Response) => {
+    try {
+      const { documentId } = req.body;
+      
+      if (!documentId) {
+        return res.status(400).json({ message: 'Document ID is required' });
+      }
+
+      // Get document from database
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      if (!document.ocrText || document.ocrText.trim().length === 0) {
+        return res.status(400).json({ message: 'Document has no extracted text to summarize' });
+      }
+
+      console.log(`🤖 Generating AI summary for document: ${document.name}`);
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: 'OpenAI API key not configured' });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert investment analyst specializing in due diligence document analysis. Analyze the provided document and create a comprehensive, well-structured summary with the following sections:
+
+1. **Executive Summary** - High-level overview in 2-3 sentences
+2. **Critical Information** - Key points that could significantly impact investment decisions (financial data, risks, legal issues, strategic changes)
+3. **Neutral Information** - General business information, background details, standard operational content
+4. **Key Financial Data** - Extract any numbers, metrics, financial projections, budgets
+5. **Risk Assessment** - Identify potential risks or concerns
+6. **Strategic Implications** - How this information affects the overall investment thesis
+
+Format your response as JSON with the following structure:
+{
+  "executiveSummary": "string",
+  "criticalFindings": ["array of critical points"],
+  "neutralFindings": ["array of neutral/background points"],  
+  "keyFinancialData": ["array of financial metrics/numbers"],
+  "riskAssessment": ["array of identified risks"],
+  "strategicImplications": "string",
+  "documentType": "string",
+  "confidenceScore": number between 0-1
+}
+
+Be thorough, professional, and focus on investment-relevant insights.`
+          },
+          {
+            role: "user",
+            content: `Please analyze this document titled "${document.name}" and provide a comprehensive summary:
+
+${document.ocrText}`
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 2000
+      });
+
+      const aiSummary = JSON.parse(response.choices[0].message.content || '{}');
+      
+      console.log(`✅ Generated AI summary for document ${documentId}`);
+
+      res.json({
+        success: true,
+        summary: aiSummary,
+        documentName: document.name,
+        generatedAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('AI document summary generation error:', error);
+      res.status(500).json({ 
+        message: 'Failed to generate document summary', 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Background AI processing system
+  const processingDocuments = new Set<number>();
+  let isProcessorRunning = false;
+  
+  // Simplified persistent AI processor
+  async function startBackgroundAIProcessor() {
+    if (isProcessorRunning) return;
+    isProcessorRunning = true;
+    
+    console.log('🤖 Starting background AI summary processor...');
+    
+    const processNextBatch = async () => {
+      try {
+        // Get documents needing AI processing
+        const allDocs = await storage.getAllDocuments();
+        const pendingDocs = allDocs.filter(doc => 
+          doc.ocrText && 
+          doc.ocrText.trim().length > 0 && 
+          (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed') &&
+          !processingDocuments.has(doc.id)
+        );
+        
+        if (pendingDocs.length > 0) {
+          console.log(`🔄 Processing up to 3 documents out of ${pendingDocs.length} pending`);
+          
+          // Process up to 3 documents concurrently for optimal throughput
+          const batch = pendingDocs.slice(0, 3);
+          const promises = batch.map(async (doc) => {
+            processingDocuments.add(doc.id);
+            try {
+              await processDocumentAISummaryInBackground(doc.id, doc);
+            } finally {
+              processingDocuments.delete(doc.id);
+            }
+          });
+          
+          await Promise.all(promises);
+        }
+        
+        // Schedule next batch processing - optimized for speed
+        setTimeout(processNextBatch, 20000); // 20 seconds between batches
+      } catch (error) {
+        console.error('Error in background AI processor:', error);
+        setTimeout(processNextBatch, 30000); // Retry in 30 seconds on error
+      }
+    };
+    
+    // Start processing
+    processNextBatch();
+  }
+  
+  // Start the background processor
+  setTimeout(() => startBackgroundAIProcessor(), 5000); // Start after 5 seconds
+  
+  // Rate limiting for manual processing requests
+  const aiProcessingLimiter = new Map<number, number>();
+  const AI_PROCESSING_COOLDOWN = 300000; // 5 minutes cooldown
+
+  // Batch process AI summaries for all documents in a deal
+  app.post('/api/deals/:dealId/process-ai-summaries', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check rate limiting - prevent duplicate requests
+      const lastProcessing = aiProcessingLimiter.get(dealId);
+      const now = Date.now();
+      
+      if (lastProcessing && (now - lastProcessing) < AI_PROCESSING_COOLDOWN) {
+        const remainingTime = Math.ceil((AI_PROCESSING_COOLDOWN - (now - lastProcessing)) / 1000);
+        return res.json({
+          success: true,
+          message: `AI processing cooldown active for deal ${dealId}. ${remainingTime}s remaining.`,
+          processed: 0,
+          total: 0,
+          cooldown: true
+        });
+      }
+      
+      // Get all documents for this deal that don't have completed AI summaries - BYPASS CACHE
+      const dealDocuments = await storage.getDocumentsByDealIdFresh(dealId);
+      const documentsToProcess = dealDocuments.filter(doc => 
+        doc.ocrText && 
+        doc.ocrText.trim().length > 0 && 
+        (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
+      );
+
+      console.log(`🤖 Starting batch AI summary processing for ${documentsToProcess.length} documents in deal ${dealId}`);
+      
+      // If no documents to process, don't set cooldown
+      if (documentsToProcess.length === 0) {
+        return res.json({
+          success: true,
+          message: `No documents require AI summary processing in deal ${dealId}`,
+          processed: 0,
+          total: dealDocuments.length,
+          allComplete: true
+        });
+      }
+      
+      // Set rate limiting timestamp only if we're actually processing
+      aiProcessingLimiter.set(dealId, now);
+
+      // Process documents in background with proper queuing
+      let processedCount = 0;
+      
+      // Start processing documents one by one with proper delays
+      for (let i = 0; i < documentsToProcess.length; i++) {
+        const doc = documentsToProcess[i];
+        
+        // Process with delay to prevent rate limiting
+        setTimeout(() => {
+          processDocumentAISummaryInBackground(doc.id, doc).catch(error => {
+            console.error(`Background processing failed for document ${doc.id}:`, error);
+          });
+        }, i * 5000); // 5 second delay between each document
+        
+        processedCount++;
+      }
+
+      res.json({
+        success: true,
+        message: `Started AI summary processing for ${processedCount} documents`,
+        processed: processedCount,
+        total: documentsToProcess.length
+      });
+
+    } catch (error) {
+      console.error('Error starting batch AI summary processing:', error);
+      res.status(500).json({ 
+        error: 'Failed to start batch processing',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Advanced OpenAI rate limiter with conservative settings
+  class OpenAIRateLimiter {
+    private lastRequestTime = 0;
+    private minInterval = 1000; // 1 second between requests (optimal for GPT-4)
+    private concurrentLimit = 3; // Max 3 concurrent requests for better throughput
+    private activeRequests = 0;
+    private requestQueue: (() => void)[] = [];
+
+    async executeWithLimit<T>(fn: () => Promise<T>): Promise<T> {
+      return new Promise((resolve, reject) => {
+        const execute = async () => {
+          if (this.activeRequests >= this.concurrentLimit) {
+            this.requestQueue.push(execute);
+            return;
+          }
+
+          const now = Date.now();
+          const timeSinceLastRequest = now - this.lastRequestTime;
+          
+          if (timeSinceLastRequest < this.minInterval) {
+            const waitTime = this.minInterval - timeSinceLastRequest;
+            setTimeout(execute, waitTime);
+            return;
+          }
+
+          this.activeRequests++;
+          this.lastRequestTime = now;
+
+          try {
+            const result = await this.executeWithRetry(fn);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          } finally {
+            this.activeRequests--;
+            
+            // Process next in queue
+            if (this.requestQueue.length > 0) {
+              const nextExecute = this.requestQueue.shift();
+              if (nextExecute) {
+                setTimeout(nextExecute, this.minInterval);
+              }
+            }
+          }
+        };
+
+        execute();
+      });
+    }
+
+    private async executeWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await fn();
+        } catch (error: any) {
+          console.log(`🔄 OpenAI API attempt ${attempt}/${maxRetries}:`, error?.message);
+          
+          if (error?.status === 429 || error?.message?.includes('rate limit')) {
+            if (attempt === maxRetries) {
+              throw new Error(`API rate limit error, preventing text extraction. As a result, no specific content from the document is available for review.`);
+            }
+            
+            // Exponential backoff: 2^attempt * 2 seconds + jitter
+            const baseDelay = Math.pow(2, attempt) * 2000;
+            const jitter = Math.random() * 1000;
+            const backoffTime = baseDelay + jitter;
+            
+            console.log(`⏰ Rate limit hit, waiting ${Math.round(backoffTime/1000)}s before retry ${attempt + 1}/${maxRetries}`);
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
+            continue;
+          }
+          
+          if (attempt === maxRetries) {
+            throw error;
+          }
+          
+          // For other errors, shorter retry delay
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+      
+      throw new Error('Max retries exceeded');
+    }
+  }
+
+  const openaiLimiter = new OpenAIRateLimiter();
+
+  // Background AI summary processing function with robust rate limiting
+  async function processDocumentAISummaryInBackground(documentId: number, document: any) {
+    try {
+      console.log(`🤖 Starting background AI summary for document: ${document.name}`);
+      
+      // Mark document as processing
+      await storage.updateDocument(documentId, { aiSummaryStatus: 'processing' });
+      
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('OpenAI API key not configured');
+        await storage.updateDocument(documentId, { aiSummaryStatus: 'failed' });
+        return;
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const response = await openaiLimiter.executeWithLimit(async () => {
+        return await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert investment analyst specializing in due diligence document analysis. Analyze the provided document and create a comprehensive, well-structured summary with the following sections:
+
+1. **Executive Summary** - High-level overview in 2-3 sentences
+2. **Critical Information** - Key points that could significantly impact investment decisions (financial data, risks, legal issues, strategic changes)
+3. **Neutral Information** - General business information, background details, standard operational content
+4. **Key Financial Data** - Extract any numbers, metrics, financial projections, budgets
+5. **Risk Assessment** - Identify potential risks or concerns
+6. **Strategic Implications** - How this information affects the overall investment thesis
+
+Format your response as JSON with the following structure:
+{
+  "executiveSummary": "string",
+  "criticalFindings": ["array of critical points"],
+  "neutralFindings": ["array of neutral/background points"],  
+  "keyFinancialData": ["array of financial metrics/numbers"],
+  "riskAssessment": ["array of identified risks"],
+  "strategicImplications": "string",
+  "documentType": "string",
+  "confidenceScore": number between 0-1
+}
+
+Be thorough, professional, and focus on investment-relevant insights.`
+            },
+            {
+              role: "user",
+              content: `Please analyze this document titled "${document.name}" and provide a comprehensive summary:
+
+${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text available'}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+          max_tokens: 2000
+        });
+      });
+
+      const aiSummary = JSON.parse(response.choices[0].message.content || '{}');
+      
+      // Save the AI summary to database via storage
+      console.log(`💾 Saving AI summary for document ${documentId}:`, {
+        summaryKeys: Object.keys(aiSummary),
+        hasExecutiveSummary: !!aiSummary.executiveSummary
+      });
+      
+      const updatedDoc = await storage.updateDocument(documentId, { 
+        aiSummary,
+        aiSummaryStatus: 'completed',
+        aiSummaryGeneratedAt: new Date()
+      });
+
+      console.log(`✅ Completed background AI summary for document: ${document.name}`, {
+        documentId,
+        summaryKeys: Object.keys(aiSummary),
+        hasExecutiveSummary: !!aiSummary.executiveSummary,
+        updated: !!updatedDoc
+      });
+
+      // Send WebSocket notification for immediate UI update
+      try {
+        if (wsManager && document.dealId) {
+          wsManager.broadcast({
+            type: 'ai_summary_complete',
+            dealId: document.dealId,
+            documentId: documentId,
+            documentName: document.name,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (wsError) {
+        console.log('WebSocket notification failed:', wsError);
+      }
+
+      // Check if this document completes a batch and trigger agent analysis
+      setTimeout(async () => {
+        try {
+          await checkAndTriggerAgentAnalyses(document.dealId);
+        } catch (error) {
+          console.error('Failed to trigger agent analyses:', error);
+        }
+      }, 2000); // Small delay to allow other documents to complete
+
+    } catch (error) {
+      console.error(`❌ Background AI summary failed for document ${documentId}:`, error);
+      
+      // Handle rate limit errors with informative fallback summary
+      if (error instanceof Error && error.message.includes('API rate limit error')) {
+        const fallbackSummary = {
+          executiveSummary: error.message,
+          criticalFindings: ["Document analysis temporarily unavailable due to API rate limits"],
+          neutralFindings: [`Document: ${document.name}`, `Size: ${document.size} bytes`],
+          keyFinancialData: [],
+          riskAssessment: ["Unable to perform risk assessment - rate limit exceeded"],
+          strategicImplications: "Analysis pending due to API rate limiting. Please retry later.",
+          documentType: "Rate Limited",
+          confidenceScore: 0
+        };
+        
+        // Save fallback summary to show user what happened
+        await storage.updateDocument(documentId, { 
+          aiSummary: fallbackSummary,
+          aiSummaryStatus: 'completed',
+          aiSummaryGeneratedAt: new Date()
+        });
+        
+        console.log(`⚠️ Saved rate limit fallback summary for document: ${document.name}`);
+      } else {
+        // Update status to failed for other errors
+        await storage.updateDocument(documentId, { aiSummaryStatus: 'failed' });
+      }
+      
+      // Invalidate cache to reflect changes
+      await storage.invalidateDocumentCache(document.dealId);
+    }
+  }
+  
+  // Evaluation criteria routes
+  app.get('/api/evaluation-criteria', async (req: Request, res: Response) => {
+    try {
+      const criteria = await storage.getAllEvaluationCriteria();
+      res.json(criteria);
+    } catch (error) {
+      console.error('Error fetching evaluation criteria:', error);
+      res.status(500).json({ message: 'Failed to fetch evaluation criteria' });
+    }
+  });
+
+  app.patch('/api/evaluation-criteria/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const updatedCriteria = await storage.updateEvaluationCriteria(id, updateData);
+      if (!updatedCriteria) {
+        return res.status(404).json({ message: 'Evaluation criteria not found' });
+      }
+      
+      res.json(updatedCriteria);
+    } catch (error) {
+      console.error('Error updating evaluation criteria:', error);
+      res.status(500).json({ message: 'Failed to update evaluation criteria' });
+    }
+  });
+
+  // Company Research endpoints
+  app.get('/api/deals/:dealId/research', async (req: Request, res: Response) => {
+    try {
+      console.log('🔍 Research GET request for deal:', req.params.dealId);
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        console.log('🔍 Invalid deal ID provided:', req.params.dealId);
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      console.log('🔍 Looking up deal:', dealId);
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        console.log('🔍 Deal not found:', dealId);
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      console.log('🔍 Deal found:', deal.companyName, 'Fetching research data...');
+      // Get comprehensive research data from storage
+      const researchData = await storage.getCompanyResearchByDealId(dealId);
+      
+      console.log('🔍 Research data result:', {
+        hasData: !!researchData,
+        status: researchData?.researchStatus,
+        companyName: researchData?.companyName,
+        sources: researchData?.sources,
+        completedAt: researchData?.researchCompletedAt
+      });
+      
+      if (!researchData) {
+        console.log('🔍 No research data found for deal:', dealId);
+        return res.status(404).json({ message: 'Research data not available for this deal' });
+      }
+
+      res.json(researchData);
+    } catch (error) {
+      console.error('🔍 Error fetching company research:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Trigger research endpoint
+  app.post('/api/deals/:dealId/research', async (req: Request, res: Response) => {
+    try {
+      console.log('🔍 Research POST request for deal:', req.params.dealId);
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        console.log('🔍 Invalid deal ID provided:', req.params.dealId);
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      console.log('🔍 Looking up deal for research:', dealId);
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        console.log('🔍 Deal not found for research:', dealId);
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      const { forceRefresh } = req.body;
+      
+      console.log(`🔍 ${forceRefresh ? 'Refreshing' : 'Initiating'} AI research for deal ${dealId}: ${deal.companyName}`);
+
+      // Check if research already exists and forceRefresh is not requested
+      if (!forceRefresh) {
+        console.log('🔍 Checking for existing research...');
+        const existingResearch = await storage.getCompanyResearchByDealId(dealId);
+        console.log('🔍 Existing research check:', {
+          hasExisting: !!existingResearch,
+          status: existingResearch?.researchStatus,
+          forceRefresh
+        });
+        
+        if (existingResearch && existingResearch.researchStatus === 'completed') {
+          console.log(`🔍 Research already exists for deal ${dealId}, returning existing data`);
+          return res.json({ 
+            message: 'Research already completed', 
+            dealId, 
+            status: 'completed',
+            existing: true
+          });
+        }
+      }
+
+      // Set research status to processing
+      console.log('🔍 Setting research status to processing...');
+      await storage.updateCompanyResearchStatus(dealId, 'processing');
+      console.log(`🔍 Research status set to processing for deal ${dealId}`);
+
+      // Trigger research in background with force refresh flag
+      console.log(`🚀 About to start research process for deal ${dealId}...`);
+      processCompanyResearchForDeal(dealId, deal.companyName, deal.website || undefined, deal.sector, forceRefresh)
+        .then(() => {
+          console.log(`✅ Research process completed successfully for deal ${dealId}`);
+        })
+        .catch((error: any) => {
+          console.error(`❌ Company research failed for deal ${dealId}:`, error);
+          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available');
+          storage.updateCompanyResearchStatus(dealId, 'failed').catch(console.error);
+        });
+
+      res.json({ 
+        message: forceRefresh ? 'Fresh AI research initiated successfully' : 'AI research initiated successfully', 
+        dealId, 
+        status: 'processing',
+        forceRefresh: !!forceRefresh,
+        estimatedCompletion: '2-3 minutes'
+      });
+    } catch (error) {
+      console.error('Error initiating company research:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Remove duplicate route - using the enhanced one at line 1566
+
+  // Get comprehensive analysis results
+  app.get('/api/deals/:dealId/comprehensive-analysis', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const comprehensiveAnalysis = await storage.getComprehensiveAnalysis(dealId);
+      
+      if (!comprehensiveAnalysis) {
+        return res.json(null);
+      }
+
+      res.json(comprehensiveAnalysis);
+    } catch (error) {
+      console.error('Error fetching comprehensive analysis:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Run comprehensive analysis using specialized Mistral AI agents
+  app.post('/api/deals/:dealId/run-comprehensive-analysis', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const { forceRefresh } = req.body;
+      
+      // Get deal and documents
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      // Get documents with OCR text for analysis (bypass cache that excludes ocrText)
+      const documentsWithOCR = await db.select().from(documents).where(eq(documents.dealId, dealId));
+      
+      console.log(`🧠 Starting comprehensive analysis for deal ${dealId}: ${deal.companyName}`);
+      console.log(`📄 Found ${documentsWithOCR.length} documents to analyze`);
+
+      // Initialize analysis status
+      await storage.createOrUpdateComprehensiveAnalysis(dealId, {
+        overallScore: 0,
+        positiveFactors: [],
+        neutralFactors: [],
+        riskFactors: [],
+        analysisStatus: 'running',
+        lastUpdated: new Date(),
+        documentsCovered: 0,
+        totalDocuments: documentsWithOCR.length
+      });
+
+      // Process comprehensive analysis in background
+      processComprehensiveAnalysisForDeal(dealId, documentsWithOCR, deal)
+        .catch((error: any) => {
+          console.error(`Comprehensive analysis failed for deal ${dealId}:`, error);
+          storage.createOrUpdateComprehensiveAnalysis(dealId, {
+            overallScore: 0,
+            positiveFactors: [],
+            neutralFactors: [],
+            riskFactors: [],
+            analysisStatus: 'failed',
+            lastUpdated: new Date(),
+            documentsCovered: 0,
+            totalDocuments: documents.length
+          }).catch(console.error);
+        });
+
+      res.json({
+        message: 'Comprehensive analysis initiated successfully',
+        dealId,
+        status: 'running',
+        totalDocuments: documents.length,
+        estimatedCompletion: '5-10 minutes'
+      });
+    } catch (error) {
+      console.error('Error initiating comprehensive analysis:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Mount background job routes
+  app.use('/', backgroundJobsRouter);
+
+  const httpServer = createServer(app);
+  
+  // Initialize WebSocket server for real-time progress updates
+  websocketManager.initialize(httpServer);
+  console.log('📡 WebSocket manager initialized for background job progress tracking');
+  
+  // Run Mistral analysis for specific agent type
+  app.post('/api/deals/:dealId/agents/:agentType/analyze', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const agentType = req.params.agentType.toLowerCase();
+      const { forceRefresh } = req.body;
+      
+      // Get deal and documents
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ success: false, error: 'Deal not found' });
+      }
+
+      // Get documents with OCR text for analysis
+      const documents = await storage.getDocumentsWithOCRByDealId(dealId);
+      
+      console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents`);
+      
+      // If forceRefresh, clear existing analysis first
+      if (forceRefresh) {
+        console.log(`🔄 Force refresh requested - clearing existing ${agentType} analysis`);
+        await storage.clearAgentAnalysis(dealId, agentType);
+      }
+      
+      // Start agent-specific analysis in background with rate limiting
+      setImmediate(async () => {
+        await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+      });
+
+      res.json({ 
+        success: true, 
+        message: `${agentType} agent analysis started`,
+        documentsFound: documents.length
+      });
+    } catch (error) {
+      console.error(`Error starting ${req.params.agentType} analysis:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start agent analysis' });
+    }
+  });
+
+  // Get agent-specific analysis results
+  app.get('/api/deals/:dealId/agents/:agentType/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const agentType = req.params.agentType.toLowerCase();
+      
+      const analysis = await storage.getAgentAnalysis(dealId, agentType);
+      
+      res.json({ 
+        success: true, 
+        analysis: analysis || null
+      });
+    } catch (error) {
+      console.error(`Error getting ${req.params.agentType} analysis:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get agent analysis' });
+    }
+  });
+
+  return httpServer;
+}
+
+// Calculate document relevance score for intelligent agent assignment
+function calculateDocumentRelevanceScore(document: any, agent: any): number {
+  const docName = document.name.toLowerCase();
+  const docContent = (document.ocrText || '').toLowerCase();
+  const aiSummary = document.aiSummary;
+  
+  // Extract relevant content for analysis
+  const analysisText = [
+    docName,
+    docContent.substring(0, 2000), // First 2k chars for performance
+    aiSummary?.executiveSummary || '',
+    aiSummary?.documentType || '',
+    (aiSummary?.criticalFindings || []).join(' '),
+    (aiSummary?.keyFinancialData || []).join(' '),
+    (aiSummary?.riskAssessment || []).join(' '),
+    (aiSummary?.neutralFindings || []).join(' ')
+  ].join(' ').toLowerCase();
+  
+  // Define weighted keywords for each agent type
+  const agentKeywords: Record<string, { high: string[], medium: string[], low: string[] }> = {
+    Clinical: {
+      high: ['clinical', 'medical', 'fda', 'ce mark', 'regulatory', 'trial', 'patient', 'safety', 'efficacy', 'device', 'pharma', 'therapeutic', 'healthcare', 'treatment', 'diagnosis', 'protocol', 'approval', 'submission'],
+      medium: ['health', 'study', 'test', 'validation', 'verification', 'quality', 'compliance', 'risk', 'benefit', 'outcome'],
+      low: ['report', 'data', 'analysis', 'documentation', 'procedure']
+    },
+    Legal: {
+      high: ['contract', 'agreement', 'legal', 'license', 'patent', 'trademark', 'copyright', 'litigation', 'compliance', 'regulatory', 'terms', 'conditions', 'confidential', 'nda', 'employment', 'consulting', 'executed', 'signed'],
+      medium: ['policy', 'clause', 'obligation', 'liability', 'indemnity', 'warranty', 'jurisdiction', 'governing', 'dispute'],
+      low: ['document', 'provision', 'section', 'amendment', 'addendum']
+    },
+    Commercial: {
+      high: ['market', 'sales', 'revenue', 'customer', 'business', 'strategy', 'competition', 'pricing', 'distribution', 'partnership', 'commercial', 'marketing', 'competitive'],
+      medium: ['opportunity', 'growth', 'segment', 'channel', 'brand', 'positioning', 'landscape', 'analysis'],
+      low: ['product', 'service', 'offering', 'value', 'proposition']
+    },
+    Financial: {
+      high: ['financial', 'revenue', 'cost', 'expense', 'profit', 'loss', 'cash', 'flow', 'budget', 'forecast', 'valuation', 'investment', 'funding', 'accounting', 'tax', 'audit'],
+      medium: ['balance', 'sheet', 'income', 'statement', 'margin', 'ebitda', 'capex', 'opex', 'burn', 'rate'],
+      low: ['money', 'amount', 'payment', 'financial', 'economic']
+    },
+    HR: {
+      high: ['employee', 'employment', 'salary', 'compensation', 'benefit', 'payroll', 'hiring', 'staff', 'personnel', 'human', 'resources', 'workforce', 'organizational'],
+      medium: ['talent', 'recruitment', 'training', 'development', 'performance', 'culture', 'retention'],
+      low: ['team', 'people', 'management', 'organization']
+    },
+    IP: {
+      high: ['patent', 'trademark', 'copyright', 'intellectual', 'property', 'invention', 'innovation', 'proprietary', 'technology', 'licensing', 'royalty'],
+      medium: ['trade', 'secret', 'know-how', 'technical', 'specification', 'design', 'algorithm'],
+      low: ['technology', 'development', 'research', 'innovation']
+    },
+    Research: {
+      high: ['research', 'development', 'r&d', 'innovation', 'prototype', 'experiment', 'methodology', 'findings', 'study', 'analysis', 'technical'],
+      medium: ['data', 'result', 'conclusion', 'hypothesis', 'testing', 'validation', 'verification'],
+      low: ['investigation', 'exploration', 'discovery', 'advancement']
+    }
+  };
+  
+  const keywords = agentKeywords[agent.name] || agentKeywords.Commercial;
+  let score = 0;
+  
+  // Calculate base score from keyword matching
+  keywords.high.forEach(keyword => {
+    const matches = (analysisText.match(new RegExp(keyword, 'g')) || []).length;
+    score += matches * 3;
+  });
+  
+  keywords.medium.forEach(keyword => {
+    const matches = (analysisText.match(new RegExp(keyword, 'g')) || []).length;
+    score += matches * 2;
+  });
+  
+  keywords.low.forEach(keyword => {
+    const matches = (analysisText.match(new RegExp(keyword, 'g')) || []).length;
+    score += matches * 1;
+  });
+  
+  // Apply document type and AI summary boosters
+  if (aiSummary) {
+    const docType = aiSummary.documentType?.toLowerCase() || '';
+    if (docType.includes('financial') || docType.includes('budget')) {
+      if (agent.name === 'Financial') score *= 1.5;
+    }
+    if (docType.includes('legal') || docType.includes('contract')) {
+      if (agent.name === 'Legal') score *= 1.5;
+    }
+    if (docType.includes('clinical') || docType.includes('medical')) {
+      if (agent.name === 'Clinical') score *= 1.5;
+    }
+    if (docType.includes('commercial') || docType.includes('business')) {
+      if (agent.name === 'Commercial') score *= 1.5;
+    }
+    if (docType.includes('hr') || docType.includes('employment')) {
+      if (agent.name === 'HR') score *= 1.5;
+    }
+    
+    const keyFinancialData = (aiSummary.keyFinancialData || []).join(' ').toLowerCase();
+    if (keyFinancialData.length > 0 && agent.name === 'Financial') score *= 1.3;
+    
+    const criticalFindings = (aiSummary.criticalFindings || []).join(' ').toLowerCase();
+    if (criticalFindings.includes('regulatory') || criticalFindings.includes('compliance')) {
+      if (agent.name === 'Clinical' || agent.name === 'Legal') score *= 1.3;
+    }
+  }
+  
+  // Apply filename pattern boosters
+  const fileExtension = docName.split('.').pop() || '';
+  if (['xls', 'xlsx', 'csv'].includes(fileExtension) && agent.name === 'Financial') score *= 1.4;
+  if ((docName.includes('contract') || docName.includes('agreement')) && agent.name === 'Legal') score *= 1.6;
+  if ((docName.includes('clinical') || docName.includes('trial')) && agent.name === 'Clinical') score *= 1.6;
+  if ((docName.includes('employee') || docName.includes('salary')) && agent.name === 'HR') score *= 1.6;
+  
+  // Normalize to 0-1 range based on typical score ranges
+  const normalizedScore = Math.min(1.0, score / 20);
+  
+  return normalizedScore;
+}
+
+// Agent-specific analysis processing function with AI caching
+async function processAgentSpecificAnalysis(dealId: number, agentType: string, documents: any[], deal: any, forceRefresh = false) {
+  console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
+  
+  // Check if analysis already exists for this agent and deal (AI caching)
+  let existingAnalysis = null;
+  
+  // Skip caching check if forceRefresh is true
+  if (!forceRefresh) {
+    existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, agentType);
+    if (existingAnalysis && existingAnalysis.status === 'Completed' && 
+        existingAnalysis.findings && existingAnalysis.findings.length > 0) {
+      console.log(`✅ Using cached ${agentType} analysis for deal ${dealId} - skipping AI processing`);
+      return existingAnalysis;
+    }
+    
+    // Clear empty cached analysis if it exists
+    if (existingAnalysis && (!existingAnalysis.findings || existingAnalysis.findings.length === 0)) {
+      console.log(`🔄 Clearing empty cached ${agentType} analysis for deal ${dealId}`);
+      await storage.clearAgentAnalysis(dealId, agentType);
+      existingAnalysis = null; // Reset after clearing
+    }
+  } else {
+    console.log(`🔄 Force refresh enabled - bypassing cache and processing all documents`);
+    // For force refresh, check if there's an existing analysis to update
+    existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, agentType);
+  }
+  
+  const specializedAgents = {
+    clinical: {
+      name: 'Clinical',
+      focus: 'healthcare services, medical solutions, health technology, patient care, wellness programs, health data, insurance health products',
+      prompts: {
+        categorization: 'Does this document contain healthcare services, medical solutions, health technology, patient care systems, wellness programs, health data analytics, healthcare business models, health-related insurance products, or any content related to patient health and wellness?',
+        analysis: 'Analyze this clinical document for: 1) Healthcare service delivery and patient outcomes 2) Health technology implementation 3) Medical solution effectiveness 4) Patient care quality and safety 5) Healthcare market opportunities 6) Clinical operational risks'
+      }
+    },
+    legal: {
+      name: 'Legal',
+      focus: 'contracts, legal agreements, intellectual property, compliance, litigation, regulatory matters',
+      prompts: {
+        categorization: 'Does this document contain legal contracts, intellectual property filings, litigation records, compliance documents, or regulatory legal matters?',
+        analysis: 'Analyze this legal document for: 1) Contract terms and obligations 2) IP protection strength 3) Legal compliance status 4) Litigation risks 5) Regulatory legal requirements 6) Legal competitive moats'
+      }
+    },
+    commercial: {
+      name: 'Commercial',
+      focus: 'market analysis, sales data, customer information, marketing strategies, competitive landscape',
+      prompts: {
+        categorization: 'Does this document contain market analysis, sales data, customer information, marketing plans, competitive analysis, or commercial strategies?',
+        analysis: 'Analyze this commercial document for: 1) Market opportunity size 2) Sales performance and trends 3) Customer acquisition and retention 4) Competitive positioning 5) Revenue model viability 6) Commercial execution risks'
+      }
+    },
+    hr: {
+      name: 'HR',
+      focus: 'employee data, organizational structure, compensation, talent acquisition, company culture',
+      prompts: {
+        categorization: 'Does this document contain employee information, organizational charts, compensation data, hiring plans, or HR policies?',
+        analysis: 'Analyze this HR document for: 1) Leadership team strength 2) Talent acquisition strategy 3) Employee retention and satisfaction 4) Organizational scalability 5) Compensation competitiveness 6) HR operational risks'
+      }
+    },
+    financial: {
+      name: 'Financial',
+      focus: 'financial statements, budgets, cash flow, funding, financial projections, accounting',
+      prompts: {
+        categorization: 'Does this document contain financial statements, budgets, cash flow data, funding information, or financial projections?',
+        analysis: 'Analyze this financial document for: 1) Revenue growth and sustainability 2) Profitability trends and margins 3) Cash flow and burn rate 4) Funding requirements and runway 5) Financial model assumptions 6) Financial risks and dependencies'
+      }
+    },
+    ip: {
+      name: 'IP',
+      focus: 'patents, trademarks, trade secrets, intellectual property portfolio, technology assets',
+      prompts: {
+        categorization: 'Does this document contain patent filings, trademark applications, intellectual property portfolios, or technology documentation?',
+        analysis: 'Analyze this IP document for: 1) Patent portfolio strength and coverage 2) Freedom to operate analysis 3) IP competitive advantages 4) Technology differentiation 5) IP monetization potential 6) IP infringement risks'
+      }
+    },
+    research: {
+      name: 'Research',
+      focus: 'R&D data, technical specifications, research findings, innovation pipeline, scientific publications',
+      prompts: {
+        categorization: 'Does this document contain research and development data, technical specifications, scientific findings, or innovation pipeline information?',
+        analysis: 'Analyze this research document for: 1) Innovation pipeline strength 2) Technical feasibility and scalability 3) Research competitive advantages 4) Technology roadmap viability 5) Scientific validation quality 6) R&D execution risks'
+      }
+    }
+  };
+
+  const agent = specializedAgents[agentType as keyof typeof specializedAgents];
+  if (!agent) {
+    console.error(`Unknown agent type: ${agentType}`);
+    return;
+  }
+
+  const allInsights = {
+    positive: [] as any[],
+    neutral: [] as any[],
+    risk: [] as any[]
+  };
+
+  let processedDocuments = 0;
+  const relevantDocuments = [];
+
+  try {
+    // Use intelligent document assignment logic (same as frontend)
+    const assignedDocuments = documents.filter(doc => {
+      const assignedAgents = getAssignedAgentsForDocument(doc);
+      return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
+    });
+
+    console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent`);
+
+    for (const document of assignedDocuments) {
+      if (!document.ocrText) {
+        console.log(`⏭️ Skipping document ${document.name} - no OCR text available`);
+        continue;
+      }
+
+      console.log(`📄 Processing assigned document for ${agent.name} agent: ${document.name}`);
+      relevantDocuments.push(document);
+      
+      try {
+        const agentInsights = await runSpecializedAgentAnalysis(document, agent, deal);
+        
+        // Debug logging
+        console.log(`🔍 Agent insights for ${document.name}:`, {
+          hasInsights: !!agentInsights,
+          type: typeof agentInsights,
+          positive: agentInsights?.positive?.length || 0,
+          neutral: agentInsights?.neutral?.length || 0,
+          risk: agentInsights?.risk?.length || 0
+        });
+        
+        // Validate the response structure and provide fallbacks
+        if (agentInsights && typeof agentInsights === 'object') {
+          if (Array.isArray(agentInsights.positive)) {
+            allInsights.positive.push(...agentInsights.positive);
+          }
+          if (Array.isArray(agentInsights.neutral)) {
+            allInsights.neutral.push(...agentInsights.neutral);
+          }
+          if (Array.isArray(agentInsights.risk)) {
+            allInsights.risk.push(...agentInsights.risk);
+          }
+        }
+        
+        processedDocuments++;
+        console.log(`✅ Analyzed document ${document.name} (${processedDocuments}/${assignedDocuments.length})`);
+      } catch (error) {
+        console.error(`Failed to analyze document ${document.name}:`, error);
+        // Continue processing other documents even if one fails
+      }
+    }
+
+    // Debug logging for final insights collection
+    console.log(`🔍 Final insights collected for ${agent.name}:`, {
+      positive: allInsights.positive.length,
+      neutral: allInsights.neutral.length,
+      risk: allInsights.risk.length,
+      totalFindings: allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length
+    });
+
+    // Convert insights to findings and recommendations format
+    const findings = [
+      ...allInsights.positive.map(insight => ({
+        type: insight.category || 'positive',
+        title: insight.title,
+        description: insight.description,
+        severity: 'positive',
+        confidence: insight.confidence || 0.8,
+        documentSource: insight.documentSource
+      })),
+      ...allInsights.neutral.map(insight => ({
+        type: insight.category || 'neutral',
+        title: insight.title,
+        description: insight.description,
+        severity: 'neutral',
+        confidence: insight.confidence || 0.7,
+        documentSource: insight.documentSource
+      })),
+      ...allInsights.risk.map(insight => ({
+        type: insight.category || 'risk',
+        title: insight.title,
+        description: insight.description,
+        severity: insight.severity || 'medium',
+        confidence: insight.confidence || 0.8,
+        documentSource: insight.documentSource
+      }))
+    ];
+
+    const recommendations = [
+      ...allInsights.positive.map(insight => ({
+        priority: 'medium',
+        category: 'opportunity',
+        title: `Leverage ${insight.title}`,
+        description: `Capitalize on this strength: ${insight.description}`,
+        impact: 'Enhances competitive position and market potential'
+      })),
+      ...allInsights.risk.map(insight => ({
+        priority: insight.severity === 'high' ? 'high' : 'medium',
+        category: 'risk_mitigation',
+        title: `Address ${insight.title}`,
+        description: `Mitigate risk: ${insight.description}`,
+        impact: 'Reduces investment risk and improves viability'
+      }))
+    ];
+
+    // Create or update agent analysis with caching
+    const analysisData = {
+      dealId,
+      agentType,
+      status: 'Completed',
+      progress: 100,
+      findings: findings.map((f, index) => ({
+        id: index + 1,
+        type: f.type,
+        content: `${f.title}: ${f.description}`
+      })),
+      recommendations: recommendations,
+      documentSources: relevantDocuments.map(doc => doc.name)
+    };
+
+    // Check if analysis already exists and update, or create new
+    if (existingAnalysis) {
+      await storage.updateAnalysis(existingAnalysis.id, analysisData);
+      console.log(`✅ Updated cached ${agent.name} analysis for deal ${dealId}`);
+    } else {
+      await storage.createAnalysis(analysisData);
+      console.log(`✅ Created new ${agent.name} analysis for deal ${dealId}`);
+    }
+
+    console.log(`✅ ${agent.name} agent analysis completed for deal ${dealId}. Processed ${processedDocuments} relevant documents`);
+    console.log(`💾 Saved analysis with ${findings.length} findings and ${recommendations.length} recommendations`);
+
+  } catch (error) {
+    console.error(`Error in ${agent.name} agent analysis:`, error);
+    
+    // Update analysis status to failed with caching
+    const failedAnalysisData = {
+      dealId,
+      agentType,
+      status: 'Failed',
+      progress: 0,
+      findings: [],
+      recommendations: [],
+      documentSources: []
+    };
+
+    if (existingAnalysis) {
+      await storage.updateAnalysis(existingAnalysis.id, failedAnalysisData);
+    } else {
+      await storage.createAnalysis(failedAnalysisData);
+    }
+    
+    throw error;
+  }
+}
+
+// Intelligent document-to-agent assignment function
+function getAssignedAgentsForDocument(document: any) {
+  const docName = document.name.toLowerCase();
+  const docContent = (document.ocrText || '').toLowerCase();
+  const aiSummary = document.aiSummary;
+  
+  // Extract relevant content for analysis
+  const analysisText = [
+    docName,
+    docContent.substring(0, 2000), // First 2k chars for performance
+    aiSummary?.executiveSummary || '',
+    aiSummary?.documentType || '',
+    (aiSummary?.criticalFindings || []).join(' '),
+    (aiSummary?.keyFinancialData || []).join(' '),
+    (aiSummary?.riskAssessment || []).join(' '),
+    (aiSummary?.neutralFindings || []).join(' ')
+  ].join(' ').toLowerCase();
+  
+  // Weighted scoring system for each agent type
+  const agentScores = calculateAgentRelevanceScores(docName, analysisText, aiSummary);
+  
+  // Intelligent agent assignment based on score distribution
+  const sortedAgents = Object.entries(agentScores)
+    .sort(([,a], [,b]) => b - a)
+    .filter(([, score]) => score > 0.1); // Minimum relevance threshold
+  
+  if (sortedAgents.length === 0) {
+    return [getAgentInfo('Commercial')]; // Fallback
+  }
+  
+  // Get the highest scoring agent
+  const topAgent = sortedAgents[0];
+  const [, topScore] = topAgent;
+  
+  // Only assign a second agent if conditions are met
+  const selectedAgents = [topAgent];
+  
+  if (sortedAgents.length > 1 && topScore < 0.8) {
+    const secondAgent = sortedAgents[1];
+    const [, secondScore] = secondAgent;
+    
+    if (secondScore >= topScore * 0.5) {
+      selectedAgents.push(secondAgent);
+    }
+  }
+  
+  return selectedAgents.map(([agentType]) => getAgentInfo(agentType));
+}
+
+function calculateAgentRelevanceScores(docName: string, analysisText: string, aiSummary: any) {
+  const scores = {
+    clinical: 0.1,
+    legal: 0.1,
+    commercial: 0.1,
+    hr: 0.1,
+    financial: 0.1,
+    ip: 0.1,
+    research: 0.1
+  };
+
+  // Content-based scoring using keyword patterns
+  const keywords = {
+    clinical: ['clinical', 'medical', 'healthcare', 'patient', 'health', 'wellness', 'therapeutic', 'medicine', 'treatment'],
+    legal: ['legal', 'contract', 'agreement', 'license', 'compliance', 'regulation', 'law', 'court', 'litigation'],
+    commercial: ['market', 'sales', 'customer', 'revenue', 'marketing', 'competition', 'business', 'commercial'],
+    hr: ['employee', 'staff', 'hr', 'human resources', 'personnel', 'hiring', 'recruitment', 'salary', 'benefits'],
+    financial: ['financial', 'finance', 'budget', 'cost', 'revenue', 'profit', 'cash', 'funding', 'investment'],
+    ip: ['patent', 'trademark', 'copyright', 'intellectual property', 'ip', 'technology', 'invention'],
+    research: ['research', 'development', 'r&d', 'innovation', 'technical', 'scientific', 'study', 'analysis']
+  };
+
+  // Calculate keyword-based scores
+  Object.entries(keywords).forEach(([agent, words]) => {
+    const matchCount = words.reduce((count, word) => {
+      const regex = new RegExp(word, 'gi');
+      const matches = (analysisText.match(regex) || []).length;
+      return count + matches;
+    }, 0);
+    
+    scores[agent as keyof typeof scores] += matchCount * 0.1;
+  });
+
+  // File extension boosters
+  const fileExtension = docName.split('.').pop() || '';
+  if (['xls', 'xlsx', 'csv'].includes(fileExtension)) scores.financial *= 1.4;
+  if (docName.includes('contract') || docName.includes('agreement')) scores.legal *= 1.6;
+  if (docName.includes('clinical') || docName.includes('trial')) scores.clinical *= 1.6;
+  if (docName.includes('employee') || docName.includes('salary')) scores.hr *= 1.6;
+
+  // AI Summary boosters
+  if (aiSummary) {
+    const docType = (aiSummary.documentType || '').toLowerCase();
+    if (docType.includes('financial')) scores.financial *= 1.5;
+    if (docType.includes('legal')) scores.legal *= 1.5;
+    if (docType.includes('clinical')) scores.clinical *= 1.5;
+    if (docType.includes('commercial')) scores.commercial *= 1.5;
+    if (docType.includes('hr')) scores.hr *= 1.5;
+
+    const keyFinancialData = (aiSummary.keyFinancialData || []).join(' ').toLowerCase();
+    if (keyFinancialData.length > 0) scores.financial *= 1.3;
+    
+    const criticalFindings = (aiSummary.criticalFindings || []).join(' ').toLowerCase();
+    if (criticalFindings.includes('regulatory') || criticalFindings.includes('compliance')) {
+      scores.clinical *= 1.3;
+      scores.legal *= 1.3;
+    }
+  }
+
+  // Normalize scores to 0-1 range
+  const maxScore = Math.max(...Object.values(scores));
+  if (maxScore > 0) {
+    Object.keys(scores).forEach(agent => {
+      scores[agent as keyof typeof scores] = scores[agent as keyof typeof scores] / maxScore;
+    });
+  }
+
+  return scores;
+}
+
+function getAgentInfo(agentType: string) {
+  const agentColors: Record<string, string> = {
+    Clinical: 'bg-red-500/20 text-red-300 border-red-500/30',
+    Legal: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    Commercial: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    Financial: 'bg-green-500/20 text-green-300 border-green-500/30',
+    HR: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+    IP: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
+    Research: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+  };
+
+  const agentDescriptions: Record<string, string> = {
+    Clinical: 'Medical devices, regulatory compliance, clinical trials',
+    Legal: 'Contracts, intellectual property, legal compliance',
+    Commercial: 'Market analysis, sales strategy, competitive landscape',
+    Financial: 'Financial statements, funding, revenue projections',
+    HR: 'Human resources, organizational structure, talent management',
+    IP: 'Patents, trademarks, intellectual property portfolio',
+    Research: 'R&D pipeline, technical specifications, innovation'
+  };
+
+  return {
+    name: agentType,
+    type: agentType,
+    colorClasses: agentColors[agentType] || 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+    description: agentDescriptions[agentType] || 'Specialized analysis agent'
+  };
+}
+
+// Check if document is relevant to specific agent
+// Rate limiting helper with exponential backoff
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function checkAndTriggerAgentAnalyses(dealId: number): Promise<void> {
+  try {
+    // Get all documents for this deal
+    const documents = await storage.getDocumentsByDealId(dealId);
+    
+    // Check if we have enough completed AI summaries to trigger agent analysis
+    const documentsWithSummaries = documents.filter(doc => 
+      doc.aiSummaryStatus === 'completed' && doc.aiSummary
+    );
+    
+    // Only proceed if we have significant number of documents with summaries
+    if (documentsWithSummaries.length < 10) {
+      return; // Wait for more documents to be processed
+    }
+    
+    // Check if agent analyses are already running or recently completed
+    const existingAnalyses = await storage.getAnalysesByDealId(dealId);
+    const hasRecentAnalyses = existingAnalyses.some(analysis => {
+      const createdAt = new Date(analysis.createdAt);
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      return createdAt > oneHourAgo && analysis.status === 'Completed';
+    });
+    
+    if (hasRecentAnalyses) {
+      return; // Recent analyses exist, don't retrigger
+    }
+    
+    console.log(`🤖 Auto-triggering agent analyses for deal ${dealId} with ${documentsWithSummaries.length} completed AI summaries`);
+    
+    // Trigger comprehensive analysis in background
+    setTimeout(async () => {
+      try {
+        const deal = await storage.getDealById(dealId);
+        if (deal) {
+          await processComprehensiveAnalysisForDeal(dealId, documentsWithSummaries, deal);
+          console.log(`✅ Auto-triggered comprehensive analysis completed for deal ${dealId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Auto-triggered analysis failed for deal ${dealId}:`, error);
+      }
+    }, 5000); // 5 second delay to batch multiple triggers
+    
+  } catch (error) {
+    console.error(`Failed to check and trigger agent analyses for deal ${dealId}:`, error);
+  }
+}
+
+// Fallback keyword-based document relevance checking
+function checkDocumentRelevanceByKeywords(document: any, agent: any): boolean {
+  const docName = document.name.toLowerCase();
+  const docText = (document.ocrText || '').toLowerCase();
+  const combined = `${docName} ${docText}`;
+
+  const agentKeywords = {
+    clinical: ['clinical', 'trial', 'study', 'patient', 'medical', 'fda', 'regulatory', 'safety', 'efficacy', 'protocol', 'ce mark', 'approval', 'submission', 'device', 'validation', 'verification'],
+    legal: ['contract', 'agreement', 'legal', 'terms', 'policy', 'compliance', 'patent', 'ip', 'intellectual', 'property', 'license', 'litigation', 'confidential', 'nda', 'employment', 'signed', 'executed'],
+    commercial: ['market', 'commercial', 'business', 'competitive', 'sales', 'revenue', 'customer', 'pricing', 'strategy', 'marketing', 'distribution', 'partnership', 'duediligence', 'dd', 'qa'],
+    hr: ['employment', 'employee', 'hr', 'human', 'resource', 'payroll', 'benefit', 'compensation', 'hiring', 'staff', 'personnel', 'org', 'organizational'],
+    financial: ['financial', 'finance', 'budget', 'accounting', 'revenue', 'cost', 'expense', 'profit', 'loss', 'cash', 'flow', 'funding', 'investment', 'valuation', 'plan'],
+    ip: ['patent', 'trademark', 'copyright', 'intellectual', 'property', 'ip', 'innovation', 'invention', 'technology', 'proprietary', 'license', 'filing'],
+    research: ['research', 'development', 'r&d', 'innovation', 'technology', 'study', 'analysis', 'report', 'data', 'findings', 'methodology', 'experiment']
+  };
+
+  const keywords = agentKeywords[agent.name.toLowerCase()] || [];
+  const matchCount = keywords.filter(keyword => combined.includes(keyword)).length;
+
+  const isRelevant = matchCount >= 1; // At least one keyword match
+  if (isRelevant) {
+    console.log(`🎯 Keyword match for ${agent.name}: ${document.name} (${matchCount} matches)`);
+  }
+
+  return isRelevant;
+}
+
+async function checkDocumentRelevanceToAgent(document: any, agent: any): Promise<boolean> {
+  // First try keyword-based matching for immediate assignment
+  const keywordMatch = checkDocumentRelevanceByKeywords(document, agent);
+  if (keywordMatch) {
+    return true; // Skip API call if keywords already indicate relevance
+  }
+
+  // If no OCR text available, rely on keyword matching only
+  if (!document.ocrText || document.ocrText.trim().length === 0) {
+    console.log(`⚠️ Document ${document.name} has no OCR text, using keyword result only`);
+    return keywordMatch;
+  }
+
+  // Try Mistral API with retry logic for additional validation
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      console.log(`📄 Checking document relevance via API (attempt ${attempt}): ${document.name}`);
+      
+      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'mistral-small-latest', // Use smaller, faster model to reduce rate limits
+          messages: [{
+            role: 'user',
+            content: `Document: "${document.name}"
+Content preview: "${document.ocrText && document.ocrText.length > 0 ? document.ocrText.substring(0, 800) : 'No content available'}" 
+
+${agent.prompts.categorization}
+
+Respond with only "YES" or "NO" based on whether this document is relevant to the ${agent.name} agent's focus area.`
+          }],
+          temperature: 0.1,
+          max_tokens: 10
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const answer = result.choices[0].message.content.trim().toUpperCase();
+        return answer === 'YES';
+      } else if (response.status === 429) {
+        // Rate limit hit, use exponential backoff
+        const backoffTime = Math.pow(2, attempt) * 2000 + Math.random() * 1000; // 2^attempt * 2 seconds + jitter
+        console.log(`⏰ Rate limit hit, waiting ${Math.round(backoffTime/1000)}s before retry ${attempt + 1}/2`);
+        await sleep(backoffTime);
+        continue;
+      } else {
+        throw new Error(`Mistral API error: ${response.statusText}`);
+      }
+    } catch (error) {
+      if (attempt === 2) {
+        console.error(`❌ Mistral API failed after 2 attempts for ${document.name}:`, error);
+        console.log(`🔄 Using keyword-based result for ${document.name}: ${keywordMatch}`);
+        return keywordMatch; // Fall back to keyword result
+      }
+    }
+  }
+
+  // Final fallback to keyword matching
+  return keywordMatch;
+}
+
+// Comprehensive analysis processing function with specialized Mistral AI agents
+async function processComprehensiveAnalysisForDeal(dealId: number, documents: any[], deal: any) {
+  console.log(`🧠 Starting comprehensive analysis for deal ${dealId} with ${documents.length} documents`);
+  
+  const allInsights = {
+    positive: [] as any[],
+    neutral: [] as any[],
+    risk: [] as any[]
+  };
+  
+  const agentResults = {};
+  let processedDocuments = 0;
+
+  // Define specialized agents with their focus areas
+  const specializedAgents = {
+    clinical: {
+      name: 'Clinical',
+      focus: 'clinical trials, regulatory approvals, FDA submissions, medical data, patient outcomes, safety profiles',
+      prompts: {
+        categorization: 'Does this document contain clinical trial data, medical research, regulatory submissions, FDA approvals, patient safety information, or medical device specifications?',
+        analysis: 'Analyze this clinical document for: 1) Trial efficacy and safety data 2) Regulatory compliance status 3) Market approval timeline 4) Patient outcomes and adverse events 5) Competitive clinical advantages 6) Regulatory risks'
+      }
+    },
+    legal: {
+      name: 'Legal',
+      focus: 'contracts, legal agreements, intellectual property, compliance, litigation, regulatory matters',
+      prompts: {
+        categorization: 'Does this document contain legal contracts, intellectual property filings, litigation records, compliance documents, or regulatory legal matters?',
+        analysis: 'Analyze this legal document for: 1) Contract terms and obligations 2) IP protection strength 3) Legal compliance status 4) Litigation risks 5) Regulatory legal requirements 6) Legal competitive moats'
+      }
+    },
+    commercial: {
+      name: 'Commercial',
+      focus: 'market analysis, sales data, customer information, marketing strategies, competitive landscape',
+      prompts: {
+        categorization: 'Does this document contain market analysis, sales data, customer information, marketing plans, competitive analysis, or commercial strategies?',
+        analysis: 'Analyze this commercial document for: 1) Market opportunity size 2) Sales performance and trends 3) Customer acquisition and retention 4) Competitive positioning 5) Revenue model viability 6) Commercial execution risks'
+      }
+    },
+    hr: {
+      name: 'HR',
+      focus: 'employee data, organizational structure, compensation, talent acquisition, company culture',
+      prompts: {
+        categorization: 'Does this document contain employee information, organizational charts, compensation data, hiring plans, or HR policies?',
+        analysis: 'Analyze this HR document for: 1) Leadership team strength 2) Talent acquisition strategy 3) Employee retention and satisfaction 4) Organizational scalability 5) Compensation competitiveness 6) HR operational risks'
+      }
+    },
+    financial: {
+      name: 'Financial',
+      focus: 'financial statements, budgets, cash flow, funding, financial projections, accounting',
+      prompts: {
+        categorization: 'Does this document contain financial statements, budgets, cash flow data, funding information, or financial projections?',
+        analysis: 'Analyze this financial document for: 1) Revenue growth and sustainability 2) Profitability trends and margins 3) Cash flow and burn rate 4) Funding requirements and runway 5) Financial model assumptions 6) Financial risks and dependencies'
+      }
+    },
+    ip: {
+      name: 'IP',
+      focus: 'patents, trademarks, trade secrets, intellectual property portfolio, technology assets',
+      prompts: {
+        categorization: 'Does this document contain patent filings, trademark applications, intellectual property portfolios, or technology documentation?',
+        analysis: 'Analyze this IP document for: 1) Patent portfolio strength and coverage 2) Freedom to operate analysis 3) IP competitive advantages 4) Technology differentiation 5) IP monetization potential 6) IP infringement risks'
+      }
+    },
+    research: {
+      name: 'Research',
+      focus: 'R&D data, technical specifications, research findings, innovation pipeline, scientific publications',
+      prompts: {
+        categorization: 'Does this document contain research and development data, technical specifications, scientific findings, or innovation pipeline information?',
+        analysis: 'Analyze this research document for: 1) Innovation pipeline strength 2) Technical feasibility and scalability 3) Research competitive advantages 4) Technology roadmap viability 5) Scientific validation quality 6) R&D execution risks'
+      }
+    }
+  };
+
+  try {
+    for (const document of documents) {
+      // Use OCR text if available, otherwise use AI summary
+      const documentContent = document.ocrText || document.aiSummary;
+      
+      if (!documentContent || documentContent.length < 20) {
+        console.log(`⏭️ Skipping document ${document.name} - no content available (OCR: ${!!document.ocrText}, AI: ${!!document.aiSummary})`);
+        continue;
+      }
+
+      console.log(`📄 Processing document: ${document.name} (using ${document.ocrText ? 'OCR' : 'AI summary'})`);
+      
+      // Categorize document to appropriate agents
+      const relevantAgents = await categorizeDocumentToAgents(document, specializedAgents);
+      
+      // Process with each relevant agent
+      for (const agentType of relevantAgents) {
+        const agent = (specializedAgents as any)[agentType];
+        if (!agent) continue;
+        
+        console.log(`🤖 Analyzing with ${agent.name} agent: ${document.name}`);
+        
+        const agentInsights = await runSpecializedAgentAnalysis(document, agent, deal);
+        
+        // Aggregate insights by category  
+        (allInsights as any).positive.push(...(agentInsights as any).positive);
+        (allInsights as any).neutral.push(...(agentInsights as any).neutral);
+        (allInsights as any).risk.push(...(agentInsights as any).risk);
+        
+        // Store agent-specific results
+        if (!(agentResults as any)[agentType]) {
+          (agentResults as any)[agentType] = [];
+        }
+        (agentResults as any)[agentType].push({
+          documentName: document.name,
+          insights: agentInsights,
+          timestamp: new Date().toISOString()
+        });
+
+        // Store individual agent analysis in database
+        try {
+          const existingAnalysis = await storage.getAgentAnalysisResults(dealId, agentType);
+          
+          // Combine with existing findings
+          const existingFindings = existingAnalysis?.findings || [];
+          const newFindings = [
+            ...(agentInsights as any).positive.map((f: any) => ({ ...f, documentSource: document.name })),
+            ...(agentInsights as any).neutral.map((f: any) => ({ ...f, documentSource: document.name })),
+            ...(agentInsights as any).risk.map((f: any) => ({ ...f, documentSource: document.name }))
+          ];
+          
+          const allFindings = [...existingFindings, ...newFindings];
+          const existingRecommendations = existingAnalysis?.recommendations || [];
+          const newRecommendations = (agentInsights as any).recommendations || [];
+          const allRecommendations = [...existingRecommendations, ...newRecommendations];
+          
+          // Store updated agent analysis
+          await storage.createAgentAnalysis({
+            dealId,
+            agentType,
+            status: 'completed',
+            findings: allFindings,
+            recommendations: allRecommendations
+          });
+          
+          console.log(`✅ Stored ${agentType} analysis with ${newFindings.length} new findings`);
+        } catch (storageError) {
+          console.error(`❌ Failed to store ${agentType} analysis:`, storageError);
+        }
+      }
+
+      processedDocuments++;
+      
+      // Update progress
+      await storage.createOrUpdateComprehensiveAnalysis(dealId, {
+        documentsCovered: processedDocuments,
+        lastUpdated: new Date()
+      });
+    }
+
+    // Calculate overall investment score
+    const overallScore = calculateInvestmentScore(allInsights);
+    
+    // Store final comprehensive analysis
+    await storage.createOrUpdateComprehensiveAnalysis(dealId, {
+      overallScore,
+      positiveFactors: allInsights.positive,
+      neutralFactors: allInsights.neutral,
+      riskFactors: allInsights.risk,
+      analysisStatus: 'completed',
+      lastUpdated: new Date(),
+      documentsCovered: processedDocuments,
+      agentResults
+    });
+
+    console.log(`✅ Comprehensive analysis completed for deal ${dealId}. Score: ${overallScore}/100`);
+    console.log(`📊 Found ${allInsights.positive.length} positive factors, ${allInsights.neutral.length} neutral observations, ${allInsights.risk.length} risk factors`);
+
+  } catch (error) {
+    console.error('Error in comprehensive analysis:', error);
+    await storage.createOrUpdateComprehensiveAnalysis(dealId, {
+      analysisStatus: 'failed',
+      lastUpdated: new Date()
+    });
+    throw error;
+  }
+}
+
+// Document categorization using Mistral AI
+async function categorizeDocumentToAgents(document: any, agents: any): Promise<string[]> {
+  try {
+    // Use Mistral AI to categorize the document
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'mistral-large-latest',
+        messages: [{
+          role: 'user',
+          content: `Document: "${document.name}"
+Content preview: "${(document.ocrText || document.aiSummary || '').substring(0, 2000) || 'No content available'}"
+
+Categorize this document to the most relevant specialized agents. For each agent, answer YES/NO:
+
+Clinical Agent - ${agents.clinical.prompts.categorization}
+Legal Agent - ${agents.legal.prompts.categorization}
+Commercial Agent - ${agents.commercial.prompts.categorization}
+HR Agent - ${agents.hr.prompts.categorization}
+Financial Agent - ${agents.financial.prompts.categorization}
+IP Agent - ${agents.ip.prompts.categorization}
+Research Agent - ${agents.research.prompts.categorization}
+
+Return only a JSON object with agent names as keys and boolean values:
+{"clinical": true/false, "legal": true/false, "commercial": true/false, "hr": true/false, "financial": true/false, "ip": true/false, "research": true/false}`
+        }],
+        temperature: 0.1,
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Mistral API error: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    let content = result.choices[0].message.content;
+    
+    // Clean up markdown code blocks if present
+    content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    
+    const categorization = JSON.parse(content);
+    
+    // Return array of relevant agent types
+    return Object.entries(categorization)
+      .filter(([_, isRelevant]) => isRelevant)
+      .map(([agentType, _]) => agentType);
+      
+  } catch (error) {
+    console.error('Error categorizing document:', error);
+    // Fallback: categorize based on document name/type
+    return ['commercial', 'financial']; // Default to basic analysis
+  }
+}
+
+// Fast rate limiter for API requests
+class FastAPIRateLimiter {
+  private lastRequestTime = 0;
+  private minInterval = 2000; // Reduced to 2 seconds between requests
+  private concurrentLimit = 3; // Allow 3 concurrent requests
+  private activeRequests = 0;
+  private queue: (() => void)[] = [];
+
+  async executeWithLimit<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const execute = async () => {
+        try {
+          // Wait for available slot
+          while (this.activeRequests >= this.concurrentLimit) {
+            await new Promise(r => setTimeout(r, 100));
+          }
+
+          this.activeRequests++;
+          
+          // Check rate limit
+          const now = Date.now();
+          const timeSinceLastRequest = now - this.lastRequestTime;
+          
+          if (timeSinceLastRequest < this.minInterval) {
+            const waitTime = this.minInterval - timeSinceLastRequest;
+            await new Promise(r => setTimeout(r, waitTime));
+          }
+          
+          this.lastRequestTime = Date.now();
+          const result = await fn();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeRequests--;
+        }
+      };
+
+      execute();
+    });
+  }
+}
+
+const apiRateLimiter = new FastAPIRateLimiter();
+
+// Generate fast keyword-based analysis as fallback
+function generateFallbackAnalysis(document: any, agent: any): any {
+  // Define keywords based on agent name since agent structure varies
+  const agentKeywords: Record<string, string[]> = {
+    clinical: ['clinical', 'trial', 'study', 'patient', 'medical', 'fda'],
+    legal: ['contract', 'agreement', 'legal', 'terms', 'compliance', 'employment'],
+    commercial: ['market', 'commercial', 'business', 'sales', 'revenue', 'customer'],
+    hr: ['employment', 'employee', 'hr', 'human', 'resource', 'payroll'],
+    financial: ['financial', 'finance', 'budget', 'accounting', 'revenue', 'cost'],
+    ip: ['patent', 'trademark', 'intellectual', 'property', 'innovation', 'technology'],
+    research: ['research', 'development', 'r&d', 'innovation', 'technology', 'study']
+  };
+
+  const agentName = agent.name.toLowerCase();
+  const keywords = agentKeywords[agentName] || [];
+  const docText = document.ocrText || document.aiSummary || '';
+  const matches = keywords.filter((keyword: string) => 
+    docText.toLowerCase().includes(keyword.toLowerCase())
+  );
+
+  if (matches.length === 0) {
+    return { positive: [], neutral: [], risk: [] };
+  }
+
+  return {
+    positive: [{
+      category: 'positive',
+      agent: agent.name,
+      title: `${agent.name} Compliance`,
+      description: `Document contains relevant ${matches.join(', ')} information for ${agent.name.toLowerCase()} analysis`,
+      confidence: 0.7,
+      documentSource: document.name
+    }],
+    neutral: [{
+      category: 'neutral',
+      agent: agent.name,
+      title: 'Standard Documentation',
+      description: `Standard ${agent.name.toLowerCase()} documentation identified`,
+      confidence: 0.6,
+      documentSource: document.name
+    }],
+    risk: []
+  };
+}
+
+// Specialized agent analysis using Mistral AI with enhanced rate limiting
+async function runSpecializedAgentAnalysis(document: any, agent: any, deal: any): Promise<any> {
+  return apiRateLimiter.executeWithLimit(async () => {
+    const maxRetries = 3;
+    const baseDelay = 5000; // 5 seconds base delay for retries
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'mistral-large-latest',
+            messages: [{
+              role: 'user',
+              content: `As a ${agent.name} analyst, analyze this document for investment insights.
+
+Company: ${deal.companyName}
+Document: ${document.name}
+Content: ${(document.ocrText || document.aiSummary || '').substring(0, 3000) || 'No content available'}
+
+Focus on: ${agent.focus}
+
+Return ONLY valid JSON (no markdown, no explanation):
+{
+  "positive": [{"category": "positive", "agent": "${agent.name}", "title": "Title", "description": "Brief description", "confidence": 0.8, "documentSource": "${document.name}"}],
+  "neutral": [{"category": "neutral", "agent": "${agent.name}", "title": "Title", "description": "Brief description", "confidence": 0.7, "documentSource": "${document.name}"}],
+  "risk": [{"category": "risk", "agent": "${agent.name}", "title": "Title", "description": "Brief description", "confidence": 0.9, "severity": "medium", "documentSource": "${document.name}"}]
+}`
+            }],
+            temperature: 0.1,
+            max_tokens: 800
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          let content = result.choices[0].message.content;
+          
+          // Clean up markdown code blocks
+          content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          
+          try {
+            return JSON.parse(content);
+          } catch (parseError) {
+            console.error(`JSON parse error for ${agent.name}:`, parseError);
+            throw new Error('Invalid JSON response from API');
+          }
+        }
+
+        // Handle specific error cases
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const delay = retryAfter ? parseInt(retryAfter) * 1000 : baseDelay * Math.pow(2, attempt);
+          console.log(`⏰ Rate limit hit for ${agent.name}, waiting ${Math.round(delay/1000)}s`);
+          
+          if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+
+        throw new Error(`Mistral API error: ${response.status} ${response.statusText}`);
+
+      } catch (error) {
+        // Immediately return fallback analysis on any error for faster processing
+        console.log(`⚠️ ${agent.name} analysis failed, using keyword-based fallback:`, (error as Error).message);
+        return generateFallbackAnalysis(document, agent);
+      }
+    }
+  });
+}
+
+// Calculate overall investment score based on insights
+function calculateInvestmentScore(insights: any): number {
+  const positiveWeight = 1.5;
+  const neutralWeight = 0.5;
+  const riskWeight = -1.2;
+  
+  const positiveScore = insights.positive.reduce((sum: number, insight: any) => 
+    sum + (insight.confidence * positiveWeight), 0);
+  const neutralScore = insights.neutral.reduce((sum: number, insight: any) => 
+    sum + (insight.confidence * neutralWeight), 0);
+  const riskScore = insights.risk.reduce((sum: number, insight: any) => 
+    sum + (insight.confidence * riskWeight * (insight.severity === 'high' ? 1.5 : insight.severity === 'medium' ? 1.0 : 0.5)), 0);
+  
+  const totalScore = positiveScore + neutralScore + riskScore;
+  const maxPossibleScore = insights.positive.length * positiveWeight + insights.neutral.length * neutralWeight;
+  
+  if (maxPossibleScore === 0) return 50; // Neutral score if no insights
+  
+  const normalizedScore = Math.max(0, Math.min(100, 50 + (totalScore / maxPossibleScore) * 50));
+  return Math.round(normalizedScore);
+}

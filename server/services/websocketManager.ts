@@ -1,0 +1,125 @@
+import { WebSocketServer, WebSocket } from 'ws';
+import { Server } from 'http';
+
+interface JobProgress {
+  jobId: number;
+  progress: number;
+  status: string;
+  currentStep: string;
+  documentName?: string;
+  error?: string;
+}
+
+class WebSocketManager {
+  private wss: WebSocketServer | null = null;
+  private clients: Map<WebSocket, { dealId?: number }> = new Map();
+
+  initialize(server: Server) {
+    this.wss = new WebSocketServer({ 
+      server, 
+      path: '/ws'
+    });
+
+    this.wss.on('connection', (ws: WebSocket, req: any) => {
+      console.log('📡 WebSocket client connected');
+      
+      // Store client with metadata
+      this.clients.set(ws, {});
+
+      ws.on('message', (message: string) => {
+        try {
+          const data = JSON.parse(message);
+          if (data.type === 'subscribe' && data.dealId) {
+            // Subscribe client to deal updates
+            const clientData = this.clients.get(ws);
+            if (clientData) {
+              clientData.dealId = data.dealId;
+              this.clients.set(ws, clientData);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('📡 WebSocket client disconnected');
+        this.clients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        this.clients.delete(ws);
+      });
+    });
+
+    console.log('📡 WebSocket manager initialized for background job progress tracking');
+  }
+
+  broadcastJobProgress(progress: JobProgress, dealId?: number) {
+    if (!this.wss) {
+      console.log('❌ WebSocket server not initialized');
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'job_progress',
+      data: progress
+    });
+
+    let sentCount = 0;
+    this.clients.forEach((clientData, ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        // Send to all clients or filter by dealId
+        if (!dealId || clientData.dealId === dealId) {
+          ws.send(message);
+          sentCount++;
+        }
+      }
+    });
+
+    console.log(`📡 Broadcasted job progress to ${sentCount} clients for job ${progress.jobId}`);
+  }
+
+  broadcastJobComplete(jobId: number, result: any, dealId?: number) {
+    if (!this.wss) return;
+
+    const message = JSON.stringify({
+      type: 'job_complete',
+      data: { jobId, result }
+    });
+
+    this.clients.forEach((clientData, ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        if (!dealId || clientData.dealId === dealId) {
+          ws.send(message);
+        }
+      }
+    });
+  }
+
+  broadcastJobCancellation(jobId: number, dealId?: number) {
+    if (!this.wss) return;
+
+    const message = JSON.stringify({
+      type: 'job_cancelled',
+      data: { jobId, dealId }
+    });
+
+    this.clients.forEach((clientData, ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        if (!dealId || clientData.dealId === dealId) {
+          ws.send(message);
+        }
+      }
+    });
+
+    console.log(`📡 Broadcasted job cancellation for job ${jobId} to clients`);
+  }
+
+  getActiveConnections(): number {
+    return this.clients.size;
+  }
+}
+
+export const websocketManager = new WebSocketManager();

@@ -1,0 +1,9 @@
+Investment Deal Summary
+
+Company: Test Investment Company
+Sector: Technology  
+Funding Round: Series B
+Amount: 0M
+Valuation: 00M
+Lead Investors: Sequoia Capital, Andreessen Horowitz
+Description: AI-powered investment platform revolutionizing venture capital with intelligent deal sourcing and automated due diligence

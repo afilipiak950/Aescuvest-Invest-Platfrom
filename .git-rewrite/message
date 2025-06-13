@@ -1,0 +1,7 @@
+Improve reliability of document downloads and handle browser popup blockers
+
+Implements a `window.open` download approach with fallback to `fetch` for DataRoomExplorer.tsx to address download failures.
+
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: 07b38245-5b31-47e0-9577-4de56de1b04a
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/bf222cc4-7168-4be9-83e1-19e132c367d6/846fa817-4f2b-473e-ad26-ab7256407138.jpg

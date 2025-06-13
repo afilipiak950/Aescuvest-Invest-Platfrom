@@ -1,0 +1,12 @@
+tree 6061d08dacc03edce570967c94d74548607de0c9
+parent 2ab5ff3d3da4a81642c2cb99dbbf225536ebc8a3
+author intellywave <41669181-intellywave@users.noreply.replit.com> 1749291903 +0000
+committer intellywave <41669181-intellywave@users.noreply.replit.com> 1749291903 +0000
+
+Add AI-powered summaries to documents for quick investment insights
+
+Implements AI-driven document summarization using OpenAI's API in the frontend (DataRoomExplorer.tsx) and backend (server/routes.ts), and upgrades the openai package.
+
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: 07b38245-5b31-47e0-9577-4de56de1b04a
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/bf222cc4-7168-4be9-83e1-19e132c367d6/70eaaf47-8098-4fd3-ab74-95eb95c28646.jpg

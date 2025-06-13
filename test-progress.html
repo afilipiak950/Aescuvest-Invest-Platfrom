@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Progress Test</title>
+</head>
+<body>
+    <h1>WebSocket Progress Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="progress"></div>
+    
+    <script>
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log('Connecting to:', wsUrl);
+        
+        const socket = new WebSocket(wsUrl);
+        
+        socket.onopen = () => {
+            document.getElementById('status').textContent = 'Connected to WebSocket';
+            // Subscribe to deal 22 updates
+            socket.send(JSON.stringify({
+                type: 'subscribe',
+                dealId: 22
+            }));
+        };
+        
+        socket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            console.log('Received:', message);
+            
+            if (message.type === 'job_progress') {
+                const progress = message.data;
+                document.getElementById('progress').innerHTML = `
+                    <p>Job ${progress.jobId}: ${progress.progress}% - ${progress.currentStep}</p>
+                    <p>Document: ${progress.documentName || 'N/A'}</p>
+                `;
+            }
+        };
+        
+        socket.onclose = () => {
+            document.getElementById('status').textContent = 'Disconnected';
+        };
+        
+        socket.onerror = (error) => {
+            document.getElementById('status').textContent = 'Error: ' + error;
+        };
+    </script>
+</body>
+</html>

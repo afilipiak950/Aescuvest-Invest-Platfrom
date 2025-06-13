@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 142 100% 50%;
+  --primary-foreground: 240 10% 3.9%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 142 70% 50%;
+  --accent-foreground: 240 10% 3.9%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 142 100% 50%;
+  
+  --chart-1: 142 100% 50%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 271 91% 65%;
+  --chart-4: 338 85% 60%;
+  --chart-5: 48 96% 53%;
+  
+  --sidebar-background: 225 28% 8%;
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-primary: 142 100% 50%;
+  --sidebar-primary-foreground: 240 10% 3.9%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 226 15% 15%;
+  --sidebar-ring: 142 100% 50%;
+  
+  --radius: 0.5rem;
+}
+
+.light {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 142 60% 40%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 142 60% 40%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 142 60% 40%;
+}
+
+/* Set all elements to have border-box */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Email content styling */
+.email-content {
+  @apply text-gray-900;
+}
+
+.email-content p {
+  @apply mb-3 leading-relaxed;
+}
+
+.email-content h1, .email-content h2, .email-content h3, .email-content h4, .email-content h5, .email-content h6 {
+  @apply font-semibold mb-2 mt-4;
+}
+
+.email-content h1 { @apply text-xl; }
+.email-content h2 { @apply text-lg; }
+.email-content h3 { @apply text-base; }
+
+.email-content ul, .email-content ol {
+  @apply ml-6 mb-3;
+}
+
+.email-content ul {
+  @apply list-disc;
+}
+
+.email-content ol {
+  @apply list-decimal;
+}
+
+.email-content li {
+  @apply mb-1;
+}
+
+.email-content a {
+  @apply text-blue-600 hover:text-blue-800 underline;
+}
+
+.email-content blockquote {
+  @apply border-l-4 border-gray-300 pl-4 italic my-4;
+}
+
+.email-content table {
+  @apply border-collapse border border-gray-300 w-full mb-4;
+}
+
+.email-content th, .email-content td {
+  @apply border border-gray-300 px-3 py-2 text-left;
+}
+
+.email-content th {
+  @apply bg-gray-100 font-semibold;
+}
+
+.email-content img {
+  @apply max-w-full h-auto my-2;
+}
+
+.email-content hr {
+  @apply border-gray-300 my-4;
+}
+
+.email-content strong, .email-content b {
+  @apply font-semibold;
+}
+
+.email-content em, .email-content i {
+  @apply italic;
+}
+
+.email-content code {
+  @apply bg-gray-100 px-1 py-0.5 rounded text-sm font-mono;
+}
+
+.email-content pre {
+  @apply bg-gray-100 p-3 rounded overflow-x-auto text-sm font-mono mb-4;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-secondary;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/50;
+}
+
+/* Custom utility classes */
+.bg-dark {
+  background-color: #090921;
+}
+
+.bg-navy {
+  background-color: #050533;
+}
+
+.bg-dark-light {
+  background-color: #10102d;
+}
+
+.bg-dark-lighter {
+  background-color: #161638;
+}
+
+.border-dark-lighter {
+  border-color: #1e1e40;
+}
+
+.text-primary-custom {
+  color: #38D39F;
+}
+
+.bg-primary-custom {
+  background-color: #38D39F;
+}
+
+.hover\:bg-primary-hover:hover {
+  background-color: #2ec18e;
+}
+
+.transition-smooth {
+  transition: all 0.2s ease-in-out;
+}
+
+/* For the avatar initials */
+.avatar-initials {
+  @apply flex items-center justify-center font-medium text-background;
+}
