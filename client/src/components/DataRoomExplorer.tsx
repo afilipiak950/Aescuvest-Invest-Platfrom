@@ -1349,12 +1349,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
+  const documentsArray = documents as Document[] | undefined;
   console.log('📊 DataRoomExplorer debug:', { 
     dealId,
-    documents: documents?.length || 'undefined', 
+    documents: Array.isArray(documentsArray) ? documentsArray.length : 'undefined', 
     isLoading, 
-    isArray: Array.isArray(documents),
-    firstDoc: documents?.[0]?.name || 'none',
+    isArray: Array.isArray(documentsArray),
+    firstDoc: Array.isArray(documentsArray) && documentsArray.length > 0 ? documentsArray[0]?.name : 'none',
     queryKey: `/api/deals/${dealId}/documents`
   });
   
@@ -1362,10 +1363,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('📊 DataRoomExplorer: Still loading...');
   }
   
-  if (!documents || !Array.isArray(documents) || documents.length === 0) {
+  if (!documentsArray || !Array.isArray(documentsArray) || documentsArray.length === 0) {
     console.log('📊 DataRoomExplorer: No documents condition met', { 
-      documents: Array.isArray(documents) ? documents.length : 'not array', 
-      isArray: Array.isArray(documents) 
+      documents: Array.isArray(documentsArray) ? documentsArray.length : 'not array', 
+      isArray: Array.isArray(documentsArray) 
     });
     return (
       <div className="bg-dark-lighter rounded-lg">
