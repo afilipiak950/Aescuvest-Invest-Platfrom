@@ -1467,7 +1467,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  const folderTree = buildFolderTree(documents);
+  const folderTree = buildFolderTree(documentsArray || []);
 
   return (
     <div className="bg-dark-lighter rounded-lg">
@@ -1475,19 +1475,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
-            <p className="text-sm text-gray-400 mt-1">{documents.length} documents organized by folder structure</p>
+            <p className="text-sm text-gray-400 mt-1">{documentsArray?.length || 0} documents organized by folder structure</p>
           </div>
           
           <div className="flex items-center space-x-2">
             {!isSelectionMode ? (
               <>
                 {/* Smart AI Summary Status Indicator */}
-                {documents && Array.isArray(documents) && (() => {
-                  const totalDocs = documents.length;
-                  const docsWithSummaries = documents.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
-                  const processingDocs = documents.filter((doc: any) => doc.aiSummaryStatus === 'processing').length;
-                  const docsWithOCR = documents.filter((doc: any) => doc.status === 'Analyzed').length;
-                  const docsNeedingSummaries = documents.filter((doc: any) => 
+                {documentsArray && Array.isArray(documentsArray) && (() => {
+                  const totalDocs = documentsArray.length;
+                  const docsWithSummaries = documentsArray.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
+                  const processingDocs = documentsArray.filter((doc: any) => doc.aiSummaryStatus === 'processing').length;
+                  const docsWithOCR = documentsArray.filter((doc: any) => doc.status === 'Analyzed').length;
+                  const docsNeedingSummaries = documentsArray.filter((doc: any) => 
                     doc.status === 'Analyzed' && 
                     (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
                   ).length;
@@ -1573,7 +1573,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    checked={selectedFiles.size === documents.length && documents.length > 0}
+                    checked={selectedFiles.size === (documentsArray?.length || 0) && (documentsArray?.length || 0) > 0}
                     onCheckedChange={handleSelectAll}
                   />
                   <span className="text-sm text-gray-300">Select All</span>
