@@ -77,7 +77,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
 
   // Auto-refresh when document processing completes
   useEffect(() => {
-    if (backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs)) {
+    if (backgroundJobs && typeof backgroundJobs === 'object' && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs)) {
       const hasActiveJobs = backgroundJobs.jobs.some((job: any) => 
         job.status === 'processing' || job.status === 'pending'
       );
@@ -686,7 +686,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                   </div>
                   <div className="p-4 max-h-96 overflow-y-auto">
                     <div className="text-sm text-gray-200 leading-relaxed">
-                      {document.ocrText.split('\n').map((line, index) => (
+                      {document.ocrText.split('\n').map((line: string, index: number) => (
                         <div key={index} className="mb-2">
                           {line.trim() ? (
                             <p className="text-gray-200">{line}</p>
@@ -1363,7 +1363,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   }
   
   if (!documents || !Array.isArray(documents) || documents.length === 0) {
-    console.log('📊 DataRoomExplorer: No documents condition met', { documents: documents?.length, isArray: Array.isArray(documents) });
+    console.log('📊 DataRoomExplorer: No documents condition met', { 
+      documents: Array.isArray(documents) ? documents.length : 'not array', 
+      isArray: Array.isArray(documents) 
+    });
     return (
       <div className="bg-dark-lighter rounded-lg">
         <div className="p-4 border-b border-dark">
