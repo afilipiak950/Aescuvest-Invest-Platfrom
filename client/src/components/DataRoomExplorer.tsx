@@ -1147,10 +1147,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         body: JSON.stringify({ fileIds })
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Files deleted successfully:', data);
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       setSelectedFiles(new Set());
       setIsSelectionMode(false);
+      
+      // Show success notification
+      if (data && data.deletedCount) {
+        alert(`Successfully deleted ${data.deletedCount} file(s)`);
+      }
+    },
+    onError: (error) => {
+      console.error('File deletion failed:', error);
+      alert(`Failed to delete files: ${error.message}`);
     }
   });
 
