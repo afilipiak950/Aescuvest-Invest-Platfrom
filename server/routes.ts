@@ -134,6 +134,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('🎯 TEST ROUTE HIT!');
     res.json({ message: 'Express route working!', timestamp: new Date().toISOString() });
   });
+
+  // Attachment download endpoint
+  app.get('/api/inbox/emails/:emailId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
+    try {
+      const { emailId, attachmentId } = req.params;
+      
+      const session = req.session as any;
+      if (!session?.tokens?.access_token) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Microsoft authentication required' 
+        });
+      }
+
+      // Get attachment metadata first
+      const metadataResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachmentId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.tokens.access_token}`,
+        }
+      });
+
+      if (!metadataResponse.ok) {
+        throw new Error(`Failed to fetch attachment metadata: ${metadataResponse.status}`);
+      }
+
+      const metadata = await metadataResponse.json();
+      const filename = metadata.name || 'attachment';
+      const contentType = metadata.contentType || 'application/octet-stream';
+
+      // Get attachment content
+      const contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachmentId}/$value`, {
+        headers: {
+          'Authorization': `Bearer ${session.tokens.access_token}`,
+        }
+      });
+
+      if (!contentResponse.ok) {
+        throw new Error(`Failed to fetch attachment content: ${contentResponse.status}`);
+      }
+
+      // Set appropriate headers for download
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', contentType);
+      
+      // Stream the content
+      const buffer = await contentResponse.arrayBuffer();
+      res.send(Buffer.from(buffer));
+      
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to download attachment' 
+      });
+    }
+  });
   
   // URGENT DEBUG: Direct route registration to bypass middleware issues
   console.log('🔧 Registering DIRECT upload route...');
