@@ -130,24 +130,90 @@ export default function Dashboard() {
   const [activities, setActivities] = useState<Activity[]>(mockActivities);
   const [reminders, setReminders] = useState<Reminder[]>(mockReminders);
   const [isLoading, setIsLoading] = useState(true);
+  const [userName, setUserName] = useState('User');
+  const [pendingTasks, setPendingTasks] = useState(4);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // In a real app, you'd fetch data from your API
-        // const response = await fetch('/api/dashboard');
-        // const data = await response.json();
-        // setStats(data.stats);
-        // setDeals(data.deals);
-        // setActivities(data.activities);
-        // setReminders(data.reminders);
+        setIsLoading(true);
         
-        // For demo, we'll just use the mock data and add a delay
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 800);
+        // Fetch real deals data
+        const dealsResponse = await fetch('/api/deals');
+        const dealsData = await dealsResponse.json();
+        
+        if (dealsData.success && dealsData.deals) {
+          setDeals(dealsData.deals);
+          
+          // Calculate real stats from deals data
+          const realStats = {
+            deals: dealsData.deals.length,
+            dueDiligence: dealsData.deals.filter((deal: any) => deal.status === 'Due Diligence').length,
+            memos: dealsData.deals.filter((deal: any) => deal.status === 'Investment Committee').length,
+            investors: dealsData.deals.filter((deal: any) => deal.status === 'Term Sheet').length
+          };
+          setStats(realStats);
+        }
+        
+        // Fetch real activities (analyses and memos)
+        const activitiesData: Activity[] = [];
+        for (const deal of dealsData.deals || []) {
+          try {
+            const analysesResponse = await fetch(`/api/analyses/${deal.id}`);
+            const analysesData = await analysesResponse.json();
+            
+            if (analysesData.success && analysesData.analyses) {
+              analysesData.analyses.forEach((analysis: any) => {
+                activitiesData.push({
+                  id: Number(analysis.id),
+                  agentType: analysis.analysisType,
+                  content: `${deal.companyName} - ${analysis.analysisType} analysis completed`,
+                  timestamp: analysis.createdAt || new Date().toISOString()
+                });
+              });
+            }
+          } catch (error) {
+            console.log('No analyses found for deal:', deal.id);
+          }
+        }
+        
+        // Sort activities by timestamp and take the latest 5
+        activitiesData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setActivities(activitiesData.slice(0, 5));
+        
+        // Generate real reminders from deals
+        const realReminders = dealsData.deals?.slice(0, 3).map((deal: any, index: number) => ({
+          id: deal.id,
+          title: `Review ${deal.companyName}`,
+          description: `${deal.status} stage - Follow up required`,
+          deadline: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
+          type: deal.status === 'Due Diligence' ? 'due-diligence' : 'memo',
+          actions: ['Complete', 'Snooze']
+        })) || [];
+        
+        setReminders(realReminders);
+        
+        // Fetch user information
+        try {
+          const userResponse = await fetch('/api/settings/user');
+          const userData = await userResponse.json();
+          if (userData.success && userData.user) {
+            setUserName(userData.user.name || userData.user.username || 'User');
+          }
+        } catch (error) {
+          console.log('Could not fetch user data');
+        }
+        
+        // Calculate pending tasks from reminders and deals
+        const tasksCount = realReminders.length + dealsData.deals?.filter((deal: any) => 
+          deal.status === 'Screening' || deal.status === 'Due Diligence'
+        ).length || 0;
+        setPendingTasks(tasksCount);
+        
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        // Keep existing mock data on error
+      } finally {
         setIsLoading(false);
       }
     };
@@ -159,7 +225,7 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-6">
       <PageHeader 
         title="Dashboard" 
-        description="Welcome back, Alex. You have 4 pending tasks."
+        description={`Welcome back, ${userName}. You have ${pendingTasks} pending tasks.`}
         actions={[
           { label: 'New Deal', icon: 'Plus', href: '/deal-intake', variant: 'outline' },
           { label: 'Generate Memo', icon: 'FileText', href: '/memo-generator', variant: 'default' }
