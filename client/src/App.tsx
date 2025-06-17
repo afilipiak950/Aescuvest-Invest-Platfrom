@@ -13,7 +13,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
 import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
-import { DashboardPage } from "@/pages/dashboard";
+import Dashboard from "@/pages/dashboard";
 import DealsPage from "@/pages/deals";
 import AllDealsPage from "@/pages/all-deals";
 import Pipeline from "@/pages/pipeline";
@@ -75,7 +75,7 @@ function AppContent() {
           <AuthenticatedLayout>
             <Switch>
               <Route path="/">
-                <DashboardPage />
+                <Dashboard />
               </Route>
               <Route path="/all-deals">
                 <AllDealsPage />
