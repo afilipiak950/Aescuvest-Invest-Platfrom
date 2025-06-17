@@ -40,6 +40,7 @@ import microsoftAuthRoutes from "./routes/microsoftAuth";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
+import { activityTracker, aiActivityLogger, updateSystemMetrics } from './middleware/activityTracker';
 
 // Background processing function for company research
 async function processCompanyResearchForDeal(
