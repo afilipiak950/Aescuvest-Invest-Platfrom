@@ -509,19 +509,22 @@ export default function InboxPage() {
       {/* Connection Status */}
       <div className="space-y-2">
         {/* Microsoft OAuth Status */}
-        {microsoftStatus && (
-          <Alert className={(microsoftStatus as any)?.authenticated ? "border-green-500" : "border-yellow-500"}>
-            {(microsoftStatus as any)?.authenticated ? (
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-yellow-500" />
-            )}
-            <AlertDescription>
-              Microsoft 365: {(microsoftStatus as any)?.authenticated ? 'Verbunden' : 'Nicht verbunden'}
-              {(microsoftStatus as any)?.authenticated && (microsoftStatus as any)?.email ? ` - ${(microsoftStatus as any).email}` : ''}
-            </AlertDescription>
-          </Alert>
-        )}
+        {microsoftStatus && (() => {
+          const status = microsoftStatus as any;
+          return (
+            <Alert className={status?.authenticated ? "border-green-500" : "border-yellow-500"}>
+              {status?.authenticated ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-yellow-500" />
+              )}
+              <AlertDescription>
+                Microsoft 365: {status?.authenticated ? 'Verbunden' : 'Nicht verbunden'}
+                {status?.authenticated && status?.email ? ` - ${status.email}` : ''}
+              </AlertDescription>
+            </Alert>
+          );
+        })()}
         
 
       </div>
