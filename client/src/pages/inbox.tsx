@@ -326,6 +326,37 @@ export default function InboxPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/inbox/emails'] });
   };
 
+  const handleDownloadAttachment = async (emailId: string, attachmentId: string, fileName: string) => {
+    try {
+      const response = await fetch(`/api/inbox/emails/${emailId}/attachments/${attachmentId}/download`);
+      if (!response.ok) {
+        throw new Error(`Failed to download attachment: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download erfolgreich",
+        description: `${fileName} wurde heruntergeladen.`,
+      });
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      toast({
+        title: "Download fehlgeschlagen",
+        description: "Der Anhang konnte nicht heruntergeladen werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const emails = (emailsData as any)?.emails || [];
   const unreadCount = emails.filter((email: EmailMessage) => !email.read).length;
 
@@ -487,7 +518,7 @@ export default function InboxPage() {
             )}
             <AlertDescription>
               Microsoft 365: {(microsoftStatus as any)?.authenticated ? 'Verbunden' : 'Nicht verbunden'}
-              {(microsoftStatus as any)?.authenticated && (microsoftStatus as any)?.email && ` - ${(microsoftStatus as any).email}`}
+              {(microsoftStatus as any)?.authenticated && (microsoftStatus as any)?.email ? ` - ${(microsoftStatus as any).email}` : ''}
             </AlertDescription>
           </Alert>
         )}
@@ -724,7 +755,7 @@ export default function InboxPage() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleDownloadAttachment(selectedEmail.id, attachment.id, attachment.name)}
+                                    onClick={() => handleDownloadAttachment(selectedEmail?.id || '', attachment.id, attachment.name)}
                                     className="ml-3 shrink-0"
                                   >
                                     <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
