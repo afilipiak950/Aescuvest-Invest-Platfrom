@@ -607,23 +607,24 @@ export default function InboxPage() {
 
       {/* Email Detail Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-gray-900 border-gray-800 max-w-6xl w-[90vw] max-h-[90vh] flex flex-col p-0">
           {selectedEmail && (
             <>
-              <DialogHeader>
+              <DialogHeader className="p-6 pb-0 shrink-0">
                 <DialogTitle className="text-xl">{selectedEmail.subject}</DialogTitle>
                 <DialogDescription>
                   Von: {selectedEmail.from} • {formatDistanceToNow(new Date(selectedEmail.date), { addSuffix: true })}
                 </DialogDescription>
               </DialogHeader>
 
-              <Tabs defaultValue="content" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="content">E-Mail Inhalt</TabsTrigger>
-                  <TabsTrigger value="preview">Deal Vorschau</TabsTrigger>
-                </TabsList>
+              <div className="flex-1 flex flex-col min-h-0 p-6 pt-4">
+                <Tabs defaultValue="content" className="flex-1 flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2 shrink-0">
+                    <TabsTrigger value="content">E-Mail Inhalt</TabsTrigger>
+                    <TabsTrigger value="preview">Deal Vorschau</TabsTrigger>
+                  </TabsList>
                 
-                <TabsContent value="content" className="space-y-4">
+                <TabsContent value="content" className="flex-1 flex flex-col space-y-4 overflow-hidden">
                   {emailLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <RefreshCw className="h-6 w-6 animate-spin mr-2" />
@@ -657,7 +658,7 @@ export default function InboxPage() {
                       </div>
 
                       {/* Email Content */}
-                      <div className="bg-gray-800 p-6 rounded-lg">
+                      <div className="flex-1 bg-gray-800 p-6 rounded-lg overflow-y-auto">
                         <div className="prose prose-gray max-w-none">
                           <div className="text-gray-100 leading-relaxed whitespace-pre-wrap">
                             {(() => {
@@ -706,17 +707,31 @@ export default function InboxPage() {
                           {fullEmailData?.attachments && fullEmailData.attachments.length > 0 ? (
                             <div className="space-y-2">
                               {fullEmailData.attachments.map((attachment: any, index: number) => (
-                                <div key={attachment.id || index} className="flex items-center justify-between p-2 bg-gray-700 rounded">
-                                  <div className="flex items-center">
-                                    <svg className="h-4 w-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <div key={attachment.id || index} className="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600 transition-colors">
+                                  <div className="flex items-center flex-1">
+                                    <svg className="h-5 w-5 mr-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                                     </svg>
-                                    <span className="text-sm">{attachment.name || 'Unnamed attachment'}</span>
-                                    <span className="text-xs text-gray-400 ml-2">
-                                      ({attachment.size ? Math.round(attachment.size / 1024) + ' KB' : 'Unknown size'})
-                                    </span>
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-white">{attachment.name || 'Unnamed attachment'}</div>
+                                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                                        <span>{attachment.size ? Math.round(attachment.size / 1024) + ' KB' : 'Unknown size'}</span>
+                                        <span>•</span>
+                                        <span>{attachment.contentType || 'Unknown type'}</span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <span className="text-xs text-gray-500">{attachment.contentType || 'Unknown type'}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDownloadAttachment(selectedEmail.id, attachment.id, attachment.name)}
+                                    className="ml-3 shrink-0"
+                                  >
+                                    <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                    </svg>
+                                    Download
+                                  </Button>
                                 </div>
                               ))}
                             </div>
@@ -775,7 +790,8 @@ export default function InboxPage() {
                     </div>
                   )}
                 </TabsContent>
-              </Tabs>
+                </Tabs>
+              </div>
             </>
           )}
         </DialogContent>
