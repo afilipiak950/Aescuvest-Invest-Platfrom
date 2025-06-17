@@ -143,109 +143,100 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        console.log('🔍 Fetching dashboard data...');
         
         // Fetch real deals data
         const dealsResponse = await fetch('/api/deals');
         const dealsData = await dealsResponse.json();
-        console.log('📊 Deals data received:', dealsData);
         
-        if (dealsData.success && dealsData.deals) {
-          console.log('✅ Setting real deals data:', dealsData.deals.length, 'deals');
-          setDeals(dealsData.deals);
+        if (Array.isArray(dealsData)) {
+          setDeals(dealsData);
           
           // Calculate real stats from deals data
-          const dueDiligenceCount = dealsData.deals.filter((deal: any) => deal.status === 'Due Diligence').length;
-          const memosCount = dealsData.deals.filter((deal: any) => deal.status === 'Investment Committee').length;
-          const termSheetCount = dealsData.deals.filter((deal: any) => deal.status === 'Term Sheet').length;
+          const dueDiligenceCount = dealsData.filter((deal: any) => deal.status === 'Due Diligence').length;
+          const memosCount = dealsData.filter((deal: any) => deal.status === 'Investment Committee').length;
+          const termSheetCount = dealsData.filter((deal: any) => deal.status === 'Term Sheet').length;
           
           const realStats = {
-            deals: dealsData.deals.length,
+            deals: dealsData.length,
             dueDiligence: dueDiligenceCount,
             memos: memosCount,
             investors: termSheetCount
           };
-          console.log('📈 Calculated real stats:', realStats);
           setStats(realStats);
           
           // Calculate additional real statistics
-          const documentsCount = dealsData.deals.reduce((total: number, deal: any) => 
+          const documentsCount = dealsData.reduce((total: number, deal: any) => 
             total + (deal.documents?.length || 0), 0);
-          const recentDeals = dealsData.deals.filter((deal: any) => 
+          const recentDeals = dealsData.filter((deal: any) => 
             new Date(deal.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
           
           setRealStats({
             dueDiligenceActive: documentsCount,
-            memosDrafts: dealsData.deals.filter((deal: any) => 
-              deal.status === 'Screening' || deal.status === 'Due Diligence').length,
-            investorMatches: dealsData.deals.filter((deal: any) => 
+            memosDrafts: dealsData.filter((deal: any) => 
+              deal.status === 'screening' || deal.status === 'Due Diligence').length,
+            investorMatches: dealsData.filter((deal: any) => 
               deal.status === 'Term Sheet' || deal.status === 'Closed').length,
-            recentDealsChange: Math.round((recentDeals.length / dealsData.deals.length) * 100)
+            recentDealsChange: Math.round((recentDeals.length / dealsData.length) * 100)
           });
-        }
-        
-        // Fetch real activities (analyses and memos)
-        const activitiesData: Activity[] = [];
-        for (const deal of dealsData.deals || []) {
-          try {
-            const analysesResponse = await fetch(`/api/analyses/${deal.id}`);
-            const analysesData = await analysesResponse.json();
-            
-            if (analysesData.success && analysesData.analyses) {
-              analysesData.analyses.forEach((analysis: any) => {
-                activitiesData.push({
-                  id: Number(analysis.id),
-                  agentType: analysis.analysisType,
-                  content: `${deal.companyName} - ${analysis.analysisType} analysis completed`,
-                  timestamp: analysis.createdAt || new Date().toISOString()
+          
+          // Fetch real activities (analyses and memos)
+          const activitiesData: Activity[] = [];
+          for (const deal of dealsData) {
+            try {
+              const analysesResponse = await fetch(`/api/analyses/${deal.id}`);
+              const analysesData = await analysesResponse.json();
+              
+              if (analysesData.success && analysesData.analyses) {
+                analysesData.analyses.forEach((analysis: any) => {
+                  activitiesData.push({
+                    id: Number(analysis.id),
+                    agentType: analysis.analysisType,
+                    content: `${deal.companyName} - ${analysis.analysisType} analysis completed`,
+                    timestamp: analysis.createdAt || new Date().toISOString()
+                  });
                 });
-              });
+              }
+            } catch (error) {
+              console.log('No analyses found for deal:', deal.id);
+            }
+          }
+          
+          // Sort activities by timestamp and take the latest 5
+          activitiesData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setActivities(activitiesData.slice(0, 5));
+          
+          // Generate real reminders from deals
+          const realReminders = dealsData.slice(0, 3).map((deal: any, index: number) => ({
+            id: deal.id,
+            title: `Review ${deal.companyName}`,
+            description: `${deal.status} stage - Follow up required`,
+            deadline: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
+            type: deal.status === 'Due Diligence' ? 'due-diligence' : 'memo',
+            actions: ['Complete', 'Snooze']
+          }));
+          
+          setReminders(realReminders);
+          
+          // Fetch user information
+          try {
+            const userResponse = await fetch('/api/settings/user');
+            const userData = await userResponse.json();
+            if (userData.success && userData.user) {
+              setUserName(userData.user.name || userData.user.username || 'User');
             }
           } catch (error) {
-            console.log('No analyses found for deal:', deal.id);
+            console.log('Could not fetch user data');
           }
+          
+          // Calculate pending tasks from reminders and deals
+          const tasksCount = realReminders.length + dealsData.filter((deal: any) => 
+            deal.status === 'screening' || deal.status === 'Due Diligence'
+          ).length;
+          setPendingTasks(tasksCount);
         }
-        
-        // Sort activities by timestamp and take the latest 5
-        activitiesData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        setActivities(activitiesData.slice(0, 5));
-        
-        // Generate real reminders from deals
-        const realReminders = dealsData.deals?.slice(0, 3).map((deal: any, index: number) => ({
-          id: deal.id,
-          title: `Review ${deal.companyName}`,
-          description: `${deal.status} stage - Follow up required`,
-          deadline: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
-          type: deal.status === 'Due Diligence' ? 'due-diligence' : 'memo',
-          actions: ['Complete', 'Snooze']
-        })) || [];
-        
-        setReminders(realReminders);
-        
-        // Fetch user information
-        try {
-          const userResponse = await fetch('/api/settings/user');
-          const userData = await userResponse.json();
-          if (userData.success && userData.user) {
-            setUserName(userData.user.name || userData.user.username || 'User');
-          }
-        } catch (error) {
-          console.log('Could not fetch user data');
-        }
-        
-        // Calculate pending tasks from reminders and deals
-        const tasksCount = realReminders.length + dealsData.deals?.filter((deal: any) => 
-          deal.status === 'Screening' || deal.status === 'Due Diligence'
-        ).length || 0;
-        setPendingTasks(tasksCount);
-        
-        console.log('✅ Dashboard data loaded successfully');
-        console.log('Final deals array length:', dealsData.deals.length);
-        console.log('Final deals array:', dealsData.deals.map((d: any) => ({ id: d.id, name: d.companyName, status: d.status })));
         
       } catch (error) {
-        console.error('❌ Error fetching dashboard data:', error);
-        // Don't revert to mock data - keep empty arrays for authentic data display
+        console.error('Error fetching dashboard data:', error);
         setDeals([]);
         setActivities([]);
         setReminders([]);
