@@ -132,6 +132,12 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState('User');
   const [pendingTasks, setPendingTasks] = useState(4);
+  const [realStats, setRealStats] = useState({
+    dueDiligenceActive: 0,
+    memosDrafts: 0,
+    investorMatches: 0,
+    recentDealsChange: 0
+  });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -146,13 +152,32 @@ export default function Dashboard() {
           setDeals(dealsData.deals);
           
           // Calculate real stats from deals data
+          const dueDiligenceCount = dealsData.deals.filter((deal: any) => deal.status === 'Due Diligence').length;
+          const memosCount = dealsData.deals.filter((deal: any) => deal.status === 'Investment Committee').length;
+          const termSheetCount = dealsData.deals.filter((deal: any) => deal.status === 'Term Sheet').length;
+          
           const realStats = {
             deals: dealsData.deals.length,
-            dueDiligence: dealsData.deals.filter((deal: any) => deal.status === 'Due Diligence').length,
-            memos: dealsData.deals.filter((deal: any) => deal.status === 'Investment Committee').length,
-            investors: dealsData.deals.filter((deal: any) => deal.status === 'Term Sheet').length
+            dueDiligence: dueDiligenceCount,
+            memos: memosCount,
+            investors: termSheetCount
           };
           setStats(realStats);
+          
+          // Calculate additional real statistics
+          const documentsCount = dealsData.deals.reduce((total: number, deal: any) => 
+            total + (deal.documents?.length || 0), 0);
+          const recentDeals = dealsData.deals.filter((deal: any) => 
+            new Date(deal.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+          
+          setRealStats({
+            dueDiligenceActive: documentsCount,
+            memosDrafts: dealsData.deals.filter((deal: any) => 
+              deal.status === 'Screening' || deal.status === 'Due Diligence').length,
+            investorMatches: dealsData.deals.filter((deal: any) => 
+              deal.status === 'Term Sheet' || deal.status === 'Closed').length,
+            recentDealsChange: Math.round((recentDeals.length / dealsData.deals.length) * 100)
+          });
         }
         
         // Fetch real activities (analyses and memos)
@@ -238,7 +263,7 @@ export default function Dashboard() {
           title="Deal Pipeline"
           value={stats.deals}
           icon="FileText"
-          change="+8%"
+          change={realStats.recentDealsChange > 0 ? `+${realStats.recentDealsChange}%` : `${realStats.recentDealsChange}%`}
           changeText="from last month"
           isLoading={isLoading}
           href="/pipeline"
@@ -247,8 +272,8 @@ export default function Dashboard() {
           title="Due Diligence"
           value={stats.dueDiligence}
           icon="Search"
-          change="4 active"
-          changeText="data rooms"
+          change={`${realStats.dueDiligenceActive} documents`}
+          changeText="under review"
           isLoading={isLoading}
           href="/due-diligence"
         />
@@ -256,7 +281,7 @@ export default function Dashboard() {
           title="Investment Memos"
           value={stats.memos}
           icon="FileText"
-          change="2 drafts"
+          change={`${realStats.memosDrafts} pending`}
           changeText="to review"
           isLoading={isLoading}
           href="/memos"
@@ -265,8 +290,8 @@ export default function Dashboard() {
           title="Investor Matching"
           value={stats.investors}
           icon="Users"
-          change="12 new"
-          changeText="matches this week"
+          change={`${realStats.investorMatches} matched`}
+          changeText="this quarter"
           isLoading={isLoading}
           href="/investor-matching"
         />
