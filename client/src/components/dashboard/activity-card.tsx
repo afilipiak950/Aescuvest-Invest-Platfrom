@@ -112,7 +112,7 @@ export default function ActivityCard({
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-bold text-lg text-white uppercase tracking-wide">{activity.agentType}</h4>
+                  <h4 className="font-bold text-lg text-white capitalize tracking-wide">{activity.agentType}</h4>
                   <span className="text-xs text-gray-400">
                     {getFormattedTime(activity.timestamp)}
                   </span>
