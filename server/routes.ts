@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { documents } from "../shared/schema";
-import { eq, desc, asc, sql, and, gte, notInArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { authenticate } from "./middleware/auth";
@@ -13,22 +13,7 @@ import {
   insertAgentAnalysisSchema,
   insertInvestmentMemoSchema,
   insertInvestorMatchSchema,
-  insertAutomationSchema,
-  deals,
-  agentAnalyses,
-  investmentMemos,
-  investors,
-  // matches,
-  automations,
-  users,
-  evaluationCriteria,
-  companyResearch,
-  systemKpis,
-  userActivity,
-  aiActivity,
-  reminders,
-  performanceMetrics,
-  dashboardData
+  insertAutomationSchema
 } from "../shared/schema";
 import multer from "multer";
 import path from "path";
@@ -40,7 +25,6 @@ import microsoftAuthRoutes from "./routes/microsoftAuth";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
-import { activityTracker, aiActivityLogger, updateSystemMetrics } from './middleware/activityTracker';
 
 // Background processing function for company research
 async function processCompanyResearchForDeal(
@@ -204,171 +188,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: false, 
         message: 'Failed to download attachment' 
       });
-    }
-  });
-
-  // Dashboard Analytics API Endpoints
-  app.get('/api/dashboard/kpis', async (req: Request, res: Response) => {
-    try {
-      const kpis = await db.select().from(systemKpis).orderBy(desc(systemKpis.date)).limit(1);
-      const currentKpis = kpis[0] || {
-        totalDeals: 0,
-        activeDeals: 0,
-        documentsProcessed: 0,
-        aiAnalysesCompleted: 0,
-        averageProcessingTime: 0,
-        successRate: 0,
-        userActivity: 0,
-        apiCalls: 0
-      };
-
-      res.json({
-        success: true,
-        data: currentKpis
-      });
-    } catch (error) {
-      console.error('Error fetching KPIs:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch KPIs' });
-    }
-  });
-
-  app.get('/api/dashboard/performance', async (req: Request, res: Response) => {
-    try {
-      const metrics = await db.select().from(performanceMetrics).orderBy(desc(performanceMetrics.date)).limit(1);
-      const currentMetrics = metrics[0] || {
-        dealsPipeline: { newSubmissions: 0, underReview: 0, dueDiligence: 0, negotiation: 0, approved: 0, rejected: 0, closed: 0 },
-        documentStats: { totalProcessed: 0, ocrCompleted: 0, aiAnalyzed: 0, averageProcessingTime: 0, errorRate: 0 },
-        aiPerformance: { totalQueries: 0, successfulAnalyses: 0, failedAnalyses: 0, averageResponseTime: 0, totalTokensUsed: 0, totalCost: 0 },
-        userEngagement: { activeUsers: 0, totalSessions: 0, averageSessionDuration: 0, totalActions: 0 }
-      };
-
-      res.json({
-        success: true,
-        data: currentMetrics
-      });
-    } catch (error) {
-      console.error('Error fetching performance metrics:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch performance metrics' });
-    }
-  });
-
-  app.get('/api/dashboard/ai-activity', async (req: Request, res: Response) => {
-    try {
-      const activities = await db.select().from(aiActivity)
-        .orderBy(desc(aiActivity.timestamp))
-        .limit(20);
-
-      res.json({
-        success: true,
-        data: activities
-      });
-    } catch (error) {
-      console.error('Error fetching AI activity:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch AI activity' });
-    }
-  });
-
-  app.get('/api/dashboard/reminders', async (req: Request, res: Response) => {
-    try {
-      const activeReminders = await db.select().from(reminders)
-        .where(eq(reminders.status, 'pending'))
-        .orderBy(asc(reminders.dueDate))
-        .limit(10);
-
-      res.json({
-        success: true,
-        data: activeReminders
-      });
-    } catch (error) {
-      console.error('Error fetching reminders:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch reminders' });
-    }
-  });
-
-  app.post('/api/dashboard/reminders/:id/complete', async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      await db.update(reminders)
-        .set({ 
-          status: 'completed',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq(reminders.id, parseInt(id)));
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Error completing reminder:', error);
-      res.status(500).json({ success: false, message: 'Failed to complete reminder' });
-    }
-  });
-
-  app.get('/api/dashboard/recent-deals', async (req: Request, res: Response) => {
-    try {
-      const recentDeals = await db.select().from(deals)
-        .orderBy(desc(deals.createdAt))
-        .limit(10);
-
-      res.json({
-        success: true,
-        data: recentDeals
-      });
-    } catch (error) {
-      console.error('Error fetching recent deals:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch recent deals' });
-    }
-  });
-
-  app.get('/api/dashboard/stats', async (req: Request, res: Response) => {
-    try {
-      // Get comprehensive statistics
-      const totalDeals = await db.select({ count: sql<number>`count(*)` }).from(deals);
-      const activeDeals = await db.select({ count: sql<number>`count(*)` }).from(deals)
-        .where(notInArray(deals.status, ['Closed', 'Rejected']));
-      const documentsCount = await db.select({ count: sql<number>`count(*)` }).from(documents);
-      const aiActivities = await db.select({ count: sql<number>`count(*)` }).from(aiActivity)
-        .where(eq(aiActivity.status, 'completed'));
-
-      // Get pipeline distribution
-      const pipelineStats = await db.select({
-        status: deals.status,
-        count: sql<number>`count(*)`
-      }).from(deals).groupBy(deals.status);
-
-      // Get recent AI activity performance
-      const recentAiPerformance = await db.select({
-        avgProcessingTime: sql<number>`avg(processing_time)`,
-        totalTokens: sql<number>`sum(token_count)`,
-        totalCost: sql<number>`sum(cost)`
-      }).from(aiActivity)
-      .where(and(
-        eq(aiActivity.status, 'completed'),
-        gte(aiActivity.timestamp, sql`NOW() - INTERVAL '7 days'`)
-      ));
-
-      res.json({
-        success: true,
-        data: {
-          overview: {
-            totalDeals: totalDeals[0]?.count || 0,
-            activeDeals: activeDeals[0]?.count || 0,
-            documentsProcessed: documentsCount[0]?.count || 0,
-            aiAnalysesCompleted: aiActivities[0]?.count || 0
-          },
-          pipeline: pipelineStats.reduce((acc, stat) => {
-            acc[stat.status] = stat.count;
-            return acc;
-          }, {} as Record<string, number>),
-          aiPerformance: {
-            averageProcessingTime: recentAiPerformance[0]?.avgProcessingTime || 0,
-            totalTokensUsed: recentAiPerformance[0]?.totalTokens || 0,
-            totalCost: recentAiPerformance[0]?.totalCost || 0
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats' });
     }
   });
   
