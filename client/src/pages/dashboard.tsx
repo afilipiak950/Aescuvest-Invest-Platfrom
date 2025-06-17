@@ -125,13 +125,13 @@ const mockReminders: Reminder[] = [
 ];
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats>(mockDashboardStats);
-  const [deals, setDeals] = useState<Deal[]>(mockDeals);
-  const [activities, setActivities] = useState<Activity[]>(mockActivities);
-  const [reminders, setReminders] = useState<Reminder[]>(mockReminders);
+  const [stats, setStats] = useState<DashboardStats>({ deals: 0, dueDiligence: 0, memos: 0, investors: 0 });
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState('User');
-  const [pendingTasks, setPendingTasks] = useState(4);
+  const [pendingTasks, setPendingTasks] = useState(0);
   const [realStats, setRealStats] = useState({
     dueDiligenceActive: 0,
     memosDrafts: 0,
@@ -143,12 +143,15 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
+        console.log('🔍 Fetching dashboard data...');
         
         // Fetch real deals data
         const dealsResponse = await fetch('/api/deals');
         const dealsData = await dealsResponse.json();
+        console.log('📊 Deals data received:', dealsData);
         
         if (dealsData.success && dealsData.deals) {
+          console.log('✅ Setting real deals data:', dealsData.deals.length, 'deals');
           setDeals(dealsData.deals);
           
           // Calculate real stats from deals data
@@ -162,6 +165,7 @@ export default function Dashboard() {
             memos: memosCount,
             investors: termSheetCount
           };
+          console.log('📈 Calculated real stats:', realStats);
           setStats(realStats);
           
           // Calculate additional real statistics
@@ -235,9 +239,16 @@ export default function Dashboard() {
         ).length || 0;
         setPendingTasks(tasksCount);
         
+        console.log('✅ Dashboard data loaded successfully');
+        console.log('Final deals array length:', dealsData.deals.length);
+        console.log('Final deals array:', dealsData.deals.map((d: any) => ({ id: d.id, name: d.companyName, status: d.status })));
+        
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        // Keep existing mock data on error
+        console.error('❌ Error fetching dashboard data:', error);
+        // Don't revert to mock data - keep empty arrays for authentic data display
+        setDeals([]);
+        setActivities([]);
+        setReminders([]);
       } finally {
         setIsLoading(false);
       }
