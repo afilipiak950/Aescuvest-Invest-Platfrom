@@ -198,185 +198,172 @@ export function RealTimeDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-dark text-white p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Operational Dashboard</h1>
-          <p className="text-muted-foreground">Real-time insights and analytics</p>
+          <h1 className="text-3xl font-bold text-white">Operational Dashboard</h1>
+          <p className="text-gray-400">Real-time insights and analytics</p>
         </div>
         <div className="flex items-center space-x-2">
           <Activity className="h-4 w-4 text-green-500" />
-          <span className="text-sm text-muted-foreground">Live data</span>
+          <span className="text-sm text-gray-400">Live data</span>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis?.data?.totalDeals || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {kpis?.data?.activeDeals || 0} active
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-300">Total Deals</h3>
+            <Target className="h-4 w-4 text-gray-500" />
+          </div>
+          <div className="text-2xl font-bold text-white">{kpis?.data?.totalDeals || 0}</div>
+          <p className="text-xs text-gray-400">
+            {kpis?.data?.activeDeals || 0} active
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Documents Processed</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis?.data?.documentsProcessed || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {Math.round((kpis?.data?.successRate || 0))}% success rate
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-300">Documents Processed</h3>
+            <FileText className="h-4 w-4 text-gray-500" />
+          </div>
+          <div className="text-2xl font-bold text-white">{kpis?.data?.documentsProcessed || 0}</div>
+          <p className="text-xs text-gray-400">
+            {Math.round((kpis?.data?.successRate || 0))}% success rate
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">AI Analyses</CardTitle>
-            <Brain className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis?.data?.aiAnalysesCompleted || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatDuration(kpis?.data?.averageProcessingTime || 0)} avg time
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-300">AI Analyses</h3>
+            <Brain className="h-4 w-4 text-gray-500" />
+          </div>
+          <div className="text-2xl font-bold text-white">{kpis?.data?.aiAnalysesCompleted || 0}</div>
+          <p className="text-xs text-gray-400">
+            {formatDuration(kpis?.data?.averageProcessingTime || 0)} avg time
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">User Activity</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis?.data?.userActivity || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {kpis?.data?.apiCalls || 0} API calls
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-300">User Activity</h3>
+            <Users className="h-4 w-4 text-gray-500" />
+          </div>
+          <div className="text-2xl font-bold text-white">{kpis?.data?.userActivity || 0}</div>
+          <p className="text-xs text-gray-400">
+            {kpis?.data?.apiCalls || 0} API calls
+          </p>
+        </div>
       </div>
 
       {/* Pipeline Overview */}
       {performance?.data && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Deal Pipeline
-            </CardTitle>
-            <CardDescription>Current deal distribution by stage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-              {Object.entries(performance.data.dealsPipeline).map(([stage, count]) => (
-                <div key={stage} className="text-center">
-                  <div className="text-2xl font-bold">{count as number}</div>
-                  <div className="text-xs text-muted-foreground capitalize">
-                    {stage.replace(/([A-Z])/g, ' $1').trim()}
-                  </div>
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <PieChart className="h-5 w-5 text-white" />
+            <h2 className="text-lg font-semibold text-white">Deal Pipeline</h2>
+          </div>
+          <p className="text-gray-400 text-sm mb-6">Current deal distribution by stage</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {Object.entries(performance.data.dealsPipeline).map(([stage, count]) => (
+              <div key={stage} className="text-center">
+                <div className="text-2xl font-bold text-white">{count as number}</div>
+                <div className="text-xs text-gray-400 capitalize">
+                  {stage.replace(/([A-Z])/g, ' $1').trim()}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AI Performance */}
         {performance?.data && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                AI Performance
-              </CardTitle>
-              <CardDescription>Recent AI analysis metrics</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="h-5 w-5 text-white" />
+              <h2 className="text-lg font-semibold text-white">AI Performance</h2>
+            </div>
+            <p className="text-gray-400 text-sm mb-6">Recent AI analysis metrics</p>
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span>Total Queries</span>
-                <span className="font-bold">{performance.data.aiPerformance.totalQueries}</span>
+                <span className="text-gray-300">Total Queries</span>
+                <span className="font-bold text-white">{performance.data.aiPerformance.totalQueries}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Success Rate</span>
-                <span className="font-bold">
+                <span className="text-gray-300">Success Rate</span>
+                <span className="font-bold text-white">
                   {performance.data.aiPerformance.totalQueries > 0 
                     ? Math.round((performance.data.aiPerformance.successfulAnalyses / performance.data.aiPerformance.totalQueries) * 100)
                     : 0}%
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Avg Response Time</span>
-                <span className="font-bold">
+                <span className="text-gray-300">Avg Response Time</span>
+                <span className="font-bold text-white">
                   {formatDuration(performance.data.aiPerformance.averageResponseTime)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Total Cost</span>
-                <span className="font-bold">
+                <span className="text-gray-300">Total Cost</span>
+                <span className="font-bold text-white">
                   {formatCurrency(performance.data.aiPerformance.totalCost)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Tokens Used</span>
-                <span className="font-bold">
+                <span className="text-gray-300">Tokens Used</span>
+                <span className="font-bold text-white">
                   {performance.data.aiPerformance.totalTokensUsed.toLocaleString()}
                 </span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* Recent AI Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Recent AI Activity
-            </CardTitle>
-            <CardDescription>Latest AI processing activities</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {aiActivity?.data?.slice(0, 10).map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-2 border rounded">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {activity.activityType}
-                      </Badge>
-                      {activity.agentType && (
-                        <Badge variant="secondary" className="text-xs">
-                          {activity.agentType}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {format(new Date(activity.timestamp), 'MMM d, HH:mm')}
-                    </div>
-                  </div>
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="h-5 w-5 text-white" />
+            <h2 className="text-lg font-semibold text-white">Recent AI Activity</h2>
+          </div>
+          <p className="text-gray-400 text-sm mb-6">Latest AI processing activities</p>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {aiActivity?.data?.slice(0, 10).map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-800/50 border border-gray-600 rounded">
+                <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    {activity.processingTime && (
-                      <span className="text-xs text-muted-foreground">
-                        {formatDuration(activity.processingTime)}
-                      </span>
+                    <Badge variant="outline" className="text-xs bg-gray-700 text-gray-200 border-gray-600">
+                      {activity.activityType}
+                    </Badge>
+                    {activity.agentType && (
+                      <Badge variant="secondary" className="text-xs bg-gray-600 text-gray-200">
+                        {activity.agentType}
+                      </Badge>
                     )}
-                    <div className={`h-2 w-2 rounded-full ${getStatusColor(activity.status)}`} />
+                  </div>
+                  <div className="text-sm text-gray-400 mt-1">
+                    {format(new Date(activity.timestamp), 'MMM d, HH:mm')}
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex items-center gap-2">
+                  {activity.processingTime && (
+                    <span className="text-xs text-gray-400">
+                      {formatDuration(activity.processingTime)}
+                    </span>
+                  )}
+                  <div className={`h-2 w-2 rounded-full ${
+                    activity.status === 'completed' ? 'bg-green-500' :
+                    activity.status === 'failed' ? 'bg-red-500' :
+                    activity.status === 'started' || activity.status === 'processing' ? 'bg-yellow-500' :
+                    'bg-gray-500'
+                  }`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
