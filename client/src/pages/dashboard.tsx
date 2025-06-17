@@ -179,25 +179,86 @@ export default function Dashboard() {
             recentDealsChange: Math.round((recentDeals.length / dealsData.length) * 100)
           });
           
-          // Fetch real activities (analyses and memos)
+          // Fetch real AI activities from multiple sources
           const activitiesData: Activity[] = [];
+          
           for (const deal of dealsData) {
             try {
+              // Fetch documents for OCR activities
+              const documentsResponse = await fetch(`/api/deals/${deal.id}/documents`);
+              const documentsData = await documentsResponse.json();
+              
+              if (documentsData.success && documentsData.documents) {
+                documentsData.documents.forEach((doc: any) => {
+                  // Add OCR activity for all processed documents
+                  activitiesData.push({
+                    id: doc.id * 1000, // Unique ID for OCR activity
+                    agentType: 'Mistral OCR',
+                    content: `OCR text extraction from ${doc.name} (${(doc.size / 1024).toFixed(1)}KB) - ${deal.companyName}`,
+                    timestamp: doc.createdAt
+                  });
+                  
+                  // Add AI summary activity if available
+                  if (doc.aiSummary) {
+                    activitiesData.push({
+                      id: doc.id * 1000 + 1, // Unique ID for summary activity
+                      agentType: 'GPT-4 Summary',
+                      content: `AI summary generated for ${doc.name} - ${deal.companyName}`,
+                      timestamp: doc.updatedAt || doc.createdAt
+                    });
+                  }
+                  
+                  // Add document processing activity
+                  activitiesData.push({
+                    id: doc.id * 1000 + 2, // Unique ID for processing activity
+                    agentType: 'Document Processor',
+                    content: `Document ${doc.name} processed and indexed - ${deal.companyName}`,
+                    timestamp: doc.updatedAt || doc.createdAt
+                  });
+                });
+              }
+              
+              // Fetch agent analyses for Mistral activities
               const analysesResponse = await fetch(`/api/analyses/${deal.id}`);
               const analysesData = await analysesResponse.json();
               
-              if (analysesData.success && analysesData.analyses) {
-                analysesData.analyses.forEach((analysis: any) => {
+              if (Array.isArray(analysesData) && analysesData.length > 0) {
+                analysesData.forEach((analysis: any) => {
                   activitiesData.push({
                     id: Number(analysis.id),
-                    agentType: analysis.analysisType,
-                    content: `${deal.companyName} - ${analysis.analysisType} analysis completed`,
+                    agentType: `${analysis.agentType} Agent`,
+                    content: `Specialized ${analysis.agentType.toLowerCase()} analysis completed for ${deal.companyName}`,
                     timestamp: analysis.createdAt || new Date().toISOString()
                   });
                 });
               }
+              
+              // Add AI evaluation activities if deal has evaluation results
+              try {
+                const evaluationResponse = await fetch(`/api/deals/${deal.id}/evaluation-results`);
+                const evaluationData = await evaluationResponse.json();
+                
+                if (evaluationData.success && evaluationData.results) {
+                  activitiesData.push({
+                    id: deal.id * 10000, // Unique ID for evaluation
+                    agentType: 'AI Evaluator',
+                    content: `Investment evaluation completed for ${deal.companyName} (Score: ${deal.aiScore}/100)`,
+                    timestamp: evaluationData.results.createdAt || deal.updatedAt
+                  });
+                }
+              } catch (error) {
+                // Add basic evaluation activity based on aiScore
+                if (deal.aiScore) {
+                  activitiesData.push({
+                    id: deal.id * 10000,
+                    agentType: 'AI Evaluator',
+                    content: `Investment scoring completed for ${deal.companyName} (Score: ${deal.aiScore}/100)`,
+                    timestamp: deal.updatedAt || deal.createdAt
+                  });
+                }
+              }
             } catch (error) {
-              console.log('No analyses found for deal:', deal.id);
+              console.log('No AI activities found for deal:', deal.id);
             }
           }
           
