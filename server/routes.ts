@@ -3996,3 +3996,15 @@ function calculateInvestmentScore(insights: any): number {
   const normalizedScore = Math.max(0, Math.min(100, 50 + (totalScore / maxPossibleScore) * 50));
   return Math.round(normalizedScore);
 }
+
+// Register API routes at the end of the file
+export function registerAllRoutes(app: Express) {
+  // Register existing routes first
+  authRoutes(app);
+  emailRoutes(app);
+  microsoftAuthRoutes(app);
+  aiAgentRoutes(app);
+  
+  // Register API routes
+  registerApiRoutes(app);
+}
