@@ -147,21 +147,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { emailId, attachmentId } = req.params;
       
-      const session = req.session as any;
-      if (!session?.tokens?.access_token) {
-        console.log('❌ No access token in session');
+      // Get Microsoft tokens from database storage (not session)
+      const connection = await storage.getMicrosoftEmailConnection();
+      console.log('🔍 Microsoft connection status:', {
+        hasConnection: !!connection,
+        authenticated: connection?.authenticated,
+        hasAccessToken: !!connection?.accessToken,
+        tokenExpiry: connection?.expiresAt,
+        currentTime: Date.now(),
+        isExpired: connection?.expiresAt ? Date.now() >= connection.expiresAt : 'no-expiry-data'
+      });
+      
+      if (!connection || !connection.authenticated || !connection.accessToken) {
+        console.log('❌ No Microsoft authentication found');
         return res.status(401).json({ 
           success: false, 
-          message: 'Microsoft authentication required' 
+          message: 'Microsoft authentication required - please connect your email account first'
         });
       }
 
-      console.log('✅ Access token found, fetching attachment...');
+      // Check if token is expired
+      let accessToken = connection.accessToken;
+      if (connection.expiresAt && Date.now() >= connection.expiresAt) {
+        console.log('🔄 Access token expired, attempting refresh...');
+        if (connection.refreshToken) {
+          try {
+            const { refreshMicrosoftTokens } = await import('./services/microsoftAuth');
+            const newTokens = await refreshMicrosoftTokens(connection.refreshToken);
+            await storage.saveMicrosoftEmailConnection({
+              ...connection,
+              accessToken: newTokens.accessToken,
+              refreshToken: newTokens.refreshToken,
+              expiresAt: newTokens.expiresAt
+            });
+            accessToken = newTokens.accessToken;
+            console.log('✅ Token refreshed successfully');
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError);
+            return res.status(401).json({ 
+              success: false, 
+              message: 'Microsoft authentication expired and refresh failed - please reconnect'
+            });
+          }
+        } else {
+          console.log('❌ No refresh token available');
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Microsoft authentication expired - please reconnect'
+          });
+        }
+      }
+
+      console.log('✅ Access token validated, fetching attachment...');
 
       // For file attachments, we need to get the full attachment object with contentBytes
       const attachmentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachmentId}`, {
         headers: {
-          'Authorization': `Bearer ${session.tokens.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
