@@ -698,40 +698,90 @@ export default function SettingsPage() {
                     <Palette className="h-4 w-4" />
                     Interface Settings
                   </h4>
-                  <div className="space-y-2">
-                    <Label htmlFor="theme">Theme</Label>
-                    <Select
-                      defaultValue={(systemSettings as SystemSettings)?.theme || 'dark'}
-                      onValueChange={(value) => handleSystemSettingChange('theme', value)}
-                    >
-                      <SelectTrigger className="bg-dark border-dark-lighter">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="auto">Auto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="language">Language</Label>
-                    <Select
-                      defaultValue={(systemSettings as SystemSettings)?.language || 'en'}
-                      onValueChange={(value) => handleSystemSettingChange('language', value)}
-                    >
-                      <SelectTrigger className="bg-dark border-dark-lighter">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="de">Deutsch</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="es">Español</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="theme" className="text-sm font-medium">Theme Preference</Label>
+                          <Badge variant="secondary" className="text-xs">
+                            {(systemSettings as SystemSettings)?.theme === 'dark' ? '🌙 Dark' : 
+                             (systemSettings as SystemSettings)?.theme === 'light' ? '☀️ Light' : '🔄 Auto'}
+                          </Badge>
+                        </div>
+                        <Select
+                          value={(systemSettings as SystemSettings)?.theme || 'dark'}
+                          onValueChange={(value) => handleSystemSettingChange('theme', value)}
+                          disabled={updateSystemMutation.isPending}
+                        >
+                          <SelectTrigger className="bg-dark border-dark-lighter hover:border-primary/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-dark border-dark-lighter">
+                            <SelectItem value="dark">🌙 Dark Mode</SelectItem>
+                            <SelectItem value="light">☀️ Light Mode</SelectItem>
+                            <SelectItem value="auto">🔄 Auto-detect</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-400">Choose your preferred interface appearance</p>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="language" className="text-sm font-medium">System Language</Label>
+                          <Badge variant="secondary" className="text-xs">
+                            {(systemSettings as SystemSettings)?.language === 'en' ? '🇺🇸 EN' :
+                             (systemSettings as SystemSettings)?.language === 'de' ? '🇩🇪 DE' :
+                             (systemSettings as SystemSettings)?.language === 'fr' ? '🇫🇷 FR' : '🇪🇸 ES'}
+                          </Badge>
+                        </div>
+                        <Select
+                          value={(systemSettings as SystemSettings)?.language || 'en'}
+                          onValueChange={(value) => handleSystemSettingChange('language', value)}
+                          disabled={updateSystemMutation.isPending}
+                        >
+                          <SelectTrigger className="bg-dark border-dark-lighter hover:border-primary/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-dark border-dark-lighter">
+                            <SelectItem value="en">🇺🇸 English</SelectItem>
+                            <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
+                            <SelectItem value="fr">🇫🇷 Français</SelectItem>
+                            <SelectItem value="es">🇪🇸 Español</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-400">Interface and report language</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                {/* Success/Error Feedback */}
+                {updateSystemMutation.isSuccess && (
+                  <Alert className="bg-green-900/20 border-green-500/50">
+                    <CheckCircle className="h-4 w-4 text-green-400" />
+                    <AlertDescription className="text-green-400">
+                      System settings updated successfully. Changes will take effect immediately.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {updateSystemMutation.isError && (
+                  <Alert className="bg-red-900/20 border-red-500/50">
+                    <AlertCircle className="h-4 w-4 text-red-400" />
+                    <AlertDescription className="text-red-400">
+                      Failed to update system settings. Please try again or contact support.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {updateSystemMutation.isPending && (
+                  <Alert className="bg-blue-900/20 border-blue-500/50">
+                    <AlertCircle className="h-4 w-4 text-blue-400" />
+                    <AlertDescription className="text-blue-400">
+                      Updating system settings...
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
