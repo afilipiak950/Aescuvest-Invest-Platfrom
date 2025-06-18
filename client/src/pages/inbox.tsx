@@ -641,7 +641,7 @@ export default function InboxPage() {
 
       {/* Email Detail Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-6xl w-[90vw] max-h-[90vh] flex flex-col p-0">
+        <DialogContent className="bg-gray-900 border-gray-800 max-w-6xl w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden">
           {selectedEmail && (
             <>
               <DialogHeader className="p-6 pb-0 shrink-0">
@@ -652,13 +652,13 @@ export default function InboxPage() {
               </DialogHeader>
 
               <div className="flex-1 flex flex-col min-h-0 p-6 pt-4">
-                <Tabs defaultValue="content" className="flex-1 flex flex-col">
+                <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
                   <TabsList className="grid w-full grid-cols-2 shrink-0">
                     <TabsTrigger value="content">E-Mail Inhalt</TabsTrigger>
                     <TabsTrigger value="preview">Deal Vorschau</TabsTrigger>
                   </TabsList>
                 
-                <TabsContent value="content" className="flex-1 flex flex-col space-y-4 overflow-hidden">
+                <TabsContent value="content" className="flex-1 flex flex-col space-y-4 min-h-0 overflow-y-auto">
                   {emailLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <RefreshCw className="h-6 w-6 animate-spin mr-2" />
@@ -692,9 +692,9 @@ export default function InboxPage() {
                       </div>
 
                       {/* Email Content */}
-                      <div className="flex-1 bg-gray-800 p-6 rounded-lg overflow-y-auto">
+                      <div className="flex-1 bg-gray-800 p-6 rounded-lg overflow-y-auto min-h-0">
                         <div className="prose prose-gray max-w-none">
-                          <div className="text-gray-100 leading-relaxed whitespace-pre-wrap">
+                          <div className="text-gray-100 leading-relaxed whitespace-pre-wrap break-words">
                             {(() => {
                               const emailData = fullEmailData || selectedEmail;
                               
@@ -793,7 +793,7 @@ export default function InboxPage() {
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="preview" className="space-y-4">
+                <TabsContent value="preview" className="flex-1 flex flex-col space-y-4 min-h-0 overflow-y-auto">
                   <Button
                     onClick={() => parseEmailMutation.mutate(selectedEmail.id)}
                     disabled={parseEmailMutation.isPending}
