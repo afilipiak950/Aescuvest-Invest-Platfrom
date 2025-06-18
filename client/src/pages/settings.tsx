@@ -53,19 +53,24 @@ export default function SettingsPage() {
   // Update user settings mutation
   const updateUserMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('/api/settings/user', {
+      console.log('🔄 Sending user settings update:', data);
+      const response = await apiRequest('/api/settings/user', {
         method: 'PATCH',
         body: JSON.stringify(data),
       });
+      console.log('✅ User settings update response:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log('✅ User settings update successful:', { data, variables });
       queryClient.invalidateQueries({ queryKey: ['/api/settings/user'] });
       toast({
         title: "Settings Updated",
         description: "Your preferences have been saved successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      console.error('❌ User settings update failed:', { error, variables });
       toast({
         title: "Error",
         description: "Failed to update settings. Please try again.",
@@ -77,19 +82,24 @@ export default function SettingsPage() {
   // Update system settings mutation
   const updateSystemMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('/api/settings/system', {
+      console.log('🔄 Sending system settings update:', data);
+      const response = await apiRequest('/api/settings/system', {
         method: 'PATCH',
         body: JSON.stringify(data),
       });
+      console.log('✅ System settings update response:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log('✅ System settings update successful:', { data, variables });
       queryClient.invalidateQueries({ queryKey: ['/api/settings/system'] });
       toast({
         title: "System Settings Updated",
         description: "System configuration has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      console.error('❌ System settings update failed:', { error, variables });
       toast({
         title: "Error",
         description: "Failed to update system settings. Please try again.",
@@ -101,11 +111,15 @@ export default function SettingsPage() {
   // Generate API key mutation
   const generateApiKeyMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('/api/settings/generate-api-key', {
+      console.log('🔄 Generating new API key...');
+      const response = await apiRequest('/api/settings/generate-api-key', {
         method: 'POST',
       });
+      console.log('✅ API key generation response:', response);
+      return response;
     },
     onSuccess: (data: any) => {
+      console.log('✅ API key generation successful:', data);
       setApiKey(data.apiKey);
       queryClient.invalidateQueries({ queryKey: ['/api/settings/user'] });
       toast({
@@ -114,6 +128,7 @@ export default function SettingsPage() {
       });
     },
     onError: (error) => {
+      console.error('❌ API key generation failed:', error);
       toast({
         title: "Error",
         description: "Failed to generate API key. Please try again.",
@@ -125,18 +140,29 @@ export default function SettingsPage() {
   // Change password mutation
   const changePasswordMutation = useMutation({
     mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      return await apiRequest('/api/settings/change-password', {
+      console.log('🔄 Changing password...');
+      const response = await apiRequest('/api/settings/change-password', {
         method: 'POST',
         body: JSON.stringify(data),
       });
+      console.log('✅ Password change response:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log('✅ Password change successful:', data);
+      // Clear password fields
+      const currentPasswordField = document.getElementById('currentPassword') as HTMLInputElement;
+      const newPasswordField = document.getElementById('newPassword') as HTMLInputElement;
+      if (currentPasswordField) currentPasswordField.value = '';
+      if (newPasswordField) newPasswordField.value = '';
+      
       toast({
         title: "Password Changed",
         description: "Your password has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      console.error('❌ Password change failed:', { error, variables });
       toast({
         title: "Error",
         description: "Failed to change password. Please check your current password.",
@@ -146,10 +172,12 @@ export default function SettingsPage() {
   });
 
   const handleUserSettingChange = (key: string, value: any) => {
+    console.log('🔧 User Setting Change:', { key, value, currentData: userSettings });
     updateUserMutation.mutate({ [key]: value });
   };
 
   const handleSystemSettingChange = (key: string, value: any) => {
+    console.log('🔧 System Setting Change:', { key, value, currentData: systemSettings });
     updateSystemMutation.mutate({ [key]: value });
   };
 

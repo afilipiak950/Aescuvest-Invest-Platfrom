@@ -1773,15 +1773,43 @@ The company maintains a strong competitive position through its technical moat a
   app.patch('/api/settings/user', authenticate, async (req: any, res: Response) => {
     try {
       const userId = req.userId;
-      // In production, this would update the database
-      console.log('Updating user settings for user:', userId, req.body);
+      const updates = req.body;
+      
+      console.log('🔄 Updating user settings for user:', userId, updates);
+      
+      // Get current user data
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Build updated user object
+      let updatedUserData: any = { ...currentUser };
+      
+      // Handle name updates
+      if (updates.firstName || updates.lastName) {
+        const firstName = updates.firstName || currentUser.name?.split(' ')[0] || 'Admin';
+        const lastName = updates.lastName || currentUser.name?.split(' ')[1] || 'User';
+        updatedUserData.name = `${firstName} ${lastName}`;
+      }
+      
+      // Handle email updates
+      if (updates.email) {
+        updatedUserData.email = updates.email;
+      }
+      
+      // Update user in database
+      await storage.updateUser(userId, updatedUserData);
+      
+      console.log('✅ User settings updated successfully:', updatedUserData);
       
       res.json({ 
         success: true, 
-        message: 'User settings updated successfully' 
+        message: 'User settings updated successfully',
+        user: updatedUserData
       });
     } catch (error) {
-      console.error('Error updating user settings:', error);
+      console.error('❌ Error updating user settings:', error);
       res.status(500).json({ message: 'Failed to update user settings' });
     }
   });
@@ -1850,23 +1878,58 @@ The company maintains a strong competitive position through its technical moat a
   app.post('/api/settings/change-password', authenticate, async (req: any, res: Response) => {
     try {
       const userId = req.userId;
-      const { newPassword } = req.body;
+      const { currentPassword, newPassword } = req.body;
       
-      if (!newPassword || newPassword.length < 8) {
+      console.log('🔄 Password change request for user:', userId);
+      
+      if (!currentPassword || !newPassword) {
         return res.status(400).json({ 
-          message: 'Password must be at least 8 characters long' 
+          message: 'Both current and new passwords are required' 
+        });
+      }
+      
+      if (newPassword.length < 8) {
+        return res.status(400).json({ 
+          message: 'New password must be at least 8 characters long' 
         });
       }
 
-      // In production, hash the password and update the database
-      console.log('Password changed for user:', userId);
+      // Get current user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify current password
+      const bcrypt = require('bcryptjs');
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      
+      if (!isCurrentPasswordValid) {
+        console.log('❌ Invalid current password for user:', userId);
+        return res.status(400).json({ 
+          message: 'Current password is incorrect' 
+        });
+      }
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+      
+      // Update user password in database
+      await storage.updateUser(userId, { 
+        ...user, 
+        password: hashedNewPassword,
+        updatedAt: new Date()
+      });
+      
+      console.log('✅ Password changed successfully for user:', userId);
       
       res.json({ 
         success: true, 
         message: 'Password changed successfully' 
       });
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error('❌ Error changing password:', error);
       res.status(500).json({ message: 'Failed to change password' });
     }
   });
