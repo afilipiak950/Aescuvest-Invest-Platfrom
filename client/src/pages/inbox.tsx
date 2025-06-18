@@ -346,12 +346,23 @@ export default function InboxPage() {
 
   const handleDownloadAttachment = async (emailId: string, attachmentId: string, fileName: string) => {
     try {
-      const response = await fetch(`/api/inbox/emails/${emailId}/attachments/${attachmentId}/download`);
+      console.log('🔍 FRONTEND: Starting download for:', { emailId, attachmentId, fileName });
+      
+      const response = await fetch(`/api/inbox/emails/${emailId}/attachments/${attachmentId}/download`, {
+        credentials: 'include'
+      });
+      
+      console.log('🔍 FRONTEND: Download response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`Failed to download attachment: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('🔍 FRONTEND: Download failed:', errorData);
+        throw new Error(`Failed to download attachment: ${response.status} - ${errorData.message || response.statusText}`);
       }
       
       const blob = await response.blob();
+      console.log('🔍 FRONTEND: Blob created, size:', blob.size);
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -361,15 +372,17 @@ export default function InboxPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
+      console.log('✅ FRONTEND: Download completed successfully');
+      
       toast({
         title: "Download erfolgreich",
         description: `${fileName} wurde heruntergeladen.`,
       });
     } catch (error) {
-      console.error('Error downloading attachment:', error);
+      console.error('❌ FRONTEND: Error downloading attachment:', error);
       toast({
         title: "Download fehlgeschlagen",
-        description: "Der Anhang konnte nicht heruntergeladen werden.",
+        description: error instanceof Error ? error.message : "Der Anhang konnte nicht heruntergeladen werden.",
         variant: "destructive",
       });
     }

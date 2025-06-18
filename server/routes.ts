@@ -140,55 +140,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Attachment download endpoint
   app.get('/api/inbox/emails/:emailId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
     try {
+      console.log('🔍 ATTACHMENT DOWNLOAD REQUEST:', {
+        emailId: req.params.emailId,
+        attachmentId: req.params.attachmentId
+      });
+
       const { emailId, attachmentId } = req.params;
       
       const session = req.session as any;
       if (!session?.tokens?.access_token) {
+        console.log('❌ No access token in session');
         return res.status(401).json({ 
           success: false, 
           message: 'Microsoft authentication required' 
         });
       }
 
-      // Get attachment metadata first
-      const metadataResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachmentId}`, {
+      console.log('✅ Access token found, fetching attachment...');
+
+      // For file attachments, we need to get the full attachment object with contentBytes
+      const attachmentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachmentId}`, {
         headers: {
           'Authorization': `Bearer ${session.tokens.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (!metadataResponse.ok) {
-        throw new Error(`Failed to fetch attachment metadata: ${metadataResponse.status}`);
+      if (!attachmentResponse.ok) {
+        console.log('❌ Failed to fetch attachment:', attachmentResponse.status, attachmentResponse.statusText);
+        const errorText = await attachmentResponse.text();
+        console.log('Error response:', errorText);
+        throw new Error(`Failed to fetch attachment: ${attachmentResponse.status} - ${attachmentResponse.statusText}`);
       }
 
-      const metadata = await metadataResponse.json();
-      const filename = metadata.name || 'attachment';
-      const contentType = metadata.contentType || 'application/octet-stream';
-
-      // Get attachment content
-      const contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachmentId}/$value`, {
-        headers: {
-          'Authorization': `Bearer ${session.tokens.access_token}`,
-        }
+      const attachment = await attachmentResponse.json();
+      console.log('📎 Attachment data received:', {
+        name: attachment.name,
+        contentType: attachment.contentType,
+        size: attachment.size,
+        hasContentBytes: !!attachment.contentBytes,
+        type: attachment['@odata.type']
       });
 
-      if (!contentResponse.ok) {
-        throw new Error(`Failed to fetch attachment content: ${contentResponse.status}`);
+      if (!attachment.contentBytes) {
+        console.log('❌ No contentBytes in attachment response');
+        throw new Error('Attachment content not available');
       }
+
+      // Convert base64 content to buffer
+      const contentBuffer = Buffer.from(attachment.contentBytes, 'base64');
+      
+      console.log('✅ Content decoded successfully, size:', contentBuffer.length);
 
       // Set appropriate headers for download
+      const filename = attachment.name || 'attachment';
+      const contentType = attachment.contentType || 'application/octet-stream';
+      
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', contentBuffer.length);
       
-      // Stream the content
-      const buffer = await contentResponse.arrayBuffer();
-      res.send(Buffer.from(buffer));
+      // Send the buffer
+      res.send(contentBuffer);
+      
+      console.log('✅ Attachment download completed:', filename);
       
     } catch (error) {
-      console.error('Error downloading attachment:', error);
+      console.error('❌ Error downloading attachment:', error);
       res.status(500).json({ 
         success: false, 
-        message: 'Failed to download attachment' 
+        message: 'Failed to download attachment',
+        error: error.message 
       });
     }
   });
