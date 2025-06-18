@@ -23,6 +23,7 @@ import aiAgentRoutes from "./routes/ai-agents";
 import authRoutes from "./routes/auth";
 import emailRoutes from "./routes/email";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
+import { registerApiRoutes } from "./routes/api";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
