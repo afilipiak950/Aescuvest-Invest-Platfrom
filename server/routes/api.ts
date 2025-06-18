@@ -127,9 +127,9 @@ export function registerApiRoutes(app: Express) {
 
   app.get('/api/v1/user/stats', authenticateApiKey, async (req: Request, res: Response) => {
     try {
-      const deals = await storage.getDeals();
-      const documents = await storage.getDocuments();
-      const userDeals = deals.filter(d => d.createdBy === req.apiUser!.id);
+      const deals = await storage.getAllDeals();
+      const documents = await storage.getAllDocuments();
+      const userDeals = deals.filter((d: any) => d.createdBy === req.apiUser!.id);
       
       const stats = {
         totalDeals: userDeals.length,
@@ -162,7 +162,7 @@ export function registerApiRoutes(app: Express) {
       const status = req.query.status as string;
       const search = req.query.search as string;
 
-      let deals = await storage.getDeals();
+      let deals = await storage.getAllDeals();
       
       // Apply filters
       if (status) {
@@ -205,7 +205,7 @@ export function registerApiRoutes(app: Express) {
   app.get('/api/v1/deals/:id', optionalApiAuth, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.id);
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
@@ -217,8 +217,8 @@ export function registerApiRoutes(app: Express) {
       }
 
       // Get additional data
-      const documents = await storage.getDocumentsByDeal(dealId);
-      const analyses = await storage.getAgentAnalysesByDeal(dealId);
+      const documents = await storage.getDocumentsByDealId(dealId);
+      const analyses = await storage.getAnalysesByDealId(dealId);
       
       const dealData = {
         ...deal,
