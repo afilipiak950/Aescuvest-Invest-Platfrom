@@ -644,23 +644,23 @@ export default function InboxPage() {
         <DialogContent className="bg-gray-900 border-gray-800 max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
           {selectedEmail && (
             <>
-              <DialogHeader className="p-6 pb-0 shrink-0">
+              <DialogHeader className="p-6 pb-4 shrink-0 border-b border-gray-700">
                 <DialogTitle className="text-xl">{selectedEmail.subject}</DialogTitle>
                 <DialogDescription>
                   Von: {selectedEmail.from} • {formatDistanceToNow(new Date(selectedEmail.date), { addSuffix: true })}
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto space-y-4">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {emailLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <RefreshCw className="h-6 w-6 animate-spin mr-2" />
                     <span>Lade vollständigen E-Mail-Inhalt...</span>
                   </div>
                 ) : (
-                  <>
+                  <div className="p-6 space-y-6 flex-1">
                     {/* Email Header */}
-                    <div className="bg-gray-800 p-4 mx-6 rounded-lg border-b border-gray-700">
+                    <div className="bg-gray-800 p-4 rounded-lg border-b border-gray-700">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-white">
@@ -685,7 +685,7 @@ export default function InboxPage() {
                     </div>
 
                     {/* Email Content */}
-                    <div className="flex-1 bg-gray-800 p-6 mx-6 rounded-lg overflow-y-auto min-h-[400px]">
+                    <div className="bg-gray-800 p-6 rounded-lg flex-1 overflow-y-auto">
                       <div className="w-full max-w-none">
                         <div className="text-gray-100 leading-relaxed whitespace-pre-wrap break-words w-full">
                           {(() => {
@@ -708,7 +708,7 @@ export default function InboxPage() {
                     </div>
                     
                     {/* Enhanced Attachment Debug Section */}
-                    <div className="bg-gray-700 p-4 mx-6 rounded-lg text-xs">
+                    <div className="bg-gray-700 p-4 rounded-lg text-xs">
                       <div className="text-yellow-400 mb-3 font-semibold">🔍 Enhanced Attachment Debug Info:</div>
                       <div className="space-y-2 text-gray-300">
                         {/* Email Data Status */}
@@ -768,7 +768,7 @@ export default function InboxPage() {
 
                     {/* Attachment Display */}
                     {(fullEmailData?.hasAttachments || selectedEmail?.hasAttachments) && (
-                      <div className="bg-gray-800 p-4 mx-6 rounded-lg">
+                      <div className="bg-gray-800 p-4 rounded-lg">
                         <h4 className="font-semibold text-white mb-3 flex items-center">
                           <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z"/>
@@ -817,12 +817,12 @@ export default function InboxPage() {
                         )}
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
               
               {/* Bottom Action Button */}
-              <div className="px-6 py-4 border-t border-gray-700 shrink-0">
+              <div className="p-6 pt-4 border-t border-gray-700 shrink-0">
                 <Button
                   onClick={() => handleCreateDeal(selectedEmail.id)}
                   disabled={createDealMutation.isPending}
