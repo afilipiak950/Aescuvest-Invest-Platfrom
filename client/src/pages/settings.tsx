@@ -861,6 +861,152 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="scoring" className="space-y-6">
+            <Card className="bg-dark-light border-dark-lighter">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Investment Scoring Criteria
+                </CardTitle>
+                <CardDescription>
+                  Configure weightings for evaluation criteria used in AI investment scoring
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {criteriaLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="animate-pulse space-y-2">
+                        <div className="h-4 bg-dark-lighter rounded w-1/3"></div>
+                        <div className="h-8 bg-dark-lighter rounded w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-6">
+                      <Alert className="bg-blue-900/20 border-blue-500/50">
+                        <AlertCircle className="h-4 w-4 text-blue-400" />
+                        <AlertDescription className="text-blue-400">
+                          These weightings determine how the AI scores investment opportunities. Total weight should equal 100% for optimal scoring.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+
+                    <div className="space-y-4">
+                      {evaluationCriteria?.map((criteria: EvaluationCriteria) => (
+                        <div key={criteria.id} className="p-4 bg-dark border border-dark-lighter rounded-lg">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-white">{criteria.name}</h4>
+                              <p className="text-sm text-gray-400">{criteria.description}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Badge variant={criteria.is_active ? "default" : "secondary"} className="shrink-0">
+                                {criteria.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="flex-1">
+                              <Label htmlFor={`weight-${criteria.id}`} className="text-sm text-gray-300">
+                                Weight (%)
+                              </Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Input
+                                  id={`weight-${criteria.id}`}
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={criteria.weight}
+                                  onChange={(e) => {
+                                    const newWeight = parseInt(e.target.value) || 0;
+                                    updateCriteriaMutation.mutate({
+                                      id: criteria.id,
+                                      data: { weight: newWeight }
+                                    });
+                                  }}
+                                  className="w-20 bg-dark-light border-dark-lighter text-white"
+                                  disabled={updateCriteriaMutation.isPending}
+                                />
+                                <span className="text-gray-400">%</span>
+                              </div>
+                            </div>
+                            
+                            <div className="w-32">
+                              <div className="w-full bg-dark-lighter rounded-full h-2">
+                                <div 
+                                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${Math.min(criteria.weight, 100)}%` }}
+                                ></div>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1">{criteria.weight}% of total</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Total Weight Summary */}
+                    <div className="mt-6 p-4 rounded-lg bg-dark-light/20 border border-dark-lighter">
+                      <h5 className="text-sm font-medium mb-3 text-gray-300">Scoring Configuration Summary</h5>
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Total Weight:</span>
+                          <span className={`font-mono ${
+                            evaluationCriteria?.reduce((sum: number, criteria: EvaluationCriteria) => sum + criteria.weight, 0) === 100 
+                              ? 'text-green-400' 
+                              : 'text-yellow-400'
+                          }`}>
+                            {evaluationCriteria?.reduce((sum: number, criteria: EvaluationCriteria) => sum + criteria.weight, 0) || 0}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Active Criteria:</span>
+                          <span className="text-white font-mono">
+                            {evaluationCriteria?.filter((criteria: EvaluationCriteria) => criteria.is_active).length || 0}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Status:</span>
+                          <span className={`font-mono ${
+                            evaluationCriteria?.reduce((sum: number, criteria: EvaluationCriteria) => sum + criteria.weight, 0) === 100 
+                              ? 'text-green-400' 
+                              : 'text-yellow-400'
+                          }`}>
+                            {evaluationCriteria?.reduce((sum: number, criteria: EvaluationCriteria) => sum + criteria.weight, 0) === 100 
+                              ? 'OPTIMAL' 
+                              : 'NEEDS ADJUSTMENT'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Success/Error Feedback */}
+                    {updateCriteriaMutation.isSuccess && (
+                      <Alert className="bg-green-900/20 border-green-500/50">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <AlertDescription className="text-green-400">
+                          Evaluation criteria updated successfully. Changes will apply to new investment scoring.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {updateCriteriaMutation.isError && (
+                      <Alert className="bg-red-900/20 border-red-500/50">
+                        <AlertCircle className="h-4 w-4 text-red-400" />
+                        <AlertDescription className="text-red-400">
+                          Failed to update criteria: {updateCriteriaMutation.error?.message || 'Please try again.'}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
