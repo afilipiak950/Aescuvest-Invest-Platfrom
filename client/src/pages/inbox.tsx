@@ -707,17 +707,62 @@ export default function InboxPage() {
                       </div>
                     </div>
                     
-                    {/* Attachment Debug Section */}
-                    <div className="bg-gray-700 p-3 mx-6 rounded-lg text-xs">
-                      <div className="text-yellow-400 mb-2">🔍 Attachment Debug Info:</div>
-                      <div className="space-y-1 text-gray-300">
-                        <div>Has Attachments Flag: {fullEmailData?.hasAttachments ? 'Yes' : 'No'}</div>
-                        <div>Selected Email Has Attachments: {selectedEmail?.hasAttachments ? 'Yes' : 'No'}</div>
-                        <div>Attachments Array: {fullEmailData?.attachments ? `[${fullEmailData.attachments.length} items]` : 'null/undefined'}</div>
-                        <div>Attachments Type: {typeof fullEmailData?.attachments}</div>
+                    {/* Enhanced Attachment Debug Section */}
+                    <div className="bg-gray-700 p-4 mx-6 rounded-lg text-xs">
+                      <div className="text-yellow-400 mb-3 font-semibold">🔍 Enhanced Attachment Debug Info:</div>
+                      <div className="space-y-2 text-gray-300">
+                        {/* Email Data Status */}
+                        <div className="bg-gray-800 p-2 rounded">
+                          <div className="text-blue-400 font-medium mb-1">Email Data Status:</div>
+                          <div>• Selected Email ID: {selectedEmail?.id || 'N/A'}</div>
+                          <div>• Full Email Data ID: {fullEmailData?.id || 'N/A'}</div>
+                          <div>• Email Loading: {emailLoading ? 'Yes' : 'No'}</div>
+                          <div>• Data Fetch Complete: {fullEmailData ? 'Yes' : 'No'}</div>
+                        </div>
+
+                        {/* Attachment Flags */}
+                        <div className="bg-gray-800 p-2 rounded">
+                          <div className="text-green-400 font-medium mb-1">Attachment Flags:</div>
+                          <div>• Selected Email hasAttachments: {selectedEmail?.hasAttachments ? 'Yes' : 'No'}</div>
+                          <div>• Full Email hasAttachments: {fullEmailData?.hasAttachments ? 'Yes' : 'No'}</div>
+                          <div>• Selected Email attachmentProperty: {selectedEmail?.attachmentProperty ? 'Yes' : 'No'}</div>
+                          <div>• Selected Email attachmentValue: {selectedEmail?.attachmentValue ? 'Yes' : 'No'}</div>
+                        </div>
+
+                        {/* Attachment Data */}
+                        <div className="bg-gray-800 p-2 rounded">
+                          <div className="text-purple-400 font-medium mb-1">Attachment Data:</div>
+                          <div>• Attachments Array Type: {typeof fullEmailData?.attachments}</div>
+                          <div>• Attachments Array Length: {fullEmailData?.attachments ? fullEmailData.attachments.length : 'N/A'}</div>
+                          <div>• Attachments Exists: {fullEmailData?.attachments ? 'Yes' : 'No'}</div>
+                          <div>• Is Array: {Array.isArray(fullEmailData?.attachments) ? 'Yes' : 'No'}</div>
+                        </div>
+
+                        {/* Full Email Data Keys */}
+                        <div className="bg-gray-800 p-2 rounded">
+                          <div className="text-orange-400 font-medium mb-1">Full Email Data Keys:</div>
+                          <div className="text-xs">
+                            {fullEmailData ? Object.keys(fullEmailData).join(', ') : 'No full email data'}
+                          </div>
+                        </div>
+
+                        {/* Raw Attachment Data */}
                         {fullEmailData?.attachments && (
-                          <div>Attachments Content: {JSON.stringify(fullEmailData.attachments, null, 2)}</div>
+                          <div className="bg-gray-800 p-2 rounded max-h-40 overflow-y-auto">
+                            <div className="text-red-400 font-medium mb-1">Raw Attachment Data:</div>
+                            <pre className="whitespace-pre-wrap text-xs">
+                              {JSON.stringify(fullEmailData.attachments, null, 2)}
+                            </pre>
+                          </div>
                         )}
+
+                        {/* Server Response Debug */}
+                        <div className="bg-gray-800 p-2 rounded">
+                          <div className="text-cyan-400 font-medium mb-1">Server Response Debug:</div>
+                          <div>• Response Status: {emailError ? 'Error' : 'Success'}</div>
+                          <div>• Error Message: {emailError || 'None'}</div>
+                          <div>• Last Fetch Time: {new Date().toLocaleTimeString()}</div>
+                        </div>
                       </div>
                     </div>
 
