@@ -239,6 +239,21 @@ router.get('/emails/:id', authenticate, async (req: Request, res: Response) => {
         source: 'microsoft'
       };
       
+      console.log('🔍 DETAILED EMAIL DATA DEBUG:', {
+        emailId: emailData.id,
+        subject: emailData.subject,
+        hasAttachments: emailData.hasAttachments,
+        attachmentsCount: emailData.attachments.length,
+        attachmentsArray: emailData.attachments,
+        fullEmailDataKeys: Object.keys(emailData),
+        attachmentDetails: emailData.attachments.map(att => ({
+          id: att.id,
+          name: att.name,
+          contentType: att.contentType,
+          size: att.size,
+          isInline: att.isInline
+        }))
+      });
       console.log(`Email details fetched: ${emailData.attachments.length} attachments`);
       return res.json(emailData);
     }

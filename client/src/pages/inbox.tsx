@@ -292,13 +292,31 @@ export default function InboxPage() {
     queryKey: ['/api/inbox/emails', selectedEmail?.id],
     queryFn: async () => {
       if (!selectedEmail?.id) return null;
+      console.log('🔍 FRONTEND: Fetching email details for ID:', selectedEmail.id);
       const response = await fetch(`/api/inbox/emails/${selectedEmail.id}`, {
         credentials: 'include',
       });
       if (!response.ok) {
         throw new Error('Failed to fetch email details');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('🔍 FRONTEND: Email data received:', {
+        emailId: data?.id,
+        subject: data?.subject,
+        hasAttachments: data?.hasAttachments,
+        attachmentsExists: !!data?.attachments,
+        attachmentsIsArray: Array.isArray(data?.attachments),
+        attachmentsLength: data?.attachments?.length || 0,
+        attachmentDetails: data?.attachments?.map((att: any) => ({
+          id: att.id,
+          name: att.name,
+          contentType: att.contentType,
+          size: att.size
+        })) || [],
+        fullDataKeys: data ? Object.keys(data) : [],
+        rawAttachmentData: data?.attachments
+      });
+      return data;
     },
     enabled: !!selectedEmail?.id,
   });
@@ -725,8 +743,8 @@ export default function InboxPage() {
                           <div className="text-green-400 font-medium mb-1">Attachment Flags:</div>
                           <div>• Selected Email hasAttachments: {selectedEmail?.hasAttachments ? 'Yes' : 'No'}</div>
                           <div>• Full Email hasAttachments: {fullEmailData?.hasAttachments ? 'Yes' : 'No'}</div>
-                          <div>• Selected Email attachmentProperty: {selectedEmail?.attachmentProperty ? 'Yes' : 'No'}</div>
-                          <div>• Selected Email attachmentValue: {selectedEmail?.attachmentValue ? 'Yes' : 'No'}</div>
+                          <div>• Selected Email attachments array: {selectedEmail?.attachments ? 'Yes' : 'No'}</div>
+                          <div>• Full Email attachments array: {fullEmailData?.attachments ? 'Yes' : 'No'}</div>
                         </div>
 
                         {/* Attachment Data */}
@@ -759,8 +777,8 @@ export default function InboxPage() {
                         {/* Server Response Debug */}
                         <div className="bg-gray-800 p-2 rounded">
                           <div className="text-cyan-400 font-medium mb-1">Server Response Debug:</div>
-                          <div>• Response Status: {emailError ? 'Error' : 'Success'}</div>
-                          <div>• Error Message: {emailError || 'None'}</div>
+                          <div>• Response Status: {emailsError ? 'Error' : 'Success'}</div>
+                          <div>• Error Message: {emailsError ? String(emailsError) : 'None'}</div>
                           <div>• Last Fetch Time: {new Date().toLocaleTimeString()}</div>
                         </div>
                       </div>
