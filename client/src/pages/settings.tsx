@@ -35,6 +35,16 @@ interface SystemSettings {
   language: string;
 }
 
+interface EvaluationCriteria {
+  id: number;
+  name: string;
+  description: string;
+  weight: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
@@ -46,6 +56,12 @@ export default function SettingsPage() {
   });
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
   const [showApiKey, setShowApiKey] = useState(false);
+
+  // Evaluation criteria query
+  const { data: evaluationCriteria, isLoading: criteriaLoading } = useQuery({
+    queryKey: ['/api/evaluation-criteria'],
+    refetchInterval: 5000, // Sync every 5 seconds
+  });
 
   // User settings query with refetch interval to ensure UI sync
   const { data: userSettings, isLoading: userLoading, refetch: refetchUser } = useQuery<UserSettings>({
@@ -118,6 +134,30 @@ export default function SettingsPage() {
       toast({
         title: "Error",
         description: "Failed to update system settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Evaluation criteria mutation
+  const updateCriteriaMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number, data: { weight: number } }) => 
+      apiRequest(`/api/evaluation-criteria/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluation-criteria'] });
+      toast({
+        title: "Success",
+        description: "Evaluation criteria updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error('❌ Criteria update error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update evaluation criteria",
         variant: "destructive",
       });
     },
@@ -307,7 +347,7 @@ export default function SettingsPage() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-dark-light border border-dark-lighter">
+          <TabsList className="grid w-full grid-cols-5 bg-dark-light border border-dark-lighter">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -319,6 +359,10 @@ export default function SettingsPage() {
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Security
+            </TabsTrigger>
+            <TabsTrigger value="scoring" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Scoring
             </TabsTrigger>
             <TabsTrigger value="system" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
