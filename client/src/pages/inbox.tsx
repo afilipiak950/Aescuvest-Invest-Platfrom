@@ -781,16 +781,6 @@ export default function InboxPage() {
                       )}
                     </>
                   )}
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleCreateDeal(selectedEmail.id)}
-                      disabled={createDealMutation.isPending}
-                    >
-                      <Building className="h-4 w-4 mr-2" />
-                      Deal aus dieser E-Mail erstellen
-                    </Button>
-                  </div>
                 </TabsContent>
                 
                 <TabsContent value="preview" className="flex-1 flex flex-col space-y-4 min-h-0 overflow-y-auto">
@@ -825,6 +815,18 @@ export default function InboxPage() {
                   )}
                 </TabsContent>
                 </Tabs>
+              </div>
+              
+              {/* Bottom Action Button */}
+              <div className="p-6 pt-0 border-t border-gray-700 shrink-0">
+                <Button
+                  onClick={() => handleCreateDeal(selectedEmail.id)}
+                  disabled={createDealMutation.isPending}
+                  className="w-full"
+                >
+                  <Building className="h-4 w-4 mr-2" />
+                  Deal aus dieser E-Mail erstellen
+                </Button>
               </div>
             </>
           )}
