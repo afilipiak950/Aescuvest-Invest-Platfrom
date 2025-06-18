@@ -1777,36 +1777,38 @@ The company maintains a strong competitive position through its technical moat a
       
       console.log('🔄 Updating user settings for user:', userId, updates);
       
-      // Get current user data
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      // Build updated user object
-      let updatedUserData: any = { ...currentUser };
+      // Prepare update data for database
+      const updateData: any = {};
       
       // Handle name updates
       if (updates.firstName || updates.lastName) {
-        const firstName = updates.firstName || currentUser.name?.split(' ')[0] || 'Admin';
-        const lastName = updates.lastName || currentUser.name?.split(' ')[1] || 'User';
-        updatedUserData.name = `${firstName} ${lastName}`;
+        const currentUser = await storage.getUser(userId);
+        const firstName = updates.firstName || currentUser?.name?.split(' ')[0] || 'Admin';
+        const lastName = updates.lastName || currentUser?.name?.split(' ')[1] || 'User';
+        updateData.name = `${firstName} ${lastName}`;
       }
       
-      // Handle email updates
-      if (updates.email) {
-        updatedUserData.email = updates.email;
-      }
+      // Handle all preference updates directly
+      if (updates.email !== undefined) updateData.email = updates.email;
+      if (updates.timezone !== undefined) updateData.timezone = updates.timezone;
+      if (updates.emailNotifications !== undefined) updateData.emailNotifications = updates.emailNotifications;
+      if (updates.dealNotifications !== undefined) updateData.dealNotifications = updates.dealNotifications;
+      if (updates.aiNotifications !== undefined) updateData.aiNotifications = updates.aiNotifications;
+      if (updates.weeklyReports !== undefined) updateData.weeklyReports = updates.weeklyReports;
       
       // Update user in database
-      await storage.updateUser(userId, updatedUserData);
+      const updatedUser = await storage.updateUser(userId, updateData);
       
-      console.log('✅ User settings updated successfully:', updatedUserData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      console.log('✅ User settings updated successfully');
       
       res.json({ 
         success: true, 
         message: 'User settings updated successfully',
-        user: updatedUserData
+        user: updatedUser
       });
     } catch (error) {
       console.error('❌ Error updating user settings:', error);

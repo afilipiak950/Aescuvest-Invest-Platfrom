@@ -37,17 +37,18 @@ interface SystemSettings {
 export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
-  const [userSettingsState, setUserSettingsState] = useState<UserSettings | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
 
-  // User settings query
-  const { data: userSettings, isLoading: userLoading } = useQuery<UserSettings>({
+  // User settings query with refetch interval to ensure UI sync
+  const { data: userSettings, isLoading: userLoading, refetch: refetchUser } = useQuery<UserSettings>({
     queryKey: ['/api/settings/user'],
+    refetchOnWindowFocus: true,
   });
 
-  // System settings query
-  const { data: systemSettings, isLoading: systemLoading } = useQuery<SystemSettings>({
+  // System settings query with refetch interval to ensure UI sync
+  const { data: systemSettings, isLoading: systemLoading, refetch: refetchSystem } = useQuery<SystemSettings>({
     queryKey: ['/api/settings/system'],
+    refetchOnWindowFocus: true,
   });
 
   // Update user settings mutation
@@ -61,8 +62,11 @@ export default function SettingsPage() {
       console.log('✅ User settings update response:', response);
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       console.log('✅ User settings update successful:', { data, variables });
+      // Force immediate refetch to update UI state
+      await refetchUser();
+      // Also invalidate cache for good measure
       queryClient.invalidateQueries({ queryKey: ['/api/settings/user'] });
       toast({
         title: "Settings Updated",
@@ -90,8 +94,11 @@ export default function SettingsPage() {
       console.log('✅ System settings update response:', response);
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       console.log('✅ System settings update successful:', { data, variables });
+      // Force immediate refetch to update UI state
+      await refetchSystem();
+      // Also invalidate cache for good measure
       queryClient.invalidateQueries({ queryKey: ['/api/settings/system'] });
       toast({
         title: "System Settings Updated",
