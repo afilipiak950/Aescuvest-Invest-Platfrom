@@ -263,6 +263,13 @@ export default function SettingsPage() {
 
   const handleSystemSettingChange = (key: string, value: any) => {
     console.log('🔧 System Setting Change:', { key, value, currentData: systemSettings });
+    
+    // Optimistic UI update
+    queryClient.setQueryData(['/api/settings/system'], (oldData: any) => ({
+      ...oldData,
+      [key]: value
+    }));
+    
     updateSystemMutation.mutate({ [key]: value });
   };
 
@@ -755,12 +762,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Success/Error Feedback */}
+                {/* Success/Error Feedback with Real-time Status */}
                 {updateSystemMutation.isSuccess && (
                   <Alert className="bg-green-900/20 border-green-500/50">
                     <CheckCircle className="h-4 w-4 text-green-400" />
                     <AlertDescription className="text-green-400">
-                      System settings updated successfully. Changes will take effect immediately.
+                      System settings updated successfully. Changes are now active across the platform.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -769,7 +776,7 @@ export default function SettingsPage() {
                   <Alert className="bg-red-900/20 border-red-500/50">
                     <AlertCircle className="h-4 w-4 text-red-400" />
                     <AlertDescription className="text-red-400">
-                      Failed to update system settings. Please try again or contact support.
+                      Failed to update system settings: {updateSystemMutation.error?.message || 'Please verify admin permissions and try again.'}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -778,10 +785,35 @@ export default function SettingsPage() {
                   <Alert className="bg-blue-900/20 border-blue-500/50">
                     <AlertCircle className="h-4 w-4 text-blue-400" />
                     <AlertDescription className="text-blue-400">
-                      Updating system settings...
+                      Updating system configuration in database...
                     </AlertDescription>
                   </Alert>
                 )}
+
+                {/* Real-time Settings Status Display */}
+                <div className="mt-4 p-3 rounded-lg bg-dark-light/20 border border-dark-lighter">
+                  <h5 className="text-sm font-medium mb-2 text-gray-300">Current System Configuration</h5>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">AI Model:</span>
+                      <span className="text-white font-mono">{(systemSettings as SystemSettings)?.defaultAiModel || 'gpt-4o'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Email Processing:</span>
+                      <span className={`font-mono ${(systemSettings as SystemSettings)?.autoProcessEmails ? 'text-green-400' : 'text-red-400'}`}>
+                        {(systemSettings as SystemSettings)?.autoProcessEmails ? 'ACTIVE' : 'INACTIVE'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Theme:</span>
+                      <span className="text-white font-mono">{(systemSettings as SystemSettings)?.theme || 'dark'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Language:</span>
+                      <span className="text-white font-mono">{(systemSettings as SystemSettings)?.language || 'en'}</span>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
