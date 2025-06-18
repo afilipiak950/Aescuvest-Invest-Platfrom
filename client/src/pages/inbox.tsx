@@ -641,7 +641,7 @@ export default function InboxPage() {
 
       {/* Email Detail Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-6xl w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="bg-gray-900 border-gray-800 max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
           {selectedEmail && (
             <>
               <DialogHeader className="p-6 pb-0 shrink-0">
@@ -693,8 +693,8 @@ export default function InboxPage() {
 
                       {/* Email Content */}
                       <div className="flex-1 bg-gray-800 p-6 rounded-lg overflow-y-auto min-h-0">
-                        <div className="prose prose-gray max-w-none">
-                          <div className="text-gray-100 leading-relaxed whitespace-pre-wrap break-words">
+                        <div className="w-full max-w-none">
+                          <div className="text-gray-100 leading-relaxed whitespace-pre-wrap break-words w-full">
                             {(() => {
                               const emailData = fullEmailData || selectedEmail;
                               
