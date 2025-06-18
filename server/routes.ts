@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { documents } from "../shared/schema";
+import { documents, systemSettings } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -1822,17 +1822,29 @@ The company maintains a strong competitive position through its technical moat a
         return res.status(403).json({ message: 'Access denied. Admin rights required.' });
       }
 
-      // System settings data - flattened structure for frontend compatibility
-      const systemSettings = {
-        defaultAiModel: 'gpt-4o',
-        autoProcessEmails: false,
-        theme: 'dark',
-        language: 'en'
+      console.log('🔄 Fetching system settings from database...');
+      
+      // Fetch system settings from database
+      const settingsQuery = await db.select().from(systemSettings);
+      const settings: Record<string, string> = {};
+      
+      // Convert array to object for frontend compatibility
+      settingsQuery.forEach(setting => {
+        settings[setting.key] = setting.value;
+      });
+      
+      // Ensure all required settings have defaults
+      const systemSettingsData = {
+        defaultAiModel: settings.defaultAiModel || 'gpt-4o',
+        autoProcessEmails: settings.autoProcessEmails === 'true',
+        theme: settings.theme || 'dark',
+        language: settings.language || 'en'
       };
 
-      res.json(systemSettings);
+      console.log('✅ System settings retrieved:', systemSettingsData);
+      res.json(systemSettingsData);
     } catch (error) {
-      console.error('Error fetching system settings:', error);
+      console.error('❌ Error fetching system settings:', error);
       res.status(500).json({ message: 'Failed to fetch system settings' });
     }
   });
@@ -1845,14 +1857,45 @@ The company maintains a strong competitive position through its technical moat a
         return res.status(403).json({ message: 'Access denied. Admin rights required.' });
       }
 
-      console.log('Updating system settings:', req.body);
+      const updates = req.body;
+      console.log('🔄 Updating system settings:', updates);
+
+      // Update each setting in the database
+      const updatePromises = Object.entries(updates).map(async ([key, value]) => {
+        const stringValue = typeof value === 'boolean' ? value.toString() : String(value);
+        
+        const [updatedSetting] = await db
+          .update(systemSettings)
+          .set({ 
+            value: stringValue,
+            updatedAt: new Date()
+          })
+          .where(eq(systemSettings.key, key))
+          .returning();
+
+        if (!updatedSetting) {
+          // If setting doesn't exist, create it
+          await db.insert(systemSettings).values({
+            key,
+            value: stringValue,
+            description: `System setting: ${key}`,
+            category: 'general'
+          });
+        }
+        
+        console.log(`✅ Updated system setting: ${key} = ${stringValue}`);
+        return { key, value: stringValue };
+      });
+
+      await Promise.all(updatePromises);
       
       res.json({ 
         success: true, 
-        message: 'System settings updated successfully' 
+        message: 'System settings updated successfully',
+        updates: Object.keys(updates)
       });
     } catch (error) {
-      console.error('Error updating system settings:', error);
+      console.error('❌ Error updating system settings:', error);
       res.status(500).json({ message: 'Failed to update system settings' });
     }
   });
@@ -1862,7 +1905,12 @@ The company maintains a strong competitive position through its technical moat a
       const userId = req.userId;
       const apiKey = `aesc_${randomUUID().replace(/-/g, '')}`;
       
-      console.log('Generated API key for user:', userId);
+      console.log('🔑 Generating API key for user:', userId);
+      
+      // Store API key in database
+      await storage.updateUser(userId, { apiKey });
+      
+      console.log('✅ API key stored in database for user:', userId);
       
       res.json({ 
         success: true, 
@@ -1870,7 +1918,7 @@ The company maintains a strong competitive position through its technical moat a
         apiKey: apiKey
       });
     } catch (error) {
-      console.error('Error generating API key:', error);
+      console.error('❌ Error generating API key:', error);
       res.status(500).json({ message: 'Failed to generate API key' });
     }
   });
