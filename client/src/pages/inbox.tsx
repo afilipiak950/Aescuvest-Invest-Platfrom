@@ -651,14 +651,14 @@ export default function InboxPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="flex-1 flex flex-col min-h-0 p-6 pt-4">
+              <div className="flex-1 flex flex-col min-h-0">
                 <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
-                  <TabsList className="grid w-full grid-cols-2 shrink-0">
+                  <TabsList className="grid w-full grid-cols-2 shrink-0 mx-6 mt-4">
                     <TabsTrigger value="content">E-Mail Inhalt</TabsTrigger>
                     <TabsTrigger value="preview">Deal Vorschau</TabsTrigger>
                   </TabsList>
                 
-                <TabsContent value="content" className="flex-1 flex flex-col space-y-4 min-h-0 overflow-y-auto">
+                <TabsContent value="content" className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 pt-4">
                   {emailLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <RefreshCw className="h-6 w-6 animate-spin mr-2" />
@@ -783,7 +783,7 @@ export default function InboxPage() {
                   )}
                 </TabsContent>
                 
-                <TabsContent value="preview" className="flex-1 flex flex-col space-y-4 min-h-0 overflow-y-auto">
+                <TabsContent value="preview" className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 pt-4">
                   {/* AI Analysis Section */}
                   <div className="bg-gray-800 p-4 rounded-lg">
                     <div className="flex items-center justify-between mb-4">
