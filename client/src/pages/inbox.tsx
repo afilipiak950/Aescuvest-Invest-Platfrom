@@ -651,141 +651,129 @@ export default function InboxPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
-                  <TabsList className="grid w-full grid-cols-2 shrink-0 mx-6 mt-4">
-                    <TabsTrigger value="content">E-Mail Inhalt</TabsTrigger>
-                    <TabsTrigger value="preview">Deal Vorschau</TabsTrigger>
-                  </TabsList>
-                
-                <TabsContent value="content" className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 pt-4">
-                  {emailLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                      <span>Lade vollständigen E-Mail-Inhalt...</span>
+              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-4">
+                {emailLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                    <span>Lade vollständigen E-Mail-Inhalt...</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Email Header */}
+                    <div className="bg-gray-800 p-4 rounded-lg border-b border-gray-700">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-white">
+                            {fullEmailData?.subject || selectedEmail.subject}
+                          </h3>
+                          <span className="text-sm text-gray-400">
+                            {formatDistanceToNow(new Date(fullEmailData?.date || selectedEmail.date), { addSuffix: true })}
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm text-gray-300">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">Von:</span>
+                            <span>{fullEmailData?.from || selectedEmail.from}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">An:</span>
+                            <span>{fullEmailData?.to || selectedEmail.to}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <>
-                      {/* Email Header */}
-                      <div className="bg-gray-800 p-4 rounded-lg border-b border-gray-700">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-white">
-                              {fullEmailData?.subject || selectedEmail.subject}
-                            </h3>
-                            <span className="text-sm text-gray-400">
-                              {formatDistanceToNow(new Date(fullEmailData?.date || selectedEmail.date), { addSuffix: true })}
-                            </span>
-                          </div>
-                          
-                          <div className="text-sm text-gray-300">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">Von:</span>
-                              <span>{fullEmailData?.from || selectedEmail.from}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">An:</span>
-                              <span>{fullEmailData?.to || selectedEmail.to}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Email Content */}
-                      <div className="flex-1 bg-gray-800 p-6 rounded-lg overflow-y-auto min-h-0">
-                        <div className="w-full max-w-none">
-                          <div className="text-gray-100 leading-relaxed whitespace-pre-wrap break-words w-full">
-                            {(() => {
-                              const emailData = fullEmailData || selectedEmail;
-                              
-                              // Try HTML content first
-                              if (emailData?.html && emailData.html.trim()) {
-                                return htmlToPlainText(emailData.html);
-                              }
-                              
-                              // Try text content
-                              if (emailData?.text && emailData.text.trim()) {
-                                return emailData.text;
-                              }
-                              
-                              return 'Keine E-Mail-Inhalte verfügbar';
-                            })()}
-                          </div>
+                    {/* Email Content */}
+                    <div className="flex-1 bg-gray-800 p-6 rounded-lg overflow-y-auto min-h-0">
+                      <div className="w-full max-w-none">
+                        <div className="text-gray-100 leading-relaxed whitespace-pre-wrap break-words w-full">
+                          {(() => {
+                            const emailData = fullEmailData || selectedEmail;
+                            
+                            // Try HTML content first
+                            if (emailData?.html && emailData.html.trim()) {
+                              return htmlToPlainText(emailData.html);
+                            }
+                            
+                            // Try text content
+                            if (emailData?.text && emailData.text.trim()) {
+                              return emailData.text;
+                            }
+                            
+                            return 'Keine E-Mail-Inhalte verfügbar';
+                          })()}
                         </div>
                       </div>
-                      
-                      {/* Attachment Debug Section */}
-                      <div className="bg-gray-700 p-3 rounded-lg text-xs">
-                        <div className="text-yellow-400 mb-2">🔍 Attachment Debug Info:</div>
-                        <div className="space-y-1 text-gray-300">
-                          <div>Has Attachments Flag: {fullEmailData?.hasAttachments ? 'Yes' : 'No'}</div>
-                          <div>Selected Email Has Attachments: {selectedEmail?.hasAttachments ? 'Yes' : 'No'}</div>
-                          <div>Attachments Array: {fullEmailData?.attachments ? `[${fullEmailData.attachments.length} items]` : 'null/undefined'}</div>
-                          <div>Attachments Type: {typeof fullEmailData?.attachments}</div>
-                          {fullEmailData?.attachments && (
-                            <div>Attachments Content: {JSON.stringify(fullEmailData.attachments, null, 2)}</div>
-                          )}
-                        </div>
+                    </div>
+                    
+                    {/* Attachment Debug Section */}
+                    <div className="bg-gray-700 p-3 rounded-lg text-xs">
+                      <div className="text-yellow-400 mb-2">🔍 Attachment Debug Info:</div>
+                      <div className="space-y-1 text-gray-300">
+                        <div>Has Attachments Flag: {fullEmailData?.hasAttachments ? 'Yes' : 'No'}</div>
+                        <div>Selected Email Has Attachments: {selectedEmail?.hasAttachments ? 'Yes' : 'No'}</div>
+                        <div>Attachments Array: {fullEmailData?.attachments ? `[${fullEmailData.attachments.length} items]` : 'null/undefined'}</div>
+                        <div>Attachments Type: {typeof fullEmailData?.attachments}</div>
+                        {fullEmailData?.attachments && (
+                          <div>Attachments Content: {JSON.stringify(fullEmailData.attachments, null, 2)}</div>
+                        )}
                       </div>
+                    </div>
 
-                      {/* Attachment Display */}
-                      {(fullEmailData?.hasAttachments || selectedEmail?.hasAttachments) && (
-                        <div className="bg-gray-800 p-4 rounded-lg">
-                          <h4 className="font-semibold text-white mb-3 flex items-center">
-                            <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z"/>
-                            </svg>
-                            Anhänge {fullEmailData?.attachments ? `(${fullEmailData.attachments.length})` : '(wird geladen...)'}
-                          </h4>
-                          
-                          {fullEmailData?.attachments && fullEmailData.attachments.length > 0 ? (
-                            <div className="space-y-2">
-                              {fullEmailData.attachments.map((attachment: any, index: number) => (
-                                <div key={attachment.id || index} className="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600 transition-colors">
-                                  <div className="flex items-center flex-1">
-                                    <svg className="h-5 w-5 mr-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
-                                    </svg>
-                                    <div className="flex-1">
-                                      <div className="text-sm font-medium text-white">{attachment.name || 'Unnamed attachment'}</div>
-                                      <div className="text-xs text-gray-400 flex items-center gap-2">
-                                        <span>{attachment.size ? Math.round(attachment.size / 1024) + ' KB' : 'Unknown size'}</span>
-                                        <span>•</span>
-                                        <span>{attachment.contentType || 'Unknown type'}</span>
-                                      </div>
+                    {/* Attachment Display */}
+                    {(fullEmailData?.hasAttachments || selectedEmail?.hasAttachments) && (
+                      <div className="bg-gray-800 p-4 rounded-lg">
+                        <h4 className="font-semibold text-white mb-3 flex items-center">
+                          <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z"/>
+                          </svg>
+                          Anhänge {fullEmailData?.attachments ? `(${fullEmailData.attachments.length})` : '(wird geladen...)'}
+                        </h4>
+                        
+                        {fullEmailData?.attachments && fullEmailData.attachments.length > 0 ? (
+                          <div className="space-y-2">
+                            {fullEmailData.attachments.map((attachment: any, index: number) => (
+                              <div key={attachment.id || index} className="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600 transition-colors">
+                                <div className="flex items-center flex-1">
+                                  <svg className="h-5 w-5 mr-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                  </svg>
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-white">{attachment.name || 'Unnamed attachment'}</div>
+                                    <div className="text-xs text-gray-400 flex items-center gap-2">
+                                      <span>{attachment.size ? Math.round(attachment.size / 1024) + ' KB' : 'Unknown size'}</span>
+                                      <span>•</span>
+                                      <span>{attachment.contentType || 'Unknown type'}</span>
                                     </div>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDownloadAttachment(selectedEmail?.id || '', attachment.id, attachment.name)}
-                                    className="ml-3 shrink-0"
-                                  >
-                                    <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
-                                    </svg>
-                                    Download
-                                  </Button>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-gray-400 text-sm">
-                              {fullEmailData?.attachments === undefined ? 
-                                'Lade Anhänge...' : 
-                                'E-Mail hat Anhänge laut Microsoft, aber keine Details verfügbar'
-                              }
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="preview" className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 pt-4">
-                </TabsContent>
-                </Tabs>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadAttachment(selectedEmail?.id || '', attachment.id, attachment.name)}
+                                  className="ml-3 shrink-0"
+                                >
+                                  <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                  </svg>
+                                  Download
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-sm">
+                            {fullEmailData?.attachments === undefined ? 
+                              'Lade Anhänge...' : 
+                              'E-Mail hat Anhänge laut Microsoft, aber keine Details verfügbar'
+                            }
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
               
               {/* Bottom Action Button */}
