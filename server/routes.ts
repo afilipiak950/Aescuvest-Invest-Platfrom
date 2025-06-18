@@ -1748,19 +1748,19 @@ The company maintains a strong competitive position through its technical moat a
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // User settings data - flattened structure for frontend compatibility
+      // User settings data - from database with proper structure
       const userSettings = {
         id: user.id,
         firstName: user.name?.split(' ')[0] || 'Admin',
         lastName: user.name?.split(' ')[1] || 'User',
         email: user.email,
         role: user.role,
-        timezone: 'Europe/Berlin',
-        emailNotifications: true,
-        dealNotifications: true,
-        aiNotifications: true,
-        weeklyReports: false,
-        apiKey: null // Will be populated when generated
+        timezone: user.timezone || 'UTC',
+        emailNotifications: user.emailNotifications ?? true,
+        dealNotifications: user.dealNotifications ?? true,
+        aiNotifications: user.aiNotifications ?? true,
+        weeklyReports: user.weeklyReports ?? false,
+        apiKey: user.apiKey || null
       };
 
       res.json(userSettings);

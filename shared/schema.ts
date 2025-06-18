@@ -16,12 +16,36 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role").notNull().default(UserRole.USER),
   avatar: text("avatar"),
+  // User preferences and settings
+  timezone: text("timezone").default("UTC"),
+  emailNotifications: boolean("email_notifications").default(true),
+  dealNotifications: boolean("deal_notifications").default(true),
+  aiNotifications: boolean("ai_notifications").default(true),
+  weeklyReports: boolean("weekly_reports").default(false),
+  apiKey: text("api_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // We'll extend this schema with validation in the registration component
 export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// System Settings table for global configuration
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  category: text("category").default("general"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
