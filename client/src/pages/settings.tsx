@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
-import { Settings, User, Bell, Shield, Key, Database, Mail, Palette, Globe } from 'lucide-react';
+import { Settings, User, Bell, Shield, Key, Database, Mail, Palette, Globe, AlertCircle, CheckCircle, Copy } from 'lucide-react';
 
 interface UserSettings {
   id: number;
@@ -38,6 +39,13 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // User settings query with refetch interval to ensure UI sync
   const { data: userSettings, isLoading: userLoading, refetch: refetchUser } = useQuery<UserSettings>({
@@ -177,6 +185,76 @@ export default function SettingsPage() {
       });
     },
   });
+
+  // Password validation function
+  const validatePassword = (data: typeof passwordData): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!data.currentPassword) {
+      errors.currentPassword = 'Current password is required';
+    }
+    
+    if (!data.newPassword) {
+      errors.newPassword = 'New password is required';
+    } else if (data.newPassword.length < 8) {
+      errors.newPassword = 'Password must be at least 8 characters';
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(data.newPassword)) {
+      errors.newPassword = 'Password must contain uppercase, lowercase, and number';
+    }
+    
+    if (!data.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (data.newPassword !== data.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    return errors;
+  };
+
+  // Handle password change with validation
+  const handlePasswordChange = () => {
+    const errors = validatePassword(passwordData);
+    setPasswordErrors(errors);
+    
+    if (Object.keys(errors).length === 0) {
+      changePasswordMutation.mutate({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+    }
+  };
+
+  // Clear password form after successful change
+  useEffect(() => {
+    if (changePasswordMutation.isSuccess) {
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setPasswordErrors({});
+    }
+  }, [changePasswordMutation.isSuccess]);
+
+  // Copy API key to clipboard
+  const copyApiKey = async () => {
+    const keyToCopy = apiKey || (userSettings as UserSettings)?.apiKey;
+    if (keyToCopy) {
+      try {
+        await navigator.clipboard.writeText(keyToCopy);
+        toast({
+          title: "Copied",
+          description: "API key copied to clipboard",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to copy API key",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
   const handleUserSettingChange = (key: string, value: any) => {
     console.log('🔧 User Setting Change:', { key, value, currentData: userSettings });
@@ -381,37 +459,80 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium">Change Password</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  
+                  {/* Password Requirements Alert */}
+                  <Alert className="bg-dark-light border-dark-lighter">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Password must be at least 8 characters and include uppercase, lowercase, and number.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="currentPassword">Current Password</Label>
                       <Input
                         id="currentPassword"
                         type="password"
-                        className="bg-dark border-dark-lighter"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        className={`bg-dark border-dark-lighter ${passwordErrors.currentPassword ? 'border-red-500' : ''}`}
+                        placeholder="Enter current password"
                       />
+                      {passwordErrors.currentPassword && (
+                        <p className="text-sm text-red-400">{passwordErrors.currentPassword}</p>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">New Password</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        className="bg-dark border-dark-lighter"
-                      />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          className={`bg-dark border-dark-lighter ${passwordErrors.newPassword ? 'border-red-500' : ''}`}
+                          placeholder="Enter new password"
+                        />
+                        {passwordErrors.newPassword && (
+                          <p className="text-sm text-red-400">{passwordErrors.newPassword}</p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          className={`bg-dark border-dark-lighter ${passwordErrors.confirmPassword ? 'border-red-500' : ''}`}
+                          placeholder="Confirm new password"
+                        />
+                        {passwordErrors.confirmPassword && (
+                          <p className="text-sm text-red-400">{passwordErrors.confirmPassword}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  
                   <Button
-                    onClick={() => {
-                      const currentPassword = (document.getElementById('currentPassword') as HTMLInputElement)?.value;
-                      const newPassword = (document.getElementById('newPassword') as HTMLInputElement)?.value;
-                      if (currentPassword && newPassword) {
-                        changePasswordMutation.mutate({ currentPassword, newPassword });
-                      }
-                    }}
+                    onClick={handlePasswordChange}
                     disabled={changePasswordMutation.isPending}
                     className="bg-primary hover:bg-primary/90"
                   >
                     {changePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
                   </Button>
+                  
+                  {changePasswordMutation.isSuccess && (
+                    <Alert className="bg-green-900/20 border-green-500/50">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      <AlertDescription className="text-green-400">
+                        Password updated successfully
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <Separator className="bg-dark-lighter" />
@@ -426,24 +547,59 @@ export default function SettingsPage() {
                       onClick={() => generateApiKeyMutation.mutate()}
                       disabled={generateApiKeyMutation.isPending}
                       variant="outline"
-                      className="border-dark-lighter"
+                      className="border-dark-lighter hover:bg-dark-lighter"
                     >
                       <Key className="h-4 w-4 mr-2" />
                       {generateApiKeyMutation.isPending ? 'Generating...' : 'Generate New Key'}
                     </Button>
                   </div>
+                  
                   {(apiKey || (userSettings as UserSettings)?.apiKey) && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Label>Current API Key</Label>
                       <div className="flex items-center gap-2">
                         <Input
-                          value={apiKey || (userSettings as UserSettings)?.apiKey || ''}
+                          value={showApiKey ? (apiKey || (userSettings as UserSettings)?.apiKey || '') : '••••••••••••••••••••••••••••••••'}
                           readOnly
                           className="bg-dark border-dark-lighter font-mono text-xs"
                         />
-                        <Badge variant="secondary">Active</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="border-dark-lighter hover:bg-dark-lighter"
+                        >
+                          {showApiKey ? 'Hide' : 'Show'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={copyApiKey}
+                          className="border-dark-lighter hover:bg-dark-lighter"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Badge variant="secondary" className="bg-green-900/20 text-green-400 border-green-500/50">
+                          Active
+                        </Badge>
                       </div>
+                      
+                      <Alert className="bg-blue-900/20 border-blue-500/50">
+                        <AlertCircle className="h-4 w-4 text-blue-400" />
+                        <AlertDescription className="text-blue-400">
+                          Keep your API key secure. It provides full access to your account via the API.
+                        </AlertDescription>
+                      </Alert>
                     </div>
+                  )}
+                  
+                  {generateApiKeyMutation.isSuccess && (
+                    <Alert className="bg-green-900/20 border-green-500/50">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      <AlertDescription className="text-green-400">
+                        New API key generated successfully. Make sure to copy it now as it won't be shown again.
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
               </CardContent>
@@ -467,22 +623,31 @@ export default function SettingsPage() {
                     <Database className="h-4 w-4" />
                     AI Model Settings
                   </h4>
-                  <div className="space-y-2">
-                    <Label htmlFor="aiModel">Default AI Model</Label>
-                    <Select
-                      defaultValue={(systemSettings as SystemSettings)?.defaultAiModel || 'gpt-4o'}
-                      onValueChange={(value) => handleSystemSettingChange('defaultAiModel', value)}
-                    >
-                      <SelectTrigger className="bg-dark border-dark-lighter">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                        <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                        <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                        <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="aiModel" className="text-sm font-medium">Default AI Model</Label>
+                        <Badge variant="secondary" className="text-xs">
+                          Current: {(systemSettings as SystemSettings)?.defaultAiModel?.toUpperCase() || 'GPT-4O'}
+                        </Badge>
+                      </div>
+                      <Select
+                        value={(systemSettings as SystemSettings)?.defaultAiModel || 'gpt-4o'}
+                        onValueChange={(value) => handleSystemSettingChange('defaultAiModel', value)}
+                        disabled={updateSystemMutation.isPending}
+                      >
+                        <SelectTrigger className="bg-dark border-dark-lighter hover:border-primary/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-dark border-dark-lighter">
+                          <SelectItem value="gpt-4o">🤖 GPT-4 Omni (Recommended)</SelectItem>
+                          <SelectItem value="gpt-4-turbo">⚡ GPT-4 Turbo</SelectItem>
+                          <SelectItem value="claude-3-sonnet">🎭 Claude 3 Sonnet</SelectItem>
+                          <SelectItem value="claude-3-opus">🎨 Claude 3 Opus</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-400">Primary AI model for document analysis, summaries, and investment insights</p>
+                    </div>
                   </div>
                 </div>
 
@@ -493,15 +658,36 @@ export default function SettingsPage() {
                     <Mail className="h-4 w-4" />
                     Email Integration
                   </h4>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Auto-process Emails</Label>
-                      <p className="text-sm text-gray-400">Automatically create deals from emails sent to ideas@aescuvest.vc</p>
+                  <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Auto-process Emails</Label>
+                        <p className="text-sm text-gray-400">Automatically analyze emails sent to ideas@aescuvest.vc and create investment deals</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={(systemSettings as SystemSettings)?.autoProcessEmails ? "default" : "secondary"} className="text-xs">
+                            {(systemSettings as SystemSettings)?.autoProcessEmails ? "🟢 Enabled" : "🔴 Disabled"}
+                          </Badge>
+                          {(systemSettings as SystemSettings)?.autoProcessEmails && (
+                            <Badge variant="outline" className="text-xs border-green-500/50 text-green-400">
+                              Monitoring Active
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(systemSettings as SystemSettings)?.autoProcessEmails || false}
+                        onCheckedChange={(checked) => handleSystemSettingChange('autoProcessEmails', checked)}
+                        disabled={updateSystemMutation.isPending}
+                      />
                     </div>
-                    <Switch
-                      checked={(systemSettings as SystemSettings)?.autoProcessEmails || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('autoProcessEmails', checked)}
-                    />
+                    {(systemSettings as SystemSettings)?.autoProcessEmails && (
+                      <Alert className="mt-3 bg-blue-900/20 border-blue-500/50">
+                        <AlertCircle className="h-4 w-4 text-blue-400" />
+                        <AlertDescription className="text-blue-400 text-sm">
+                          Email processing is active. New deals will be automatically created from qualifying emails.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 </div>
 
