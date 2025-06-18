@@ -29,6 +29,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
   
   // Deal methods
   getAllDeals(): Promise<Deal[]>;
@@ -150,6 +151,20 @@ export class DatabaseStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(user).returning();
     return newUser;
+  }
+
+  async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
+    console.log('🔄 DatabaseStorage: Updating user', id, 'with data:', data);
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    console.log('✅ DatabaseStorage: User updated successfully:', updatedUser);
+    return updatedUser || undefined;
   }
 
   async getAllDeals(): Promise<Deal[]> {
