@@ -135,6 +135,12 @@ Changelog:
   - Enhanced error handling and type safety
   - Created Git repository repair script for GitHub synchronization
   - Resolved deployment readiness issues
+- June 23, 2025: Fixed email attachment downloads and authentication
+  - Resolved Microsoft OAuth token authentication for attachment downloads
+  - Fixed email dialog layout optimization for full popup utilization
+  - Added comprehensive debugging for email attachment processing
+  - Created admin user with proper credentials (admin/admin123)
+  - Enhanced token refresh mechanism for expired Microsoft tokens
 ```
 
 ## User Preferences
