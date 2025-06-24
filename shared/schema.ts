@@ -220,11 +220,36 @@ export const automations = pgTable("automations", {
   action: text("action").notNull(),
   scope: text("scope").notNull(),
   isActive: boolean("is_active").notNull().default(false),
+  triggerType: varchar("trigger_type", { length: 50 }).notNull().default("event_based"), // 'time_based', 'event_based', 'condition_based'
+  actionType: varchar("action_type", { length: 50 }).notNull().default("notification"), // 'email', 'notification', 'status_update', 'document_action', 'meeting_schedule'
+  executionCount: integer("execution_count").notNull().default(0),
+  lastExecutedAt: timestamp("last_executed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertAutomationSchema = createInsertSchema(automations).omit({
+  id: true,
+  executionCount: true,
+  lastExecutedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Automation Executions
+export const automationExecutions = pgTable("automation_executions", {
+  id: serial("id").primaryKey(),
+  automationId: integer("automation_id").notNull().references(() => automations.id, { onDelete: "cascade" }),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // 'success', 'failed', 'pending'
+  result: text("result").notNull(),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAutomationExecutionSchema = createInsertSchema(automationExecutions).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -254,6 +279,9 @@ export type InsertInvestorMatch = z.infer<typeof insertInvestorMatchSchema>;
 
 export type Automation = typeof automations.$inferSelect;
 export type InsertAutomation = z.infer<typeof insertAutomationSchema>;
+
+export type AutomationExecution = typeof automationExecutions.$inferSelect;
+export type InsertAutomationExecution = z.infer<typeof insertAutomationExecutionSchema>;
 
 // Evaluation Criteria table for AI scoring
 export const evaluationCriteria = pgTable("evaluation_criteria", {

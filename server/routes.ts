@@ -1311,6 +1311,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Delete automation
+  app.delete('/api/automations/:id', async (req: Request, res: Response) => {
+    try {
+      const automationId = parseInt(req.params.id);
+      if (isNaN(automationId)) {
+        return res.status(400).json({ message: 'Invalid automation ID' });
+      }
+      
+      await storage.deleteAutomation(automationId);
+      return res.status(200).json({ message: 'Automation deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting automation:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Get automation executions
+  app.get('/api/automations/executions', async (req: Request, res: Response) => {
+    try {
+      const executions = await storage.getAutomationExecutions();
+      return res.status(200).json(executions);
+    } catch (error) {
+      console.error('Error fetching automation executions:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Manual automation execution
+  app.post('/api/automations/:id/execute', async (req: Request, res: Response) => {
+    try {
+      const automationId = parseInt(req.params.id);
+      const { dealId } = req.body;
+      
+      if (isNaN(automationId)) {
+        return res.status(400).json({ message: 'Invalid automation ID' });
+      }
+      
+      if (!dealId) {
+        return res.status(400).json({ message: 'Deal ID is required' });
+      }
+      
+      const automation = await storage.getAutomationById(automationId);
+      if (!automation) {
+        return res.status(404).json({ message: 'Automation not found' });
+      }
+      
+      const execution = await executeAutomation(automation, dealId);
+      return res.status(200).json(execution);
+    } catch (error) {
+      console.error('Error executing automation:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
   
   // Register AI agent routes
   app.use('/api/ai', aiAgentRoutes);
