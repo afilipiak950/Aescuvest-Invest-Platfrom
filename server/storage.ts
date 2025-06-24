@@ -7,6 +7,7 @@ import {
   investors, Investor, InsertInvestor,
   investorMatches, InvestorMatch, InsertInvestorMatch,
   automations, Automation, InsertAutomation,
+  automationExecutions, AutomationExecution, InsertAutomationExecution,
   companyResearch,
   dataRoomConnections, DataRoomConnection, InsertDataRoomConnection,
   microsoftEmailConnections, MicrosoftEmailConnection, InsertMicrosoftEmailConnection,
@@ -82,9 +83,16 @@ export interface IStorage {
   
   // Automation methods
   getAllAutomations(): Promise<Automation[]>;
+  getActiveAutomations(): Promise<Automation[]>;
   getAutomationById(id: number): Promise<Automation | undefined>;
   createAutomation(automation: InsertAutomation): Promise<Automation>;
   toggleAutomation(id: number): Promise<Automation | undefined>;
+  deleteAutomation(id: number): Promise<boolean>;
+  incrementAutomationExecution(id: number): Promise<void>;
+  
+  // Automation execution methods
+  getAutomationExecutions(): Promise<any[]>;
+  createAutomationExecution(execution: InsertAutomationExecution): Promise<AutomationExecution>;
   
   // Evaluation criteria methods
   getAllEvaluationCriteria(): Promise<any[]>;
