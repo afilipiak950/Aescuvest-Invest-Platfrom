@@ -640,19 +640,124 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllAutomations(): Promise<Automation[]> {
-    return [];
+    try {
+      const result = await db.select().from(automations).orderBy(desc(automations.createdAt));
+      return result;
+    } catch (error) {
+      console.error('Error fetching automations:', error);
+      return [];
+    }
+  }
+
+  async getActiveAutomations(): Promise<Automation[]> {
+    try {
+      const result = await db.select().from(automations).where(eq(automations.isActive, true));
+      return result;
+    } catch (error) {
+      console.error('Error fetching active automations:', error);
+      return [];
+    }
   }
 
   async getAutomationById(id: number): Promise<Automation | undefined> {
-    return undefined;
+    try {
+      const [automation] = await db.select().from(automations).where(eq(automations.id, id));
+      return automation || undefined;
+    } catch (error) {
+      console.error('Error fetching automation by ID:', error);
+      return undefined;
+    }
   }
 
   async createAutomation(automation: InsertAutomation): Promise<Automation> {
-    throw new Error('Not implemented');
+    try {
+      const [newAutomation] = await db.insert(automations).values(automation).returning();
+      return newAutomation;
+    } catch (error) {
+      console.error('Error creating automation:', error);
+      throw error;
+    }
   }
 
   async toggleAutomation(id: number): Promise<Automation | undefined> {
-    return undefined;
+    try {
+      const automation = await this.getAutomationById(id);
+      if (!automation) return undefined;
+      
+      const [updated] = await db
+        .update(automations)
+        .set({ 
+          isActive: !automation.isActive,
+          updatedAt: new Date()
+        })
+        .where(eq(automations.id, id))
+        .returning();
+      
+      return updated || undefined;
+    } catch (error) {
+      console.error('Error toggling automation:', error);
+      return undefined;
+    }
+  }
+
+  async deleteAutomation(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(automations).where(eq(automations.id, id));
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error('Error deleting automation:', error);
+      return false;
+    }
+  }
+
+  async incrementAutomationExecution(id: number): Promise<void> {
+    try {
+      await db
+        .update(automations)
+        .set({ 
+          executionCount: db.selectFrom(automations).where(eq(automations.id, id)).select().then(r => (r[0]?.executionCount || 0) + 1),
+          lastExecutedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(automations.id, id));
+    } catch (error) {
+      console.error('Error incrementing automation execution:', error);
+    }
+  }
+
+  async getAutomationExecutions(): Promise<any[]> {
+    try {
+      const result = await db
+        .select({
+          id: automationExecutions.id,
+          automationId: automationExecutions.automationId,
+          automationName: automations.name,
+          dealId: automationExecutions.dealId,
+          executedAt: automationExecutions.executedAt,
+          status: automationExecutions.status,
+          result: automationExecutions.result,
+          error: automationExecutions.error
+        })
+        .from(automationExecutions)
+        .leftJoin(automations, eq(automationExecutions.automationId, automations.id))
+        .orderBy(desc(automationExecutions.executedAt))
+        .limit(100);
+      
+      return result;
+    } catch (error) {
+      console.error('Error fetching automation executions:', error);
+      return [];
+    }
+  }
+
+  async createAutomationExecution(execution: InsertAutomationExecution): Promise<AutomationExecution> {
+    try {
+      const [newExecution] = await db.insert(automationExecutions).values(execution).returning();
+      return newExecution;
+    } catch (error) {
+      console.error('Error creating automation execution:', error);
+      throw error;
+    }
   }
 
   async getAllEvaluationCriteria(): Promise<any[]> {
