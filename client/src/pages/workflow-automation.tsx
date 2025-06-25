@@ -83,9 +83,6 @@ export default function WorkflowAutomation() {
           <TabsTrigger value="automations" className="data-[state=active]:bg-primary data-[state=active]:text-dark">
             Automations
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="data-[state=active]:bg-primary data-[state=active]:text-dark">
-            Integrations
-          </TabsTrigger>
           <TabsTrigger value="activity" className="data-[state=active]:bg-primary data-[state=active]:text-dark">
             Activity Log
           </TabsTrigger>
@@ -177,88 +174,6 @@ export default function WorkflowAutomation() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-        
-        <TabsContent value="integrations">
-          <Card className="bg-dark-light border-dark-lighter">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl font-semibold">Available Integrations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-dark-lighter rounded-lg p-5 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-dark rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-8 w-8 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19.3 5c-.9-.9-2.1-1.3-3.4-1.3-1.3 0-2.5.4-3.4 1.4L12 5.5l-.5-.5c-.9-.9-2.1-1.4-3.4-1.4-1.3 0-2.5.5-3.4 1.3C2.5 7.3 2.5 10.9 6 14c.3.3.7.3 1 0s.3-.7 0-1c-2.8-2.5-2.8-5.3-.7-7 .6-.5 1.3-.7 2.1-.7.8 0 1.5.3 2.1.7l1 .9c.3.3.7.3 1 0l1-1c.6-.5 1.3-.7 2.1-.7.8 0 1.5.3 2.1.7 2 2 1.9 4.3-.7 7-2.6 2.6-6.3 4.7-8.2 5.9-.3.2-.7.1-.9-.2-.2-.3-.1-.7.2-.9 1.4-.9 4.9-2.9 7.4-5.3 3.5-3.1 3.5-6.8 1.3-8.9z"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-medium mb-1">DocuSign</h3>
-                  <p className="text-sm text-gray-400 text-center mb-4">Automate document signing and tracking.</p>
-                  <Button className="w-full" size="sm">Connect</Button>
-                </div>
-                
-                <div className="bg-dark-lighter rounded-lg p-5 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-dark rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-8 w-8 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.9 2H5.1C3.4 2 2 3.4 2 5.1v10.8C2 17.6 3.4 19 5.1 19h3.6v3l5.4-3h4.8c1.7 0 3.1-1.4 3.1-3.1V5.1C22 3.4 20.6 2 18.9 2zm-9.8 11.6c-1 0-1.8-.8-1.8-1.8s.8-1.8 1.8-1.8 1.8.8 1.8 1.8-.8 1.8-1.8 1.8zm3.8 0c-1 0-1.8-.8-1.8-1.8s.8-1.8 1.8-1.8 1.8.8 1.8 1.8-.8 1.8-1.8 1.8zm3.8 0c-1 0-1.8-.8-1.8-1.8s.8-1.8 1.8-1.8 1.8.8 1.8 1.8-.8 1.8-1.8 1.8z"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-medium mb-1">Slack</h3>
-                  <p className="text-sm text-gray-400 text-center mb-4">Send notifications to your team channels.</p>
-                  <Button variant="outline" className="w-full border-dark text-primary" size="sm">Connected</Button>
-                </div>
-                
-                <div className="bg-dark-lighter rounded-lg p-5 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-dark rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-8 w-8 text-red-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 22c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 19.42 7.7 22 12 22z" fill="#34A853"/>
-                      <path d="M5.84 13.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V6.06H2.18C1.43 7.9 1 9.9 1 12s.43 4.1 1.18 5.94l2.85-2.22.81-2.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.58 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-medium mb-1">Google Drive</h3>
-                  <p className="text-sm text-gray-400 text-center mb-4">Sync documents and files automatically.</p>
-                  <Button className="w-full" size="sm">Connect</Button>
-                </div>
-                
-                <div className="bg-dark-lighter rounded-lg p-5 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-dark rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-8 w-8 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M1.5 0h21C23.328 0 24 .672 24 1.5v21c0 .828-.672 1.5-1.5 1.5h-21C.672 24 0 23.328 0 22.5v-21C0 .672.672 0 1.5 0z" fill="#673AB7"/>
-                      <path d="M16.56 10.87c-.96-.44-1.95-.84-2.37-1.46-.42-.62-.31-1.52.21-2.05.52-.53 1.42-.52 2.01-.08.6.44.74 1.33.5 2-.29.2-.75.21-.91-.05-.16-.26-.08-.58.14-.78s.6-.3.8-.11c.2.19.25.49.13.73-.12.24-.37.38-.6.5-.23.12-.47.2-.7.32-.23.12-.44.28-.53.52-.09.24-.05.53.15.71.2.18.51.2.77.08.26-.12.44-.38.46-.66.02-.28-.12-.57-.38-.7-.26-.13-.59-.04-.78.17-.19.21-.27.54-.18.81.09.27.35.47.63.51.28.04.59-.09.77-.32.18-.23.22-.56.12-.84-.1-.28-.33-.48-.59-.62-.26-.14-.55-.22-.78-.38-.23-.16-.41-.42-.38-.7.03-.28.28-.52.56-.51.28.01.54.22.59.5.05.28-.17.57-.45.61-.28.04-.58-.19-.58-.47 0-.28.27-.5.54-.51.27-.01.55.15.66.41.11.26.02.59-.2.8-.22.21-.56.27-.85.17-.29-.1-.5-.43-.43-.72" fill="#fff"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-medium mb-1">Notion</h3>
-                  <p className="text-sm text-gray-400 text-center mb-4">Sync tasks and project management.</p>
-                  <Button className="w-full" size="sm">Connect</Button>
-                </div>
-                
-                <div className="bg-dark-lighter rounded-lg p-5 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-dark rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-8 w-8 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M4 6h16v12H4V6z" fill="#0078D4"/>
-                      <path d="M14 6h2v2h-2V6zm-2 4h2v2h-2v-2zm-2-4h2v2h-2V6zm-2 4h2v2H8v-2zm-2-4h2v2H6V6z" fill="#fff"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-medium mb-1">Calendar</h3>
-                  <p className="text-sm text-gray-400 text-center mb-4">Schedule meetings and reminders.</p>
-                  <Button variant="outline" className="w-full border-dark text-primary" size="sm">Connected</Button>
-                </div>
-                
-                <div className="bg-dark-lighter rounded-lg p-5 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-dark rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-8 w-8 text-green-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5.52 4.5 10.02 10 10.02 5.5 0 10-4.5 10-10.02 0-5.53-4.5-10.02-10-10.02zm3.47 13.77c-.29.79-1.49 1.46-2.57.92-.63-.31-3.68-2.04-4.76-3.07-.52-.5-.76-1.08-.76-1.72 0-.64.24-1.23.76-1.72 1.08-1.04 4.15-2.78 4.76-3.07 1.08-.54 2.28.13 2.57.92.3.8.31 3.31.31 3.87 0 .56-.01 3.08-.31 3.87z"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-medium mb-1">Affinity CRM</h3>
-                  <p className="text-sm text-gray-400 text-center mb-4">Sync investor contacts and interactions.</p>
-                  <Button className="w-full" size="sm">Connect</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
         
         <TabsContent value="activity">
