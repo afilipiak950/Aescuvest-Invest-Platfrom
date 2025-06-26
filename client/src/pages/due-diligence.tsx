@@ -179,55 +179,38 @@ export default function DueDiligence() {
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
-  // Calculate unassigned documents using the same keyword-based logic as DocumentAssignmentSummary
+  // Calculate unassigned documents using real database assignments from analyses
   const unassignedDocs = useMemo(() => {
     if (!documents || !Array.isArray(documents)) {
       console.log('📊 Missing documents data for unassigned calculation');
       return [];
     }
 
-    const agentKeywords: Record<string, string[]> = {
-      clinical: ['clinical', 'medical', 'health', 'patient', 'treatment', 'therapy', 'drug', 'trial', 'study', 'fda', 'regulatory', 'pharma', 'biotech', 'risk'],
-      legal: ['contract', 'agreement', 'legal', 'terms', 'policy', 'compliance', 'license', 'employment', 'nda', 'confidential', 'consulting', 'board', 'ltsa', 'loa', 'executed'],
-      commercial: ['market', 'sales', 'revenue', 'commercial', 'customer', 'pricing', 'business', 'strategy', 'competition', 'competitive', 'duediligence', 'dd', 'qa', 'q&a', 'reply'],
-      hr: ['employee', 'hr', 'human', 'resources', 'staff', 'personnel', 'payroll', 'benefits', 'hiring', 'org', 'chart', 'employment', 'salary', 'temp', 'working'],
-      financial: ['financial', 'finance', 'budget', 'accounting', 'tax', 'audit', 'revenue', 'expense', 'cash', 'flow', 'balance', 'plan', 'projection', 'discussion'],
-      ip: ['patent', 'trademark', 'intellectual', 'property', 'ip', 'copyright', 'technology', 'innovation', 'invention', 'tech', 'quote'],
-      research: ['research', 'development', 'r&d', 'innovation', 'technology', 'product', 'pipeline', 'prototype', 'technical', 'spec', 'study', 'internal']
-    };
-
-    const getAssignedDocuments = (agentType: string) => {
-      const keywords = agentKeywords[agentType.toLowerCase()] || [];
-      return documents.filter((doc: any) => {
-        const docName = (doc.name || '').toLowerCase();
-        const docNameNoSpaces = docName.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
-        
-        return keywords.some(keyword => {
-          const keywordNoSpaces = keyword.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
-          return docName.includes(keyword) || docNameNoSpaces.includes(keywordNoSpaces);
-        });
-      });
-    };
-
-    // Find all assigned document IDs across all agents
+    // Get all document IDs that are actually assigned to agents from database
     const allAssignedDocIds = new Set();
-    const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
     
-    agentTypes.forEach(agent => {
-      getAssignedDocuments(agent).forEach(doc => allAssignedDocIds.add(doc.id));
-    });
+    if (analyses && Array.isArray(analyses)) {
+      analyses.forEach((analysis: any) => {
+        if (analysis.documentSources && Array.isArray(analysis.documentSources)) {
+          analysis.documentSources.forEach((docId: string) => {
+            allAssignedDocIds.add(parseInt(docId));
+          });
+        }
+      });
+    }
     
-    // Return documents that are not assigned to any agent
+    // Return documents that are not assigned to any agent in the database
     const unassigned = documents.filter((doc: any) => !allAssignedDocIds.has(doc.id));
     
-    console.log('📊 Unassigned calculation:', { 
+    console.log('📊 Unassigned calculation (database-based):', { 
       totalDocs: documents.length, 
       assignedIds: allAssignedDocIds.size, 
-      unassignedCount: unassigned.length 
+      unassignedCount: unassigned.length,
+      analysesCount: analyses ? analyses.length : 0
     });
     
     return unassigned;
-  }, [documents]);
+  }, [documents, analyses]);
   
   const handleFileUpload = async () => {
     setShowUploadField(!showUploadField);

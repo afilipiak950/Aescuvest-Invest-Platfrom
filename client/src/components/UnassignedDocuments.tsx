@@ -86,20 +86,33 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
         })
       });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       console.log(`✅ Document ${variables.docId} successfully assigned to ${variables.agentType} agent`);
+      console.log(`📋 Assignment response:`, data);
+      
       toast({
         title: "Document Assigned",
         description: `Document assigned to ${variables.agentType} agent${variables.comment ? ' with your feedback' : ''}`,
       });
+      
       // Clear form state
       setSelectedAgent(prev => ({ ...prev, [variables.docId]: '' }));
       setAssignmentComment(prev => ({ ...prev, [variables.docId]: '' }));
       setShowCommentDialog(null);
-      // Invalidate queries to refresh UI
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${variables.agentType.toLowerCase()}/results`] });
+      
+      // Force immediate UI refresh with multiple query invalidations
+      console.log(`🔄 Forcing UI refresh for deal ${dealId} after assignment`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] }),
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] }),
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${variables.agentType.toLowerCase()}/results`] })
+      ]);
+      
+      // Force refetch to ensure immediate update
+      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      
+      console.log(`✅ UI refresh completed for document ${variables.docId} assignment`);
       onAssignDocument(variables.docId, variables.agentType);
     },
     onError: (error, variables) => {
