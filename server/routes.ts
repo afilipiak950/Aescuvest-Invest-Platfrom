@@ -1380,12 +1380,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // REMOVED: Duplicate route that was causing conflicts
 
-  // Manual document assignment endpoint
+  // Enhanced manual document assignment endpoint with AI integration
   app.post('/api/deals/:dealId/documents/:docId/assign', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       const docId = parseInt(req.params.docId);
-      const { agentType } = req.body;
+      const { agentType, comment, assignmentType } = req.body;
 
       if (isNaN(dealId) || isNaN(docId)) {
         return res.status(400).json({ message: 'Invalid deal or document ID' });
@@ -1395,12 +1395,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Agent type is required' });
       }
 
-      console.log(`🔄 Manual assignment: Document ${docId} to ${agentType} agent for deal ${dealId}`);
+      console.log(`🔄 ${assignmentType || 'Manual'} assignment: Document ${docId} to ${agentType} agent for deal ${dealId}`);
+      if (comment) {
+        console.log(`💬 Assignment comment: ${comment}`);
+      }
 
       // Get the document details
       const document = await storage.getDocumentById(docId);
       if (!document) {
         return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Update document with assignment metadata (when database schema supports it)
+      try {
+        await storage.updateDocument(docId, {
+          assignedAgent: agentType,
+          assignedAt: new Date()
+        });
+      } catch (updateError) {
+        console.warn('Could not update document assignment metadata:', updateError);
+      }
+
+      // Save learning data for manual assignments with comments (future enhancement)
+      if (assignmentType === 'manual' && comment) {
+        console.log(`💡 Saving learning data: ${agentType} assignment for doc ${docId} with comment: ${comment}`);
+        // Future: Save to document_assignment_learning table
       }
 
       // Check if analysis already exists for this agent
@@ -1423,7 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dealId,
           agentType,
           documentSources: [document.name],
-          status: "Manual Assignment",
+          status: assignmentType === 'ai' ? "AI Assignment" : "Manual Assignment",
           progress: 0,
           findings: [],
           recommendations: []
@@ -1436,12 +1455,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json({ 
         message: 'Document assigned successfully',
         documentName: document.name,
-        agentType 
+        agentType,
+        assignmentType: assignmentType || 'manual',
+        comment: comment || null
       });
 
     } catch (error) {
       console.error('Error assigning document:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // AI-powered bulk document assignment endpoint
+  app.post('/api/deals/:dealId/ai-assign-documents', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const userId = (req as any).user?.id || 1; // Default to admin user
+
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      console.log(`🤖 Starting AI-powered bulk assignment for deal ${dealId}`);
+
+      // Import and use the intelligent assignment service
+      const { intelligentAssignmentService } = await import('./services/intelligentAssignmentService');
+      const result = await intelligentAssignmentService.batchAssignDocuments(dealId, userId);
+
+      console.log(`✅ AI assignment completed: ${result.successfulAssignments}/${result.totalProcessed} successful`);
+
+      res.json({
+        success: true,
+        message: `AI assignment completed successfully`,
+        totalProcessed: result.totalProcessed,
+        successfulAssignments: result.successfulAssignments,
+        errors: result.errors
+      });
+
+    } catch (error) {
+      console.error('❌ Error in AI document assignment:', error);
+      res.status(500).json({
+        success: false,
+        message: 'AI assignment failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Individual AI document assignment endpoint
+  app.post('/api/deals/:dealId/documents/:docId/ai-assign', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const docId = parseInt(req.params.docId);
+      const userId = (req as any).user?.id || 1;
+
+      if (isNaN(dealId) || isNaN(docId)) {
+        return res.status(400).json({ message: 'Invalid deal or document ID' });
+      }
+
+      console.log(`🤖 Starting AI assignment for document ${docId} in deal ${dealId}`);
+
+      const { intelligentAssignmentService } = await import('./services/intelligentAssignmentService');
+      const result = await intelligentAssignmentService.assignDocumentToAgents(docId, userId);
+
+      console.log(`✅ AI assignment completed for document ${docId}: ${result.assignments.join(', ')}`);
+
+      res.json({
+        success: true,
+        message: 'AI assignment completed',
+        assignment: {
+          documentId: docId,
+          agents: result.assignments,
+          reasoning: result.reasoning,
+          confidence: result.confidence
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error in AI document assignment:', error);
+      res.status(500).json({
+        success: false,
+        message: 'AI assignment failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
