@@ -838,8 +838,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'clinical')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'clinical')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -851,8 +851,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'legal')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'legal')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('legal'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('legal'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -864,8 +864,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'commercial')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'commercial')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('commercial'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('commercial'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -877,8 +877,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'hr')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'hr')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('hr'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('hr'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -890,8 +890,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'financial')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'financial')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('financial'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('financial'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -903,8 +903,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'ip')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'ip')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('ip'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('ip'))?.currentStep}
                   />
                 </TabsContent>
                 
