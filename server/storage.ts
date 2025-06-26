@@ -1262,12 +1262,22 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveBackgroundJobsForDeal(dealId: number): Promise<BackgroundJob[]> {
     try {
+      console.log(`🔍 Querying background jobs for deal ${dealId} with status 'processing'`);
+      
       const jobs = await db.select().from(backgroundJobs)
         .where(and(
           eq(backgroundJobs.dealId, dealId),
-          eq(backgroundJobs.status, 'processing')
+          eq(backgroundJobs.status, 'processing'),
+          isNotNull(backgroundJobs.jobId),
+          isNotNull(backgroundJobs.agentType)
         ))
         .orderBy(backgroundJobs.createdAt);
+      
+      console.log(`📊 Found ${jobs.length} active background jobs for deal ${dealId}`);
+      jobs.forEach(job => {
+        console.log(`  - Job ${job.jobId}: ${job.agentType} (${job.progress}%)`);
+      });
+      
       return jobs;
     } catch (error) {
       console.error(`Error fetching active background jobs for deal ${dealId}:`, error);
