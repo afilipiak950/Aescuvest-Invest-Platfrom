@@ -3353,10 +3353,10 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
     console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent`);
 
     // Create initial job progress entry for real-time tracking
-    const jobId = `${agentType}_${dealId}`;
+    const trackingJobId = `${agentType}_${dealId}`;
     try {
       await storage.createBackgroundJob({
-        id: jobId,
+        id: trackingJobId,
         dealId,
         type: 'agent_analysis',
         status: 'running',
@@ -3413,9 +3413,9 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
         console.log(`✅ Analyzed document ${document.name} (${processedDocuments}/${assignedDocuments.length})`);
         
         // Update in-memory job progress for real-time tracking
-        const jobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
-        if (global.activeJobs && global.activeJobs.has(jobId)) {
-          const job = global.activeJobs.get(jobId);
+        const progressJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+        if (global.activeJobs && global.activeJobs.has(progressJobId)) {
+          const job = global.activeJobs.get(progressJobId);
           job.currentStep = processedDocuments;
           job.progress = Math.round((processedDocuments / assignedDocuments.length) * 100);
           job.currentDocumentName = document.name;
@@ -3427,7 +3427,7 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
         
         // Also try to update database job
         try {
-          await storage.updateBackgroundJob(jobId, {
+          await storage.updateBackgroundJob(trackingJobId, {
             progress: Math.round((processedDocuments / assignedDocuments.length) * 100),
             currentStep: processedDocuments,
             currentDocumentName: document.name
@@ -3520,6 +3520,24 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
 
     console.log(`✅ ${agent.name} agent analysis completed for deal ${dealId}. Processed ${processedDocuments} relevant documents`);
     console.log(`💾 Saved analysis with ${findings.length} findings and ${recommendations.length} recommendations`);
+
+    // Mark job as completed and remove from active jobs
+    const completionJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+    if (global.activeJobs && global.activeJobs.has(completionJobId)) {
+      const job = global.activeJobs.get(completionJobId);
+      job.status = 'completed';
+      job.progress = 100;
+      job.currentStep = assignedDocuments.length;
+      job.completedAt = new Date().toISOString();
+      
+      // Remove completed job after short delay
+      setTimeout(() => {
+        if (global.activeJobs) {
+          global.activeJobs.delete(completionJobId);
+          console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
+        }
+      }, 2000);
+    }
 
   } catch (error) {
     console.error(`Error in ${agent.name} agent analysis:`, error);
