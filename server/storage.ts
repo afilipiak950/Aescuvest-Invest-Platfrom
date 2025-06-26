@@ -113,6 +113,9 @@ export interface IStorage {
   deleteCompanyResearchByDealId(dealId: number): Promise<number>;
   
   // Background jobs methods
+  createBackgroundJob(job: any): Promise<any>;
+  updateBackgroundJob(id: string, updates: any): Promise<any>;
+  getBackgroundJobsByDealId(dealId: number): Promise<any[]>;
   deleteBackgroundJobsByDealId(dealId: number): Promise<number>;
   
   // Data room connection methods
