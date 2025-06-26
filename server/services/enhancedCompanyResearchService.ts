@@ -134,7 +134,7 @@ export class EnhancedCompanyResearchService {
     console.log(`🔍 Starting enhanced company research for deal ${dealId}`);
     
     // Get deal information
-    const deal = await storage.getDeal(dealId);
+    const deal = await storage.getDealById(dealId);
     if (!deal) {
       throw new Error(`Deal ${dealId} not found`);
     }
@@ -565,7 +565,7 @@ export class EnhancedCompanyResearchService {
 
   async getStoredResearch(dealId: number): Promise<EnhancedResearchData | null> {
     try {
-      const research = await storage.getCompanyResearch(dealId);
+      const research = await storage.getCompanyResearchByDealId(dealId);
       if (!research) return null;
 
       return {
