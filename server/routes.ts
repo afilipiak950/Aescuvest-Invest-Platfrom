@@ -5,6 +5,7 @@ import { db } from "./db";
 import { documents, systemSettings } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { persistentJobManager } from "./services/persistentJobManager";
 import { z } from "zod";
 import { authenticate } from "./middleware/auth";
 import { 
@@ -2886,7 +2887,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive analysis using specialized Mistral AI agents
+  // Run comprehensive analysis using specialized Mistral AI agents with persistent background jobs
   app.post('/api/deals/:dealId/run-comprehensive-analysis', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -2905,8 +2906,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Get documents with OCR text for analysis (bypass cache that excludes ocrText)
       const documentsWithOCR = await db.select().from(documents).where(eq(documents.dealId, dealId));
       
-      console.log(`🧠 Starting comprehensive analysis for deal ${dealId}: ${deal.companyName}`);
+      console.log(`🧠 Starting persistent comprehensive analysis for deal ${dealId}: ${deal.companyName}`);
       console.log(`📄 Found ${documentsWithOCR.length} documents to analyze`);
+
+      // Reset all existing background jobs for this deal if force refresh
+      if (forceRefresh) {
+        console.log(`🔄 Force refresh - resetting all background jobs for deal ${dealId}`);
+        await persistentJobManager.resetAllJobsForDeal(dealId);
+        
+        // Clear existing agent analyses
+        await storage.clearAgentAnalyses(dealId);
+      }
 
       // Initialize analysis status
       await storage.createOrUpdateComprehensiveAnalysis(dealId, {
@@ -2920,32 +2930,71 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         totalDocuments: documentsWithOCR.length
       });
 
-      // Process comprehensive analysis in background
-      processComprehensiveAnalysisForDeal(dealId, documentsWithOCR, deal)
-        .catch((error: any) => {
-          console.error(`Comprehensive analysis failed for deal ${dealId}:`, error);
-          storage.createOrUpdateComprehensiveAnalysis(dealId, {
-            overallScore: 0,
-            positiveFactors: [],
-            neutralFactors: [],
-            riskFactors: [],
-            analysisStatus: 'failed',
-            lastUpdated: new Date(),
-            documentsCovered: 0,
-            totalDocuments: documents.length
-          }).catch(console.error);
-        });
+      // Start persistent background jobs for all agents
+      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      const startedJobs = [];
+
+      for (const agentType of agentTypes) {
+        try {
+          const jobId = await persistentJobManager.startAgentAnalysis(dealId, agentType, documentsWithOCR.length);
+          startedJobs.push({ agentType, jobId });
+          
+          // Start the actual analysis process in background
+          runAgentAnalysisWithPersistence(dealId, agentType, documentsWithOCR, deal, jobId)
+            .catch((error: any) => {
+              console.error(`${agentType} analysis failed for deal ${dealId}:`, error);
+              persistentJobManager.failJob(jobId, error.message);
+            });
+        } catch (error) {
+          console.error(`Failed to start ${agentType} analysis job:`, error);
+        }
+      }
 
       res.json({
-        message: 'Comprehensive analysis initiated successfully',
+        message: 'Persistent comprehensive analysis initiated successfully',
         dealId,
         status: 'running',
-        totalDocuments: documents.length,
-        estimatedCompletion: '5-10 minutes'
+        totalDocuments: documentsWithOCR.length,
+        backgroundJobs: startedJobs.length,
+        agentsStarted: startedJobs.map(j => j.agentType),
+        estimatedCompletion: '5-10 minutes',
+        persistent: true
       });
     } catch (error) {
       console.error('Error initiating comprehensive analysis:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Enhanced background job status endpoint with persistent tracking
+  app.get('/api/background-jobs/:dealId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Get persistent background jobs from database and memory
+      const persistentJobs = await persistentJobManager.getActiveJobsForDeal(dealId);
+      
+      // Transform to expected format
+      const jobs = persistentJobs.map(job => ({
+        jobId: job.jobId,
+        agentType: job.agentType,
+        progress: job.progress || 0,
+        status: job.status,
+        processedDocuments: job.processedDocuments || 0,
+        totalDocuments: job.totalDocuments || 0,
+        currentDocument: job.currentDocumentName,
+        metadata: {
+          agentType: job.agentType,
+          startTime: job.startedAt,
+          lastUpdate: job.updatedAt
+        }
+      }));
+
+      console.log(`📊 Found ${jobs.length} persistent background jobs for deal ${dealId}`);
+      res.json({ success: true, jobs });
+    } catch (error) {
+      console.error('Error fetching background jobs:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch background jobs' });
     }
   });
 
@@ -4034,6 +4083,199 @@ async function processComprehensiveAnalysisForDeal(dealId: number, documents: an
       analysisStatus: 'failed',
       lastUpdated: new Date()
     });
+    throw error;
+  }
+}
+
+// Persistent agent analysis function that integrates with background job tracking
+async function runAgentAnalysisWithPersistence(dealId: number, agentType: string, documents: any[], deal: any, jobId: string) {
+  const specializedAgents = {
+    clinical: {
+      name: 'Clinical',
+      focus: 'medical devices, clinical trials, regulatory compliance, patient safety, FDA approvals',
+      prompts: {
+        categorization: 'Does this document contain clinical trial data, medical device information, regulatory submissions, or patient safety data?',
+        analysis: 'Analyze this clinical document for: 1) Regulatory compliance status 2) Clinical trial design and results 3) Patient safety considerations 4) Market approval pathways 5) Medical device classifications 6) Clinical risks and efficacy'
+      }
+    },
+    legal: {
+      name: 'Legal',
+      focus: 'contracts, intellectual property, regulatory compliance, legal risks, licensing agreements',
+      prompts: {
+        categorization: 'Does this document contain legal contracts, IP documentation, regulatory filings, or compliance information?',
+        analysis: 'Analyze this legal document for: 1) Contract terms and obligations 2) IP protection and risks 3) Regulatory compliance gaps 4) Legal liability exposure 5) Licensing and partnership terms 6) Legal operational risks'
+      }
+    },
+    commercial: {
+      name: 'Commercial',
+      focus: 'market analysis, business strategy, competition, sales, revenue projections, customer data',
+      prompts: {
+        categorization: 'Does this document contain market research, business plans, competitive analysis, or sales information?',
+        analysis: 'Analyze this commercial document for: 1) Market opportunity and size 2) Competitive positioning 3) Revenue model viability 4) Customer acquisition strategy 5) Sales execution capability 6) Commercial risks and dependencies'
+      }
+    },
+    hr: {
+      name: 'HR',
+      focus: 'employee data, organizational structure, compensation, talent acquisition, company culture',
+      prompts: {
+        categorization: 'Does this document contain employee information, organizational charts, compensation data, hiring plans, or HR policies?',
+        analysis: 'Analyze this HR document for: 1) Leadership team strength 2) Talent acquisition strategy 3) Employee retention and satisfaction 4) Organizational scalability 5) Compensation competitiveness 6) HR operational risks'
+      }
+    },
+    financial: {
+      name: 'Financial',
+      focus: 'financial statements, budgets, cash flow, funding, financial projections, accounting',
+      prompts: {
+        categorization: 'Does this document contain financial statements, budgets, cash flow data, funding information, or financial projections?',
+        analysis: 'Analyze this financial document for: 1) Revenue growth and sustainability 2) Profitability trends and margins 3) Cash flow and burn rate 4) Funding requirements and runway 5) Financial model assumptions 6) Financial risks and dependencies'
+      }
+    },
+    ip: {
+      name: 'IP',
+      focus: 'patents, trademarks, trade secrets, intellectual property portfolio, technology assets',
+      prompts: {
+        categorization: 'Does this document contain patent filings, trademark applications, intellectual property portfolios, or technology documentation?',
+        analysis: 'Analyze this IP document for: 1) Patent portfolio strength and coverage 2) Freedom to operate analysis 3) IP competitive advantages 4) Technology differentiation 5) IP monetization potential 6) IP infringement risks'
+      }
+    },
+    research: {
+      name: 'Research',
+      focus: 'R&D data, technical specifications, research findings, innovation pipeline, scientific publications',
+      prompts: {
+        categorization: 'Does this document contain research and development data, technical specifications, scientific findings, or innovation pipeline information?',
+        analysis: 'Analyze this research document for: 1) Innovation pipeline strength 2) Technical feasibility and scalability 3) Research competitive advantages 4) Technology roadmap viability 5) Scientific validation quality 6) R&D execution risks'
+      }
+    }
+  };
+
+  const agent = specializedAgents[agentType as keyof typeof specializedAgents];
+  if (!agent) {
+    console.error(`Unknown agent type: ${agentType}`);
+    await persistentJobManager.failJob(jobId, `Unknown agent type: ${agentType}`);
+    return;
+  }
+
+  const allInsights = {
+    positive: [] as any[],
+    neutral: [] as any[],
+    risk: [] as any[]
+  };
+
+  let processedDocuments = 0;
+
+  try {
+    // Use intelligent document assignment logic
+    const assignedDocuments = documents.filter(doc => {
+      const assignedAgents = getAssignedAgentsForDocument(doc);
+      return assignedAgents.some(docAgent => docAgent.type.toLowerCase() === agentType.toLowerCase());
+    });
+
+    console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent for persistent job ${jobId}`);
+
+    for (const document of assignedDocuments) {
+      if (!document.ocrText) {
+        console.log(`⏭️ Skipping document ${document.name} - no OCR text available`);
+        continue;
+      }
+
+      console.log(`📄 Processing assigned document for ${agent.name} agent: ${document.name}`);
+      
+      try {
+        // Update job progress
+        await persistentJobManager.updateJobProgress(jobId, Math.round((processedDocuments / assignedDocuments.length) * 100), processedDocuments, document.name);
+
+        const agentInsights = await runSpecializedAgentAnalysis(document, agent, deal);
+        
+        console.log(`🔍 Agent insights for ${document.name}:`, {
+          hasInsights: !!agentInsights,
+          type: typeof agentInsights,
+          positive: agentInsights?.positive?.length || 0,
+          neutral: agentInsights?.neutral?.length || 0,
+          risk: agentInsights?.risk?.length || 0
+        });
+        
+        // Validate and merge insights
+        if (agentInsights?.positive?.length) {
+          allInsights.positive.push(...agentInsights.positive);
+        }
+        if (agentInsights?.neutral?.length) {
+          allInsights.neutral.push(...agentInsights.neutral);
+        }
+        if (agentInsights?.risk?.length) {
+          allInsights.risk.push(...agentInsights.risk);
+        }
+
+        console.log(`✅ Analyzed document ${document.name} (${processedDocuments + 1}/${assignedDocuments.length})`);
+        processedDocuments++;
+
+        // Update progress
+        const currentProgress = Math.round((processedDocuments / assignedDocuments.length) * 100);
+        console.log(`📊 Updated job progress: ${agentType} ${processedDocuments}/${assignedDocuments.length} (${currentProgress}%)`);
+        await persistentJobManager.updateJobProgress(jobId, currentProgress, processedDocuments);
+
+      } catch (error) {
+        console.error(`Error analyzing document ${document.name}:`, error);
+        processedDocuments++;
+      }
+    }
+
+    // Final insights collection and storage
+    console.log(`🔍 Final insights collected for ${agent.name}:`, {
+      positive: allInsights.positive.length,
+      neutral: allInsights.neutral.length,
+      risk: allInsights.risk.length,
+      totalFindings: allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length
+    });
+
+    // Save analysis results to database
+    if (allInsights.positive.length > 0 || allInsights.neutral.length > 0 || allInsights.risk.length > 0) {
+      try {
+        const analysis = await storage.createAgentAnalysis({
+          dealId,
+          agentType: agent.name,
+          status: 'completed',
+          findings: [
+            ...allInsights.positive,
+            ...allInsights.neutral,
+            ...allInsights.risk
+          ],
+          summary: `Completed ${agent.name} analysis with ${allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length} findings`,
+          recommendations: generateRecommendations(allInsights),
+          documentSources: assignedDocuments.map(doc => doc.name),
+          completedAt: new Date()
+        });
+
+        console.log(`✅ Created new ${agent.name} analysis for deal ${dealId}`);
+        console.log(`✅ ${agent.name} agent analysis completed for deal ${dealId}. Processed ${assignedDocuments.length} relevant documents`);
+        console.log(`💾 Saved analysis with ${allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length} findings and ${generateRecommendations(allInsights).length} recommendations`);
+
+        // Complete the persistent job
+        await persistentJobManager.completeJob(jobId, {
+          analysisId: analysis.id,
+          totalFindings: allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length,
+          processedDocuments: assignedDocuments.length,
+          completedAt: new Date()
+        });
+
+      } catch (storageError) {
+        console.error(`❌ Failed to store ${agentType} analysis:`, storageError);
+        await persistentJobManager.failJob(jobId, `Failed to store analysis: ${storageError}`);
+      }
+    } else {
+      console.log(`⚠️ No insights found for ${agent.name} agent`);
+      await persistentJobManager.completeJob(jobId, {
+        totalFindings: 0,
+        processedDocuments: assignedDocuments.length,
+        message: 'No insights found',
+        completedAt: new Date()
+      });
+    }
+
+    console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
+
+  } catch (error) {
+    console.error(`Error in ${agentType} analysis:`, error);
+    await persistentJobManager.failJob(jobId, `Analysis failed: ${error}`);
     throw error;
   }
 }
