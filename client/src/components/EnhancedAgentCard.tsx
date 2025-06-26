@@ -79,24 +79,7 @@ export default function EnhancedAgentCard({
 
   // Check if analysis is currently processing by looking at status and recent activity
   const isAnalysisCurrentlyRunning = () => {
-    // Check if all analyses are running from parent component
-    if (isRunningAllAnalyses) {
-      return true;
-    }
-    
-    // Check if we have a processing status
-    const status = analysisData?.status;
-    if (status === 'Processing' || status === 'In Progress') {
-      return true;
-    }
-    
-    // Check if mutation is pending
-    if (runMistralAnalysisMutation.isPending || isRunningAnalysis) {
-      return true;
-    }
-    
-    // For agents with no current analysis but assigned documents, allow the button to work
-    // The backend will handle checking if processing is already in progress
+    // Always return false to hide processing state - analysis runs silently in background
     return false;
   };
   
