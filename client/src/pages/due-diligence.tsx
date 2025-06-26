@@ -186,29 +186,59 @@ export default function DueDiligence() {
       return [];
     }
 
-    // Get all document NAMES that are actually assigned to agents from database
+    // Get all document NAMES and IDs that are actually assigned to agents from database
     const allAssignedDocNames = new Set();
+    const allAssignedDocIds = new Set();
     
     if (analyses && Array.isArray(analyses)) {
       analyses.forEach((analysis: any) => {
         if (analysis.documentSources && Array.isArray(analysis.documentSources)) {
-          analysis.documentSources.forEach((docName: string) => {
-            allAssignedDocNames.add(docName);
+          analysis.documentSources.forEach((docNameOrId: string) => {
+            // Check if it's a document ID (numeric string) or document name
+            const numericId = parseInt(docNameOrId);
+            if (!isNaN(numericId) && numericId.toString() === docNameOrId) {
+              // It's a document ID
+              allAssignedDocIds.add(numericId);
+            } else {
+              // It's a document name
+              allAssignedDocNames.add(docNameOrId);
+            }
           });
         }
       });
     }
     
-    // Return documents that are not assigned to any agent in the database
-    const unassigned = documents.filter((doc: any) => !allAssignedDocNames.has(doc.name));
+    // Return documents that are not assigned to any agent in the database (check both name and ID)
+    const unassigned = documents.filter((doc: any) => 
+      !allAssignedDocNames.has(doc.name) && !allAssignedDocIds.has(doc.id)
+    );
+    
+    // Debug logging to understand assignment distribution
+    console.log('📊 Assignment debugging:', {
+      totalDocuments: documents.length,
+      assignedByName: allAssignedDocNames.size,
+      assignedById: allAssignedDocIds.size,
+      unassignedCount: unassigned.length,
+      totalAnalyses: analyses.length
+    });
     
     console.log('📊 Unassigned calculation (database-based):', { 
       totalDocs: documents.length, 
       assignedDocNames: allAssignedDocNames.size, 
       unassignedCount: unassigned.length,
       analysesCount: analyses ? analyses.length : 0,
-      sampleAssignedNames: Array.from(allAssignedDocNames).slice(0, 3)
+      sampleAssignedNames: Array.from(allAssignedDocNames).slice(0, 5),
+      sampleDocumentNames: documents.slice(0, 3).map((doc: any) => doc.name),
+      firstDocAssigned: documents.length > 0 ? allAssignedDocNames.has(documents[0].name) : false
     });
+    
+    // Debug: Log detailed analysis breakdown
+    if (analyses && Array.isArray(analyses)) {
+      console.log('📋 Analysis breakdown:');
+      analyses.forEach((analysis: any) => {
+        console.log(`  ${analysis.agentType}: ${analysis.documentSources ? analysis.documentSources.length : 0} docs`);
+      });
+    }
     
     return unassigned;
   }, [documents, analyses]);
