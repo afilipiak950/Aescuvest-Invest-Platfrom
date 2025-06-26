@@ -173,7 +173,7 @@ export default function DueDiligence() {
     selectedDeal,
     isLoadingAnalyses,
     analysesData: analyses,
-    analysesLength: Array.isArray(analyses) ? analyses.length : 'not array',
+    analysesLength: (analyses && Array.isArray(analyses)) ? analyses.length : 'not array',
     agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
   });
 
@@ -219,14 +219,14 @@ export default function DueDiligence() {
       assignedByName: allAssignedDocNames.size,
       assignedById: allAssignedDocIds.size,
       unassignedCount: unassigned.length,
-      totalAnalyses: analyses.length
+      totalAnalyses: (analyses && Array.isArray(analyses)) ? analyses.length : 0
     });
     
     console.log('📊 Unassigned calculation (database-based):', { 
       totalDocs: documents.length, 
       assignedDocNames: allAssignedDocNames.size, 
       unassignedCount: unassigned.length,
-      analysesCount: analyses ? analyses.length : 0,
+      analysesCount: analyses && Array.isArray(analyses) ? analyses.length : 0,
       sampleAssignedNames: Array.from(allAssignedDocNames).slice(0, 5),
       sampleDocumentNames: documents.slice(0, 3).map((doc: any) => doc.name),
       firstDocAssigned: documents.length > 0 ? allAssignedDocNames.has(documents[0].name) : false
