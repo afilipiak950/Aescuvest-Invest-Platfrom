@@ -219,14 +219,24 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
     return null;
   }
 
+  // Filter out agent analysis jobs to hide them from UI
+  const visibleJobs = Array.from(activeJobs.values()).filter(job => 
+    !job.jobId.toString().includes('analysis')
+  );
+
+  // Don't render anything if only agent analysis jobs are running
+  if (visibleJobs.length === 0) {
+    return null;
+  }
+
   return (
     <div className="w-full space-y-3 mb-4">
-      {Array.from(activeJobs.values()).map((job) => (
+      {visibleJobs.map((job) => (
         <div key={job.jobId} className="bg-dark-light border border-dark-lighter rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-white text-sm font-medium">
               {getStatusIcon(job.status, job.progress)}
-              {job.jobId.toString().includes('analysis') ? 'AI Agent Analysis' : 'ZIP Analysis Processing'}
+              ZIP Analysis Processing
             </div>
             <div className="flex items-center gap-2">
               {job.status === 'processing' && (
