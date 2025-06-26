@@ -591,21 +591,23 @@ export default function EnhancedAgentCard({
             </p>
             
             {/* Real-time progress bar */}
-            <div className="bg-dark-lighter rounded-full h-3 mb-4 relative">
-              <div 
-                className="bg-gradient-to-r from-primary to-primary/80 h-3 rounded-full transition-all duration-500 ease-out"
-                style={{ 
-                  width: assignedDocuments > 0 
-                    ? `${Math.max(5, (currentProgress / assignedDocuments) * 100)}%` 
-                    : '5%' 
-                }}
-              >
-                <div className="absolute inset-0 bg-white/10 rounded-full animate-pulse"></div>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-medium text-white/90">
-                  {currentProgress}/{assignedDocuments}
-                </span>
+            <div className="w-full max-w-sm mx-auto mb-4">
+              <div className="bg-dark-lighter rounded-full h-3 relative overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-primary to-primary/80 h-3 rounded-full transition-all duration-500 ease-out"
+                  style={{ 
+                    width: assignedDocuments > 0 
+                      ? `${Math.min(100, Math.max(5, (currentProgress / assignedDocuments) * 100))}%` 
+                      : '5%' 
+                  }}
+                >
+                  <div className="absolute inset-0 bg-white/10 rounded-full animate-pulse"></div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-medium text-white/90">
+                    {currentProgress}/{assignedDocuments}
+                  </span>
+                </div>
               </div>
             </div>
             
