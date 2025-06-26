@@ -79,8 +79,36 @@ export default function EnhancedAgentCard({
 
   // Check if analysis is currently processing by looking at status and recent activity
   const isAnalysisCurrentlyRunning = () => {
-    // Always return false to hide processing state - analysis runs silently in background
+    // Check if all analyses are running from parent component
+    if (isRunningAllAnalyses) {
+      return true;
+    }
+    
+    // Check if we have a processing status
+    const status = analysisData?.status;
+    if (status === 'Processing' || status === 'In Progress') {
+      return true;
+    }
+    
+    // Check if mutation is pending
+    if (runMistralAnalysisMutation.isPending || isRunningAnalysis) {
+      return true;
+    }
+    
+    // For agents with no current analysis but assigned documents, allow the button to work
+    // The backend will handle checking if processing is already in progress
     return false;
+  };
+  
+  // Separate function to check if we should show the processing UI in the agent card
+  const shouldShowProcessingUI = () => {
+    // Hide processing UI when running all analyses to keep interface clean
+    if (isRunningAllAnalyses) {
+      return false;
+    }
+    
+    // Show processing UI for individual agent runs
+    return isAnalysisCurrentlyRunning();
   };
   
   // Extract findings and recommendations from the analysis
@@ -565,7 +593,7 @@ export default function EnhancedAgentCard({
               </div>
             </TabsContent>
           </Tabs>
-        ) : isAnalysisCurrentlyRunning() ? (
+        ) : shouldShowProcessingUI() ? (
           <div className="text-center py-8">
             <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
             <h3 className="text-lg font-medium text-white mb-2">Running {agentType} Analysis</h3>
