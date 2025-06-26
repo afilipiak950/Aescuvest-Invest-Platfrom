@@ -2847,41 +2847,47 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Company Research endpoints
+  // Enhanced Company Research endpoints
   app.get('/api/deals/:dealId/research', async (req: Request, res: Response) => {
     try {
-      console.log('🔍 Research GET request for deal:', req.params.dealId);
       const dealId = parseInt(req.params.dealId);
       if (isNaN(dealId)) {
-        console.log('🔍 Invalid deal ID provided:', req.params.dealId);
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
-      console.log('🔍 Looking up deal:', dealId);
       const deal = await storage.getDealById(dealId);
       if (!deal) {
-        console.log('🔍 Deal not found:', dealId);
         return res.status(404).json({ message: 'Deal not found' });
       }
 
-      console.log('🔍 Deal found:', deal.companyName, 'Fetching research data...');
-      // Get comprehensive research data from storage
+      // Try to get enhanced research data first
+      const { enhancedCompanyResearchService } = await import('./services/enhancedCompanyResearchService');
+      const enhancedData = await enhancedCompanyResearchService.getStoredResearch(dealId);
+      
+      if (enhancedData) {
+        console.log('🔍 Returning enhanced research data for deal:', dealId);
+        return res.json(enhancedData);
+      }
+
+      // Fallback to basic research data
       const researchData = await storage.getCompanyResearchByDealId(dealId);
       
-      console.log('🔍 Research data result:', {
-        hasData: !!researchData,
-        status: researchData?.researchStatus,
-        companyName: researchData?.companyName,
-        sources: researchData?.sources,
-        completedAt: researchData?.researchCompletedAt
-      });
-      
       if (!researchData) {
-        console.log('🔍 No research data found for deal:', dealId);
         return res.status(404).json({ message: 'Research data not available for this deal' });
       }
 
-      res.json(researchData);
+      // Convert basic research to enhanced format
+      const convertedData = {
+        companyName: deal.companyName,
+        website: deal.website || '',
+        lastUpdated: researchData.researchCompletedAt || new Date().toISOString(),
+        sources: researchData.sources || 1,
+        aiConfidenceScore: 75,
+        researchStatus: 'complete' as const
+      };
+
+      console.log('🔍 Returning converted research data for deal:', dealId);
+      res.json(convertedData);
     } catch (error) {
       console.error('🔍 Error fetching company research:', error);
       res.status(500).json({ message: 'Internal server error' });
