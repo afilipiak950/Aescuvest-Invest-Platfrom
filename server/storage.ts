@@ -44,10 +44,12 @@ export interface IStorage {
   // Document methods
   getAllDocuments(): Promise<Document[]>;
   getDocumentById(id: number): Promise<Document | undefined>;
+  getDocument(id: number): Promise<Document | undefined>;
   getDocumentsByDealId(dealId: number): Promise<Document[]>;
   getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocumentStatus(id: number, status: string): Promise<Document | undefined>;
+  updateDocument(id: number, data: Partial<Document>): Promise<Document | undefined>;
   updateDocumentWithOCR(id: number, ocrText: string, status: string): Promise<Document | undefined>;
   deleteDocuments(fileIds: number[]): Promise<number>;
   deleteDocumentsByDealId(dealId: number): Promise<number>;
@@ -57,6 +59,7 @@ export interface IStorage {
   getAnalysisById(id: number): Promise<AgentAnalysis | undefined>;
   getAnalysesByDealId(dealId: number): Promise<AgentAnalysis[]>;
   getAnalysisByDealAndAgent(dealId: number, agentType: string): Promise<AgentAnalysis | undefined>;
+  getAnalysis(dealId: number, agentType: string): Promise<AgentAnalysis | undefined>;
   createAgentAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis>;
   createAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis>;
   updateAgentAnalysis(id: number, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined>;
@@ -235,6 +238,10 @@ export class DatabaseStorage implements IStorage {
   async getDocumentById(id: number): Promise<Document | undefined> {
     const [document] = await db.select().from(documents).where(eq(documents.id, id));
     return document || undefined;
+  }
+
+  async getDocument(id: number): Promise<Document | undefined> {
+    return this.getDocumentById(id);
   }
 
   async getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]> {
