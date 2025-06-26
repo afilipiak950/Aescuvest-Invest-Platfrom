@@ -77,6 +77,20 @@ export default function DueDiligence() {
     }
   });
 
+  // Fetch job progress data for real-time updates
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${selectedDeal}`],
+    enabled: !!selectedDeal && isRunningAllAnalyses,
+    refetchInterval: 1000, // Poll every second for real-time progress
+    queryFn: async () => {
+      console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
+      const response = await fetch(`/api/background-jobs/${selectedDeal}`);
+      const data = await response.json();
+      console.log(`📊 Job progress data:`, data);
+      return data;
+    }
+  });
+
   // Debug log for documents loading
   console.log('📄 Documents query state:', {
     selectedDeal,
@@ -824,6 +838,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'clinical')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'clinical')?.currentDocumentName}
                   />
                 </TabsContent>
                 

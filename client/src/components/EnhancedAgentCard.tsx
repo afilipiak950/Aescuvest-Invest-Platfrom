@@ -14,9 +14,20 @@ interface EnhancedAgentCardProps {
   isLoading?: boolean;
   documents?: any[];
   isRunningAllAnalyses?: boolean;
+  currentProgress?: number;
+  currentDocumentName?: string;
 }
 
-export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoading, documents, isRunningAllAnalyses }: EnhancedAgentCardProps) {
+export default function EnhancedAgentCard({ 
+  dealId, 
+  agentType, 
+  analysis, 
+  isLoading, 
+  documents, 
+  isRunningAllAnalyses,
+  currentProgress = 0,
+  currentDocumentName 
+}: EnhancedAgentCardProps) {
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const queryClient = useQueryClient();
 
@@ -556,9 +567,38 @@ export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoadi
             <p className="text-gray-400 mb-4">
               Processing {assignedDocuments} assigned documents with the Mistral AI agent...
             </p>
-            <div className="bg-dark-lighter rounded-full h-2 mb-4">
-              <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '45%' }}></div>
+            
+            {/* Real-time progress bar */}
+            <div className="bg-dark-lighter rounded-full h-3 mb-4 relative">
+              <div 
+                className="bg-gradient-to-r from-primary to-primary/80 h-3 rounded-full transition-all duration-500 ease-out"
+                style={{ 
+                  width: assignedDocuments > 0 
+                    ? `${Math.max(5, (currentProgress / assignedDocuments) * 100)}%` 
+                    : '5%' 
+                }}
+              >
+                <div className="absolute inset-0 bg-white/10 rounded-full animate-pulse"></div>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-medium text-white/90">
+                  {currentProgress}/{assignedDocuments}
+                </span>
+              </div>
             </div>
+            
+            {/* Current document being processed */}
+            {currentDocumentName && (
+              <div className="bg-dark-lighter/50 rounded-lg p-3 mb-4 max-w-md mx-auto">
+                <p className="text-xs text-gray-400 mb-1">Currently analyzing:</p>
+                <p className="text-sm text-white font-medium break-words">
+                  {currentDocumentName.length > 50 
+                    ? `${currentDocumentName.substring(0, 47)}...` 
+                    : currentDocumentName}
+                </p>
+              </div>
+            )}
+            
             <p className="text-sm text-gray-500">This may take several minutes to complete</p>
           </div>
         ) : (
