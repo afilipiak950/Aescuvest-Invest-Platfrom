@@ -11,6 +11,7 @@ import {
   companyResearch,
   dataRoomConnections, DataRoomConnection, InsertDataRoomConnection,
   microsoftEmailConnections, MicrosoftEmailConnection, InsertMicrosoftEmailConnection,
+  backgroundJobs, BackgroundJob, InsertBackgroundJob,
   comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult
@@ -1214,22 +1215,89 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createBackgroundJob(job: any): Promise<any> {
-    // For now, store in memory since we don't have a background jobs table
-    // This is a simple implementation for tracking progress
-    return job;
+  async createBackgroundJob(job: InsertBackgroundJob): Promise<BackgroundJob> {
+    try {
+      const [result] = await db.insert(backgroundJobs).values(job).returning();
+      console.log(`💾 Created background job ${job.jobId} in database`);
+      return result;
+    } catch (error) {
+      console.error('Error creating background job:', error);
+      throw error;
+    }
   }
 
-  async updateBackgroundJob(id: string, updates: any): Promise<any> {
-    // For now, this is a no-op since we're storing in memory
-    // In a full implementation, this would update the database
-    return { id, ...updates };
+  async updateBackgroundJob(jobId: string, updates: Partial<BackgroundJob>): Promise<void> {
+    try {
+      await db.update(backgroundJobs)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(backgroundJobs.jobId, jobId));
+      console.log(`💾 Updated background job ${jobId} in database`);
+    } catch (error) {
+      console.error(`Error updating background job ${jobId}:`, error);
+      throw error;
+    }
   }
 
-  async getBackgroundJobsByDealId(dealId: number): Promise<any[]> {
-    // For now, return empty array since we don't have persistent storage
-    // The BackgroundJobManager handles in-memory tracking
-    return [];
+  async getBackgroundJobsByDealId(dealId: number): Promise<BackgroundJob[]> {
+    try {
+      const jobs = await db.select().from(backgroundJobs)
+        .where(eq(backgroundJobs.dealId, dealId))
+        .orderBy(backgroundJobs.createdAt);
+      return jobs;
+    } catch (error) {
+      console.error(`Error fetching background jobs for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
+  async getActiveBackgroundJobsForDeal(dealId: number): Promise<BackgroundJob[]> {
+    try {
+      const jobs = await db.select().from(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.dealId, dealId),
+          eq(backgroundJobs.status, 'processing')
+        ))
+        .orderBy(backgroundJobs.createdAt);
+      return jobs;
+    } catch (error) {
+      console.error(`Error fetching active background jobs for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
+  async completeBackgroundJob(jobId: string, results: any): Promise<void> {
+    try {
+      await db.update(backgroundJobs)
+        .set({
+          status: 'completed',
+          progress: 100,
+          result: results,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      console.log(`✅ Marked background job ${jobId} as completed`);
+    } catch (error) {
+      console.error(`Error completing background job ${jobId}:`, error);
+      throw error;
+    }
+  }
+
+  async failBackgroundJob(jobId: string, errorMessage: string): Promise<void> {
+    try {
+      await db.update(backgroundJobs)
+        .set({
+          status: 'failed',
+          error: errorMessage,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      console.log(`❌ Marked background job ${jobId} as failed`);
+    } catch (error) {
+      console.error(`Error failing background job ${jobId}:`, error);
+      throw error;
+    }
   }
 
   async deleteBackgroundJobsByDealId(dealId: number): Promise<number> {
