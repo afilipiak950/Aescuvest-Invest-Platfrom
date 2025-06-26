@@ -159,6 +159,11 @@ Changelog:
   - Enhanced AI-powered document assignment with fallback to rule-based assignment
   - Created DocumentSummaryDialog component for detailed AI analysis display
   - Added comprehensive error handling for document downloads and assignment processing
+- June 26, 2025: Fixed document assignment UI synchronization
+  - Resolved critical issue where documents weren't disappearing from unassigned tab after assignment
+  - Updated unassigned documents calculation to use real database assignments instead of keyword matching
+  - Documents now properly move from unassigned tab to agent-specific tabs after AI assignment
+  - Confirmed AI auto-assignment system working correctly with 111+ documents successfully assigned
 ```
 
 ## User Preferences
