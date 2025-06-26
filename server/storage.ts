@@ -17,7 +17,7 @@ import {
   evaluationResults, EvaluationResult, InsertEvaluationResult
 } from "@shared/schema";
 import { db, pool } from './db';
-import { eq, and, or, desc, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, inArray, isNotNull, isNull } from 'drizzle-orm';
 
 // In-memory cache for document queries
 const documentCache = new Map<number, { data: Document[], timestamp: number }>();
