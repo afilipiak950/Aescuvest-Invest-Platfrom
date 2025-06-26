@@ -107,8 +107,18 @@ export default function EnhancedAgentCard({
       return false;
     }
     
-    // Show processing UI for individual agent runs
-    return isAnalysisCurrentlyRunning();
+    // Show processing UI for individual agent runs (exclude the bulk analysis check)
+    const status = analysisData?.status;
+    if (status === 'Processing' || status === 'In Progress') {
+      return true;
+    }
+    
+    // Check if mutation is pending or manual running state
+    if (runMistralAnalysisMutation.isPending || isRunningAnalysis) {
+      return true;
+    }
+    
+    return false;
   };
   
   // Extract findings and recommendations from the analysis
@@ -363,9 +373,9 @@ export default function EnhancedAgentCard({
   
   // Calculate real progress based on current state and backend progress
   const progress = (() => {
-    // If we have real progress from job tracking, use it
-    if (currentProgress > 0 && assignedDocuments > 0) {
-      return Math.round((currentProgress / assignedDocuments) * 100);
+    // If we have real progress from job tracking, use it directly (it's already a percentage)
+    if (currentProgress > 0) {
+      return Math.round(currentProgress);
     }
     
     // During reset & run all analyses, start from 0
