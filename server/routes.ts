@@ -3002,6 +3002,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Mark this analysis as running
       runningAnalyses.set(analysisKey, true);
       
+      // Debug: Log current running analyses
+      console.log(`📊 Current running analyses:`, Array.from(runningAnalyses.keys()));
+      
       // Start agent-specific analysis in background with rate limiting
       setImmediate(async () => {
         try {
