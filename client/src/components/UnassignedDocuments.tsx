@@ -357,6 +357,13 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
           </div>
         )}
       </CardContent>
+      
+      {/* Document Summary Dialog */}
+      <DocumentSummaryDialog
+        document={selectedDocument}
+        open={showDocumentDialog}
+        onOpenChange={setShowDocumentDialog}
+      />
     </Card>
   );
 }
