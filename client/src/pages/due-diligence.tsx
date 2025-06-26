@@ -186,27 +186,28 @@ export default function DueDiligence() {
       return [];
     }
 
-    // Get all document IDs that are actually assigned to agents from database
-    const allAssignedDocIds = new Set();
+    // Get all document NAMES that are actually assigned to agents from database
+    const allAssignedDocNames = new Set();
     
     if (analyses && Array.isArray(analyses)) {
       analyses.forEach((analysis: any) => {
         if (analysis.documentSources && Array.isArray(analysis.documentSources)) {
-          analysis.documentSources.forEach((docId: string) => {
-            allAssignedDocIds.add(parseInt(docId));
+          analysis.documentSources.forEach((docName: string) => {
+            allAssignedDocNames.add(docName);
           });
         }
       });
     }
     
     // Return documents that are not assigned to any agent in the database
-    const unassigned = documents.filter((doc: any) => !allAssignedDocIds.has(doc.id));
+    const unassigned = documents.filter((doc: any) => !allAssignedDocNames.has(doc.name));
     
     console.log('📊 Unassigned calculation (database-based):', { 
       totalDocs: documents.length, 
-      assignedIds: allAssignedDocIds.size, 
+      assignedDocNames: allAssignedDocNames.size, 
       unassignedCount: unassigned.length,
-      analysesCount: analyses ? analyses.length : 0
+      analysesCount: analyses ? analyses.length : 0,
+      sampleAssignedNames: Array.from(allAssignedDocNames).slice(0, 3)
     });
     
     return unassigned;

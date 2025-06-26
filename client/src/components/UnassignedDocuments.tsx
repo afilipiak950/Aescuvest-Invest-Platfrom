@@ -100,19 +100,23 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
       setAssignmentComment(prev => ({ ...prev, [variables.docId]: '' }));
       setShowCommentDialog(null);
       
-      // Force immediate UI refresh with multiple query invalidations
+      // Force immediate UI refresh with proper sequence
       console.log(`🔄 Forcing UI refresh for deal ${dealId} after assignment`);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] }),
-        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] }),
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${variables.agentType.toLowerCase()}/results`] })
-      ]);
       
-      // Force refetch to ensure immediate update
-      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      // First invalidate and refetch analyses (this determines assignment status)
+      await queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       await queryClient.refetchQueries({ queryKey: [`/api/analyses/${dealId}`] });
       
+      // Then invalidate and refetch documents
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      // Finally invalidate agent-specific results
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${variables.agentType.toLowerCase()}/results`] });
+      
       console.log(`✅ UI refresh completed for document ${variables.docId} assignment`);
+      
+      // Call onAssignDocument to trigger parent component refresh
       onAssignDocument(variables.docId, variables.agentType);
     },
     onError: (error, variables) => {
