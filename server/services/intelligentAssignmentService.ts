@@ -348,7 +348,7 @@ Respond in JSON format:
     } catch (error) {
       console.error('AI assignment failed:', error);
       // Fallback to rule-based assignment
-      return this.performRuleBasedAssignment(content);
+      return this.performRuleBasedAssignment(documentContent);
     }
   }
 
@@ -469,6 +469,14 @@ Respond in JSON format:
         assignedBy: userId
       });
 
+      // Ensure each assigned agent has an analysis record for this deal
+      const document = await storage.getDocument(documentId);
+      if (document) {
+        for (const agentType of assignment.assignments) {
+          await this.ensureAgentAnalysisExists(document.dealId, agentType, documentId);
+        }
+      }
+
       // Save to learning table (when database is ready)
       // await storage.createDocumentAssignmentLearning({
       //   documentId,
@@ -481,6 +489,39 @@ Respond in JSON format:
 
     } catch (error) {
       console.error('Failed to save assignment:', error);
+    }
+  }
+
+  // Ensure agent analysis exists and document is added to it
+  private async ensureAgentAnalysisExists(dealId: number, agentType: string, documentId: number): Promise<void> {
+    try {
+      // Get existing analysis for this agent and deal
+      let analysis = await storage.getAnalysis(dealId, agentType);
+      
+      if (!analysis) {
+        // Create new analysis for this agent
+        console.log(`📋 Creating new ${agentType} analysis for deal ${dealId}`);
+        analysis = await storage.createAnalysis({
+          dealId,
+          agentType,
+          status: 'Not Started',
+          progress: 0,
+          findings: [],
+          documentSources: [documentId.toString()]
+        });
+      } else {
+        // Add document to existing analysis if not already present
+        const docSources = analysis.documentSources || [];
+        if (!docSources.includes(documentId.toString())) {
+          docSources.push(documentId.toString());
+          await storage.updateAnalysis(analysis.id, {
+            documentSources: docSources
+          });
+          console.log(`✅ Added document ${documentId} to existing ${agentType} analysis`);
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to ensure agent analysis for ${agentType}:`, error);
     }
   }
 
