@@ -3203,6 +3203,47 @@ function calculateDocumentRelevanceScore(document: any, agent: any): number {
 async function processAgentSpecificAnalysis(dealId: number, agentType: string, documents: any[], deal: any, forceRefresh = false) {
   console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
   
+  // Create in-memory job tracking for progress updates
+  const jobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+  if (!global.activeJobs) {
+    global.activeJobs = new Map();
+  }
+  
+  global.activeJobs.set(jobId, {
+    id: jobId,
+    dealId,
+    type: 'agent-analysis',
+    agentType: agentType.toLowerCase(),
+    status: 'processing',
+    progress: 0,
+    currentStep: 0,
+    totalSteps: documents.length,
+    currentDocumentName: '',
+    startedAt: new Date().toISOString(),
+    metadata: {
+      agentType: agentType.toLowerCase(),
+      documentCount: documents.length
+    }
+  });
+  
+  console.log(`📊 Created in-memory job tracking ${jobId} for ${agentType} agent analysis (${documents.length} documents)`);
+  
+  // Also try to create database job as backup
+  try {
+    await storage.createBackgroundJob({
+      id: jobId,
+      dealId,
+      type: 'agent-analysis',
+      agentType: agentType.toLowerCase(),
+      status: 'processing',
+      progress: 0,
+      totalDocuments: documents.length,
+      startedAt: new Date()
+    });
+  } catch (error) {
+    console.warn(`⚠️ Database job creation failed (using in-memory tracking):`, error);
+  }
+  
   // Check if analysis already exists for this agent and deal (AI caching)
   let existingAnalysis = null;
   
@@ -3371,23 +3412,28 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
         processedDocuments++;
         console.log(`✅ Analyzed document ${document.name} (${processedDocuments}/${assignedDocuments.length})`);
         
-        // Update job progress for real-time tracking
-        const jobId = `${agentType}_${dealId}`;
+        // Update in-memory job progress for real-time tracking
+        const jobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+        if (global.activeJobs && global.activeJobs.has(jobId)) {
+          const job = global.activeJobs.get(jobId);
+          job.currentStep = processedDocuments;
+          job.progress = Math.round((processedDocuments / assignedDocuments.length) * 100);
+          job.currentDocumentName = document.name;
+          job.metadata.processedCount = processedDocuments;
+          job.metadata.lastUpdate = new Date().toISOString();
+          
+          console.log(`📊 Updated job progress: ${agentType} ${processedDocuments}/${assignedDocuments.length} (${job.progress}%)`);
+        }
+        
+        // Also try to update database job
         try {
           await storage.updateBackgroundJob(jobId, {
             progress: Math.round((processedDocuments / assignedDocuments.length) * 100),
             currentStep: processedDocuments,
-            currentDocumentName: document.name,
-            metadata: {
-              agentType,
-              documentCount: assignedDocuments.length,
-              processedCount: processedDocuments,
-              currentDocument: document.name,
-              lastUpdate: new Date().toISOString()
-            }
+            currentDocumentName: document.name
           });
         } catch (jobError) {
-          console.error(`Failed to update job progress for ${agentType}:`, jobError);
+          // Silent fail - using in-memory tracking as primary
         }
       } catch (error) {
         console.error(`Failed to analyze document ${document.name}:`, error);
