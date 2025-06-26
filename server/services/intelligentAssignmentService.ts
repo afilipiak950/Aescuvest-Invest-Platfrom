@@ -256,7 +256,7 @@ export class IntelligentAssignmentService {
   }
 
   // Perform AI-powered assignment using OpenAI
-  private async performAIAssignment(content: string, learningData: any[]): Promise<{
+  private async performAIAssignment(documentContent: string, learningData: any[]): Promise<{
     assignments: string[];
     reasoning: string;
     confidence: number;
@@ -273,7 +273,7 @@ Available Agents:
 ${agentDescriptions}
 
 Document Content:
-${content}
+${documentContent}
 
 Instructions:
 1. Assign to 1-3 most relevant agents based on content analysis
@@ -305,22 +305,22 @@ Respond in JSON format:
         max_tokens: 500
       });
 
-      let content = response.choices[0].message.content || '{}';
+      let responseContent = response.choices[0].message.content || '{}';
       
       // Clean the response by removing markdown code blocks if present
-      content = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+      responseContent = responseContent.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
       
       // Remove any leading/trailing backticks that might remain
-      content = content.replace(/^`+|`+$/g, '');
+      responseContent = responseContent.replace(/^`+|`+$/g, '');
       
-      console.log('🧹 Cleaned AI response content:', content.substring(0, 200));
+      console.log('🧹 Cleaned AI response content:', responseContent.substring(0, 200));
       
       let result;
       try {
-        result = JSON.parse(content);
-      } catch (parseError) {
+        result = JSON.parse(responseContent);
+      } catch (parseError: any) {
         console.error('❌ JSON parse error:', parseError);
-        console.error('📄 Raw content:', content);
+        console.error('📄 Raw content:', responseContent);
         // Fallback to rule-based assignment if AI parsing fails
         throw new Error(`AI response parsing failed: ${parseError.message}`);
       }
