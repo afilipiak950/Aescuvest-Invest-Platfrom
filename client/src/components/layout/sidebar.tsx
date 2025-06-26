@@ -36,15 +36,27 @@ export default function Sidebar() {
                 src={aescuvestLogoFull} 
                 alt="Aescuvest" 
                 className="h-8 w-auto object-contain"
+                onError={(e) => {
+                  console.error('Logo failed to load:', aescuvestLogoFull);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
+              <span className="text-xl font-bold text-primary">Aescuvest</span>
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center overflow-hidden">
+            <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
               <img 
                 src={aescuvestLogo} 
                 alt="Aescuvest" 
                 className="h-8 w-8 object-contain"
+                onError={(e) => {
+                  console.error('Logo failed to load:', aescuvestLogo);
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
               />
+              <span className="text-primary font-bold text-lg hidden">A</span>
             </div>
           )}
         </div>
