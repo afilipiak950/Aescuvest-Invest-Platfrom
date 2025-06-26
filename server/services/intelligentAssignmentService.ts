@@ -305,7 +305,25 @@ Respond in JSON format:
         max_tokens: 500
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      let content = response.choices[0].message.content || '{}';
+      
+      // Clean the response by removing markdown code blocks if present
+      content = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+      
+      // Remove any leading/trailing backticks that might remain
+      content = content.replace(/^`+|`+$/g, '');
+      
+      console.log('🧹 Cleaned AI response content:', content.substring(0, 200));
+      
+      let result;
+      try {
+        result = JSON.parse(content);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('📄 Raw content:', content);
+        // Fallback to rule-based assignment if AI parsing fails
+        throw new Error(`AI response parsing failed: ${parseError.message}`);
+      }
       
       // Validate the response
       if (!result.assignments || !Array.isArray(result.assignments)) {

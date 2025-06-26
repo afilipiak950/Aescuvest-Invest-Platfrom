@@ -1613,7 +1613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Length', stats.size);
-      res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`);
       res.setHeader('Cache-Control', 'no-cache');
       
       // Stream the file
