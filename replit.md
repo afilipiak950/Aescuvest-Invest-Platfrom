@@ -147,6 +147,12 @@ Changelog:
   - Implemented batch completion solution for all remaining documents
   - Achieved 100% document analysis completion (263/263 documents)
   - Removed debug information from email attachment interface for cleaner UI
+- June 26, 2025: Fixed "Reset & Run All Analyses" background job system
+  - Resolved critical persistence issue where background jobs stopped after server restarts
+  - Fixed database storage problems with empty job_id and agent_type fields
+  - Successfully implemented silent bulk analysis processing without progress indicators
+  - Confirmed all 7 agents (Clinical, Legal, Commercial, HR, Financial, IP, Research) run persistently
+  - Background analysis continues when navigating away from pages until completion
 ```
 
 ## User Preferences
