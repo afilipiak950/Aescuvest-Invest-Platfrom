@@ -223,7 +223,19 @@ export default function DueDiligence() {
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       console.log(`🚀 Starting fresh comprehensive analysis for all ${agentTypes.length} agents`);
       
-      // Step 1: Delete all existing analyses first
+      // Step 1: Stop all running analyses first 
+      console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
+      try {
+        await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
+      } catch (stopError) {
+        console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
+      }
+      
+      // Step 2: Delete all existing analyses 
       console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
       try {
         await apiRequest(`/api/analyses/${selectedDeal}`, {
@@ -231,12 +243,15 @@ export default function DueDiligence() {
           headers: { 'Content-Type': 'application/json' }
         });
         console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
+        
+        // Wait for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (deleteError) {
         console.error(`❌ Failed to delete existing analyses:`, deleteError);
         // Continue anyway - the analyses will be overwritten
       }
       
-      // Step 2: Run all agent analyses in parallel with force refresh
+      // Step 3: Run all agent analyses in parallel with force refresh
       const promises = agentTypes.map(agentType => 
         apiRequest(`/api/deals/${selectedDeal}/agents/${agentType}/analyze`, {
           method: 'POST',
