@@ -168,7 +168,9 @@ export class IntelligentAssignmentService {
         throw new Error('Document not found');
       }
 
-      // Check if document already has assignments
+      // Check if document already has assignments (skip for now due to schema limitations)
+      // TODO: Add assignedAgents support when database schema is updated
+      /*
       if (document.assignedAgents && document.assignedAgents.length > 0) {
         console.log(`📋 Document ${documentId} already assigned to: ${document.assignedAgents.join(', ')}`);
         return {
@@ -177,6 +179,7 @@ export class IntelligentAssignmentService {
           confidence: document.assignmentConfidence || 0.8
         };
       }
+      */
 
       // Extract content for analysis
       const content = this.extractDocumentContent(document);
