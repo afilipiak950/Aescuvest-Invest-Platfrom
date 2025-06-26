@@ -226,7 +226,7 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-white text-sm font-medium">
               {getStatusIcon(job.status, job.progress)}
-              ZIP Analysis Processing
+              {job.jobId.toString().includes('analysis') ? 'AI Agent Analysis' : 'ZIP Analysis Processing'}
             </div>
             <div className="flex items-center gap-2">
               {job.status === 'processing' && (
