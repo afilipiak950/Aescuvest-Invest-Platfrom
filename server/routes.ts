@@ -3311,6 +3311,29 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
 
     console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent`);
 
+    // Create initial job progress entry for real-time tracking
+    const jobId = `${agentType}_${dealId}`;
+    try {
+      await storage.createBackgroundJob({
+        id: jobId,
+        dealId,
+        type: 'agent_analysis',
+        status: 'running',
+        progress: 0,
+        totalSteps: assignedDocuments.length,
+        currentStep: 0,
+        agentType: agentType,
+        metadata: {
+          agentType,
+          documentCount: assignedDocuments.length,
+          startTime: new Date().toISOString()
+        }
+      });
+      console.log(`🚀 Created job progress tracking for ${agentType} agent (${assignedDocuments.length} documents)`);
+    } catch (jobError) {
+      console.error(`Failed to create job progress for ${agentType}:`, jobError);
+    }
+
     for (const document of assignedDocuments) {
       if (!document.ocrText) {
         console.log(`⏭️ Skipping document ${document.name} - no OCR text available`);
@@ -3347,6 +3370,25 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
         
         processedDocuments++;
         console.log(`✅ Analyzed document ${document.name} (${processedDocuments}/${assignedDocuments.length})`);
+        
+        // Update job progress for real-time tracking
+        const jobId = `${agentType}_${dealId}`;
+        try {
+          await storage.updateBackgroundJob(jobId, {
+            progress: Math.round((processedDocuments / assignedDocuments.length) * 100),
+            currentStep: processedDocuments,
+            currentDocumentName: document.name,
+            metadata: {
+              agentType,
+              documentCount: assignedDocuments.length,
+              processedCount: processedDocuments,
+              currentDocument: document.name,
+              lastUpdate: new Date().toISOString()
+            }
+          });
+        } catch (jobError) {
+          console.error(`Failed to update job progress for ${agentType}:`, jobError);
+        }
       } catch (error) {
         console.error(`Failed to analyze document ${document.name}:`, error);
         // Continue processing other documents even if one fails
