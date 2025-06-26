@@ -115,11 +115,65 @@ export const documents: any = pgTable("documents", {
   }>(),
   aiSummaryStatus: varchar("ai_summary_status", { length: 20 }).default("pending"), // 'pending', 'processing', 'completed', 'failed'
   aiSummaryGeneratedAt: timestamp("ai_summary_generated_at"),
+  // Agent assignment fields
+  assignedAgents: json("assigned_agents").$type<string[]>().default([]),
+  assignmentReason: text("assignment_reason"), // AI explanation for assignment
+  assignmentConfidence: numeric("assignment_confidence", { precision: 3, scale: 2 }), // 0.00-1.00
+  manuallyAssigned: boolean("manually_assigned").default(false),
+  assignedAt: timestamp("assigned_at"),
+  assignedBy: integer("assigned_by").references(() => users.id),
 });
 
 export const insertDocumentSchema = createInsertSchema(documents).omit({
   id: true,
   uploadedAt: true,
+});
+
+// Document Assignment Learning Table
+export const documentAssignmentLearning = pgTable("document_assignment_learning", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  agentType: text("agent_type").notNull(),
+  assignmentType: text("assignment_type").notNull(), // 'ai', 'manual', 'corrected'
+  userComment: text("user_comment"), // User's reason for assignment
+  aiReasoning: text("ai_reasoning"), // AI's reasoning for assignment
+  documentSummary: text("document_summary"), // Summary at time of assignment
+  keyTerms: json("key_terms").$type<string[]>(), // Key terms that influenced assignment
+  confidence: numeric("confidence", { precision: 3, scale: 2 }), // AI confidence score
+  vectorSimilarity: numeric("vector_similarity", { precision: 5, scale: 4 }), // Similarity to training examples
+  feedbackPositive: boolean("feedback_positive"), // User feedback on assignment quality
+  feedbackComment: text("feedback_comment"), // User feedback comment
+  assignedBy: integer("assigned_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDocumentAssignmentLearningSchema = createInsertSchema(documentAssignmentLearning).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Agent Assignment Rules Table (for learning patterns)
+export const agentAssignmentRules = pgTable("agent_assignment_rules", {
+  id: serial("id").primaryKey(),
+  agentType: text("agent_type").notNull(),
+  ruleType: text("rule_type").notNull(), // 'keyword', 'content_type', 'pattern'
+  ruleValue: text("rule_value").notNull(), // The actual rule (keyword, regex, etc.)
+  priority: integer("priority").default(0), // Higher priority rules are checked first
+  confidence: numeric("confidence", { precision: 3, scale: 2 }), // How confident this rule is
+  successRate: numeric("success_rate", { precision: 3, scale: 2 }), // Historical success rate
+  usageCount: integer("usage_count").default(0), // How many times this rule was used
+  lastUsed: timestamp("last_used"),
+  createdBy: text("created_by").default("system"), // 'system' or 'user'
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAgentAssignmentRuleSchema = createInsertSchema(agentAssignmentRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Agent Analyses
