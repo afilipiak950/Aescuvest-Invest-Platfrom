@@ -408,14 +408,19 @@ export const insertMicrosoftEmailConnectionSchema = createInsertSchema(microsoft
 export type MicrosoftEmailConnection = typeof microsoftEmailConnections.$inferSelect;
 export type InsertMicrosoftEmailConnection = z.infer<typeof insertMicrosoftEmailConnectionSchema>;
 
-// Background Job Processing table
+// Background Job Processing table - supports both ZIP processing and agent analysis
 export const backgroundJobs = pgTable("background_jobs", {
   id: serial("id").primaryKey(),
-  jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing'
+  jobId: text("job_id").notNull().unique(), // Unique job identifier
+  jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing', 'agent_analysis'
   status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
   progress: integer("progress").notNull().default(0), // 0-100 percentage
   dealId: integer("deal_id").references(() => deals.id),
   documentId: integer("document_id").references(() => documents.id, { onDelete: "cascade" }),
+  agentType: text("agent_type"), // For agent analysis jobs
+  totalDocuments: integer("total_documents").default(0), // Total documents to process
+  processedDocuments: integer("processed_documents").default(0), // Documents processed so far
+  currentDocumentName: text("current_document_name"), // Current document being processed
   jobData: json("job_data"), // Store file paths, parameters, etc.
   currentStep: text("current_step"), // Current processing step description
   result: json("result"), // Store processing results
