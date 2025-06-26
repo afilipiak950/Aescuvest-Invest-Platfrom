@@ -153,6 +153,12 @@ Changelog:
   - Successfully implemented silent bulk analysis processing without progress indicators
   - Confirmed all 7 agents (Clinical, Legal, Commercial, HR, Financial, IP, Research) run persistently
   - Background analysis continues when navigating away from pages until completion
+- June 26, 2025: Enhanced document handling and AI assignment system
+  - Fixed document click functionality to show AI summary popups in unassigned documents tab
+  - Improved download functionality with proper UTF-8 encoding for international filenames
+  - Enhanced AI-powered document assignment with fallback to rule-based assignment
+  - Created DocumentSummaryDialog component for detailed AI analysis display
+  - Added comprehensive error handling for document downloads and assignment processing
 ```
 
 ## User Preferences

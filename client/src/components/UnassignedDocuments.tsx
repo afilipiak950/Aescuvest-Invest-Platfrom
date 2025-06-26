@@ -140,45 +140,60 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
       
       const response = await fetch(`/api/documents/${doc.id}/download`, {
         method: 'GET',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': '*/*'
+        }
       });
 
       if (!response.ok) {
-        throw new Error(`Download failed: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Download error response:', errorText);
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
       }
 
       // Get the filename from the Content-Disposition header or use the document name
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = doc.name;
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
 
       // Create blob and download
       const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = window.document.createElement('a');
       a.href = url;
       a.download = filename;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
       toast({
         title: "Success",
         description: `Downloaded ${filename}`,
       });
 
-      console.log(`✅ Successfully downloaded: ${filename}`);
+      console.log(`✅ Successfully downloaded: ${filename} (${blob.size} bytes)`);
     } catch (error) {
       console.error('Download failed:', error);
       toast({
         title: "Download Failed",
-        description: error instanceof Error ? error.message : 'Failed to download document',
+        description: error instanceof Error ? error.message : 'Unknown download error',
         variant: "destructive",
       });
     }
