@@ -2958,12 +2958,35 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
   websocketManager.initialize(httpServer);
   console.log('📡 WebSocket manager initialized for background job progress tracking');
   
+  // Track running analyses to prevent overlaps
+  const runningAnalyses = new Map<string, boolean>();
+
   // Run Mistral analysis for specific agent type
   app.post('/api/deals/:dealId/agents/:agentType/analyze', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       const agentType = req.params.agentType.toLowerCase();
       const { forceRefresh } = req.body;
+      
+      // Create unique key for this analysis
+      const analysisKey = `${dealId}-${agentType}`;
+      
+      // If forceRefresh, stop any existing analysis for this agent and clear state
+      if (forceRefresh) {
+        console.log(`🔄 Force refresh requested - stopping and clearing existing ${agentType} analysis for deal ${dealId}`);
+        runningAnalyses.delete(analysisKey);
+        await storage.clearAgentAnalysis(dealId, agentType);
+      }
+      
+      // Check if analysis is already running for this agent
+      if (runningAnalyses.get(analysisKey)) {
+        console.log(`⏭️ ${agentType} analysis already running for deal ${dealId}, skipping duplicate request`);
+        return res.json({ 
+          success: true, 
+          message: `${agentType} agent analysis already in progress`,
+          documentsFound: 0
+        });
+      }
       
       // Get deal and documents
       const deal = await storage.getDealById(dealId);
@@ -2974,17 +2997,22 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Get documents with OCR text for analysis
       const documents = await storage.getDocumentsWithOCRByDealId(dealId);
       
-      console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents`);
+      console.log(`🤖 Starting fresh ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
       
-      // If forceRefresh, clear existing analysis first
-      if (forceRefresh) {
-        console.log(`🔄 Force refresh requested - clearing existing ${agentType} analysis`);
-        await storage.clearAgentAnalysis(dealId, agentType);
-      }
+      // Mark this analysis as running
+      runningAnalyses.set(analysisKey, true);
       
       // Start agent-specific analysis in background with rate limiting
       setImmediate(async () => {
-        await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+        try {
+          await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+        } catch (error) {
+          console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
+        } finally {
+          // Remove from running analyses when complete
+          runningAnalyses.delete(analysisKey);
+          console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
+        }
       });
 
       res.json({ 
@@ -2995,6 +3023,38 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     } catch (error) {
       console.error(`Error starting ${req.params.agentType} analysis:`, error);
       res.status(500).json({ success: false, error: 'Failed to start agent analysis' });
+    }
+  });
+
+  // Stop all running analyses for a deal
+  app.post('/api/deals/:dealId/stop-all-analyses', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      console.log(`🛑 Stopping all running analyses for deal ${dealId}`);
+      
+      // Clear all running analyses for this deal
+      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      let stoppedCount = 0;
+      
+      for (const agentType of agentTypes) {
+        const analysisKey = `${dealId}-${agentType}`;
+        if (runningAnalyses.has(analysisKey)) {
+          runningAnalyses.delete(analysisKey);
+          stoppedCount++;
+          console.log(`🛑 Stopped ${agentType} analysis for deal ${dealId}`);
+        }
+      }
+      
+      console.log(`✅ Stopped ${stoppedCount} running analyses for deal ${dealId}`);
+      
+      res.json({ 
+        success: true, 
+        message: `Stopped ${stoppedCount} running analyses`,
+        stoppedCount
+      });
+    } catch (error) {
+      console.error(`Error stopping analyses for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to stop analyses' });
     }
   });
 
@@ -3159,9 +3219,10 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
       existingAnalysis = null; // Reset after clearing
     }
   } else {
-    console.log(`🔄 Force refresh enabled - bypassing cache and processing all documents`);
-    // For force refresh, check if there's an existing analysis to update
-    existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, agentType);
+    console.log(`🔄 Force refresh enabled - bypassing cache and clearing any existing analysis`);
+    // For force refresh, clear any existing analysis completely and start fresh
+    await storage.clearAgentAnalysis(dealId, agentType);
+    existingAnalysis = null;
   }
   
   const specializedAgents = {
