@@ -1213,6 +1213,30 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+
+  async createBackgroundJob(job: any): Promise<any> {
+    // For now, store in memory since we don't have a background jobs table
+    // This is a simple implementation for tracking progress
+    return job;
+  }
+
+  async updateBackgroundJob(id: string, updates: any): Promise<any> {
+    // For now, this is a no-op since we're storing in memory
+    // In a full implementation, this would update the database
+    return { id, ...updates };
+  }
+
+  async getBackgroundJobsByDealId(dealId: number): Promise<any[]> {
+    // For now, return empty array since we don't have persistent storage
+    // The BackgroundJobManager handles in-memory tracking
+    return [];
+  }
+
+  async deleteBackgroundJobsByDealId(dealId: number): Promise<number> {
+    // Clean up any agent analyses for this deal
+    const result = await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
+    return result.rowCount || 0;
+  }
 }
 
 export const storage = new DatabaseStorage();
