@@ -23,6 +23,8 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
   const [assignmentComment, setAssignmentComment] = useState<{ [key: number]: string }>({});
   const [showCommentDialog, setShowCommentDialog] = useState<number | null>(null);
   const [isAIAssigning, setIsAIAssigning] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [showDocumentDialog, setShowDocumentDialog] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -126,12 +128,60 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
     assignDocumentMutation.mutate({ docId, agentType, comment });
   };
 
-  const handleDownload = (doc: any) => {
-    console.log(`Starting download for document ${doc.id}: ${doc.name}`);
-    const downloadUrl = `/api/documents/${doc.id}/download`;
-    console.log('Opening download URL:', window.location.origin + downloadUrl);
-    window.open(downloadUrl, '_blank');
-    console.log(`Successfully initiated download: ${doc.name}`);
+  // Handle document click to show AI summary
+  const handleDocumentClick = (document: any) => {
+    setSelectedDocument(document);
+    setShowDocumentDialog(true);
+  };
+
+  const handleDownload = async (doc: any) => {
+    try {
+      console.log(`📥 Starting download for document ${doc.id}: ${doc.name}`);
+      
+      const response = await fetch(`/api/documents/${doc.id}/download`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      // Get the filename from the Content-Disposition header or use the document name
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = doc.name;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: `Downloaded ${filename}`,
+      });
+
+      console.log(`✅ Successfully downloaded: ${filename}`);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : 'Failed to download document',
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -185,16 +235,22 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="border border-dark-lighter rounded-lg p-4 bg-dark/50"
+                className="border border-dark-lighter rounded-lg p-4 bg-dark/50 group"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer hover:bg-dark-lighter/50 rounded-lg p-2 -m-2 transition-colors"
+                    onClick={() => handleDocumentClick(doc)}
+                  >
                     <div className="flex items-center gap-3 mb-2">
                       <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <h4 className="font-medium text-white truncate">{doc.name}</h4>
+                      <h4 className="font-medium text-white truncate hover:text-primary transition-colors">
+                        {doc.name}
+                      </h4>
                       <Badge variant="outline" className="text-red-400 border-red-400/30 bg-red-500/10">
                         Unassigned
                       </Badge>
+                      <Eye className="h-4 w-4 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     {doc.description && (
                       <p className="text-sm text-gray-400 mb-3">{doc.description}</p>
