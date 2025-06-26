@@ -28,7 +28,7 @@ export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoadi
   });
 
   // Use agent results if available, fallback to passed analysis
-  const analysisData = agentResults?.analysis || analysis || {};
+  const analysisData = (agentResults as any)?.analysis || analysis || {} as any;
   
   console.log(`🔍 ${agentType} Agent Analysis Data:`, analysisData);
   console.log(`🔍 ${agentType} Agent - Status: ${analysisData?.status}, Findings: ${analysisData?.findings?.length || 0}, Recommendations: ${analysisData?.recommendations?.length || 0}`);
