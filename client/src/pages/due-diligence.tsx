@@ -851,6 +851,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'legal')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'legal')?.currentDocumentName}
                   />
                 </TabsContent>
                 
@@ -862,6 +864,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'commercial')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'commercial')?.currentDocumentName}
                   />
                 </TabsContent>
                 
@@ -873,6 +877,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'hr')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'hr')?.currentDocumentName}
                   />
                 </TabsContent>
                 
@@ -884,6 +890,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'financial')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'financial')?.currentDocumentName}
                   />
                 </TabsContent>
                 
@@ -895,6 +903,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'ip')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'ip')?.currentDocumentName}
                   />
                 </TabsContent>
                 
@@ -906,6 +916,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'research')?.currentProgress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'research')?.currentDocumentName}
                   />
                 </TabsContent>
                 
