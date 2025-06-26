@@ -8,7 +8,7 @@ import EnhancedAgentCard from '@/components/EnhancedAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
-import CompanyResearchDisplay from '@/components/CompanyResearchDisplay';
+import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
@@ -603,7 +603,7 @@ export default function DueDiligence() {
 
                 <TabsContent value="company-research">
                   <div className="pt-4">
-                    <CompanyResearchDisplay dealId={parseInt(selectedDeal)} />
+                    <EnhancedCompanyResearch dealId={parseInt(selectedDeal)} />
                   </div>
                 </TabsContent>
 
