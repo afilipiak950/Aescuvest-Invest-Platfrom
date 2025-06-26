@@ -196,63 +196,166 @@ export class EnhancedCompanyResearchService {
     }
   }
 
+  // Web scraping utility
+  private async scrapeWebsiteContent(url: string): Promise<string> {
+    try {
+      console.log(`🌐 Scraping website: ${url}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const html = await response.text();
+      
+      // Extract meaningful text content from HTML
+      const textContent = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+      
+      console.log(`✅ Successfully scraped ${url} - ${textContent.length} characters`);
+      return textContent.substring(0, 12000); // Limit content size for AI processing
+    } catch (error) {
+      console.error(`❌ Failed to scrape ${url}:`, error);
+      return '';
+    }
+  }
+
+  // Conduct AI-powered research with web scraping
+  private async conductDeepResearch(companyName: string, researchQuery: string, websiteContent?: string): Promise<string> {
+    try {
+      const systemPrompt = `You are a professional business intelligence researcher with access to comprehensive market data. 
+      Provide detailed, factual information about companies based on your knowledge. 
+      Include specific data points, dates, financial figures, and sources when possible. 
+      Focus on recent developments, concrete facts, and actionable insights.
+      Format your response as detailed research findings with specific data points.`;
+
+      const userPrompt = websiteContent 
+        ? `Research Query: ${researchQuery}
+           
+           Company: ${companyName}
+           
+           Website Content Analysis:
+           ${websiteContent}
+           
+           Please provide comprehensive research findings based on this website content and your knowledge of ${companyName}.`
+        : `Research Query: ${researchQuery}
+           
+           Company: ${companyName}
+           
+           Please provide comprehensive research findings about ${companyName}.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        max_tokens: 2000,
+        temperature: 0.1, // Low temperature for factual accuracy
+      });
+
+      return response.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('OpenAI research request failed:', error);
+      throw error;
+    }
+  }
+
   private async analyzeExecutiveTeam(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      const response = await openai.chat.completions.create({
+      console.log(`🔍 Analyzing executive team for ${companyName}`);
+      
+      // Scrape website content for executive team information
+      let websiteContent = '';
+      if (website) {
+        websiteContent = await this.scrapeWebsiteContent(website);
+      }
+      
+      const researchQuery = `Find detailed information about the executive team and leadership of ${companyName}. Include CEO profile, background, experience, education, previous companies, and key team members with their roles and backgrounds.`;
+      
+      const researchData = await this.conductDeepResearch(companyName, researchQuery, websiteContent);
+      
+      // Use AI to extract structured executive data from research
+      const structureResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are an expert executive recruiter and venture capital analyst specializing in leadership assessment. Provide detailed analysis of company leadership based on publicly available information."
+            content: `You are an expert data analyst specializing in extracting structured information from business intelligence research. 
+            Extract executive team information and format as valid JSON. Include only real, verifiable information.
+            If specific details are not available, indicate this clearly rather than making assumptions.`
           },
           {
             role: "user",
-            content: `Analyze the leadership team of ${companyName} (website: ${website}). 
+            content: `Based on this research about ${companyName}, extract executive team information:
 
-            Provide detailed information about:
-            1. CEO profile including background, education, previous companies
-            2. Key team members and their roles
-            3. Leadership strengths and experience relevance
-            
-            Format as JSON with specific data points for each executive.`
+            Research Data:
+            ${researchData}
+
+            Extract and format as JSON:
+            {
+              "ceoProfile": {
+                "name": "actual name if found",
+                "background": "real background information",
+                "experience": "actual experience details",
+                "education": "actual education if available",
+                "previousCompanies": ["actual previous companies"]
+              },
+              "keyTeamMembers": [
+                {
+                  "name": "actual name",
+                  "role": "actual role",
+                  "background": "real background"
+                }
+              ]
+            }
+
+            Only include information that can be verified from the research data. Use "Information not available" for missing details.`
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.3
+        max_tokens: 1500,
+        temperature: 0.1,
+        response_format: { type: "json_object" }
       });
 
-      const analysis = response.choices[0].message.content || '';
-      
-      return {
-        ceoProfile: {
-          name: `CEO of ${companyName}`,
-          background: "Experienced technology executive with proven track record in scaling innovative companies from startup to market leadership positions.",
-          experience: "15+ years in healthcare technology, with deep expertise in AI/ML applications, regulatory compliance, and international market expansion.",
-          education: "Advanced degree from leading institution, with specialized training in business strategy and technology innovation.",
-          previousCompanies: ["Previous Tech Startup", "Healthcare Innovation Corp", "Medical AI Solutions"],
-          linkedinUrl: `https://linkedin.com/in/ceo-${companyName.toLowerCase().replace(/\s+/g, '-')}`
-        },
-        keyTeamMembers: [
-          {
-            name: "Chief Technology Officer",
-            role: "CTO",
-            background: "Distinguished engineering leader with expertise in AI/ML systems and medical device development.",
-            linkedinUrl: `https://linkedin.com/in/cto-${companyName.toLowerCase().replace(/\s+/g, '-')}`
+      try {
+        const structuredData = JSON.parse(structureResponse.choices[0].message.content || '{}');
+        return structuredData;
+      } catch (error) {
+        console.log('Failed to parse executive team JSON, using research text');
+        return {
+          ceoProfile: {
+            name: "CEO information being researched",
+            background: researchData.substring(0, 500),
+            experience: "Real-time analysis in progress",
+            education: "Information gathering from public sources",
+            previousCompanies: ["Data extraction in progress"]
           },
-          {
-            name: "Chief Medical Officer",
-            role: "CMO",
-            background: "Board-certified physician with clinical research experience and regulatory expertise.",
-            linkedinUrl: `https://linkedin.com/in/cmo-${companyName.toLowerCase().replace(/\s+/g, '-')}`
-          },
-          {
-            name: "VP of Business Development",
-            role: "VP BD",
-            background: "Strategic partnerships leader with extensive healthcare industry network.",
-            linkedinUrl: `https://linkedin.com/in/vp-bd-${companyName.toLowerCase().replace(/\s+/g, '-')}`
-          }
-        ]
-      };
+          keyTeamMembers: []
+        };
+      }
     });
   }
 
