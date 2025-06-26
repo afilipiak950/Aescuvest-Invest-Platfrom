@@ -560,6 +560,10 @@ export class DatabaseStorage implements IStorage {
     return analysis || undefined;
   }
 
+  async getAnalysis(dealId: number, agentType: string): Promise<AgentAnalysis | undefined> {
+    return this.getAnalysisByDealAndAgent(dealId, agentType);
+  }
+
   async createAgentAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis> {
     const [newAnalysis] = await db.insert(agentAnalyses).values(analysis).returning();
     return newAnalysis;

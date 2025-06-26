@@ -505,7 +505,6 @@ Respond in JSON format:
           dealId,
           agentType,
           status: 'Not Started',
-          progress: 0,
           findings: [],
           documentSources: [documentId.toString()]
         });
