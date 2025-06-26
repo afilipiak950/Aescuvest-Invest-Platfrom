@@ -916,8 +916,8 @@ export default function DueDiligence() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.agentType === 'research')?.currentProgress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.agentType === 'research')?.currentDocumentName}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('research'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('research'))?.currentStep}
                   />
                 </TabsContent>
                 
