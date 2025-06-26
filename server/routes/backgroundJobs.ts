@@ -8,7 +8,30 @@ router.get('/api/background-jobs/:dealId', async (req: Request, res: Response) =
   try {
     const dealId = parseInt(req.params.dealId);
     
-    // Direct database query to debug
+    // Get in-memory jobs first (primary source)
+    const inMemoryJobs = [];
+    if (global.activeJobs) {
+      for (const [jobId, job] of global.activeJobs.entries()) {
+        if (job.dealId === dealId && job.status === 'processing') {
+          inMemoryJobs.push({
+            jobId: job.id,
+            progress: job.progress,
+            status: job.status,
+            currentStep: `${job.currentStep}/${job.totalSteps}`,
+            documentName: job.currentDocumentName,
+            agentType: job.agentType,
+            metadata: job.metadata
+          });
+        }
+      }
+    }
+    
+    if (inMemoryJobs.length > 0) {
+      console.log(`📊 Found ${inMemoryJobs.length} active in-memory jobs for deal ${dealId}`);
+      return res.json({ success: true, jobs: inMemoryJobs });
+    }
+    
+    // Fallback to database jobs
     const { db } = await import('../db');
     const { backgroundJobs } = await import('../../shared/schema');
     const { eq, and } = await import('drizzle-orm');
@@ -19,13 +42,9 @@ router.get('/api/background-jobs/:dealId', async (req: Request, res: Response) =
         eq(backgroundJobs.status, 'processing')
       ));
     
-    console.log(`📊 Direct DB query found ${dbJobs.length} processing jobs for deal ${dealId}`);
-    if (dbJobs.length > 0) {
-      console.log('Job details:', dbJobs[0]);
-    }
+    console.log(`📊 Found ${dbJobs.length} database jobs for deal ${dealId}`);
     
     const jobs = await backgroundJobManager.getActiveJobs(dealId);
-    console.log(`📊 BackgroundJobManager returned ${jobs.length} jobs for deal ${dealId}`);
     
     res.json({ success: true, jobs });
   } catch (error) {
