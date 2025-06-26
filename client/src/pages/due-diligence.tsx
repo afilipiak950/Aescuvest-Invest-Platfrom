@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, Link as LinkIcon, Bot } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 
 export default function DueDiligence() {
@@ -30,6 +31,7 @@ export default function DueDiligence() {
   const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
 
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Parse URL parameters and set selected deal
   useEffect(() => {
@@ -264,13 +266,61 @@ export default function DueDiligence() {
     },
     onSuccess: (results) => {
       console.log(`✅ All agent analyses started successfully:`, results);
+      
+      // Show immediate feedback
+      toast({
+        title: "Analyses Started",
+        description: "All AI agents are now analyzing documents...",
+        duration: 3000,
+      });
+      
       // Invalidate all agent results queries to refresh UI
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       agentTypes.forEach(agentType => {
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
       });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-      setIsRunningAllAnalyses(false);
+      
+      // Set up completion monitoring
+      const checkCompletion = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/analyses/${selectedDeal}`);
+          const data = await response.json();
+          
+          if (Array.isArray(data) && data.length >= 7) {
+            const allCompleted = data.every((analysis: any) => 
+              analysis.status === 'Completed' || analysis.status === 'completed'
+            );
+            
+            if (allCompleted) {
+              console.log(`🎉 All analyses completed! Refreshing data...`);
+              setIsRunningAllAnalyses(false);
+              clearInterval(checkCompletion);
+              
+              // Refresh all relevant queries
+              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+              agentTypes.forEach(agentType => {
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+              });
+              
+              // Show completion notification
+              toast({
+                title: "Analyses Complete",
+                description: "All agent analyses completed successfully!",
+                duration: 5000,
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking analysis completion:', error);
+        }
+      }, 2000); // Check every 2 seconds
+      
+      // Cleanup after 10 minutes max
+      setTimeout(() => {
+        setIsRunningAllAnalyses(false);
+        clearInterval(checkCompletion);
+      }, 600000);
     },
     onError: (error) => {
       console.error(`❌ Failed to start all analyses:`, error);
@@ -279,7 +329,15 @@ export default function DueDiligence() {
   });
 
   const handleRunAllAnalyses = () => {
+    console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
     setIsRunningAllAnalyses(true);
+    
+    // Immediately show loading feedback
+    toast({
+      title: "Resetting Analyses",
+      description: "Stopping all running analyses and starting fresh...",
+      duration: 2000,
+    });
     
     // Immediately invalidate all agent queries to clear existing data and show loading states
     const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
