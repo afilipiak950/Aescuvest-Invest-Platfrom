@@ -4239,22 +4239,19 @@ async function runAgentAnalysisWithPersistence(dealId: number, agentType: string
             ...allInsights.neutral,
             ...allInsights.risk
           ],
-          summary: `Completed ${agent.name} analysis with ${allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length} findings`,
-          recommendations: generateRecommendations(allInsights),
-          documentSources: assignedDocuments.map(doc => doc.name),
-          completedAt: new Date()
+          recommendations: allInsights.positive.slice(0, 3).map(insight => insight.content || insight),
+          documentSources: assignedDocuments.map(doc => doc.name)
         });
 
         console.log(`✅ Created new ${agent.name} analysis for deal ${dealId}`);
         console.log(`✅ ${agent.name} agent analysis completed for deal ${dealId}. Processed ${assignedDocuments.length} relevant documents`);
-        console.log(`💾 Saved analysis with ${allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length} findings and ${generateRecommendations(allInsights).length} recommendations`);
+        console.log(`💾 Saved analysis with ${allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length} findings`);
 
         // Complete the persistent job
         await persistentJobManager.completeJob(jobId, {
           analysisId: analysis.id,
           totalFindings: allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length,
-          processedDocuments: assignedDocuments.length,
-          completedAt: new Date()
+          processedDocuments: assignedDocuments.length
         });
 
       } catch (storageError) {
@@ -4266,8 +4263,7 @@ async function runAgentAnalysisWithPersistence(dealId: number, agentType: string
       await persistentJobManager.completeJob(jobId, {
         totalFindings: 0,
         processedDocuments: assignedDocuments.length,
-        message: 'No insights found',
-        completedAt: new Date()
+        message: 'No insights found'
       });
     }
 

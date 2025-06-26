@@ -1091,6 +1091,16 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async clearAgentAnalyses(dealId: number): Promise<void> {
+    try {
+      await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
+      console.log(`🗑️ Cleared all agent analyses for deal ${dealId}`);
+    } catch (error) {
+      console.error(`Error clearing agent analyses for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
   async getAgentAnalysis(dealId: number, agentType: string): Promise<any> {
     try {
       // Try both lowercase and capitalized versions to handle inconsistent data
