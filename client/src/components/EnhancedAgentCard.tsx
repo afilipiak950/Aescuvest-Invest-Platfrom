@@ -13,9 +13,10 @@ interface EnhancedAgentCardProps {
   analysis?: any;
   isLoading?: boolean;
   documents?: any[];
+  isRunningAllAnalyses?: boolean;
 }
 
-export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoading, documents }: EnhancedAgentCardProps) {
+export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoading, documents, isRunningAllAnalyses }: EnhancedAgentCardProps) {
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const queryClient = useQueryClient();
 
@@ -67,7 +68,13 @@ export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoadi
 
   // Check if analysis is currently processing by looking at status and recent activity
   const isAnalysisCurrentlyRunning = () => {
+    // Check if all analyses are running from parent component
+    if (isRunningAllAnalyses) {
+      return true;
+    }
+    
     // Check if we have a processing status
+    const status = analysisData?.status;
     if (status === 'Processing' || status === 'In Progress') {
       return true;
     }
@@ -542,6 +549,18 @@ export default function EnhancedAgentCard({ dealId, agentType, analysis, isLoadi
               </div>
             </TabsContent>
           </Tabs>
+        ) : isAnalysisCurrentlyRunning() ? (
+          <div className="text-center py-8">
+            <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-medium text-white mb-2">Running {agentType} Analysis</h3>
+            <p className="text-gray-400 mb-4">
+              Processing {assignedDocuments} assigned documents with the Mistral AI agent...
+            </p>
+            <div className="bg-dark-lighter rounded-full h-2 mb-4">
+              <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '45%' }}></div>
+            </div>
+            <p className="text-sm text-gray-500">This may take several minutes to complete</p>
+          </div>
         ) : (
           <div className="text-center py-8">
             <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />

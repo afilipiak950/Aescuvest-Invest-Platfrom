@@ -265,6 +265,14 @@ export default function DueDiligence() {
 
   const handleRunAllAnalyses = () => {
     setIsRunningAllAnalyses(true);
+    
+    // Immediately invalidate all agent queries to clear existing data and show loading states
+    const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+    agentTypes.forEach(agentType => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+    });
+    queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+    
     runAllAnalysesMutation.mutate();
   };
 
@@ -742,6 +750,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'clinical') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
@@ -752,6 +761,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'legal') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
@@ -762,6 +772,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'commercial') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
@@ -772,6 +783,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'hr') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
@@ -782,6 +794,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'financial') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
@@ -792,6 +805,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'ip') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
@@ -802,6 +816,7 @@ export default function DueDiligence() {
                     analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'research') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
                   />
                 </TabsContent>
                 
