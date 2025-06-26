@@ -4,8 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, UserPlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { FileText, Download, UserPlus, Bot, MessageSquare, Sparkles, Zap } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface UnassignedDocumentsProps {
   dealId: number;
@@ -15,7 +19,11 @@ interface UnassignedDocumentsProps {
 
 export default function UnassignedDocuments({ dealId, documents, onAssignDocument }: UnassignedDocumentsProps) {
   const [selectedAgent, setSelectedAgent] = useState<{ [key: number]: string }>({});
+  const [assignmentComment, setAssignmentComment] = useState<{ [key: number]: string }>({});
+  const [showCommentDialog, setShowCommentDialog] = useState<number | null>(null);
+  const [isAIAssigning, setIsAIAssigning] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Debug log to see what documents are being passed
   console.log('🔍 UnassignedDocuments received:', documents.length, 'documents');
@@ -30,17 +38,61 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
     { value: 'research', label: 'Research', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' }
   ];
 
+  // AI-powered bulk assignment mutation
+  const aiAssignmentMutation = useMutation({
+    mutationFn: async () => {
+      console.log(`🤖 Starting AI-powered batch assignment for deal ${dealId}`);
+      return apiRequest(`/api/deals/${dealId}/ai-assign-documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: (data) => {
+      console.log(`✅ AI batch assignment completed:`, data);
+      toast({
+        title: "AI Assignment Complete",
+        description: `Successfully assigned ${data.successfulAssignments} documents to agents based on AI analysis`,
+      });
+      // Refresh all document-related queries
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      setIsAIAssigning(false);
+    },
+    onError: (error) => {
+      console.error('AI assignment failed:', error);
+      toast({
+        title: "AI Assignment Failed",
+        description: "Failed to auto-assign documents. Please try manual assignment.",
+        variant: "destructive"
+      });
+      setIsAIAssigning(false);
+    }
+  });
+
+  // Enhanced manual assignment with comment support
   const assignDocumentMutation = useMutation({
-    mutationFn: async ({ docId, agentType }: { docId: number; agentType: string }) => {
-      console.log(`🔄 Manually assigning document ${docId} to ${agentType} agent`);
+    mutationFn: async ({ docId, agentType, comment }: { docId: number; agentType: string; comment?: string }) => {
+      console.log(`🔄 Manually assigning document ${docId} to ${agentType} agent with comment: ${comment || 'none'}`);
       return apiRequest(`/api/deals/${dealId}/documents/${docId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentType })
+        body: JSON.stringify({ 
+          agentType,
+          comment: comment || '',
+          assignmentType: 'manual'
+        })
       });
     },
     onSuccess: (data, variables) => {
       console.log(`✅ Document ${variables.docId} successfully assigned to ${variables.agentType} agent`);
+      toast({
+        title: "Document Assigned",
+        description: `Document assigned to ${variables.agentType} agent${variables.comment ? ' with your feedback' : ''}`,
+      });
+      // Clear form state
+      setSelectedAgent(prev => ({ ...prev, [variables.docId]: '' }));
+      setAssignmentComment(prev => ({ ...prev, [variables.docId]: '' }));
+      setShowCommentDialog(null);
       // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
@@ -56,7 +108,21 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
     const agentType = selectedAgent[docId];
     if (!agentType) return;
 
-    assignDocumentMutation.mutate({ docId, agentType });
+    const comment = assignmentComment[docId];
+    assignDocumentMutation.mutate({ docId, agentType, comment });
+  };
+
+  const handleAIAssignment = () => {
+    setIsAIAssigning(true);
+    aiAssignmentMutation.mutate();
+  };
+
+  const handleAssignWithComment = (docId: number) => {
+    const agentType = selectedAgent[docId];
+    if (!agentType) return;
+
+    const comment = assignmentComment[docId];
+    assignDocumentMutation.mutate({ docId, agentType, comment });
   };
 
   const handleDownload = (doc: any) => {
@@ -70,13 +136,37 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
   return (
     <Card className="bg-dark-light border-dark-lighter">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5 text-red-400" />
-          Unassigned Documents ({documents.length})
-        </CardTitle>
-        <p className="text-gray-400">
-          These documents need to be manually assigned to an agent for analysis.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-xl font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-red-400" />
+              Unassigned Documents ({documents.length})
+            </CardTitle>
+            <p className="text-gray-400">
+              Use AI to automatically assign documents based on their content, or assign manually.
+            </p>
+          </div>
+          
+          {documents.length > 0 && (
+            <Button
+              onClick={handleAIAssignment}
+              disabled={isAIAssigning || aiAssignmentMutation.isPending}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium"
+            >
+              {isAIAssigning || aiAssignmentMutation.isPending ? (
+                <>
+                  <Bot className="h-4 w-4 mr-2 animate-spin" />
+                  AI Assigning...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Auto-Assign All
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {documents.length === 0 ? (
@@ -144,6 +234,56 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
                       <UserPlus className="h-4 w-4 mr-1" />
                       Assign
                     </Button>
+
+                    <Dialog open={showCommentDialog === doc.id} onOpenChange={(open) => setShowCommentDialog(open ? doc.id : null)}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-dark-lighter text-gray-300 hover:text-white hover:bg-dark-lighter"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Add Comment
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-dark-light border-dark-lighter">
+                        <DialogHeader>
+                          <DialogTitle className="text-white">Add Assignment Comment</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="comment" className="text-gray-300">
+                              Why are you assigning this document to {selectedAgent[doc.id] ? agentTypes.find(a => a.value === selectedAgent[doc.id])?.label : 'this agent'}?
+                            </Label>
+                            <Textarea
+                              id="comment"
+                              placeholder="Your feedback helps improve future AI assignments..."
+                              value={assignmentComment[doc.id] || ''}
+                              onChange={(e) => setAssignmentComment(prev => ({ ...prev, [doc.id]: e.target.value }))}
+                              className="mt-2 bg-dark border-dark-lighter text-white"
+                              rows={3}
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowCommentDialog(null)}
+                              className="border-dark-lighter text-gray-300 hover:text-white"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={() => handleAssignWithComment(doc.id)}
+                              disabled={!selectedAgent[doc.id] || assignDocumentMutation.isPending}
+                              className="bg-primary hover:bg-primary-hover"
+                            >
+                              <UserPlus className="h-4 w-4 mr-1" />
+                              Assign with Comment
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                     
                     <Button
                       variant="outline"
