@@ -113,6 +113,7 @@ export interface IStorage {
   // Company research methods
   getCompanyResearchByDealId(dealId: number): Promise<any | undefined>;
   createCompanyResearch(research: any): Promise<any>;
+  createOrUpdateCompanyResearch(dealId: number, data: any): Promise<any>;
   updateCompanyResearchStatus(dealId: number, status: string): Promise<any | undefined>;
   deleteCompanyResearchByDealId(dealId: number): Promise<number>;
   

@@ -2894,72 +2894,58 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Trigger research endpoint
+  // Enhanced AI Research trigger endpoint
   app.post('/api/deals/:dealId/research', async (req: Request, res: Response) => {
     try {
-      console.log('🔍 Research POST request for deal:', req.params.dealId);
       const dealId = parseInt(req.params.dealId);
       if (isNaN(dealId)) {
-        console.log('🔍 Invalid deal ID provided:', req.params.dealId);
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
-      console.log('🔍 Looking up deal for research:', dealId);
       const deal = await storage.getDealById(dealId);
       if (!deal) {
-        console.log('🔍 Deal not found for research:', dealId);
         return res.status(404).json({ message: 'Deal not found' });
       }
 
       const { forceRefresh } = req.body;
       
-      console.log(`🔍 ${forceRefresh ? 'Refreshing' : 'Initiating'} AI research for deal ${dealId}: ${deal.companyName}`);
+      console.log(`🔍 ${forceRefresh ? 'Refreshing' : 'Initiating'} enhanced AI research for deal ${dealId}: ${deal.companyName}`);
 
-      // Check if research already exists and forceRefresh is not requested
+      // Check if enhanced research already exists
+      const { enhancedCompanyResearchService } = await import('./services/enhancedCompanyResearchService');
+      
       if (!forceRefresh) {
-        console.log('🔍 Checking for existing research...');
-        const existingResearch = await storage.getCompanyResearchByDealId(dealId);
-        console.log('🔍 Existing research check:', {
-          hasExisting: !!existingResearch,
-          status: existingResearch?.researchStatus,
-          forceRefresh
-        });
-        
-        if (existingResearch && existingResearch.researchStatus === 'completed') {
-          console.log(`🔍 Research already exists for deal ${dealId}, returning existing data`);
+        const existingResearch = await enhancedCompanyResearchService.getStoredResearch(dealId);
+        if (existingResearch && existingResearch.researchStatus === 'complete') {
+          console.log(`🔍 Enhanced research already exists for deal ${dealId}`);
           return res.json({ 
-            message: 'Research already completed', 
+            message: 'Enhanced research already completed', 
             dealId, 
-            status: 'completed',
+            status: 'complete',
             existing: true
           });
         }
       }
 
-      // Set research status to processing
-      console.log('🔍 Setting research status to processing...');
-      await storage.updateCompanyResearchStatus(dealId, 'processing');
-      console.log(`🔍 Research status set to processing for deal ${dealId}`);
+      // Start enhanced research in background
+      console.log(`🚀 Starting enhanced AI research for deal ${dealId}...`);
+      
+      // Return immediately while research runs in background
+      res.json({ 
+        message: 'Enhanced AI research initiated', 
+        dealId, 
+        status: 'in_progress',
+        estimated_completion: '2-3 minutes'
+      });
 
-      // Trigger research in background with force refresh flag
-      console.log(`🚀 About to start research process for deal ${dealId}...`);
-      processCompanyResearchForDeal(dealId, deal.companyName, deal.website || undefined, deal.sector, forceRefresh)
-        .then(() => {
-          console.log(`✅ Research process completed successfully for deal ${dealId}`);
+      // Run enhanced research in background
+      enhancedCompanyResearchService.conductComprehensiveResearch(dealId)
+        .then((researchData) => {
+          console.log(`✅ Enhanced research completed successfully for deal ${dealId}`);
         })
         .catch((error: any) => {
-          console.error(`❌ Company research failed for deal ${dealId}:`, error);
-          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available');
-          storage.updateCompanyResearchStatus(dealId, 'failed').catch(console.error);
+          console.error(`❌ Enhanced research failed for deal ${dealId}:`, error);
         });
-
-      res.json({ 
-        message: forceRefresh ? 'Fresh AI research initiated successfully' : 'AI research initiated successfully', 
-        dealId, 
-        status: 'processing',
-        forceRefresh: !!forceRefresh,
-        estimatedCompletion: '2-3 minutes'
-      });
     } catch (error) {
       console.error('Error initiating company research:', error);
       res.status(500).json({ message: 'Internal server error' });
