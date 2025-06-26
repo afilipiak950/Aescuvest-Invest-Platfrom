@@ -138,41 +138,6 @@ export default function EnhancedAgentCard({
   
   const status = analysisData.status || 'Not Started';
 
-  // Calculate documents assigned to this specific agent using intelligent relevance scoring
-  const getAssignedDocumentCount = () => {
-    if (!documents || !Array.isArray(documents)) return 0;
-    
-    return documents.filter(document => {
-      const assignedAgents = getAssignedAgents(document);
-      return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
-    }).length;
-  };
-
-  const assignedDocuments = getAssignedDocumentCount();
-  
-  // Calculate real progress based on current state and backend progress
-  const progress = (() => {
-    // If we have real progress from job tracking, use it
-    if (currentProgress > 0 && assignedDocuments > 0) {
-      return Math.round((currentProgress / assignedDocuments) * 100);
-    }
-    
-    // During reset & run all analyses, start from 0
-    if (isRunningAllAnalyses && status !== 'Completed') {
-      return 0;
-    }
-    
-    // Use backend progress if available
-    if (analysisData.progress && analysisData.progress > 0) {
-      return analysisData.progress;
-    }
-    
-    // Default progress based on status
-    if (status === 'Completed') return 100;
-    if (status === 'Processing') return 15; // Show some progress for processing
-    return 0;
-  })();
-
   // Intelligent document-to-agent assignment (same logic as DataRoomExplorer)
   const getAssignedAgents = (document: any) => {
     const docName = document.name.toLowerCase();
@@ -372,6 +337,41 @@ export default function EnhancedAgentCard({
       description: agentDescriptions[agentType] || 'Specialized analysis agent'
     };
   };
+
+  // Calculate documents assigned to this specific agent using intelligent relevance scoring
+  const getAssignedDocumentCount = () => {
+    if (!documents || !Array.isArray(documents)) return 0;
+    
+    return documents.filter(document => {
+      const assignedAgents = getAssignedAgents(document);
+      return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
+    }).length;
+  };
+
+  const assignedDocuments = getAssignedDocumentCount();
+  
+  // Calculate real progress based on current state and backend progress
+  const progress = (() => {
+    // If we have real progress from job tracking, use it
+    if (currentProgress > 0 && assignedDocuments > 0) {
+      return Math.round((currentProgress / assignedDocuments) * 100);
+    }
+    
+    // During reset & run all analyses, start from 0
+    if (isRunningAllAnalyses && status !== 'Completed') {
+      return 0;
+    }
+    
+    // Use backend progress if available
+    if (analysisData.progress && analysisData.progress > 0) {
+      return analysisData.progress;
+    }
+    
+    // Default progress based on status
+    if (status === 'Completed') return 100;
+    if (status === 'Processing') return 15; // Show some progress for processing
+    return 0;
+  })();
   
   // Calculate how many documents were actually analyzed (have findings with document sources)
   const getAnalyzedDocumentCount = () => {
@@ -404,7 +404,7 @@ export default function EnhancedAgentCard({
   // Debug KPI calculations for verification
   console.log(`🔢 ${agentType} Agent KPIs:`, {
     totalDocuments: documents?.length || 0,
-    assignedDocuments,
+    assignedDocuments: assignedDocuments,
     hasAnalysis: !!analysisData && analysisData.status === 'Completed',
     findingsCount: findings.length,
     positiveInsights,
