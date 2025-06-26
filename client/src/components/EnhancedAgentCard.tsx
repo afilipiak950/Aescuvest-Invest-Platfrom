@@ -137,7 +137,6 @@ export default function EnhancedAgentCard({
   }
   
   const status = analysisData.status || 'Not Started';
-  const progress = analysisData.progress || 0;
 
   // Calculate documents assigned to this specific agent using intelligent relevance scoring
   const getAssignedDocumentCount = () => {
@@ -148,6 +147,31 @@ export default function EnhancedAgentCard({
       return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
     }).length;
   };
+
+  const assignedDocuments = getAssignedDocumentCount();
+  
+  // Calculate real progress based on current state and backend progress
+  const progress = (() => {
+    // If we have real progress from job tracking, use it
+    if (currentProgress > 0 && assignedDocuments > 0) {
+      return Math.round((currentProgress / assignedDocuments) * 100);
+    }
+    
+    // During reset & run all analyses, start from 0
+    if (isRunningAllAnalyses && status !== 'Completed') {
+      return 0;
+    }
+    
+    // Use backend progress if available
+    if (analysisData.progress && analysisData.progress > 0) {
+      return analysisData.progress;
+    }
+    
+    // Default progress based on status
+    if (status === 'Completed') return 100;
+    if (status === 'Processing') return 15; // Show some progress for processing
+    return 0;
+  })();
 
   // Intelligent document-to-agent assignment (same logic as DataRoomExplorer)
   const getAssignedAgents = (document: any) => {
@@ -348,8 +372,6 @@ export default function EnhancedAgentCard({
       description: agentDescriptions[agentType] || 'Specialized analysis agent'
     };
   };
-
-  const assignedDocuments = getAssignedDocumentCount();
   
   // Calculate how many documents were actually analyzed (have findings with document sources)
   const getAnalyzedDocumentCount = () => {
@@ -588,13 +610,19 @@ export default function EnhancedAgentCard({
             </div>
             
             {/* Current document being processed */}
-            {currentDocumentName && (
+            {(currentDocumentName || (isRunningAllAnalyses && progress > 0)) && (
               <div className="bg-dark-lighter/50 rounded-lg p-3 mb-4 max-w-md mx-auto">
-                <p className="text-xs text-gray-400 mb-1">Currently analyzing:</p>
+                <p className="text-xs text-gray-400 mb-1">
+                  {currentDocumentName ? 'Currently analyzing:' : 'Processing documents...'}
+                </p>
                 <p className="text-sm text-white font-medium break-words">
-                  {currentDocumentName.length > 50 
-                    ? `${currentDocumentName.substring(0, 47)}...` 
-                    : currentDocumentName}
+                  {currentDocumentName ? (
+                    currentDocumentName.length > 50 
+                      ? `${currentDocumentName.substring(0, 47)}...` 
+                      : currentDocumentName
+                  ) : (
+                    `Analyzing ${agentType.toLowerCase()} documents`
+                  )}
                 </p>
               </div>
             )}
