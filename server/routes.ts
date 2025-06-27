@@ -2894,7 +2894,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Enhanced AI Research trigger endpoint
+  // Enhanced AI Research trigger endpoint with persistent background processing
   app.post('/api/deals/:dealId/research', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -2909,12 +2909,28 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
       const { forceRefresh } = req.body;
       
-      console.log(`🔍 ${forceRefresh ? 'Refreshing' : 'Initiating'} enhanced AI research for deal ${dealId}: ${deal.companyName}`);
+      console.log(`🔬 ${forceRefresh ? 'Rerunning' : 'Starting'} persistent AI research for deal ${dealId}: ${deal.companyName}`);
 
-      // Check if authentic research already exists
-      const { authenticResearchService } = await import('./services/authenticResearchService');
+      // Import persistent research service
+      const { persistentResearchService } = await import('./services/persistentResearchService');
       
+      // Check if a job is already running
+      const activeJob = await persistentResearchService.getActiveJob(dealId);
+      if (activeJob && !forceRefresh) {
+        console.log(`📋 Research job already running for deal ${dealId}, progress: ${activeJob.progress}%`);
+        return res.json({ 
+          message: 'Research job already in progress', 
+          dealId, 
+          status: 'processing',
+          progress: activeJob.progress,
+          progressStage: activeJob.progressStage,
+          jobId: activeJob.id
+        });
+      }
+
+      // Check if research already exists
       if (!forceRefresh) {
+        const { authenticResearchService } = await import('./services/authenticResearchService');
         const existingResearch = await authenticResearchService.getStoredResearch(dealId);
         if (existingResearch && existingResearch.researchStatus === 'complete') {
           console.log(`🔍 Authentic research already exists for deal ${dealId}`);
@@ -2927,25 +2943,25 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
 
-      // Start authentic research in background
-      console.log(`🚀 Starting authentic AI research with real web scraping for deal ${dealId}...`);
-      
-      // Return immediately while research runs in background
-      res.json({ 
-        message: 'Authentic AI research initiated', 
+      // Start new persistent research job
+      const jobId = await persistentResearchService.startResearchJob(
         dealId, 
-        status: 'in_progress',
+        deal.companyName, 
+        deal.website || `https://${deal.companyName.toLowerCase().replace(/\s+/g, '')}.com`
+      );
+      
+      console.log(`🚀 Started persistent research job ${jobId} for deal ${dealId}`);
+      
+      // Return immediately with job details
+      res.json({ 
+        message: 'Persistent AI research job started', 
+        dealId, 
+        jobId,
+        status: 'processing',
+        progress: 0,
+        progressStage: 'Initializing research parameters',
         estimated_completion: '2-3 minutes'
       });
-
-      // Run authentic research in background
-      authenticResearchService.conductComprehensiveResearch(dealId)
-        .then((researchData) => {
-          console.log(`✅ Authentic research completed successfully for deal ${dealId}`);
-        })
-        .catch((error: any) => {
-          console.error(`❌ Authentic research failed for deal ${dealId}:`, error);
-        });
     } catch (error) {
       console.error('Error initiating company research:', error);
       res.status(500).json({ message: 'Internal server error' });
