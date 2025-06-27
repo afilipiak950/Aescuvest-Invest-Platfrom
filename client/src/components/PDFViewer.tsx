@@ -146,8 +146,6 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
       );
     }
 
-    const pdfUrl = `/api/documents/${documentId}/download?view=inline&t=${Date.now()}&retry=${retryCount}`;
-    
     return (
       <div className="relative w-full h-full bg-gray-900">
         {isLoading && (
@@ -155,29 +153,47 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
             <div className="flex flex-col items-center text-white">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mb-4"></div>
               <p>Loading PDF...</p>
-              {retryCount > 0 && <p className="text-sm text-gray-400 mt-1">Attempt {retryCount + 1}</p>}
+              <p className="text-sm text-gray-400 mt-1">Method: {viewMethod} (Attempt {retryCount + 1})</p>
             </div>
           </div>
         )}
         
-        {/* Direct PDF embed - most reliable method */}
-        <object
-          data={pdfUrl}
-          type="application/pdf"
-          className="w-full h-full"
-          onLoad={handleLoad}
-          onError={handleError}
-        >
-          {/* Fallback iframe */}
+        {/* Data URL method (Chrome bypass) */}
+        {viewMethod === 'dataurl' && pdfDataUrl && (
           <iframe
-            src={pdfUrl}
+            src={pdfDataUrl}
+            className="w-full h-full border-0"
+            title={documentName}
+            style={{ backgroundColor: '#1f2937' }}
+          />
+        )}
+        
+        {/* Object method (default) */}
+        {viewMethod === 'object' && (
+          <object
+            data={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}&retry=${retryCount}`}
+            type="application/pdf"
+            className="w-full h-full"
+            onLoad={handleLoad}
+            onError={handleError}
+          >
+            <div className="flex items-center justify-center h-full text-white">
+              <p>PDF loading failed. Trying alternative method...</p>
+            </div>
+          </object>
+        )}
+        
+        {/* Iframe method (fallback) */}
+        {viewMethod === 'iframe' && (
+          <iframe
+            src={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}&retry=${retryCount}`}
             className="w-full h-full border-0"
             title={documentName}
             onLoad={handleLoad}
             onError={handleError}
             style={{ backgroundColor: '#1f2937' }}
           />
-        </object>
+        )}
       </div>
     );
   };
