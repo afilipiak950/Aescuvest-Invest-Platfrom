@@ -74,18 +74,42 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
   };
 
-  // Simple PDF viewer using browser's built-in PDF support
+  // Simple PDF viewer using browser's built-in PDF support with fallback
   const renderPDFViewer = () => {
-    if (error) {
+    if (error || fallbackMode) {
       return (
         <div className="flex items-center justify-center h-full bg-gray-900 text-white">
-          <div className="text-center">
-            <p className="text-lg mb-4">Fehler beim Laden des PDFs</p>
-            <p className="text-sm text-gray-400">{error}</p>
-            <Button onClick={handleDownload} className="mt-4">
-              <Download className="h-4 w-4 mr-2" />
-              Herunterladen
-            </Button>
+          <div className="text-center space-y-4">
+            <p className="text-lg mb-4">
+              {error ? 'Fehler beim Laden des PDFs' : 'PDF direkt öffnen'}
+            </p>
+            {error && <p className="text-sm text-gray-400">{error}</p>}
+            
+            <div className="space-y-3">
+              <Button 
+                onClick={() => window.open(`/api/documents/${documentId}/download?view=inline`, '_blank')}
+                className="mr-3"
+                variant="outline"
+              >
+                <Maximize2 className="h-4 w-4 mr-2" />
+                In neuem Tab öffnen
+              </Button>
+              
+              <Button onClick={handleDownload} variant="secondary">
+                <Download className="h-4 w-4 mr-2" />
+                Herunterladen
+              </Button>
+            </div>
+            
+            {!fallbackMode && (
+              <Button 
+                onClick={() => setFallbackMode(true)}
+                variant="ghost"
+                className="text-gray-400 hover:text-white"
+              >
+                Alternative Ansicht verwenden
+              </Button>
+            )}
           </div>
         </div>
       );
@@ -98,6 +122,14 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
               <p>PDF wird geladen...</p>
+              <Button 
+                onClick={() => setFallbackMode(true)}
+                variant="ghost"
+                className="mt-4 text-gray-400 hover:text-white"
+                size="sm"
+              >
+                Alternative Ansicht verwenden
+              </Button>
             </div>
           </div>
         )}
@@ -111,27 +143,25 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           onLoad={(e) => {
             console.log(`📄 PDF iframe loaded: ${documentName} (ID: ${documentId})`);
             setIsLoading(false);
-            
-            // Reset error state on successful load
             setError(null);
             
-            // Try to detect if PDF actually loaded
+            // Auto-fallback if iframe doesn't show content after a delay
             setTimeout(() => {
               try {
                 const iframe = e.currentTarget;
-                if (iframe && iframe.contentWindow) {
-                  // For PDF files, the browser typically shows the PDF viewer
-                  console.log('📄 PDF viewer should be visible now');
+                // If we still see loading or the iframe seems empty, suggest fallback
+                if (iframe && !iframe.contentDocument) {
+                  console.log('📄 PDF might not be displaying properly, iframe content not accessible');
                 }
               } catch (err) {
-                console.log('📄 PDF viewer security restrictions normal for cross-origin content');
+                console.log('📄 Normal iframe security restrictions');
               }
-            }, 1000);
+            }, 3000);
           }}
           onError={(e) => {
             console.error(`❌ PDF iframe error for ${documentName} (ID: ${documentId}):`, e);
             setIsLoading(false);
-            setError('PDF konnte nicht geladen werden');
+            setError('PDF konnte nicht im Iframe geladen werden');
           }}
           style={{
             transform: `scale(${zoom}) rotate(${rotation}deg)`,
