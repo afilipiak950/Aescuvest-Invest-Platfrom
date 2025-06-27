@@ -2070,9 +2070,32 @@ The company maintains a strong competitive position through its technical moat a
         updateData.name = `${firstName} ${lastName}`;
       }
       
-      // Handle all preference updates directly
+      // Handle all profile fields
       if (updates.email !== undefined) updateData.email = updates.email;
+      if (updates.phone !== undefined) updateData.phone = updates.phone;
+      if (updates.location !== undefined) updateData.location = updates.location;
+      if (updates.bio !== undefined) updateData.bio = updates.bio;
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.company !== undefined) updateData.company = updates.company;
+      if (updates.website !== undefined) updateData.website = updates.website;
+      if (updates.linkedin !== undefined) updateData.linkedin = updates.linkedin;
+      if (updates.twitter !== undefined) updateData.twitter = updates.twitter;
+      if (updates.language !== undefined) updateData.language = updates.language;
       if (updates.timezone !== undefined) updateData.timezone = updates.timezone;
+      
+      // Handle notification preferences
+      if (updates.notifications?.email !== undefined) updateData.emailNotifications = updates.notifications.email;
+      if (updates.notifications?.browser !== undefined) updateData.browserNotifications = updates.notifications.browser;
+      if (updates.notifications?.deals !== undefined) updateData.dealNotifications = updates.notifications.deals;
+      if (updates.notifications?.matches !== undefined) updateData.matchNotifications = updates.notifications.matches;
+      if (updates.notifications?.reports !== undefined) updateData.reportNotifications = updates.notifications.reports;
+      
+      // Handle privacy settings
+      if (updates.privacy?.showEmail !== undefined) updateData.showEmail = updates.privacy.showEmail;
+      if (updates.privacy?.showPhone !== undefined) updateData.showPhone = updates.privacy.showPhone;
+      if (updates.privacy?.publicProfile !== undefined) updateData.publicProfile = updates.privacy.publicProfile;
+      
+      // Legacy notification preferences (backward compatibility)
       if (updates.emailNotifications !== undefined) updateData.emailNotifications = updates.emailNotifications;
       if (updates.dealNotifications !== undefined) updateData.dealNotifications = updates.dealNotifications;
       if (updates.aiNotifications !== undefined) updateData.aiNotifications = updates.aiNotifications;
