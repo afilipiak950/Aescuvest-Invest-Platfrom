@@ -47,8 +47,8 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
         // Import PDF.js dynamically
         const pdfjsLib = await import('pdfjs-dist');
         
-        // Set worker path
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+        // Set worker path to match the installed package version (5.3.31)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.worker.min.js`;
         
         console.log(`📄 Loading PDF document: ${documentName} (ID: ${documentId})`);
         
