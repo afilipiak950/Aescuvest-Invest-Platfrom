@@ -1624,7 +1624,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       req.headers.referer?.includes('pdf-viewer') ||
                       userAgent.includes('iframe');
       
+      console.log(`🔍 PDF DOWNLOAD DEBUG - DETAILED REQUEST ANALYSIS`);
       console.log(`📊 Inline detection - view param: ${req.query.view}, isInlineView: ${isInlineView}, isIframe: ${isIframe}, sec-fetch-dest: ${req.headers['sec-fetch-dest']}, referer: ${req.headers.referer}`);
+      console.log(`📋 Request headers:`, {
+        'user-agent': req.headers['user-agent'],
+        'accept': req.headers['accept'],
+        'accept-encoding': req.headers['accept-encoding'],
+        'cache-control': req.headers['cache-control'],
+        'sec-fetch-mode': req.headers['sec-fetch-mode'],
+        'sec-fetch-site': req.headers['sec-fetch-site']
+      });
 
       // Get document from database
       const document = await storage.getDocumentById(documentId);

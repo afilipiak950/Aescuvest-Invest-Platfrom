@@ -1,17 +1,15 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { 
   ZoomIn, 
   ZoomOut, 
   RotateCw, 
   Download, 
-  ChevronLeft, 
-  ChevronRight,
-  Maximize2,
-  X
-} from "lucide-react";
+  ExternalLink,
+  Maximize,
+  AlertCircle
+} from 'lucide-react';
 
 interface PDFViewerProps {
   documentId: number;
@@ -21,115 +19,79 @@ interface PDFViewerProps {
 }
 
 export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFViewerProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [zoom, setZoom] = useState(1.0);
-  const [rotation, setRotation] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fallbackMode, setFallbackMode] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
 
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}/download`, {
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Download failed');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = documentName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Download error:', error);
-    }
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 3));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.5));
+  const handleRotate = () => setRotation(prev => (prev + 90) % 360);
+  
+  const handleDownload = () => {
+    window.open(`/api/documents/${documentId}/download`, '_blank');
   };
 
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.25, 3.0));
+  const handleOpenNewTab = () => {
+    window.open(`/api/documents/${documentId}/download?view=inline`, '_blank');
   };
 
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.25, 0.5));
+  const resetControls = () => {
+    setZoom(1);
+    setRotation(0);
   };
 
-  const handleRotate = () => {
-    setRotation(prev => (prev + 90) % 360);
-  };
-
-  const handlePrevPage = () => {
-    setCurrentPage(prev => Math.max(prev - 1, 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  };
-
-  // Simple PDF viewer using browser's built-in PDF support with fallback
-  const renderPDFViewer = () => {
-    if (error || fallbackMode) {
+  const renderPDFContent = () => {
+    if (error) {
       return (
-        <div className="flex items-center justify-center h-full bg-gray-900 text-white">
-          <div className="text-center space-y-4">
-            <p className="text-lg mb-4">
-              {error ? 'Fehler beim Laden des PDFs' : 'PDF direkt öffnen'}
-            </p>
-            {error && <p className="text-sm text-gray-400">{error}</p>}
-            
-            <div className="space-y-3">
-              <Button 
-                onClick={() => window.open(`/api/documents/${documentId}/download?view=inline`, '_blank')}
-                className="mr-3"
-                variant="outline"
-              >
-                <Maximize2 className="h-4 w-4 mr-2" />
-                In neuem Tab öffnen
-              </Button>
-              
-              <Button onClick={handleDownload} variant="secondary">
-                <Download className="h-4 w-4 mr-2" />
-                Herunterladen
-              </Button>
-            </div>
-            
-            {!fallbackMode && (
-              <Button 
-                onClick={() => setFallbackMode(true)}
-                variant="ghost"
-                className="text-gray-400 hover:text-white"
-              >
-                Alternative Ansicht verwenden
-              </Button>
-            )}
+        <div className="flex flex-col items-center justify-center h-full text-white">
+          <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">PDF Viewing Error</h3>
+          <p className="text-gray-300 text-center mb-4">{error}</p>
+          <div className="flex gap-2">
+            <Button onClick={handleDownload} variant="outline" className="text-white border-gray-600">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
+            <Button onClick={handleOpenNewTab} variant="outline" className="text-white border-gray-600">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in New Tab
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (fallbackMode) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-white">
+          <Maximize className="w-16 h-16 text-blue-400 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">PDF Ready for Viewing</h3>
+          <p className="text-gray-300 text-center mb-4">
+            The PDF is loaded and ready. Choose your preferred viewing method:
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={handleOpenNewTab} className="bg-blue-600 hover:bg-blue-700">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in New Tab
+            </Button>
+            <Button onClick={handleDownload} variant="outline" className="text-white border-gray-600">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="relative w-full h-full bg-gray-900">
+      <div className="relative w-full h-full overflow-auto bg-gray-800">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-              <p>PDF wird geladen...</p>
-              <Button 
-                onClick={() => setFallbackMode(true)}
-                variant="ghost"
-                className="mt-4 text-gray-400 hover:text-white"
-                size="sm"
-              >
-                Alternative Ansicht verwenden
-              </Button>
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
+            <div className="flex flex-col items-center text-white">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+              <p>Loading PDF...</p>
             </div>
           </div>
         )}
@@ -139,24 +101,57 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           className="w-full h-full border-0"
           title={documentName}
           allow="fullscreen"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
           onLoad={(e) => {
-            console.log(`📄 PDF iframe loaded: ${documentName} (ID: ${documentId})`);
+            console.log(`🔍 PDF IFRAME DEBUG - LOADED EVENT FIRED`);
+            console.log(`📄 Document: ${documentName} (ID: ${documentId})`);
+            console.log(`📄 Iframe src: ${e.currentTarget.src}`);
+            console.log(`📄 Iframe dimensions: ${e.currentTarget.offsetWidth}x${e.currentTarget.offsetHeight}`);
+            
             setIsLoading(false);
             setError(null);
             
-            // Auto-fallback if iframe doesn't show content after a delay
+            // Test PDF loading
             setTimeout(() => {
-              try {
-                const iframe = e.currentTarget;
-                // If we still see loading or the iframe seems empty, suggest fallback
-                if (iframe && !iframe.contentDocument) {
-                  console.log('📄 PDF might not be displaying properly, iframe content not accessible');
-                }
-              } catch (err) {
-                console.log('📄 Normal iframe security restrictions');
-              }
-            }, 3000);
+              console.log(`🔍 FINAL PDF DIAGNOSIS:`);
+              const iframe = e.currentTarget;
+              console.log(`📄 Iframe exists: ${!!iframe}`);
+              console.log(`📄 Iframe dimensions: ${iframe.offsetWidth}x${iframe.offsetHeight}`);
+              
+              // Test direct PDF access
+              fetch(iframe.src, { credentials: 'include' })
+                .then(response => {
+                  console.log(`📄 PDF fetch status: ${response.status}`);
+                  console.log(`📄 Content-Type: ${response.headers.get('content-type')}`);
+                  console.log(`📄 Content-Length: ${response.headers.get('content-length')} bytes`);
+                  return response.blob();
+                })
+                .then(blob => {
+                  console.log(`📄 PDF blob size: ${blob.size} bytes, type: ${blob.type}`);
+                  if (blob.size > 0 && blob.type === 'application/pdf') {
+                    console.log(`✅ PDF is valid - if not visible, switching to fallback mode`);
+                    
+                    // Check if iframe is properly visible
+                    const computedStyle = window.getComputedStyle(iframe);
+                    const isVisible = computedStyle.display !== 'none' && 
+                                    computedStyle.visibility !== 'hidden' && 
+                                    computedStyle.opacity !== '0';
+                                    
+                    if (!isVisible || iframe.offsetWidth === 0 || iframe.offsetHeight === 0) {
+                      console.log(`❌ Iframe not properly visible, enabling fallback`);
+                      setFallbackMode(true);
+                    } else {
+                      console.log(`✅ Iframe appears visible - PDF should be displayed`);
+                    }
+                  } else {
+                    console.error(`❌ Invalid PDF blob`);
+                    setError('PDF file is invalid');
+                  }
+                })
+                .catch(err => {
+                  console.error(`❌ PDF fetch failed: ${(err as Error).message}`);
+                  setError('Cannot load PDF file');
+                });
+            }, 1500);
           }}
           onError={(e) => {
             console.error(`❌ PDF iframe error for ${documentName} (ID: ${documentId}):`, e);
@@ -187,41 +182,14 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handlePrevPage}
-                  disabled={currentPage <= 1}
-                  className="text-white hover:bg-gray-700"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <span className="text-sm text-gray-300 min-w-[80px] text-center">
-                  {currentPage} / {totalPages}
-                </span>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNextPage}
-                  disabled={currentPage >= totalPages}
-                  className="text-white hover:bg-gray-700"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Zoom Controls */}
-              <div className="flex items-center gap-1 mr-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
                   onClick={handleZoomOut}
-                  disabled={zoom <= 0.5}
                   className="text-white hover:bg-gray-700"
+                  disabled={zoom <= 0.5}
                 >
-                  <ZoomOut className="h-4 w-4" />
+                  <ZoomOut className="w-4 h-4" />
                 </Button>
                 
-                <span className="text-sm text-gray-300 min-w-[50px] text-center">
+                <span className="text-white text-sm min-w-[4rem] text-center">
                   {Math.round(zoom * 100)}%
                 </span>
                 
@@ -229,98 +197,100 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                   variant="ghost"
                   size="sm"
                   onClick={handleZoomIn}
-                  disabled={zoom >= 3.0}
+                  className="text-white hover:bg-gray-700"
+                  disabled={zoom >= 3}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRotate}
                   className="text-white hover:bg-gray-700"
                 >
-                  <ZoomIn className="h-4 w-4" />
+                  <RotateCw className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetControls}
+                  className="text-white hover:bg-gray-700 text-xs"
+                >
+                  Reset
                 </Button>
               </div>
 
-              {/* Action Controls */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRotate}
-                className="text-white hover:bg-gray-700"
-              >
-                <RotateCw className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownload}
-                className="text-white hover:bg-gray-700"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-                className="text-white hover:bg-gray-700"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleOpenNewTab}
+                  className="text-white hover:bg-gray-700"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="text-white hover:bg-gray-700"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </DialogHeader>
-
+        
         <div className="flex-1 overflow-hidden">
-          {renderPDFViewer()}
+          {renderPDFContent()}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// Simplified PDF viewer for inline display in cards
 export function InlinePDFPreview({ documentId, documentName, className = "" }: {
   documentId: number;
   documentName: string;
   className?: string;
 }) {
-  const [fullViewerOpen, setFullViewerOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-gray-100 rounded ${className}`}>
+        <div className="text-center p-4">
+          <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+          <p className="text-sm text-gray-600">Error loading PDF</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <Card className={`cursor-pointer hover:shadow-lg transition-shadow ${className}`}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm truncate">{documentName}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-2">
-          <div 
-            className="relative bg-gray-100 rounded aspect-[3/4] overflow-hidden"
-            onClick={() => setFullViewerOpen(true)}
-          >
-            <iframe
-              src={`/api/documents/${documentId}/download#page=1&zoom=50&toolbar=0&navpanes=0&scrollbar=0`}
-              className="w-full h-full border-0 pointer-events-none"
-              title={`${documentName} Preview`}
-            />
-            <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all flex items-center justify-center">
-              <Maximize2 className="h-6 w-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
-            </div>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full mt-2"
-            onClick={() => setFullViewerOpen(true)}
-          >
-            <Maximize2 className="h-4 w-4 mr-2" />
-            Vollansicht
-          </Button>
-        </CardContent>
-      </Card>
-
-      <PDFViewer
-        documentId={documentId}
-        documentName={documentName}
-        open={fullViewerOpen}
-        onOpenChange={setFullViewerOpen}
+    <div className={`relative bg-gray-100 rounded overflow-hidden ${className}`}>
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+      
+      <iframe
+        src={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
+        className="w-full h-full border-0"
+        title={documentName}
+        onLoad={() => setIsLoading(false)}
+        onError={() => {
+          setIsLoading(false);
+          setError('Failed to load PDF');
+        }}
       />
-    </>
+    </div>
   );
 }
