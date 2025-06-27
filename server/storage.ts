@@ -1422,6 +1422,68 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
     return result.rowCount || 0;
   }
+
+  // Research jobs methods
+  async createResearchJob(job: InsertResearchJob): Promise<ResearchJob> {
+    try {
+      const [result] = await db.insert(researchJobs).values(job).returning();
+      console.log(`📋 Created research job ${result.id} for deal ${job.dealId}`);
+      return result;
+    } catch (error) {
+      console.error('Error creating research job:', error);
+      throw error;
+    }
+  }
+
+  async updateResearchJob(id: number, updates: Partial<ResearchJob>): Promise<ResearchJob | undefined> {
+    try {
+      const [result] = await db.update(researchJobs)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(researchJobs.id, id))
+        .returning();
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error updating research job ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async getResearchJobById(id: number): Promise<ResearchJob | undefined> {
+    try {
+      const [result] = await db.select().from(researchJobs).where(eq(researchJobs.id, id));
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error fetching research job ${id}:`, error);
+      return undefined;
+    }
+  }
+
+  async getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined> {
+    try {
+      const [result] = await db.select().from(researchJobs)
+        .where(and(
+          eq(researchJobs.dealId, dealId),
+          eq(researchJobs.status, 'processing')
+        ))
+        .orderBy(desc(researchJobs.createdAt));
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error fetching active research job for deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
+
+  async getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined> {
+    try {
+      const [result] = await db.select().from(researchJobs)
+        .where(eq(researchJobs.dealId, dealId))
+        .orderBy(desc(researchJobs.createdAt));
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error fetching research job progress for deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
