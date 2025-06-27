@@ -2968,6 +2968,44 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Get research job progress endpoint
+  app.get('/api/deals/:dealId/research/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const { persistentResearchService } = await import('./services/persistentResearchService');
+      const job = await persistentResearchService.getJobProgress(dealId);
+
+      if (!job) {
+        return res.json({ 
+          status: 'not_found',
+          progress: 0,
+          message: 'No research job found for this deal'
+        });
+      }
+
+      res.json({
+        success: true,
+        jobId: job.id,
+        dealId: job.dealId,
+        status: job.status,
+        progress: job.progress,
+        progressStage: job.progressStage,
+        currentStep: job.currentStep,
+        totalSteps: job.totalSteps,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        debugInfo: job.debugInfo
+      });
+    } catch (error) {
+      console.error('Error fetching research progress:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Remove duplicate route - using the enhanced one at line 1566
 
   // Get comprehensive analysis results

@@ -578,6 +578,53 @@ export const insertComprehensiveAnalysisSchema = createInsertSchema(comprehensiv
 export type ComprehensiveAnalysis = typeof comprehensiveAnalysis.$inferSelect;
 export type InsertComprehensiveAnalysis = z.infer<typeof insertComprehensiveAnalysisSchema>;
 
+// Research Jobs table for persistent background processing
+export const researchJobs = pgTable("research_jobs", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 20 }).notNull().default("processing"), // 'processing', 'completed', 'failed'
+  progress: integer("progress").notNull().default(0), // 0-100
+  progressStage: varchar("progress_stage", { length: 255 }).notNull().default("Initializing"),
+  currentStep: integer("current_step").notNull().default(1),
+  totalSteps: integer("total_steps").notNull().default(8),
+  companyName: varchar("company_name", { length: 255 }).notNull(),
+  website: varchar("website", { length: 500 }),
+  debugInfo: json("debug_info").$type<{
+    step?: string;
+    timestamp?: string;
+    url?: string;
+    error?: string;
+    [key: string]: any;
+  }>().default({}),
+  result: json("result").$type<{
+    companyName?: string;
+    website?: string;
+    websiteAnalysis?: string;
+    ceoProfile?: any;
+    financialData?: any;
+    marketAnalysis?: any;
+    businessIntelligence?: any;
+    riskFactors?: any;
+    researchStatus?: string;
+    sources?: number;
+    lastUpdated?: string;
+    aiConfidenceScore?: number;
+  }>(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertResearchJobSchema = createInsertSchema(researchJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ResearchJob = typeof researchJobs.$inferSelect;
+export type InsertResearchJob = z.infer<typeof insertResearchJobSchema>;
+
 
 
 
