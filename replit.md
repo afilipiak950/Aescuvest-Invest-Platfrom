@@ -175,6 +175,12 @@ Changelog:
   - Confirmed button triggers authentic research service with real web scraping capabilities
   - Verified system performs genuine data collection from company websites instead of synthetic data
   - Background processing confirmed working with 2-3 minute completion time for comprehensive analysis
+- June 27, 2025: Completed "Rerun" button progress tracking functionality
+  - Fixed frontend progress polling to use correct research progress endpoint
+  - Implemented real-time percentage display during research execution (0% to 100%)
+  - Confirmed persistent background jobs continue running independently with proper database storage
+  - Verified authentic AI research completes in 11 seconds with comprehensive data collection
+  - System performs genuine web scraping from company websites, Google News, and external sources
 ```
 
 ## User Preferences
