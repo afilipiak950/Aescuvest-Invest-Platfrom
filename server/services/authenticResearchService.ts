@@ -132,7 +132,7 @@ export class AuthenticResearchService {
       console.log(`🚀 Starting authentic comprehensive research for deal ${dealId}`);
       
       // Get deal information
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       if (!deal) {
         throw new Error(`Deal ${dealId} not found`);
       }
@@ -462,7 +462,7 @@ export class AuthenticResearchService {
   // Store authentic research data
   private async storeResearchData(dealId: number, data: AuthenticResearchData): Promise<void> {
     try {
-      await storage.storeCompanyResearch(dealId, {
+      await storage.createOrUpdateCompanyResearch(dealId, {
         companyName: data.companyName,
         website: data.website,
         ceoProfile: data.ceoProfile ? JSON.stringify(data.ceoProfile) : null,
@@ -488,7 +488,7 @@ export class AuthenticResearchService {
   // Retrieve stored authentic research
   async getStoredResearch(dealId: number): Promise<AuthenticResearchData | null> {
     try {
-      const research = await storage.getRawCompanyResearchByDealId(dealId);
+      const research = await storage.getCompanyResearchByDealId(dealId);
       if (!research) {
         console.log(`❌ No stored research found for deal ${dealId}`);
         return null;

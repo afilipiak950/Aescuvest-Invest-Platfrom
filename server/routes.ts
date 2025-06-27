@@ -2860,13 +2860,13 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(404).json({ message: 'Deal not found' });
       }
 
-      // Try to get enhanced research data first
-      const { enhancedCompanyResearchService } = await import('./services/enhancedCompanyResearchService');
-      const enhancedData = await enhancedCompanyResearchService.getStoredResearch(dealId);
+      // Try to get authentic research data first
+      const { authenticResearchService } = await import('./services/authenticResearchService');
+      const authenticData = await authenticResearchService.getStoredResearch(dealId);
       
-      if (enhancedData) {
-        console.log('🔍 Returning enhanced research data for deal:', dealId);
-        return res.json(enhancedData);
+      if (authenticData) {
+        console.log('🔍 Returning authentic research data for deal:', dealId);
+        return res.json(authenticData);
       }
 
       // Fallback to basic research data
@@ -2911,15 +2911,15 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       console.log(`🔍 ${forceRefresh ? 'Refreshing' : 'Initiating'} enhanced AI research for deal ${dealId}: ${deal.companyName}`);
 
-      // Check if enhanced research already exists
-      const { enhancedCompanyResearchService } = await import('./services/enhancedCompanyResearchService');
+      // Check if authentic research already exists
+      const { authenticResearchService } = await import('./services/authenticResearchService');
       
       if (!forceRefresh) {
-        const existingResearch = await enhancedCompanyResearchService.getStoredResearch(dealId);
+        const existingResearch = await authenticResearchService.getStoredResearch(dealId);
         if (existingResearch && existingResearch.researchStatus === 'complete') {
-          console.log(`🔍 Enhanced research already exists for deal ${dealId}`);
+          console.log(`🔍 Authentic research already exists for deal ${dealId}`);
           return res.json({ 
-            message: 'Enhanced research already completed', 
+            message: 'Authentic research already completed', 
             dealId, 
             status: 'complete',
             existing: true
@@ -2927,24 +2927,24 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
 
-      // Start enhanced research in background
-      console.log(`🚀 Starting enhanced AI research for deal ${dealId}...`);
+      // Start authentic research in background
+      console.log(`🚀 Starting authentic AI research with real web scraping for deal ${dealId}...`);
       
       // Return immediately while research runs in background
       res.json({ 
-        message: 'Enhanced AI research initiated', 
+        message: 'Authentic AI research initiated', 
         dealId, 
         status: 'in_progress',
         estimated_completion: '2-3 minutes'
       });
 
-      // Run enhanced research in background
-      enhancedCompanyResearchService.conductComprehensiveResearch(dealId)
+      // Run authentic research in background
+      authenticResearchService.conductComprehensiveResearch(dealId)
         .then((researchData) => {
-          console.log(`✅ Enhanced research completed successfully for deal ${dealId}`);
+          console.log(`✅ Authentic research completed successfully for deal ${dealId}`);
         })
         .catch((error: any) => {
-          console.error(`❌ Enhanced research failed for deal ${dealId}:`, error);
+          console.error(`❌ Authentic research failed for deal ${dealId}:`, error);
         });
     } catch (error) {
       console.error('Error initiating company research:', error);
