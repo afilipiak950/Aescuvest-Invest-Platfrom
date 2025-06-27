@@ -1285,8 +1285,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   };
 
-  const buildFolderTree = (docs: Document[]): FolderNode => {
+  const buildFolderTree = (docs: Document[]): { folderTree: FolderNode; emailAttachments: Document[] } => {
     console.log('🗂️ Building folder tree with', docs.length, 'documents');
+    
+    // Separate email attachments from regular documents
+    const emailAttachments = docs.filter(doc => doc.folderPath?.includes('email-attachments'));
+    const regularDocs = docs.filter(doc => !doc.folderPath?.includes('email-attachments'));
     
     const root: FolderNode = {
       name: '',
@@ -1296,7 +1300,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       isExpanded: true
     };
 
-    docs.forEach((doc) => {
+    regularDocs.forEach((doc) => {
       const folderPath = doc.folderPath || '';
       const pathParts = folderPath ? folderPath.split('/').filter(Boolean) : [];
       
@@ -1326,10 +1330,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('🗂️ Folder tree built:', {
       rootDocuments: root.documents.length,
       rootFolders: root.children.size,
-      folderNames: Array.from(root.children.keys())
+      folderNames: Array.from(root.children.keys()),
+      emailAttachments: emailAttachments.length
     });
 
-    return root;
+    return { folderTree: root, emailAttachments };
   };
 
   const toggleFolder = (path: string) => {
@@ -1482,16 +1487,62 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  const folderTree = buildFolderTree(documentsArray || []);
+  const { folderTree, emailAttachments } = buildFolderTree(documentsArray || []);
 
   return (
-    <div className="bg-dark-lighter rounded-lg">
-      <div className="p-4 border-b border-dark">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
-            <p className="text-sm text-gray-400 mt-1">{documentsArray?.length || 0} documents organized by folder structure</p>
+    <div className="space-y-6">
+      {/* Email Attachments Section - Only show if there are email attachments */}
+      {emailAttachments.length > 0 && (
+        <div className="bg-dark-lighter rounded-lg">
+          <div className="p-4 border-b border-dark">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white flex items-center">
+                  <span className="mr-2">📧</span>
+                  Email Attachments
+                </h3>
+                <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} attachments from emails</p>
+              </div>
+            </div>
           </div>
+          
+          <div className="p-4 max-h-96 overflow-y-auto">
+            <div className="space-y-2">
+              {emailAttachments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center py-2 px-3 hover:bg-dark-light rounded-lg cursor-pointer"
+                  onClick={() => handleDocumentClick(doc)}
+                >
+                  {doc.type.includes('pdf') ? (
+                    <FileTextIcon className="w-4 h-4 text-red-400 mr-3" />
+                  ) : (
+                    <FileIcon className="w-4 h-4 text-gray-400 mr-3" />
+                  )}
+                  <span className="text-gray-300 text-sm flex-1">{doc.name}</span>
+                  <div className="flex items-center space-x-2">
+                    {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
+                    {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
+                    {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
+                    {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                    <EyeIcon className="w-3 h-3 text-gray-500" />
+                    <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Data Room Explorer Section */}
+      <div className="bg-dark-lighter rounded-lg">
+        <div className="p-4 border-b border-dark">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
+              <p className="text-sm text-gray-400 mt-1">{(documentsArray?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
+            </div>
           
           <div className="flex items-center space-x-2">
             {!isSelectionMode ? (
@@ -1708,43 +1759,46 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             />
           ))
         ) : (
-          <div className="space-y-2">
-            {folderTree.documents.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center py-2 px-3 hover:bg-dark-light rounded-lg"
-              >
-                {isSelectionMode && (
-                  <Checkbox
-                    checked={selectedFiles.has(doc.id)}
-                    onCheckedChange={(checked) => handleFileSelection(doc.id, !!checked)}
-                    className="mr-2"
-                  />
-                )}
-                
-                <div 
-                  className="flex items-center flex-1 cursor-pointer"
-                  onClick={() => !isSelectionMode && handleDocumentClick(doc)}
+          folderTree.documents.length > 0 && (
+            <div className="space-y-2">
+              {folderTree.documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center py-2 px-3 hover:bg-dark-light rounded-lg"
                 >
-                  {doc.type.includes('pdf') ? (
-                    <FileTextIcon className="w-4 h-4 text-red-400 mr-2" />
-                  ) : (
-                    <FileIcon className="w-4 h-4 text-gray-400 mr-2" />
+                  {isSelectionMode && (
+                    <Checkbox
+                      checked={selectedFiles.has(doc.id)}
+                      onCheckedChange={(checked) => handleFileSelection(doc.id, !!checked)}
+                      className="mr-2"
+                    />
                   )}
-                  <span className="text-gray-300 text-sm flex-1">{doc.name}</span>
-                  <div className="flex items-center space-x-2">
-                    {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
-                    {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
-                    {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
-                    {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
-                    <EyeIcon className="w-3 h-3 text-gray-500" />
-                    <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
+                  
+                  <div 
+                    className="flex items-center flex-1 cursor-pointer"
+                    onClick={() => !isSelectionMode && handleDocumentClick(doc)}
+                  >
+                    {doc.type.includes('pdf') ? (
+                      <FileTextIcon className="w-4 h-4 text-red-400 mr-2" />
+                    ) : (
+                      <FileIcon className="w-4 h-4 text-gray-400 mr-2" />
+                    )}
+                    <span className="text-gray-300 text-sm flex-1">{doc.name}</span>
+                    <div className="flex items-center space-x-2">
+                      {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
+                      {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
+                      {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
+                      {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                      <EyeIcon className="w-3 h-3 text-gray-500" />
+                      <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
+      </div>
       </div>
 
       {selectedDocument && (
