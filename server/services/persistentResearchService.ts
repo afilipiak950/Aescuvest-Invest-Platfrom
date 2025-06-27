@@ -76,23 +76,7 @@ export class PersistentResearchService {
 
   // Get job progress
   async getJobProgress(dealId: number) {
-    const job = await this.getActiveJob(dealId);
-    if (!job) {
-      // Check for completed job
-      const [completedJob] = await db
-        .select()
-        .from(researchBackgroundJobs)
-        .where(and(
-          eq(researchBackgroundJobs.dealId, dealId),
-          eq(researchBackgroundJobs.status, 'completed')
-        ))
-        .orderBy(researchBackgroundJobs.createdAt)
-        .limit(1);
-
-      return completedJob || null;
-    }
-
-    return job;
+    return await storage.getResearchJobProgressByDealId(dealId);
   }
 
   // Update job progress
@@ -110,48 +94,45 @@ export class PersistentResearchService {
       updateData.debugInfo = debugInfo;
     }
 
-    await db
-      .update(researchBackgroundJobs)
-      .set(updateData)
-      .where(eq(researchBackgroundJobs.id, jobId));
+    await storage.updateResearchJob(jobId, updateData);
   }
 
   // Complete job
   async completeJob(jobId: number, result: any) {
     console.log(`✅ Completing research job ${jobId}`);
     
-    await db
-      .update(researchBackgroundJobs)
-      .set({
-        status: 'completed',
-        progress: 100,
-        progressStage: 'Research completed successfully',
-        currentStep: RESEARCH_STEPS.length,
-        completedAt: new Date(),
-        result,
-        updatedAt: new Date()
-      })
-      .where(eq(researchBackgroundJobs.id, jobId));
+    await storage.updateResearchJob(jobId, {
+      status: 'completed',
+      progress: 100,
+      progressStage: 'Research completed successfully',
+      currentStep: RESEARCH_STEPS.length,
+      completedAt: new Date(),
+      result
+    });
 
-    this.activeJobs.delete(jobId);
+    // Mark as not active
+    const job = await storage.getResearchJobById(jobId);
+    if (job) {
+      this.activeJobs.delete(job.dealId);
+    }
   }
 
   // Fail job
   async failJob(jobId: number, error: string) {
     console.log(`❌ Failing research job ${jobId}: ${error}`);
     
-    await db
-      .update(researchBackgroundJobs)
-      .set({
-        status: 'failed',
-        progressStage: 'Research failed',
-        error,
-        completedAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(researchBackgroundJobs.id, jobId));
+    await storage.updateResearchJob(jobId, {
+      status: 'failed',
+      currentStepName: 'Research failed',
+      error,
+      completedAt: new Date()
+    });
 
-    this.activeJobs.delete(jobId);
+    // Mark as not active
+    const job = await storage.getResearchJobById(jobId);
+    if (job) {
+      this.activeJobs.delete(job.dealId);
+    }
   }
 
   // Run research in background with detailed progress tracking
