@@ -315,9 +315,15 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                 className="bg-dark-lighter hover:bg-dark border-dark-lighter"
               >
                 {isRefreshing || refreshResearchMutation.isPending ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    Running...
+                  </>
                 ) : (
-                  <RefreshCw className="h-4 w-4" />
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Rerun
+                  </>
                 )}
               </Button>
             </div>

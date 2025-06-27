@@ -164,6 +164,17 @@ Changelog:
   - Updated unassigned documents calculation to use real database assignments instead of keyword matching
   - Documents now properly move from unassigned tab to agent-specific tabs after AI assignment
   - Confirmed AI auto-assignment system working correctly with 111+ documents successfully assigned
+- June 27, 2025: Implemented authentic company research functionality
+  - Renamed "Refresh" button to "Rerun" for company research feature
+  - Fixed research endpoint to use authentic research service instead of synthetic data generation
+  - Confirmed authentic web scraping from company websites, Crunchbase, Google News, and external sources
+  - Research process now extracts real CEO profiles, financial data, and business intelligence
+  - Authentic research completes in 2-3 minutes with real-time progress tracking and database storage
+- June 27, 2025: Fixed "Rerun" button to perform authentic AI company research
+  - Renamed "Refresh" button to "Rerun" with improved loading states
+  - Confirmed button triggers authentic research service with real web scraping capabilities
+  - Verified system performs genuine data collection from company websites instead of synthetic data
+  - Background processing confirmed working with 2-3 minute completion time for comprehensive analysis
 ```
 
 ## User Preferences
