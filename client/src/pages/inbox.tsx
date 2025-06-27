@@ -613,7 +613,13 @@ export default function InboxPage() {
                       </h3>
                       
                       <p className="text-sm text-gray-400 line-clamp-2 mb-2">
-                        {email.text.substring(0, 150)}...
+                        {(() => {
+                          // Clean HTML from email preview text
+                          const cleanText = email.html && email.html.trim() ? 
+                            htmlToPlainText(email.html) : 
+                            (email.text ? htmlToPlainText(email.text) : '');
+                          return cleanText.substring(0, 150) + (cleanText.length > 150 ? '...' : '');
+                        })()}
                       </p>
                       
                       <div className="flex items-center gap-4 text-xs text-gray-500">
