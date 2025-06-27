@@ -14,7 +14,8 @@ import {
   backgroundJobs, BackgroundJob, InsertBackgroundJob,
   comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
-  evaluationResults, EvaluationResult, InsertEvaluationResult
+  evaluationResults, EvaluationResult, InsertEvaluationResult,
+  researchJobs, ResearchJob, InsertResearchJob
 } from "@shared/schema";
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull } from 'drizzle-orm';
@@ -139,6 +140,13 @@ export interface IStorage {
   // Comprehensive analysis methods
   getComprehensiveAnalysis(dealId: number): Promise<ComprehensiveAnalysis | undefined>;
   createOrUpdateComprehensiveAnalysis(dealId: number, data: Partial<ComprehensiveAnalysis>): Promise<ComprehensiveAnalysis>;
+  
+  // Research jobs methods
+  createResearchJob(job: InsertResearchJob): Promise<ResearchJob>;
+  updateResearchJob(id: number, updates: Partial<ResearchJob>): Promise<ResearchJob | undefined>;
+  getResearchJobById(id: number): Promise<ResearchJob | undefined>;
+  getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined>;
+  getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined>;
 }
 
 // Database storage implementation
