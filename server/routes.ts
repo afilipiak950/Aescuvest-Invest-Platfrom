@@ -28,6 +28,7 @@ import { registerApiRoutes } from "./routes/api";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
+import { websocketManager as wsManager } from './services/websocketManager';
 
 // Background processing function for company research
 async function processCompanyResearchForDeal(
@@ -2763,15 +2764,13 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
       // Send WebSocket notification for immediate UI update
       try {
-        if (wsManager && document.dealId) {
-          wsManager.broadcast({
-            type: 'ai_summary_complete',
-            dealId: document.dealId,
-            documentId: documentId,
-            documentName: document.name,
-            timestamp: new Date().toISOString()
-          });
-        }
+        wsManager.broadcastJobProgress({
+          jobId: 0,
+          progress: 100,
+          status: 'completed',
+          currentStep: `AI summary completed for ${document.name}`,
+          documentName: document.name
+        }, document.dealId);
       } catch (wsError) {
         console.log('WebSocket notification failed:', wsError);
       }
@@ -4433,7 +4432,7 @@ async function categorizeDocumentToAgents(document: any, agents: any): Promise<s
         messages: [{
           role: 'user',
           content: `Document: "${document.name}"
-Content preview: "${(document.ocrText || document.aiSummary || '').substring(0, 2000) || 'No content available'}"
+Content preview: "${(document.ocrText || (typeof document.aiSummary === 'string' ? document.aiSummary : JSON.stringify(document.aiSummary)) || '').substring(0, 2000) || 'No content available'}"
 
 Categorize this document to the most relevant specialized agents. For each agent, answer YES/NO:
 
@@ -4537,7 +4536,7 @@ function generateFallbackAnalysis(document: any, agent: any): any {
 
   const agentName = agent.name.toLowerCase();
   const keywords = agentKeywords[agentName] || [];
-  const docText = document.ocrText || document.aiSummary || '';
+  const docText = document.ocrText || (typeof document.aiSummary === 'string' ? document.aiSummary : JSON.stringify(document.aiSummary)) || '';
   const matches = keywords.filter((keyword: string) => 
     docText.toLowerCase().includes(keyword.toLowerCase())
   );
