@@ -1606,7 +1606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Document download endpoint
+  // Document download endpoint with support for both download and inline viewing
   app.get('/api/documents/:id/download', async (req: Request, res: Response) => {
     try {
       console.log(`📥 Download request for document ID: ${req.params.id}`);
@@ -1616,6 +1616,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('❌ Invalid document ID provided');
         return res.status(400).json({ message: 'Invalid document ID' });
       }
+
+      // Check if this is for inline viewing (used by PDF viewer)
+      const isInlineView = req.query.view === 'inline';
+      const userAgent = req.headers['user-agent'] || '';
+      const isIframe = req.headers['sec-fetch-dest'] === 'iframe' || 
+                      req.headers.referer?.includes('pdf-viewer') ||
+                      userAgent.includes('iframe');
+      
+      console.log(`📊 Inline detection - view param: ${req.query.view}, isInlineView: ${isInlineView}, isIframe: ${isIframe}, sec-fetch-dest: ${req.headers['sec-fetch-dest']}, referer: ${req.headers.referer}`);
 
       // Get document from database
       const document = await storage.getDocumentById(documentId);
@@ -1674,12 +1683,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
       }
 
-      console.log(`📤 Setting headers - MIME: ${mimeType}, Size: ${stats.size}, Filename: ${document.name}`);
+      console.log(`📤 Setting headers - MIME: ${mimeType}, Size: ${stats.size}, Filename: ${document.name}, Inline: ${isInlineView || isIframe}`);
 
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Length', stats.size);
-      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`);
+      
+      // For PDF files in iframe or explicit inline view, use inline disposition
+      if ((ext === '.pdf' && (isIframe || isInlineView)) || isInlineView) {
+        res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(document.name)}`);
+      } else {
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`);
+      }
+      
       res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Allow iframe embedding
       
       // Stream the file
       const fileStream = fs.createReadStream(document.path);
