@@ -411,7 +411,7 @@ export default function DueDiligence() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                className="bg-dark-lighter hover:bg-dark border-dark-lighter"
+                className="bg-dark-lighter hover:bg-dark border-dark-lighter h-10"
                 onClick={handleFileUpload}
               >
                 <Upload className="mr-2 h-4 w-4" />
