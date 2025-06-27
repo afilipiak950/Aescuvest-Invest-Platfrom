@@ -452,6 +452,84 @@ router.post('/emails/:id/create-deal', authenticate, async (req: Request, res: R
       status: createdDeal.status
     });
 
+    // Step 4.5: Download and upload email attachments to deal's data room
+    let uploadedAttachments: any[] = [];
+    if (tokens && tokens.accessToken && Date.now() < tokens.expiresAt) {
+      console.log('📎 Checking for email attachments...');
+      try {
+        const attachments = await getMicrosoftEmailAttachments(emailId);
+        console.log(`📎 Found ${attachments?.length || 0} attachments in email`);
+        
+        if (attachments && attachments.length > 0) {
+          console.log('📎 Processing email attachments for upload to data room...');
+          const path = await import('path');
+          const fs = await import('fs/promises');
+          const multer = await import('multer');
+          
+          for (const attachment of attachments) {
+            try {
+              console.log(`📎 Processing attachment: ${attachment.name}`);
+              
+              // Download attachment content
+              const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${emailId}/attachments/${attachment.id}/$value`, {
+                headers: {
+                  'Authorization': `Bearer ${tokens.accessToken}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (!response.ok) {
+                console.warn(`⚠️ Failed to download attachment ${attachment.name}: ${response.status}`);
+                continue;
+              }
+              
+              const arrayBuffer = await response.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              
+              // Create uploads directory if it doesn't exist
+              const uploadsDir = path.join(process.cwd(), 'uploads');
+              await fs.mkdir(uploadsDir, { recursive: true });
+              
+              // Save file temporarily
+              const tempFileName = `${Date.now()}_${attachment.name}`;
+              const tempFilePath = path.join(uploadsDir, tempFileName);
+              await fs.writeFile(tempFilePath, buffer);
+              
+              // Create document in database
+              const document = await storage.createDocument({
+                dealId: createdDeal.id,
+                name: attachment.name,
+                type: attachment.contentType || 'application/octet-stream',
+                path: tempFilePath,
+                size: attachment.size || buffer.length,
+                status: 'Completed',
+                category: 'Email Attachment',
+                documentType: attachment.name.toLowerCase().endsWith('.pdf') ? 'Pitch Deck' : 'Document',
+                folderPath: 'email-attachments',
+                assignedAgents: []
+              });
+              
+              uploadedAttachments.push({
+                id: document.id,
+                name: attachment.name,
+                size: attachment.size || buffer.length,
+                contentType: attachment.contentType
+              });
+              
+              console.log(`✅ Uploaded attachment: ${attachment.name} (${document.id})`);
+              
+            } catch (attachmentError) {
+              console.error(`💥 Error processing attachment ${attachment.name}:`, attachmentError);
+            }
+          }
+          
+          console.log(`✅ Successfully uploaded ${uploadedAttachments.length}/${attachments.length} attachments`);
+        }
+      } catch (attachmentError) {
+        console.error('💥 Error processing email attachments:', attachmentError);
+      }
+    }
+
     // Step 5: Mark email as read
     console.log('📧 Marking email as read...');
     try {
@@ -497,7 +575,9 @@ router.post('/emails/:id/create-deal', authenticate, async (req: Request, res: R
       deal: createdDeal,
       responseSent,
       founderEmail: dealInfo.founderInfo?.email,
-      extractedInfo: dealInfo
+      extractedInfo: dealInfo,
+      uploadedAttachments: uploadedAttachments,
+      attachmentCount: uploadedAttachments.length
     });
 
   } catch (error) {
