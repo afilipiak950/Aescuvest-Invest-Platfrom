@@ -153,7 +153,7 @@ export function convertToInsertDeal(dealInfo: ExtractedDealInfo): InsertDeal {
     companyName: dealInfo.companyName,
     description: dealInfo.description,
     sector: dealInfo.sector,
-    stage: dealInfo.stage,
+    stage: dealInfo.stage || 'early', // Default to 'early' stage if not specified
     location: dealInfo.location || null,
     website: dealInfo.website || null,
     fundingAmount: dealInfo.fundingAmount || null,
