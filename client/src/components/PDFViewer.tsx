@@ -102,56 +102,42 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           title={documentName}
           allow="fullscreen"
           onLoad={(e) => {
-            console.log(`🔍 PDF IFRAME DEBUG - LOADED EVENT FIRED`);
-            console.log(`📄 Document: ${documentName} (ID: ${documentId})`);
-            console.log(`📄 Iframe src: ${e.currentTarget.src}`);
-            console.log(`📄 Iframe dimensions: ${e.currentTarget.offsetWidth}x${e.currentTarget.offsetHeight}`);
-            
+            console.log(`🔍 PDF IFRAME LOADED - Document: ${documentName} (ID: ${documentId})`);
             setIsLoading(false);
             setError(null);
             
-            // Test PDF loading
+            // Chrome security detection - check for blocked content
             setTimeout(() => {
-              console.log(`🔍 FINAL PDF DIAGNOSIS:`);
               const iframe = e.currentTarget;
-              console.log(`📄 Iframe exists: ${!!iframe}`);
-              console.log(`📄 Iframe dimensions: ${iframe.offsetWidth}x${iframe.offsetHeight}`);
-              
-              // Test direct PDF access
-              fetch(iframe.src, { credentials: 'include' })
-                .then(response => {
-                  console.log(`📄 PDF fetch status: ${response.status}`);
-                  console.log(`📄 Content-Type: ${response.headers.get('content-type')}`);
-                  console.log(`📄 Content-Length: ${response.headers.get('content-length')} bytes`);
-                  return response.blob();
-                })
-                .then(blob => {
-                  console.log(`📄 PDF blob size: ${blob.size} bytes, type: ${blob.type}`);
-                  if (blob.size > 0 && blob.type === 'application/pdf') {
-                    console.log(`✅ PDF is valid - if not visible, switching to fallback mode`);
-                    
-                    // Check if iframe is properly visible
-                    const computedStyle = window.getComputedStyle(iframe);
-                    const isVisible = computedStyle.display !== 'none' && 
-                                    computedStyle.visibility !== 'hidden' && 
-                                    computedStyle.opacity !== '0';
-                                    
-                    if (!isVisible || iframe.offsetWidth === 0 || iframe.offsetHeight === 0) {
-                      console.log(`❌ Iframe not properly visible, enabling fallback`);
-                      setFallbackMode(true);
-                    } else {
-                      console.log(`✅ Iframe appears visible - PDF should be displayed`);
-                    }
-                  } else {
-                    console.error(`❌ Invalid PDF blob`);
-                    setError('PDF file is invalid');
-                  }
-                })
-                .catch(err => {
-                  console.error(`❌ PDF fetch failed: ${(err as Error).message}`);
-                  setError('Cannot load PDF file');
-                });
-            }, 1500);
+              try {
+                // Test if we can access iframe content or if it's blocked
+                const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                if (!doc) {
+                  console.log(`⚠️ Chrome blocked PDF access - enabling fallback mode`);
+                  setFallbackMode(true);
+                  return;
+                }
+                
+                // Check if iframe shows Chrome's blocked content message
+                const bodyText = doc.body?.innerText || '';
+                if (bodyText.includes('blockiert') || bodyText.includes('blocked') || bodyText.includes('Diese Seite wurde von Chrome blockiert')) {
+                  console.log(`🚫 Chrome security blocking detected - switching to fallback mode`);
+                  setFallbackMode(true);
+                  return;
+                }
+                
+                // Check iframe dimensions for successful loading
+                if (iframe.offsetWidth === 0 || iframe.offsetHeight === 0) {
+                  console.log(`❌ Iframe dimensions invalid - enabling fallback`);
+                  setFallbackMode(true);
+                } else {
+                  console.log(`✅ PDF iframe loaded successfully`);
+                }
+              } catch (err) {
+                console.log(`⚠️ CORS/Security restriction detected - using fallback mode`);
+                setFallbackMode(true);
+              }
+            }, 2000);
           }}
           onError={(e) => {
             console.error(`❌ PDF iframe error for ${documentName} (ID: ${documentId}):`, e);

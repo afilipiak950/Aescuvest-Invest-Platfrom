@@ -1708,7 +1708,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Allow iframe embedding
+      
+      // Enhanced headers for PDF iframe viewing in Chrome
+      if (ext === '.pdf' && shouldUseInline) {
+        // Allow iframe embedding specifically for PDF files
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+        res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        // Add explicit PDF plugin headers
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Accept-Ranges', 'bytes');
+        console.log(`📄 Enhanced PDF headers set for inline viewing: ${document.name}`);
+      } else {
+        res.setHeader('X-Frame-Options', 'DENY'); // Block iframe for non-PDF downloads
+      }
       
       // Stream the file
       const fileStream = fs.createReadStream(document.path);
