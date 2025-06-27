@@ -51,12 +51,12 @@ export class PersistentResearchService {
       currentStep: 0,
       stepProgress: 0,
       totalSteps: RESEARCH_STEPS.length,
-      debugInfo: JSON.stringify({
+      debugInfo: {
         companyName,
         website,
         startTime: new Date().toISOString(),
         steps: RESEARCH_STEPS
-      })
+      }
     };
 
     const job = await storage.createResearchJob(jobData);
