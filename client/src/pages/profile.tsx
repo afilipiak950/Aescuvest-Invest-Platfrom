@@ -1,11 +1,19 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
 import { 
   User, 
@@ -53,6 +61,67 @@ import {
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    bio: '',
+    title: '',
+    company: '',
+    location: '',
+    phone: '',
+    linkedin: '',
+    twitter: '',
+    website: '',
+    timezone: '',
+    language: '',
+    avatar: '',
+    notifications: {
+      email: true,
+      browser: true,
+      deals: true,
+      matches: true,
+      reports: true
+    },
+    privacy: {
+      showEmail: false,
+      showPhone: false,
+      publicProfile: true
+    }
+  });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Profile update mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('/api/settings/user', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // User profile query
   const { data: userProfile, isLoading: profileLoading } = useQuery({
@@ -68,6 +137,98 @@ export default function ProfilePage() {
   const { data: userStats, isLoading: statsLoading } = useQuery({
     queryKey: ['/api/user/stats'],
   });
+
+  // Initialize form with user data
+  useEffect(() => {
+    if (userProfile) {
+      setProfileForm({
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        email: userProfile.email || '',
+        bio: userProfile.bio || '',
+        title: userProfile.title || '',
+        company: userProfile.company || '',
+        location: userProfile.location || '',
+        phone: userProfile.phone || '',
+        linkedin: userProfile.linkedin || '',
+        twitter: userProfile.twitter || '',
+        website: userProfile.website || '',
+        timezone: userProfile.timezone || 'UTC',
+        language: userProfile.language || 'en',
+        avatar: userProfile.avatar || '',
+        notifications: {
+          email: userProfile.notifications?.email ?? true,
+          browser: userProfile.notifications?.browser ?? true,
+          deals: userProfile.notifications?.deals ?? true,
+          matches: userProfile.notifications?.matches ?? true,
+          reports: userProfile.notifications?.reports ?? true
+        },
+        privacy: {
+          showEmail: userProfile.privacy?.showEmail ?? false,
+          showPhone: userProfile.privacy?.showPhone ?? false,
+          publicProfile: userProfile.privacy?.publicProfile ?? true
+        }
+      });
+    }
+  }, [userProfile]);
+
+  // Form handlers
+  const handleInputChange = (field: string, value: any) => {
+    setProfileForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleNestedChange = (section: string, field: string, value: any) => {
+    setProfileForm(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section as keyof typeof prev],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate(profileForm);
+  };
+
+  const handleDialogClose = () => {
+    setIsEditDialogOpen(false);
+    // Reset form to original values
+    if (userProfile) {
+      setProfileForm({
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        email: userProfile.email || '',
+        bio: userProfile.bio || '',
+        title: userProfile.title || '',
+        company: userProfile.company || '',
+        location: userProfile.location || '',
+        phone: userProfile.phone || '',
+        linkedin: userProfile.linkedin || '',
+        twitter: userProfile.twitter || '',
+        website: userProfile.website || '',
+        timezone: userProfile.timezone || 'UTC',
+        language: userProfile.language || 'en',
+        avatar: userProfile.avatar || '',
+        notifications: {
+          email: userProfile.notifications?.email ?? true,
+          browser: userProfile.notifications?.browser ?? true,
+          deals: userProfile.notifications?.deals ?? true,
+          matches: userProfile.notifications?.matches ?? true,
+          reports: userProfile.notifications?.reports ?? true
+        },
+        privacy: {
+          showEmail: userProfile.privacy?.showEmail ?? false,
+          showPhone: userProfile.privacy?.showPhone ?? false,
+          publicProfile: userProfile.privacy?.publicProfile ?? true
+        }
+      });
+    }
+  };
 
   // Calculate achievements based on real user statistics
   const achievements = useMemo(() => {
@@ -420,10 +581,300 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-              <Button variant="outline" className="border-dark-lighter">
-                <Settings className="h-4 w-4 mr-2" />
-                Edit Profile
-              </Button>
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="border-dark-lighter">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-dark border-dark-lighter">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-white">
+                      <Settings className="h-5 w-5" />
+                      Edit Profile
+                    </DialogTitle>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <Tabs defaultValue="personal" className="w-full">
+                      <TabsList className="grid w-full grid-cols-4 bg-dark-light border border-dark-lighter">
+                        <TabsTrigger value="personal">Personal</TabsTrigger>
+                        <TabsTrigger value="professional">Professional</TabsTrigger>
+                        <TabsTrigger value="social">Social</TabsTrigger>
+                        <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="personal" className="space-y-4 mt-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="firstName" className="text-white">First Name</Label>
+                            <Input
+                              id="firstName"
+                              value={profileForm.firstName}
+                              onChange={(e) => handleInputChange('firstName', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="Enter your first name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="lastName" className="text-white">Last Name</Label>
+                            <Input
+                              id="lastName"
+                              value={profileForm.lastName}
+                              onChange={(e) => handleInputChange('lastName', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="Enter your last name"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="email" className="text-white">Email Address</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={profileForm.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            className="bg-dark-light border-dark-lighter text-white"
+                            placeholder="Enter your email address"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="text-white">Phone Number</Label>
+                            <Input
+                              id="phone"
+                              value={profileForm.phone}
+                              onChange={(e) => handleInputChange('phone', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="Enter your phone number"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="location" className="text-white">Location</Label>
+                            <Input
+                              id="location"
+                              value={profileForm.location}
+                              onChange={(e) => handleInputChange('location', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="Enter your location"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="bio" className="text-white">Bio</Label>
+                          <Textarea
+                            id="bio"
+                            value={profileForm.bio}
+                            onChange={(e) => handleInputChange('bio', e.target.value)}
+                            className="bg-dark-light border-dark-lighter text-white min-h-[100px]"
+                            placeholder="Tell us about yourself"
+                          />
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="professional" className="space-y-4 mt-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="title" className="text-white">Job Title</Label>
+                            <Input
+                              id="title"
+                              value={profileForm.title}
+                              onChange={(e) => handleInputChange('title', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="Enter your job title"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="company" className="text-white">Company</Label>
+                            <Input
+                              id="company"
+                              value={profileForm.company}
+                              onChange={(e) => handleInputChange('company', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="Enter your company"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="website" className="text-white">Website</Label>
+                          <Input
+                            id="website"
+                            type="url"
+                            value={profileForm.website}
+                            onChange={(e) => handleInputChange('website', e.target.value)}
+                            className="bg-dark-light border-dark-lighter text-white"
+                            placeholder="https://your-website.com"
+                          />
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="social" className="space-y-4 mt-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="linkedin" className="text-white">LinkedIn Profile</Label>
+                            <Input
+                              id="linkedin"
+                              value={profileForm.linkedin}
+                              onChange={(e) => handleInputChange('linkedin', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="https://linkedin.com/in/username"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="twitter" className="text-white">Twitter Profile</Label>
+                            <Input
+                              id="twitter"
+                              value={profileForm.twitter}
+                              onChange={(e) => handleInputChange('twitter', e.target.value)}
+                              className="bg-dark-light border-dark-lighter text-white"
+                              placeholder="https://twitter.com/username"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-medium text-white">Privacy Settings</h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="showEmail" className="text-white">Show Email Publicly</Label>
+                              <Switch
+                                id="showEmail"
+                                checked={profileForm.privacy.showEmail}
+                                onCheckedChange={(checked) => handleNestedChange('privacy', 'showEmail', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="showPhone" className="text-white">Show Phone Publicly</Label>
+                              <Switch
+                                id="showPhone"
+                                checked={profileForm.privacy.showPhone}
+                                onCheckedChange={(checked) => handleNestedChange('privacy', 'showPhone', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="publicProfile" className="text-white">Public Profile</Label>
+                              <Switch
+                                id="publicProfile"
+                                checked={profileForm.privacy.publicProfile}
+                                onCheckedChange={(checked) => handleNestedChange('privacy', 'publicProfile', checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="preferences" className="space-y-4 mt-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="timezone" className="text-white">Timezone</Label>
+                            <Select value={profileForm.timezone} onValueChange={(value) => handleInputChange('timezone', value)}>
+                              <SelectTrigger className="bg-dark-light border-dark-lighter text-white">
+                                <SelectValue placeholder="Select timezone" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-dark border-dark-lighter">
+                                <SelectItem value="UTC">UTC</SelectItem>
+                                <SelectItem value="America/New_York">Eastern Time</SelectItem>
+                                <SelectItem value="America/Chicago">Central Time</SelectItem>
+                                <SelectItem value="America/Denver">Mountain Time</SelectItem>
+                                <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                                <SelectItem value="Europe/London">London</SelectItem>
+                                <SelectItem value="Europe/Paris">Paris</SelectItem>
+                                <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
+                                <SelectItem value="Asia/Shanghai">Shanghai</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="language" className="text-white">Language</Label>
+                            <Select value={profileForm.language} onValueChange={(value) => handleInputChange('language', value)}>
+                              <SelectTrigger className="bg-dark-light border-dark-lighter text-white">
+                                <SelectValue placeholder="Select language" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-dark border-dark-lighter">
+                                <SelectItem value="en">English</SelectItem>
+                                <SelectItem value="es">Spanish</SelectItem>
+                                <SelectItem value="fr">French</SelectItem>
+                                <SelectItem value="de">German</SelectItem>
+                                <SelectItem value="zh">Chinese</SelectItem>
+                                <SelectItem value="ja">Japanese</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-medium text-white">Notification Preferences</h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="emailNotifications" className="text-white">Email Notifications</Label>
+                              <Switch
+                                id="emailNotifications"
+                                checked={profileForm.notifications.email}
+                                onCheckedChange={(checked) => handleNestedChange('notifications', 'email', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="browserNotifications" className="text-white">Browser Notifications</Label>
+                              <Switch
+                                id="browserNotifications"
+                                checked={profileForm.notifications.browser}
+                                onCheckedChange={(checked) => handleNestedChange('notifications', 'browser', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="dealNotifications" className="text-white">Deal Updates</Label>
+                              <Switch
+                                id="dealNotifications"
+                                checked={profileForm.notifications.deals}
+                                onCheckedChange={(checked) => handleNestedChange('notifications', 'deals', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="matchNotifications" className="text-white">Match Notifications</Label>
+                              <Switch
+                                id="matchNotifications"
+                                checked={profileForm.notifications.matches}
+                                onCheckedChange={(checked) => handleNestedChange('notifications', 'matches', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="reportNotifications" className="text-white">Report Updates</Label>
+                              <Switch
+                                id="reportNotifications"
+                                checked={profileForm.notifications.reports}
+                                onCheckedChange={(checked) => handleNestedChange('notifications', 'reports', checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-dark-lighter">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={handleDialogClose}
+                        className="border-dark-lighter text-gray-300 hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={updateProfileMutation.isPending}
+                        className="bg-primary hover:bg-primary-hover text-dark"
+                      >
+                        {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
