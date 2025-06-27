@@ -123,7 +123,7 @@ export class PersistentResearchService {
     
     await storage.updateResearchJob(jobId, {
       status: 'failed',
-      currentStepName: 'Research failed',
+      progressStage: 'Research failed',
       error,
       completedAt: new Date()
     });
