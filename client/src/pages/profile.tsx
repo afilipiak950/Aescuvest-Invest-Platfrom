@@ -78,8 +78,10 @@ export default function ProfilePage() {
       .slice(0, 2);
   };
 
-  const userName = userProfile?.username || 'Admin User';
-  const userEmail = userProfile?.email || 'admin@aescuvest.vc';
+  const userName = userProfile?.firstName && userProfile?.lastName 
+    ? `${userProfile.firstName} ${userProfile.lastName}` 
+    : userProfile?.username || 'User';
+  const userEmail = userProfile?.email || 'user@aescuvest.vc';
 
   return (
     <div className="min-h-screen bg-dark text-white">
@@ -181,7 +183,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Matches Made</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.matchesMade || 0}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.matchesCreated || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-purple-500/20 rounded-full flex items-center justify-center">
                       <Users className="h-5 w-5 text-purple-400" />
@@ -194,8 +196,8 @@ export default function ProfilePage() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-400">Total Value</p>
-                      <p className="text-2xl font-bold text-white">€{userStats?.totalValue || '0'}</p>
+                      <p className="text-sm text-gray-400">Documents Uploaded</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.documentsUploaded || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
                       <DollarSign className="h-5 w-5 text-yellow-400" />
