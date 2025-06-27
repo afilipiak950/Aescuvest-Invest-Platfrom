@@ -34,9 +34,9 @@ export default function ProfilePage() {
     queryKey: ['/api/auth/user'],
   });
 
-  // User activity query
-  const { data: userActivity, isLoading: activityLoading } = useQuery({
-    queryKey: ['/api/user/activity'],
+  // User activities query
+  const { data: userActivities, isLoading: activitiesLoading } = useQuery({
+    queryKey: ['/api/user/activities'],
   });
 
   // User stats query
@@ -44,7 +44,7 @@ export default function ProfilePage() {
     queryKey: ['/api/user/stats'],
   });
 
-  if (profileLoading || activityLoading || statsLoading) {
+  if (profileLoading || activitiesLoading || statsLoading) {
     return (
       <div className="min-h-screen bg-dark text-white">
         <div className="container mx-auto px-4 py-6">
@@ -153,7 +153,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Deals Reviewed</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.dealsReviewed || 47}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.dealsReviewed || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-blue-500/20 rounded-full flex items-center justify-center">
                       <Eye className="h-5 w-5 text-blue-400" />
@@ -167,7 +167,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Memos Generated</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.memosGenerated || 23}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.memosGenerated || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-green-500/20 rounded-full flex items-center justify-center">
                       <FileText className="h-5 w-5 text-green-400" />
@@ -181,7 +181,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Matches Made</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.matchesMade || 12}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.matchesMade || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-purple-500/20 rounded-full flex items-center justify-center">
                       <Users className="h-5 w-5 text-purple-400" />
@@ -195,7 +195,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Total Value</p>
-                      <p className="text-2xl font-bold text-white">€{userStats?.totalValue || '15.2M'}</p>
+                      <p className="text-2xl font-bold text-white">€{userStats?.totalValue || '0'}</p>
                     </div>
                     <div className="h-10 w-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
                       <DollarSign className="h-5 w-5 text-yellow-400" />
@@ -216,45 +216,41 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    {
-                      action: 'Reviewed Tesla deal',
-                      time: '2 hours ago',
-                      type: 'review',
-                      icon: Eye
-                    },
-                    {
-                      action: 'Generated investment memo for SpaceX',
-                      time: '4 hours ago',
-                      type: 'memo',
-                      icon: FileText
-                    },
-                    {
-                      action: 'Matched Neuralink with Sequoia Capital',
-                      time: '1 day ago',
-                      type: 'match',
-                      icon: Users
-                    },
-                    {
-                      action: 'Updated deal status for Anthropic',
-                      time: '2 days ago',
-                      type: 'update',
-                      icon: TrendingUp
-                    }
-                  ].map((activity, index) => {
-                    const Icon = activity.icon;
+                  {userActivities?.slice(0, 4).map((activity: any, index: number) => {
+                    const getActivityIcon = (type: string) => {
+                      switch (type) {
+                        case 'deal_view': return Eye;
+                        case 'memo_generate': return FileText;
+                        case 'match_create': return Users;
+                        case 'deal_update': return TrendingUp;
+                        case 'document_upload': return Upload;
+                        case 'analysis_run': return BarChart3;
+                        case 'workflow_create': return Zap;
+                        case 'report_export': return Download;
+                        default: return Activity;
+                      }
+                    };
+                    
+                    const Icon = getActivityIcon(activity.activityType);
+                    const timeAgo = new Date(activity.createdAt).toLocaleString();
+                    
                     return (
-                      <div key={index} className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark/50 transition-colors">
+                      <div key={activity.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark/50 transition-colors">
                         <div className="h-8 w-8 bg-primary/20 rounded-full flex items-center justify-center">
                           <Icon className="h-4 w-4 text-primary" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm text-white">{activity.action}</p>
-                          <p className="text-xs text-gray-400">{activity.time}</p>
+                          <p className="text-sm text-white">{activity.actionDescription}</p>
+                          <p className="text-xs text-gray-400">{timeAgo}</p>
                         </div>
                       </div>
                     );
-                  })}
+                  }) || (
+                    <div className="text-center text-gray-400 py-8">
+                      <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No recent activity found</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
