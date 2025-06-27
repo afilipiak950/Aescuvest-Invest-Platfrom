@@ -199,6 +199,13 @@ Changelog:
   - Implemented smart document click handling: PDFs open in viewer, other documents in detail modal
   - Added comprehensive PDF viewer with zoom, rotation, navigation controls, and proper error handling
   - Confirmed successful PDF viewing directly in browser with scrolling capability for pitch decks
+- June 27, 2025: Successfully resolved PDF viewer Chrome restrictions with canvas-based rendering
+  - Completely reimplemented PDF viewer using Mozilla's PDF.js library to bypass Chrome iframe blocking
+  - Replaced iframe-based viewing with HTML5 canvas rendering for reliable PDF display
+  - Added dynamic PDF.js loading from CDN with zero installation overhead
+  - Implemented page navigation controls (previous/next) and zoom functionality (in/out with percentage display)
+  - Applied comprehensive dark theme styling with gray-900 background and white text
+  - Fixed TypeScript declarations and proper error handling for production-ready implementation
 ```
 
 ## User Preferences
