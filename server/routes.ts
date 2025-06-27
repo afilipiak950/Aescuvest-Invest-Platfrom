@@ -1711,17 +1711,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Enhanced headers for PDF iframe viewing in Chrome
       if (ext === '.pdf' && shouldUseInline) {
-        // Allow iframe embedding specifically for PDF files
+        // Chrome-compatible PDF serving headers
         res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-        res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; object-src 'self'");
         res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
         res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-        // Add explicit PDF plugin headers
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Accept-Ranges', 'bytes');
-        console.log(`📄 Enhanced PDF headers set for inline viewing: ${document.name}`);
+        // Force Chrome to use built-in PDF viewer
+        res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(document.name)}`);
+        res.setHeader('X-PDF-Viewer', 'enabled');
+        console.log(`📄 Chrome-compatible PDF headers set for inline viewing: ${document.name}`);
       } else {
-        res.setHeader('X-Frame-Options', 'DENY'); // Block iframe for non-PDF downloads
+        res.setHeader('X-Frame-Options', 'DENY');
       }
       
       // Stream the file
