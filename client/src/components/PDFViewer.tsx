@@ -20,6 +20,8 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [viewMethod, setViewMethod] = useState<'object' | 'iframe' | 'dataurl'>('object');
 
   // Reset states when dialog opens
   useEffect(() => {
@@ -27,6 +29,8 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
       setIsLoading(true);
       setError(null);
       setRetryCount(0);
+      setPdfDataUrl(null);
+      setViewMethod('object');
     }
   }, [open]);
 
@@ -42,18 +46,67 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
     setRetryCount(prev => prev + 1);
     setIsLoading(true);
     setError(null);
+    setPdfDataUrl(null);
+    
+    // Try different methods on retry
+    if (retryCount === 0) {
+      setViewMethod('iframe');
+    } else if (retryCount === 1) {
+      setViewMethod('dataurl');
+      loadDataUrl();
+    } else {
+      setViewMethod('object');
+    }
+  };
+
+  const loadDataUrl = async () => {
+    try {
+      console.log(`🔄 Loading PDF as data URL: ${documentName}`);
+      const response = await fetch(`/api/documents/${documentId}/download?dataUrl=true`);
+      const data = await response.json();
+      
+      if (data.success && data.dataUrl) {
+        console.log(`✅ Data URL loaded successfully: ${data.filename} (${data.size} bytes)`);
+        setPdfDataUrl(data.dataUrl);
+        setIsLoading(false);
+        setError(null);
+      } else {
+        throw new Error('Failed to generate data URL');
+      }
+    } catch (error) {
+      console.error('❌ Data URL loading failed:', error);
+      setError('Failed to load PDF. Please try downloading the file.');
+      setIsLoading(false);
+    }
   };
 
   const handleLoad = () => {
-    console.log(`PDF loaded successfully: ${documentName}`);
+    console.log(`PDF loaded successfully: ${documentName} (method: ${viewMethod})`);
     setIsLoading(false);
     setError(null);
   };
 
   const handleError = () => {
-    console.error(`PDF load error for ${documentName}`);
+    console.error(`PDF load error for ${documentName} (method: ${viewMethod})`);
+    
+    // Auto-retry with different methods
+    if (viewMethod === 'object' && retryCount === 0) {
+      console.log('🔄 Retrying with iframe method...');
+      setViewMethod('iframe');
+      setRetryCount(1);
+      return;
+    }
+    
+    if (viewMethod === 'iframe' && retryCount === 1) {
+      console.log('🔄 Retrying with data URL method...');
+      setViewMethod('dataurl');
+      setRetryCount(2);
+      loadDataUrl();
+      return;
+    }
+    
     setIsLoading(false);
-    setError('Unable to display PDF in browser. Please download or open in new tab.');
+    setError('Unable to display PDF in browser. Chrome may be blocking the viewer. Please download or open in new tab.');
   };
 
   const renderContent = () => {

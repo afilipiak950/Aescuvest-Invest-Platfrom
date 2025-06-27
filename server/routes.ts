@@ -1619,6 +1619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if this is for inline viewing (used by PDF viewer)
       const isInlineView = req.query.view === 'inline';
+      const isDataUrl = req.query.dataUrl === 'true';
       const userAgent = req.headers['user-agent'] || '';
       const isIframe = req.headers['sec-fetch-dest'] === 'iframe' || 
                       req.headers.referer?.includes('pdf-viewer') ||
@@ -1650,12 +1651,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'File not found on server' });
       }
 
+      const ext = path.extname(document.name).toLowerCase();
+      
+      // Special handling for data URL requests (Chrome bypass solution)
+      if (isDataUrl && ext === '.pdf') {
+        try {
+          const fileBuffer = fs.readFileSync(document.path);
+          const base64Data = fileBuffer.toString('base64');
+          const dataUrl = `data:application/pdf;base64,${base64Data}`;
+          
+          console.log(`📄 Generated data URL for PDF: ${document.name} (${fileBuffer.length} bytes)`);
+          
+          return res.json({
+            success: true,
+            dataUrl: dataUrl,
+            filename: document.name,
+            size: fileBuffer.length
+          });
+        } catch (error) {
+          console.error('❌ Data URL generation failed:', error);
+          return res.status(500).json({ message: 'Data URL generation failed' });
+        }
+      }
+
       // Get file stats
       const stats = fs.statSync(document.path);
       console.log(`📊 File stats - Size: ${stats.size} bytes`);
       
       // Set appropriate headers for download
-      const ext = path.extname(document.name).toLowerCase();
       let mimeType = 'application/octet-stream';
       
       switch (ext) {
