@@ -1798,6 +1798,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             </div>
           )
         )}
+
+        {/* No documents message */}
+        {folderTree.children.size === 0 && folderTree.documents.length === 0 && (
+          <div className="p-6 text-center text-gray-400">
+            <p>No documents in data room. Upload a ZIP file to get started.</p>
+          </div>
+        )}
       </div>
       </div>
 
