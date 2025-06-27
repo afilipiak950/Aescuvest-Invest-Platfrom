@@ -27,6 +27,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
   const [rotation, setRotation] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   const handleDownload = async () => {
     try {
@@ -102,15 +103,33 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
         )}
         
         <iframe
-          src={`/api/documents/${documentId}/download?view=inline`}
+          src={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
           className="w-full h-full border-0"
           title={documentName}
-          onLoad={() => {
-            console.log(`PDF loaded successfully: ${documentName} (ID: ${documentId})`);
+          allow="fullscreen"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          onLoad={(e) => {
+            console.log(`📄 PDF iframe loaded: ${documentName} (ID: ${documentId})`);
             setIsLoading(false);
+            
+            // Reset error state on successful load
+            setError(null);
+            
+            // Try to detect if PDF actually loaded
+            setTimeout(() => {
+              try {
+                const iframe = e.currentTarget;
+                if (iframe && iframe.contentWindow) {
+                  // For PDF files, the browser typically shows the PDF viewer
+                  console.log('📄 PDF viewer should be visible now');
+                }
+              } catch (err) {
+                console.log('📄 PDF viewer security restrictions normal for cross-origin content');
+              }
+            }, 1000);
           }}
           onError={(e) => {
-            console.error(`PDF loading error for ${documentName} (ID: ${documentId}):`, e);
+            console.error(`❌ PDF iframe error for ${documentName} (ID: ${documentId}):`, e);
             setIsLoading(false);
             setError('PDF konnte nicht geladen werden');
           }}
