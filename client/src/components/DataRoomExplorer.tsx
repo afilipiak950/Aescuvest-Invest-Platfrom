@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { apiRequest } from '@/lib/queryClient';
 import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
+import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 
 interface DataRoomExplorerProps {
   dealId: number;

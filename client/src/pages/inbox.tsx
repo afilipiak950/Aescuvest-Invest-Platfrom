@@ -205,12 +205,19 @@ export default function InboxPage() {
       return response.json();
     },
     onSuccess: (data) => {
+      const attachmentInfo = data.attachmentCount > 0 
+        ? ` ${data.attachmentCount} Anhang${data.attachmentCount === 1 ? '' : 'e'} wurden automatisch hochgeladen.`
+        : '';
+      
       toast({
         title: "Deal erfolgreich erstellt!",
-        description: `Deal für ${data.deal.companyName} wurde angelegt.`,
+        description: `Deal für ${data.deal.companyName} wurde angelegt.${attachmentInfo}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
       queryClient.invalidateQueries({ queryKey: ['/api/inbox/emails'] });
+      
+      // Close email dialog if open
+      setEmailDialogOpen(false);
     },
     onError: (error) => {
       toast({
