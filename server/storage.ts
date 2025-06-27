@@ -401,12 +401,23 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
       
-      // Transform database format to frontend format
-      const ceoProfile = research.ceoProfile || {};
-      const financialData = research.financialData || {};
-      const businessIntelligence = research.businessIntelligence || {};
-      const riskFactors = research.riskFactors || {};
-      const externalLinks = research.externalLinks || {};
+      // Helper function to safely parse JSON strings
+      const safeJsonParse = (jsonString: any) => {
+        if (!jsonString || jsonString === 'undefined' || jsonString === undefined) return null;
+        if (typeof jsonString === 'object') return jsonString;
+        try {
+          return JSON.parse(jsonString);
+        } catch {
+          return null;
+        }
+      };
+      
+      // Transform database format to frontend format - parse JSON strings
+      const ceoProfile = safeJsonParse(research.ceoProfile) || {};
+      const financialData = safeJsonParse(research.financialData) || {};
+      const businessIntelligence = safeJsonParse(research.businessIntelligence) || {};
+      const riskFactors = safeJsonParse(research.riskFactors) || {};
+      const externalLinks = safeJsonParse(research.externalLinks) || {};
       
       return {
         dealId: research.dealId,

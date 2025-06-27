@@ -672,9 +672,10 @@ export class EnhancedCompanyResearchService {
       if (!research) return null;
 
       console.log(`🔍 Raw research data for deal ${dealId}:`, {
-        ceoProfile: typeof research.ceoProfile,
-        financialData: typeof research.financialData,
-        hasBusinessIntelligence: !!research.businessIntelligence
+        ceoProfile: research.ceoProfile,
+        financialData: research.financialData,
+        hasBusinessIntelligence: !!research.businessIntelligence,
+        allKeys: Object.keys(research)
       });
 
       // Safe JSON parsing helper
