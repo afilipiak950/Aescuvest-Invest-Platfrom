@@ -167,9 +167,21 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
         debugInfo: progressData.debugInfo
       });
     } else if (progressData?.status === 'completed') {
-      setResearchProgress(null);
-      setIsRefreshing(false);
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research`] });
+      // Show completion briefly before clearing
+      setResearchProgress({
+        progress: 100,
+        stage: 'Research completed successfully',
+        jobId: progressData.jobId,
+        status: 'completed',
+        debugInfo: progressData.debugInfo
+      });
+      
+      // Clear progress and refresh data after 3 seconds
+      setTimeout(() => {
+        setResearchProgress(null);
+        setIsRefreshing(false);
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research`] });
+      }, 3000);
     }
   }, [progressData, queryClient, dealId]);
 
