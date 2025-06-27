@@ -52,10 +52,11 @@ export class PersistentResearchService {
       stepProgress: 0,
       totalSteps: RESEARCH_STEPS.length,
       debugInfo: {
+        step: 'Starting research job',
+        timestamp: new Date().toISOString(),
+        url: website,
         companyName,
-        website,
-        startTime: new Date().toISOString(),
-        steps: RESEARCH_STEPS
+        totalSteps: RESEARCH_STEPS.length
       }
     };
 
@@ -187,7 +188,7 @@ export class PersistentResearchService {
 
     } catch (error) {
       console.error(`❌ Research job ${jobId} failed:`, error);
-      await this.failJob(jobId, error.message);
+      await this.failJob(jobId, error instanceof Error ? error.message : 'Unknown error');
     }
   }
 

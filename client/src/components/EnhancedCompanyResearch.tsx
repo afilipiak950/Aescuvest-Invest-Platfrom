@@ -141,17 +141,24 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     retry: false,
   });
 
-  // Poll for research progress when there's an active job
-  const { data: progressData } = useQuery({
+  // Always poll for research progress to detect new jobs
+  const { data: progressData } = useQuery<{
+    status: string;
+    progress: number;
+    progressStage: string;
+    jobId: number;
+    debugInfo: any;
+  }>({
     queryKey: [`/api/deals/${dealId}/research/progress`],
-    refetchInterval: researchProgress?.status === 'processing' ? 2000 : false,
-    enabled: !!researchProgress && researchProgress.status === 'processing',
+    refetchInterval: 2000, // Always poll every 2 seconds
+    enabled: !!dealId,
     retry: false,
   });
 
   // Update progress state when polling data changes
   useEffect(() => {
     if (progressData?.status === 'processing') {
+      console.log('📊 Progress update:', progressData.progress + '%', progressData.progressStage);
       setResearchProgress({
         progress: progressData.progress || 0,
         stage: progressData.progressStage || 'Processing...',
