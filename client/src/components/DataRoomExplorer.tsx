@@ -1383,7 +1383,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('📊 DataRoomExplorer: Still loading...');
   }
   
-  if (!documentsArray || !Array.isArray(documentsArray) || documentsArray.length === 0) {
+  // Check if we have only email attachments but no regular documents
+  const hasOnlyEmailAttachments = documentsArray && Array.isArray(documentsArray) && documentsArray.length > 0 && 
+    documentsArray.every(doc => doc.folderPath?.includes('email-attachments'));
+
+  if ((!documentsArray || !Array.isArray(documentsArray) || documentsArray.length === 0) && !hasOnlyEmailAttachments) {
     console.log('📊 DataRoomExplorer: No documents condition met', { 
       documents: Array.isArray(documentsArray) ? documentsArray.length : 'not array', 
       isArray: Array.isArray(documentsArray) 
@@ -1799,10 +1803,92 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           )
         )}
 
-        {/* No documents message */}
+        {/* No documents message or upload interface when only email attachments exist */}
         {folderTree.children.size === 0 && folderTree.documents.length === 0 && (
-          <div className="p-6 text-center text-gray-400">
-            <p>No documents in data room. Upload a ZIP file to get started.</p>
+          <div className="p-6">
+            {emailAttachments.length > 0 ? (
+              // Show upload interface when email attachments exist but no regular documents
+              <div className="space-y-4">
+                <div className="text-center text-gray-400 mb-4">
+                  <p>Upload additional documents to the data room.</p>
+                </div>
+                
+                {/* Folder Name Input */}
+                <div className="space-y-3">
+                  <Label htmlFor="folderName" className="text-white">Folder Name</Label>
+                  <Input
+                    id="folderName"
+                    value={folderName}
+                    onChange={(e) => setFolderName(e.target.value)}
+                    placeholder="Enter folder name"
+                    className="bg-dark border-gray-600 text-white"
+                  />
+                </div>
+
+                {/* ZIP Upload */}
+                <div className="space-y-3">
+                  <Label htmlFor="zipFile" className="text-white">Upload ZIP File</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      ref={fileInputRef}
+                      id="zipFile"
+                      type="file"
+                      accept=".zip"
+                      onChange={handleZipUpload}
+                      disabled={uploadZipMutation.isPending}
+                      className="cursor-pointer bg-dark border-gray-600 text-white"
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadZipMutation.isPending}
+                      variant="outline"
+                      className="border-primary text-primary hover:bg-primary hover:text-white"
+                    >
+                      {uploadZipMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <UploadIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Upload Progress */}
+                {uploadProgress && (
+                  <div className="space-y-2 p-4 bg-dark border border-gray-600 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                        <span className="text-sm text-white">{uploadProgress.fileName}</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{uploadProgress.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${uploadProgress.progress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400">{uploadProgress.status}</p>
+                  </div>
+                )}
+
+                {/* Error Display */}
+                {uploadZipMutation.error && (
+                  <Alert variant="destructive">
+                    <AlertTriangleIcon className="h-4 w-4" />
+                    <AlertDescription>
+                      Upload failed: {uploadZipMutation.error.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            ) : (
+              // Show default message when no documents at all
+              <div className="text-center text-gray-400">
+                <p>No documents in data room. Upload a ZIP file to get started.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
