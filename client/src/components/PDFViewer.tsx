@@ -6,10 +6,13 @@ import {
   ExternalLink, 
   AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  RotateCw
 } from 'lucide-react';
 
-// Pure iframe-based PDF viewer - no PDF.js dependencies
+// Custom PDF.js viewer that bypasses Chrome restrictions
 
 interface PDFViewerProps {
   documentId: number;
@@ -21,37 +24,143 @@ interface PDFViewerProps {
 export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFViewerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fallbackMode, setFallbackMode] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [zoom, setZoom] = useState(1.0);
+  const [rotation, setRotation] = useState(0);
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [renderingPage, setRenderingPage] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize iframe-based PDF viewing when dialog opens
+  // Load PDF.js worker and document
   useEffect(() => {
-    if (open) {
-      setIsLoading(true);
-      setError(null);
-      setFallbackMode(false);
-      
-      // Reset controls
-      setZoom(1);
-      setRotation(0);
-      setCurrentPage(1);
-      
-      console.log(`📄 Loading PDF via iframe: ${documentName} (ID: ${documentId})`);
-      
-      // Set a reasonable timeout for iframe loading
-      const timeout = setTimeout(() => {
-        setIsLoading(false);
-      }, 3000);
-      
-      return () => clearTimeout(timeout);
-    }
+    if (!open) return;
+    
+    let mounted = true;
+    
+    const loadPDF = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Import PDF.js dynamically
+        const pdfjsLib = await import('pdfjs-dist');
+        
+        // Set worker path
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+        
+        console.log(`📄 Loading PDF document: ${documentName} (ID: ${documentId})`);
+        
+        // Fetch PDF as ArrayBuffer
+        const response = await fetch(`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`, {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        console.log(`📄 PDF data fetched: ${arrayBuffer.byteLength} bytes`);
+        
+        // Load PDF document
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        if (!mounted) return;
+        
+        setPdfDoc(pdf);
+        setTotalPages(pdf.numPages);
+        setCurrentPage(1);
+        
+        console.log(`✅ PDF loaded successfully: ${pdf.numPages} pages`);
+        
+        // Render first page
+        await renderPage(pdf, 1, zoom, rotation);
+        
+      } catch (err) {
+        console.error('❌ PDF loading error:', err);
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load PDF');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadPDF();
+    
+    return () => {
+      mounted = false;
+    };
   }, [open, documentId, documentName]);
 
-  // Clean iframe-based approach - no PDF.js needed
+  // Render specific page
+  const renderPage = async (pdf: any, pageNum: number, scale: number = 1.0, rotate: number = 0) => {
+    if (!pdf || !canvasRef.current) return;
+    
+    try {
+      setRenderingPage(true);
+      
+      const page = await pdf.getPage(pageNum);
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      // Calculate viewport with scale and rotation
+      const viewport = page.getViewport({ scale, rotation: rotate });
+      
+      // Set canvas dimensions
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      // Clear previous content
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Render page
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      };
+      
+      await page.render(renderContext).promise;
+      
+      console.log(`📄 Rendered page ${pageNum}/${totalPages} at ${Math.round(scale * 100)}% zoom`);
+      
+    } catch (err) {
+      console.error(`❌ Error rendering page ${pageNum}:`, err);
+      setError(`Failed to render page ${pageNum}`);
+    } finally {
+      setRenderingPage(false);
+    }
+  };
+
+  // Handle page navigation
+  const goToPage = async (pageNum: number) => {
+    if (!pdfDoc || pageNum < 1 || pageNum > totalPages) return;
+    
+    setCurrentPage(pageNum);
+    await renderPage(pdfDoc, pageNum, zoom, rotation);
+  };
+
+  // Handle zoom
+  const handleZoom = async (newZoom: number) => {
+    if (!pdfDoc) return;
+    
+    const clampedZoom = Math.min(Math.max(newZoom, 0.5), 3.0);
+    setZoom(clampedZoom);
+    await renderPage(pdfDoc, currentPage, clampedZoom, rotation);
+  };
+
+  // Handle rotation
+  const handleRotation = async () => {
+    if (!pdfDoc) return;
+    
+    const newRotation = (rotation + 90) % 360;
+    setRotation(newRotation);
+    await renderPage(pdfDoc, currentPage, zoom, newRotation);
+  };
 
   const handleDownload = () => {
     window.open(`/api/documents/${documentId}/download?attachment=true`, '_blank');
@@ -62,7 +171,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
   };
 
   const renderPDFContent = () => {
-    if (error && !fallbackMode) {
+    if (error) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-white bg-gray-800">
           <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
@@ -82,116 +191,101 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
       );
     }
 
-    if (fallbackMode) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-white bg-gray-800">
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-semibold mb-2">PDF Viewer Restricted</h3>
-            <p className="text-gray-300 mb-4">Chrome security settings prevent inline PDF viewing.</p>
-            <p className="text-sm text-gray-400">Use the options below to view the PDF:</p>
-          </div>
-          <div className="flex gap-3">
-            <Button onClick={handleDownload} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
+    return (
+      <div className="flex flex-col h-full bg-gray-800">
+        {/* PDF Controls */}
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-700 border-b border-gray-600">
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage <= 1 || renderingPage}
+              variant="outline"
+              size="sm"
+              className="bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+            >
+              <ChevronLeft className="w-4 h-4" />
             </Button>
-            <Button onClick={handleOpenInNewTab} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Open in New Tab
+            
+            <span className="text-white text-sm px-3">
+              {currentPage} / {totalPages}
+            </span>
+            
+            <Button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= totalPages || renderingPage}
+              variant="outline"
+              size="sm"
+              className="bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => handleZoom(zoom - 0.25)}
+              disabled={zoom <= 0.5 || renderingPage}
+              variant="outline"
+              size="sm"
+              className="bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </Button>
+            
+            <span className="text-white text-sm px-2">
+              {Math.round(zoom * 100)}%
+            </span>
+            
+            <Button
+              onClick={() => handleZoom(zoom + 0.25)}
+              disabled={zoom >= 3.0 || renderingPage}
+              variant="outline"
+              size="sm"
+              className="bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              onClick={handleRotation}
+              disabled={renderingPage}
+              variant="outline"
+              size="sm"
+              className="bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+            >
+              <RotateCw className="w-4 h-4" />
             </Button>
           </div>
         </div>
-      );
-    }
 
-    // Chrome-compatible PDF viewer with multiple fallback strategies
-    return (
-      <div className="relative w-full h-full overflow-auto bg-gray-800">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
-            <div className="flex flex-col items-center text-white">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-              <p>Loading PDF...</p>
+        {/* PDF Canvas Container */}
+        <div ref={containerRef} className="flex-1 overflow-auto bg-gray-900 p-4">
+          {isLoading && (
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center text-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+                <p>Loading PDF...</p>
+              </div>
             </div>
-          </div>
-        )}
-        
-        {/* Primary: HTML object tag for better Chrome compatibility */}
-        <object
-          data={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
-          type="application/pdf"
-          className="w-full h-full"
-          onLoad={() => {
-            console.log(`✅ PDF object loaded successfully: ${documentName} (ID: ${documentId})`);
-            setIsLoading(false);
-            setError(null);
-          }}
-          onError={() => {
-            console.log(`⚠️ PDF object failed, trying iframe fallback`);
-            setIsLoading(false);
-            // Try iframe as secondary approach
-            setFallbackMode(false);
-          }}
-        >
-          {/* Secondary: iframe fallback when object fails */}
-          <iframe
-            ref={iframeRef}
-            src={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
-            className="w-full h-full border-0"
-            title={documentName}
-            onLoad={(e) => {
-              console.log(`✅ PDF iframe fallback loaded: ${documentName} (ID: ${documentId})`);
-              setIsLoading(false);
-              setError(null);
-              
-              // Chrome security detection with improved handling
-              setTimeout(() => {
-                const iframe = e.currentTarget;
-                try {
-                  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                  if (!doc || doc.body?.innerText?.includes('blocked')) {
-                    console.log(`⚠️ Chrome security detected, enabling fallback buttons`);
-                    setFallbackMode(true);
-                  } else {
-                    console.log(`📄 PDF displayed successfully in iframe fallback`);
-                  }
-                } catch (err) {
-                  console.log(`🔒 CORS restriction detected, showing fallback options`);
-                  setFallbackMode(true);
-                }
-              }, 1500);
-            }}
-            onError={(e) => {
-              console.error(`❌ PDF iframe fallback error for ${documentName} (ID: ${documentId}):`, e);
-              setIsLoading(false);
-              setError('Could not load PDF in viewer');
-              setFallbackMode(true);
-            }}
-          />
+          )}
           
-          {/* Tertiary: Embedded fallback message */}
-          <div className="flex flex-col items-center justify-center h-full text-white bg-gray-800 p-8">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold mb-2">PDF Viewer Not Available</h3>
-              <p className="text-gray-300 mb-4">Your browser settings prevent inline PDF viewing.</p>
-              <p className="text-sm text-gray-400">Use the options below to view the PDF:</p>
+          {renderingPage && !isLoading && (
+            <div className="flex items-center justify-center py-4">
+              <div className="flex items-center text-white">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-2"></div>
+                <span>Rendering page...</span>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button 
-                onClick={handleDownload}
-                className="bg-gray-700 border border-gray-600 text-white hover:bg-gray-600 px-4 py-2 rounded-md flex items-center gap-2"
-              >
-                <span>↓</span> Download PDF
-              </button>
-              <button 
-                onClick={handleOpenInNewTab}
-                className="bg-gray-700 border border-gray-600 text-white hover:bg-gray-600 px-4 py-2 rounded-md flex items-center gap-2"
-              >
-                <span>↗</span> Open in New Tab
-              </button>
-            </div>
+          )}
+          
+          <div className="flex justify-center">
+            <canvas
+              ref={canvasRef}
+              className="max-w-full shadow-lg border border-gray-600"
+              style={{ display: isLoading ? 'none' : 'block' }}
+            />
           </div>
-        </object>
+        </div>
       </div>
     );
   };
@@ -227,10 +321,8 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           </div>
         </DialogHeader>
         
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1">
-            {renderPDFContent()}
-          </div>
+        <div className="flex-1">
+          {renderPDFContent()}
         </div>
       </DialogContent>
     </Dialog>
