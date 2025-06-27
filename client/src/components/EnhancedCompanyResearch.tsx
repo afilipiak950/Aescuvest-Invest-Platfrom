@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,6 @@ import {
   ExternalLink, User, MapPin, Calendar, Briefcase, Award, Lightbulb,
   Network, TrendingDown, Activity, BookOpen, Star, Info
 } from 'lucide-react';
-import { useState } from 'react';
 
 interface CompanyResearchProps {
   dealId: number;
@@ -151,7 +151,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
 
   // Update progress state when polling data changes
   useEffect(() => {
-    if (progressData && progressData.status === 'processing') {
+    if (progressData?.status === 'processing') {
       setResearchProgress({
         progress: progressData.progress || 0,
         stage: progressData.progressStage || 'Processing...',
@@ -159,7 +159,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
         status: progressData.status,
         debugInfo: progressData.debugInfo
       });
-    } else if (progressData && progressData.status === 'completed') {
+    } else if (progressData?.status === 'completed') {
       setResearchProgress(null);
       setIsRefreshing(false);
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research`] });
@@ -238,24 +238,70 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
             Launch comprehensive AI research to gather deep intelligence from multiple sources including market analysis, 
             competitive positioning, financial metrics, leadership profiles, and risk assessment using advanced algorithms.
           </p>
-          <Button 
-            onClick={handleRefreshResearch}
-            disabled={isRefreshing || refreshResearchMutation.isPending}
-            className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-            size="lg"
-          >
-            {isRefreshing || refreshResearchMutation.isPending ? (
-              <>
-                <Brain className="h-5 w-5 mr-3 animate-pulse" />
-                AI Research in Progress...
-              </>
-            ) : (
-              <>
-                <Search className="h-5 w-5 mr-3" />
-                Start AI Company Research
-              </>
-            )}
-          </Button>
+          {researchProgress?.status === 'processing' ? (
+            <div className="space-y-4">
+              <div className="bg-dark-lighter rounded-lg p-6 border border-primary/20">
+                <div className="flex items-center gap-3 mb-4">
+                  <Brain className="h-6 w-6 text-primary animate-pulse" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">AI Research in Progress</h3>
+                    <p className="text-sm text-gray-400">
+                      {researchProgress.stage}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Progress</span>
+                    <span className="text-white font-medium">{researchProgress.progress}%</span>
+                  </div>
+                  <Progress 
+                    value={researchProgress.progress} 
+                    className="h-2 bg-dark border border-dark-lighter"
+                  />
+                </div>
+                
+                {researchProgress.debugInfo && (
+                  <div className="mt-4 p-3 bg-dark rounded border border-gray-700">
+                    <p className="text-xs text-gray-500 font-mono">
+                      Debug: Job #{researchProgress.jobId} | Step: {researchProgress.debugInfo.step || 'Unknown'}
+                    </p>
+                    {researchProgress.debugInfo.timestamp && (
+                      <p className="text-xs text-gray-600 font-mono">
+                        Last Update: {new Date(researchProgress.debugInfo.timestamp).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-gray-500">
+                    Research continues running in background • Navigate away safely
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Button 
+              onClick={handleRefreshResearch}
+              disabled={isRefreshing || refreshResearchMutation.isPending}
+              className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              size="lg"
+            >
+              {isRefreshing || refreshResearchMutation.isPending ? (
+                <>
+                  <Brain className="h-5 w-5 mr-3 animate-pulse" />
+                  Starting AI Research...
+                </>
+              ) : (
+                <>
+                  <Search className="h-5 w-5 mr-3" />
+                  Start AI Company Research
+                </>
+              )}
+            </Button>
+          )}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="flex items-center gap-2 text-gray-500 justify-center">
               <CheckCircle className="h-4 w-4 text-green-400" />
