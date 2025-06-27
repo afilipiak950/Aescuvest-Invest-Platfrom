@@ -1711,17 +1711,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Enhanced headers for PDF iframe viewing in Chrome
       if (ext === '.pdf' && shouldUseInline) {
-        // Chrome-compatible PDF serving headers
-        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-        res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; object-src 'self'");
-        res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
-        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
+        // Remove restrictive headers that block PDF viewing
+        res.removeHeader('X-Frame-Options');
+        res.removeHeader('Content-Security-Policy');
+        
+        // Set minimal required headers for Chrome PDF viewer
         res.setHeader('Accept-Ranges', 'bytes');
-        // Force Chrome to use built-in PDF viewer
-        res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(document.name)}`);
-        res.setHeader('X-PDF-Viewer', 'enabled');
-        console.log(`📄 Chrome-compatible PDF headers set for inline viewing: ${document.name}`);
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        
+        // Force Chrome to treat as PDF for built-in viewer
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
+        
+        // Add PDF-specific cache headers
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        
+        console.log(`📄 Chrome PDF viewer headers set for: ${document.name}`);
       } else {
         res.setHeader('X-Frame-Options', 'DENY');
       }
