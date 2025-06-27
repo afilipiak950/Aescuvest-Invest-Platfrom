@@ -124,7 +124,7 @@ export class PersistentResearchService {
     await storage.updateResearchJob(jobId, {
       status: 'failed',
       progressStage: 'Research failed',
-      error,
+      debugInfo: { error, timestamp: new Date().toISOString() },
       completedAt: new Date()
     });
 
