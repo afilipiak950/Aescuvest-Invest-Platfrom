@@ -961,6 +961,8 @@ const FolderTree: React.FC<{
 
 export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfDocument, setPdfDocument] = useState<Document | null>(null);
   const [folderStates, setFolderStates] = useState<Map<string, boolean>>(new Map());
   const [folderName, setFolderName] = useState('Data Room Documents');
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -972,6 +974,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  // Enhanced document click handler with PDF viewing support
+  const handleDocumentClick = (document: Document) => {
+    // Check if document is a PDF and open in PDF viewer
+    if (document.type && document.type.toLowerCase().includes('pdf')) {
+      setPdfDocument(document);
+      setPdfViewerOpen(true);
+    } else {
+      // Open other documents in detail modal
+      setSelectedDocument(document);
+    }
+  };
 
   const { data: documents, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
@@ -1687,7 +1701,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               node={child}
               level={0}
               onToggle={toggleFolder}
-              onDocumentClick={setSelectedDocument}
+              onDocumentClick={handleDocumentClick}
               isSelectionMode={isSelectionMode}
               selectedFiles={selectedFiles}
               onFileSelection={handleFileSelection}
@@ -1710,7 +1724,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 
                 <div 
                   className="flex items-center flex-1 cursor-pointer"
-                  onClick={() => !isSelectionMode && setSelectedDocument(doc)}
+                  onClick={() => !isSelectionMode && handleDocumentClick(doc)}
                 >
                   {doc.type.includes('pdf') ? (
                     <FileTextIcon className="w-4 h-4 text-red-400 mr-2" />
@@ -1740,6 +1754,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           onClose={() => setSelectedDocument(null)}
           dealId={dealId}
           refetch={refetch}
+        />
+      )}
+
+      {pdfDocument && (
+        <PDFViewer
+          documentId={pdfDocument.id}
+          documentName={pdfDocument.name}
+          open={pdfViewerOpen}
+          onOpenChange={(open) => {
+            setPdfViewerOpen(open);
+            if (!open) {
+              setPdfDocument(null);
+            }
+          }}
         />
       )}
     </div>
