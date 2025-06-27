@@ -401,13 +401,24 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
       
-      // Helper function to safely parse JSON strings
+      // Helper function to safely parse double-encoded JSON strings
       const safeJsonParse = (jsonString: any) => {
         if (!jsonString || jsonString === 'undefined' || jsonString === undefined) return null;
         if (typeof jsonString === 'object') return jsonString;
         try {
-          return JSON.parse(jsonString);
-        } catch {
+          // Handle double-encoded JSON strings from database
+          let parsed = jsonString;
+          if (typeof parsed === 'string') {
+            // First parse to remove outer quotes
+            parsed = JSON.parse(parsed);
+          }
+          if (typeof parsed === 'string') {
+            // Second parse to get actual object
+            parsed = JSON.parse(parsed);
+          }
+          return parsed;
+        } catch (error) {
+          console.error('JSON parse error for:', typeof jsonString, jsonString?.substring(0, 100));
           return null;
         }
       };
@@ -437,6 +448,63 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error fetching company research:', error);
+      return undefined;
+    }
+  }
+
+  // Raw method for enhanced research service that returns parsed JSON fields
+  async getCompanyResearchRawByDealId(dealId: number): Promise<any | undefined> {
+    try {
+      const [research] = await db
+        .select()
+        .from(companyResearch)
+        .where(eq(companyResearch.dealId, dealId));
+      
+      if (!research) {
+        return undefined;
+      }
+      
+      // Helper function to safely parse double-encoded JSON strings
+      const safeJsonParse = (jsonString: any) => {
+        if (!jsonString || jsonString === 'undefined' || jsonString === undefined) return null;
+        if (typeof jsonString === 'object') return jsonString;
+        try {
+          // Handle double-encoded JSON strings from database
+          let parsed = jsonString;
+          if (typeof parsed === 'string') {
+            // First parse to remove outer quotes
+            parsed = JSON.parse(parsed);
+          }
+          if (typeof parsed === 'string') {
+            // Second parse to get actual object
+            parsed = JSON.parse(parsed);
+          }
+          return parsed;
+        } catch (error) {
+          console.error('JSON parse error for:', typeof jsonString, jsonString?.substring(0, 100));
+          return null;
+        }
+      };
+      
+      // Return raw parsed JSON fields for enhanced research service using correct column names
+      return {
+        dealId: research.dealId,
+        companyName: research.companyName,
+        website: research.website,
+        lastUpdated: research.updatedAt?.toISOString(),
+        sources: research.sources,
+        researchStatus: research.researchStatus,
+        ceoProfile: safeJsonParse(research.ceoProfile),
+        keyTeamMembers: safeJsonParse(research.keyTeamMembers),
+        financialData: safeJsonParse(research.financialData),
+        marketAnalysis: safeJsonParse(research.marketAnalysis),
+        businessIntelligence: safeJsonParse(research.businessIntelligence),
+        riskFactors: safeJsonParse(research.riskFactors),
+        investmentHighlights: safeJsonParse(research.investmentHighlights),
+        externalLinks: safeJsonParse(research.externalLinks)
+      };
+    } catch (error) {
+      console.error('Error fetching raw company research:', error);
       return undefined;
     }
   }
