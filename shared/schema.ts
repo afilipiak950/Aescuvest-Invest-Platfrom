@@ -625,6 +625,62 @@ export const insertResearchJobSchema = createInsertSchema(researchJobs).omit({
 export type ResearchJob = typeof researchJobs.$inferSelect;
 export type InsertResearchJob = z.infer<typeof insertResearchJobSchema>;
 
+// User Activity table for tracking real user actions
+export const userActivities = pgTable("user_activities", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  activityType: text("activity_type").notNull(), // 'deal_view', 'memo_generate', 'deal_update', 'match_create', 'document_upload', 'analysis_run', etc.
+  actionDescription: text("action_description").notNull(),
+  targetType: text("target_type"), // 'deal', 'document', 'memo', 'match', etc.
+  targetId: integer("target_id"), // ID of the target entity
+  targetName: text("target_name"), // Human-readable name of the target
+  metadata: json("metadata").$type<{
+    oldValue?: any;
+    newValue?: any;
+    dealName?: string;
+    documentCount?: number;
+    agentType?: string;
+    [key: string]: any;
+  }>(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserActivitySchema = createInsertSchema(userActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type UserActivity = typeof userActivities.$inferSelect;
+export type InsertUserActivity = z.infer<typeof insertUserActivitySchema>;
+
+// User Statistics view for profile page
+export const userStats = pgTable("user_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dealsReviewed: integer("deals_reviewed").default(0),
+  memosGenerated: integer("memos_generated").default(0),
+  matchesCreated: integer("matches_created").default(0),
+  documentsUploaded: integer("documents_uploaded").default(0),
+  analysesRun: integer("analyses_run").default(0),
+  workflowsCreated: integer("workflows_created").default(0),
+  reportsExported: integer("reports_exported").default(0),
+  loginCount: integer("login_count").default(0),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserStatsSchema = createInsertSchema(userStats).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserStats = typeof userStats.$inferSelect;
+export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
+
 
 
 
