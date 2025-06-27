@@ -393,6 +393,34 @@ export type InsertEvaluationCriteria = z.infer<typeof insertEvaluationCriteriaSc
 export type CompanyResearch = typeof companyResearch.$inferSelect;
 export type InsertCompanyResearch = z.infer<typeof insertCompanyResearchSchema>;
 
+// Research Background Jobs table for persistent research processing
+export const researchBackgroundJobs = pgTable("research_background_jobs", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  jobType: varchar("job_type", { length: 50 }).notNull().default("company_research"),
+  status: varchar("status", { length: 20 }).notNull().default("processing"), // 'processing', 'completed', 'failed'
+  progress: integer("progress").notNull().default(0), // 0-100 percentage
+  progressStage: varchar("progress_stage", { length: 100 }).default("Initializing research"),
+  currentStep: integer("current_step").notNull().default(0),
+  totalSteps: integer("total_steps").notNull().default(8),
+  error: text("error"),
+  result: json("result"),
+  debugInfo: json("debug_info"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertResearchBackgroundJobSchema = createInsertSchema(researchBackgroundJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ResearchBackgroundJob = typeof researchBackgroundJobs.$inferSelect;
+export type InsertResearchBackgroundJob = z.infer<typeof insertResearchBackgroundJobSchema>;
+
 // Evaluation Results table for storing AI scoring results
 export const evaluationResults = pgTable("evaluation_results", {
   id: serial("id").primaryKey(),
