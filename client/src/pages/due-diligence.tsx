@@ -408,7 +408,7 @@ export default function DueDiligence() {
               </Select>
             </div>
             
-            <div className="flex gap-2 md:pt-6">
+            <div className="flex gap-2 md:mt-6">
               <Button
                 variant="outline"
                 className="bg-dark-lighter hover:bg-dark border-dark-lighter h-10"
