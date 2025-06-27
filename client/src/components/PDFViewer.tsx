@@ -102,11 +102,15 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
         )}
         
         <iframe
-          src={`/api/documents/${documentId}/download#page=${currentPage}&zoom=${Math.round(zoom * 100)}&rotate=${rotation}`}
+          src={`/api/documents/${documentId}/download?view=inline`}
           className="w-full h-full border-0"
           title={documentName}
-          onLoad={() => setIsLoading(false)}
-          onError={() => {
+          onLoad={() => {
+            console.log(`PDF loaded successfully: ${documentName} (ID: ${documentId})`);
+            setIsLoading(false);
+          }}
+          onError={(e) => {
+            console.error(`PDF loading error for ${documentName} (ID: ${documentId}):`, e);
             setIsLoading(false);
             setError('PDF konnte nicht geladen werden');
           }}
