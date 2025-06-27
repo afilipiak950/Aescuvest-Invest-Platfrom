@@ -438,6 +438,37 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
             </div>
           </div>
         </CardHeader>
+        
+        {/* Research Progress Indicator */}
+        {researchProgress && (
+          <div className="px-6 pb-4">
+            <div className="bg-dark-lighter rounded-lg p-4 border border-primary/20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm font-medium text-white">AI Research in Progress</span>
+                </div>
+                <div className="text-sm text-primary font-bold">
+                  {Math.min(researchProgress.progress, 100)}%
+                </div>
+              </div>
+              <div className="w-full bg-dark rounded-full h-2 mb-2">
+                <div 
+                  className="bg-gradient-to-r from-primary to-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${Math.min(researchProgress.progress, 100)}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-gray-400">
+                {researchProgress.stage}
+              </div>
+              {researchProgress.debugInfo && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Job ID: {researchProgress.jobId} • Status: {researchProgress.status}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* AI Analysis Summary */}
