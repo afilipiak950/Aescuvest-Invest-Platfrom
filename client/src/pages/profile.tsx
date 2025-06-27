@@ -652,23 +652,70 @@ export default function ProfilePage() {
                     {(categoryAchievements as any).map((achievement: any, index: number) => {
                       const Icon = achievement.icon;
                       return (
-                        <Card key={index} className={`bg-dark-light border-dark-lighter ${achievement.achieved ? 'ring-1 ring-primary/50' : ''}`}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                        <Card key={index} className={`relative overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl group ${
+                          achievement.achieved 
+                            ? achievement.rarity === 'legendary' 
+                              ? 'bg-gradient-to-br from-yellow-500/20 via-yellow-600/10 to-amber-500/5 border-yellow-500/40 shadow-yellow-500/20' 
+                              : achievement.rarity === 'epic' 
+                              ? 'bg-gradient-to-br from-purple-500/20 via-purple-600/10 to-violet-500/5 border-purple-500/40 shadow-purple-500/20'
+                              : achievement.rarity === 'rare' 
+                              ? 'bg-gradient-to-br from-blue-500/20 via-blue-600/10 to-cyan-500/5 border-blue-500/40 shadow-blue-500/20'
+                              : achievement.rarity === 'uncommon' 
+                              ? 'bg-gradient-to-br from-green-500/20 via-green-600/10 to-emerald-500/5 border-green-500/40 shadow-green-500/20'
+                              : 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-primary/40 shadow-primary/20'
+                            : 'bg-dark-light border-dark-lighter hover:border-gray-600'
+                        }`}>
+                          {achievement.achieved && achievement.rarity === 'legendary' && (
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-yellow-400/30 to-transparent rounded-bl-full"></div>
+                          )}
+                          {achievement.achieved && achievement.rarity === 'epic' && (
+                            <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-purple-400/30 to-transparent rounded-bl-full"></div>
+                          )}
+                          <CardContent className="p-5">
+                            <div className="flex items-start gap-4">
+                              <div className={`relative h-12 w-12 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${
                                 achievement.achieved 
-                                  ? 'bg-primary text-dark' 
-                                  : 'bg-gray-600/20 text-gray-400'
+                                  ? achievement.rarity === 'legendary' 
+                                    ? 'bg-gradient-to-br from-yellow-500 to-yellow-400 text-dark shadow-lg shadow-yellow-500/30' 
+                                    : achievement.rarity === 'epic' 
+                                    ? 'bg-gradient-to-br from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30'
+                                    : achievement.rarity === 'rare' 
+                                    ? 'bg-gradient-to-br from-blue-500 to-blue-400 text-white shadow-lg shadow-blue-500/30'
+                                    : achievement.rarity === 'uncommon' 
+                                    ? 'bg-gradient-to-br from-green-500 to-green-400 text-white shadow-lg shadow-green-500/30'
+                                    : 'bg-gradient-to-br from-primary to-primary-hover text-dark shadow-lg shadow-primary/30'
+                                  : 'bg-gray-700/50 text-gray-400 group-hover:bg-gray-600/50'
                               }`}>
-                                <Icon className="h-5 w-5" />
+                                <Icon className="h-6 w-6 relative z-10" />
+                                {achievement.achieved && (
+                                  <div className="absolute inset-0 bg-white/20 rounded-xl animate-pulse"></div>
+                                )}
+                                {achievement.rarity === 'legendary' && achievement.achieved && (
+                                  <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-yellow-300 animate-pulse" />
+                                )}
                               </div>
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-medium text-white">{achievement.title}</h4>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-semibold text-white text-base group-hover:text-primary transition-colors">{achievement.title}</h4>
                                   {achievement.achieved && (
-                                    <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30 text-xs">
-                                      Achieved
-                                    </Badge>
+                                    <div className="flex items-center gap-1">
+                                      <Badge 
+                                        variant="secondary" 
+                                        className={`text-xs font-medium ${
+                                          achievement.rarity === 'legendary' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                                          achievement.rarity === 'epic' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                                          achievement.rarity === 'rare' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                          achievement.rarity === 'uncommon' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                                          'bg-primary/20 text-primary border-primary/30'
+                                        }`}
+                                      >
+                                        ✓ Achieved
+                                      </Badge>
+                                      {achievement.rarity === 'legendary' && <Crown className="h-3 w-3 text-yellow-400" />}
+                                      {achievement.rarity === 'epic' && <Gem className="h-3 w-3 text-purple-400" />}
+                                      {achievement.rarity === 'rare' && <Award className="h-3 w-3 text-blue-400" />}
+                                      {achievement.rarity === 'uncommon' && <Medal className="h-3 w-3 text-green-400" />}
+                                    </div>
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-400 mb-2">{achievement.description}</p>
