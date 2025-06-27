@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,6 +82,72 @@ export default function ProfilePage() {
     ? `${userProfile.firstName} ${userProfile.lastName}` 
     : userProfile?.username || 'User';
   const userEmail = userProfile?.email || 'user@aescuvest.vc';
+
+  // Group activities by date
+  const groupedActivities = useMemo(() => {
+    if (!userActivities) return [];
+
+    const grouped = userActivities.reduce((acc, activity) => {
+      const activityDate = new Date(activity.createdAt);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      let dateLabel;
+      if (activityDate.toDateString() === today.toDateString()) {
+        dateLabel = 'Today';
+      } else if (activityDate.toDateString() === yesterday.toDateString()) {
+        dateLabel = 'Yesterday';
+      } else {
+        const daysAgo = Math.floor((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysAgo <= 7) {
+          dateLabel = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+        } else {
+          dateLabel = activityDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            year: activityDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+          });
+        }
+      }
+
+      const timeString = activityDate.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+
+      const existingDate = acc.find(item => item.date === dateLabel);
+      if (existingDate) {
+        existingDate.activities.push({
+          time: timeString,
+          action: activity.actionDescription,
+          type: activity.activityType,
+          targetName: activity.targetName,
+          metadata: activity.metadata
+        });
+      } else {
+        acc.push({
+          date: dateLabel,
+          activities: [{
+            time: timeString,
+            action: activity.actionDescription,
+            type: activity.activityType,
+            targetName: activity.targetName,
+            metadata: activity.metadata
+          }]
+        });
+      }
+      return acc;
+    }, [] as Array<{ date: string; activities: Array<{ time: string; action: string; type: string; targetName?: string; metadata?: any }> }>);
+
+    // Sort activities within each day by time (newest first)
+    grouped.forEach(day => {
+      day.activities.sort((a, b) => b.time.localeCompare(a.time));
+    });
+
+    return grouped;
+  }, [userActivities]);
 
   return (
     <div className="min-h-screen bg-dark text-white">
@@ -269,40 +335,38 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {[
-                    {
-                      date: 'Today',
-                      activities: [
-                        { time: '14:30', action: 'Reviewed Tesla deal documentation', type: 'review' },
-                        { time: '12:15', action: 'Generated investment memo for SpaceX Series B', type: 'memo' },
-                        { time: '09:45', action: 'Updated pipeline stage for 3 deals', type: 'update' }
-                      ]
-                    },
-                    {
-                      date: 'Yesterday',
-                      activities: [
-                        { time: '16:20', action: 'Matched Neuralink with 2 potential investors', type: 'match' },
-                        { time: '14:10', action: 'Completed due diligence for Anthropic', type: 'review' },
-                        { time: '11:30', action: 'Uploaded 5 new deal documents', type: 'upload' }
-                      ]
-                    },
-                    {
-                      date: '2 days ago',
-                      activities: [
-                        { time: '15:45', action: 'Created new automation workflow', type: 'automation' },
-                        { time: '13:20', action: 'Exported investor matching report', type: 'export' },
-                        { time: '10:15', action: 'Updated system settings', type: 'settings' }
-                      ]
-                    }
-                  ].map((day, dayIndex) => (
+                  {groupedActivities.map((day, dayIndex) => (
                     <div key={dayIndex}>
                       <h4 className="text-sm font-medium text-gray-300 mb-3">{day.date}</h4>
                       <div className="space-y-2 ml-4 border-l border-dark-lighter pl-4">
                         {day.activities.map((activity, actIndex) => (
-                          <div key={actIndex} className="flex items-center gap-3 text-sm">
-                            <span className="text-gray-400 min-w-[50px]">{activity.time}</span>
-                            <div className="h-2 w-2 bg-primary rounded-full"></div>
-                            <span className="text-gray-300">{activity.action}</span>
+                          <div key={actIndex} className="space-y-2 p-3 bg-dark-lighter/50 rounded-lg border border-dark-lighter">
+                            <div className="flex items-start gap-3">
+                              <span className="text-gray-400 text-xs min-w-[50px] mt-1">{activity.time}</span>
+                              <div className="h-2 w-2 bg-primary rounded-full mt-2"></div>
+                              <div className="flex-1 space-y-1">
+                                <div className="text-gray-300 font-medium">{activity.action}</div>
+                                {activity.targetName && (
+                                  <div className="text-xs text-gray-400">
+                                    <span className="text-primary">Target:</span> {activity.targetName}
+                                  </div>
+                                )}
+                                <div className="text-xs text-gray-500">
+                                  <span className="text-primary">Type:</span> {activity.type}
+                                </div>
+                                {activity.metadata && Object.keys(activity.metadata).length > 0 && (
+                                  <div className="text-xs text-gray-500 bg-dark-lighter/50 p-2 rounded border">
+                                    <div className="text-primary mb-1">Metadata:</div>
+                                    {Object.entries(activity.metadata).map(([key, value]) => (
+                                      <div key={key} className="flex justify-between">
+                                        <span className="text-gray-400">{key}:</span>
+                                        <span className="text-gray-300">{JSON.stringify(value)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
