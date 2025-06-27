@@ -671,23 +671,57 @@ export class EnhancedCompanyResearchService {
       const research = await storage.getCompanyResearchByDealId(dealId);
       if (!research) return null;
 
-      return {
+      console.log(`🔍 Raw research data for deal ${dealId}:`, {
+        ceoProfile: typeof research.ceoProfile,
+        financialData: typeof research.financialData,
+        hasBusinessIntelligence: !!research.businessIntelligence
+      });
+
+      // Safe JSON parsing helper
+      const safeJsonParse = (jsonString: string | null | undefined) => {
+        if (!jsonString) return undefined;
+        try {
+          // Handle case where data is already parsed or is an object
+          if (typeof jsonString === 'object') return jsonString;
+          // Handle case where data is a JSON string
+          if (typeof jsonString === 'string') {
+            // Remove extra quotes if present
+            const cleanedString = jsonString.replace(/^"(.*)"$/, '$1').replace(/\\"/g, '"');
+            return JSON.parse(cleanedString);
+          }
+          return undefined;
+        } catch (e) {
+          console.error('JSON parse error for:', jsonString?.substring(0, 100));
+          return undefined;
+        }
+      };
+
+      const parsedData = {
         companyName: research.companyName,
         website: research.website || '',
         lastUpdated: research.lastUpdated || new Date().toISOString(),
         sources: research.sources || 6,
         aiConfidenceScore: 87,
         researchStatus: research.researchStatus || 'complete',
-        ceoProfile: research.ceoProfile ? JSON.parse(research.ceoProfile) : undefined,
-        keyTeamMembers: research.keyTeamMembers ? JSON.parse(research.keyTeamMembers) : undefined,
-        financialData: research.financialData ? JSON.parse(research.financialData) : undefined,
-        marketAnalysis: research.marketAnalysis ? JSON.parse(research.marketAnalysis) : undefined,
-        businessIntelligence: research.businessIntelligence ? JSON.parse(research.businessIntelligence) : undefined,
-        riskFactors: research.riskFactors ? JSON.parse(research.riskFactors) : undefined,
-        investmentHighlights: research.investmentHighlights ? JSON.parse(research.investmentHighlights) : undefined,
-        externalLinks: research.externalLinks ? JSON.parse(research.externalLinks) : undefined,
-        aiAnalysis: research.aiAnalysis ? JSON.parse(research.aiAnalysis) : undefined,
+        ceoProfile: safeJsonParse(research.ceoProfile),
+        keyTeamMembers: safeJsonParse(research.keyTeamMembers),
+        financialData: safeJsonParse(research.financialData),
+        marketAnalysis: safeJsonParse(research.marketAnalysis),
+        businessIntelligence: safeJsonParse(research.businessIntelligence),
+        riskFactors: safeJsonParse(research.riskFactors),
+        investmentHighlights: safeJsonParse(research.investmentHighlights),
+        externalLinks: safeJsonParse(research.externalLinks),
+        aiAnalysis: safeJsonParse(research.aiAnalysis),
       };
+
+      console.log(`✅ Parsed research data for deal ${dealId}:`, {
+        hasCeoProfile: !!parsedData.ceoProfile,
+        hasFinancialData: !!parsedData.financialData,
+        hasBusinessIntelligence: !!parsedData.businessIntelligence,
+        ceoName: parsedData.ceoProfile?.name
+      });
+
+      return parsedData;
     } catch (error) {
       console.error('Failed to retrieve stored research:', error);
       return null;
