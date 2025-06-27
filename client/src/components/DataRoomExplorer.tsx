@@ -1503,7 +1503,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               <div>
                 <h3 className="text-lg font-semibold text-white flex items-center">
                   <span className="mr-2">📊</span>
-                  Pitchdeck
+                  Pitch Deck
                 </h3>
                 <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} presentation documents</p>
               </div>
