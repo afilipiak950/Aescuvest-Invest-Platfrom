@@ -1709,27 +1709,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.setHeader('Cache-Control', 'no-cache');
       
-      // Enhanced headers for PDF iframe viewing in Chrome
+      // Chrome-optimized headers for PDF viewing
       if (ext === '.pdf' && shouldUseInline) {
-        // Remove restrictive headers that block PDF viewing
+        // Clear any blocking headers
         res.removeHeader('X-Frame-Options');
         res.removeHeader('Content-Security-Policy');
+        res.removeHeader('X-Content-Type-Options');
         
-        // Set minimal required headers for Chrome PDF viewer
+        // Force PDF MIME type and inline display
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline');
+        
+        // Enable cross-origin and caching for better compatibility
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        
+        // Chrome-specific headers to bypass blocking
+        res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         
-        // Force Chrome to treat as PDF for built-in viewer
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
-        
-        // Add PDF-specific cache headers
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        
-        console.log(`📄 Chrome PDF viewer headers set for: ${document.name}`);
+        console.log(`📄 Chrome bypass headers set for: ${document.name}`);
       } else {
-        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
       }
       
       // Stream the file
