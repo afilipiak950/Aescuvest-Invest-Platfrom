@@ -387,7 +387,7 @@ export default function DueDiligence() {
       {/* Deal Selection */}
       <Card className="bg-dark-light border-dark-lighter mb-6">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex flex-col md:flex-row md:items-end gap-4">
             <div className="flex-1">
               <label className="text-sm text-gray-400 mb-1 block">Select Deal</label>
               <Select 
@@ -395,7 +395,7 @@ export default function DueDiligence() {
                 onValueChange={setSelectedDeal}
                 disabled={isLoadingDeals}
               >
-                <SelectTrigger className="bg-dark border-dark-lighter text-white focus:ring-primary">
+                <SelectTrigger className="bg-dark border-dark-lighter text-white focus:ring-primary h-10">
                   <SelectValue placeholder="Select a deal" />
                 </SelectTrigger>
                 <SelectContent className="bg-dark-lighter border-dark-lighter">
