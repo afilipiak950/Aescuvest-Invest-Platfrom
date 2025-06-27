@@ -243,7 +243,36 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
             </DialogTitle>
             
             <div className="flex items-center gap-2">
-              {/* Navigation Controls */}
+              {/* Page Navigation Controls (only show for PDF.js) */}
+              {usePdfJs && totalPages > 0 && (
+                <div className="flex items-center gap-1 mr-4 text-white">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    className="text-white hover:bg-gray-700"
+                    disabled={currentPage <= 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <span className="text-sm min-w-[6rem] text-center">
+                    {currentPage} / {totalPages}
+                  </span>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNextPage}
+                    className="text-white hover:bg-gray-700"
+                    disabled={currentPage >= totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* Zoom and Rotation Controls */}
               <div className="flex items-center gap-1 mr-4">
                 <Button
                   variant="ghost"
