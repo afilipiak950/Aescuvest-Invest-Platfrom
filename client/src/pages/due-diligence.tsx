@@ -411,7 +411,7 @@ export default function DueDiligence() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                className="bg-dark-lighter hover:bg-dark border-dark-lighter h-10"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border hover:text-accent-foreground h-10 px-4 py-2 bg-dark-lighter hover:bg-dark border-dark-lighter pt-[19px] pb-[19px]"
                 onClick={handleFileUpload}
               >
                 <Upload className="mr-2 h-4 w-4" />
@@ -766,7 +766,7 @@ export default function DueDiligence() {
                 <Button 
                   onClick={handleRunAllAnalyses}
                   disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
-                  className="bg-primary hover:bg-primary/90"
+                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
                   size="sm"
                 >
                   {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
