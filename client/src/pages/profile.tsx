@@ -23,7 +23,13 @@ import {
   Star,
   Upload,
   BarChart3,
-  Zap
+  Zap,
+  Brain,
+  Moon,
+  MessageCircle,
+  Flame,
+  Shield,
+  Lightbulb
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -44,11 +50,217 @@ export default function ProfilePage() {
     queryKey: ['/api/user/stats'],
   });
 
+  // Calculate achievements based on real user statistics
+  const achievements = useMemo(() => {
+    const stats = userStats as any;
+    if (!stats) return [];
+
+    return [
+      // Performance Achievements
+      {
+        id: 'deal_master',
+        title: 'Deal Master',
+        description: 'Review 50+ investment deals',
+        icon: Eye,
+        category: 'performance',
+        target: 50,
+        current: stats.dealsReviewed || 0,
+        progress: Math.min(100, Math.round(((stats.dealsReviewed || 0) / 50) * 100)),
+        achieved: (stats.dealsReviewed || 0) >= 50,
+        points: 100,
+        rarity: 'epic',
+        unlockedAt: (stats.dealsReviewed || 0) >= 50 ? new Date().toISOString() : null
+      },
+      {
+        id: 'memo_expert',
+        title: 'Memo Expert',
+        description: 'Generate 25+ investment memos',
+        icon: FileText,
+        category: 'performance',
+        target: 25,
+        current: stats.memosGenerated || 0,
+        progress: Math.min(100, Math.round(((stats.memosGenerated || 0) / 25) * 100)),
+        achieved: (stats.memosGenerated || 0) >= 25,
+        points: 75,
+        rarity: 'rare',
+        unlockedAt: (stats.memosGenerated || 0) >= 25 ? new Date().toISOString() : null
+      },
+      {
+        id: 'perfect_match',
+        title: 'Perfect Match',
+        description: 'Make 10+ successful investor matches',
+        icon: Users,
+        category: 'performance',
+        target: 10,
+        current: stats.investorMatches || 0,
+        progress: Math.min(100, Math.round(((stats.investorMatches || 0) / 10) * 100)),
+        achieved: (stats.investorMatches || 0) >= 10,
+        points: 50,
+        rarity: 'uncommon',
+        unlockedAt: (stats.investorMatches || 0) >= 10 ? new Date().toISOString() : null
+      },
+      {
+        id: 'analysis_guru',
+        title: 'Analysis Guru',
+        description: 'Complete 100+ document summaries',
+        icon: Brain,
+        category: 'performance',
+        target: 100,
+        current: stats.documentsSummarized || 0,
+        progress: Math.min(100, Math.round(((stats.documentsSummarized || 0) / 100) * 100)),
+        achieved: (stats.documentsSummarized || 0) >= 100,
+        points: 150,
+        rarity: 'legendary',
+        unlockedAt: (stats.documentsSummarized || 0) >= 100 ? new Date().toISOString() : null
+      },
+      // Efficiency Achievements
+      {
+        id: 'workflow_wizard',
+        title: 'Workflow Wizard',
+        description: 'Create 5+ automation workflows',
+        icon: Activity,
+        category: 'efficiency',
+        target: 5,
+        current: stats.automationsCreated || 0,
+        progress: Math.min(100, Math.round(((stats.automationsCreated || 0) / 5) * 100)),
+        achieved: (stats.automationsCreated || 0) >= 5,
+        points: 60,
+        rarity: 'rare',
+        unlockedAt: (stats.automationsCreated || 0) >= 5 ? new Date().toISOString() : null
+      },
+      {
+        id: 'speed_demon',
+        title: 'Speed Demon',
+        description: 'Process 20+ deals in one day',
+        icon: Zap,
+        category: 'efficiency',
+        target: 20,
+        current: stats.maxDealsPerDay || 0,
+        progress: Math.min(100, Math.round(((stats.maxDealsPerDay || 0) / 20) * 100)),
+        achieved: (stats.maxDealsPerDay || 0) >= 20,
+        points: 80,
+        rarity: 'epic',
+        unlockedAt: (stats.maxDealsPerDay || 0) >= 20 ? new Date().toISOString() : null
+      },
+      {
+        id: 'night_owl',
+        title: 'Night Owl',
+        description: 'Work sessions after 10 PM',
+        icon: Moon,
+        category: 'efficiency',
+        target: 10,
+        current: stats.nightSessions || 0,
+        progress: Math.min(100, Math.round(((stats.nightSessions || 0) / 10) * 100)),
+        achieved: (stats.nightSessions || 0) >= 10,
+        points: 40,
+        rarity: 'common',
+        unlockedAt: (stats.nightSessions || 0) >= 10 ? new Date().toISOString() : null
+      },
+      // Milestone Achievements
+      {
+        id: 'early_adopter',
+        title: 'Early Adopter',
+        description: 'First week platform user',
+        icon: Star,
+        category: 'milestone',
+        target: 1,
+        current: 1,
+        progress: 100,
+        achieved: true,
+        points: 25,
+        rarity: 'common',
+        unlockedAt: new Date().toISOString()
+      },
+      {
+        id: 'data_explorer',
+        title: 'Data Explorer',
+        description: 'Export 20+ reports',
+        icon: Download,
+        category: 'milestone',
+        target: 20,
+        current: stats.reportsExported || 0,
+        progress: Math.min(100, Math.round(((stats.reportsExported || 0) / 20) * 100)),
+        achieved: (stats.reportsExported || 0) >= 20,
+        points: 35,
+        rarity: 'uncommon',
+        unlockedAt: (stats.reportsExported || 0) >= 20 ? new Date().toISOString() : null
+      },
+      {
+        id: 'social_butterfly',
+        title: 'Social Butterfly',
+        description: 'Connect with 50+ investors',
+        icon: MessageCircle,
+        category: 'milestone',
+        target: 50,
+        current: stats.investorConnections || 0,
+        progress: Math.min(100, Math.round(((stats.investorConnections || 0) / 50) * 100)),
+        achieved: (stats.investorConnections || 0) >= 50,
+        points: 70,
+        rarity: 'rare',
+        unlockedAt: (stats.investorConnections || 0) >= 50 ? new Date().toISOString() : null
+      },
+      // Special Achievements
+      {
+        id: 'streak_master',
+        title: 'Streak Master',
+        description: 'Maintain 30-day login streak',
+        icon: Flame,
+        category: 'special',
+        target: 30,
+        current: stats.currentStreak || 0,
+        progress: Math.min(100, Math.round(((stats.currentStreak || 0) / 30) * 100)),
+        achieved: (stats.currentStreak || 0) >= 30,
+        points: 120,
+        rarity: 'epic',
+        unlockedAt: (stats.currentStreak || 0) >= 30 ? new Date().toISOString() : null
+      },
+      {
+        id: 'quality_assurance',
+        title: 'Quality Assurance',
+        description: 'Maintain 95%+ accuracy rating',
+        icon: Shield,
+        category: 'special',
+        target: 95,
+        current: stats.accuracyRating || 0,
+        progress: Math.min(100, Math.round(((stats.accuracyRating || 0) / 95) * 100)),
+        achieved: (stats.accuracyRating || 0) >= 95,
+        points: 200,
+        rarity: 'legendary',
+        unlockedAt: (stats.accuracyRating || 0) >= 95 ? new Date().toISOString() : null
+      },
+      {
+        id: 'innovation_champion',
+        title: 'Innovation Champion',
+        description: 'Discover cutting-edge startups',
+        icon: Lightbulb,
+        category: 'special',
+        target: 5,
+        current: stats.innovativeDeals || 0,
+        progress: Math.min(100, Math.round(((stats.innovativeDeals || 0) / 5) * 100)),
+        achieved: (stats.innovativeDeals || 0) >= 5,
+        points: 180,
+        rarity: 'legendary',
+        unlockedAt: (stats.innovativeDeals || 0) >= 5 ? new Date().toISOString() : null
+      }
+    ];
+  }, [userStats]);
+
+  // Group achievements by category
+  const achievementCategories = useMemo(() => {
+    return achievements.reduce((acc: any, achievement: any) => {
+      if (!acc[achievement.category]) {
+        acc[achievement.category] = [];
+      }
+      acc[achievement.category].push(achievement);
+      return acc;
+    }, {});
+  }, [achievements]);
+
   // Group activities by date - must be before any conditional returns
   const groupedActivities = useMemo(() => {
-    if (!userActivities) return [];
+    if (!userActivities || !(userActivities as any)?.reduce) return [];
 
-    const grouped = userActivities.reduce((acc: any, activity: any) => {
+    const grouped = (userActivities as any).reduce((acc: any, activity: any) => {
       const activityDate = new Date(activity.createdAt);
       const today = new Date();
       const yesterday = new Date(today);
@@ -162,7 +374,7 @@ export default function ProfilePage() {
           <CardContent className="p-6">
             <div className="flex items-start gap-6">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={userProfile?.profileImage} alt={userName} />
+                <AvatarImage src={(userProfile as any)?.profileImage} alt={userName} />
                 <AvatarFallback className="bg-primary text-dark font-semibold text-lg">
                   {getInitials(userName)}
                 </AvatarFallback>
@@ -335,11 +547,11 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {groupedActivities.map((day, dayIndex) => (
+                  {groupedActivities.map((day: any, dayIndex: number) => (
                     <div key={dayIndex}>
                       <h4 className="text-sm font-medium text-gray-300 mb-3">{day.date}</h4>
                       <div className="space-y-2 ml-4 border-l border-dark-lighter pl-4">
-                        {day.activities.map((activity, actIndex) => (
+                        {day.activities.map((activity: any, actIndex: number) => (
                           <div key={actIndex} className="space-y-2 p-3 bg-dark-lighter/50 rounded-lg border border-dark-lighter">
                             <div className="flex items-start gap-3">
                               <span className="text-gray-400 text-xs min-w-[50px] mt-1">{activity.time}</span>
@@ -378,93 +590,92 @@ export default function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="achievements" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                {
-                  title: 'Deal Master',
-                  description: 'Reviewed 50+ deals',
-                  icon: Eye,
-                  progress: 94,
-                  achieved: false
-                },
-                {
-                  title: 'Memo Expert',
-                  description: 'Generated 25+ investment memos',
-                  icon: FileText,
-                  progress: 92,
-                  achieved: false
-                },
-                {
-                  title: 'Perfect Match',
-                  description: 'Made 10+ successful investor matches',
-                  icon: Users,
-                  progress: 100,
-                  achieved: true
-                },
-                {
-                  title: 'Early Adopter',
-                  description: 'First week platform user',
-                  icon: Star,
-                  progress: 100,
-                  achieved: true
-                },
-                {
-                  title: 'Workflow Wizard',
-                  description: 'Created 5+ automation workflows',
-                  icon: Activity,
-                  progress: 60,
-                  achieved: false
-                },
-                {
-                  title: 'Data Explorer',
-                  description: 'Exported 20+ reports',
-                  icon: Download,
-                  progress: 35,
-                  achieved: false
-                }
-              ].map((achievement, index) => {
-                const Icon = achievement.icon;
-                return (
-                  <Card key={index} className={`bg-dark-light border-dark-lighter ${achievement.achieved ? 'ring-1 ring-primary/50' : ''}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                          achievement.achieved 
-                            ? 'bg-primary text-dark' 
-                            : 'bg-gray-600/20 text-gray-400'
-                        }`}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-white">{achievement.title}</h4>
-                            {achievement.achieved && (
-                              <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30 text-xs">
-                                Achieved
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-400 mb-2">{achievement.description}</p>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Progress</span>
-                              <span className="text-gray-400">{achievement.progress}%</span>
+            {/* Achievement Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <Card className="bg-gradient-to-r from-primary/20 to-primary/10 border-primary/30">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-primary">{achievements.filter(a => a.achieved).length}</div>
+                  <div className="text-sm text-gray-300">Unlocked</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-r from-yellow-500/20 to-yellow-500/10 border-yellow-500/30">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-400">{achievements.filter(a => !a.achieved && a.progress >= 75).length}</div>
+                  <div className="text-sm text-gray-300">Almost There</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-r from-blue-500/20 to-blue-500/10 border-blue-500/30">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-400">{Math.round(achievements.reduce((acc, a) => acc + a.progress, 0) / achievements.length)}%</div>
+                  <div className="text-sm text-gray-300">Avg Progress</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-r from-purple-500/20 to-purple-500/10 border-purple-500/30">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-400">{achievements.reduce((acc, a) => acc + (a.achieved ? a.points : 0), 0)}</div>
+                  <div className="text-sm text-gray-300">Total Points</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Achievement Categories */}
+            <div className="space-y-8">
+              {Object.entries(achievementCategories).map(([category, categoryAchievements]) => (
+                <div key={category} className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-semibold text-white capitalize">{category} Achievements</h3>
+                    <Badge variant="outline" className="text-xs">
+                      {(categoryAchievements as any).filter((a: any) => a.achieved).length}/{(categoryAchievements as any).length}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(categoryAchievements as any).map((achievement: any, index: number) => {
+                      const Icon = achievement.icon;
+                      return (
+                        <Card key={index} className={`bg-dark-light border-dark-lighter ${achievement.achieved ? 'ring-1 ring-primary/50' : ''}`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                achievement.achieved 
+                                  ? 'bg-primary text-dark' 
+                                  : 'bg-gray-600/20 text-gray-400'
+                              }`}>
+                                <Icon className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium text-white">{achievement.title}</h4>
+                                  {achievement.achieved && (
+                                    <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30 text-xs">
+                                      Achieved
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-400 mb-2">{achievement.description}</p>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-gray-400">Progress</span>
+                                    <span className="text-gray-400">{achievement.progress}%</span>
+                                  </div>
+                                  <div className="w-full bg-dark-lighter rounded-full h-1.5">
+                                    <div 
+                                      className={`h-1.5 rounded-full ${
+                                        achievement.achieved ? 'bg-primary' : 'bg-gray-600'
+                                      }`}
+                                      style={{ width: `${achievement.progress}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="w-full bg-dark-lighter rounded-full h-1.5">
-                              <div 
-                                className={`h-1.5 rounded-full ${
-                                  achievement.achieved ? 'bg-primary' : 'bg-gray-600'
-                                }`}
-                                style={{ width: `${achievement.progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </TabsContent>
         </Tabs>
