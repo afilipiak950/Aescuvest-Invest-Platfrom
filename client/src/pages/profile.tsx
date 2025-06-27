@@ -653,18 +653,58 @@ export default function ProfilePage() {
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-400 mb-2">{achievement.description}</p>
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-gray-400">Progress</span>
-                                    <span className="text-gray-400">{achievement.progress}%</span>
+                                
+                                {/* Achievement Details */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-400">Progress: {achievement.current}/{achievement.target}</span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-gray-400">{achievement.progress}%</span>
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`text-xs px-1 py-0.5 ${
+                                          achievement.rarity === 'legendary' ? 'border-yellow-500 text-yellow-400' :
+                                          achievement.rarity === 'epic' ? 'border-purple-500 text-purple-400' :
+                                          achievement.rarity === 'rare' ? 'border-blue-500 text-blue-400' :
+                                          achievement.rarity === 'uncommon' ? 'border-green-500 text-green-400' :
+                                          'border-gray-500 text-gray-400'
+                                        }`}
+                                      >
+                                        {achievement.rarity}
+                                      </Badge>
+                                    </div>
                                   </div>
-                                  <div className="w-full bg-dark-lighter rounded-full h-1.5">
+                                  
+                                  <div className="w-full bg-dark-lighter rounded-full h-2">
                                     <div 
-                                      className={`h-1.5 rounded-full ${
-                                        achievement.achieved ? 'bg-primary' : 'bg-gray-600'
+                                      className={`h-2 rounded-full transition-all duration-300 ${
+                                        achievement.achieved 
+                                          ? achievement.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' :
+                                            achievement.rarity === 'epic' ? 'bg-gradient-to-r from-purple-500 to-purple-400' :
+                                            achievement.rarity === 'rare' ? 'bg-gradient-to-r from-blue-500 to-blue-400' :
+                                            achievement.rarity === 'uncommon' ? 'bg-gradient-to-r from-green-500 to-green-400' :
+                                            'bg-primary'
+                                          : 'bg-gray-600'
                                       }`}
                                       style={{ width: `${achievement.progress}%` }}
                                     ></div>
+                                  </div>
+                                  
+                                  {achievement.achieved && achievement.unlockedAt && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Unlocked: {new Date(achievement.unlockedAt).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                  
+                                  {!achievement.achieved && achievement.progress >= 75 && (
+                                    <div className="text-xs text-yellow-400 mt-1 flex items-center gap-1">
+                                      <Zap className="h-3 w-3" />
+                                      Almost there! {achievement.target - achievement.current} more to go
+                                    </div>
+                                  )}
+                                  
+                                  <div className="text-xs text-gray-500">
+                                    Reward: {achievement.points} points
                                   </div>
                                 </div>
                               </div>
