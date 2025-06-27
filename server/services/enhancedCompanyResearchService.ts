@@ -668,7 +668,7 @@ export class EnhancedCompanyResearchService {
 
   async getStoredResearch(dealId: number): Promise<EnhancedResearchData | null> {
     try {
-      const research = await storage.getCompanyResearchByDealId(dealId);
+      const research = await storage.getCompanyResearchRawByDealId(dealId);
       if (!research) return null;
 
       console.log(`🔍 Raw research data for deal ${dealId}:`, {
