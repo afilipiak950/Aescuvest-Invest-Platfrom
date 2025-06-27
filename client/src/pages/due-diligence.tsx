@@ -387,7 +387,7 @@ export default function DueDiligence() {
       {/* Deal Selection */}
       <Card className="bg-dark-light border-dark-lighter mb-6">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex flex-col md:flex-row md:items-end gap-4">
             <div className="flex-1">
               <label className="text-sm text-gray-400 mb-1 block">Select Deal</label>
               <Select 
@@ -408,7 +408,7 @@ export default function DueDiligence() {
               </Select>
             </div>
             
-            <div className="flex gap-2 pt-6">
+            <div className="flex gap-2">
               <Button
                 variant="outline"
                 className="bg-dark-lighter hover:bg-dark border-dark-lighter h-10"
