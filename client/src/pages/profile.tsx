@@ -20,7 +20,10 @@ import {
   Settings,
   Eye,
   Download,
-  Star
+  Star,
+  Upload,
+  BarChart3,
+  Zap
 } from 'lucide-react';
 
 export default function ProfilePage() {

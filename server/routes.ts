@@ -8,13 +8,16 @@ import { randomUUID } from "crypto";
 import { persistentJobManager } from "./services/persistentJobManager";
 import { z } from "zod";
 import { authenticate } from "./middleware/auth";
+import { desc, sql } from "drizzle-orm";
 import { 
   insertDealSchema, 
   insertDocumentSchema, 
   insertAgentAnalysisSchema,
   insertInvestmentMemoSchema,
   insertInvestorMatchSchema,
-  insertAutomationSchema
+  insertAutomationSchema,
+  userActivities,
+  userStats
 } from "../shared/schema";
 import multer from "multer";
 import path from "path";
@@ -1267,6 +1270,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // User Activity routes
+  app.get('/api/user/activities', async (req: Request, res: Response) => {
+    try {
+      const userId = 1; // TODO: Get from session when auth is implemented
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const activities = await db
+        .select()
+        .from(userActivities)
+        .where(eq(userActivities.userId, userId))
+        .orderBy(desc(userActivities.createdAt))
+        .limit(limit);
+      
+      return res.status(200).json(activities);
+    } catch (error) {
+      console.error('Error fetching user activities:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/user/stats', async (req: Request, res: Response) => {
+    try {
+      const userId = 1; // TODO: Get from session when auth is implemented
+      
+      const stats = await db
+        .select()
+        .from(userStats)
+        .where(eq(userStats.userId, userId));
+      
+      return res.status(200).json(stats[0] || null);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Track user activity
+  app.post('/api/user/activity', async (req: Request, res: Response) => {
+    try {
+      const userId = 1; // TODO: Get from session when auth is implemented
+      const { activityType, actionDescription, targetType, targetId, targetName, metadata } = req.body;
+      
+      await db.insert(userActivities).values({
+        userId,
+        activityType,
+        actionDescription,
+        targetType,
+        targetId,
+        targetName,
+        metadata,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      
+      return res.status(201).json({ success: true });
+    } catch (error) {
+      console.error('Error tracking user activity:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Automation routes
   app.get('/api/automations', async (req: Request, res: Response) => {
     try {
