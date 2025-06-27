@@ -132,22 +132,22 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-full h-[90vh] p-0 bg-white border-gray-300">
-        <DialogHeader className="px-6 py-4 border-b border-gray-300 bg-gray-50">
+      <DialogContent className="max-w-6xl w-full h-[90vh] p-0 bg-gray-900 border-gray-700">
+        <DialogHeader className="px-6 py-4 border-b border-gray-700 bg-gray-800">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold text-gray-900 truncate mr-4">
+            <DialogTitle className="text-lg font-semibold text-white truncate mr-4">
               {documentName}
             </DialogTitle>
             <div className="flex items-center gap-2">
               {!error && pdfDoc && (
                 <>
-                  <div className="flex items-center gap-1 text-sm text-gray-600 mr-4">
+                  <div className="flex items-center gap-1 text-sm text-gray-300 mr-4">
                     <Button
                       onClick={prevPage}
                       variant="outline"
                       size="sm"
                       disabled={pageNum <= 1}
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
@@ -159,7 +159,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                       variant="outline"
                       size="sm"
                       disabled={pageNum >= pageCount}
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </Button>
@@ -169,18 +169,18 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                       onClick={zoomOut}
                       variant="outline"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
                     >
                       <ZoomOut className="w-4 h-4" />
                     </Button>
-                    <span className="mx-2 text-sm text-gray-600 min-w-[40px] text-center">
+                    <span className="mx-2 text-sm text-gray-300 min-w-[40px] text-center">
                       {Math.round(scale * 100)}%
                     </span>
                     <Button
                       onClick={zoomIn}
                       variant="outline"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
                     >
                       <ZoomIn className="w-4 h-4" />
                     </Button>
@@ -191,7 +191,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                 onClick={handleDownload}
                 variant="outline"
                 size="sm"
-                className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Download
@@ -200,7 +200,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                 onClick={handleOpenInNewTab}
                 variant="outline"
                 size="sm"
-                className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 New Tab
@@ -209,12 +209,12 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           </div>
         </DialogHeader>
         
-        <div className="flex-1 p-6 bg-gray-100 overflow-auto">
+        <div className="flex-1 p-6 bg-gray-900 overflow-auto">
           {isLoading && (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-                <p className="text-gray-600">Loading PDF...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mb-4"></div>
+                <p className="text-white">Loading PDF...</p>
               </div>
             </div>
           )}
@@ -222,13 +222,13 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           {error && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-md">
-                <p className="text-red-600 mb-4">{error}</p>
+                <p className="text-red-400 mb-4">{error}</p>
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={handleDownload} variant="outline">
+                  <Button onClick={handleDownload} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
-                  <Button onClick={handleOpenInNewTab} variant="outline">
+                  <Button onClick={handleOpenInNewTab} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Open in New Tab
                   </Button>
@@ -241,7 +241,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
             <div className="flex justify-center">
               <canvas
                 ref={canvasRef}
-                className="border border-gray-300 shadow-lg bg-white"
+                className="border border-gray-600 shadow-lg bg-white"
                 style={{ maxWidth: '100%', height: 'auto' }}
               />
             </div>
