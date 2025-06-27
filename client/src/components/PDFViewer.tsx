@@ -104,7 +104,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
       );
     }
 
-    // Primary iframe-based PDF viewer
+    // Chrome-compatible PDF viewer with multiple fallback strategies
     return (
       <div className="relative w-full h-full overflow-auto bg-gray-800">
         {isLoading && (
@@ -116,41 +116,82 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           </div>
         )}
         
-        <iframe
-          ref={iframeRef}
-          src={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
-          className="w-full h-full border-0"
-          title={documentName}
-          allow="fullscreen"
-          onLoad={(e) => {
-            console.log(`✅ PDF iframe loaded: ${documentName} (ID: ${documentId})`);
+        {/* Primary: HTML object tag for better Chrome compatibility */}
+        <object
+          data={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
+          type="application/pdf"
+          className="w-full h-full"
+          onLoad={() => {
+            console.log(`✅ PDF object loaded successfully: ${documentName} (ID: ${documentId})`);
             setIsLoading(false);
             setError(null);
-            
-            // Chrome security detection with improved handling
-            setTimeout(() => {
-              const iframe = e.currentTarget;
-              try {
-                const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                if (!doc || doc.body?.innerText?.includes('blocked')) {
-                  console.log(`⚠️ Chrome security detected, enabling fallback buttons`);
-                  setFallbackMode(true);
-                } else {
-                  console.log(`📄 PDF displayed successfully in iframe`);
-                }
-              } catch (err) {
-                console.log(`🔒 CORS restriction detected, showing fallback options`);
-                setFallbackMode(true);
-              }
-            }, 1500);
           }}
-          onError={(e) => {
-            console.error(`❌ PDF iframe error for ${documentName} (ID: ${documentId}):`, e);
+          onError={() => {
+            console.log(`⚠️ PDF object failed, trying iframe fallback`);
             setIsLoading(false);
-            setError('Could not load PDF in viewer');
-            setFallbackMode(true);
+            // Try iframe as secondary approach
+            setFallbackMode(false);
           }}
-        />
+        >
+          {/* Secondary: iframe fallback when object fails */}
+          <iframe
+            ref={iframeRef}
+            src={`/api/documents/${documentId}/download?view=inline&t=${Date.now()}`}
+            className="w-full h-full border-0"
+            title={documentName}
+            onLoad={(e) => {
+              console.log(`✅ PDF iframe fallback loaded: ${documentName} (ID: ${documentId})`);
+              setIsLoading(false);
+              setError(null);
+              
+              // Chrome security detection with improved handling
+              setTimeout(() => {
+                const iframe = e.currentTarget;
+                try {
+                  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                  if (!doc || doc.body?.innerText?.includes('blocked')) {
+                    console.log(`⚠️ Chrome security detected, enabling fallback buttons`);
+                    setFallbackMode(true);
+                  } else {
+                    console.log(`📄 PDF displayed successfully in iframe fallback`);
+                  }
+                } catch (err) {
+                  console.log(`🔒 CORS restriction detected, showing fallback options`);
+                  setFallbackMode(true);
+                }
+              }, 1500);
+            }}
+            onError={(e) => {
+              console.error(`❌ PDF iframe fallback error for ${documentName} (ID: ${documentId}):`, e);
+              setIsLoading(false);
+              setError('Could not load PDF in viewer');
+              setFallbackMode(true);
+            }}
+          />
+          
+          {/* Tertiary: Embedded fallback message */}
+          <div className="flex flex-col items-center justify-center h-full text-white bg-gray-800 p-8">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold mb-2">PDF Viewer Not Available</h3>
+              <p className="text-gray-300 mb-4">Your browser settings prevent inline PDF viewing.</p>
+              <p className="text-sm text-gray-400">Use the options below to view the PDF:</p>
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleDownload}
+                className="bg-gray-700 border border-gray-600 text-white hover:bg-gray-600 px-4 py-2 rounded-md flex items-center gap-2"
+              >
+                <span>↓</span> Download PDF
+              </button>
+              <button 
+                onClick={handleOpenInNewTab}
+                className="bg-gray-700 border border-gray-600 text-white hover:bg-gray-600 px-4 py-2 rounded-md flex items-center gap-2"
+              >
+                <span>↗</span> Open in New Tab
+              </button>
+            </div>
+          </div>
+        </object>
       </div>
     );
   };
