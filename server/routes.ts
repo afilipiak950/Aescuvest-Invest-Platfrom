@@ -1683,13 +1683,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
       }
 
-      console.log(`📤 Setting headers - MIME: ${mimeType}, Size: ${stats.size}, Filename: ${document.name}, Inline: ${isInlineView || isIframe}`);
+      // Determine if we should use inline disposition
+      const shouldUseInline = ext === '.pdf' && (isIframe || isInlineView);
+      
+      console.log(`📤 Setting headers - MIME: ${mimeType}, Size: ${stats.size}, Filename: ${document.name}, Inline: ${shouldUseInline}`);
 
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Length', stats.size);
       
       // For PDF files in iframe or explicit inline view, use inline disposition
-      if ((ext === '.pdf' && (isIframe || isInlineView)) || isInlineView) {
+      if (shouldUseInline) {
         res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(document.name)}`);
       } else {
         res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`);

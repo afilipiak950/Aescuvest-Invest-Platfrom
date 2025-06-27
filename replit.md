@@ -193,6 +193,12 @@ Changelog:
   - Created backend API endpoints (/api/user/activities, /api/user/stats) for real data fetching
   - Updated profile page to display authentic user activities, stats, and profile information
   - Confirmed real-time user activity logging with 10 sample activities and comprehensive user statistics
+- June 27, 2025: Completed PDF viewer functionality with inline viewing support
+  - Fixed PDF pitchdeck loading issue by implementing inline viewing detection in download endpoint
+  - Enhanced download endpoint to support both attachment downloads and inline PDF viewing
+  - Implemented smart document click handling: PDFs open in viewer, other documents in detail modal
+  - Added comprehensive PDF viewer with zoom, rotation, navigation controls, and proper error handling
+  - Confirmed successful PDF viewing directly in browser with scrolling capability for pitch decks
 ```
 
 ## User Preferences
