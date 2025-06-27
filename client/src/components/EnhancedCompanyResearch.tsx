@@ -126,6 +126,13 @@ interface EnhancedResearchData {
 export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeResearchTab, setActiveResearchTab] = useState('overview');
+  const [researchProgress, setResearchProgress] = useState<{
+    progress: number;
+    stage: string;
+    jobId?: number;
+    status: string;
+    debugInfo?: any;
+  } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: researchData, isLoading, error, refetch } = useQuery<EnhancedResearchData>({
@@ -134,11 +141,37 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     retry: false,
   });
 
+  // Poll for research progress when there's an active job
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/research/progress`],
+    refetchInterval: researchProgress?.status === 'processing' ? 2000 : false,
+    enabled: !!researchProgress && researchProgress.status === 'processing',
+    retry: false,
+  });
+
+  // Update progress state when polling data changes
+  useEffect(() => {
+    if (progressData && progressData.status === 'processing') {
+      setResearchProgress({
+        progress: progressData.progress || 0,
+        stage: progressData.progressStage || 'Processing...',
+        jobId: progressData.jobId,
+        status: progressData.status,
+        debugInfo: progressData.debugInfo
+      });
+    } else if (progressData && progressData.status === 'completed') {
+      setResearchProgress(null);
+      setIsRefreshing(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research`] });
+    }
+  }, [progressData, queryClient, dealId]);
+
   const refreshResearchMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/deals/${dealId}/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceRefresh: true }),
         credentials: 'include',
       });
       
@@ -148,18 +181,29 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('🔬 Research job started:', data);
+      if (data.status === 'processing') {
+        setResearchProgress({
+          progress: data.progress || 0,
+          stage: data.progressStage || 'Initializing research parameters',
+          jobId: data.jobId,
+          status: data.status,
+          debugInfo: data.debugInfo
+        });
+      }
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research`] });
     },
     onError: (error) => {
       console.error('Research refresh failed:', error);
+      setIsRefreshing(false);
     }
   });
 
   const handleRefreshResearch = () => {
     setIsRefreshing(true);
+    setResearchProgress(null);
     refreshResearchMutation.mutate();
-    setTimeout(() => setIsRefreshing(false), 3000);
   };
 
   if (isLoading) {
