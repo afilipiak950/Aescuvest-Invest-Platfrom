@@ -1495,17 +1495,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   return (
     <div className="space-y-6">
-      {/* Email Attachments Section - Only show if there are email attachments */}
+      {/* Pitchdeck Section - Only show if there are email attachments */}
       {emailAttachments.length > 0 && (
         <div className="bg-dark-lighter rounded-lg">
           <div className="p-4 border-b border-dark">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white flex items-center">
-                  <span className="mr-2">📧</span>
-                  Email Attachments
+                  <span className="mr-2">📊</span>
+                  Pitchdeck
                 </h3>
-                <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} attachments from emails</p>
+                <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} presentation documents</p>
               </div>
             </div>
           </div>

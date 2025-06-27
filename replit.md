@@ -206,6 +206,10 @@ Changelog:
   - Implemented page navigation controls (previous/next) and zoom functionality (in/out with percentage display)
   - Applied comprehensive dark theme styling with gray-900 background and white text
   - Fixed TypeScript declarations and proper error handling for production-ready implementation
+- June 27, 2025: Enhanced data room interface with improved labeling
+  - Renamed "Email Attachments" section to "Pitchdeck" for clearer document categorization
+  - Updated section icon from email (📧) to chart (📊) to better represent presentation materials
+  - Changed description from "attachments from emails" to "presentation documents" for improved clarity
 ```
 
 ## User Preferences
