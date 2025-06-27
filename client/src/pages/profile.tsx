@@ -44,6 +44,72 @@ export default function ProfilePage() {
     queryKey: ['/api/user/stats'],
   });
 
+  // Group activities by date - must be before any conditional returns
+  const groupedActivities = useMemo(() => {
+    if (!userActivities) return [];
+
+    const grouped = userActivities.reduce((acc: any, activity: any) => {
+      const activityDate = new Date(activity.createdAt);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      let dateLabel;
+      if (activityDate.toDateString() === today.toDateString()) {
+        dateLabel = 'Today';
+      } else if (activityDate.toDateString() === yesterday.toDateString()) {
+        dateLabel = 'Yesterday';
+      } else {
+        const daysAgo = Math.floor((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysAgo <= 7) {
+          dateLabel = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+        } else {
+          dateLabel = activityDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            year: activityDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+          });
+        }
+      }
+
+      const timeString = activityDate.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+
+      const existingDate = acc.find((item: any) => item.date === dateLabel);
+      if (existingDate) {
+        existingDate.activities.push({
+          time: timeString,
+          action: activity.actionDescription,
+          type: activity.activityType,
+          targetName: activity.targetName,
+          metadata: activity.metadata
+        });
+      } else {
+        acc.push({
+          date: dateLabel,
+          activities: [{
+            time: timeString,
+            action: activity.actionDescription,
+            type: activity.activityType,
+            targetName: activity.targetName,
+            metadata: activity.metadata
+          }]
+        });
+      }
+      return acc;
+    }, []);
+
+    // Sort activities within each day by time (newest first)
+    grouped.forEach((day: any) => {
+      day.activities.sort((a: any, b: any) => b.time.localeCompare(a.time));
+    });
+
+    return grouped;
+  }, [userActivities]);
+
   if (profileLoading || activitiesLoading || statsLoading) {
     return (
       <div className="min-h-screen bg-dark text-white">
@@ -78,76 +144,10 @@ export default function ProfilePage() {
       .slice(0, 2);
   };
 
-  const userName = userProfile?.firstName && userProfile?.lastName 
-    ? `${userProfile.firstName} ${userProfile.lastName}` 
-    : userProfile?.username || 'User';
-  const userEmail = userProfile?.email || 'user@aescuvest.vc';
-
-  // Group activities by date
-  const groupedActivities = useMemo(() => {
-    if (!userActivities) return [];
-
-    const grouped = userActivities.reduce((acc, activity) => {
-      const activityDate = new Date(activity.createdAt);
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      let dateLabel;
-      if (activityDate.toDateString() === today.toDateString()) {
-        dateLabel = 'Today';
-      } else if (activityDate.toDateString() === yesterday.toDateString()) {
-        dateLabel = 'Yesterday';
-      } else {
-        const daysAgo = Math.floor((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysAgo <= 7) {
-          dateLabel = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
-        } else {
-          dateLabel = activityDate.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: activityDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
-          });
-        }
-      }
-
-      const timeString = activityDate.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      });
-
-      const existingDate = acc.find(item => item.date === dateLabel);
-      if (existingDate) {
-        existingDate.activities.push({
-          time: timeString,
-          action: activity.actionDescription,
-          type: activity.activityType,
-          targetName: activity.targetName,
-          metadata: activity.metadata
-        });
-      } else {
-        acc.push({
-          date: dateLabel,
-          activities: [{
-            time: timeString,
-            action: activity.actionDescription,
-            type: activity.activityType,
-            targetName: activity.targetName,
-            metadata: activity.metadata
-          }]
-        });
-      }
-      return acc;
-    }, [] as Array<{ date: string; activities: Array<{ time: string; action: string; type: string; targetName?: string; metadata?: any }> }>);
-
-    // Sort activities within each day by time (newest first)
-    grouped.forEach(day => {
-      day.activities.sort((a, b) => b.time.localeCompare(a.time));
-    });
-
-    return grouped;
-  }, [userActivities]);
+  const userName = (userProfile as any)?.firstName && (userProfile as any)?.lastName 
+    ? `${(userProfile as any).firstName} ${(userProfile as any).lastName}` 
+    : (userProfile as any)?.username || 'User';
+  const userEmail = (userProfile as any)?.email || 'user@aescuvest.vc';
 
   return (
     <div className="min-h-screen bg-dark text-white">
@@ -221,7 +221,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Deals Reviewed</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.dealsReviewed || 0}</p>
+                      <p className="text-2xl font-bold text-white">{(userStats as any)?.dealsReviewed || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-blue-500/20 rounded-full flex items-center justify-center">
                       <Eye className="h-5 w-5 text-blue-400" />
@@ -235,7 +235,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Memos Generated</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.memosGenerated || 0}</p>
+                      <p className="text-2xl font-bold text-white">{(userStats as any)?.memosGenerated || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-green-500/20 rounded-full flex items-center justify-center">
                       <FileText className="h-5 w-5 text-green-400" />
@@ -249,7 +249,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Matches Made</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.matchesCreated || 0}</p>
+                      <p className="text-2xl font-bold text-white">{(userStats as any)?.matchesCreated || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-purple-500/20 rounded-full flex items-center justify-center">
                       <Users className="h-5 w-5 text-purple-400" />
@@ -263,7 +263,7 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Documents Uploaded</p>
-                      <p className="text-2xl font-bold text-white">{userStats?.documentsUploaded || 0}</p>
+                      <p className="text-2xl font-bold text-white">{(userStats as any)?.documentsUploaded || 0}</p>
                     </div>
                     <div className="h-10 w-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
                       <DollarSign className="h-5 w-5 text-yellow-400" />
@@ -284,7 +284,7 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {userActivities?.slice(0, 4).map((activity: any, index: number) => {
+                  {(userActivities as any)?.slice(0, 4).map((activity: any, index: number) => {
                     const getActivityIcon = (type: string) => {
                       switch (type) {
                         case 'deal_view': return Eye;
