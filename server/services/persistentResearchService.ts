@@ -1,7 +1,5 @@
 import { storage } from '../storage';
-import { researchBackgroundJobs, type InsertResearchBackgroundJob } from '@shared/schema';
-import { db } from '../db';
-import { eq, and } from 'drizzle-orm';
+import { type InsertResearchJob } from '@shared/schema';
 import { authenticResearchService } from './authenticResearchService';
 
 interface ResearchStep {
@@ -43,22 +41,25 @@ export class PersistentResearchService {
       return existingJob.id;
     }
 
-    // Create new background job record
-    const [job] = await db.insert(researchBackgroundJobs).values({
+    // Create new research job record using storage layer
+    const jobData: InsertResearchJob = {
       dealId,
-      jobType: 'company_research',
+      companyName,
+      website,
       status: 'processing',
       progress: 0,
-      progressStage: 'Initializing research parameters',
       currentStep: 0,
+      stepProgress: 0,
       totalSteps: RESEARCH_STEPS.length,
-      debugInfo: {
+      debugInfo: JSON.stringify({
         companyName,
         website,
         startTime: new Date().toISOString(),
         steps: RESEARCH_STEPS
-      }
-    }).returning();
+      })
+    };
+
+    const job = await storage.createResearchJob(jobData);
 
     console.log(`✅ Created background research job ${job.id} for deal ${dealId}`);
 
@@ -70,16 +71,7 @@ export class PersistentResearchService {
 
   // Get active job for a deal
   async getActiveJob(dealId: number) {
-    const [job] = await db
-      .select()
-      .from(researchBackgroundJobs)
-      .where(and(
-        eq(researchBackgroundJobs.dealId, dealId),
-        eq(researchBackgroundJobs.status, 'processing')
-      ))
-      .limit(1);
-
-    return job || null;
+    return await storage.getActiveResearchJobByDealId(dealId);
   }
 
   // Get job progress
