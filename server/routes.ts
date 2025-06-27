@@ -2030,18 +2030,38 @@ The company maintains a strong competitive position through its technical moat a
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // User settings data - from database with proper structure
+      // User settings data - comprehensive profile structure for Edit Profile form
       const userSettings = {
         id: user.id,
         firstName: user.name?.split(' ')[0] || 'Admin',
         lastName: user.name?.split(' ')[1] || 'User',
-        email: user.email,
+        email: user.email || '',
+        phone: user.phone || '',
+        location: user.location || '',
+        bio: user.bio || '',
+        title: user.title || '',
+        company: user.company || '',
+        website: user.website || '',
+        linkedin: user.linkedin || '',
+        twitter: user.twitter || '',
         role: user.role,
         timezone: user.timezone || 'UTC',
+        language: user.language || 'en',
+        
+        // Notification preferences (flat for backward compatibility)
         emailNotifications: user.emailNotifications ?? true,
+        browserNotifications: user.browserNotifications ?? true,
         dealNotifications: user.dealNotifications ?? true,
+        matchNotifications: user.matchNotifications ?? true,
+        reportNotifications: user.reportNotifications ?? true,
         aiNotifications: user.aiNotifications ?? true,
         weeklyReports: user.weeklyReports ?? false,
+        
+        // Privacy settings (flat for backward compatibility)
+        showEmail: user.showEmail ?? false,
+        showPhone: user.showPhone ?? false,
+        publicProfile: user.publicProfile ?? true,
+        
         apiKey: user.apiKey || null
       };
 
