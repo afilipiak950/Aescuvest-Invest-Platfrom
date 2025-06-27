@@ -12,21 +12,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker with proper fallback
-if (typeof window !== 'undefined') {
-  // Try to use local worker first, fallback to CDN
-  try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.js',
-      import.meta.url
-    ).toString();
-  } catch {
-    // Fallback to working CDN URL
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
-  }
-}
+// Pure iframe-based PDF viewer - no PDF.js dependencies
 
 interface PDFViewerProps {
   documentId: number;
@@ -44,52 +30,32 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
-  const [usePdfJs, setUsePdfJs] = useState(true);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Load PDF using PDF.js when dialog opens
+  // Initialize iframe-based PDF viewing when dialog opens
   useEffect(() => {
-    if (open && usePdfJs) {
-      loadPDFWithPdfJs();
-    }
-  }, [open, documentId, usePdfJs]);
-
-  // Render PDF page when document, page, or zoom changes
-  useEffect(() => {
-    if (pdfDocument && canvasRef.current) {
-      renderPage(currentPage);
-    }
-  }, [pdfDocument, currentPage, zoom, rotation]);
-
-  const loadPDFWithPdfJs = async () => {
-    try {
+    if (open) {
       setIsLoading(true);
       setError(null);
-      console.log(`📄 Loading PDF with PDF.js: ${documentName} (ID: ${documentId})`);
-
-      const response = await fetch(`/api/documents/${documentId}/download`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch PDF: ${response.status}`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-      const pdf = await loadingTask.promise;
-
-      setPdfDocument(pdf);
-      setTotalPages(pdf.numPages);
-      setCurrentPage(1);
-      setIsLoading(false);
+      setFallbackMode(false);
       
-      console.log(`✅ PDF loaded successfully: ${pdf.numPages} pages`);
-    } catch (err) {
-      console.error('❌ PDF.js loading failed:', err);
-      setError(`Failed to load PDF: ${(err as Error).message}`);
-      setUsePdfJs(false);
-      setFallbackMode(true);
-      setIsLoading(false);
+      // Reset controls
+      setZoom(1);
+      setRotation(0);
+      setCurrentPage(1);
+      
+      console.log(`📄 Loading PDF via iframe: ${documentName} (ID: ${documentId})`);
+      
+      // Set a reasonable timeout for iframe loading
+      const timeout = setTimeout(() => {
+        setIsLoading(false);
+      }, 3000);
+      
+      return () => clearTimeout(timeout);
     }
-  };
+  }, [open, documentId, documentName]);
+
+
 
   const renderPage = async (pageNumber: number) => {
     if (!pdfDocument || !canvasRef.current) return;
@@ -217,7 +183,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
       );
     }
 
-    // Fallback to iframe if PDF.js fails
+    // Primary iframe-based PDF viewer
     return (
       <div className="relative w-full h-full overflow-auto bg-gray-800">
         {isLoading && (
@@ -234,10 +200,33 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           className="w-full h-full border-0"
           title={documentName}
           allow="fullscreen"
-          onLoad={() => setIsLoading(false)}
-          onError={() => {
+          onLoad={(e) => {
+            console.log(`✅ PDF iframe loaded: ${documentName} (ID: ${documentId})`);
             setIsLoading(false);
-            setError('PDF could not be loaded in iframe');
+            setError(null);
+            
+            // Chrome security detection with improved handling
+            setTimeout(() => {
+              const iframe = e.currentTarget;
+              try {
+                const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                if (!doc || doc.body?.innerText?.includes('blocked')) {
+                  console.log(`⚠️ Chrome security detected, enabling fallback buttons`);
+                  setFallbackMode(true);
+                } else {
+                  console.log(`📄 PDF displayed successfully in iframe`);
+                }
+              } catch (err) {
+                console.log(`🔒 CORS restriction detected, showing fallback options`);
+                setFallbackMode(true);
+              }
+            }, 1500);
+          }}
+          onError={(e) => {
+            console.error(`❌ PDF iframe error for ${documentName} (ID: ${documentId}):`, e);
+            setIsLoading(false);
+            setError('Could not load PDF in viewer');
+            setFallbackMode(true);
           }}
         />
       </div>
