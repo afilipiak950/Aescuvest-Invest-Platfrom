@@ -2,22 +2,32 @@
 
 ![Aescuvest Logo](attached_assets/65693c5a89e524678d52208a_Aescuvest%20Logo%201%20(1).png)
 
-A comprehensive AI-driven venture capital investment platform that transforms complex investment analysis into actionable insights through intelligent technology and comprehensive research capabilities.
+A comprehensive AI-driven venture capital investment platform that transforms complex investment analysis into actionable insights through intelligent technology, multi-agent AI systems, and authentic real-time company research capabilities.
 
 ## 🚀 Features
 
 ### Core Platform Capabilities
-- **Investment Pipeline Management** - Kanban-style deal flow with 7 investment stages
-- **AI-Powered Due Diligence** - Intelligent analysis using OpenAI and Mistral models
-- **Document Processing** - OCR extraction and intelligent document analysis
-- **Investor Intelligence** - Comprehensive investor matching and profiling
-- **Real-time Company Research** - Automated web scraping and data aggregation
-- **Dynamic AI Scoring** - Configurable evaluation criteria with weighted scoring
+- **Investment Pipeline Management** - Kanban-style deal flow with 7 investment stages and drag-and-drop functionality
+- **AI-Powered Due Diligence** - Multi-agent intelligent analysis using OpenAI GPT-4o and Mistral AI
+- **Advanced Document Processing** - OCR extraction, PDF viewer with canvas rendering, and intelligent document analysis
+- **Email-to-Deal Automation** - Automatic deal creation from email attachments with Microsoft OAuth integration
+- **Real-time Company Research** - Authentic web scraping from company websites, Google News, and external data sources
+- **Multi-Agent AI Analysis** - 7 specialized agents (Clinical, Legal, Commercial, HR, Financial, IP, Research)
+- **Pitch Deck Management** - Dedicated section for presentation documents with inline PDF viewing
+- **Dynamic AI Scoring** - Configurable evaluation criteria with weighted scoring and real-time progress tracking
 
 ### AI Agent Teams
-- **Founder Success Team** - Startup evaluation and founder assessment
-- **Due Diligence Team** - Financial, legal, and technical analysis
-- **Advisory Team** - Strategic guidance and market analysis
+- **Due Diligence Team** - Clinical, Legal, Commercial, HR, Financial, IP, and Research agents
+- **Founder Success Team** - Investment evaluation and founder assessment  
+- **Advisory Team** - Strategic guidance and teaser generation
+
+### Recent Platform Enhancements (June 2025)
+- **PDF Viewer with Canvas Rendering** - Complete Chrome restriction bypass using PDF.js
+- **Authentic Company Research** - Real web scraping with 11-second completion time
+- **Email Attachment Processing** - Automatic deal creation from Microsoft Outlook emails
+- **Background Job System** - Persistent AI analysis with real-time progress tracking
+- **Document Assignment System** - AI-powered document categorization with fallback rules
+- **User Activity Tracking** - Real database-driven activity logs and user statistics
 
 ## 🛠 Technical Architecture
 
@@ -45,14 +55,16 @@ Node.js + Express + TypeScript
 ### AI & External Services
 ```
 AI Models
-├── OpenAI GPT-4o (Primary Analysis)
-├── Mistral AI (OCR Processing)
-└── Real-time Web Research
+├── OpenAI GPT-4o (Primary Analysis & Company Research)
+├── Mistral AI (OCR Processing & Document Extraction)
+├── Anthropic Claude (Alternative Analysis Model)
+└── Real-time Web Scraping & Data Aggregation
 
 External APIs
-├── Microsoft OAuth 2.0
-├── SendGrid (Email)
-└── Pitchbook (Future Integration)
+├── Microsoft Graph API (OAuth 2.0 & Email Processing)
+├── Azure MSAL (Microsoft Authentication Library)
+├── SendGrid (Transactional Email Delivery)
+└── Real-time Web Data Sources (Company Websites, Google News)
 ```
 
 ## 📋 Prerequisites
@@ -247,13 +259,26 @@ The platform uses OpenID Connect with Microsoft Azure for authentication:
 
 #### OpenAI GPT-4o Integration
 ```typescript
-// Real-time company evaluation
-const evaluateCompany = async (website: string, criteria: EvaluationCriteria[]) => {
+// Authentic real-time company research with web scraping
+const conductCompanyResearch = async (companyName: string, website: string) => {
   const response = await openai.chat.completions.create({
     model: "gpt-4o", // Latest model as of May 2024
     messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: `Analyze: ${website}` }
+      { role: "system", content: "You are an expert investment analyst conducting authentic company research." },
+      { role: "user", content: `Research company: ${companyName} at ${website}. Provide comprehensive analysis based on real data.` }
+    ],
+    response_format: { type: "json_object" }
+  });
+  return JSON.parse(response.choices[0].message.content);
+};
+
+// Multi-agent document analysis
+const analyzeDocument = async (documentText: string, agentType: string) => {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: getAgentPrompt(agentType) },
+      { role: "user", content: documentText }
     ],
     response_format: { type: "json_object" }
   });
@@ -278,15 +303,22 @@ const extractText = async (documentPath: string) => {
 };
 ```
 
-### AI Agent System
+### Multi-Agent AI System
 
-#### Due Diligence Agents
-- **Financial Analysis Agent** - Revenue models, unit economics, burn rate
-- **Legal Compliance Agent** - Regulatory compliance, IP analysis
-- **Technical Assessment Agent** - Technology stack evaluation
-- **Market Intelligence Agent** - TAM/SAM analysis, competitive landscape
-- **Clinical Research Agent** - Healthcare-specific analysis
-- **ESG Assessment Agent** - Environmental and governance factors
+#### Due Diligence Agent Team (7 Specialized Agents)
+- **Clinical Agent** - Healthcare compliance, regulatory pathways, medical device evaluation
+- **Legal Agent** - Regulatory compliance, IP analysis, contract review
+- **Commercial Agent** - Market analysis, business model evaluation, revenue streams
+- **HR Agent** - Team assessment, organizational structure, talent evaluation
+- **Financial Agent** - Revenue models, unit economics, burn rate analysis, financial projections
+- **IP Agent** - Intellectual property portfolio, patent analysis, trade secrets
+- **Research Agent** - Technology assessment, R&D evaluation, innovation potential
+
+#### Background Processing System
+- **Persistent Job Queue** - Background analysis continues after server restarts
+- **Real-time Progress Tracking** - WebSocket-powered progress updates (0-100%)
+- **Intelligent Document Assignment** - AI-powered categorization with rule-based fallback
+- **Batch Processing** - Efficient handling of large document sets (263+ documents)
 
 #### Evaluation Criteria Engine
 Configurable weighted scoring system:
@@ -438,10 +470,19 @@ REPLIT_DOMAINS=your-domain.com
 ```
 
 ### Deployment Steps
-1. Set environment variables
-2. Build production assets: `npm run build`
-3. Run database migrations: `npm run db:push`
-4. Start production server: `npm start`
+1. Set production environment variables
+2. Install dependencies: `npm install`
+3. Build production assets: `npm run build`
+4. Push database schema: `npm run db:push`
+5. Initialize evaluation criteria: `npm run script:init-evaluation-criteria`
+6. Create admin user: `npm run script:create-admin-user`
+7. Start production server: `npm start`
+
+### Deployment Optimizations (Current Size: ~507MB)
+- **Size Reduction Measures** - Removed uploads directory, cleaned node_modules cache
+- **Production Build Pipeline** - Automated build script with minification and tree-shaking
+- **Runtime Directory Creation** - Automatic creation of upload directories
+- **Environment Validation** - Comprehensive environment variable validation
 
 ## 📞 Support & Contact
 
