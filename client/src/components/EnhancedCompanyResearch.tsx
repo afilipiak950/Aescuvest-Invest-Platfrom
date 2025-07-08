@@ -660,24 +660,32 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                         <div>
                           <label className="text-sm font-medium text-gray-400">Employees</label>
                           <p className="text-white font-semibold mt-1">
-                            {researchData.financialData?.employeeCount || 'Analyzing'}
+                            {researchData.financialData?.employeeCount === 'Not available' ? 
+                              'Not available' : 
+                              researchData.financialData?.employeeCount || 'Not available'}
                           </p>
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-400">Patents</label>
                           <p className="text-white font-semibold mt-1">
-                            {researchData.businessIntelligence?.patents || 'Researching'}
+                            {researchData.businessIntelligence?.patents !== undefined ? 
+                              researchData.businessIntelligence.patents : 
+                              'Not available'}
                           </p>
                         </div>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-400">Partnerships</label>
                         <div className="mt-2">
-                          {researchData.businessIntelligence?.partnerships?.map((partner, index) => (
-                            <Badge key={index} variant="outline" className="mr-2 mb-2">
-                              {partner}
-                            </Badge>
-                          ))}
+                          {researchData.businessIntelligence?.partnerships?.length > 0 ? (
+                            researchData.businessIntelligence.partnerships.map((partner, index) => (
+                              <Badge key={index} variant="outline" className="mr-2 mb-2">
+                                {partner}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="text-gray-400 text-sm">No partnerships found</p>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -768,7 +776,9 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                     <CardContent className="p-4 text-center">
                       <DollarSign className="h-8 w-8 text-green-400 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-green-400">
-                        {researchData.financialData?.revenue || 'Analyzing'}
+                        {researchData.financialData?.revenue === 'Financial information not available' ? 
+                          'Not available' : 
+                          researchData.financialData?.revenue || 'Not available'}
                       </div>
                       <div className="text-sm text-gray-400">Revenue</div>
                     </CardContent>
@@ -778,7 +788,9 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                     <CardContent className="p-4 text-center">
                       <TrendingUp className="h-8 w-8 text-blue-400 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-blue-400">
-                        {researchData.financialData?.valuation || 'Researching'}
+                        {researchData.financialData?.valuation === 'Not available' ? 
+                          'Not available' : 
+                          researchData.financialData?.valuation || 'Not available'}
                       </div>
                       <div className="text-sm text-gray-400">Valuation</div>
                     </CardContent>
