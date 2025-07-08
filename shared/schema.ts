@@ -245,30 +245,11 @@ export const insertInvestmentMemoSchema = createInsertSchema(investmentMemos).om
   updatedAt: true,
 });
 
-// Investors
-export const investors = pgTable("investors", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  location: text("location").notNull(),
-  focus: json("focus").$type<string[]>(),
-  stages: json("stages").$type<string[]>(),
-  checkSize: text("check_size"),
-  portfolio: json("portfolio").$type<string[]>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertInvestorSchema = createInsertSchema(investors).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Investor Matches
+// Legacy investor matches table (kept for backward compatibility)
 export const investorMatches = pgTable("investor_matches", {
   id: serial("id").primaryKey(),
   dealId: integer("deal_id").notNull().references(() => deals.id),
-  investorId: integer("investor_id").notNull().references(() => investors.id),
+  investorId: integer("investor_id"),
   matchScore: integer("match_score").notNull(),
   matchInsights: json("match_insights").$type<string[]>(),
   status: text("status").notNull().default("New Match"),
@@ -341,9 +322,6 @@ export type InsertAgentAnalysis = z.infer<typeof insertAgentAnalysisSchema>;
 
 export type InvestmentMemo = typeof investmentMemos.$inferSelect;
 export type InsertInvestmentMemo = z.infer<typeof insertInvestmentMemoSchema>;
-
-export type Investor = typeof investors.$inferSelect;
-export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
 
 export type InvestorMatch = typeof investorMatches.$inferSelect;
 export type InsertInvestorMatch = z.infer<typeof insertInvestorMatchSchema>;
@@ -697,6 +675,200 @@ export const insertUserStatsSchema = createInsertSchema(userStats).omit({
 
 export type UserStats = typeof userStats.$inferSelect;
 export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
+
+// Investors table
+export const investors = pgTable("investors", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  firmName: text("firm_name").notNull(),
+  location: text("location").notNull(),
+  website: text("website"),
+  email: text("email"),
+  linkedinUrl: text("linkedin_url"),
+  contactPerson: text("contact_person"),
+  contactTitle: text("contact_title"),
+  contactEmail: text("contact_email"),
+  focus: text("focus").array().notNull().default([]), // Investment focus areas
+  stages: text("stages").array().notNull().default([]), // Investment stages
+  sectors: text("sectors").array().notNull().default([]), // Preferred sectors
+  checkSizeMin: integer("check_size_min"), // Minimum check size in EUR
+  checkSizeMax: integer("check_size_max"), // Maximum check size in EUR
+  geography: text("geography").array().notNull().default([]), // Geographic preferences
+  portfolio: text("portfolio").array().notNull().default([]), // Portfolio companies
+  fundSize: bigint("fund_size", { mode: "number" }), // Fund size in EUR
+  fundVintage: integer("fund_vintage"), // Fund vintage year
+  // AI-powered insights
+  investmentThesis: text("investment_thesis"),
+  keyMetrics: json("key_metrics").$type<{
+    dealCount?: number;
+    averageCheck?: number;
+    successRate?: number;
+    exitCount?: number;
+    roi?: number;
+  }>().default({}),
+  // Matching preferences
+  preferredDealTypes: text("preferred_deal_types").array().notNull().default([]),
+  investmentCriteria: json("investment_criteria").$type<{
+    minRevenue?: number;
+    minGrowthRate?: number;
+    teamSize?: number;
+    marketSize?: number;
+    technologyReadiness?: number;
+    regulatoryClarity?: boolean;
+  }>().default({}),
+  // Activity tracking
+  lastActivity: timestamp("last_activity"),
+  responseRate: integer("response_rate").default(0), // % response rate
+  averageResponseTime: integer("average_response_time"), // in hours
+  // Status and verification
+  verified: boolean("verified").default(false),
+  active: boolean("active").default(true),
+  tier: text("tier").default("standard"), // 'premium', 'standard', 'basic'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertInvestorSchema = createInsertSchema(investors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Investor = typeof investors.$inferSelect;
+export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
+
+// Deal-Investor matches table
+export const dealInvestorMatches = pgTable("deal_investor_matches", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+  investorId: integer("investor_id").notNull().references(() => investors.id, { onDelete: "cascade" }),
+  matchScore: integer("match_score").notNull(), // 0-100
+  matchReason: text("match_reason").array().notNull().default([]), // Array of match reasons
+  // AI-generated insights
+  matchInsights: json("match_insights").$type<{
+    strengths?: string[];
+    concerns?: string[];
+    recommendations?: string[];
+    competitiveAdvantage?: string;
+    riskFactors?: string[];
+  }>().default({}),
+  // Fit analysis
+  sectorFit: integer("sector_fit").default(0), // 0-100
+  stageFit: integer("stage_fit").default(0), // 0-100
+  geographyFit: integer("geography_fit").default(0), // 0-100
+  checkSizeFit: integer("check_size_fit").default(0), // 0-100
+  thesisFit: integer("thesis_fit").default(0), // 0-100
+  // Engagement tracking
+  status: text("status").notNull().default("potential"), // 'potential', 'contacted', 'interested', 'declined', 'invested'
+  outreachStatus: text("outreach_status").default("not_contacted"), // 'not_contacted', 'email_sent', 'meeting_scheduled', 'follow_up', 'closed'
+  lastContactDate: timestamp("last_contact_date"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  meetingScheduled: boolean("meeting_scheduled").default(false),
+  // Campaign tracking
+  campaignId: integer("campaign_id"), // Reference to email campaigns
+  emailsSent: integer("emails_sent").default(0),
+  emailsOpened: integer("emails_opened").default(0),
+  emailsClicked: integer("emails_clicked").default(0),
+  materialsSent: text("materials_sent").array().notNull().default([]), // Array of sent materials
+  // Notes and feedback
+  notes: text("notes"),
+  feedback: text("feedback"),
+  declineReason: text("decline_reason"),
+  // Metadata
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDealInvestorMatchSchema = createInsertSchema(dealInvestorMatches).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type DealInvestorMatch = typeof dealInvestorMatches.$inferSelect;
+export type InsertDealInvestorMatch = z.infer<typeof insertDealInvestorMatchSchema>;
+
+// Email campaigns table
+export const emailCampaigns = pgTable("email_campaigns", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  template: text("template").notNull(), // Email template with placeholders
+  // Campaign settings
+  scheduledDate: timestamp("scheduled_date"),
+  sendTime: text("send_time"), // Time of day to send
+  followUpEnabled: boolean("follow_up_enabled").default(false),
+  followUpDays: integer("follow_up_days").default(5),
+  // Materials included
+  attachments: text("attachments").array().notNull().default([]), // Array of file paths
+  includeInvestmentMemo: boolean("include_investment_memo").default(true),
+  includeTeaserDeck: boolean("include_teaser_deck").default(true),
+  includeFinancials: boolean("include_financials").default(false),
+  // Tracking
+  totalRecipients: integer("total_recipients").default(0),
+  emailsSent: integer("emails_sent").default(0),
+  emailsDelivered: integer("emails_delivered").default(0),
+  emailsOpened: integer("emails_opened").default(0),
+  emailsClicked: integer("emails_clicked").default(0),
+  emailsReplied: integer("emails_replied").default(0),
+  // Status
+  status: text("status").notNull().default("draft"), // 'draft', 'scheduled', 'sending', 'sent', 'completed'
+  sentAt: timestamp("sent_at"),
+  completedAt: timestamp("completed_at"),
+  // Metadata
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
+
+// Campaign recipients table
+export const campaignRecipients = pgTable("campaign_recipients", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => emailCampaigns.id, { onDelete: "cascade" }),
+  investorId: integer("investor_id").notNull().references(() => investors.id, { onDelete: "cascade" }),
+  matchId: integer("match_id").references(() => dealInvestorMatches.id, { onDelete: "cascade" }),
+  // Email tracking
+  emailAddress: text("email_address").notNull(),
+  personalizedSubject: text("personalized_subject"),
+  personalizedContent: text("personalized_content"),
+  // Delivery tracking
+  status: text("status").notNull().default("pending"), // 'pending', 'sent', 'delivered', 'bounced', 'failed'
+  sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  openedAt: timestamp("opened_at"),
+  clickedAt: timestamp("clicked_at"),
+  repliedAt: timestamp("replied_at"),
+  // Engagement
+  openCount: integer("open_count").default(0),
+  clickCount: integer("click_count").default(0),
+  replyReceived: boolean("reply_received").default(false),
+  // Follow-up
+  followUpSent: boolean("follow_up_sent").default(false),
+  followUpSentAt: timestamp("follow_up_sent_at"),
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCampaignRecipientSchema = createInsertSchema(campaignRecipients).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type CampaignRecipient = typeof campaignRecipients.$inferSelect;
+export type InsertCampaignRecipient = z.infer<typeof insertCampaignRecipientSchema>;
 
 
 

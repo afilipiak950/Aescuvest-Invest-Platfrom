@@ -27,6 +27,7 @@ import aiAgentRoutes from "./routes/ai-agents";
 import authRoutes from "./routes/auth";
 import emailRoutes from "./routes/email";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
+import investorMatchingRoutes from "./routes/investor-matching";
 import { registerApiRoutes } from "./routes/api";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
@@ -1437,6 +1438,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register Microsoft OAuth routes
   app.use('/api/microsoft', microsoftAuthRoutes);
+  
+  // Register investor matching routes
+  app.use('/api/investor-matching', investorMatchingRoutes);
   
   // Register other routes
   app.use('/api/auth', authRoutes);
