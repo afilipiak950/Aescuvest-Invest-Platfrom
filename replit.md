@@ -228,6 +228,13 @@ Changelog:
   - Confirmed authentic OpenAI analysis (investment scores, business insights, recommendations) now displayed correctly
   - Verified system shows real investment analysis including 78/100 score, 90% confidence, detailed risk assessment
   - Removed debug code and ensured clean data flow from database to frontend display
+- July 8, 2025: Enhanced CEO research with Google search capabilities
+  - Upgraded CEO information extraction from basic text pattern matching to AI-powered analysis using OpenAI
+  - Added Google search functionality to find CEO information when not available on company website
+  - Implemented comprehensive CEO profile extraction including background, experience, education, and previous companies
+  - Added multi-query search strategy: "CEO of [company]", "[company] CEO founder", "[company] leadership team CEO"
+  - Enhanced research service to fall back to Google search when website content doesn't contain CEO information
+  - Improved data validation and error handling for authentic CEO data extraction
 ```
 
 ## User Preferences
