@@ -711,26 +711,46 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                           <User className="h-8 w-8 text-primary" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-xl font-bold text-white">{researchData.ceoProfile.name}</h3>
-                          <p className="text-gray-300 mt-1">{researchData.ceoProfile.background}</p>
+                          <h3 className="text-xl font-bold text-white">
+                            {researchData.ceoProfile.name === 'CEO information not publicly available' 
+                              ? 'CEO information not found' 
+                              : researchData.ceoProfile.name}
+                          </h3>
+                          <p className="text-gray-300 mt-1">
+                            {researchData.ceoProfile.background === 'CEO details are not available in our knowledge base' 
+                              ? 'CEO details are not available in our knowledge base' 
+                              : researchData.ceoProfile.background}
+                          </p>
                           <div className="mt-3 space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <Briefcase className="h-4 w-4" />
-                              <span>{researchData.ceoProfile.experience}</span>
+                              <span>
+                                {researchData.ceoProfile.experience === 'Professional experience information not available' 
+                                  ? 'Professional experience not found' 
+                                  : researchData.ceoProfile.experience}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <Award className="h-4 w-4" />
-                              <span>{researchData.ceoProfile.education}</span>
+                              <span>
+                                {researchData.ceoProfile.education === 'Educational background information not available' 
+                                  ? 'Educational background not found' 
+                                  : researchData.ceoProfile.education}
+                              </span>
                             </div>
                           </div>
                           <div className="mt-4">
                             <label className="text-sm font-medium text-gray-400">Previous Companies</label>
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {researchData.ceoProfile.previousCompanies.map((company, index) => (
-                                <Badge key={index} variant="secondary" className="bg-primary/20 text-primary">
-                                  {company}
-                                </Badge>
-                              ))}
+                              {researchData.ceoProfile.previousCompanies && researchData.ceoProfile.previousCompanies.length > 0 ? (
+                                researchData.ceoProfile.previousCompanies.map((company, index) => (
+                                  <Badge key={index} variant="secondary" className="bg-primary/20 text-primary">
+                                    {company}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-gray-400 text-sm">No previous companies found</span>
+                              )}
                             </div>
                           </div>
                         </div>

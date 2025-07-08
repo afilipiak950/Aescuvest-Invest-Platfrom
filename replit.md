@@ -235,6 +235,12 @@ Changelog:
   - Added multi-query search strategy: "CEO of [company]", "[company] CEO founder", "[company] leadership team CEO"
   - Enhanced research service to fall back to Google search when website content doesn't contain CEO information
   - Improved data validation and error handling for authentic CEO data extraction
+- July 8, 2025: Simplified CEO research with direct OpenAI queries
+  - Replaced complex web scraping approach with simple, direct OpenAI queries for CEO information
+  - Implemented direct prompts like "Who is the CEO of [company]?" for more reliable results
+  - Added proper fallback messaging for companies where CEO information is not publicly available
+  - Enhanced UI display logic to show clear "not found" messages instead of placeholder text
+  - Verified system works correctly for well-known companies (Tesla CEO: Elon Musk) and handles unknown companies gracefully
 ```
 
 ## User Preferences
