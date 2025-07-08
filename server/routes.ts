@@ -32,7 +32,6 @@ import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
 import { websocketManager as wsManager } from './services/websocketManager';
-import { enhancedAIAnalysisService } from './services/enhancedAIAnalysis';
 
 // Background processing function for company research
 async function processCompanyResearchForDeal(
@@ -3576,7 +3575,7 @@ function calculateDocumentRelevanceScore(document: any, agent: any): number {
 
 // Agent-specific analysis processing function with AI caching
 async function processAgentSpecificAnalysis(dealId: number, agentType: string, documents: any[], deal: any, forceRefresh = false) {
-  console.log(`🎯 Starting enhanced ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
+  console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
   
   // Create in-memory job tracking for progress updates
   const jobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
@@ -3643,109 +3642,298 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
     await storage.clearAgentAnalysis(dealId, agentType);
     existingAnalysis = null;
   }
+  
+  const specializedAgents = {
+    clinical: {
+      name: 'Clinical',
+      focus: 'healthcare services, medical solutions, health technology, patient care, wellness programs, health data, insurance health products',
+      prompts: {
+        categorization: 'Does this document contain healthcare services, medical solutions, health technology, patient care systems, wellness programs, health data analytics, healthcare business models, health-related insurance products, or any content related to patient health and wellness?',
+        analysis: 'Analyze this clinical document for: 1) Healthcare service delivery and patient outcomes 2) Health technology implementation 3) Medical solution effectiveness 4) Patient care quality and safety 5) Healthcare market opportunities 6) Clinical operational risks'
+      }
+    },
+    legal: {
+      name: 'Legal',
+      focus: 'contracts, legal agreements, intellectual property, compliance, litigation, regulatory matters',
+      prompts: {
+        categorization: 'Does this document contain legal contracts, intellectual property filings, litigation records, compliance documents, or regulatory legal matters?',
+        analysis: 'Analyze this legal document for: 1) Contract terms and obligations 2) IP protection strength 3) Legal compliance status 4) Litigation risks 5) Regulatory legal requirements 6) Legal competitive moats'
+      }
+    },
+    commercial: {
+      name: 'Commercial',
+      focus: 'market analysis, sales data, customer information, marketing strategies, competitive landscape',
+      prompts: {
+        categorization: 'Does this document contain market analysis, sales data, customer information, marketing plans, competitive analysis, or commercial strategies?',
+        analysis: 'Analyze this commercial document for: 1) Market opportunity size 2) Sales performance and trends 3) Customer acquisition and retention 4) Competitive positioning 5) Revenue model viability 6) Commercial execution risks'
+      }
+    },
+    hr: {
+      name: 'HR',
+      focus: 'employee data, organizational structure, compensation, talent acquisition, company culture',
+      prompts: {
+        categorization: 'Does this document contain employee information, organizational charts, compensation data, hiring plans, or HR policies?',
+        analysis: 'Analyze this HR document for: 1) Leadership team strength 2) Talent acquisition strategy 3) Employee retention and satisfaction 4) Organizational scalability 5) Compensation competitiveness 6) HR operational risks'
+      }
+    },
+    financial: {
+      name: 'Financial',
+      focus: 'financial statements, budgets, cash flow, funding, financial projections, accounting',
+      prompts: {
+        categorization: 'Does this document contain financial statements, budgets, cash flow data, funding information, or financial projections?',
+        analysis: 'Analyze this financial document for: 1) Revenue growth and sustainability 2) Profitability trends and margins 3) Cash flow and burn rate 4) Funding requirements and runway 5) Financial model assumptions 6) Financial risks and dependencies'
+      }
+    },
+    ip: {
+      name: 'IP',
+      focus: 'patents, trademarks, trade secrets, intellectual property portfolio, technology assets',
+      prompts: {
+        categorization: 'Does this document contain patent filings, trademark applications, intellectual property portfolios, or technology documentation?',
+        analysis: 'Analyze this IP document for: 1) Patent portfolio strength and coverage 2) Freedom to operate analysis 3) IP competitive advantages 4) Technology differentiation 5) IP monetization potential 6) IP infringement risks'
+      }
+    },
+    research: {
+      name: 'Research',
+      focus: 'R&D data, technical specifications, research findings, innovation pipeline, scientific publications',
+      prompts: {
+        categorization: 'Does this document contain research and development data, technical specifications, scientific findings, or innovation pipeline information?',
+        analysis: 'Analyze this research document for: 1) Innovation pipeline strength 2) Technical feasibility and scalability 3) Research competitive advantages 4) Technology roadmap viability 5) Scientific validation quality 6) R&D execution risks'
+      }
+    }
+  };
 
-  // Use enhanced AI analysis service
+  const agent = specializedAgents[agentType as keyof typeof specializedAgents];
+  if (!agent) {
+    console.error(`Unknown agent type: ${agentType}`);
+    return;
+  }
+
+  const allInsights = {
+    positive: [] as any[],
+    neutral: [] as any[],
+    risk: [] as any[]
+  };
+
+  let processedDocuments = 0;
+  const relevantDocuments = [];
+
   try {
-    const enhancedResult = await enhancedAIAnalysisService.analyzeWithEnhancedPrompts(
+    // Use intelligent document assignment logic (same as frontend)
+    const assignedDocuments = documents.filter(doc => {
+      const assignedAgents = getAssignedAgentsForDocument(doc);
+      return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
+    });
+
+    console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent`);
+
+    // Create initial job progress entry for real-time tracking
+    const trackingJobId = `${agentType}_${dealId}`;
+    try {
+      await storage.createBackgroundJob({
+        id: trackingJobId,
+        dealId,
+        type: 'agent_analysis',
+        status: 'running',
+        progress: 0,
+        totalSteps: assignedDocuments.length,
+        currentStep: 0,
+        agentType: agentType,
+        metadata: {
+          agentType,
+          documentCount: assignedDocuments.length,
+          startTime: new Date().toISOString()
+        }
+      });
+      console.log(`🚀 Created job progress tracking for ${agentType} agent (${assignedDocuments.length} documents)`);
+    } catch (jobError) {
+      console.error(`Failed to create job progress for ${agentType}:`, jobError);
+    }
+
+    for (const document of assignedDocuments) {
+      if (!document.ocrText) {
+        console.log(`⏭️ Skipping document ${document.name} - no OCR text available`);
+        continue;
+      }
+
+      console.log(`📄 Processing assigned document for ${agent.name} agent: ${document.name}`);
+      relevantDocuments.push(document);
+      
+      try {
+        const agentInsights = await runSpecializedAgentAnalysis(document, agent, deal);
+        
+        // Debug logging
+        console.log(`🔍 Agent insights for ${document.name}:`, {
+          hasInsights: !!agentInsights,
+          type: typeof agentInsights,
+          positive: agentInsights?.positive?.length || 0,
+          neutral: agentInsights?.neutral?.length || 0,
+          risk: agentInsights?.risk?.length || 0
+        });
+        
+        // Validate the response structure and provide fallbacks
+        if (agentInsights && typeof agentInsights === 'object') {
+          if (Array.isArray(agentInsights.positive)) {
+            allInsights.positive.push(...agentInsights.positive);
+          }
+          if (Array.isArray(agentInsights.neutral)) {
+            allInsights.neutral.push(...agentInsights.neutral);
+          }
+          if (Array.isArray(agentInsights.risk)) {
+            allInsights.risk.push(...agentInsights.risk);
+          }
+        }
+        
+        processedDocuments++;
+        console.log(`✅ Analyzed document ${document.name} (${processedDocuments}/${assignedDocuments.length})`);
+        
+        // Update in-memory job progress for real-time tracking
+        const progressJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+        if (global.activeJobs && global.activeJobs.has(progressJobId)) {
+          const job = global.activeJobs.get(progressJobId);
+          job.currentStep = processedDocuments;
+          job.progress = Math.round((processedDocuments / assignedDocuments.length) * 100);
+          job.currentDocumentName = document.name;
+          job.metadata.processedCount = processedDocuments;
+          job.metadata.lastUpdate = new Date().toISOString();
+          
+          console.log(`📊 Updated job progress: ${agentType} ${processedDocuments}/${assignedDocuments.length} (${job.progress}%)`);
+        }
+        
+        // Also try to update database job
+        try {
+          await storage.updateBackgroundJob(trackingJobId, {
+            progress: Math.round((processedDocuments / assignedDocuments.length) * 100),
+            currentStep: processedDocuments,
+            currentDocumentName: document.name
+          });
+        } catch (jobError) {
+          // Silent fail - using in-memory tracking as primary
+        }
+      } catch (error) {
+        console.error(`Failed to analyze document ${document.name}:`, error);
+        // Continue processing other documents even if one fails
+      }
+    }
+
+    // Debug logging for final insights collection
+    console.log(`🔍 Final insights collected for ${agent.name}:`, {
+      positive: allInsights.positive.length,
+      neutral: allInsights.neutral.length,
+      risk: allInsights.risk.length,
+      totalFindings: allInsights.positive.length + allInsights.neutral.length + allInsights.risk.length
+    });
+
+    // Convert insights to findings and recommendations format
+    const findings = [
+      ...allInsights.positive.map(insight => ({
+        type: insight.category || 'positive',
+        title: insight.title,
+        description: insight.description,
+        severity: 'positive',
+        confidence: insight.confidence || 0.8,
+        documentSource: insight.documentSource
+      })),
+      ...allInsights.neutral.map(insight => ({
+        type: insight.category || 'neutral',
+        title: insight.title,
+        description: insight.description,
+        severity: 'neutral',
+        confidence: insight.confidence || 0.7,
+        documentSource: insight.documentSource
+      })),
+      ...allInsights.risk.map(insight => ({
+        type: insight.category || 'risk',
+        title: insight.title,
+        description: insight.description,
+        severity: insight.severity || 'medium',
+        confidence: insight.confidence || 0.8,
+        documentSource: insight.documentSource
+      }))
+    ];
+
+    const recommendations = [
+      ...allInsights.positive.map(insight => ({
+        priority: 'medium',
+        category: 'opportunity',
+        title: `Leverage ${insight.title}`,
+        description: `Capitalize on this strength: ${insight.description}`,
+        impact: 'Enhances competitive position and market potential'
+      })),
+      ...allInsights.risk.map(insight => ({
+        priority: insight.severity === 'high' ? 'high' : 'medium',
+        category: 'risk_mitigation',
+        title: `Address ${insight.title}`,
+        description: `Mitigate risk: ${insight.description}`,
+        impact: 'Reduces investment risk and improves viability'
+      }))
+    ];
+
+    // Create or update agent analysis with caching
+    const analysisData = {
       dealId,
       agentType,
-      documents,
-      deal,
-      forceRefresh
-    );
-
-    // Update job progress
-    if (global.activeJobs && global.activeJobs.has(jobId)) {
-      global.activeJobs.set(jobId, {
-        ...global.activeJobs.get(jobId),
-        status: 'completed',
-        progress: 100,
-        currentDocumentName: `Processed ${enhancedResult.documentSources.length} documents`
-      });
-    }
-
-    console.log(`✅ Enhanced ${agentType} analysis completed for deal ${dealId} with ${enhancedResult.confidence}% confidence`);
-    
-    return {
-      agentType,
       status: 'Completed',
-      findings: enhancedResult.findings,
-      recommendations: enhancedResult.recommendations,
-      confidence: enhancedResult.confidence,
-      documentSources: enhancedResult.documentSources,
-      structuredData: enhancedResult.structuredAnalysis,
-      processingTime: enhancedResult.processingTime
+      progress: 100,
+      findings: findings.map((f, index) => ({
+        id: index + 1,
+        type: f.type,
+        content: `${f.title}: ${f.description}`
+      })),
+      recommendations: recommendations,
+      documentSources: relevantDocuments.map(doc => doc.name)
     };
-  } catch (error) {
-    console.error(`❌ Enhanced ${agentType} analysis failed:`, error);
-    
-    // Update job status
-    if (global.activeJobs && global.activeJobs.has(jobId)) {
-      global.activeJobs.set(jobId, {
-        ...global.activeJobs.get(jobId),
-        status: 'failed',
-        progress: 0,
-        currentDocumentName: `Analysis failed: ${error.message}`
-      });
-    }
-    
-    // Fall back to original Mistral API analysis
-    console.log(`🔄 Falling back to original analysis for ${agentType} agent`);
-    return await processOriginalAgentAnalysis(dealId, agentType, documents, deal);
-  }
-}
 
-// Fallback function for original analysis when enhanced analysis fails
-async function processOriginalAgentAnalysis(dealId: number, agentType: string, documents: any[], deal: any) {
-  console.log(`🔄 Processing original ${agentType} analysis for deal ${dealId}`);
-  
-  try {
-    // Use the original analysis logic as fallback
-    const relevantDocuments = documents.filter(doc => 
-      checkDocumentRelevanceByKeywords(doc, { type: agentType })
-    );
-    
-    if (relevantDocuments.length === 0) {
-      return {
-        agentType,
-        status: 'Completed',
-        findings: [],
-        recommendations: [`No relevant documents found for ${agentType} analysis`],
-        confidence: 0
-      };
+    // Check if analysis already exists and update, or create new
+    if (existingAnalysis) {
+      await storage.updateAnalysis(existingAnalysis.id, analysisData);
+      console.log(`✅ Updated cached ${agent.name} analysis for deal ${dealId}`);
+    } else {
+      await storage.createAnalysis(analysisData);
+      console.log(`✅ Created new ${agent.name} analysis for deal ${dealId}`);
     }
-    
-    // Process with original Mistral API
-    const analysisResults = [];
-    for (const document of relevantDocuments) {
-      const analysis = await generateFallbackAnalysis(document, { name: agentType });
-      analysisResults.push(analysis);
+
+    console.log(`✅ ${agent.name} agent analysis completed for deal ${dealId}. Processed ${processedDocuments} relevant documents`);
+    console.log(`💾 Saved analysis with ${findings.length} findings and ${recommendations.length} recommendations`);
+
+    // Mark job as completed and remove from active jobs
+    const completionJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+    if (global.activeJobs && global.activeJobs.has(completionJobId)) {
+      const job = global.activeJobs.get(completionJobId);
+      job.status = 'completed';
+      job.progress = 100;
+      job.currentStep = assignedDocuments.length;
+      job.completedAt = new Date().toISOString();
+      
+      // Remove completed job after short delay
+      setTimeout(() => {
+        if (global.activeJobs) {
+          global.activeJobs.delete(completionJobId);
+          console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
+        }
+      }, 2000);
     }
-    
-    // Aggregate results
-    const findings = analysisResults.flatMap(result => result.positive || []);
-    const recommendations = analysisResults.flatMap(result => result.recommendations || []);
-    
-    return {
-      agentType,
-      status: 'Completed',
-      findings,
-      recommendations,
-      confidence: 75 // Default confidence for fallback
-    };
+
   } catch (error) {
-    console.error(`❌ Fallback analysis failed for ${agentType}:`, error);
+    console.error(`Error in ${agent.name} agent analysis:`, error);
     
-    return {
+    // Update analysis status to failed with caching
+    const failedAnalysisData = {
+      dealId,
       agentType,
       status: 'Failed',
-      findings: [{
-        type: 'error',
-        content: `Analysis failed for ${agentType} agent. Manual review required.`
-      }],
-      recommendations: [`Please review documents manually for ${agentType} insights`],
-      confidence: 0
+      progress: 0,
+      findings: [],
+      recommendations: [],
+      documentSources: []
     };
+
+    if (existingAnalysis) {
+      await storage.updateAnalysis(existingAnalysis.id, failedAnalysisData);
+    } else {
+      await storage.createAnalysis(failedAnalysisData);
+    }
+    
+    throw error;
   }
 }
 
