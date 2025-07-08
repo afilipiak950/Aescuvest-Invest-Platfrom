@@ -254,9 +254,9 @@ export class AuthenticResearchService {
         executiveInfo = await this.extractExecutiveInfo(websiteContent, companyName);
       }
       
-      // If no CEO found on website, try Google search
+      // If no CEO found on website, ask OpenAI directly
       if (!executiveInfo?.ceoProfile) {
-        console.log(`🔍 Searching for CEO information via Google search for ${companyName}`);
+        console.log(`🔍 Asking OpenAI directly for CEO information for ${companyName}`);
         executiveInfo = await this.searchForCEOInformation(companyName, website);
       }
       
@@ -337,91 +337,44 @@ export class AuthenticResearchService {
     });
   }
 
-  // Search for CEO information using Google search and AI analysis
+  // Search for CEO information using direct OpenAI query
   private async searchForCEOInformation(companyName: string, website: string) {
     try {
-      console.log(`🔍 Performing Google search for CEO of ${companyName}`);
+      console.log(`🔍 Asking OpenAI directly: Who is the CEO of ${companyName}?`);
       
-      // Search for CEO information using Google
-      const searchQueries = [
-        `CEO of ${companyName}`,
-        `"${companyName}" CEO founder`,
-        `${companyName} leadership team CEO`,
-        `${website} CEO executive team`
-      ];
-      
-      let combinedSearchResults = '';
-      
-      for (const query of searchQueries) {
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-        const searchContent = await this.scrapeWebsiteContent(searchUrl);
-        
-        if (searchContent && searchContent.length > 100) {
-          combinedSearchResults += `\n--- Search Results for "${query}" ---\n${searchContent.substring(0, 2000)}`;
-        }
-        
-        // Rate limiting between searches
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      if (!combinedSearchResults || combinedSearchResults.length < 200) {
-        console.log(`❌ No useful search results found for ${companyName} CEO`);
-        return { ceoProfile: null, keyTeamMembers: [] };
-      }
-      
-      // Use AI to extract CEO information from search results
-      const ceoInfo = await this.extractCEOFromSearchResults(combinedSearchResults, companyName);
-      
-      return {
-        ceoProfile: ceoInfo.ceoProfile,
-        keyTeamMembers: ceoInfo.keyTeamMembers || []
-      };
-      
-    } catch (error) {
-      console.error('Error searching for CEO information:', error);
-      return { ceoProfile: null, keyTeamMembers: [] };
-    }
-  }
+      const prompt = `Who is the CEO of ${companyName} (website: ${website})?
 
-  // Extract CEO information from search results using AI
-  private async extractCEOFromSearchResults(searchResults: string, companyName: string) {
-    try {
-      const prompt = `CRITICAL: Extract CEO information for ${companyName} from the following Google search results. Look for authentic information only.
-
-Search Results:
-${searchResults.substring(0, 10000)}
-
-Extract CEO information that is clearly stated in the search results. Look for:
-- CEO name and title
+Please provide detailed information about the CEO including:
+- Full name and title
 - Professional background and experience
 - Education details
 - Previous companies or roles
-- Any other executive team members mentioned
+- Any other executive team members you know about
 
 Return valid JSON with the structure:
 {
   "ceoProfile": {
-    "name": "actual CEO name from search results",
-    "background": "professional background from search results",
-    "experience": "work experience from search results",
-    "education": "educational background from search results",
-    "previousCompanies": ["list of previous companies mentioned"]
+    "name": "CEO full name",
+    "background": "professional background",
+    "experience": "work experience details",
+    "education": "educational background",
+    "previousCompanies": ["list of previous companies"]
   },
   "keyTeamMembers": [
     {
       "name": "team member name",
       "role": "their role/title",
-      "background": "their background from search results"
+      "background": "their background"
     }
   ]
 }
 
-IMPORTANT: Only extract information that is explicitly mentioned in the search results. If CEO information is not clearly stated, set ceoProfile to null.`;
+IMPORTANT: Only provide information you are confident about. If you don't have reliable information about the CEO, set ceoProfile to null.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
-          { role: "system", content: "You are an expert researcher. Extract ONLY the CEO and executive information that is explicitly present in the search results. Never invent information. Return valid JSON only." },
+          { role: "system", content: "You are an expert business researcher with access to comprehensive company information. Provide accurate CEO and executive information when available, or honestly indicate when information is not available." },
           { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" },
@@ -435,9 +388,27 @@ IMPORTANT: Only extract information that is explicitly mentioned in the search r
         result.ceoProfile = null;
       }
       
+      if (!result.keyTeamMembers || !Array.isArray(result.keyTeamMembers)) {
+        result.keyTeamMembers = [];
+      }
+      
+      // If no CEO information found from OpenAI, provide a clearer message
+      if (!result.ceoProfile) {
+        result.ceoProfile = {
+          name: 'CEO information not publicly available',
+          background: 'CEO details are not available in our knowledge base',
+          experience: 'Professional experience information not available',
+          education: 'Educational background information not available',
+          previousCompanies: []
+        };
+      }
+      
+      console.log(`✅ OpenAI CEO search result: ${result.ceoProfile ? result.ceoProfile.name : 'No CEO information found'}`);
+      
       return result;
+      
     } catch (error) {
-      console.error('Error extracting CEO from search results:', error);
+      console.error('Error asking OpenAI for CEO information:', error);
       return { ceoProfile: null, keyTeamMembers: [] };
     }
   }
