@@ -869,18 +869,31 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
     }
   }
 
-  private safeJsonParse(jsonString: string | null): any {
-    if (!jsonString) return null;
-    try {
-      // Handle double-escaped JSON strings from database
-      let parsed = JSON.parse(jsonString);
-      if (typeof parsed === 'string') {
-        parsed = JSON.parse(parsed);
-      }
-      return parsed;
-    } catch {
-      return null;
+  private safeJsonParse(data: any): any {
+    // If data is already an object, return it directly
+    if (typeof data === 'object' && data !== null) {
+      return data;
     }
+    
+    // If data is null or undefined, return null
+    if (!data) return null;
+    
+    // If data is a string, try to parse it as JSON
+    if (typeof data === 'string') {
+      try {
+        // Handle double-escaped JSON strings from database
+        let parsed = JSON.parse(data);
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+    
+    // For any other type, return null
+    return null;
   }
 }
 
