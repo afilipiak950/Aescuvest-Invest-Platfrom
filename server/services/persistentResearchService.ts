@@ -1,6 +1,7 @@
 import { storage } from '../storage';
 import { type InsertResearchJob } from '@shared/schema';
 import { authenticResearchService } from './authenticResearchService';
+import { financialResearchService } from './financialResearchService';
 
 interface ResearchStep {
   name: string;
@@ -173,8 +174,32 @@ export class PersistentResearchService {
       result = researchData;
       console.log(`✅ Comprehensive research complete`);
 
-      // Update progress through all steps
-      for (let step = 2; step <= 8; step++) {
+      // Step 3: CEO Research (15%)
+      cumulativeProgress += RESEARCH_STEPS[2].weight;
+      await this.updateJobProgress(jobId, 3, cumulativeProgress, "Analyzing leadership and executive team", {
+        step: "ceo_research",
+        timestamp: new Date().toISOString()
+      });
+      await this.delay(1000);
+
+      // Step 4: Financial Analysis (20%) - Enhanced with dedicated financial research
+      cumulativeProgress += RESEARCH_STEPS[3].weight;
+      await this.updateJobProgress(jobId, 4, cumulativeProgress, "Conducting financial research and analysis", {
+        step: "financial_analysis",
+        timestamp: new Date().toISOString()
+      });
+      
+      try {
+        console.log(`💰 Starting enhanced financial research for ${companyName}`);
+        const financialData = await financialResearchService.conductFinancialResearch(companyName, website);
+        await financialResearchService.storeFinancialData(dealId, financialData);
+        console.log(`✅ Financial research completed and stored`);
+      } catch (error) {
+        console.warn(`⚠️ Financial research failed, continuing with existing data:`, error);
+      }
+
+      // Continue with remaining steps
+      for (let step = 5; step <= 8; step++) {
         cumulativeProgress += RESEARCH_STEPS[step - 1].weight;
         await this.updateJobProgress(jobId, step, cumulativeProgress, RESEARCH_STEPS[step - 1].description, {
           step: `step_${step}`,
