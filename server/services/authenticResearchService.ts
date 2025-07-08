@@ -393,10 +393,10 @@ IMPORTANT: Only provide information you are confident about. If you don't have r
       }
       
       // If no CEO information found from OpenAI, provide a clearer message
-      if (!result.ceoProfile) {
+      if (!result.ceoProfile || !result.ceoProfile.name || result.ceoProfile.name.trim() === '') {
         result.ceoProfile = {
-          name: 'CEO information not publicly available',
-          background: 'CEO details are not available in our knowledge base',
+          name: 'CEO information not found',
+          background: 'CEO details are not available in our knowledge base. This is common for smaller companies.',
           experience: 'Professional experience information not available',
           education: 'Educational background information not available',
           previousCompanies: []
