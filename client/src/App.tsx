@@ -84,6 +84,9 @@ function AppContent() {
               <Route path="/deals">
                 <DealsPage />
               </Route>
+              <Route path="/deals/:dealId">
+                <DealsPage />
+              </Route>
               <Route path="/pipeline">
                 <Pipeline />
               </Route>
