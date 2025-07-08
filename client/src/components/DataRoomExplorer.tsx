@@ -1697,54 +1697,79 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
       {/* Additional File Upload Section */}
       {showAdditionalUpload && (
-        <div className="p-4 border-b border-dark bg-dark">
-          <h4 className="text-white text-sm font-medium mb-3">Upload Additional Files</h4>
-          <div className="space-y-3">
-            <Input
-              ref={additionalFileInputRef}
-              type="file"
-              multiple
-              onChange={handleAdditionalFilesUpload}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png"
-              className="bg-dark border-gray-600 text-white file:bg-blue-600 file:text-white file:border-0 file:rounded file:px-3 file:py-1"
-            />
-            <div className="flex space-x-2">
-              <Button
-                onClick={() => additionalFileInputRef.current?.click()}
-                disabled={uploadFilesMutation.isPending}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {uploadFilesMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <UploadIcon className="w-4 h-4 mr-2" />
-                    Select Files
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={() => setShowAdditionalUpload(false)}
-                size="sm"
-                variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </Button>
+        <div className="relative border-b border-dark bg-gradient-to-br from-dark to-dark-lighter overflow-hidden">
+          {/* Background decorative elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/5 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-500/5 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
+          
+          <div className="relative p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-xl flex items-center justify-center border border-primary/20">
+                <UploadIcon className="w-5 h-5 text-primary" />
+              </div>
+              <h4 className="text-white text-lg font-semibold">Upload Additional Files</h4>
             </div>
+            
+            <div className="space-y-4">
+              {/* Drag and drop area */}
+              <div className="relative">
+                <Input
+                  ref={additionalFileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleAdditionalFilesUpload}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <div className="border-2 border-dashed border-primary/30 rounded-xl p-8 bg-gradient-to-br from-primary/5 to-blue-500/5 hover:border-primary/50 transition-all duration-300 hover:bg-primary/10">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mx-auto mb-3">
+                      <UploadIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <p className="text-white font-medium mb-1">Drag files here or click to browse</p>
+                    <p className="text-gray-400 text-sm">Support for PDF, DOC, XLS, PPT, TXT, and images</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="flex space-x-3">
+                <Button
+                  onClick={() => additionalFileInputRef.current?.click()}
+                  disabled={uploadFilesMutation.isPending}
+                  className="bg-gradient-to-r from-primary to-green-400 hover:from-primary/80 hover:to-green-400/80 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  {uploadFilesMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                      Select Files
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => setShowAdditionalUpload(false)}
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-gray-500 rounded-lg transition-all duration-300"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+            
+            {uploadFilesMutation.error && (
+              <Alert className="mt-4 border-red-500/50 bg-red-900/20 rounded-lg">
+                <AlertTriangleIcon className="w-4 h-4" />
+                <AlertDescription className="text-red-300">
+                  Upload failed: {uploadFilesMutation.error.message}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
-          {uploadFilesMutation.error && (
-            <Alert className="mt-3 border-red-500 bg-red-900/20">
-              <AlertTriangleIcon className="w-4 h-4" />
-              <AlertDescription className="text-red-300">
-                Upload failed: {uploadFilesMutation.error.message}
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
       )}
 
@@ -1808,85 +1833,139 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           <div className="p-6">
             {emailAttachments.length > 0 ? (
               // Show upload interface when email attachments exist but no regular documents
-              <div className="space-y-4">
-                <div className="text-center text-gray-400 mb-4">
-                  <p>Upload additional documents to the data room.</p>
-                </div>
+              <div className="relative">
+                {/* Background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5 rounded-xl"></div>
                 
-                {/* Folder Name Input */}
-                <div className="space-y-3">
-                  <Label htmlFor="folderName" className="text-white">Folder Name</Label>
-                  <Input
-                    id="folderName"
-                    value={folderName}
-                    onChange={(e) => setFolderName(e.target.value)}
-                    placeholder="Enter folder name"
-                    className="bg-dark border-gray-600 text-white"
-                  />
-                </div>
-
-                {/* ZIP Upload */}
-                <div className="space-y-3">
-                  <Label htmlFor="zipFile" className="text-white">Upload ZIP File</Label>
-                  <div className="flex items-center gap-3">
+                <div className="relative space-y-6 p-6">
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/20">
+                      <UploadIcon className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Upload Documents</h3>
+                    <p className="text-gray-400 text-sm">Add additional documents to your data room for AI analysis</p>
+                  </div>
+                  
+                  {/* Folder Name Input */}
+                  <div className="space-y-3">
+                    <Label htmlFor="folderName" className="text-white text-sm font-medium">Folder Name</Label>
                     <Input
-                      ref={fileInputRef}
-                      id="zipFile"
-                      type="file"
-                      accept=".zip"
-                      onChange={handleZipUpload}
-                      disabled={uploadZipMutation.isPending}
-                      className="cursor-pointer bg-dark border-gray-600 text-white"
+                      id="folderName"
+                      value={folderName}
+                      onChange={(e) => setFolderName(e.target.value)}
+                      placeholder="Enter folder name"
+                      className="bg-dark-lighter border-gray-600 text-white rounded-lg focus:border-primary focus:ring-primary/20"
                     />
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadZipMutation.isPending}
-                      variant="outline"
-                      className="border-primary text-primary hover:bg-primary hover:text-white"
-                    >
-                      {uploadZipMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <UploadIcon className="h-4 w-4" />
-                      )}
-                    </Button>
                   </div>
-                </div>
 
-                {/* Upload Progress */}
-                {uploadProgress && (
-                  <div className="space-y-2 p-4 bg-dark border border-gray-600 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                        <span className="text-sm text-white">{uploadProgress.fileName}</span>
+                  {/* ZIP Upload */}
+                  <div className="space-y-3">
+                    <Label htmlFor="zipFile" className="text-white text-sm font-medium">Upload ZIP File</Label>
+                    <div className="relative">
+                      <Input
+                        ref={fileInputRef}
+                        id="zipFile"
+                        type="file"
+                        accept=".zip"
+                        onChange={handleZipUpload}
+                        disabled={uploadZipMutation.isPending}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div className="border-2 border-dashed border-primary/40 rounded-xl p-6 bg-gradient-to-br from-primary/5 to-blue-500/5 hover:border-primary/60 transition-all duration-300 hover:bg-primary/10">
+                        <div className="flex items-center justify-center space-x-3">
+                          <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                            {uploadZipMutation.isPending ? (
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            ) : (
+                              <UploadIcon className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div className="text-center">
+                            <p className="text-white font-medium">
+                              {uploadZipMutation.isPending ? 'Uploading...' : 'Drop ZIP file here or click to browse'}
+                            </p>
+                            <p className="text-gray-400 text-xs mt-1">Maximum file size: 500MB</p>
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-sm text-gray-400">{uploadProgress.progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${uploadProgress.progress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-400">{uploadProgress.status}</p>
                   </div>
-                )}
 
-                {/* Error Display */}
-                {uploadZipMutation.error && (
-                  <Alert variant="destructive">
-                    <AlertTriangleIcon className="h-4 w-4" />
-                    <AlertDescription>
-                      Upload failed: {uploadZipMutation.error.message}
-                    </AlertDescription>
-                  </Alert>
-                )}
+                  {/* Upload Progress */}
+                  {uploadProgress && (
+                    <div className="space-y-3 p-4 bg-dark-lighter/50 border border-gray-600/50 rounded-xl backdrop-blur-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-white font-medium">{uploadProgress.fileName}</p>
+                            <p className="text-xs text-gray-400">{uploadProgress.status}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm text-gray-400 font-medium">{uploadProgress.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${uploadProgress.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error Display */}
+                  {uploadZipMutation.error && (
+                    <Alert className="border-red-500/50 bg-red-900/20 rounded-xl">
+                      <AlertTriangleIcon className="h-4 w-4" />
+                      <AlertDescription className="text-red-300">
+                        Upload failed: {uploadZipMutation.error.message}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
               </div>
             ) : (
               // Show default message when no documents at all
-              <div className="text-center text-gray-400">
-                <p>No documents in data room. Upload a ZIP file to get started.</p>
+              <div className="relative">
+                {/* Background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10 rounded-xl"></div>
+                
+                <div className="relative text-center py-12 px-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-primary/20">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary/30 to-blue-500/30 rounded-2xl flex items-center justify-center">
+                      <UploadIcon className="h-8 w-8 text-primary" />
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-xl font-semibold text-white mb-3">No Documents Yet</h3>
+                  <p className="text-gray-400 text-sm mb-8 max-w-md mx-auto">
+                    Upload a ZIP file containing your documents to get started. 
+                    Our AI will automatically extract and analyze all files.
+                  </p>
+                  
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="flex items-center space-x-6 text-xs text-gray-400">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <span>PDF Support</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span>Office Documents</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span>Images</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500">
+                      Connect your data room to start analyzing documents with AI
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
