@@ -678,7 +678,7 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
   // Retrieve stored authentic research
   async getStoredResearch(dealId: number): Promise<AuthenticResearchData | null> {
     try {
-      const research = await storage.getCompanyResearchByDealId(dealId);
+      const research = await storage.getCompanyResearchRawByDealId(dealId);
       if (!research) {
         console.log(`❌ No stored research found for deal ${dealId}`);
         return null;
@@ -765,23 +765,8 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
           crunchbaseUrl: null
         },
         
-        // AI analysis summary from database
-        aiAnalysis: this.safeJsonParse(research.aiAnalysis) || {
-          investmentScore: 50,
-          confidenceLevel: 30,
-          keyStrengths: [
-            "Analysis not available from current data sources"
-          ],
-          keyRisks: [
-            "Insufficient data for comprehensive risk assessment"
-          ],
-          recommendation: "Manual review required due to limited available data",
-          nextSteps: [
-            "Conduct detailed due diligence",
-            "Request additional company information",
-            "Perform comprehensive market analysis"
-          ]
-        }
+        // AI analysis summary from database - use authentic data only
+        aiAnalysis: research.aiAnalysis
       };
     } catch (error) {
       console.error(`❌ Error retrieving research:`, error);

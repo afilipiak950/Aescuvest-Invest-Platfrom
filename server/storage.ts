@@ -507,7 +507,8 @@ export class DatabaseStorage implements IStorage {
         businessIntelligence: safeJsonParse(research.businessIntelligence),
         riskFactors: safeJsonParse(research.riskFactors),
         investmentHighlights: safeJsonParse(research.investmentHighlights),
-        externalLinks: safeJsonParse(research.externalLinks)
+        externalLinks: safeJsonParse(research.externalLinks),
+        aiAnalysis: safeJsonParse(research.aiAnalysis)
       };
     } catch (error) {
       console.error('Error fetching raw company research:', error);
