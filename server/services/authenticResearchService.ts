@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { storage } from "../storage";
+import { financialResearchService } from "./financialResearchService";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -786,6 +787,15 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
       const investmentData = this.safeJsonParse(research.investmentHighlights);
       const riskData = this.safeJsonParse(research.riskFactors);
       
+      // Retrieve enhanced financial data from financial research service
+      let enhancedFinancialData;
+      try {
+        enhancedFinancialData = await financialResearchService.getStoredFinancialData(dealId);
+      } catch (error) {
+        console.warn(`⚠️ Could not retrieve enhanced financial data for deal ${dealId}:`, error);
+        enhancedFinancialData = null;
+      }
+      
       return {
         companyName: research.companyName || 'Unknown Company',
         website: research.website || 'No website available',
@@ -806,14 +816,19 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
         // Key team members from database only
         keyTeamMembers: this.safeJsonParse(research.keyTeamMembers) || [],
         
-        // Financial data from authentic database only
-        financialData: this.safeJsonParse(research.financialData) || {
+        // Enhanced financial data - merge from both sources
+        financialData: enhancedFinancialData || this.safeJsonParse(research.financialData) || {
           revenue: "Financial information not available",
           fundingHistory: [],
           valuation: "Not available",
           employeeCount: "Not available",
           burnRate: "Not available",
-          runway: "Not available"
+          runway: "Not available",
+          financialMetrics: {
+            growthRate: "Not available",
+            burnRate: "Not available",
+            runway: "Not available"
+          }
         },
         
         // Market analysis from authentic database only
