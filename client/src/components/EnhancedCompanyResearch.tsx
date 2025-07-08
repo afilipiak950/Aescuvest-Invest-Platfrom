@@ -12,7 +12,7 @@ import {
   RefreshCw, Globe, DollarSign, Users, Cpu, FileText, Shield, Building, TrendingUp, 
   Eye, Brain, Search, Target, ChartBar, AlertTriangle, CheckCircle, Clock,
   ExternalLink, User, MapPin, Calendar, Briefcase, Award, Lightbulb,
-  Network, TrendingDown, Activity, BookOpen, Star, Info
+  Network, TrendingDown, Activity, BookOpen, Star, Info, Package, ArrowRight
 } from 'lucide-react';
 
 interface CompanyResearchProps {
@@ -559,7 +559,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
         <CardContent className="p-0">
           <Tabs value={activeResearchTab} onValueChange={setActiveResearchTab} className="w-full">
             <div className="border-b border-dark-lighter px-6 py-4">
-              <TabsList className="bg-dark-lighter border border-dark-lighter h-auto p-1 grid grid-cols-4 lg:grid-cols-8 w-full">
+              <TabsList className="bg-dark-lighter border border-dark-lighter h-auto p-1 grid grid-cols-4 lg:grid-cols-9 w-full">
                 <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white text-xs">
                   <Building className="h-3 w-3 mr-1" />
                   Overview
@@ -591,6 +591,10 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                 <TabsTrigger value="links" className="data-[state=active]:bg-primary data-[state=active]:text-white text-xs">
                   <ExternalLink className="h-3 w-3 mr-1" />
                   Links
+                </TabsTrigger>
+                <TabsTrigger value="ai-analysis" className="data-[state=active]:bg-primary data-[state=active]:text-white text-xs">
+                  <Brain className="h-3 w-3 mr-1" />
+                  AI Analysis
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -1067,6 +1071,187 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                     </Card>
                   );
                 })}
+              </div>
+            </TabsContent>
+
+            {/* AI Analysis Tab */}
+            <TabsContent value="ai-analysis" className="p-6">
+              <div className="space-y-6">
+                {researchData.aiAnalysis && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Investment Score Card */}
+                    <Card className="bg-gradient-to-r from-primary/10 to-blue-600/10 border-primary/20">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Star className="h-5 w-5 text-primary" />
+                          Investment Score
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center">
+                          <div className="text-4xl font-bold text-primary mb-2">
+                            {researchData.aiAnalysis.investmentScore}/100
+                          </div>
+                          <div className="text-sm text-gray-400 mb-4">Investment Rating</div>
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="text-sm text-gray-400">Confidence:</div>
+                            <div className="text-sm font-semibold text-white">
+                              {researchData.aiAnalysis.confidenceLevel}%
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Business Model Card */}
+                    <Card className="bg-dark-lighter border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Building className="h-5 w-5 text-blue-400" />
+                          Business Intelligence
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Industry</label>
+                          <p className="text-white mt-1">{researchData.aiAnalysis.industry}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Business Model</label>
+                          <p className="text-white mt-1">{researchData.aiAnalysis.businessModel}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Target Customers</label>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {researchData.aiAnalysis.targetCustomers?.map((customer, index) => (
+                              <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
+                                {customer}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Key Strengths Card */}
+                    <Card className="bg-green-500/10 border-green-500/20">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-400" />
+                          Key Strengths
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-3">
+                          {researchData.aiAnalysis.keyStrengths?.map((strength, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                              <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                              {strength}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+
+                    {/* Key Risks Card */}
+                    <Card className="bg-red-500/10 border-red-500/20">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-red-400" />
+                          Key Risks
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-3">
+                          {researchData.aiAnalysis.keyRisks?.map((risk, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                              <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                              {risk}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+
+                    {/* Value Propositions Card */}
+                    <Card className="bg-purple-500/10 border-purple-500/20">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Lightbulb className="h-5 w-5 text-purple-400" />
+                          Value Propositions
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-3">
+                          {researchData.aiAnalysis.valuePropositions?.map((value, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                              <Lightbulb className="h-4 w-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                              {value}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+
+                    {/* Products & Services Card */}
+                    <Card className="bg-dark-lighter border-dark-lighter">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Package className="h-5 w-5 text-blue-400" />
+                          Products & Services
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {researchData.aiAnalysis.productsServices?.map((service, index) => (
+                            <Badge key={index} variant="outline" className="border-blue-500/30 text-blue-400">
+                              {service}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* AI Recommendation Card */}
+                {researchData.aiAnalysis?.recommendation && (
+                  <Card className="bg-gradient-to-r from-blue-600/10 to-purple-600/10 border-blue-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Brain className="h-5 w-5 text-blue-400" />
+                        AI Investment Recommendation
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-white leading-relaxed">
+                        {researchData.aiAnalysis.recommendation}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Next Steps Card */}
+                {researchData.aiAnalysis?.nextSteps && (
+                  <Card className="bg-dark-lighter border-dark-lighter">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <ArrowRight className="h-5 w-5 text-green-400" />
+                        Recommended Next Steps
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3">
+                        {researchData.aiAnalysis.nextSteps.map((step, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                            <ArrowRight className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                            {step}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
           </Tabs>
