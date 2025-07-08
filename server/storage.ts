@@ -115,6 +115,7 @@ export interface IStorage {
   getCompanyResearchByDealId(dealId: number): Promise<any | undefined>;
   createCompanyResearch(research: any): Promise<any>;
   createOrUpdateCompanyResearch(dealId: number, data: any): Promise<any>;
+  updateCompanyResearch(dealId: number, data: any): Promise<any | undefined>;
   updateCompanyResearchStatus(dealId: number, status: string): Promise<any | undefined>;
   deleteCompanyResearchByDealId(dealId: number): Promise<number>;
   
@@ -600,6 +601,23 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error creating/updating company research:', error);
       throw error;
+    }
+  }
+
+  async updateCompanyResearch(dealId: number, data: any): Promise<any | undefined> {
+    try {
+      const [updated] = await db
+        .update(companyResearch)
+        .set({
+          ...data,
+          updatedAt: new Date()
+        })
+        .where(eq(companyResearch.dealId, dealId))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error('Error updating company research:', error);
+      return undefined;
     }
   }
 
