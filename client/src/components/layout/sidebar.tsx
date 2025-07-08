@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/contexts/SidebarContext';
 import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png";
@@ -15,6 +15,7 @@ const menuItems = [
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },
   { icon: FileText, label: 'Memo Generator', href: '/memo-generator' },
   { icon: Users, label: 'Investor Matching', href: '/investor-matching' },
+  { icon: Database, label: 'Affinity CRM', href: '/affinity-settings' },
   { icon: GitBranch, label: 'Workflow', href: '/workflow' },
 ];
 

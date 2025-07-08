@@ -680,7 +680,7 @@ export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
 export const investors = pgTable("investors", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  firmName: text("firm_name").notNull(),
+  firmName: text("firm_name"),
   location: text("location").notNull(),
   website: text("website"),
   email: text("email"),
@@ -724,6 +724,18 @@ export const investors = pgTable("investors", {
   verified: boolean("verified").default(false),
   active: boolean("active").default(true),
   tier: text("tier").default("standard"), // 'premium', 'standard', 'basic'
+  // Affinity CRM integration
+  affinityId: text("affinity_id"), // Affinity person/company ID
+  affinityType: text("affinity_type"), // 'person' or 'organization'
+  affinityData: json("affinity_data").$type<{
+    listEntries?: any[];
+    fieldValues?: Record<string, any>;
+    interactionDates?: any;
+    lastSyncAt?: string;
+  }>().default({}),
+  lastSyncAt: timestamp("last_sync_at"),
+  syncStatus: text("sync_status").default("pending"), // 'pending', 'synced', 'error'
+  syncErrors: text("sync_errors").array().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
