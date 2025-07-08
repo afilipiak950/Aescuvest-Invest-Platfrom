@@ -149,7 +149,7 @@ export default function FilterSidebar({ deals, selectedDeal, onDealChange, isLoa
                   <div className="flex flex-col">
                     <span className="font-medium">{deal.companyName}</span>
                     <span className="text-xs text-gray-400">
-                      {deal.sector} • {deal.stage} • €{deal.fundingAmount.toLocaleString()}
+                      {deal.sector} • {deal.stage} • €{deal.fundingAmount?.toLocaleString() || 'N/A'}
                     </span>
                   </div>
                 </SelectItem>
@@ -178,7 +178,7 @@ export default function FilterSidebar({ deals, selectedDeal, onDealChange, isLoa
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Funding:</span>
-                  <span className="text-sm text-gray-300">€{currentDeal.fundingAmount.toLocaleString()}</span>
+                  <span className="text-sm text-gray-300">€{currentDeal.fundingAmount?.toLocaleString() || 'N/A'}</span>
                 </div>
               </div>
             </div>
