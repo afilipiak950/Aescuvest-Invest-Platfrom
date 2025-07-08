@@ -370,6 +370,7 @@ export const companyResearch = pgTable("company_research", {
   businessIntelligence: json("business_intelligence"),
   investmentHighlights: json("investment_highlights"),
   riskFactors: json("risk_factors"),
+  aiAnalysis: json("ai_analysis"),
   researchStatus: varchar("research_status", { length: 50 }).default("pending").notNull(),
   researchCompletedAt: timestamp("research_completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
