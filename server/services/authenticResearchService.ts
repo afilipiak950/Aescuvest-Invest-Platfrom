@@ -389,34 +389,30 @@ export class AuthenticResearchService {
   // Extract financial information from authentic sources using OpenAI
   private async extractFinancialInfo(content: string) {
     try {
-      const prompt = `Analyze the following scraped content and extract financial information. Look for:
-      - Revenue figures (annual, quarterly, or growth metrics)
-      - Funding rounds and amounts
-      - Valuation information
-      - Employee count or company size
-      - Burn rate or runway information
-      - Growth metrics
+      const prompt = `CRITICAL: Extract financial information ONLY from the following website content. Do NOT make up or invent information that is not present.
 
-      Return valid JSON with the structure:
-      {
-        "revenue": "specific amount or growth rate if found",
-        "fundingHistory": [{"round": "Series A", "amount": "$10M", "date": "2023", "investors": ["VC Name"]}],
-        "valuation": "valuation amount if mentioned",
-        "employeeCount": "number if found",
-        "burnRate": "monthly burn if mentioned",
-        "runway": "months remaining if mentioned",
-        "growthRate": "growth percentage if mentioned"
-      }
+Website content:
+${content.substring(0, 8000)}
 
-      If specific information is not found, use null for that field.
+Extract ONLY the financial information that is explicitly mentioned in the content above. If information is not present, use null.
 
-      Content to analyze:
-      ${content.substring(0, 8000)}`;
+Return valid JSON with the structure:
+{
+  "revenue": "specific amount or growth rate if found",
+  "fundingHistory": [{"round": "Series A", "amount": "$10M", "date": "2023", "investors": ["VC Name"]}],
+  "valuation": "valuation amount if mentioned",
+  "employeeCount": "number if found",
+  "burnRate": "monthly burn if mentioned",
+  "runway": "months remaining if mentioned",
+  "growthRate": "growth percentage if mentioned"
+}
+
+IMPORTANT: If the website content does not contain specific financial information, set fields to null. Do NOT invent financial data.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
-          { role: "system", content: "You are an expert financial analyst. Extract and structure financial data from web content. Return valid JSON only." },
+          { role: "system", content: "You are an expert financial analyst. Extract ONLY the financial data that is explicitly present in the provided content. Never invent or assume information. Return valid JSON only." },
           { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" },
@@ -493,33 +489,29 @@ export class AuthenticResearchService {
   // Extract business intelligence from authentic sources using OpenAI
   private async extractBusinessInfo(content: string) {
     try {
-      const prompt = `Analyze the following scraped content and extract business intelligence. Look for:
-      - Recent news or press releases
-      - Patents or intellectual property
-      - Partnerships or collaborations
-      - Business model description
-      - Customer base information
-      - Technology stack or technical details
+      const prompt = `CRITICAL: Extract business information ONLY from the following website content. Do NOT make up or invent information that is not present.
 
-      Return valid JSON with the structure:
-      {
-        "recentNews": [{"title": "news title", "source": "source", "date": "date", "sentiment": "positive/neutral/negative"}],
-        "patents": "number of patents if mentioned",
-        "partnerships": ["partner1", "partner2"],
-        "businessModel": "business model description if found",
-        "customerBase": "customer base description if mentioned",
-        "technologyStack": ["tech1", "tech2"]
-      }
+Website content:
+${content.substring(0, 8000)}
 
-      If specific information is not found, use null for that field.
+Extract ONLY the business information that is explicitly mentioned in the content above. If information is not present, use null or empty arrays.
 
-      Content to analyze:
-      ${content.substring(0, 8000)}`;
+Return valid JSON with the structure:
+{
+  "recentNews": [{"title": "news title", "source": "source", "date": "date", "sentiment": "positive/neutral/negative"}],
+  "patents": "number of patents if mentioned",
+  "partnerships": ["partner1", "partner2"],
+  "businessModel": "business model description if found",
+  "customerBase": "customer base description if mentioned",
+  "technologyStack": ["tech1", "tech2"]
+}
+
+IMPORTANT: If the website content does not contain specific business information, set fields to null or empty arrays. Do NOT invent business data.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
-          { role: "system", content: "You are an expert business intelligence analyst. Extract and structure business data from web content. Return valid JSON only." },
+          { role: "system", content: "You are an expert business intelligence analyst. Extract ONLY the business data that is explicitly present in the provided content. Never invent or assume information. Return valid JSON only." },
           { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" },
@@ -588,32 +580,36 @@ Extract specific, quantifiable metrics and advantages where possible.`;
 
   // Generate AI analysis based on authentic data
   private async generateAIAnalysis(companyName: string, websiteContent: PromiseSettledResult<string>) {
+    console.log(`🤖 Generating AI analysis for ${companyName}...`);
+    
     if (websiteContent.status === 'fulfilled' && websiteContent.value) {
+      console.log(`✅ Website content available for AI analysis: ${websiteContent.value.length} characters`);
       try {
-        const prompt = `Conduct a comprehensive investment analysis for ${companyName} based on the following website content:
+        const prompt = `You are analyzing the company "${companyName}" ONLY based on the following website content. Do NOT make assumptions or use information from other companies.
 
+Website content for ${companyName}:
 ${websiteContent.value.substring(0, 12000)}
 
-Provide a detailed investment analysis with the following structure:
+CRITICAL: Base your analysis ONLY on what you can extract from the above content. Do NOT use information from other companies like Aescuvest or any other entity.
+
+Analyze what type of business ${companyName} is based on the website content and provide:
 {
   "investmentScore": 70,
   "confidenceLevel": 85,
   "keyStrengths": ["strength1", "strength2", "strength3"],
   "keyRisks": ["risk1", "risk2", "risk3"],
-  "recommendation": "Clear investment recommendation with reasoning",
+  "recommendation": "Clear recommendation based on actual website content",
   "nextSteps": ["actionable next step 1", "actionable next step 2"]
 }
 
-Analyze:
-- Business model viability and market fit
-- Competitive advantages and differentiation
-- Growth potential and scalability
-- Team capabilities and leadership
-- Financial health indicators
-- Market opportunity and positioning
-- Risk factors and mitigation strategies
+Analyze based on the website content:
+- What industry/business sector is this company in?
+- What products/services do they offer?
+- Who are their target customers?
+- What is their business model?
+- What are their key value propositions?
 
-Provide realistic scores (1-100) and specific, actionable insights.`;
+Provide realistic scores (1-100) and specific insights based ONLY on the provided website content.`;
 
         const response = await openai.chat.completions.create({
           model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -626,6 +622,7 @@ Provide realistic scores (1-100) and specific, actionable insights.`;
         });
 
         const result = JSON.parse(response.choices[0].message.content || '{}');
+        console.log(`✅ AI analysis completed for ${companyName}:`, result);
         return result;
       } catch (error) {
         console.error('Error generating AI analysis:', error);
@@ -699,140 +696,94 @@ Provide realistic scores (1-100) and specific, actionable insights.`;
       const riskData = this.safeJsonParse(research.riskFactors);
       
       return {
-        companyName: research.companyName || 'Aescuvest',
-        website: research.website || 'https://www.aescuvest.vc/',
+        companyName: research.companyName || 'Unknown Company',
+        website: research.website || 'No website available',
         lastUpdated: research.researchCompletedAt?.toISOString() || new Date().toISOString(),
         sources: 4,
         aiConfidenceScore: 85,
         researchStatus: 'complete' as const,
         
-        // CEO Profile from authentic database or fallback
+        // CEO Profile from authentic database only
         ceoProfile: this.safeJsonParse(research.ceoProfile) || {
-          name: "CEO Information Available",
-          background: "Venture capital industry leader with extensive experience in startup investments",
-          experience: "Multiple successful exits and portfolio company management",
-          education: "Business and finance background",
-          previousCompanies: ["Previous portfolio companies", "Industry ventures"]
+          name: "CEO information not available",
+          background: "No executive information found in available sources",
+          experience: "Information not available",
+          education: "Information not available",
+          previousCompanies: []
         },
         
-        // Key team members from database or fallback
-        keyTeamMembers: this.safeJsonParse(research.keyTeamMembers) || [
-          {
-            name: "Investment Team",
-            role: "Managing Partners",
-            background: "Experienced venture capital professionals"
-          },
-          {
-            name: "Advisory Board",
-            role: "Strategic Advisors", 
-            background: "Industry experts and former executives"
-          }
-        ],
+        // Key team members from database only
+        keyTeamMembers: this.safeJsonParse(research.keyTeamMembers) || [],
         
-        // Financial data from authentic database or fallback
+        // Financial data from authentic database only
         financialData: this.safeJsonParse(research.financialData) || {
-          revenue: "€50M+ AUM (Assets Under Management)",
-          fundingHistory: [
-            {
-              round: "Fund II",
-              amount: "€25M",
-              date: "2023",
-              investors: ["Institutional investors", "Family offices"]
-            }
-          ],
-          valuation: "Growth-stage VC fund",
-          employeeCount: "10-25 employees",
-          burnRate: "Sustainable fund operations",
-          runway: "Multi-year fund lifecycle"
+          revenue: "Financial information not available",
+          fundingHistory: [],
+          valuation: "Not available",
+          employeeCount: "Not available",
+          burnRate: "Not available",
+          runway: "Not available"
         },
         
-        // Market analysis from authentic database or fallback
+        // Market analysis from authentic database only
         marketAnalysis: this.safeJsonParse(research.marketAnalysis) || {
-          marketSize: "European venture capital market: €12B+ annually",
-          competitors: ["Rocket Internet", "Project A", "HV Capital", "Cherry Ventures"],
-          marketPosition: "Specialized German venture capital fund",
-          uniqueValueProposition: "Focus on digital health and technology investments",
-          customerSegments: ["Early-stage startups", "Growth companies", "Digital health ventures"],
-          pricingStrategy: "Standard VC fee structure (2% management fee, 20% carry)"
+          marketSize: "Market information not available",
+          competitors: [],
+          marketPosition: "Not determined",
+          uniqueValueProposition: "Not available",
+          customerSegments: [],
+          pricingStrategy: "Not available"
         },
         
-        // Business intelligence from authentic database or fallback
+        // Business intelligence from authentic database only
         businessIntelligence: businessIntel || {
-          recentNews: [
-            {
-              title: "Aescuvest continues active investment in digital health",
-              source: "Industry publications",
-              date: "2024",
-              sentiment: "positive" as const
-            }
-          ],
-          patents: businessIntel?.patents || 0,
-          partnerships: businessIntel?.partnerships || ["Healthcare institutions", "Technology partners"],
-          customerBase: businessIntel?.customerBase || "Portfolio of 20+ companies",
-          businessModel: businessIntel?.businessModel || "Venture capital investment fund",
-          technologyStack: ["Investment management platforms", "Due diligence tools"]
+          recentNews: [],
+          patents: 0,
+          partnerships: [],
+          customerBase: "Not available",
+          businessModel: "Not determined",
+          technologyStack: []
         },
         
-        // Risk assessment from authentic database or fallback
+        // Risk assessment from authentic database only
         riskFactors: riskData || {
-          regulatory: ["Financial services regulation", "Investment fund compliance"],
-          competitive: ["Increased VC competition", "Market saturation"],
-          financial: ["Market volatility", "Portfolio company performance"],
-          operational: ["Fund management", "Deal sourcing"],
-          riskLevel: "medium" as const
+          regulatory: [],
+          competitive: [],
+          financial: [],
+          operational: [],
+          riskLevel: "unknown" as const
         },
         
-        // Investment highlights from authentic database or fallback
+        // Investment highlights from authentic database only
         investmentHighlights: investmentData || {
-          traction: [
-            "Active portfolio of 20+ companies",
-            "Successful exits achieved",
-            "Strong market presence in Germany"
-          ],
-          growthMetrics: [
-            "Fund size growth over time",
-            "Portfolio company valuations",
-            "Market expansion"
-          ],
-          competitiveAdvantages: [
-            "Specialized digital health focus",
-            "Experienced investment team",
-            "Strong industry network"
-          ],
-          marketOpportunity: "Growing European venture capital and digital health markets",
-          investmentThesis: [
-            "Digital transformation in healthcare",
-            "European startup ecosystem growth",
-            "Technology-enabled business models"
-          ]
+          traction: [],
+          growthMetrics: [],
+          competitiveAdvantages: [],
+          marketOpportunity: "Not available",
+          investmentThesis: []
         },
         
         // External links
         externalLinks: this.safeJsonParse(research.externalLinks) || {
-          linkedinCompanyUrl: "https://linkedin.com/company/aescuvest",
-          crunchbaseUrl: "https://crunchbase.com/organization/aescuvest"
+          linkedinCompanyUrl: null,
+          crunchbaseUrl: null
         },
         
-        // AI analysis summary
-        aiAnalysis: {
-          investmentScore: 78,
-          confidenceLevel: 85,
+        // AI analysis summary from database
+        aiAnalysis: this.safeJsonParse(research.aiAnalysis) || {
+          investmentScore: 50,
+          confidenceLevel: 30,
           keyStrengths: [
-            "Established venture capital fund with track record",
-            "Specialized focus on digital health investments",
-            "Experienced management team",
-            "Strong market positioning in Germany"
+            "Analysis not available from current data sources"
           ],
           keyRisks: [
-            "Competitive venture capital market",
-            "Dependence on portfolio company performance",
-            "Regulatory compliance requirements"
+            "Insufficient data for comprehensive risk assessment"
           ],
-          recommendation: "Aescuvest demonstrates strong fundamentals as a specialized venture capital fund with focus on digital health investments and established market presence.",
+          recommendation: "Manual review required due to limited available data",
           nextSteps: [
-            "Review portfolio performance metrics",
-            "Analyze fund performance vs benchmarks",
-            "Assess management team track record"
+            "Conduct detailed due diligence",
+            "Request additional company information",
+            "Perform comprehensive market analysis"
           ]
         }
       };
