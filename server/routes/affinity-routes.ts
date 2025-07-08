@@ -234,11 +234,13 @@ export function registerAffinityRoutes(app: Express) {
       
       res.json({
         success: true,
-        lists
+        lists: lists || []
       });
     } catch (error) {
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Failed to get lists' 
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get lists',
+        lists: []
       });
     }
   });

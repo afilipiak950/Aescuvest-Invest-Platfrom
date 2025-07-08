@@ -15,7 +15,6 @@ const menuItems = [
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },
   { icon: FileText, label: 'Memo Generator', href: '/memo-generator' },
   { icon: Users, label: 'Investor Matching', href: '/investor-matching' },
-  { icon: Database, label: 'Affinity CRM', href: '/affinity-settings' },
   { icon: GitBranch, label: 'Workflow', href: '/workflow' },
 ];
 

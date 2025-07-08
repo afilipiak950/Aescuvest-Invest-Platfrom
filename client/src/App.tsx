@@ -30,7 +30,6 @@ import EmailTestPage from "@/pages/email-test";
 import InboxPage from "@/pages/inbox";
 import SettingsPage from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
-import AffinitySettings from "@/pages/affinity-settings";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
@@ -123,9 +122,6 @@ function AppContent() {
               </Route>
               <Route path="/settings">
                 <SettingsPage />
-              </Route>
-              <Route path="/affinity-settings">
-                <AffinitySettings />
               </Route>
               <Route path="/profile">
                 <ProfilePage />
