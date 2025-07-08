@@ -620,15 +620,17 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                       <div>
                         <label className="text-sm font-medium text-gray-400">Target Customers</label>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {researchData.aiAnalysis?.targetCustomers?.map((customer, index) => (
-                            <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
-                              {customer}
-                            </Badge>
-                          )) || (
-                            <p className="text-white mt-1">
-                              {researchData.businessIntelligence?.customerBase || 'Customer analysis in progress'}
-                            </p>
-                          )}
+                          {Array.isArray(researchData.aiAnalysis?.targetCustomers) ? 
+                            researchData.aiAnalysis.targetCustomers.map((customer, index) => (
+                              <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
+                                {customer}
+                              </Badge>
+                            )) : (
+                              <p className="text-white mt-1">
+                                {researchData.businessIntelligence?.customerBase || 'Customer analysis in progress'}
+                              </p>
+                            )
+                          }
                         </div>
                       </div>
                       <div>
@@ -1190,11 +1192,15 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                         <div>
                           <label className="text-sm font-medium text-gray-400">Target Customers</label>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {researchData.aiAnalysis.targetCustomers?.map((customer, index) => (
-                              <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
-                                {customer}
-                              </Badge>
-                            ))}
+                            {Array.isArray(researchData.aiAnalysis?.targetCustomers) ? 
+                              researchData.aiAnalysis.targetCustomers.map((customer, index) => (
+                                <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
+                                  {customer}
+                                </Badge>
+                              )) : (
+                                <p className="text-white mt-1">Target customers analysis pending</p>
+                              )
+                            }
                           </div>
                         </div>
                       </CardContent>
