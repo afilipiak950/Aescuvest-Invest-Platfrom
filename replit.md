@@ -210,6 +210,12 @@ Changelog:
   - Renamed "Email Attachments" section to "Pitchdeck" for clearer document categorization
   - Updated section icon from email (📧) to chart (📊) to better represent presentation materials
   - Changed description from "attachments from emails" to "presentation documents" for improved clarity
+- July 8, 2025: Integrated Affinity CRM settings into main Settings page
+  - Moved comprehensive Affinity CRM functionality from separate page to Settings tab
+  - Added "Affinity CRM" tab with connection status, API configuration, sync controls, and lists management
+  - Removed separate /affinity-settings route and consolidated navigation into Settings page
+  - Enhanced database schema with full Affinity synchronization fields for investors table
+  - Fixed API query response handling to prevent undefined data errors
 ```
 
 ## User Preferences
