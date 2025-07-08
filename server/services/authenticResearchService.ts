@@ -173,7 +173,7 @@ export class AuthenticResearchService {
         marketAnalysis: this.extractValue(marketData),
         businessIntelligence: this.extractValue(businessIntelligence),
         riskFactors: this.extractValue(riskFactors),
-        investmentHighlights: this.generateInvestmentHighlights(companyName, websiteContent),
+        investmentHighlights: await this.generateInvestmentHighlights(companyName, websiteContent),
         externalLinks: {
           linkedinCompanyUrl: `https://linkedin.com/company/${companyName.toLowerCase().replace(/\s+/g, '-')}`,
           crunchbaseUrl: `https://crunchbase.com/organization/${companyName.toLowerCase().replace(/\s+/g, '-')}`,
@@ -279,7 +279,7 @@ export class AuthenticResearchService {
         return null;
       }
 
-      return this.extractFinancialInfo(crunchbaseContent);
+      return await this.extractFinancialInfo(crunchbaseContent);
     });
   }
 
@@ -297,7 +297,7 @@ export class AuthenticResearchService {
         return null;
       }
 
-      return this.extractMarketInfo(newsContent);
+      return await this.extractMarketInfo(newsContent);
     });
   }
 
@@ -315,7 +315,7 @@ export class AuthenticResearchService {
         return null;
       }
 
-      return this.extractBusinessInfo(newsContent);
+      return await this.extractBusinessInfo(newsContent);
     });
   }
 
@@ -386,46 +386,202 @@ export class AuthenticResearchService {
     return executiveInfo;
   }
 
-  // Extract financial information from authentic sources
-  private extractFinancialInfo(content: string) {
-    // This would extract real financial data from scraped content
-    // For now, return structure indicating authentic data extraction needed
-    return {
-      revenue: "Information requires authenticated financial data sources",
-      fundingHistory: [],
-      valuation: "Data not available from public sources",
-      employeeCount: "Information requires LinkedIn Sales Navigator access"
-    };
+  // Extract financial information from authentic sources using OpenAI
+  private async extractFinancialInfo(content: string) {
+    try {
+      const prompt = `Analyze the following scraped content and extract financial information. Look for:
+      - Revenue figures (annual, quarterly, or growth metrics)
+      - Funding rounds and amounts
+      - Valuation information
+      - Employee count or company size
+      - Burn rate or runway information
+      - Growth metrics
+
+      Return valid JSON with the structure:
+      {
+        "revenue": "specific amount or growth rate if found",
+        "fundingHistory": [{"round": "Series A", "amount": "$10M", "date": "2023", "investors": ["VC Name"]}],
+        "valuation": "valuation amount if mentioned",
+        "employeeCount": "number if found",
+        "burnRate": "monthly burn if mentioned",
+        "runway": "months remaining if mentioned",
+        "growthRate": "growth percentage if mentioned"
+      }
+
+      If specific information is not found, use null for that field.
+
+      Content to analyze:
+      ${content.substring(0, 8000)}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: "You are an expert financial analyst. Extract and structure financial data from web content. Return valid JSON only." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      return result;
+    } catch (error) {
+      console.error('Error extracting financial info:', error);
+      return {
+        revenue: null,
+        fundingHistory: [],
+        valuation: null,
+        employeeCount: null,
+        burnRate: null,
+        runway: null,
+        growthRate: null
+      };
+    }
   }
 
-  // Extract market information from authentic sources
-  private extractMarketInfo(content: string) {
-    return {
-      marketSize: "Requires specialized market research databases",
-      competitors: [],
-      marketPosition: "Analysis requires authenticated industry reports"
-    };
+  // Extract market information from authentic sources using OpenAI
+  private async extractMarketInfo(content: string) {
+    try {
+      const prompt = `Analyze the following scraped content and extract market information. Look for:
+      - Market size or TAM (Total Addressable Market)
+      - Competitors mentioned
+      - Market position or positioning
+      - Unique value proposition
+      - Customer segments
+      - Pricing strategy
+
+      Return valid JSON with the structure:
+      {
+        "marketSize": "market size if mentioned",
+        "competitors": ["competitor1", "competitor2"],
+        "marketPosition": "positioning statement if found",
+        "uniqueValueProposition": "UVP if mentioned",
+        "customerSegments": ["segment1", "segment2"],
+        "pricingStrategy": "pricing model if mentioned"
+      }
+
+      If specific information is not found, use null for that field.
+
+      Content to analyze:
+      ${content.substring(0, 8000)}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: "You are an expert market analyst. Extract and structure market data from web content. Return valid JSON only." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      return result;
+    } catch (error) {
+      console.error('Error extracting market info:', error);
+      return {
+        marketSize: null,
+        competitors: [],
+        marketPosition: null,
+        uniqueValueProposition: null,
+        customerSegments: [],
+        pricingStrategy: null
+      };
+    }
   }
 
-  // Extract business intelligence from authentic sources
-  private extractBusinessInfo(content: string) {
-    return {
-      recentNews: [],
-      patents: 0,
-      partnerships: [],
-      businessModel: "Requires detailed company analysis"
-    };
+  // Extract business intelligence from authentic sources using OpenAI
+  private async extractBusinessInfo(content: string) {
+    try {
+      const prompt = `Analyze the following scraped content and extract business intelligence. Look for:
+      - Recent news or press releases
+      - Patents or intellectual property
+      - Partnerships or collaborations
+      - Business model description
+      - Customer base information
+      - Technology stack or technical details
+
+      Return valid JSON with the structure:
+      {
+        "recentNews": [{"title": "news title", "source": "source", "date": "date", "sentiment": "positive/neutral/negative"}],
+        "patents": "number of patents if mentioned",
+        "partnerships": ["partner1", "partner2"],
+        "businessModel": "business model description if found",
+        "customerBase": "customer base description if mentioned",
+        "technologyStack": ["tech1", "tech2"]
+      }
+
+      If specific information is not found, use null for that field.
+
+      Content to analyze:
+      ${content.substring(0, 8000)}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: "You are an expert business intelligence analyst. Extract and structure business data from web content. Return valid JSON only." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      return result;
+    } catch (error) {
+      console.error('Error extracting business info:', error);
+      return {
+        recentNews: [],
+        patents: null,
+        partnerships: [],
+        businessModel: null,
+        customerBase: null,
+        technologyStack: []
+      };
+    }
   }
 
   // Generate investment highlights based on authentic data
-  private generateInvestmentHighlights(companyName: string, websiteContent: PromiseSettledResult<string>) {
+  private async generateInvestmentHighlights(companyName: string, websiteContent: PromiseSettledResult<string>) {
     if (websiteContent.status === 'fulfilled' && websiteContent.value) {
-      return {
-        traction: ["Authentic website presence confirmed"],
-        growthMetrics: ["Requires authenticated metrics access"],
-        competitiveAdvantages: ["Analysis based on website content"],
-        marketOpportunity: "Assessment requires market research databases"
-      };
+      try {
+        const prompt = `Based on the following website content for ${companyName}, extract investment highlights and key metrics:
+
+${websiteContent.value.substring(0, 8000)}
+
+Return valid JSON with the structure:
+{
+  "traction": ["specific traction metric 1", "specific traction metric 2"],
+  "growthMetrics": ["growth metric 1", "growth metric 2"],
+  "competitiveAdvantages": ["advantage 1", "advantage 2"],
+  "marketOpportunity": "market opportunity description",
+  "investmentThesis": ["thesis point 1", "thesis point 2"]
+}
+
+Extract specific, quantifiable metrics and advantages where possible.`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+          messages: [
+            { role: "system", content: "You are an expert investment analyst. Extract investment highlights from company information. Return valid JSON only." },
+            { role: "user", content: prompt }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 800
+        });
+
+        const result = JSON.parse(response.choices[0].message.content || '{}');
+        return result;
+      } catch (error) {
+        console.error('Error generating investment highlights:', error);
+        return {
+          traction: ["Website presence confirmed"],
+          growthMetrics: ["Metrics analysis pending"],
+          competitiveAdvantages: ["Competitive analysis in progress"],
+          marketOpportunity: "Market opportunity assessment pending",
+          investmentThesis: ["Further analysis required"]
+        };
+      }
     }
     return null;
   }
@@ -433,14 +589,55 @@ export class AuthenticResearchService {
   // Generate AI analysis based on authentic data
   private async generateAIAnalysis(companyName: string, websiteContent: PromiseSettledResult<string>) {
     if (websiteContent.status === 'fulfilled' && websiteContent.value) {
-      return {
-        investmentScore: 50, // Neutral score without sufficient authentic data
-        confidenceLevel: 30, // Low confidence without comprehensive data
-        keyStrengths: ["Company has established web presence"],
-        keyRisks: ["Limited public data availability"],
-        recommendation: "Requires additional authenticated data sources for comprehensive analysis",
-        nextSteps: ["Obtain authenticated financial databases", "Access LinkedIn Sales Navigator", "Secure Crunchbase Pro access"]
-      };
+      try {
+        const prompt = `Conduct a comprehensive investment analysis for ${companyName} based on the following website content:
+
+${websiteContent.value.substring(0, 12000)}
+
+Provide a detailed investment analysis with the following structure:
+{
+  "investmentScore": 70,
+  "confidenceLevel": 85,
+  "keyStrengths": ["strength1", "strength2", "strength3"],
+  "keyRisks": ["risk1", "risk2", "risk3"],
+  "recommendation": "Clear investment recommendation with reasoning",
+  "nextSteps": ["actionable next step 1", "actionable next step 2"]
+}
+
+Analyze:
+- Business model viability and market fit
+- Competitive advantages and differentiation
+- Growth potential and scalability
+- Team capabilities and leadership
+- Financial health indicators
+- Market opportunity and positioning
+- Risk factors and mitigation strategies
+
+Provide realistic scores (1-100) and specific, actionable insights.`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+          messages: [
+            { role: "system", content: "You are a senior venture capital analyst with 15+ years of experience. Provide detailed, realistic investment analysis based on available data. Return valid JSON only." },
+            { role: "user", content: prompt }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 1500
+        });
+
+        const result = JSON.parse(response.choices[0].message.content || '{}');
+        return result;
+      } catch (error) {
+        console.error('Error generating AI analysis:', error);
+        return {
+          investmentScore: 50,
+          confidenceLevel: 30,
+          keyStrengths: ["Company has established web presence"],
+          keyRisks: ["Limited analysis due to processing error"],
+          recommendation: "Manual review required due to analysis error",
+          nextSteps: ["Conduct manual due diligence", "Request additional documentation"]
+        };
+      }
     }
     return null;
   }
