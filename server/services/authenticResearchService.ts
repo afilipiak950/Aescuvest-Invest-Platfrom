@@ -254,7 +254,7 @@ export class AuthenticResearchService {
       }
 
       // Extract real executive information from scraped content
-      const executiveInfo = this.extractExecutiveInfo(websiteContent, companyName);
+      const executiveInfo = await this.extractExecutiveInfo(websiteContent, companyName);
       
       if (!executiveInfo.ceoProfile && executiveInfo.keyTeamMembers.length === 0) {
         console.log(`❌ No executive team data found in website content for ${companyName}`);
@@ -333,57 +333,72 @@ export class AuthenticResearchService {
     });
   }
 
-  // Extract executive information from authentic website content
-  private extractExecutiveInfo(content: string, companyName: string) {
-    const lines = content.toLowerCase().split('\n');
-    const executiveInfo: any = {
-      ceoProfile: null,
-      keyTeamMembers: []
-    };
+  // Extract executive information from authentic website content using AI
+  private async extractExecutiveInfo(content: string, companyName: string) {
+    try {
+      const prompt = `CRITICAL: Extract executive leadership information ONLY from the following website content. Do NOT make up or invent information that is not present.
 
-    // Look for actual CEO mentions in scraped data
-    for (const line of lines) {
-      if (line.includes('ceo') || line.includes('chief executive')) {
-        const ceoMatch = line.match(/(?:ceo[:\s]+|chief executive[:\s]+)([a-zA-Z\s]+)/i) || 
-                        line.match(/([a-zA-Z\s]+),?\s+(?:ceo|chief executive)/i);
-        
-        if (ceoMatch && ceoMatch[1]) {
-          const name = ceoMatch[1].trim();
-          if (name.length > 2 && name.length < 50) {
-            executiveInfo.ceoProfile = {
-              name: name,
-              background: "Information extracted from company website",
-              experience: "Details available in company sources",
-              education: "Information not available from current sources",
-              previousCompanies: []
-            };
-            break;
-          }
-        }
-      }
+Company: ${companyName}
+Website content:
+${content.substring(0, 8000)}
+
+Extract ONLY the executive leadership information that is explicitly mentioned in the content above. Look for:
+- CEO/Chief Executive Officer name, background, experience, education, previous companies
+- Key team members (CTO, CFO, founders, co-founders, presidents, vice presidents)
+- Professional backgrounds and credentials
+- LinkedIn profiles or social media links if mentioned
+
+Return valid JSON with the structure:
+{
+  "ceoProfile": {
+    "name": "actual CEO name from content",
+    "background": "professional background from content",
+    "experience": "work experience from content",
+    "education": "educational background from content",
+    "previousCompanies": ["list of previous companies mentioned"],
+    "linkedinUrl": "LinkedIn URL if found"
+  },
+  "keyTeamMembers": [
+    {
+      "name": "team member name",
+      "role": "their role/title",
+      "background": "their background from content",
+      "linkedinUrl": "LinkedIn URL if found"
     }
+  ]
+}
 
-    // Look for team member mentions
-    const teamKeywords = ['founder', 'co-founder', 'cto', 'cfo', 'president', 'vice president'];
-    for (const line of lines) {
-      for (const keyword of teamKeywords) {
-        if (line.includes(keyword)) {
-          const memberMatch = line.match(new RegExp(`([a-zA-Z\\s]+),?\\s+(?:${keyword})`, 'i'));
-          if (memberMatch && memberMatch[1]) {
-            const name = memberMatch[1].trim();
-            if (name.length > 2 && name.length < 50 && !executiveInfo.keyTeamMembers.some((m: any) => m.name === name)) {
-              executiveInfo.keyTeamMembers.push({
-                name: name,
-                role: keyword.charAt(0).toUpperCase() + keyword.slice(1),
-                background: "Information extracted from company website"
-              });
-            }
-          }
-        }
+IMPORTANT: If the website content does not contain specific executive information, set fields to null or use appropriate fallback messages. Do NOT invent executive data.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: "You are an expert executive recruiter. Extract ONLY the executive leadership data that is explicitly present in the provided content. Never invent or assume information. Return valid JSON only." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1500
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      
+      // Validate and clean the result
+      if (result.ceoProfile && (!result.ceoProfile.name || result.ceoProfile.name.length < 2)) {
+        result.ceoProfile = null;
       }
+      
+      if (result.keyTeamMembers && !Array.isArray(result.keyTeamMembers)) {
+        result.keyTeamMembers = [];
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error extracting executive info:', error);
+      return {
+        ceoProfile: null,
+        keyTeamMembers: []
+      };
     }
-
-    return executiveInfo;
   }
 
   // Extract financial information from authentic sources using OpenAI
