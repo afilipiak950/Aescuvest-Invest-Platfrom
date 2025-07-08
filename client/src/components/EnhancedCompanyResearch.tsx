@@ -614,19 +614,31 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                       <div>
                         <label className="text-sm font-medium text-gray-400">Business Model</label>
                         <p className="text-white mt-1">
-                          {researchData.businessIntelligence?.businessModel || 'Business model analysis pending'}
+                          {researchData.aiAnalysis?.businessModel || researchData.businessIntelligence?.businessModel || 'Business model analysis pending'}
                         </p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-400">Customer Base</label>
-                        <p className="text-white mt-1">
-                          {researchData.businessIntelligence?.customerBase || 'Customer analysis in progress'}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-400">Technology Stack</label>
+                        <label className="text-sm font-medium text-gray-400">Target Customers</label>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {researchData.businessIntelligence?.technologyStack?.map((tech, index) => (
+                          {researchData.aiAnalysis?.targetCustomers?.map((customer, index) => (
+                            <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
+                              {customer}
+                            </Badge>
+                          )) || (
+                            <p className="text-white mt-1">
+                              {researchData.businessIntelligence?.customerBase || 'Customer analysis in progress'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-400">Products & Services</label>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {researchData.aiAnalysis?.productsServices?.map((service, index) => (
+                            <Badge key={index} variant="secondary" className="bg-green-500/20 text-green-400">
+                              {service}
+                            </Badge>
+                          )) || researchData.businessIntelligence?.technologyStack?.map((tech, index) => (
                             <Badge key={index} variant="secondary" className="bg-blue-500/20 text-blue-400">
                               {tech}
                             </Badge>
@@ -774,11 +786,13 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                   
                   <Card className="bg-purple-500/10 border-purple-500/20">
                     <CardContent className="p-4 text-center">
-                      <Clock className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                      <Star className="h-8 w-8 text-purple-400 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-purple-400">
-                        {researchData.financialData?.runway || 'Calculating'}
+                        {researchData.aiAnalysis?.investmentScore ? `${researchData.aiAnalysis.investmentScore}/100` : researchData.financialData?.runway || 'Calculating'}
                       </div>
-                      <div className="text-sm text-gray-400">Runway</div>
+                      <div className="text-sm text-gray-400">
+                        {researchData.aiAnalysis?.investmentScore ? 'Investment Score' : 'Runway'}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -824,22 +838,31 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-400">Market Size</label>
+                        <label className="text-sm font-medium text-gray-400">Industry Sector</label>
                         <p className="text-white mt-1">
-                          {researchData.marketAnalysis?.marketSize || 'Market research in progress'}
+                          {researchData.aiAnalysis?.industrySector || researchData.marketAnalysis?.marketSize || 'Market research in progress'}
                         </p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-400">Position</label>
+                        <label className="text-sm font-medium text-gray-400">Market Position</label>
                         <p className="text-white mt-1">
                           {researchData.marketAnalysis?.marketPosition || 'Positioning analysis pending'}
                         </p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-400">Value Proposition</label>
-                        <p className="text-white mt-1">
-                          {researchData.marketAnalysis?.uniqueValueProposition || 'Value analysis in progress'}
-                        </p>
+                        <label className="text-sm font-medium text-gray-400">Key Value Propositions</label>
+                        <div className="space-y-2">
+                          {researchData.aiAnalysis?.keyValuePropositions?.map((value, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                              <p className="text-white text-sm">{value}</p>
+                            </div>
+                          )) || (
+                            <p className="text-white mt-1">
+                              {researchData.marketAnalysis?.uniqueValueProposition || 'Value analysis in progress'}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -925,32 +948,46 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
             {/* Risk Assessment Tab */}
             <TabsContent value="risks" className="p-6">
               <div className="space-y-6">
-                {researchData.riskFactors && (
+                {(researchData.aiAnalysis?.keyRisks || researchData.riskFactors) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card className="bg-red-500/10 border-red-500/20">
                       <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                           <AlertTriangle className="h-5 w-5 text-red-400" />
-                          High-Priority Risks
+                          Key Risk Factors
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {Object.entries(researchData.riskFactors).map(([category, risks]) => {
-                          if (category === 'riskLevel' || !Array.isArray(risks)) return null;
-                          return (
-                            <div key={category}>
-                              <h4 className="font-medium text-white capitalize mb-2">{category}</h4>
-                              <ul className="space-y-1">
-                                {risks.map((risk, index) => (
-                                  <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
-                                    <AlertTriangle className="h-3 w-3 text-red-400 mt-0.5 flex-shrink-0" />
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          );
-                        })}
+                        {researchData.aiAnalysis?.keyRisks ? (
+                          <div>
+                            <h4 className="font-medium text-white mb-2">AI-Identified Risks</h4>
+                            <ul className="space-y-1">
+                              {researchData.aiAnalysis.keyRisks.map((risk, index) => (
+                                <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                                  <AlertTriangle className="h-3 w-3 text-red-400 mt-0.5 flex-shrink-0" />
+                                  {risk}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          Object.entries(researchData.riskFactors).map(([category, risks]) => {
+                            if (category === 'riskLevel' || !Array.isArray(risks)) return null;
+                            return (
+                              <div key={category}>
+                                <h4 className="font-medium text-white capitalize mb-2">{category}</h4>
+                                <ul className="space-y-1">
+                                  {risks.map((risk, index) => (
+                                    <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                                      <AlertTriangle className="h-3 w-3 text-red-400 mt-0.5 flex-shrink-0" />
+                                      {risk}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            );
+                          })
+                        )}
                       </CardContent>
                     </Card>
 
@@ -1006,7 +1043,12 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                       </CardHeader>
                       <CardContent>
                         <ul className="space-y-2">
-                          {researchData.investmentHighlights.investmentThesis?.map((point, index) => (
+                          {researchData.aiAnalysis?.keyStrengths?.map((point, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                              <CheckCircle className="h-3 w-3 text-green-400 mt-0.5 flex-shrink-0" />
+                              {point}
+                            </li>
+                          )) || researchData.investmentHighlights.investmentThesis?.map((point, index) => (
                             <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
                               <CheckCircle className="h-3 w-3 text-green-400 mt-0.5 flex-shrink-0" />
                               {point}
@@ -1025,7 +1067,12 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                       </CardHeader>
                       <CardContent>
                         <ul className="space-y-2">
-                          {researchData.investmentHighlights.competitiveAdvantages?.map((advantage, index) => (
+                          {researchData.aiAnalysis?.keyValuePropositions?.map((advantage, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
+                              <Star className="h-3 w-3 text-blue-400 mt-0.5 flex-shrink-0" />
+                              {advantage}
+                            </li>
+                          )) || researchData.investmentHighlights.competitiveAdvantages?.map((advantage, index) => (
                             <li key={index} className="flex items-start gap-2 text-sm text-gray-300">
                               <Star className="h-3 w-3 text-blue-400 mt-0.5 flex-shrink-0" />
                               {advantage}
