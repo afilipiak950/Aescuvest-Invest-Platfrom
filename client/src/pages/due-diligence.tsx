@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
-import EnhancedAgentCard from '@/components/EnhancedAgentCard';
+
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
@@ -878,94 +878,45 @@ export default function DueDiligence() {
                 </TabsList>
                 
                 <TabsContent value="clinical">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="Clinical"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'clinical') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="legal">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="Legal"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'legal') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('legal'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('legal'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="commercial">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="Commercial"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'commercial') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('commercial'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('commercial'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="hr">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="HR"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'hr') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('hr'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('hr'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="financial">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="Financial"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'financial') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('financial'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('financial'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="ip">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="IP"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'ip') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('ip'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('ip'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="research">
-                  <EnhancedAgentCard 
-                    dealId={parseInt(selectedDeal)}
-                    agentType="Research"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'research') : undefined}
-                    isLoading={isLoadingAnalyses}
-                    documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('research'))?.progress || 0}
-                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('research'))?.currentStep}
-                  />
+                  <div className="pt-4">
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="unassigned">
