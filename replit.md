@@ -216,6 +216,12 @@ Changelog:
   - Removed separate /affinity-settings route and consolidated navigation into Settings page
   - Enhanced database schema with full Affinity synchronization fields for investors table
   - Fixed API query response handling to prevent undefined data errors
+- July 8, 2025: Fixed critical AI research hallucination bug and progress tracking issues
+  - Removed hardcoded venture capital fallback data that was causing false company identification
+  - Fixed system to correctly identify "Intellywave" as AI services company instead of venture capital
+  - Added aiAnalysis column to company_research table for proper AI analysis storage
+  - Resolved research job stuck at 110% progress preventing new research from starting
+  - Verified authentic OpenAI analysis now working with real website content and proper error handling
 ```
 
 ## User Preferences
