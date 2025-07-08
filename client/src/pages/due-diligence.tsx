@@ -725,25 +725,58 @@ export default function DueDiligence() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {!showDataRoom ? (
-                <div className="text-center py-8">
-                  <div className="mb-4">
-                    <div className="w-16 h-16 bg-dark-lighter rounded-full flex items-center justify-center mx-auto mb-4">
-                      <LinkIcon className="h-8 w-8 text-gray-400" />
+                <div className="relative overflow-hidden">
+                  {/* Background gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/5"></div>
+                  
+                  {/* Content */}
+                  <div className="relative p-8 text-center">
+                    {/* Icon with animated background */}
+                    <div className="relative mb-6">
+                      <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-2xl flex items-center justify-center mx-auto border border-primary/20 backdrop-blur-sm">
+                        <div className="w-16 h-16 bg-gradient-to-br from-primary/30 to-blue-500/30 rounded-xl flex items-center justify-center">
+                          <LinkIcon className="h-8 w-8 text-primary" />
+                        </div>
+                      </div>
+                      {/* Floating particles */}
+                      <div className="absolute top-2 right-4 w-2 h-2 bg-primary/40 rounded-full animate-pulse"></div>
+                      <div className="absolute bottom-4 left-6 w-1.5 h-1.5 bg-blue-400/40 rounded-full animate-pulse delay-300"></div>
                     </div>
-                    <h3 className="text-lg font-medium text-white mb-2">Connect Data Room</h3>
-                    <p className="text-gray-400 text-sm mb-6">
-                      Upload ZIP files or connect to external data sources to analyze deal documents with AI-powered insights.
+                    
+                    <h3 className="text-xl font-semibold text-white mb-3 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
+                      Connect Data Room
+                    </h3>
+                    <p className="text-gray-400 text-sm mb-8 max-w-md mx-auto leading-relaxed">
+                      Upload ZIP files, individual documents, or connect to external data sources. 
+                      Our AI will automatically analyze and categorize your documents with intelligent insights.
                     </p>
+                    
+                    {/* Features list */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-xs">
+                      <div className="flex items-center justify-center space-x-2 p-3 bg-dark-lighter/50 rounded-lg border border-gray-700/50">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <span className="text-gray-300">ZIP File Support</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-2 p-3 bg-dark-lighter/50 rounded-lg border border-gray-700/50">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-gray-300">AI Analysis</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-2 p-3 bg-dark-lighter/50 rounded-lg border border-gray-700/50">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span className="text-gray-300">Real-time OCR</span>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => setShowDataRoom(true)}
+                      className="bg-gradient-to-r from-primary to-green-400 hover:from-primary/80 hover:to-green-400/80 text-white font-medium px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    >
+                      <LinkIcon className="h-5 w-5 mr-2" />
+                      Connect Data Room
+                    </Button>
                   </div>
-                  <Button 
-                    onClick={() => setShowDataRoom(true)}
-                    className="bg-primary hover:bg-primary/80 text-white"
-                  >
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    Connect Data Room
-                  </Button>
                 </div>
               ) : (
                 <DataRoomExplorer 
