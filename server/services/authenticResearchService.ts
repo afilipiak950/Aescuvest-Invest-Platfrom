@@ -580,10 +580,7 @@ Extract specific, quantifiable metrics and advantages where possible.`;
 
   // Generate AI analysis based on authentic data
   private async generateAIAnalysis(companyName: string, websiteContent: PromiseSettledResult<string>) {
-    console.log(`🤖 Generating AI analysis for ${companyName}...`);
-    
     if (websiteContent.status === 'fulfilled' && websiteContent.value) {
-      console.log(`✅ Website content available for AI analysis: ${websiteContent.value.length} characters`);
       try {
         const prompt = `You are analyzing the company "${companyName}" ONLY based on the following website content. Do NOT make assumptions or use information from other companies.
 
@@ -622,7 +619,6 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
         });
 
         const result = JSON.parse(response.choices[0].message.content || '{}');
-        console.log(`✅ AI analysis completed for ${companyName}:`, result);
         return result;
       } catch (error) {
         console.error('Error generating AI analysis:', error);
