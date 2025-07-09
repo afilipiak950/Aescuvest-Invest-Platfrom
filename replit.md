@@ -247,6 +247,14 @@ Changelog:
   - Enhanced financial data retrieval is handled by the existing financialResearchService during research step 4
   - Removed duplicate financial search endpoint and unnecessary service code
   - Financial data (revenue, valuation, funding history) is now seamlessly integrated into comprehensive research results
+- July 9, 2025: Implemented automatic AI evaluation with enhanced critical scoring
+  - AI evaluation now automatically triggers after company research completion in both persistent and authentic research services
+  - Made evaluation significantly more critical with stricter thresholds: PASS (85+), INVESTIGATE (65-84), REJECT (0-64)
+  - Lowered all sector-specific scoring ranges by 10-15 points to increase selectivity
+  - Enhanced evaluation criteria with additional critical factors: technology risk, regulatory compliance, financial sustainability
+  - Added investment thesis validation framework demanding hard evidence over claims
+  - Updated UI components to reflect new critical thresholds and automatic workflow
+  - System now runs comprehensive AI evaluation automatically 2-3 seconds after research completion
 ```
 
 ## User Preferences

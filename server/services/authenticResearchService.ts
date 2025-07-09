@@ -209,6 +209,26 @@ export class AuthenticResearchService {
       await this.storeResearchData(dealId, researchData);
       
       console.log(`✅ Authentic research completed for ${companyName}`);
+      
+      // Automatically trigger AI evaluation after research completion
+      try {
+        console.log(`🤖 Automatically triggering AI evaluation for deal ${dealId} after research completion`);
+        const { evaluateCompanyByDeal } = await import('./aiEvaluation');
+        
+        // Run AI evaluation in background without blocking
+        setTimeout(async () => {
+          try {
+            const evaluationResult = await evaluateCompanyByDeal(dealId);
+            console.log(`✅ Auto-triggered AI evaluation completed for deal ${dealId} with score: ${evaluationResult.overallScore}`);
+          } catch (evalError) {
+            console.error(`❌ Auto-triggered AI evaluation failed for deal ${dealId}:`, evalError);
+          }
+        }, 3000); // Small delay to let research data settle
+        
+      } catch (error) {
+        console.error(`⚠️ Failed to auto-trigger AI evaluation for deal ${dealId}:`, error);
+      }
+      
       return researchData;
 
     } catch (error) {
