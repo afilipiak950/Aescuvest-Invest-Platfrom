@@ -59,14 +59,14 @@ class FinancialResearchService {
             role: "user",
             content: `Research comprehensive financial information for "${companyName}". Please provide detailed financial data including:
 
-1. REVENUE INFORMATION:
-   - Annual revenue (most recent available)
-   - Revenue growth rate
+1. REVENUE INFORMATION (PROVIDE RANGES):
+   - Annual revenue with range estimates (e.g., "$5M-$10M annually")
+   - Revenue growth rate with range
    - Revenue model and sources
 
-2. VALUATION DATA:
-   - Current valuation
-   - Previous valuations
+2. VALUATION DATA (PROVIDE RANGES):
+   - Current valuation with range estimates (e.g., "$50M-$100M")
+   - Previous valuations with ranges
    - Market cap if public
 
 3. FUNDING HISTORY:
@@ -74,9 +74,10 @@ class FinancialResearchService {
    - Amount raised in each round
    - Dates of funding rounds
    - Lead investors and participants
+   - If NO funding history is available, return null for this field
 
 4. FINANCIAL METRICS:
-   - Employee count
+   - Employee count with range estimates
    - Burn rate (if available)
    - Runway (if available)
    - Growth metrics
@@ -86,11 +87,17 @@ class FinancialResearchService {
    - Cash flow information
    - Key financial ratios
 
-Please provide specific numbers, dates, and sources where possible. Focus on the most recent and reliable financial information available. Format your response as JSON with the following structure:
+IMPORTANT INSTRUCTIONS:
+- ALWAYS provide range estimates for revenue and valuation (e.g., "$5M-$15M", "$20M-$50M")
+- If funding history is not available or unknown, set "fundingHistory" to null
+- Focus on realistic range estimates rather than single point values
+- Use your knowledge of typical company financials in similar industries/stages
+
+Format your response as JSON with the following structure:
 
 {
-  "revenue": "specific revenue figure with timeframe",
-  "valuation": "current valuation with date",
+  "revenue": "revenue range with timeframe (e.g., '$5M-$10M annually')",
+  "valuation": "valuation range with date (e.g., '$50M-$100M (2024)')",
   "fundingHistory": [
     {
       "round": "Series A",
@@ -99,13 +106,15 @@ Please provide specific numbers, dates, and sources where possible. Focus on the
       "investors": ["Investor 1", "Investor 2"]
     }
   ],
-  "employeeCount": "number of employees",
+  "employeeCount": "employee count range (e.g., '50-100 employees')",
   "financialMetrics": {
-    "growthRate": "percentage growth",
-    "burnRate": "monthly burn rate",
-    "runway": "months of runway"
+    "growthRate": "growth percentage range",
+    "burnRate": "monthly burn rate range",
+    "runway": "months of runway range"
   }
-}`
+}
+
+If funding history is not available, use: "fundingHistory": null`
           }
         ],
         response_format: { type: "json_object" },
