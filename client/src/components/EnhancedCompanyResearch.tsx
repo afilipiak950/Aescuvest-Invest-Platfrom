@@ -140,7 +140,23 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     queryKey: [`/api/deals/${dealId}/research`],
     enabled: !!dealId,
     retry: false,
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache data
   });
+
+  // Debug logging for research data
+  useEffect(() => {
+    if (researchData) {
+      console.log('🔍 Research data loaded:', {
+        hasMarketAnalysis: !!researchData.marketAnalysis,
+        hasFinancialData: !!researchData.financialData,
+        hasAIAnalysis: !!researchData.aiAnalysis,
+        hasCeoProfile: !!researchData.ceoProfile,
+        marketAnalysisKeys: researchData.marketAnalysis ? Object.keys(researchData.marketAnalysis) : [],
+        financialDataKeys: researchData.financialData ? Object.keys(researchData.financialData) : []
+      });
+    }
+  }, [researchData]);
 
   // Always poll for research progress to detect new jobs
   const { data: progressData } = useQuery<{
@@ -254,7 +270,21 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     );
   }
 
-  if (error || !researchData) {
+  // Debug: Check if researchData is actually empty
+  const isEmptyResearchData = !researchData || (!researchData.companyName && !researchData.marketAnalysis && !researchData.financialData && !researchData.aiAnalysis);
+  
+  // Debug logging
+  console.log('🔍 Research Data Debug:', {
+    hasResearchData: !!researchData,
+    isEmptyResearchData,
+    error,
+    companyName: researchData?.companyName,
+    hasMarketAnalysis: !!researchData?.marketAnalysis,
+    hasFinancialData: !!researchData?.financialData,
+    hasAIAnalysis: !!researchData?.aiAnalysis
+  });
+  
+  if (error || isEmptyResearchData) {
     return (
       <Card className="bg-dark border-dark-lighter">
         <CardContent className="p-12 text-center">
