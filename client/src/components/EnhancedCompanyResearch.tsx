@@ -12,7 +12,7 @@ import {
   RefreshCw, Globe, DollarSign, Users, Cpu, FileText, Shield, Building, TrendingUp, 
   Eye, Brain, Search, Target, ChartBar, AlertTriangle, CheckCircle, Clock,
   ExternalLink, User, MapPin, Calendar, Briefcase, Award, Lightbulb,
-  Network, TrendingDown, Activity, BookOpen, Star, Info, Package, ArrowRight
+  Network, TrendingDown, Activity, BookOpen, Star, Info, Package, ArrowRight, Loader2
 } from 'lucide-react';
 
 interface CompanyResearchProps {
@@ -135,6 +135,10 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
   } | null>(null);
   const [isFinancialSearching, setIsFinancialSearching] = useState(false);
   const [financialSearchData, setFinancialSearchData] = useState<any>(null);
+  const [isMarketPositionSearching, setIsMarketPositionSearching] = useState(false);
+  const [marketPositionSearchData, setMarketPositionSearchData] = useState<any>(null);
+  const [isCompetitiveSearching, setIsCompetitiveSearching] = useState(false);
+  const [competitiveSearchData, setCompetitiveSearchData] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: researchData, isLoading, error, refetch } = useQuery<EnhancedResearchData>({
@@ -259,6 +263,76 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
       setIsFinancialSearching(true);
       setFinancialSearchData(null);
       financialSearchMutation.mutate(researchData.companyName);
+    }
+  };
+
+  // Market Position Search Mutation
+  const marketPositionSearchMutation = useMutation({
+    mutationFn: async (companyName: string) => {
+      const response = await fetch(`/api/deals/${dealId}/market-position-search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to search market position');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('📊 Market position search completed:', data);
+      setMarketPositionSearchData(data);
+      setIsMarketPositionSearching(false);
+    },
+    onError: (error) => {
+      console.error('Market position search failed:', error);
+      setIsMarketPositionSearching(false);
+    }
+  });
+
+  const handleMarketPositionSearch = () => {
+    if (researchData?.companyName) {
+      setIsMarketPositionSearching(true);
+      setMarketPositionSearchData(null);
+      marketPositionSearchMutation.mutate(researchData.companyName);
+    }
+  };
+
+  // Competitive Landscape Search Mutation
+  const competitiveSearchMutation = useMutation({
+    mutationFn: async (companyName: string) => {
+      const response = await fetch(`/api/deals/${dealId}/competitive-landscape-search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to search competitive landscape');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('🎯 Competitive landscape search completed:', data);
+      setCompetitiveSearchData(data);
+      setIsCompetitiveSearching(false);
+    },
+    onError: (error) => {
+      console.error('Competitive landscape search failed:', error);
+      setIsCompetitiveSearching(false);
+    }
+  });
+
+  const handleCompetitiveSearch = () => {
+    if (researchData?.companyName) {
+      setIsCompetitiveSearching(true);
+      setCompetitiveSearchData(null);
+      competitiveSearchMutation.mutate(researchData.companyName);
     }
   };
 
@@ -985,25 +1059,64 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                       <CardTitle className="text-lg flex items-center gap-2">
                         <ChartBar className="h-5 w-5 text-blue-400" />
                         Market Position
+                        {marketPositionSearchData && (
+                          <Badge className="ml-2 bg-blue-500/20 text-blue-400 border-blue-500/30">
+                            AI Enhanced
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      <div className="flex justify-end mb-4">
+                        <Button
+                          onClick={handleMarketPositionSearch}
+                          disabled={isMarketPositionSearching || !researchData?.companyName}
+                          className="bg-blue-500 hover:bg-blue-600 text-white"
+                          size="sm"
+                        >
+                          {isMarketPositionSearching ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Searching...
+                            </>
+                          ) : (
+                            <>
+                              <Search className="h-4 w-4 mr-2" />
+                              Search Market Position
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      
                       <div>
                         <label className="text-sm font-medium text-gray-400">Industry Sector</label>
                         <p className="text-white mt-1">
-                          {researchData.aiAnalysis?.industrySector || researchData.marketAnalysis?.marketSize || 'Market research in progress'}
+                          {marketPositionSearchData?.industrySector || 
+                           researchData.aiAnalysis?.industrySector || 
+                           researchData.marketAnalysis?.marketSize || 
+                           'Market research in progress'}
                         </p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-400">Market Position</label>
                         <p className="text-white mt-1">
-                          {researchData.marketAnalysis?.marketPosition || 'Positioning analysis pending'}
+                          {marketPositionSearchData?.marketPosition || 
+                           researchData.marketAnalysis?.marketPosition || 
+                           'Positioning analysis pending'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-400">Market Size</label>
+                        <p className="text-white mt-1">
+                          {marketPositionSearchData?.marketSize || 
+                           researchData.marketAnalysis?.marketSize || 
+                           'Market size analysis pending'}
                         </p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-400">Key Value Propositions</label>
                         <div className="space-y-2">
-                          {researchData.aiAnalysis?.keyValuePropositions?.map((value, index) => (
+                          {(marketPositionSearchData?.valuePropositions || researchData.aiAnalysis?.keyValuePropositions)?.map((value, index) => (
                             <div key={index} className="flex items-start gap-2">
                               <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
                               <p className="text-white text-sm">{value}</p>
@@ -1023,18 +1136,65 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Target className="h-5 w-5 text-green-400" />
                         Competitive Landscape
+                        {competitiveSearchData && (
+                          <Badge className="ml-2 bg-green-500/20 text-green-400 border-green-500/30">
+                            AI Enhanced
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
+                      <div className="flex justify-end mb-4">
+                        <Button
+                          onClick={handleCompetitiveSearch}
+                          disabled={isCompetitiveSearching || !researchData?.companyName}
+                          className="bg-green-500 hover:bg-green-600 text-white"
+                          size="sm"
+                        >
+                          {isCompetitiveSearching ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Search className="h-4 w-4 mr-2" />
+                              Search Competitive Landscape
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      
                       <div className="space-y-3">
                         <label className="text-sm font-medium text-gray-400">Main Competitors</label>
                         <div className="flex flex-wrap gap-2">
-                          {researchData.marketAnalysis?.competitors?.map((competitor, index) => (
+                          {(competitiveSearchData?.competitors || researchData.marketAnalysis?.competitors)?.map((competitor, index) => (
                             <Badge key={index} variant="outline" className="border-red-500/30 text-red-400">
                               {competitor}
                             </Badge>
                           ))}
                         </div>
+                        
+                        {competitiveSearchData?.competitiveAdvantages && (
+                          <div className="mt-4">
+                            <label className="text-sm font-medium text-gray-400">Competitive Advantages</label>
+                            <div className="space-y-2 mt-2">
+                              {competitiveSearchData.competitiveAdvantages.map((advantage, index) => (
+                                <div key={index} className="flex items-start gap-2">
+                                  <Star className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                  <p className="text-white text-sm">{advantage}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {competitiveSearchData?.marketShare && (
+                          <div className="mt-4">
+                            <label className="text-sm font-medium text-gray-400">Market Share</label>
+                            <p className="text-white mt-1">{competitiveSearchData.marketShare}</p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
