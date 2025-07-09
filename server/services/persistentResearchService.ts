@@ -173,6 +173,11 @@ export class PersistentResearchService {
       const researchData = await authenticResearchService.conductComprehensiveResearch(dealId);
       result = researchData;
       console.log(`✅ Comprehensive research complete`);
+      
+      // Store research data in company_research table
+      console.log(`💾 Storing research data in database for deal ${dealId}`);
+      await storage.createOrUpdateCompanyResearch(dealId, researchData);
+      console.log(`✅ Research data stored successfully`);
 
       // Step 3: CEO Research (15%)
       cumulativeProgress += RESEARCH_STEPS[2].weight;
@@ -192,8 +197,7 @@ export class PersistentResearchService {
       try {
         console.log(`💰 Starting enhanced financial research for ${companyName}`);
         const financialData = await financialResearchService.conductFinancialResearch(companyName, website);
-        await financialResearchService.storeFinancialData(dealId, financialData);
-        console.log(`✅ Financial research completed and stored`);
+        console.log(`✅ Financial research completed`);
       } catch (error) {
         console.warn(`⚠️ Financial research failed, continuing with existing data:`, error);
       }

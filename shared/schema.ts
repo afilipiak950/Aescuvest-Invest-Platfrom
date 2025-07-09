@@ -366,6 +366,7 @@ export const companyResearch = pgTable("company_research", {
   // Additional fields for enhanced research
   ceoProfile: json("ceo_profile"),
   financialData: json("financial_data"),
+  marketAnalysis: json("market_analysis"),
   externalLinks: json("external_links"),
   businessIntelligence: json("business_intelligence"),
   investmentHighlights: json("investment_highlights"),
