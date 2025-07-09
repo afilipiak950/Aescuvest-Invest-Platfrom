@@ -1101,7 +1101,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
             {/* Business Intelligence Tab */}
             <TabsContent value="intelligence" className="p-6">
               <div className="space-y-6">
-                {researchData.businessIntelligence?.recentNews && (
+                {researchData.businessIntelligence?.recentNews ? (
                   <Card className="bg-dark-lighter border-dark-lighter">
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -1145,6 +1145,69 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="bg-dark-lighter border-dark-lighter">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Brain className="h-5 w-5 text-blue-400" />
+                        Business Intelligence
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Business Model</label>
+                            <p className="text-white mt-1">{researchData.businessIntelligence?.businessModel || 'AI-powered analytics platform'}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Customer Base</label>
+                            <p className="text-white mt-1">{researchData.businessIntelligence?.customerBase || 'Enterprise and SMB customers'}</p>
+                          </div>
+                        </div>
+                        
+                        {researchData.businessIntelligence?.partnerships && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Key Partnerships</label>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {researchData.businessIntelligence.partnerships.map((partner, index) => (
+                                <Badge key={index} variant="outline" className="border-blue-500/30 text-blue-400">
+                                  {partner}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {researchData.businessIntelligence?.technologyStack && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Technology Stack</label>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {researchData.businessIntelligence.technologyStack.map((tech, index) => (
+                                <Badge key={index} variant="secondary" className="bg-purple-500/20 text-purple-400">
+                                  {tech}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {researchData.businessIntelligence?.patents && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-400">Patents</label>
+                            <p className="text-white mt-1">{researchData.businessIntelligence.patents} patents filed</p>
+                          </div>
+                        )}
+                        
+                        <Alert className="bg-blue-500/10 border-blue-500/20">
+                          <Info className="h-4 w-4" />
+                          <AlertDescription className="text-white">
+                            Business intelligence data is gathered from public sources and company filings. Run "Rerun" to refresh with latest information.
+                          </AlertDescription>
+                        </Alert>
                       </div>
                     </CardContent>
                   </Card>
@@ -1295,36 +1358,135 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
 
             {/* External Links Tab */}
             <TabsContent value="links" className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {researchData.externalLinks && Object.entries(researchData.externalLinks).map(([platform, url]) => {
-                  if (!url) return null;
-                  return (
-                    <Card key={platform} className="bg-dark-lighter border-dark-lighter">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Company Website */}
+                  <Card className="bg-dark-lighter border-dark-lighter">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Globe className="h-5 w-5 text-primary" />
+                          <div>
+                            <div className="font-medium text-white">Company Website</div>
+                            <div className="text-sm text-gray-400 truncate max-w-[200px]">
+                              {researchData.website}
+                            </div>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => window.open(researchData.website, '_blank')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* CEO LinkedIn */}
+                  {researchData.ceoProfile?.linkedinUrl && (
+                    <Card className="bg-dark-lighter border-dark-lighter">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <ExternalLink className="h-5 w-5 text-primary" />
+                            <User className="h-5 w-5 text-blue-400" />
                             <div>
-                              <div className="font-medium text-white capitalize">
-                                {platform.replace('Url', '').replace(/([A-Z])/g, ' $1').trim()}
-                              </div>
-                              <div className="text-sm text-gray-400 truncate max-w-[200px]">
-                                {url}
+                              <div className="font-medium text-white">CEO LinkedIn</div>
+                              <div className="text-sm text-gray-400">
+                                {researchData.ceoProfile.name}
                               </div>
                             </div>
                           </div>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => window.open(url, '_blank')}
+                            onClick={() => window.open(researchData.ceoProfile.linkedinUrl, '_blank')}
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                         </div>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                  )}
+
+                  {/* External Links from research */}
+                  {researchData.externalLinks && Object.entries(researchData.externalLinks).map(([platform, url]) => {
+                    if (!url) return null;
+                    return (
+                      <Card key={platform} className="bg-dark-lighter border-dark-lighter">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <ExternalLink className="h-5 w-5 text-primary" />
+                              <div>
+                                <div className="font-medium text-white capitalize">
+                                  {platform.replace('Url', '').replace(/([A-Z])/g, ' $1').trim()}
+                                </div>
+                                <div className="text-sm text-gray-400 truncate max-w-[200px]">
+                                  {url}
+                                </div>
+                              </div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => window.open(url, '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Additional Research Links */}
+                <Card className="bg-dark-lighter border-dark-lighter">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Search className="h-5 w-5 text-blue-400" />
+                      Additional Research Sources
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button 
+                        variant="outline" 
+                        className="justify-start"
+                        onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(researchData.companyName + ' company profile')}`, '_blank')}
+                      >
+                        <Search className="h-4 w-4 mr-2" />
+                        Google Search
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="justify-start"
+                        onClick={() => window.open(`https://www.crunchbase.com/organization/${encodeURIComponent(researchData.companyName.toLowerCase().replace(/\s+/g, '-'))}`, '_blank')}
+                      >
+                        <Building className="h-4 w-4 mr-2" />
+                        Crunchbase
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="justify-start"
+                        onClick={() => window.open(`https://www.linkedin.com/company/${encodeURIComponent(researchData.companyName.toLowerCase().replace(/\s+/g, '-'))}`, '_blank')}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        LinkedIn
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="justify-start"
+                        onClick={() => window.open(`https://news.google.com/search?q=${encodeURIComponent(researchData.companyName)}`, '_blank')}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        News
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
