@@ -408,13 +408,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount inbox routes
   app.use('/api/inbox', inboxRoutes);
   
-  // Deal routes
+  // Deal routes - Optimized with performance timing
   app.get('/api/deals', async (req: Request, res: Response) => {
+    const startTime = Date.now();
     try {
+      console.log('📊 Starting optimized deals fetch...');
       const deals = await storage.getAllDeals();
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`📊 Deals fetch completed: ${deals.length} deals in ${totalTime}ms`);
+      
       return res.status(200).json(deals);
     } catch (error) {
-      console.error('Error fetching deals:', error);
+      const totalTime = Date.now() - startTime;
+      console.error(`Error fetching deals after ${totalTime}ms:`, error);
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -675,15 +682,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Analysis routes
+  // Analysis routes - Optimized with performance timing
   app.get('/api/analyses/:dealId', async (req: Request, res: Response) => {
+    const startTime = Date.now();
     try {
       const dealId = parseInt(req.params.dealId);
       if (isNaN(dealId)) {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
       
+      console.log(`🔍 Starting optimized analyses fetch for deal ${dealId}...`);
       const existingAnalyses = await storage.getAnalysesByDealId(dealId);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`🔍 Analyses fetch completed: ${existingAnalyses.length} analyses in ${totalTime}ms`);
       
       // Return real analyses if they exist
       if (existingAnalyses.length > 0) {

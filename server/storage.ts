@@ -20,9 +20,11 @@ import {
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull } from 'drizzle-orm';
 
-// In-memory cache for document queries
+// In-memory cache for better performance across queries
 const documentCache = new Map<number, { data: Document[], timestamp: number }>();
-const CACHE_TTL = 60000; // 60 seconds cache for better performance
+const dealsCache = new Map<string, { data: any[], timestamp: number }>();
+const analysesCache = new Map<number, { data: AgentAnalysis[], timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds cache for better performance
 
 // Storage interface with all the CRUD methods we need
 export interface IStorage {
@@ -198,7 +200,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllDeals(): Promise<Deal[]> {
-    const result = await db.select().from(deals).orderBy(desc(deals.createdAt));
+    // Check cache first
+    const cached = dealsCache.get('all_deals');
+    const now = Date.now();
+    
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      console.log(`💨 Using cached deals data (${cached.data.length} deals)`);
+      return cached.data;
+    }
+    
+    console.log('⚡ Fetching all deals with optimized query...');
+    const startTime = Date.now();
+    
+    // Optimized query with selective fields for dashboard performance
+    const result = await db
+      .select({
+        id: deals.id,
+        companyName: deals.companyName,
+        description: deals.description,
+        sector: deals.sector,
+        stage: deals.stage,
+        location: deals.location,
+        website: deals.website,
+        fundingAmount: deals.fundingAmount,
+        status: deals.status,
+        aiScore: deals.aiScore,
+        createdAt: deals.createdAt,
+        updatedAt: deals.updatedAt
+      })
+      .from(deals)
+      .orderBy(desc(deals.createdAt))
+      .limit(100); // Limit to most recent 100 deals for performance
+    
+    const queryTime = Date.now() - startTime;
+    console.log(`⚡ Fetched ${result.length} deals in ${queryTime}ms`);
+    
+    // Cache the result
+    dealsCache.set('all_deals', { data: result, timestamp: now });
+    
     return result;
   }
 
@@ -209,6 +248,11 @@ export class DatabaseStorage implements IStorage {
 
   async createDeal(deal: InsertDeal): Promise<Deal> {
     const [newDeal] = await db.insert(deals).values(deal).returning();
+    
+    // Invalidate deals cache when new deal is created
+    dealsCache.delete('all_deals');
+    console.log('💨 Invalidated deals cache after creating new deal');
+    
     return newDeal;
   }
 
@@ -227,6 +271,11 @@ export class DatabaseStorage implements IStorage {
       .set({ status })
       .where(eq(deals.id, id))
       .returning();
+    
+    // Invalidate deals cache when status changes
+    dealsCache.delete('all_deals');
+    console.log('💨 Invalidated deals cache after status update');
+    
     return updatedDeal || undefined;
   }
 
@@ -656,13 +705,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnalysesByDealId(dealId: number): Promise<AgentAnalysis[]> {
+    // Check cache first
+    const cached = analysesCache.get(dealId);
+    const now = Date.now();
+    
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      console.log(`💨 Using cached analyses for deal ${dealId} (${cached.data.length} analyses)`);
+      return cached.data;
+    }
+    
     console.log(`🔍 Querying agent analyses for deal ${dealId}`);
+    const startTime = Date.now();
+    
     const analysisList = await db
       .select()
       .from(agentAnalyses)
       .where(eq(agentAnalyses.dealId, dealId))
-      .orderBy(desc(agentAnalyses.createdAt));
-    console.log(`🔍 Found ${analysisList.length} analyses for deal ${dealId}`);
+      .orderBy(desc(agentAnalyses.createdAt))
+      .limit(50); // Limit results for performance
+    
+    const queryTime = Date.now() - startTime;
+    console.log(`🔍 Found ${analysisList.length} analyses for deal ${dealId} in ${queryTime}ms`);
+    
+    // Cache the result
+    analysesCache.set(dealId, { data: analysisList, timestamp: now });
+    
     return analysisList;
   }
 
@@ -682,6 +749,13 @@ export class DatabaseStorage implements IStorage {
 
   async createAgentAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis> {
     const [newAnalysis] = await db.insert(agentAnalyses).values(analysis).returning();
+    
+    // Invalidate analyses cache when new analysis is created
+    if (newAnalysis.dealId) {
+      analysesCache.delete(newAnalysis.dealId);
+      console.log(`💨 Invalidated analyses cache for deal ${newAnalysis.dealId}`);
+    }
+    
     return newAnalysis;
   }
 
@@ -1011,9 +1085,18 @@ export class DatabaseStorage implements IStorage {
 
   async getEvaluationResultsByDealId(dealId: number): Promise<any[]> {
     try {
-      const results = await db.select().from(evaluationResults)
+      const startTime = Date.now();
+      
+      const results = await db
+        .select()
+        .from(evaluationResults)
         .where(eq(evaluationResults.dealId, dealId))
-        .orderBy(desc(evaluationResults.createdAt));
+        .orderBy(desc(evaluationResults.createdAt))
+        .limit(100); // Limit for performance
+      
+      const queryTime = Date.now() - startTime;
+      console.log(`📊 Fetched ${results.length} evaluation results for deal ${dealId} in ${queryTime}ms`);
+      
       return results;
     } catch (error) {
       console.error('Error fetching evaluation results:', error);
