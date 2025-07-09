@@ -133,6 +133,8 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     status: string;
     debugInfo?: any;
   } | null>(null);
+  const [isFinancialSearching, setIsFinancialSearching] = useState(false);
+  const [financialSearchData, setFinancialSearchData] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: researchData, isLoading, error, refetch } = useQuery<EnhancedResearchData>({
@@ -223,6 +225,41 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     setIsRefreshing(true);
     setResearchProgress(null);
     refreshResearchMutation.mutate();
+  };
+
+  // Financial Search Mutation
+  const financialSearchMutation = useMutation({
+    mutationFn: async (companyName: string) => {
+      const response = await fetch(`/api/deals/${dealId}/financial-search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to search financial data');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('💰 Financial search completed:', data);
+      setFinancialSearchData(data);
+      setIsFinancialSearching(false);
+    },
+    onError: (error) => {
+      console.error('Financial search failed:', error);
+      setIsFinancialSearching(false);
+    }
+  });
+
+  const handleFinancialSearch = () => {
+    if (researchData?.companyName) {
+      setIsFinancialSearching(true);
+      setFinancialSearchData(null);
+      financialSearchMutation.mutate(researchData.companyName);
+    }
   };
 
 
@@ -783,14 +820,36 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
             {/* Financial Tab */}
             <TabsContent value="financial" className="p-6">
               <div className="space-y-6">
+                {/* Financial Search Button */}
+                <div className="flex justify-end mb-4">
+                  <Button
+                    onClick={handleFinancialSearch}
+                    disabled={isFinancialSearching || financialSearchMutation.isPending}
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200"
+                  >
+                    {isFinancialSearching || financialSearchMutation.isPending ? (
+                      <>
+                        <DollarSign className="h-4 w-4 mr-2 animate-pulse" />
+                        Searching Financial Data...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        Search Financial Data
+                      </>
+                    )}
+                  </Button>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card className="bg-green-500/10 border-green-500/20">
                     <CardContent className="p-4 text-center">
                       <DollarSign className="h-8 w-8 text-green-400 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-green-400">
-                        {researchData.financialData?.revenue === 'Financial information not available' ? 
+                        {financialSearchData?.revenue || 
+                         (researchData.financialData?.revenue === 'Financial information not available' ? 
                           'No data found' : 
-                          researchData.financialData?.revenue || 'No data found'}
+                          researchData.financialData?.revenue || 'No data found')}
                       </div>
                       <div className="text-sm text-gray-400">Revenue</div>
                     </CardContent>
@@ -800,9 +859,10 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                     <CardContent className="p-4 text-center">
                       <TrendingUp className="h-8 w-8 text-blue-400 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-blue-400">
-                        {researchData.financialData?.valuation === 'Not available' ? 
+                        {financialSearchData?.valuation || 
+                         (researchData.financialData?.valuation === 'Not available' ? 
                           'No data found' : 
-                          researchData.financialData?.valuation || 'No data found'}
+                          researchData.financialData?.valuation || 'No data found')}
                       </div>
                       <div className="text-sm text-gray-400">Valuation</div>
                     </CardContent>
@@ -821,14 +881,21 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                   </Card>
                 </div>
 
-                {researchData.financialData?.fundingHistory && (
+                {(financialSearchData?.fundingHistory || researchData.financialData?.fundingHistory) && (
                   <Card className="bg-dark-lighter border-dark-lighter">
                     <CardHeader>
-                      <CardTitle className="text-lg">Funding History</CardTitle>
+                      <CardTitle className="text-lg">
+                        Funding History
+                        {financialSearchData?.fundingHistory && (
+                          <Badge className="ml-2 bg-green-500/20 text-green-400 border-green-500/30">
+                            AI Enhanced
+                          </Badge>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {researchData.financialData.fundingHistory.map((round, index) => (
+                        {(financialSearchData?.fundingHistory || researchData.financialData?.fundingHistory)?.map((round, index) => (
                           <div key={index} className="flex items-center justify-between p-4 bg-dark rounded-lg">
                             <div>
                               <div className="font-semibold text-white">{round.round}</div>
@@ -837,11 +904,54 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                             <div className="text-right">
                               <div className="text-sm text-white">{round.date}</div>
                               <div className="text-xs text-gray-400">
-                                {round.investors.join(', ')}
+                                {Array.isArray(round.investors) ? round.investors.join(', ') : round.investors || 'Undisclosed'}
                               </div>
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Financial Search Results */}
+                {financialSearchData && (
+                  <Card className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-green-400" />
+                        AI Financial Intelligence
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                          Fresh Data
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Employee Count</label>
+                          <p className="text-white font-semibold mt-1">
+                            {financialSearchData.employeeCount || 'Not available'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Growth Rate</label>
+                          <p className="text-white font-semibold mt-1">
+                            {financialSearchData.financialMetrics?.growthRate || 'Not available'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Burn Rate</label>
+                          <p className="text-white font-semibold mt-1">
+                            {financialSearchData.financialMetrics?.burnRate || 'Not available'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-400">Runway</label>
+                          <p className="text-white font-semibold mt-1">
+                            {financialSearchData.financialMetrics?.runway || 'Not available'}
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

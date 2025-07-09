@@ -3194,7 +3194,42 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Financial Search API endpoint
+  app.post('/api/deals/:dealId/financial-search', async (req: Request, res: Response) => {
+    try {
+      const { dealId } = req.params;
+      const { companyName } = req.body;
+      
+      console.log(`💰 Starting financial search for ${companyName} (deal ${dealId})`);
+      
+      if (!companyName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Company name is required' 
+        });
+      }
 
+      // Import the financial research service
+      const { financialResearchService } = await import('./services/financialResearchService');
+      
+      // Conduct financial research using OpenAI
+      const financialData = await financialResearchService.conductFinancialResearch(companyName, '');
+      
+      console.log(`✅ Financial search completed for ${companyName}`);
+      
+      res.json({
+        success: true,
+        data: financialData
+      });
+    } catch (error) {
+      console.error('Error conducting financial search:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to conduct financial search',
+        error: error.message
+      });
+    }
+  });
 
   // Remove duplicate route - using the enhanced one at line 1566
 
