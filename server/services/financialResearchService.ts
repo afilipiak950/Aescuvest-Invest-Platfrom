@@ -1,202 +1,142 @@
-import OpenAI from "openai";
-import { storage } from "../storage";
+import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-export interface FinancialData {
-  revenue: string;
-  valuation: string;
-  employeeCount: string;
-  fundingHistory: Array<{
+interface FinancialMetrics {
+  revenue?: string;
+  valuation?: string;
+  fundingHistory?: Array<{
     round: string;
     amount: string;
     date: string;
-    investors: string[];
+    investors: string[] | string;
   }>;
-  financialMetrics: {
+  employeeCount?: string;
+  growthRate?: string;
+  burnRate?: string;
+  runway?: string;
+}
+
+interface FinancialResearchData {
+  revenue?: string;
+  valuation?: string;
+  fundingHistory?: Array<{
+    round: string;
+    amount: string;
+    date: string;
+    investors: string[] | string;
+  }>;
+  employeeCount?: string;
+  financialMetrics?: {
     growthRate?: string;
     burnRate?: string;
     runway?: string;
   };
-  lastUpdated: string;
+  lastUpdated?: string;
 }
 
 class FinancialResearchService {
-  async conductFinancialResearch(companyName: string, website: string): Promise<FinancialData> {
-    console.log(`💰 Starting comprehensive financial research for ${companyName} (${website})`);
-    
+  private openai: OpenAI;
+
+  constructor() {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key is required');
+    }
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+
+  async conductFinancialResearch(companyName: string, websiteContent: string): Promise<FinancialResearchData> {
     try {
-      // Use OpenAI to search for comprehensive financial data - similar to ChatGPT approach
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      console.log(`💰 Starting financial research for ${companyName}`);
+      
+      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are a financial research expert. Provide comprehensive financial analysis of companies based on publicly available information. Focus on revenue estimates, valuation, funding history, and financial metrics."
+            content: `You are a financial research expert specializing in startup and venture capital analysis. Your task is to find comprehensive financial information about companies. Focus on providing factual, up-to-date financial data including revenue, valuation, funding history, and key financial metrics. Use your knowledge of publicly available financial information to provide detailed insights.`
           },
           {
             role: "user",
-            content: `Please research and provide comprehensive financial information for ${companyName} (website: ${website}).
+            content: `Research comprehensive financial information for "${companyName}". Please provide detailed financial data including:
 
-I need detailed financial data including:
+1. REVENUE INFORMATION:
+   - Annual revenue (most recent available)
+   - Revenue growth rate
+   - Revenue model and sources
 
-1. **Revenue Analysis**: 
-   - Annual revenue estimates or ranges
-   - Revenue growth trends
-   - Business model and revenue streams
+2. VALUATION DATA:
+   - Current valuation
+   - Previous valuations
+   - Market cap if public
 
-2. **Valuation & Funding**:
-   - Current company valuation or estimated range
-   - Funding history with specific rounds (Seed, Series A, B, C, etc.)
-   - Investment amounts and dates
-   - Investor names and lead investors
+3. FUNDING HISTORY:
+   - All funding rounds (seed, Series A, B, C, etc.)
+   - Amount raised in each round
+   - Dates of funding rounds
+   - Lead investors and participants
 
-3. **Financial Metrics**:
-   - Employee count and growth
-   - Burn rate estimates
-   - Runway calculations
-   - Growth rate indicators
+4. FINANCIAL METRICS:
+   - Employee count
+   - Burn rate (if available)
+   - Runway (if available)
+   - Growth metrics
 
-4. **Market Position**:
-   - Industry benchmarks
-   - Competitive positioning
-   - Market size and opportunity
+5. FINANCIAL PERFORMANCE:
+   - Profitability status
+   - Cash flow information
+   - Key financial ratios
 
-Please provide specific numbers where available, or educated estimates based on:
-- Company size and industry standards
-- Public filings and reports
-- News articles and press releases
-- Crunchbase, PitchBook, or similar databases
-- Industry analyst reports
+Please provide specific numbers, dates, and sources where possible. Focus on the most recent and reliable financial information available. Format your response as JSON with the following structure:
 
-If specific data is not publicly available, provide reasonable estimates based on similar companies in the space and explain your reasoning.
-
-Format your response as a comprehensive financial analysis with clear sections and specific data points.`
+{
+  "revenue": "specific revenue figure with timeframe",
+  "valuation": "current valuation with date",
+  "fundingHistory": [
+    {
+      "round": "Series A",
+      "amount": "$10M",
+      "date": "2024-01-15",
+      "investors": ["Investor 1", "Investor 2"]
+    }
+  ],
+  "employeeCount": "number of employees",
+  "financialMetrics": {
+    "growthRate": "percentage growth",
+    "burnRate": "monthly burn rate",
+    "runway": "months of runway"
+  }
+}`
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.3
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 2000
       });
 
-      const financialAnalysis = response.choices[0].message.content || "";
-      console.log(`✅ OpenAI financial analysis completed for ${companyName}`);
+      const rawData = response.choices[0].message.content;
+      if (!rawData) {
+        throw new Error('No response from OpenAI');
+      }
 
-      // Extract structured data from the comprehensive analysis
-      const structuredData = this.extractFinancialData(financialAnalysis, companyName);
+      const financialData = JSON.parse(rawData);
       
-      return structuredData;
-
-    } catch (error) {
-      console.error(`❌ Financial research failed for ${companyName}:`, error);
-      // Return fallback data structure
-      return {
-        revenue: "Not disclosed",
-        valuation: "Not disclosed",
-        employeeCount: "Not disclosed",
-        fundingHistory: [],
-        financialMetrics: {
-          growthRate: "Not available",
-          burnRate: "Not available",
-          runway: "Not available"
-        },
+      // Add timestamp
+      const enrichedData: FinancialResearchData = {
+        ...financialData,
         lastUpdated: new Date().toISOString()
       };
-    }
-  }
 
-  private extractFinancialData(analysis: string, companyName: string): FinancialData {
-    console.log(`🔍 Extracting structured financial data for ${companyName}`);
-    
-    // Extract revenue information
-    const revenueMatch = analysis.match(/revenue.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i);
-    const revenue = revenueMatch ? this.normalizeAmount(revenueMatch[1]) : "Not disclosed";
-    
-    // Extract valuation information
-    const valuationMatch = analysis.match(/valuation.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i);
-    const valuation = valuationMatch ? this.normalizeAmount(valuationMatch[1]) : "Not disclosed";
-    
-    // Extract employee count
-    const employeeMatch = analysis.match(/employee.*?([0-9,]+)/i) || analysis.match(/team.*?([0-9,]+)/i);
-    const employeeCount = employeeMatch ? employeeMatch[1] : "Not disclosed";
-    
-    // Extract funding history
-    const fundingHistory = this.extractFundingRounds(analysis);
-    
-    // Extract financial metrics
-    const growthRateMatch = analysis.match(/growth.*?([0-9]+%)/i);
-    const burnRateMatch = analysis.match(/burn.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i);
-    const runwayMatch = analysis.match(/runway.*?([0-9]+(?:\s*(?:months|years|month|year))?)/i);
-    
-    return {
-      revenue,
-      valuation,
-      employeeCount,
-      fundingHistory,
-      financialMetrics: {
-        growthRate: growthRateMatch ? growthRateMatch[1] : "Not available",
-        burnRate: burnRateMatch ? this.normalizeAmount(burnRateMatch[1]) : "Not available",
-        runway: runwayMatch ? runwayMatch[1] : "Not available"
-      },
-      lastUpdated: new Date().toISOString()
-    };
-  }
-
-  private extractFundingRounds(analysis: string): Array<{round: string; amount: string; date: string; investors: string[]}> {
-    const fundingRounds: Array<{round: string; amount: string; date: string; investors: string[]}> = [];
-    
-    // Look for funding round patterns
-    const roundPatterns = [
-      /seed.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i,
-      /series\s*a.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i,
-      /series\s*b.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i,
-      /series\s*c.*?(?:\$|€|£)?\s*([0-9.,]+(?:\s*(?:million|billion|M|B|k|K))?)/i
-    ];
-    
-    roundPatterns.forEach((pattern, index) => {
-      const match = analysis.match(pattern);
-      if (match) {
-        const roundNames = ['Seed', 'Series A', 'Series B', 'Series C'];
-        fundingRounds.push({
-          round: roundNames[index],
-          amount: this.normalizeAmount(match[1]),
-          date: "Not specified",
-          investors: []
-        });
-      }
-    });
-    
-    return fundingRounds;
-  }
-
-  private normalizeAmount(amount: string): string {
-    // Normalize financial amounts to consistent format
-    const cleanAmount = amount.replace(/[,\s]/g, '');
-    if (cleanAmount.toLowerCase().includes('million') || cleanAmount.toLowerCase().includes('m')) {
-      return cleanAmount.replace(/million|m/i, 'M');
-    }
-    if (cleanAmount.toLowerCase().includes('billion') || cleanAmount.toLowerCase().includes('b')) {
-      return cleanAmount.replace(/billion|b/i, 'B');
-    }
-    if (cleanAmount.toLowerCase().includes('thousand') || cleanAmount.toLowerCase().includes('k')) {
-      return cleanAmount.replace(/thousand|k/i, 'K');
-    }
-    return cleanAmount;
-  }
-
-  // Store financial data in database
-  async storeFinancialData(dealId: number, financialData: FinancialData): Promise<void> {
-    try {
-      console.log(`💾 Storing financial data for deal ${dealId}`);
-      
-      // Update the company research with financial data
-      await storage.updateCompanyResearch(dealId, {
-        financialData: financialData
+      console.log(`✅ Financial research completed for ${companyName}:`, {
+        hasRevenue: !!enrichedData.revenue,
+        hasValuation: !!enrichedData.valuation,
+        fundingRounds: enrichedData.fundingHistory?.length || 0,
+        hasEmployeeCount: !!enrichedData.employeeCount
       });
-      
-      console.log(`✅ Financial data stored successfully for deal ${dealId}`);
+
+      return enrichedData;
     } catch (error) {
-      console.error(`❌ Failed to store financial data for deal ${dealId}:`, error);
-      throw error;
+      console.error(`Error conducting financial research for ${companyName}:`, error);
+      throw new Error(`Failed to conduct financial research: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
