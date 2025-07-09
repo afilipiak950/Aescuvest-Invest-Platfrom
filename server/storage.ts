@@ -572,6 +572,9 @@ export class DatabaseStorage implements IStorage {
 
   async createOrUpdateCompanyResearch(dealId: number, researchData: any): Promise<any> {
     try {
+      // Debug the incoming research data
+      console.log(`🔍 DEBUG: Storage received for deal ${dealId} - Market Analysis:`, researchData.marketAnalysis ? 'Present' : 'Missing');
+      
       const existing = await this.getCompanyResearchByDealId(dealId);
       
       if (existing) {
@@ -584,6 +587,9 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(companyResearch.dealId, dealId))
           .returning();
+          
+        // Debug the updated record
+        console.log(`🔍 DEBUG: Updated record - Market Analysis:`, updated.marketAnalysis ? 'Present' : 'Missing');
         return updated;
       } else {
         // Create new research
@@ -596,6 +602,9 @@ export class DatabaseStorage implements IStorage {
             updatedAt: new Date()
           })
           .returning();
+          
+        // Debug the created record
+        console.log(`🔍 DEBUG: Created record - Market Analysis:`, created.marketAnalysis ? 'Present' : 'Missing');
         return created;
       }
     } catch (error) {

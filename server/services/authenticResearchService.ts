@@ -172,6 +172,11 @@ export class AuthenticResearchService {
         this.assessRiskFactors(companyName)
       ]);
 
+      // Debug the market data result
+      console.log(`🔍 DEBUG: Market data Promise result:`, marketData);
+      const extractedMarketData = this.extractValue(marketData);
+      console.log(`🔍 DEBUG: Extracted market data:`, JSON.stringify(extractedMarketData, null, 2));
+
       // Compile authentic research results
       const researchData: AuthenticResearchData = {
         companyName,
@@ -183,7 +188,7 @@ export class AuthenticResearchService {
         ceoProfile: this.extractValue(executiveData)?.ceoProfile,
         keyTeamMembers: this.extractValue(executiveData)?.keyTeamMembers,
         financialData: this.extractValue(financialData),
-        marketAnalysis: this.extractValue(marketData),
+        marketAnalysis: extractedMarketData,
         businessIntelligence: this.extractValue(businessIntelligence),
         riskFactors: this.extractValue(riskFactors),
         investmentHighlights: await this.generateInvestmentHighlights(companyName, websiteContent),
@@ -194,6 +199,12 @@ export class AuthenticResearchService {
         aiAnalysis: await this.generateAIAnalysis(companyName, websiteContent)
       };
 
+      // Debug the research data being stored
+      console.log(`🔍 DEBUG: Final research data before storage:`, JSON.stringify({
+        marketAnalysis: researchData.marketAnalysis,
+        companyName: researchData.companyName
+      }, null, 2));
+      
       // Store authentic research data
       await this.storeResearchData(dealId, researchData);
       
@@ -370,6 +381,13 @@ Focus on publicly available information. If specific data is not available, indi
         const marketData = JSON.parse(response.choices[0].message.content || '{}');
         
         console.log(`✅ Market position and competitive landscape research completed for ${companyName}`);
+        console.log(`📊 Market analysis data:`, JSON.stringify(marketData, null, 2));
+        
+        // Validate the market data structure
+        if (!marketData || Object.keys(marketData).length === 0) {
+          console.error(`❌ Empty market data returned for ${companyName}`);
+          return null;
+        }
         
         return marketData;
       } catch (error) {
@@ -821,6 +839,9 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
   // Store authentic research data
   private async storeResearchData(dealId: number, data: AuthenticResearchData): Promise<void> {
     try {
+      // Debug the market analysis data being stored
+      console.log(`🔍 DEBUG: Storing market analysis for deal ${dealId}:`, JSON.stringify(data.marketAnalysis, null, 2));
+      
       await storage.createOrUpdateCompanyResearch(dealId, {
         companyName: data.companyName,
         website: data.website,
