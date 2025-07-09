@@ -225,34 +225,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     refreshResearchMutation.mutate();
   };
 
-  // Financial search mutation
-  const financialSearchMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/deals/${dealId}/financial-search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to search financial data');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log('💰 Financial search completed:', data);
-      // Refresh research data to show updated financial information
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research`] });
-    },
-    onError: (error) => {
-      console.error('Financial search failed:', error);
-    }
-  });
 
-  const handleFinancialSearch = () => {
-    financialSearchMutation.mutate();
-  };
 
   if (isLoading) {
     return (
@@ -810,28 +783,6 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
             {/* Financial Tab */}
             <TabsContent value="financial" className="p-6">
               <div className="space-y-6">
-                {/* Enhanced Financial Search Button */}
-                <div className="flex justify-end mb-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleFinancialSearch()}
-                    disabled={financialSearchMutation.isPending}
-                    className="flex items-center gap-2"
-                  >
-                    {financialSearchMutation.isPending ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        Searching...
-                      </>
-                    ) : (
-                      <>
-                        <DollarSign className="h-4 w-4" />
-                        AI Financial Search
-                      </>
-                    )}
-                  </Button>
-                </div>
-                
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card className="bg-green-500/10 border-green-500/20">
                     <CardContent className="p-4 text-center">
