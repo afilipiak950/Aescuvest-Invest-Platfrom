@@ -215,6 +215,25 @@ export class PersistentResearchService {
       await this.completeJob(jobId, result);
       console.log(`🎉 Research job ${jobId} completed successfully for deal ${dealId}`);
 
+      // Automatically trigger AI evaluation after research completion
+      try {
+        console.log(`🤖 Automatically triggering AI evaluation for deal ${dealId} after research completion`);
+        const { evaluateCompanyByDeal } = await import('./aiEvaluation');
+        
+        // Run AI evaluation in background without blocking
+        setTimeout(async () => {
+          try {
+            const evaluationResult = await evaluateCompanyByDeal(dealId);
+            console.log(`✅ Auto-triggered AI evaluation completed for deal ${dealId} with score: ${evaluationResult.overallScore}`);
+          } catch (evalError) {
+            console.error(`❌ Auto-triggered AI evaluation failed for deal ${dealId}:`, evalError);
+          }
+        }, 2000); // Small delay to let research data settle
+        
+      } catch (error) {
+        console.error(`⚠️ Failed to auto-trigger AI evaluation for deal ${dealId}:`, error);
+      }
+
     } catch (error) {
       console.error(`❌ Research job ${jobId} failed:`, error);
       await this.failJob(jobId, error instanceof Error ? error.message : 'Unknown error');
