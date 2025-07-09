@@ -880,15 +880,13 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
       const businessIntel = this.safeJsonParse(research.businessIntelligence);
       const investmentData = this.safeJsonParse(research.investmentHighlights);
       const riskData = this.safeJsonParse(research.riskFactors);
+      const marketData = this.safeJsonParse(research.marketAnalysis);
+      const aiData = this.safeJsonParse(research.aiAnalysis);
       
-      // Retrieve enhanced financial data from financial research service
-      let enhancedFinancialData;
-      try {
-        enhancedFinancialData = await financialResearchService.getStoredFinancialData(dealId);
-      } catch (error) {
-        console.warn(`⚠️ Could not retrieve enhanced financial data for deal ${dealId}:`, error);
-        enhancedFinancialData = null;
-      }
+
+      
+      // Enhanced financial data is integrated into the regular financial data field
+      let enhancedFinancialData = null;
       
       return {
         companyName: research.companyName || 'Unknown Company',
@@ -926,7 +924,7 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
         },
         
         // Market analysis from authentic database only
-        marketAnalysis: this.safeJsonParse(research.marketAnalysis) || {
+        marketAnalysis: marketData || {
           marketSize: "Market information not available",
           competitors: [],
           marketPosition: "Not determined",
@@ -969,8 +967,8 @@ Provide realistic scores (1-100) and specific insights based ONLY on the provide
           crunchbaseUrl: null
         },
         
-        // AI analysis summary from database - use authentic data only
-        aiAnalysis: research.aiAnalysis
+        // AI analysis from authentic database only
+        aiAnalysis: aiData || null
       };
     } catch (error) {
       console.error(`❌ Error retrieving research:`, error);
