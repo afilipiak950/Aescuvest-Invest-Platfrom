@@ -270,21 +270,29 @@ export class AuthenticResearchService {
     });
   }
 
-  // Research financial data with authentic sources
+  // Research financial data with authentic sources using OpenAI
   private async researchFinancialData(companyName: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      console.log(`💰 Researching financial data for ${companyName}`);
+      console.log(`💰 Using OpenAI for financial research of ${companyName}`);
       
-      // Try to scrape Crunchbase for financial data
-      const crunchbaseUrl = `https://www.crunchbase.com/organization/${companyName.toLowerCase().replace(/\s+/g, '-')}`;
-      const crunchbaseContent = await this.scrapeWebsiteContent(crunchbaseUrl);
-      
-      if (!crunchbaseContent || crunchbaseContent.length < 100) {
-        console.log(`❌ No authentic financial data found for ${companyName}`);
+      try {
+        // Use the new financialResearchService for comprehensive financial research
+        const financialData = await financialResearchService.conductFinancialResearch(companyName, '');
+        
+        // Convert to the expected format
+        return {
+          revenue: financialData.revenue,
+          valuation: financialData.valuation,
+          employeeCount: financialData.employeeCount,
+          fundingHistory: financialData.fundingHistory,
+          burnRate: financialData.financialMetrics.burnRate,
+          runway: financialData.financialMetrics.runway,
+          growthRate: financialData.financialMetrics.growthRate
+        };
+      } catch (error) {
+        console.error(`❌ Financial research failed for ${companyName}:`, error);
         return null;
       }
-
-      return await this.extractFinancialInfo(crunchbaseContent);
     });
   }
 
