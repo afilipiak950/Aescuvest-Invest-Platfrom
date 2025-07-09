@@ -33,7 +33,7 @@ import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
 import { websocketManager as wsManager } from './services/websocketManager';
-import { financialSearchService } from './services/financialSearchService';
+
 
 // Background processing function for company research
 async function processCompanyResearchForDeal(
@@ -3194,65 +3194,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Enhanced financial search endpoint
-  app.post('/api/deals/:dealId/financial-search', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      if (isNaN(dealId)) {
-        return res.status(400).json({ message: 'Invalid deal ID' });
-      }
 
-      const deal = await storage.getDealById(dealId);
-      if (!deal) {
-        return res.status(404).json({ message: 'Deal not found' });
-      }
-
-      // Get company website URL - use actual website instead of placeholder
-      const companyWebsite = deal.website || `https://${deal.companyName.toLowerCase().replace(/\s+/g, '')}.com`;
-      
-      console.log(`💰 Starting financial search for ${deal.companyName} at ${companyWebsite}`);
-
-      // Use OpenAI to search for financial data
-      const financialData = await financialSearchService.searchFinancialData(companyWebsite, deal.companyName);
-
-      // Update the existing company research with the new financial data
-      const existingResearch = await storage.getCompanyResearchByDealId(dealId);
-      if (existingResearch) {
-        const updatedResearch = await storage.updateCompanyResearch(dealId, {
-          financialData: financialData
-        });
-        
-        res.json({
-          success: true,
-          message: 'Financial search completed',
-          financialData: financialData,
-          updated: true
-        });
-      } else {
-        // Create new research entry with financial data
-        await storage.createOrUpdateCompanyResearch(dealId, {
-          companyName: deal.companyName,
-          website: companyWebsite,
-          financialData: financialData,
-          researchStatus: 'partial'
-        });
-        
-        res.json({
-          success: true,
-          message: 'Financial search completed',
-          financialData: financialData,
-          created: true
-        });
-      }
-
-    } catch (error) {
-      console.error('Error in financial search:', error);
-      res.status(500).json({ 
-        error: 'Financial search failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
 
   // Remove duplicate route - using the enhanced one at line 1566
 

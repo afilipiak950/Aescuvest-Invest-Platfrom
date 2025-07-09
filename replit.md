@@ -241,6 +241,12 @@ Changelog:
   - Added proper fallback messaging for companies where CEO information is not publicly available
   - Enhanced UI display logic to show clear "not found" messages instead of placeholder text
   - Verified system works correctly for well-known companies (Tesla CEO: Elon Musk) and handles unknown companies gracefully
+- July 9, 2025: Integrated financial search into main company research flow
+  - Removed separate financial search button as requested by user
+  - Financial research now automatically runs as part of the main "Start AI Company Research" process
+  - Enhanced financial data retrieval is handled by the existing financialResearchService during research step 4
+  - Removed duplicate financial search endpoint and unnecessary service code
+  - Financial data (revenue, valuation, funding history) is now seamlessly integrated into comprehensive research results
 ```
 
 ## User Preferences
