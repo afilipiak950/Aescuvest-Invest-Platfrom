@@ -53,6 +53,18 @@ export interface AuthenticResearchData {
     uniqueValueProposition?: string;
     customerSegments?: string[];
     pricingStrategy?: string;
+    // Market Position Data
+    industrySector?: string;
+    valuePropositions?: string[];
+    targetSegments?: string[];
+    marketShare?: string;
+    competitiveAdvantages?: string[];
+    // Competitive Landscape Data  
+    indirectCompetitors?: string[];
+    keyDifferentiators?: string[];
+    competitiveThreats?: string[];
+    marketOpportunities?: string[];
+    competitivePositioning?: string;
   };
   
   // Business Intelligence
@@ -299,18 +311,71 @@ export class AuthenticResearchService {
   // Research market position with authentic data
   private async researchMarketPosition(companyName: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      console.log(`📊 Researching market position for ${companyName}`);
+      console.log(`📊 Researching market position and competitive landscape for ${companyName}`);
       
-      // Search for news and market data
-      const newsUrl = `https://news.google.com/search?q=${encodeURIComponent(companyName + ' market competition')}`;
-      const newsContent = await this.scrapeWebsiteContent(newsUrl);
-      
-      if (!newsContent || newsContent.length < 100) {
-        console.log(`❌ No authentic market data found for ${companyName}`);
+      try {
+        // Use OpenAI to conduct comprehensive market analysis
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+          messages: [
+            {
+              role: "system",
+              content: "You are a market research analyst. Analyze the company's market position and competitive landscape. Provide detailed insights about their industry position, market size, competitive advantages, and competitive analysis. Return results in valid JSON format."
+            },
+            {
+              role: "user",
+              content: `Analyze the market position and competitive landscape of ${companyName}. Provide comprehensive analysis including:
+
+MARKET POSITION:
+1. Industry sector and market size
+2. Market positioning and competitive standing
+3. Key value propositions and differentiators
+4. Target market segments
+5. Market share estimation (if available)
+6. Competitive advantages
+
+COMPETITIVE LANDSCAPE:
+1. Main direct competitors
+2. Indirect competitors or substitute products
+3. Key differentiators compared to competitors
+4. Market share distribution (if available)
+5. Competitive threats and opportunities
+6. Overall competitive positioning
+
+Return the analysis in this JSON format:
+{
+  "marketSize": "market size with range (e.g., '$10B-$15B globally')",
+  "marketPosition": "detailed market position description",
+  "industrySector": "specific industry sector",
+  "valuePropositions": ["value proposition 1", "value proposition 2", "value proposition 3"],
+  "targetSegments": ["segment 1", "segment 2"],
+  "marketShare": "market share range or 'Not publicly available'",
+  "competitiveAdvantages": ["advantage 1", "advantage 2"],
+  "competitors": ["competitor 1", "competitor 2", "competitor 3", "competitor 4"],
+  "indirectCompetitors": ["indirect competitor 1", "indirect competitor 2"],
+  "keyDifferentiators": ["differentiator 1", "differentiator 2"],
+  "competitiveThreats": ["threat 1", "threat 2"],
+  "marketOpportunities": ["opportunity 1", "opportunity 2"],
+  "competitivePositioning": "overall competitive position description"
+}
+
+Focus on publicly available information. If specific data is not available, indicate "Not publicly available" rather than guessing.`
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.1,
+          max_tokens: 2000
+        });
+
+        const marketData = JSON.parse(response.choices[0].message.content || '{}');
+        
+        console.log(`✅ Market position and competitive landscape research completed for ${companyName}`);
+        
+        return marketData;
+      } catch (error) {
+        console.error(`❌ Market position research failed for ${companyName}:`, error);
         return null;
       }
-
-      return await this.extractMarketInfo(newsContent);
     });
   }
 
