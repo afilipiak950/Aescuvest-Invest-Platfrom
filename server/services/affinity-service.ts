@@ -157,7 +157,7 @@ export class AffinityService {
   private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.config.baseUrl}${endpoint}`;
     const headers = {
-      'Authorization': `Bearer ${this.config.apiKey}`,
+      'Authorization': `Basic ${Buffer.from(`${this.config.apiKey}:`).toString('base64')}`,
       'Content-Type': 'application/json',
       ...options.headers
     };
@@ -289,7 +289,7 @@ export class AffinityService {
     };
   }
 
-  // Get all organizations from Affinity (via lists)
+  // Get all organizations from Affinity using the search API
   async getOrganizations(params: {
     cursor?: string;
     limit?: number;
@@ -297,48 +297,51 @@ export class AffinityService {
     with_interaction_dates?: boolean;
   } = {}): Promise<{ organizations: AffinityCompany[]; next_cursor?: string; total_entries?: number }> {
     try {
-      // First get the lists to find the company/deals list
-      const lists = await this.getLists();
-      const companyList = lists.find(list => list.type === 'company');
-      
-      if (!companyList) {
-        console.log('No company list found in Affinity');
-        return { organizations: [], next_cursor: null, total_entries: 0 };
-      }
-
+      // Use the proper organizations endpoint - not lists!
       const searchParams = new URLSearchParams();
       if (params.cursor) searchParams.append('cursor', params.cursor);
       if (params.limit) searchParams.append('limit', params.limit.toString());
+      if (params.term) searchParams.append('term', params.term);
+      if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
 
-      console.log('🔍 Affinity API Debug - Organizations Request:');
-      console.log('- URL:', `/v2/lists/${companyList.id}/list-entries?${searchParams.toString()}`);
+      console.log('🔍 Affinity API Debug - Organizations Endpoint Request:');
+      console.log('- URL:', `/v2/organizations?${searchParams.toString()}`);
       console.log('- Params:', params);
 
+      // Use the direct organizations endpoint with v2 prefix
       const response = await this.rateLimitedRequest(async () => {
-        return await this.apiRequest(`/v2/lists/${companyList.id}/list-entries?${searchParams.toString()}`);
+        return await this.apiRequest(`/v2/organizations?${searchParams.toString()}`);
       });
 
       console.log('📊 Affinity API Debug - Organizations Response:');
       console.log('- Response type:', typeof response);
       console.log('- Response keys:', Object.keys(response || {}));
-      console.log('- Response sample:', JSON.stringify(response, null, 2).slice(0, 500));
+      console.log('- Total organizations in response:', response.organizations?.length || 0);
 
-      // Transform the response to match expected format
-      const organizations = response.data?.map((entry: any) => ({
-        id: entry.entity.id,
-        name: entry.entity.name,
-        domain: entry.entity.domain,
-        domains: entry.entity.domains,
-        type: 'organization',
-        entity_id: entry.entity.id,
-        global: entry.entity.isGlobal,
-        list_entries: [entry]
-      })) || [];
+      if (response.organizations && response.organizations.length > 0) {
+        const organizations = response.organizations.map((org: any) => ({
+          id: org.id,
+          name: org.name,
+          domain: org.domain,
+          domains: org.domains,
+          type: 'organization',
+          entity_id: org.id,
+          global: org.global,
+          list_entries: org.list_entries || []
+        }));
 
+        return {
+          organizations,
+          next_cursor: response.page_info?.next_page_token || null,
+          total_entries: response.organizations.length
+        };
+      }
+
+      // If no organizations found, return empty result
       return {
-        organizations,
-        next_cursor: response.pagination?.nextUrl ? new URL(response.pagination.nextUrl).searchParams.get('cursor') : null,
-        total_entries: organizations.length
+        organizations: [],
+        next_cursor: null,
+        total_entries: 0
       };
     } catch (error) {
       console.error('Error fetching organizations:', error);
