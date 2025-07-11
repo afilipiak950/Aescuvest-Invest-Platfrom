@@ -67,17 +67,25 @@ export default function InvestorMatching() {
     
     setIsGeneratingMatches(true);
     try {
-      const response = await fetch(`/api/investor-matching/matches/${selectedDeal}`, {
+      console.log(`🧠 Generating intelligent matches for deal ${selectedDeal}...`);
+      
+      const response = await fetch('/api/investor-matching/generate-matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regenerate: true })
+        body: JSON.stringify({ dealId: parseInt(selectedDeal) })
       });
       
-      if (response.ok) {
-        await refetchMatches();
+      if (!response.ok) {
+        throw new Error('Failed to generate intelligent matches');
       }
+      
+      const data = await response.json();
+      console.log(`✅ Generated ${data.totalMatches} intelligent matches:`, data);
+      
+      // Refresh matches to show new intelligent matches
+      refetchMatches();
     } catch (error) {
-      console.error('Failed to generate matches:', error);
+      console.error('❌ Error generating intelligent matches:', error);
     } finally {
       setIsGeneratingMatches(false);
     }

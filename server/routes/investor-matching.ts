@@ -3,6 +3,7 @@ import { db } from "../db";
 import { investors, dealInvestorMatches, emailCampaigns, campaignRecipients, deals } from "@shared/schema";
 import { eq, and, desc, asc, or, like, inArray } from "drizzle-orm";
 import OpenAI from "openai";
+import { intelligentMatchingService } from "../services/intelligent-matching";
 
 const router = express.Router();
 
@@ -79,94 +80,80 @@ router.get("/matches", async (req: Request, res: Response) => {
     const dealId = req.query.dealId ? parseInt(req.query.dealId as string) : null;
     
     if (!dealId) {
-      // Return all investors if no dealId provided
-      const allInvestors = await db
-        .select()
-        .from(investors)
-        .where(eq(investors.active, true))
-        .orderBy(desc(investors.createdAt));
+      // Get analytics for all organizations
+      const analytics = await intelligentMatchingService.getMatchingAnalytics();
       
       return res.json({
-        matches: allInvestors.map(investor => ({
-          ...investor,
-          matchScore: 0,
-          status: 'unmatched'
-        })),
+        matches: [],
         analytics: {
-          totalMatches: allInvestors.length,
-          avgMatchScore: 0,
+          totalMatches: analytics.totalOrganizations,
+          avgMatchScore: analytics.averageMatchScore,
           topSectors: [],
           topLocations: []
         }
       });
     }
     
-    console.log(`🔍 Fetching investor matches for deal ${dealId}...`);
+    console.log(`🔍 Fetching intelligent matches for deal ${dealId}...`);
     
-    // Get deal details
-    const deal = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-    if (!deal.length) {
-      return res.status(404).json({ error: "Deal not found" });
-    }
+    // Use intelligent matching service
+    const matches = await intelligentMatchingService.getMatchesForDeal(dealId);
     
-    // Get existing matches
-    const existingMatches = await db
-      .select({
-        investor: investors,
-        match: dealInvestorMatches
-      })
-      .from(dealInvestorMatches)
-      .innerJoin(investors, eq(dealInvestorMatches.investorId, investors.id))
-      .where(eq(dealInvestorMatches.dealId, dealId))
-      .orderBy(desc(dealInvestorMatches.matchScore));
+    console.log(`✅ Found ${matches.length} intelligent matches for deal ${dealId}`);
     
-    if (existingMatches.length > 0) {
-      console.log(`✅ Found ${existingMatches.length} existing matches`);
-      const formattedMatches = existingMatches.map(({ investor, match }) => ({
-        ...investor,
-        matchScore: match.matchScore,
-        matchReason: match.matchReason,
-        matchInsights: match.matchInsights,
-        sectorFit: match.sectorFit,
-        stageFit: match.stageFit,
-        geographyFit: match.geographyFit,
-        checkSizeFit: match.checkSizeFit,
-        thesisFit: match.thesisFit,
-        status: match.status,
-        outreachStatus: match.outreachStatus,
-        lastContactDate: match.lastContactDate,
-        nextFollowUpDate: match.nextFollowUpDate,
-        notes: match.notes
-      }));
-      
-      // Calculate analytics
-      const analytics = {
-        totalMatches: formattedMatches.length,
-        avgMatchScore: formattedMatches.reduce((sum, m) => sum + m.matchScore, 0) / formattedMatches.length,
-        topSectors: [...new Set(formattedMatches.flatMap(m => m.focus))].slice(0, 5),
-        topLocations: [...new Set(formattedMatches.map(m => m.location))].slice(0, 5)
-      };
-      
-      return res.json({
-        matches: formattedMatches,
-        analytics
-      });
-    }
+    const formattedMatches = matches.map(match => ({
+      id: match.id,
+      name: match.name,
+      firm: match.industry,
+      email: match.domain ? `contact@${match.domain}` : null,
+      focus: match.industry,
+      stage: match.investmentPotential,
+      location: match.location,
+      checkSize: match.fundingRaised,
+      portfolioSize: match.employeeCount,
+      verified: true,
+      active: true,
+      linkedinUrl: match.website,
+      websiteUrl: match.website,
+      bio: match.description,
+      matchScore: match.matchScore,
+      matchReason: match.aiReasoning,
+      matchInsights: match.matchingFactors,
+      sectorFit: match.sectorFit,
+      stageFit: match.stageFit,
+      geographyFit: match.geographyFit,
+      checkSizeFit: match.checkSizeFit,
+      thesisFit: match.thesisAlignment,
+      status: 'matched',
+      outreachStatus: 'not_contacted',
+      lastContactDate: null,
+      nextFollowUpDate: null,
+      notes: null,
+      // Additional intelligent data
+      matchingFactors: match.matchingFactors,
+      riskFactors: match.riskFactors,
+      investmentPotential: match.investmentPotential,
+      confidence: match.confidence,
+      lastUpdated: match.lastUpdated
+    }));
     
-    // No existing matches, return empty response
+    // Calculate analytics
+    const analytics = {
+      totalMatches: formattedMatches.length,
+      avgMatchScore: formattedMatches.length > 0 ? 
+        formattedMatches.reduce((sum, m) => sum + m.matchScore, 0) / formattedMatches.length : 0,
+      topSectors: [...new Set(formattedMatches.map(m => m.focus))].slice(0, 5),
+      topLocations: [...new Set(formattedMatches.map(m => m.location))].slice(0, 5)
+    };
+    
     return res.json({
-      matches: [],
-      analytics: {
-        totalMatches: 0,
-        avgMatchScore: 0,
-        topSectors: [],
-        topLocations: []
-      }
+      matches: formattedMatches,
+      analytics
     });
     
   } catch (error) {
-    console.error("❌ Error fetching investor matches:", error);
-    res.status(500).json({ error: "Failed to fetch investor matches" });
+    console.error("❌ Error fetching intelligent matches:", error);
+    res.status(500).json({ error: "Failed to fetch intelligent matches" });
   }
 });
 
@@ -544,6 +531,77 @@ router.post("/campaigns/:campaignId/send", async (req: Request, res: Response) =
   } catch (error) {
     console.error("❌ Error sending campaign:", error);
     res.status(500).json({ error: "Failed to send campaign" });
+  }
+});
+
+// Generate intelligent matches for a deal
+router.post("/generate-matches", async (req: Request, res: Response) => {
+  try {
+    const { dealId } = req.body;
+    
+    if (!dealId) {
+      return res.status(400).json({ error: "Deal ID is required" });
+    }
+    
+    console.log(`🧠 Generating intelligent matches for deal ${dealId}...`);
+    
+    // Generate matches using intelligent matching service
+    const matches = await intelligentMatchingService.getMatchesForDeal(dealId);
+    
+    console.log(`✅ Generated ${matches.length} intelligent matches`);
+    
+    // Format matches for response
+    const formattedMatches = matches.map(match => ({
+      id: match.id,
+      name: match.name,
+      firm: match.industry,
+      email: match.domain ? `contact@${match.domain}` : null,
+      focus: match.industry,
+      stage: match.investmentPotential,
+      location: match.location,
+      checkSize: match.fundingRaised,
+      portfolioSize: match.employeeCount,
+      verified: true,
+      active: true,
+      linkedinUrl: match.website,
+      websiteUrl: match.website,
+      bio: match.description,
+      matchScore: match.matchScore,
+      matchReason: match.aiReasoning,
+      matchInsights: match.matchingFactors,
+      sectorFit: match.sectorFit,
+      stageFit: match.stageFit,
+      geographyFit: match.geographyFit,
+      checkSizeFit: match.checkSizeFit,
+      thesisFit: match.thesisAlignment,
+      status: 'matched',
+      outreachStatus: 'not_contacted',
+      lastContactDate: null,
+      nextFollowUpDate: null,
+      notes: null,
+      // Additional intelligent data
+      matchingFactors: match.matchingFactors,
+      riskFactors: match.riskFactors,
+      investmentPotential: match.investmentPotential,
+      confidence: match.confidence,
+      lastUpdated: match.lastUpdated
+    }));
+    
+    res.json({
+      success: true,
+      matches: formattedMatches,
+      totalMatches: formattedMatches.length,
+      analytics: {
+        averageMatchScore: formattedMatches.length > 0 ? 
+          formattedMatches.reduce((sum, m) => sum + m.matchScore, 0) / formattedMatches.length : 0,
+        highQualityMatches: formattedMatches.filter(m => m.matchScore >= 80).length,
+        topSectors: [...new Set(formattedMatches.map(m => m.focus))].slice(0, 5),
+        topLocations: [...new Set(formattedMatches.map(m => m.location))].slice(0, 5)
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error generating intelligent matches:", error);
+    res.status(500).json({ error: "Failed to generate intelligent matches" });
   }
 });
 
