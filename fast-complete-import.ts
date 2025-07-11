@@ -6,34 +6,48 @@ import { eq, sql } from 'drizzle-orm';
 import ws from 'ws';
 import * as schema from './shared/schema';
 
-// Configure WebSocket for Neon
+/**
+ * Fast Complete Import - Import ALL remaining organizations from Affinity
+ * Fixed timestamp handling to prevent "value.toISOString is not a function" errors
+ */
+
 const neonConfig = await import('@neondatabase/serverless').then(mod => mod.neonConfig);
 neonConfig.webSocketConstructor = ws;
 
-// Database connection
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool, { schema });
 
-const AFFINITY_API_KEY = process.env.AFFINITY_API_KEY;
+function safeTimestamp(value: any): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  return null;
+}
 
 async function fastCompleteImport(): Promise<void> {
-  console.log('🚀 Fast Complete Import - Importing ALL remaining organizations...');
+  console.log('🚀 FAST COMPLETE IMPORT - Getting ALL remaining organizations from Affinity...');
   
-  let totalImported = 0;
+  let totalProcessed = 0;
+  let totalAdded = 0;
+  let totalUpdated = 0;
+  let totalErrors = 0;
   let pageCount = 0;
-  let pageToken: string | null = null;
   
-  // Get starting count
   const startCount = await db.select({ count: sql<number>`count(*)` }).from(schema.organizations);
   console.log(`📊 Starting with ${startCount[0].count} organizations`);
   
-  while (pageCount < 25) { // Process up to 25 pages (12,500 organizations)
+  let pageToken: string | null = null;
+  
+  // Process ALL pages until we get everything
+  while (pageCount < 100) { // Up to 100 pages (50,000 organizations)
     pageCount++;
     
     try {
       console.log(`📄 Processing page ${pageCount}...`);
       
-      // API request
       const url = new URL('https://api.affinity.co/organizations');
       url.searchParams.set('limit', '500');
       url.searchParams.set('with_interaction_dates', 'true');
@@ -41,39 +55,46 @@ async function fastCompleteImport(): Promise<void> {
       
       const response = await fetch(url.toString(), {
         headers: {
-          'Authorization': `Basic ${Buffer.from(`:${AFFINITY_API_KEY}`).toString('base64')}`,
+          'Authorization': `Basic ${Buffer.from(`:${process.env.AFFINITY_API_KEY}`).toString('base64')}`,
           'Content-Type': 'application/json',
         },
       });
       
       if (!response.ok) {
-        console.error(`❌ API Error: ${response.status}`);
-        break;
+        console.error(`❌ API Error: ${response.status} ${response.statusText}`);
+        totalErrors++;
+        if (totalErrors > 5) break;
+        continue;
       }
       
       const data = await response.json();
       
-      if (!data.organizations?.length) {
-        console.log('✅ No more organizations');
+      if (!data.organizations || data.organizations.length === 0) {
+        console.log('✅ No more organizations to process');
         break;
       }
       
-      // Process organizations quickly
-      const orgs = data.organizations;
-      let batchImported = 0;
+      const organizations = data.organizations;
+      totalProcessed += organizations.length;
       
-      for (const org of orgs) {
-        try {
-          // Quick existence check
-          const exists = await db
-            .select({ id: schema.organizations.id })
-            .from(schema.organizations)
-            .where(eq(schema.organizations.affinityId, org.id.toString()))
-            .limit(1);
-          
-          if (exists.length === 0) {
-            // Insert only new organizations
-            await db.insert(schema.organizations).values({
+      console.log(`🔄 Processing ${organizations.length} organizations from page ${pageCount}...`);
+      
+      // Process organizations in smaller batches for better performance
+      const batchSize = 25;
+      for (let i = 0; i < organizations.length; i += batchSize) {
+        const batch = organizations.slice(i, i + batchSize);
+        
+        for (const org of batch) {
+          try {
+            // Check if organization exists
+            const existingOrg = await db
+              .select({ id: schema.organizations.id })
+              .from(schema.organizations)
+              .where(eq(schema.organizations.affinityId, org.id.toString()))
+              .limit(1);
+            
+            // Prepare organization data with safe timestamp handling
+            const organizationData = {
               affinityId: org.id.toString(),
               name: org.name,
               domains: org.domains || [],
@@ -81,69 +102,69 @@ async function fastCompleteImport(): Promise<void> {
               type: org.type || "organization",
               isGlobal: org.is_global || false,
               syncStatus: "synced",
-              lastSyncAt: new Date(),
+              lastSyncAt: new Date(), // Always use current date
               affinityData: {
-                createdAt: org.created_at,
-                updatedAt: org.updated_at,
+                createdAt: org.created_at || null,
+                updatedAt: org.updated_at || null,
                 listEntries: org.list_entries || [],
-                fieldValues: org.field_values || {}
+                fieldValues: org.field_values || {},
+                interactionDates: org.interaction_dates || {}
               }
-            });
+            };
             
-            batchImported++;
+            if (existingOrg.length === 0) {
+              // Insert new organization
+              await db.insert(schema.organizations).values(organizationData);
+              totalAdded++;
+            } else {
+              // Update existing organization
+              await db
+                .update(schema.organizations)
+                .set(organizationData)
+                .where(eq(schema.organizations.affinityId, org.id.toString()));
+              totalUpdated++;
+            }
+            
+          } catch (error) {
+            console.error(`❌ Error processing org ${org.id}: ${error.message}`);
+            totalErrors++;
           }
-        } catch (error) {
-          // Skip errors to maintain speed
-          continue;
         }
       }
       
-      totalImported += batchImported;
-      console.log(`✅ Page ${pageCount}: ${batchImported} new organizations imported`);
+      console.log(`✅ Page ${pageCount} complete: ${totalAdded} new, ${totalUpdated} updated, ${totalErrors} errors`);
       
       // Check for next page
-      if (data.next_page_token) {
-        pageToken = data.next_page_token;
-        
-        // Quick progress check every 5 pages
-        if (pageCount % 5 === 0) {
-          const currentCount = await db.select({ count: sql<number>`count(*)` }).from(schema.organizations);
-          console.log(`📊 Progress: ${currentCount[0].count} total organizations`);
-        }
-        
-        // Minimal rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else {
-        console.log('🏁 Reached end of data');
+      pageToken = data.next_page_token || null;
+      if (!pageToken) {
+        console.log('✅ No more pages to process');
         break;
       }
       
+      // Small delay to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
     } catch (error) {
-      console.error(`❌ Error on page ${pageCount}: ${error.message}`);
-      break;
+      console.error(`❌ Error processing page ${pageCount}: ${error.message}`);
+      totalErrors++;
+      if (totalErrors > 10) break;
     }
   }
   
-  // Final count
   const finalCount = await db.select({ count: sql<number>`count(*)` }).from(schema.organizations);
-  const totalAdded = finalCount[0].count - startCount[0].count;
   
-  console.log('\n🎉 FAST IMPORT COMPLETE!');
-  console.log(`📊 Results:`);
-  console.log(`   Pages processed: ${pageCount}`);
-  console.log(`   Organizations added: ${totalAdded}`);
-  console.log(`   Final total: ${finalCount[0].count}`);
-  
-  if (finalCount[0].count >= 5000) {
-    console.log('🎯 SUCCESS: 5,000+ organizations imported!');
-  }
+  console.log(`\n🎉 IMPORT COMPLETE!`);
+  console.log(`📊 Final Statistics:`);
+  console.log(`   • Total Pages Processed: ${pageCount}`);
+  console.log(`   • Total Organizations Processed: ${totalProcessed}`);
+  console.log(`   • New Organizations Added: ${totalAdded}`);
+  console.log(`   • Existing Organizations Updated: ${totalUpdated}`);
+  console.log(`   • Errors Encountered: ${totalErrors}`);
+  console.log(`   • Final Database Count: ${finalCount[0].count}`);
+  console.log(`   • Net Growth: ${finalCount[0].count - startCount[0].count}`);
   
   await pool.end();
 }
 
-fastCompleteImport()
-  .then(() => process.exit(0))
-  .catch(error => {
-    console.error('❌ Import failed:', error);
-    process.exit(1);
-  });
+// Run the import
+fastCompleteImport().catch(console.error);
