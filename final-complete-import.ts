@@ -2,24 +2,20 @@
 
 import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import ws from 'ws';
 import * as schema from './shared/schema';
-
-// Configure WebSocket for Neon
-const neonConfig = await import('@neondatabase/serverless').then(mod => mod.neonConfig);
-neonConfig.webSocketConstructor = ws;
-
-// Database connection
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle(pool, { schema });
-
-const AFFINITY_API_KEY = process.env.AFFINITY_API_KEY;
 
 /**
  * Final Complete Import - Import ALL 8,000+ Organizations from Affinity
  * This script ensures we get every organization from the Affinity account
  */
+
+const neonConfig = await import('@neondatabase/serverless').then(mod => mod.neonConfig);
+neonConfig.webSocketConstructor = ws;
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle(pool, { schema });
 
 interface ImportStats {
   totalPages: number;
@@ -30,7 +26,7 @@ interface ImportStats {
 }
 
 async function finalCompleteImport(): Promise<void> {
-  console.log('🚀 FINAL COMPLETE IMPORT - Starting import of ALL 8,000+ organizations...');
+  console.log('🚀 FINAL COMPLETE IMPORT - Getting ALL organizations from Affinity...');
   
   const stats: ImportStats = {
     totalPages: 0,
@@ -41,169 +37,170 @@ async function finalCompleteImport(): Promise<void> {
   };
   
   let pageToken: string | null = null;
-  let consecutiveErrors = 0;
-  const maxErrors = 5;
+  const startCount = await db.select({ count: sql<number>`count(*)` }).from(schema.organizations);
+  console.log(`📊 Starting with ${startCount[0].count} organizations`);
   
-  // Start import process
-  while (consecutiveErrors < maxErrors) {
+  // Process ALL pages until we get everything
+  while (stats.totalPages < 50) { // Up to 50 pages (25,000 organizations)
     stats.totalPages++;
     
     try {
-      console.log(`\n📊 Processing page ${stats.totalPages}...`);
+      console.log(`📄 Processing page ${stats.totalPages}...`);
       
-      // Build API request URL
       const url = new URL('https://api.affinity.co/organizations');
       url.searchParams.set('limit', '500');
       url.searchParams.set('with_interaction_dates', 'true');
+      if (pageToken) url.searchParams.set('page_token', pageToken);
       
-      if (pageToken) {
-        url.searchParams.set('page_token', pageToken);
-      }
-      
-      // Make API request
       const response = await fetch(url.toString(), {
         headers: {
-          'Authorization': `Basic ${Buffer.from(`:${AFFINITY_API_KEY}`).toString('base64')}`,
+          'Authorization': `Basic ${Buffer.from(`:${process.env.AFFINITY_API_KEY}`).toString('base64')}`,
           'Content-Type': 'application/json',
         },
       });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ API Error: ${response.status} - ${errorText}`);
-        consecutiveErrors++;
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.error(`❌ API Error: ${response.status} ${response.statusText}`);
+        stats.errors++;
+        if (stats.errors > 3) break;
         continue;
       }
       
       const data = await response.json();
       
-      // Check if we have organizations
       if (!data.organizations || data.organizations.length === 0) {
-        console.log('✅ No more organizations - import complete!');
+        console.log('✅ No more organizations to process');
         break;
       }
       
-      // Process organizations
       const organizations = data.organizations;
       stats.totalOrgsProcessed += organizations.length;
       
-      console.log(`   📦 Processing ${organizations.length} organizations...`);
-      
-      // Process each organization
-      for (const org of organizations) {
-        try {
-          // Check if organization exists
-          const existingOrg = await db
-            .select()
-            .from(schema.organizations)
-            .where(eq(schema.organizations.affinityId, org.id))
-            .limit(1);
-          
-          const orgData = {
-            affinityId: org.id,
-            name: org.name,
-            domains: org.domains || [],
-            domain: org.domain || null,
-            isGlobal: org.is_global || false,
-            type: org.type || "organization", // Default to "organization" if null
-            lastInteractionDate: org.last_interaction_date ? new Date(org.last_interaction_date) : null,
-            syncStatus: "synced",
-            affinityData: {
-              createdAt: org.created_at || null,
-              updatedAt: org.updated_at || null,
-              listEntries: org.list_entries || [],
-              fieldValues: org.field_values || {},
-              interactionDates: org.interaction_dates || null
+      // Process organizations in smaller batches for better performance
+      const batchSize = 50;
+      for (let i = 0; i < organizations.length; i += batchSize) {
+        const batch = organizations.slice(i, i + batchSize);
+        
+        for (const org of batch) {
+          try {
+            // Check if organization exists
+            const existingOrg = await db
+              .select({ id: schema.organizations.id })
+              .from(schema.organizations)
+              .where(eq(schema.organizations.affinityId, org.id.toString()))
+              .limit(1);
+            
+            if (existingOrg.length === 0) {
+              // Insert new organization with proper timestamp handling
+              await db.insert(schema.organizations).values({
+                affinityId: org.id.toString(),
+                name: org.name,
+                domains: org.domains || [],
+                domain: org.domain || null,
+                type: org.type || "organization",
+                isGlobal: org.is_global || false,
+                syncStatus: "synced",
+                lastSyncAt: new Date(),
+                affinityData: {
+                  createdAt: org.created_at ? new Date(org.created_at).toISOString() : null,
+                  updatedAt: org.updated_at ? new Date(org.updated_at).toISOString() : null,
+                  listEntries: org.list_entries || [],
+                  fieldValues: org.field_values || {}
+                }
+              });
+              
+              stats.newOrgsAdded++;
+            } else {
+              // Update existing organization with proper timestamp handling
+              await db
+                .update(schema.organizations)
+                .set({
+                  name: org.name,
+                  domains: org.domains || [],
+                  domain: org.domain || null,
+                  type: org.type || "organization",
+                  isGlobal: org.is_global || false,
+                  syncStatus: "synced",
+                  lastSyncAt: new Date(),
+                  affinityData: {
+                    createdAt: org.created_at ? new Date(org.created_at).toISOString() : null,
+                    updatedAt: org.updated_at ? new Date(org.updated_at).toISOString() : null,
+                    listEntries: org.list_entries || [],
+                    fieldValues: org.field_values || {}
+                  }
+                })
+                .where(eq(schema.organizations.affinityId, org.id.toString()));
+              
+              stats.existingOrgsUpdated++;
             }
-          };
-          
-          if (existingOrg.length > 0) {
-            // Update existing organization
-            await db
-              .update(schema.organizations)
-              .set(orgData)
-              .where(eq(schema.organizations.affinityId, org.id));
-            
-            stats.existingOrgsUpdated++;
-          } else {
-            // Insert new organization
-            await db
-              .insert(schema.organizations)
-              .values(orgData);
-            
-            stats.newOrgsAdded++;
+          } catch (error) {
+            console.error(`❌ Error processing org ${org.id}: ${error.message}`);
+            stats.errors++;
           }
-          
-        } catch (error) {
-          console.error(`❌ Error processing organization ${org.id}:`, error);
-          stats.errors++;
         }
       }
       
-      // Show progress
-      console.log(`   ✅ Processed ${organizations.length} organizations`);
-      console.log(`   📊 Total processed: ${stats.totalOrgsProcessed}`);
-      console.log(`   📊 New: ${stats.newOrgsAdded}, Updated: ${stats.existingOrgsUpdated}`);
+      console.log(`✅ Page ${stats.totalPages} complete: ${stats.newOrgsAdded} new, ${stats.existingOrgsUpdated} updated`);
       
       // Check for next page
-      if (data.next_page_token) {
-        pageToken = data.next_page_token;
-        consecutiveErrors = 0; // Reset error count on success
-        
-        // Rate limiting - wait 1 second between requests
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } else {
-        console.log('🏁 No more pages - import complete!');
+      pageToken = data.next_page_token;
+      if (!pageToken) {
+        console.log('🏁 Reached end of data - no more pages');
         break;
       }
       
-    } catch (error) {
-      console.error(`❌ Error on page ${stats.totalPages}:`, error);
-      consecutiveErrors++;
-      stats.errors++;
+      // Progress report every 10 pages
+      if (stats.totalPages % 10 === 0) {
+        const currentCount = await db.select({ count: sql<number>`count(*)` }).from(schema.organizations);
+        console.log(`📈 Progress Report:`);
+        console.log(`   Pages processed: ${stats.totalPages}`);
+        console.log(`   Total orgs processed: ${stats.totalOrgsProcessed}`);
+        console.log(`   New orgs added: ${stats.newOrgsAdded}`);
+        console.log(`   Current database count: ${currentCount[0].count}`);
+      }
       
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+    } catch (error) {
+      console.error(`❌ Error on page ${stats.totalPages}: ${error.message}`);
+      stats.errors++;
+      if (stats.errors > 5) {
+        console.log('❌ Too many errors, stopping import');
+        break;
+      }
     }
   }
   
   // Final statistics
+  const finalCount = await db.select({ count: sql<number>`count(*)` }).from(schema.organizations);
+  const totalImported = finalCount[0].count - startCount[0].count;
+  
   console.log('\n🎉 FINAL IMPORT COMPLETE!');
-  console.log('📊 Import Statistics:');
-  console.log(`   Total Pages: ${stats.totalPages}`);
-  console.log(`   Total Organizations Processed: ${stats.totalOrgsProcessed}`);
-  console.log(`   New Organizations Added: ${stats.newOrgsAdded}`);
-  console.log(`   Existing Organizations Updated: ${stats.existingOrgsUpdated}`);
-  console.log(`   Errors: ${stats.errors}`);
+  console.log(`📊 Final Statistics:`);
+  console.log(`   Pages processed: ${stats.totalPages}`);
+  console.log(`   Total organizations processed: ${stats.totalOrgsProcessed}`);
+  console.log(`   New organizations added: ${stats.newOrgsAdded}`);
+  console.log(`   Existing organizations updated: ${stats.existingOrgsUpdated}`);
+  console.log(`   Errors encountered: ${stats.errors}`);
+  console.log(`   Starting count: ${startCount[0].count}`);
+  console.log(`   Final count: ${finalCount[0].count}`);
+  console.log(`   Total imported this session: ${totalImported}`);
   
-  // Verify final database count
-  const finalCount = await db
-    .select({ count: sql`count(*)` })
-    .from(schema.organizations);
-  
-  console.log(`\n✅ Final database count: ${finalCount[0].count} organizations`);
-  
-  if (stats.totalOrgsProcessed >= 8000) {
-    console.log('🎯 SUCCESS: Imported 8,000+ organizations as expected!');
-  } else {
-    console.log(`📈 PROGRESS: Imported ${stats.totalOrgsProcessed} organizations`);
+  if (finalCount[0].count >= 8000) {
+    console.log('🎯 SUCCESS: 8,000+ organizations imported!');
+  } else if (finalCount[0].count >= 5000) {
+    console.log('🎯 EXCELLENT: 5,000+ organizations imported!');
+  } else if (finalCount[0].count >= 2000) {
+    console.log('🎯 GOOD: 2,000+ organizations imported!');
   }
   
   await pool.end();
 }
 
-// Import sql helper
-const { sql } = await import('drizzle-orm');
-
 finalCompleteImport()
-  .then(() => {
-    console.log('✅ Import script completed successfully');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('❌ Import script failed:', error);
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error('❌ Import failed:', error);
     process.exit(1);
   });
