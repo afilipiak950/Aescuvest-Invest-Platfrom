@@ -25,9 +25,15 @@ function authenticate(req: AuthenticatedRequest, res: Response, next: any) {
 }
 
 export function registerAffinityRoutes(app: Express) {
-  // Helper function to get Affinity API key from system settings
+  // Helper function to get Affinity API key from environment or system settings
   async function getAffinityApiKey(): Promise<string | null> {
     try {
+      // First check environment variable (preferred)
+      if (process.env.AFFINITY_API_KEY) {
+        return process.env.AFFINITY_API_KEY;
+      }
+      
+      // Fallback to system settings
       const setting = await db.query.systemSettings.findFirst({
         where: eq(systemSettings.key, 'affinity_api_key')
       });

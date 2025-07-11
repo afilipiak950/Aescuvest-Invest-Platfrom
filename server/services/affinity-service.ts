@@ -109,14 +109,9 @@ export class AffinityService {
   }
 
   private async rateLimitedRequest<T>(requestFn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const now = Date.now();
-      this.rateLimiter.requestQueue.push({ timestamp: now, resolve, reject });
-      
-      if (!this.rateLimiter.isProcessing) {
-        this.processRequestQueue();
-      }
-    });
+    // For now, bypass rate limiting and call the function directly
+    // This ensures we get real API responses instead of empty objects
+    return await requestFn();
   }
 
   private async processRequestQueue() {
@@ -155,31 +150,54 @@ export class AffinityService {
   }
 
   private async makeApiRequest(request: any): Promise<any> {
-    // This would be implemented with actual HTTP requests
-    // For now, returning a placeholder
+    // This method was causing empty responses - now bypassed
     return {};
   }
 
   private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.config.baseUrl}${endpoint}`;
     const headers = {
-      'Authorization': `Basic ${Buffer.from(`${this.config.apiKey}:`).toString('base64')}`,
+      'Authorization': `Bearer ${this.config.apiKey}`,
       'Content-Type': 'application/json',
       ...options.headers
     };
 
     try {
+      console.log('🔗 Affinity API Request:');
+      console.log('- URL:', url);
+      console.log('- Method:', options.method || 'GET');
+      console.log('- Auth:', `Basic ${Buffer.from(`${this.config.apiKey?.slice(0, 10)}:`).toString('base64')}...`);
+
       const response = await fetch(url, {
         ...options,
         headers
       });
 
+      console.log('📡 Affinity API Response:');
+      console.log('- Status:', response.status, response.statusText);
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.log('❌ Error Response:', errorText);
         throw new Error(`Affinity API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      return await response.json();
+      const responseText = await response.text();
+      console.log('✅ Raw Response Text:', responseText.slice(0, 500));
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log('❌ JSON Parse Error:', parseError);
+        console.log('❌ Response not valid JSON:', responseText);
+        throw new Error('Invalid JSON response from Affinity API');
+      }
+      
+      console.log('✅ Response Data Keys:', Object.keys(responseData || {}));
+      console.log('✅ Response Data Sample:', JSON.stringify(responseData, null, 2).slice(0, 500));
+      
+      return responseData;
     } catch (error) {
       console.error('Affinity API request failed:', error);
       throw error;
@@ -205,28 +223,53 @@ export class AffinityService {
     }
   }
 
-  // Get all persons from Affinity
+  // Get all persons from Affinity (direct endpoint)
   async getPersons(params: {
     cursor?: string;
     limit?: number;
     term?: string;
     with_interaction_dates?: boolean;
   } = {}): Promise<{ persons: AffinityPerson[]; next_cursor?: string }> {
-    const searchParams = new URLSearchParams();
-    
-    if (params.cursor) searchParams.append('cursor', params.cursor);
-    if (params.limit) searchParams.append('limit', params.limit.toString());
-    if (params.term) searchParams.append('term', params.term);
-    if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
+    try {
+      const searchParams = new URLSearchParams();
+      if (params.cursor) searchParams.append('cursor', params.cursor);
+      if (params.limit) searchParams.append('limit', params.limit.toString());
+      if (params.term) searchParams.append('term', params.term);
+      if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
 
-    const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/persons?${searchParams.toString()}`);
-    });
+      console.log('🔍 Affinity API Debug - Persons Request:');
+      console.log('- URL:', `/v2/persons?${searchParams.toString()}`);
+      console.log('- Params:', params);
 
-    return {
-      persons: response.persons || [],
-      next_cursor: response.next_cursor
-    };
+      const response = await this.rateLimitedRequest(async () => {
+        return await this.apiRequest(`/v2/persons?${searchParams.toString()}`);
+      });
+
+      console.log('📊 Affinity API Debug - Persons Response:');
+      console.log('- Response type:', typeof response);
+      console.log('- Response keys:', Object.keys(response || {}));
+      console.log('- Response sample:', JSON.stringify(response, null, 2).slice(0, 500));
+
+      // Transform the response to match expected format
+      const persons = response.data?.map((person: any) => ({
+        id: person.id,
+        type: 'person',
+        first_name: person.firstName,
+        last_name: person.lastName,
+        emails: person.emailAddresses || [],
+        phone_numbers: [],
+        entity_id: person.id,
+        list_entries: []
+      })) || [];
+
+      return {
+        persons,
+        next_cursor: response.pagination?.nextUrl?.split('cursor=')[1] || null
+      };
+    } catch (error) {
+      console.error('Error fetching persons:', error);
+      return { persons: [], next_cursor: null };
+    }
   }
 
   // Get all companies from Affinity
@@ -254,29 +297,61 @@ export class AffinityService {
     };
   }
 
-  // Get all organizations from Affinity (alias for companies)
+  // Get all organizations from Affinity (via lists)
   async getOrganizations(params: {
     cursor?: string;
     limit?: number;
     term?: string;
     with_interaction_dates?: boolean;
   } = {}): Promise<{ organizations: AffinityCompany[]; next_cursor?: string; total_entries?: number }> {
-    const searchParams = new URLSearchParams();
-    
-    if (params.cursor) searchParams.append('cursor', params.cursor);
-    if (params.limit) searchParams.append('limit', params.limit.toString());
-    if (params.term) searchParams.append('term', params.term);
-    if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
+    try {
+      // First get the lists to find the company/deals list
+      const lists = await this.getLists();
+      const companyList = lists.find(list => list.type === 'company');
+      
+      if (!companyList) {
+        console.log('No company list found in Affinity');
+        return { organizations: [], next_cursor: null, total_entries: 0 };
+      }
 
-    const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/organizations?${searchParams.toString()}`);
-    });
+      const searchParams = new URLSearchParams();
+      if (params.cursor) searchParams.append('cursor', params.cursor);
+      if (params.limit) searchParams.append('limit', params.limit.toString());
 
-    return {
-      organizations: response.organizations || response.companies || [],
-      next_cursor: response.next_cursor,
-      total_entries: response.total_entries
-    };
+      console.log('🔍 Affinity API Debug - Organizations Request:');
+      console.log('- URL:', `/v2/lists/${companyList.id}/list-entries?${searchParams.toString()}`);
+      console.log('- Params:', params);
+
+      const response = await this.rateLimitedRequest(async () => {
+        return await this.apiRequest(`/v2/lists/${companyList.id}/list-entries?${searchParams.toString()}`);
+      });
+
+      console.log('📊 Affinity API Debug - Organizations Response:');
+      console.log('- Response type:', typeof response);
+      console.log('- Response keys:', Object.keys(response || {}));
+      console.log('- Response sample:', JSON.stringify(response, null, 2).slice(0, 500));
+
+      // Transform the response to match expected format
+      const organizations = response.data?.map((entry: any) => ({
+        id: entry.entity.id,
+        name: entry.entity.name,
+        domain: entry.entity.domain,
+        domains: entry.entity.domains,
+        type: 'organization',
+        entity_id: entry.entity.id,
+        global: entry.entity.isGlobal,
+        list_entries: [entry]
+      })) || [];
+
+      return {
+        organizations,
+        next_cursor: response.pagination?.nextUrl?.split('cursor=')[1] || null,
+        total_entries: organizations.length
+      };
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      return { organizations: [], next_cursor: null, total_entries: 0 };
+    }
   }
 
   // Get all lists from Affinity
@@ -285,7 +360,7 @@ export class AffinityService {
       return await this.apiRequest('/v2/lists');
     });
 
-    return response.lists || [];
+    return response.data || [];
   }
 
   // Get list entries for a specific list
