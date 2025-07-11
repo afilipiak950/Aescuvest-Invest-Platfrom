@@ -316,13 +316,13 @@ export function registerAffinityRoutes(app: Express) {
     }
   });
 
-  // Get organizations from Affinity (alias for companies)
+  // Get organizations from Affinity (using correct API endpoint)
   app.get('/api/affinity/organizations', async (req: Request, res: Response) => {
     try {
       const { cursor, limit, term } = req.query;
       
       const affinityService = await createAffinityServiceInstance();
-      const result = await affinityService.getCompanies({
+      const result = await affinityService.getOrganizations({
         cursor: cursor as string,
         limit: limit ? parseInt(limit as string) : undefined,
         term: term as string,
@@ -331,13 +331,34 @@ export function registerAffinityRoutes(app: Express) {
       
       res.json({
         success: true,
-        organizations: result.companies || [],
+        organizations: result.organizations || [],
         next_cursor: result.next_cursor || null,
         total_entries: result.total_entries || 0
       });
     } catch (error) {
       res.status(500).json({ 
         error: error instanceof Error ? error.message : 'Failed to get organizations' 
+      });
+    }
+  });
+
+  // Get specific organization by ID
+  app.get('/api/affinity/organizations/:id', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const affinityService = await createAffinityServiceInstance();
+      const response = await affinityService.rateLimitedRequest(async () => {
+        return await affinityService.apiRequest(`/v2/organizations/${id}`);
+      });
+      
+      res.json({
+        success: true,
+        organization: response
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to get organization' 
       });
     }
   });

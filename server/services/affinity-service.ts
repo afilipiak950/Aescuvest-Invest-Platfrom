@@ -235,7 +235,7 @@ export class AffinityService {
     limit?: number;
     term?: string;
     with_interaction_dates?: boolean;
-  } = {}): Promise<{ companies: AffinityCompany[]; next_cursor?: string }> {
+  } = {}): Promise<{ companies: AffinityCompany[]; next_cursor?: string; total_entries?: number }> {
     const searchParams = new URLSearchParams();
     
     if (params.cursor) searchParams.append('cursor', params.cursor);
@@ -244,12 +244,38 @@ export class AffinityService {
     if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
 
     const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/companies?${searchParams.toString()}`);
+      return await this.apiRequest(`/v2/organizations?${searchParams.toString()}`);
     });
 
     return {
-      companies: response.companies || [],
-      next_cursor: response.next_cursor
+      companies: response.organizations || response.companies || [],
+      next_cursor: response.next_cursor,
+      total_entries: response.total_entries
+    };
+  }
+
+  // Get all organizations from Affinity (alias for companies)
+  async getOrganizations(params: {
+    cursor?: string;
+    limit?: number;
+    term?: string;
+    with_interaction_dates?: boolean;
+  } = {}): Promise<{ organizations: AffinityCompany[]; next_cursor?: string; total_entries?: number }> {
+    const searchParams = new URLSearchParams();
+    
+    if (params.cursor) searchParams.append('cursor', params.cursor);
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.term) searchParams.append('term', params.term);
+    if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
+
+    const response = await this.rateLimitedRequest(async () => {
+      return await this.apiRequest(`/v2/organizations?${searchParams.toString()}`);
+    });
+
+    return {
+      organizations: response.organizations || response.companies || [],
+      next_cursor: response.next_cursor,
+      total_entries: response.total_entries
     };
   }
 
