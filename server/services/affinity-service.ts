@@ -264,7 +264,7 @@ export class AffinityService {
 
       return {
         persons,
-        next_cursor: response.pagination?.nextUrl?.split('cursor=')[1] || null
+        next_cursor: response.pagination?.nextUrl ? new URL(response.pagination.nextUrl).searchParams.get('cursor') : null
       };
     } catch (error) {
       console.error('Error fetching persons:', error);
@@ -272,28 +272,20 @@ export class AffinityService {
     }
   }
 
-  // Get all companies from Affinity
+  // Get all companies from Affinity (use organizations method)
   async getCompanies(params: {
     cursor?: string;
     limit?: number;
     term?: string;
     with_interaction_dates?: boolean;
   } = {}): Promise<{ companies: AffinityCompany[]; next_cursor?: string; total_entries?: number }> {
-    const searchParams = new URLSearchParams();
+    // Use the working organizations method since it's the same data
+    const organizationsResult = await this.getOrganizations(params);
     
-    if (params.cursor) searchParams.append('cursor', params.cursor);
-    if (params.limit) searchParams.append('limit', params.limit.toString());
-    if (params.term) searchParams.append('term', params.term);
-    if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
-
-    const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/organizations?${searchParams.toString()}`);
-    });
-
     return {
-      companies: response.organizations || response.companies || [],
-      next_cursor: response.next_cursor,
-      total_entries: response.total_entries
+      companies: organizationsResult.organizations,
+      next_cursor: organizationsResult.next_cursor,
+      total_entries: organizationsResult.total_entries
     };
   }
 
@@ -345,7 +337,7 @@ export class AffinityService {
 
       return {
         organizations,
-        next_cursor: response.pagination?.nextUrl?.split('cursor=')[1] || null,
+        next_cursor: response.pagination?.nextUrl ? new URL(response.pagination.nextUrl).searchParams.get('cursor') : null,
         total_entries: organizations.length
       };
     } catch (error) {
