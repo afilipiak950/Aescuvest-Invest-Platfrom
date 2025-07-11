@@ -93,6 +93,47 @@ const getDocumentViewerType = (document: Document) => {
 
 const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isOpen, onClose, dealId, refetch }) => {
   const queryClient = useQueryClient();
+  const [isExtractingText, setIsExtractingText] = useState(false);
+  
+  const triggerOCR = async () => {
+    setIsExtractingText(true);
+    try {
+      const response = await fetch('/api/documents/ocr/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          documentId: document.id,
+          fileName: document.name,
+          fileType: document.type
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('OCR extraction successful:', result);
+        
+        // Update the document in the query cache immediately
+        queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          return oldData.map(doc => 
+            doc.id === document.id 
+              ? { ...doc, ocrText: result.extractedText, status: 'Analyzed' }
+              : doc
+          );
+        });
+        
+        // Also refresh the data to ensure consistency
+        setTimeout(() => refetch(), 1000);
+      } else {
+        console.error('OCR extraction failed:', await response.text());
+      }
+    } catch (error) {
+      console.error('OCR extraction error:', error);
+    } finally {
+      setIsExtractingText(false);
+    }
+  };
   
   // Fetch agent analyses to determine which agents processed this document
   const { data: agentAnalyses, refetch: refetchAnalyses } = useQuery({
@@ -843,6 +884,20 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                             <div className="text-center text-gray-500 py-8">
                               <FileTextIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                               <p>No text content extracted from this Word document</p>
+                              <button
+                                onClick={triggerOCR}
+                                disabled={isExtractingText}
+                                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                              >
+                                {isExtractingText ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Extracting Text...
+                                  </>
+                                ) : (
+                                  'Extract Text Content'
+                                )}
+                              </button>
                             </div>
                           )}
                         </div>
@@ -881,6 +936,20 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                             <div className="text-center text-gray-500 py-8">
                               <FileIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                               <p>No data extracted from this Excel document</p>
+                              <button
+                                onClick={triggerOCR}
+                                disabled={isExtractingText}
+                                className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                              >
+                                {isExtractingText ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Extracting Data...
+                                  </>
+                                ) : (
+                                  'Extract Data Content'
+                                )}
+                              </button>
                             </div>
                           )}
                         </div>
