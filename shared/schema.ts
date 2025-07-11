@@ -751,6 +751,135 @@ export const insertInvestorSchema = createInsertSchema(investors).omit({
 export type Investor = typeof investors.$inferSelect;
 export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
 
+// Organizations table for storing all Affinity organizations
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  affinityId: text("affinity_id").notNull().unique(),
+  name: text("name").notNull(),
+  domain: text("domain"),
+  domains: text("domains").array().default([]),
+  type: text("type").notNull().default("organization"),
+  isGlobal: boolean("is_global").default(false),
+  // Business information
+  description: text("description"),
+  industry: text("industry"),
+  website: text("website"),
+  foundingYear: integer("founding_year"),
+  employeeCount: integer("employee_count"),
+  location: text("location"),
+  headquarters: text("headquarters"),
+  // Financial information
+  revenue: bigint("revenue", { mode: "number" }),
+  fundingRaised: bigint("funding_raised", { mode: "number" }),
+  valuation: bigint("valuation", { mode: "number" }),
+  lastFundingDate: timestamp("last_funding_date"),
+  fundingStage: text("funding_stage"),
+  // AI-powered insights
+  businessModel: text("business_model"),
+  keyProducts: text("key_products").array().default([]),
+  competitors: text("competitors").array().default([]),
+  targetMarket: text("target_market"),
+  technologyStack: text("technology_stack").array().default([]),
+  // Affinity data
+  affinityData: json("affinity_data").$type<{
+    listEntries?: any[];
+    fieldValues?: Record<string, any>;
+    interactionDates?: any;
+    createdAt?: string;
+    updatedAt?: string;
+  }>().default({}),
+  // Matching intelligence
+  matchingScore: integer("matching_score").default(0), // 0-100
+  relevanceScore: integer("relevance_score").default(0), // 0-100
+  investmentPotential: text("investment_potential").default("unknown"), // 'high', 'medium', 'low', 'unknown'
+  // Sync tracking
+  lastSyncAt: timestamp("last_sync_at"),
+  syncStatus: text("sync_status").default("pending"), // 'pending', 'synced', 'error'
+  syncErrors: text("sync_errors").array().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+
+// Deal-Organization matches table for intelligent matching
+export const dealOrganizationMatches = pgTable("deal_organization_matches", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  matchScore: integer("match_score").notNull().default(0), // AI-calculated match score 0-100
+  matchReasons: text("match_reasons").array().default([]), // Array of match reasons
+  matchDetails: json("match_details").$type<{
+    industryMatch?: boolean;
+    sizeMatch?: boolean;
+    stageMatch?: boolean;
+    geoMatch?: boolean;
+    technologyMatch?: boolean;
+    businessModelMatch?: boolean;
+    competitorAnalysis?: any;
+    marketAnalysis?: any;
+  }>().default({}),
+  status: text("status").notNull().default("pending"), // 'pending', 'contacted', 'interested', 'declined', 'invested'
+  contactAttempts: integer("contact_attempts").default(0),
+  lastContactAt: timestamp("last_contact_at"),
+  notes: text("notes"),
+  aiGeneratedPitch: text("ai_generated_pitch"),
+  expectedInvestment: bigint("expected_investment", { mode: "number" }),
+  probabilityScore: integer("probability_score").default(0), // 0-100 probability of investment
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDealOrganizationMatchSchema = createInsertSchema(dealOrganizationMatches).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type DealOrganizationMatch = typeof dealOrganizationMatches.$inferSelect;
+export type InsertDealOrganizationMatch = z.infer<typeof insertDealOrganizationMatchSchema>;
+
+// Daily sync jobs for automated data retrieval
+export const dailySyncJobs = pgTable("daily_sync_jobs", {
+  id: serial("id").primaryKey(),
+  jobType: text("job_type").notNull(), // 'affinity_organizations', 'affinity_persons', 'matching_intelligence'
+  status: text("status").notNull().default("pending"), // 'pending', 'running', 'completed', 'failed'
+  progress: integer("progress").default(0), // 0-100
+  totalItems: integer("total_items").default(0),
+  processedItems: integer("processed_items").default(0),
+  newItems: integer("new_items").default(0),
+  updatedItems: integer("updated_items").default(0),
+  errors: text("errors").array().default([]),
+  result: json("result").$type<{
+    organizations?: number;
+    persons?: number;
+    matches?: number;
+    duration?: number;
+    stats?: Record<string, any>;
+  }>().default({}),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  scheduledFor: timestamp("scheduled_for").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDailySyncJobSchema = createInsertSchema(dailySyncJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type DailySyncJob = typeof dailySyncJobs.$inferSelect;
+export type InsertDailySyncJob = z.infer<typeof insertDailySyncJobSchema>;
+
 // Deal-Investor matches table
 export const dealInvestorMatches = pgTable("deal_investor_matches", {
   id: serial("id").primaryKey(),
