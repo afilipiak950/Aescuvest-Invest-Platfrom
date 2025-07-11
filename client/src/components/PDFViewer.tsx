@@ -253,7 +253,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
 }
 
 // Inline PDF preview component for tabs
-export function InlinePDFPreview({ document, dealId, className = "" }: {
+export function InlinePDFPreview({ document: pdfDocument, dealId, className = "" }: {
   document: any;
   dealId: number;
   className?: string;
@@ -289,7 +289,7 @@ export function InlinePDFPreview({ document, dealId, className = "" }: {
         }
 
         // Fetch PDF as ArrayBuffer
-        const response = await fetch(`/api/documents/${document.id}/download`);
+        const response = await fetch(`/api/documents/${pdfDocument.id}/download`);
         if (!response.ok) throw new Error('Failed to fetch PDF');
         
         const arrayBuffer = await response.arrayBuffer();
@@ -308,7 +308,7 @@ export function InlinePDFPreview({ document, dealId, className = "" }: {
     };
 
     loadPDF();
-  }, [document.id]);
+  }, [pdfDocument.id]);
 
   // Render current page
   useEffect(() => {
@@ -342,8 +342,8 @@ export function InlinePDFPreview({ document, dealId, className = "" }: {
 
   const handleDownload = () => {
     const link = document.createElement('a');
-    link.href = `/api/documents/${document.id}/download`;
-    link.download = document.name;
+    link.href = `/api/documents/${pdfDocument.id}/download`;
+    link.download = pdfDocument.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
