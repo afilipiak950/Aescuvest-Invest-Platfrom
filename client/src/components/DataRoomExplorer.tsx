@@ -66,14 +66,13 @@ const canViewDocument = (document: Document) => {
   const fileType = document.type?.toLowerCase() || '';
   const fileName = document.name?.toLowerCase() || '';
   
-  return fileType.includes('pdf') || 
-         fileType.includes('word') || 
-         fileType.includes('excel') || 
-         fileType.includes('spreadsheet') ||
-         fileName.includes('.docx') || 
-         fileName.includes('.doc') || 
-         fileName.includes('.xlsx') || 
-         fileName.includes('.xls') ||
+  return fileType.includes('pdf') || fileName.endsWith('.pdf') ||
+         fileType.includes('word') || fileType.includes('document') || 
+         fileType.includes('wordprocessing') ||
+         fileName.endsWith('.docx') || fileName.endsWith('.doc') ||
+         fileType.includes('excel') || fileType.includes('spreadsheet') ||
+         fileType.includes('sheet') ||
+         fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ||
          document.ocrText; // Can view if we have extracted text
 };
 
@@ -82,9 +81,13 @@ const getDocumentViewerType = (document: Document) => {
   const fileType = document.type?.toLowerCase() || '';
   const fileName = document.name?.toLowerCase() || '';
   
-  if (fileType.includes('pdf')) return 'pdf';
-  if (fileType.includes('word') || fileName.includes('.docx') || fileName.includes('.doc')) return 'word';
-  if (fileType.includes('excel') || fileType.includes('spreadsheet') || fileName.includes('.xlsx') || fileName.includes('.xls')) return 'excel';
+  if (fileType.includes('pdf') || fileName.endsWith('.pdf')) return 'pdf';
+  if (fileType.includes('word') || fileType.includes('document') || 
+      fileName.endsWith('.docx') || fileName.endsWith('.doc') ||
+      fileType.includes('wordprocessing')) return 'word';
+  if (fileType.includes('excel') || fileType.includes('spreadsheet') || 
+      fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ||
+      fileType.includes('sheet')) return 'excel';
   return 'text';
 };
 
@@ -795,6 +798,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
               {(() => {
                 const viewerType = getDocumentViewerType(document);
                 
+                // Debug logging
+                console.log('Document viewer debug:', {
+                  fileName: document.name,
+                  fileType: document.type,
+                  viewerType: viewerType,
+                  hasOcrText: !!document.ocrText,
+                  ocrTextLength: document.ocrText?.length || 0
+                });
+                
                 if (viewerType === 'pdf') {
                   return (
                     <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
@@ -882,7 +894,12 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                         {/* Header */}
                         <div className="bg-gray-700 text-white px-4 py-2 text-sm font-medium flex items-center">
                           <FileIcon className="w-4 h-4 mr-2" />
-                          Text Document Viewer - {document.name}
+                          Document Viewer - {document.name}
+                        </div>
+                        
+                        {/* Debug Info */}
+                        <div className="bg-blue-600 text-white px-4 py-2 text-xs">
+                          Type: {document.type || 'Unknown'} | Viewer: {viewerType} | OCR: {document.ocrText ? 'Available' : 'None'}
                         </div>
                         
                         {/* Content */}
@@ -897,6 +914,11 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                             <div className="text-center text-gray-500 py-8">
                               <FileIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                               <p>No content available for this document</p>
+                              <div className="mt-4 text-sm text-gray-600">
+                                <p>File type: {document.type}</p>
+                                <p>Viewer type: {viewerType}</p>
+                                <p>This document may need OCR processing to extract text content.</p>
+                              </div>
                             </div>
                           )}
                         </div>
