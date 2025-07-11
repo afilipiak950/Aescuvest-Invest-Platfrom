@@ -94,6 +94,7 @@ const getDocumentViewerType = (document: Document) => {
 const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isOpen, onClose, dealId, refetch }) => {
   const queryClient = useQueryClient();
   const [isExtractingText, setIsExtractingText] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   
   const triggerOCR = async () => {
     setIsExtractingText(true);
@@ -881,23 +882,51 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                               </div>
                             </div>
                           ) : (
-                            <div className="text-center text-gray-500 py-8">
-                              <FileTextIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                              <p>No text content extracted from this Word document</p>
-                              <button
-                                onClick={triggerOCR}
-                                disabled={isExtractingText}
-                                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
-                              >
-                                {isExtractingText ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Extracting Text...
-                                  </>
-                                ) : (
-                                  'Extract Text Content'
-                                )}
-                              </button>
+                            <div className="flex flex-col h-full">
+                              {/* Native Word Document Viewer */}
+                              <div className="flex-1 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 overflow-hidden relative">
+                                <iframe
+                                  src={`/api/documents/download/${document.id}?view=inline`}
+                                  className="w-full h-full border-0"
+                                  title={`Word Document: ${document.name}`}
+                                  onLoad={() => setIframeLoaded(true)}
+                                  onError={() => {
+                                    console.log('Word document iframe failed to load');
+                                    setIframeLoaded(false);
+                                  }}
+                                />
+                                
+                                {/* Always show fallback content for Word documents since they may not render properly in iframe */}
+                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
+                                  <div className="text-center">
+                                    <FileTextIcon className="w-16 h-16 mx-auto mb-4 text-blue-500" />
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Word Document</h3>
+                                    <p className="text-sm text-gray-600 mb-4">{document.name}</p>
+                                    <div className="space-y-2">
+                                      <button
+                                        onClick={() => window.open(`/api/documents/download/${document.id}`, '_blank')}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors mr-2"
+                                      >
+                                        Open in New Tab
+                                      </button>
+                                      <button
+                                        onClick={triggerOCR}
+                                        disabled={isExtractingText}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                                      >
+                                        {isExtractingText ? (
+                                          <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Extracting Text...
+                                          </>
+                                        ) : (
+                                          'Extract Text Content'
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -933,23 +962,51 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                               </div>
                             </div>
                           ) : (
-                            <div className="text-center text-gray-500 py-8">
-                              <FileIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                              <p>No data extracted from this Excel document</p>
-                              <button
-                                onClick={triggerOCR}
-                                disabled={isExtractingText}
-                                className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
-                              >
-                                {isExtractingText ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Extracting Data...
-                                  </>
-                                ) : (
-                                  'Extract Data Content'
-                                )}
-                              </button>
+                            <div className="flex flex-col h-full">
+                              {/* Native Excel Document Viewer */}
+                              <div className="flex-1 bg-white rounded-lg border-2 border-dashed border-gray-300 overflow-hidden relative">
+                                <iframe
+                                  src={`/api/documents/download/${document.id}?view=inline`}
+                                  className="w-full h-full border-0"
+                                  title={`Excel Document: ${document.name}`}
+                                  onLoad={() => setIframeLoaded(true)}
+                                  onError={() => {
+                                    console.log('Excel document iframe failed to load');
+                                    setIframeLoaded(false);
+                                  }}
+                                />
+                                
+                                {/* Always show fallback content for Excel documents since they may not render properly in iframe */}
+                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
+                                  <div className="text-center">
+                                    <FileIcon className="w-16 h-16 mx-auto mb-4 text-green-500" />
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Excel Spreadsheet</h3>
+                                    <p className="text-sm text-gray-600 mb-4">{document.name}</p>
+                                    <div className="space-y-2">
+                                      <button
+                                        onClick={() => window.open(`/api/documents/download/${document.id}`, '_blank')}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors mr-2"
+                                      >
+                                        Open in New Tab
+                                      </button>
+                                      <button
+                                        onClick={triggerOCR}
+                                        disabled={isExtractingText}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                                      >
+                                        {isExtractingText ? (
+                                          <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Extracting Data...
+                                          </>
+                                        ) : (
+                                          'Extract Data Content'
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
