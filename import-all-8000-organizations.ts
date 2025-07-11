@@ -17,39 +17,41 @@ const db = drizzle(pool, { schema });
 const AFFINITY_API_KEY = process.env.AFFINITY_API_KEY;
 
 /**
- * Final Complete Import - Import ALL 8,000+ Organizations from Affinity
- * This script ensures we get every organization from the Affinity account
+ * Import ALL 8,000+ Organizations from Affinity
+ * This script will continue fetching until ALL organizations are imported
  */
 
-interface ImportStats {
+interface ImportProgress {
   totalPages: number;
-  totalOrgsProcessed: number;
-  newOrgsAdded: number;
-  existingOrgsUpdated: number;
-  errors: number;
+  totalOrganizations: number;
+  newOrganizations: number;
+  updatedOrganizations: number;
+  currentBatch: number;
+  lastPageSize: number;
 }
 
-async function finalCompleteImport(): Promise<void> {
-  console.log('🚀 FINAL COMPLETE IMPORT - Starting import of ALL 8,000+ organizations...');
+async function importAll8000Organizations(): Promise<void> {
+  console.log('🚀 Starting import of ALL 8,000+ organizations from Affinity...');
   
-  const stats: ImportStats = {
+  const progress: ImportProgress = {
     totalPages: 0,
-    totalOrgsProcessed: 0,
-    newOrgsAdded: 0,
-    existingOrgsUpdated: 0,
-    errors: 0
+    totalOrganizations: 0,
+    newOrganizations: 0,
+    updatedOrganizations: 0,
+    currentBatch: 0,
+    lastPageSize: 0
   };
   
   let pageToken: string | null = null;
   let consecutiveErrors = 0;
   const maxErrors = 5;
   
-  // Start import process
   while (consecutiveErrors < maxErrors) {
-    stats.totalPages++;
+    progress.totalPages++;
+    progress.currentBatch++;
     
     try {
-      console.log(`\n📊 Processing page ${stats.totalPages}...`);
+      console.log(`\n📊 Page ${progress.totalPages} - Fetching next batch...`);
       
       // Build API request URL
       const url = new URL('https://api.affinity.co/organizations');
@@ -88,32 +90,33 @@ async function finalCompleteImport(): Promise<void> {
       
       // Process organizations
       const organizations = data.organizations;
-      stats.totalOrgsProcessed += organizations.length;
+      progress.lastPageSize = organizations.length;
       
-      console.log(`   📦 Processing ${organizations.length} organizations...`);
+      console.log(`📦 Processing ${organizations.length} organizations from page ${progress.totalPages}`);
       
-      // Process each organization
+      // Process each organization with simple, clean data
       for (const org of organizations) {
         try {
           // Check if organization exists
           const existingOrg = await db
             .select()
             .from(schema.organizations)
-            .where(eq(schema.organizations.affinityId, org.id))
+            .where(eq(schema.organizations.affinityId, org.id.toString()))
             .limit(1);
           
+          // Simple organization data that matches schema exactly
           const orgData = {
-            affinityId: org.id,
+            affinityId: org.id.toString(),
             name: org.name,
             domains: org.domains || [],
             domain: org.domain || null,
+            type: org.type || "organization",
             isGlobal: org.is_global || false,
-            type: org.type || "organization", // Default to "organization" if null
-            lastInteractionDate: org.last_interaction_date ? new Date(org.last_interaction_date) : null,
             syncStatus: "synced",
+            lastSyncAt: new Date(),
             affinityData: {
-              createdAt: org.created_at || null,
-              updatedAt: org.updated_at || null,
+              createdAt: org.created_at,
+              updatedAt: org.updated_at,
               listEntries: org.list_entries || [],
               fieldValues: org.field_values || {},
               interactionDates: org.interaction_dates || null
@@ -124,29 +127,45 @@ async function finalCompleteImport(): Promise<void> {
             // Update existing organization
             await db
               .update(schema.organizations)
-              .set(orgData)
-              .where(eq(schema.organizations.affinityId, org.id));
+              .set({
+                name: orgData.name,
+                domains: orgData.domains,
+                domain: orgData.domain,
+                type: orgData.type,
+                isGlobal: orgData.isGlobal,
+                syncStatus: orgData.syncStatus,
+                lastSyncAt: orgData.lastSyncAt,
+                affinityData: orgData.affinityData,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.organizations.affinityId, org.id.toString()));
             
-            stats.existingOrgsUpdated++;
+            progress.updatedOrganizations++;
           } else {
             // Insert new organization
             await db
               .insert(schema.organizations)
               .values(orgData);
             
-            stats.newOrgsAdded++;
+            progress.newOrganizations++;
           }
           
+          progress.totalOrganizations++;
+          
         } catch (error) {
-          console.error(`❌ Error processing organization ${org.id}:`, error);
-          stats.errors++;
+          console.error(`❌ Error processing organization ${org.id}: ${error.message}`);
+          consecutiveErrors++;
+          
+          if (consecutiveErrors >= maxErrors) {
+            console.error('❌ Too many consecutive errors, stopping import');
+            break;
+          }
         }
       }
       
       // Show progress
-      console.log(`   ✅ Processed ${organizations.length} organizations`);
-      console.log(`   📊 Total processed: ${stats.totalOrgsProcessed}`);
-      console.log(`   📊 New: ${stats.newOrgsAdded}, Updated: ${stats.existingOrgsUpdated}`);
+      console.log(`✅ Batch ${progress.currentBatch} completed: ${organizations.length} organizations`);
+      console.log(`📊 Total: ${progress.totalOrganizations} | New: ${progress.newOrganizations} | Updated: ${progress.updatedOrganizations}`);
       
       // Check for next page
       if (data.next_page_token) {
@@ -155,15 +174,19 @@ async function finalCompleteImport(): Promise<void> {
         
         // Rate limiting - wait 1 second between requests
         await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Show progress every 10 pages
+        if (progress.totalPages % 10 === 0) {
+          console.log(`🔄 Progress: ${progress.totalPages} pages processed, ${progress.totalOrganizations} organizations total`);
+        }
       } else {
         console.log('🏁 No more pages - import complete!');
         break;
       }
       
     } catch (error) {
-      console.error(`❌ Error on page ${stats.totalPages}:`, error);
+      console.error(`❌ Error on page ${progress.totalPages}: ${error.message}`);
       consecutiveErrors++;
-      stats.errors++;
       
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -171,13 +194,12 @@ async function finalCompleteImport(): Promise<void> {
   }
   
   // Final statistics
-  console.log('\n🎉 FINAL IMPORT COMPLETE!');
-  console.log('📊 Import Statistics:');
-  console.log(`   Total Pages: ${stats.totalPages}`);
-  console.log(`   Total Organizations Processed: ${stats.totalOrgsProcessed}`);
-  console.log(`   New Organizations Added: ${stats.newOrgsAdded}`);
-  console.log(`   Existing Organizations Updated: ${stats.existingOrgsUpdated}`);
-  console.log(`   Errors: ${stats.errors}`);
+  console.log('\n🎉 IMPORT COMPLETE!');
+  console.log('📊 Final Statistics:');
+  console.log(`   Total Pages: ${progress.totalPages}`);
+  console.log(`   Total Organizations: ${progress.totalOrganizations}`);
+  console.log(`   New Organizations: ${progress.newOrganizations}`);
+  console.log(`   Updated Organizations: ${progress.updatedOrganizations}`);
   
   // Verify final database count
   const finalCount = await db
@@ -186,10 +208,10 @@ async function finalCompleteImport(): Promise<void> {
   
   console.log(`\n✅ Final database count: ${finalCount[0].count} organizations`);
   
-  if (stats.totalOrgsProcessed >= 8000) {
-    console.log('🎯 SUCCESS: Imported 8,000+ organizations as expected!');
+  if (progress.totalOrganizations >= 8000) {
+    console.log('🎯 SUCCESS: Imported 8,000+ organizations!');
   } else {
-    console.log(`📈 PROGRESS: Imported ${stats.totalOrgsProcessed} organizations`);
+    console.log(`📈 PROGRESS: Imported ${progress.totalOrganizations} organizations`);
   }
   
   await pool.end();
@@ -198,7 +220,7 @@ async function finalCompleteImport(): Promise<void> {
 // Import sql helper
 const { sql } = await import('drizzle-orm');
 
-finalCompleteImport()
+importAll8000Organizations()
   .then(() => {
     console.log('✅ Import script completed successfully');
     process.exit(0);
