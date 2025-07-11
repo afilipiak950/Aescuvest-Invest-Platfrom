@@ -157,7 +157,7 @@ export class AffinityService {
   private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.config.baseUrl}${endpoint}`;
     const headers = {
-      'Authorization': `Basic ${Buffer.from(`${this.config.apiKey}:`).toString('base64')}`,
+      'Authorization': `Basic ${Buffer.from(`:${this.config.apiKey}`).toString('base64')}`,
       'Content-Type': 'application/json',
       ...options.headers
     };
@@ -166,7 +166,7 @@ export class AffinityService {
       console.log('🔗 Affinity API Request:');
       console.log('- URL:', url);
       console.log('- Method:', options.method || 'GET');
-      console.log('- Auth:', `Basic ${Buffer.from(`${this.config.apiKey?.slice(0, 10)}:`).toString('base64')}...`);
+      console.log('- Auth:', `Basic ${Buffer.from(`:${this.config.apiKey?.slice(0, 10)}`).toString('base64')}...`);
 
       const response = await fetch(url, {
         ...options,
@@ -305,12 +305,12 @@ export class AffinityService {
       if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
 
       console.log('🔍 Affinity API Debug - Organizations Endpoint Request:');
-      console.log('- URL:', `/v2/organizations?${searchParams.toString()}`);
+      console.log('- URL:', `/organizations?${searchParams.toString()}`);
       console.log('- Params:', params);
 
-      // Use the direct organizations endpoint with v2 prefix
+      // Use the direct organizations endpoint (no v2 prefix)
       const response = await this.rateLimitedRequest(async () => {
-        return await this.apiRequest(`/v2/organizations?${searchParams.toString()}`);
+        return await this.apiRequest(`/organizations?${searchParams.toString()}`);
       });
 
       console.log('📊 Affinity API Debug - Organizations Response:');
