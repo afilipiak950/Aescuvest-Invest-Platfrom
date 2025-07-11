@@ -1,11 +1,15 @@
+#!/usr/bin/env tsx
+
 /**
  * Import ALL Organizations from Affinity at Once
  * Comprehensive import of all organizations from Affinity CRM
  */
 
-import { db } from "./server/db";
-import { organizations } from "./shared/schema";
-import { eq } from "drizzle-orm";
+import { db } from './server/db';
+import { organizations } from './shared/schema';
+import { eq } from 'drizzle-orm';
+
+const AFFINITY_API_KEY = process.env.AFFINITY_API_KEY;
 
 interface AffinityOrganization {
   id: number;
@@ -16,175 +20,142 @@ interface AffinityOrganization {
   type?: string;
 }
 
-interface AffinityListEntry {
-  id: number;
-  listId: number;
-  type: string;
-  createdAt: string;
-  entity: AffinityOrganization;
-}
-
-interface AffinityResponse {
-  data: AffinityListEntry[];
-  pagination?: {
-    nextUrl?: string;
-    prevUrl?: string;
-  };
-}
-
 async function makeAffinityRequest(url: string): Promise<any> {
-  const apiKey = process.env.AFFINITY_API_KEY;
-  if (!apiKey) {
-    throw new Error('AFFINITY_API_KEY is not configured');
-  }
-
   const response = await fetch(url, {
-    method: 'GET',
     headers: {
-      'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+      'Authorization': `Basic ${Buffer.from(`:${AFFINITY_API_KEY}`).toString('base64')}`,
       'Content-Type': 'application/json',
     },
   });
-
+  
   if (!response.ok) {
-    throw new Error(`Affinity API error: ${response.status} ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`API Error: ${response.status} - ${errorText}`);
   }
-
+  
   return response.json();
 }
 
 async function importAllAffinityOrganizations(): Promise<void> {
-  console.log('🚀 Starting comprehensive import of ALL Affinity organizations...');
+  console.log('🔄 Starting comprehensive Affinity organizations import...');
   
-  try {
-    // Step 1: Get all lists
-    console.log('📋 Step 1: Fetching all Affinity lists...');
-    const listsResponse = await makeAffinityRequest('https://api.affinity.co/v2/lists');
-    const allLists = listsResponse.data || [];
+  let totalImported = 0;
+  let newOrganizations = 0;
+  let pageToken: string | null = null;
+  let pageCount = 0;
+  
+  do {
+    pageCount++;
+    console.log(`\n📊 Processing page ${pageCount}`);
     
-    console.log(`📊 Found ${allLists.length} lists in Affinity`);
-    allLists.forEach(list => {
-      console.log(`  - ${list.name} (ID: ${list.id}, Type: ${list.type})`);
-    });
-    
-    // Step 2: Get organizations from all company lists
-    const companyLists = allLists.filter(list => list.type === 'company');
-    console.log(`\n🏢 Found ${companyLists.length} company lists`);
-    
-    let totalOrganizations = 0;
-    let newOrganizations = 0;
-    
-    for (const list of companyLists) {
-      console.log(`\n📁 Processing list: ${list.name} (ID: ${list.id})`);
+    try {
+      // Build URL with pagination
+      const baseUrl = 'https://api.affinity.co/organizations';
+      const params = new URLSearchParams({
+        limit: '500',
+        with_interaction_dates: 'true'
+      });
       
-      let cursor: string | undefined;
-      let pageCount = 0;
+      if (pageToken) {
+        params.append('page_token', pageToken);
+      }
       
-      do {
-        pageCount++;
-        console.log(`  📄 Fetching page ${pageCount}...`);
+      const url = `${baseUrl}?${params.toString()}`;
+      console.log(`🔗 Fetching: ${url.replace(pageToken || '', '***')}`);
+      
+      // Make API request
+      const response = await makeAffinityRequest(url);
+      
+      if (!response.organizations || response.organizations.length === 0) {
+        console.log('✅ No more organizations available');
+        break;
+      }
+      
+      console.log(`📦 Received ${response.organizations.length} organizations`);
+      
+      // Process in batches for better performance
+      const batchSize = 50;
+      for (let i = 0; i < response.organizations.length; i += batchSize) {
+        const batch = response.organizations.slice(i, i + batchSize);
         
-        // Build URL with cursor if available
-        let url = `https://api.affinity.co/v2/lists/${list.id}/list-entries?limit=100&with_interaction_dates=true`;
-        if (cursor) {
-          url += `&cursor=${encodeURIComponent(cursor)}`;
-        }
-        
-        const response: AffinityResponse = await makeAffinityRequest(url);
-        const organizations = response.data || [];
-        
-        console.log(`    ✓ Found ${organizations.length} organizations in this page`);
-        
-        // Process each organization
-        for (const entry of organizations) {
-          if (entry.type === 'company' && entry.entity) {
-            const org = entry.entity;
+        for (const org of batch) {
+          try {
+            // Check if exists
+            const existing = await db.select().from(organizations)
+              .where(eq(organizations.affinityId, org.id))
+              .limit(1);
             
-            try {
-              // Check if organization already exists
-              const existingOrg = await db.query.organizations.findFirst({
-                where: eq(organizations.affinityId, org.id.toString())
-              });
-              
-              if (!existingOrg) {
-                // Insert new organization
-                await db.insert(organizations).values({
-                  affinityId: org.id.toString(),
-                  name: org.name,
-                  domain: org.domain || null,
-                  domains: org.domains || [],
-                  type: 'organization',
-                  isGlobal: org.isGlobal || false,
-                  lastSyncAt: new Date(),
-                  syncStatus: 'completed'
-                });
-                
-                newOrganizations++;
-                console.log(`    ✅ Added: ${org.name} (${org.domain || 'no domain'})`);
-              } else {
-                // Update existing organization
-                await db.update(organizations)
-                  .set({
-                    name: org.name,
-                    domain: org.domain || null,
-                    domains: org.domains || [],
-                    isGlobal: org.isGlobal || false,
-                    lastSyncAt: new Date(),
-                    syncStatus: 'completed'
-                  })
-                  .where(eq(organizations.affinityId, org.id.toString()));
-                
-                console.log(`    🔄 Updated: ${org.name}`);
-              }
-              
-              totalOrganizations++;
-            } catch (error) {
-              console.error(`    ❌ Error processing ${org.name}:`, error.message);
+            const orgData = {
+              affinityId: org.id,
+              name: org.name,
+              domain: org.domain,
+              domains: org.domains || [],
+              type: org.type,
+              isGlobal: org.global,
+              website: org.domain ? `https://${org.domain}` : null,
+              affinityData: {
+                listEntries: org.list_entries || [],
+                fieldValues: org.field_values || {},
+                interactionDates: org.interaction_dates || {},
+                crunchbaseUuid: org.crunchbase_uuid,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              },
+              lastSyncAt: new Date(),
+              syncStatus: 'synced' as const
+            };
+            
+            if (existing.length === 0) {
+              await db.insert(organizations).values(orgData);
+              newOrganizations++;
+            } else {
+              await db.update(organizations)
+                .set({ ...orgData, updatedAt: new Date() })
+                .where(eq(organizations.id, existing[0].id));
             }
+            
+            totalImported++;
+            
+          } catch (error) {
+            console.error(`❌ Error processing ${org.name}:`, error);
           }
         }
         
-        // Check for next page
-        cursor = response.pagination?.nextUrl ? 
-          new URL(response.pagination.nextUrl).searchParams.get('cursor') : undefined;
+        // Progress update
+        console.log(`📈 Processed ${totalImported} organizations (${newOrganizations} new)`);
         
-        console.log(`    📊 Page ${pageCount} complete. Cursor: ${cursor ? 'Yes' : 'No'}`);
-        
-        // Add small delay to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-      } while (cursor);
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       
-      console.log(`  ✅ Completed list "${list.name}": processed ${totalOrganizations} organizations`);
+      // Get next page token
+      pageToken = response.next_page_token || null;
+      console.log(`📄 Page ${pageCount} completed. Next page: ${pageToken ? 'YES' : 'NO'}`);
+      
+    } catch (error) {
+      console.error(`❌ Error on page ${pageCount}:`, error);
+      break;
     }
     
-    // Step 3: Summary
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 COMPREHENSIVE IMPORT COMPLETE!');
-    console.log('='.repeat(60));
-    console.log(`✅ Total organizations processed: ${totalOrganizations}`);
-    console.log(`🆕 New organizations added: ${newOrganizations}`);
-    console.log(`🔄 Existing organizations updated: ${totalOrganizations - newOrganizations}`);
-    
-    // Step 4: Verify final count
-    const finalCount = await db.query.organizations.findMany();
-    console.log(`📈 Final database count: ${finalCount.length} organizations`);
-    
-    // Step 5: Show sample organizations
-    if (finalCount.length > 0) {
-      console.log('\n📋 Sample organizations in database:');
-      finalCount.slice(0, 10).forEach((org, index) => {
-        console.log(`${index + 1}. ${org.name} (${org.domain || 'no domain'})`);
-      });
-    }
-    
-    console.log('\n🎉 All Affinity organizations successfully imported!');
-    
-  } catch (error) {
-    console.error('❌ Import failed:', error);
-    throw error;
-  }
+  } while (pageToken);
+  
+  // Final stats
+  const finalCount = await db.select().from(organizations);
+  
+  console.log('\n🎉 Import completed!');
+  console.log(`📊 Total organizations imported: ${totalImported}`);
+  console.log(`📊 New organizations added: ${newOrganizations}`);
+  console.log(`📊 Total organizations in database: ${finalCount.length}`);
+  console.log(`📊 Pages processed: ${pageCount}`);
 }
 
-// Run the comprehensive import
-importAllAffinityOrganizations().catch(console.error);
+// Run the import
+importAllAffinityOrganizations()
+  .then(() => {
+    console.log('\n✅ All organizations imported successfully!');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('\n❌ Import failed:', error);
+    process.exit(1);
+  });

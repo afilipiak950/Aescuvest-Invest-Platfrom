@@ -154,8 +154,8 @@ export class MatchingIntelligenceService {
           break;
         }
         
-        // Rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Rate limiting - reduced to allow faster processing
+        await new Promise(resolve => setTimeout(resolve, 100));
         
       } while (cursor);
 

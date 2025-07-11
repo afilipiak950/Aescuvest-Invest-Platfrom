@@ -299,7 +299,7 @@ export class AffinityService {
     try {
       // Use the proper organizations endpoint - not lists!
       const searchParams = new URLSearchParams();
-      if (params.cursor) searchParams.append('cursor', params.cursor);
+      if (params.cursor) searchParams.append('page_token', params.cursor); // Changed from 'cursor' to 'page_token'
       if (params.limit) searchParams.append('limit', params.limit.toString());
       if (params.term) searchParams.append('term', params.term);
       if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
@@ -332,7 +332,7 @@ export class AffinityService {
 
         return {
           organizations,
-          next_cursor: response.page_info?.next_page_token || null,
+          next_cursor: response.next_page_token || null,
           total_entries: response.organizations.length
         };
       }
