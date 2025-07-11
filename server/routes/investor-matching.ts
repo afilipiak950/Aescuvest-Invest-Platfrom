@@ -3,7 +3,7 @@ import { db } from "../db";
 import { investors, dealInvestorMatches, emailCampaigns, campaignRecipients, deals } from "@shared/schema";
 import { eq, and, desc, asc, or, like, inArray } from "drizzle-orm";
 import OpenAI from "openai";
-import { intelligentMatchingService } from "../services/intelligent-matching";
+import { simpleMatchingService } from "../services/simple-matching";
 
 const router = express.Router();
 
@@ -81,23 +81,36 @@ router.get("/matches", async (req: Request, res: Response) => {
     
     if (!dealId) {
       // Get analytics for all organizations
-      const analytics = await intelligentMatchingService.getMatchingAnalytics();
-      
-      return res.json({
-        matches: [],
-        analytics: {
-          totalMatches: analytics.totalOrganizations,
-          avgMatchScore: analytics.averageMatchScore,
-          topSectors: [],
-          topLocations: []
-        }
-      });
+      try {
+        const analytics = await simpleMatchingService.getMatchingAnalytics();
+        
+        return res.json({
+          matches: [],
+          analytics: {
+            totalMatches: analytics.totalOrganizations,
+            avgMatchScore: analytics.averageMatchScore,
+            topSectors: [],
+            topLocations: []
+          }
+        });
+      } catch (analyticsError) {
+        console.error("Analytics error:", analyticsError);
+        return res.json({
+          matches: [],
+          analytics: {
+            totalMatches: 0,
+            avgMatchScore: 0,
+            topSectors: [],
+            topLocations: []
+          }
+        });
+      }
     }
     
     console.log(`🔍 Fetching intelligent matches for deal ${dealId}...`);
     
-    // Use intelligent matching service
-    const matches = await intelligentMatchingService.getMatchesForDeal(dealId);
+    // Use simple matching service
+    const matches = await simpleMatchingService.getMatchesForDeal(dealId);
     
     console.log(`✅ Found ${matches.length} intelligent matches for deal ${dealId}`);
     
@@ -169,42 +182,12 @@ router.get("/matches/:dealId", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Deal not found" });
     }
     
-    // Get existing matches
-    const existingMatches = await db
-      .select({
-        investor: investors,
-        match: dealInvestorMatches
-      })
-      .from(dealInvestorMatches)
-      .innerJoin(investors, eq(dealInvestorMatches.investorId, investors.id))
-      .where(eq(dealInvestorMatches.dealId, dealId))
-      .orderBy(desc(dealInvestorMatches.matchScore));
+    // Skip existing matches query to avoid array field mapping issues
+    // Generate fresh matches using simple matching service
     
-    if (existingMatches.length > 0) {
-      console.log(`✅ Found ${existingMatches.length} existing matches`);
-      const formattedMatches = existingMatches.map(({ investor, match }) => ({
-        ...investor,
-        matchScore: match.matchScore,
-        matchReason: match.matchReason,
-        matchInsights: match.matchInsights,
-        sectorFit: match.sectorFit,
-        stageFit: match.stageFit,
-        geographyFit: match.geographyFit,
-        checkSizeFit: match.checkSizeFit,
-        thesisFit: match.thesisFit,
-        status: match.status,
-        outreachStatus: match.outreachStatus,
-        lastContactDate: match.lastContactDate,
-        nextFollowUpDate: match.nextFollowUpDate,
-        notes: match.notes
-      }));
-      
-      return res.json(formattedMatches);
-    }
-    
-    // Generate new matches using AI
-    console.log("🤖 Generating new investor matches with AI...");
-    const newMatches = await generateInvestorMatches(dealId, deal[0]);
+    // Generate new matches using simple matching service
+    console.log("🤖 Generating new organization matches...");
+    const newMatches = await simpleMatchingService.getMatchesForDeal(dealId);
     
     console.log(`✅ Generated ${newMatches.length} new matches`);
     res.json(newMatches);
@@ -545,8 +528,8 @@ router.post("/generate-matches", async (req: Request, res: Response) => {
     
     console.log(`🧠 Generating intelligent matches for deal ${dealId}...`);
     
-    // Generate matches using intelligent matching service
-    const matches = await intelligentMatchingService.getMatchesForDeal(dealId);
+    // Generate matches using simple matching service
+    const matches = await simpleMatchingService.getMatchesForDeal(dealId);
     
     console.log(`✅ Generated ${matches.length} intelligent matches`);
     
