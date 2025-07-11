@@ -61,6 +61,33 @@ interface AIDocumentSummary {
   confidenceScore: number;
 }
 
+// Helper function to check if a document can be viewed
+const canViewDocument = (document: Document) => {
+  const fileType = document.type?.toLowerCase() || '';
+  const fileName = document.name?.toLowerCase() || '';
+  
+  return fileType.includes('pdf') || 
+         fileType.includes('word') || 
+         fileType.includes('excel') || 
+         fileType.includes('spreadsheet') ||
+         fileName.includes('.docx') || 
+         fileName.includes('.doc') || 
+         fileName.includes('.xlsx') || 
+         fileName.includes('.xls') ||
+         document.ocrText; // Can view if we have extracted text
+};
+
+// Helper function to get document type for viewer
+const getDocumentViewerType = (document: Document) => {
+  const fileType = document.type?.toLowerCase() || '';
+  const fileName = document.name?.toLowerCase() || '';
+  
+  if (fileType.includes('pdf')) return 'pdf';
+  if (fileType.includes('word') || fileName.includes('.docx') || fileName.includes('.doc')) return 'word';
+  if (fileType.includes('excel') || fileType.includes('spreadsheet') || fileName.includes('.xlsx') || fileName.includes('.xls')) return 'excel';
+  return 'text';
+};
+
 const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isOpen, onClose, dealId, refetch }) => {
   const queryClient = useQueryClient();
   
@@ -498,8 +525,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           <Tabs defaultValue="analysis" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-              <TabsTrigger value="pdf" disabled={!document.type?.toLowerCase().includes('pdf')}>
-                PDF Viewer
+              <TabsTrigger value="viewer" disabled={!canViewDocument(document)}>
+                Document Viewer
               </TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
             </TabsList>
@@ -764,20 +791,120 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
 
             </TabsContent>
             
-            <TabsContent value="pdf" className="mt-4">
-              {document.type?.toLowerCase().includes('pdf') ? (
-                <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
-                  <InlinePDFPreview 
-                    document={document} 
-                    dealId={dealId} 
-                    className="w-full h-full"
-                  />
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 py-8">
-                  PDF viewer is only available for PDF documents
-                </div>
-              )}
+            <TabsContent value="viewer" className="mt-4">
+              {(() => {
+                const viewerType = getDocumentViewerType(document);
+                
+                if (viewerType === 'pdf') {
+                  return (
+                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                      <InlinePDFPreview 
+                        document={document} 
+                        dealId={dealId} 
+                        className="w-full h-full"
+                      />
+                    </div>
+                  );
+                } else if (viewerType === 'word') {
+                  return (
+                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                      <div className="h-full flex flex-col">
+                        {/* Header */}
+                        <div className="bg-blue-600 text-white px-4 py-2 text-sm font-medium flex items-center">
+                          <FileTextIcon className="w-4 h-4 mr-2" />
+                          Word Document Viewer - {document.name}
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 p-4 overflow-y-auto bg-white text-black">
+                          {document.ocrText ? (
+                            <div className="max-w-4xl mx-auto">
+                              <div className="prose prose-lg max-w-none">
+                                {document.ocrText.split('\n').map((paragraph, index) => (
+                                  <p key={index} className="mb-4 text-gray-800 leading-relaxed">
+                                    {paragraph.trim() || '\u00A0'}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center text-gray-500 py-8">
+                              <FileTextIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                              <p>No text content extracted from this Word document</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else if (viewerType === 'excel') {
+                  return (
+                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                      <div className="h-full flex flex-col">
+                        {/* Header */}
+                        <div className="bg-green-600 text-white px-4 py-2 text-sm font-medium flex items-center">
+                          <FileIcon className="w-4 h-4 mr-2" />
+                          Excel Document Viewer - {document.name}
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+                          {document.ocrText ? (
+                            <div className="bg-white rounded-lg shadow-sm border">
+                              <div className="p-4">
+                                <div className="font-mono text-sm">
+                                  {document.ocrText.split('\n').map((line, index) => (
+                                    <div key={index} className="mb-2 p-2 border-b border-gray-100">
+                                      {line.trim() ? (
+                                        <span className="text-gray-800">{line}</span>
+                                      ) : (
+                                        <span className="text-gray-400">—</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center text-gray-500 py-8">
+                              <FileIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                              <p>No data extracted from this Excel document</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                      <div className="h-full flex flex-col">
+                        {/* Header */}
+                        <div className="bg-gray-700 text-white px-4 py-2 text-sm font-medium flex items-center">
+                          <FileIcon className="w-4 h-4 mr-2" />
+                          Text Document Viewer - {document.name}
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 p-4 overflow-y-auto bg-gray-100">
+                          {document.ocrText ? (
+                            <div className="bg-white rounded-lg shadow-sm border p-4">
+                              <pre className="whitespace-pre-wrap text-gray-800 font-mono text-sm leading-relaxed">
+                                {document.ocrText}
+                              </pre>
+                            </div>
+                          ) : (
+                            <div className="text-center text-gray-500 py-8">
+                              <FileIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                              <p>No content available for this document</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
             </TabsContent>
 
             <TabsContent value="details" className="mt-4">
