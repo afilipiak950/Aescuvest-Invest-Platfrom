@@ -1773,7 +1773,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         </div>
       )}
 
-      <div className="p-4 flex-1 overflow-y-auto">
+      <div className="p-4 h-96 overflow-y-auto">
         {folderTree.children.size > 0 ? (
           Array.from(folderTree.children.values()).map((child) => (
             <FolderTree
