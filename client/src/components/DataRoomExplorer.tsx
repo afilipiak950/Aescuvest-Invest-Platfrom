@@ -494,7 +494,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[70vh]">
+        <div className="p-6 overflow-y-auto max-h-[85vh]">
           <Tabs defaultValue="analysis" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
@@ -766,7 +766,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
             
             <TabsContent value="pdf" className="mt-4">
               {document.type?.toLowerCase().includes('pdf') ? (
-                <div className="h-[600px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
                   <InlinePDFPreview 
                     document={document} 
                     dealId={dealId} 
