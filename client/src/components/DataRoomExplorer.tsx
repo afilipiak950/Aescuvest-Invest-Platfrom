@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
@@ -473,7 +474,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-lighter rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-dark-lighter rounded-lg max-w-7xl w-full max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-dark">
           <div className="flex justify-between items-start">
             <div>
@@ -494,32 +495,42 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[70vh]">
-          {/* Agent Assignment Section */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
-            {assignedAgents.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {assignedAgents.map((agent, index) => {
-                  const colorClasses = agent.colorClasses.split(' ');
-                  return (
-                    <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${colorClasses[3]}`}></div>
-                        <span className={`${colorClasses[2]} font-medium text-sm`}>{agent.name}</span>
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">{agent.description}</div>
+          <Tabs defaultValue="analysis" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
+              <TabsTrigger value="pdf" disabled={!document.type?.toLowerCase().includes('pdf')}>
+                PDF Viewer
+              </TabsTrigger>
+              <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="analysis" className="mt-4">
+              {/* Agent Assignment Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
+                {assignedAgents.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {assignedAgents.map((agent, index) => {
+                      const colorClasses = agent.colorClasses.split(' ');
+                      return (
+                        <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${colorClasses[3]}`}></div>
+                            <span className={`${colorClasses[2]} font-medium text-sm`}>{agent.name}</span>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">{agent.description}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-3">
+                    <div className="text-center text-gray-400 text-sm">
+                      No agents have analyzed this document yet
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-3">
-                <div className="text-center text-gray-400 text-sm">
-                  No agents have analyzed this document yet
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* AI Document Analysis - Automatically Generated */}
           <div className="mb-6">
@@ -703,163 +714,195 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
             </div>
           )}
 
-          {/* Additional Analysis Data */}
-          {analysisData && (
-            <div className="mb-6">
-              <details>
-                <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors">
-                  Technical Analysis
-                </summary>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                  {analysisData.documentType && (
-                    <div>
-                      <h4 className="text-md font-medium text-white mb-2">Document Type</h4>
-                      <p className="text-gray-300">{analysisData.documentType}</p>
-                    </div>
-                  )}
-                  
-                  {analysisData.category && (
-                    <div>
-                      <h4 className="text-md font-medium text-white mb-2">Business Category</h4>
-                      <p className="text-gray-300">{analysisData.category}</p>
-                    </div>
-                  )}
-                </div>
-              </details>
-            </div>
-          )}
-
-          {/* Complete OCR & Text Extraction Debug Section */}
-          <div className="mb-6">
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-orange-300 mb-3 flex items-center">
-                <span className="mr-2">🔍</span>
-                Complete Text Extraction Debug (Mistral OCR)
-              </h3>
-              
-              {/* Basic Document Info */}
-              <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
-                <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
-                  <span className="text-xs text-gray-400">Document Metadata</span>
-                </div>
-                <div className="p-3">
-                  <div className="text-xs text-gray-200 space-y-2">
-                    <div><span className="text-orange-300">ID:</span> {document.id}</div>
-                    <div><span className="text-orange-300">Name:</span> {document.name}</div>
-                    <div><span className="text-orange-300">Type:</span> {document.type}</div>
-                    <div><span className="text-orange-300">Size:</span> {(document.size / 1024).toFixed(1)} KB</div>
-                    <div><span className="text-orange-300">Status:</span> {document.status}</div>
-                    <div><span className="text-orange-300">AI Summary Status:</span> {(document as any).aiSummaryStatus || 'Not processed'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* OCR Text Analysis */}
-              <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
-                <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
-                  <span className="text-xs text-gray-400">OCR Text Analysis</span>
-                </div>
-                <div className="p-3">
-                  <div className="text-xs text-gray-200 space-y-2">
-                    <div><span className="text-orange-300">Has ocrText:</span> {document.ocrText ? 'Yes' : 'No'}</div>
-                    <div><span className="text-orange-300">OCR Text type:</span> {typeof document.ocrText}</div>
-                    <div><span className="text-orange-300">OCR Text length:</span> {document.ocrText ? document.ocrText.length : 'N/A'}</div>
-                    <div><span className="text-orange-300">OCR Text preview:</span> {document.ocrText ? `"${document.ocrText.substring(0, 100)}..."` : 'No text'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Complete Document Object Inspection */}
-              <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden">
-                <div className="bg-gray-800 px-3 py-2 border-b border-gray-600 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Complete Document Object</span>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(JSON.stringify(document, null, 2))}
-                    className="text-xs bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded text-white transition-colors"
-                  >
-                    Copy JSON
-                  </button>
-                </div>
-                <div className="p-3 max-h-64 overflow-y-auto">
-                  <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono">
-                    {JSON.stringify(document, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* OCR Text Display - Only if OCR text exists */}
-          {document.ocrText && document.ocrText.length > 0 && (
-            <div className="mb-6">
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-green-300 mb-3 flex items-center">
-                  <span className="mr-2">📄</span>
-                  OCR Extracted Text
-                  <span className="ml-2 text-sm bg-green-500/20 px-2 py-1 rounded text-green-300">
-                    {Math.round(document.ocrText.length / 1000)}k chars
-                  </span>
-                </h3>
-                <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden">
-                  <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Raw OCR Output</span>
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          onClick={() => navigator.clipboard.writeText(document.ocrText)}
-                          className="text-xs bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-white transition-colors"
-                        >
-                          Copy OCR Text
-                        </button>
-                        <span className="text-xs text-gray-500">
-                          {document.ocrText.split('\n').length} lines
+              {/* OCR Text - Enhanced formatting for better readability */}
+              {document.ocrText && (
+                <div className="mb-6">
+                  <details className={aiSummary ? '' : 'open'}>
+                    <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors flex items-center">
+                      <span className="mr-2">📄</span>
+                      Extracted Document Text 
+                      {document.ocrText.length > 1000 && (
+                        <span className="ml-2 text-sm bg-blue-500/20 px-2 py-1 rounded text-blue-300">
+                          {Math.round(document.ocrText.length / 1000)}k characters
                         </span>
+                      )}
+                    </summary>
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg mt-3 overflow-hidden">
+                      <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Document Content</span>
+                          <div className="flex items-center space-x-2">
+                            <button 
+                              onClick={() => navigator.clipboard.writeText(document.ocrText)}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-white transition-colors"
+                            >
+                              Copy Text
+                            </button>
+                            <span className="text-xs text-gray-500">
+                              {document.ocrText.split('\n').length} lines
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 max-h-96 overflow-y-auto">
+                        <div className="text-sm text-gray-200 leading-relaxed">
+                          {document.ocrText.split('\n').map((line: string, index: number) => (
+                            <div key={index} className="mb-2">
+                              {line.trim() ? (
+                                <p className="text-gray-200">{line}</p>
+                              ) : (
+                                <div className="h-3"></div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
+
+            </TabsContent>
+            
+            <TabsContent value="pdf" className="mt-4">
+              {document.type?.toLowerCase().includes('pdf') ? (
+                <div className="h-[600px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                  <InlinePDFPreview 
+                    document={document} 
+                    dealId={dealId} 
+                    className="w-full h-full"
+                  />
+                </div>
+              ) : (
+                <div className="text-center text-gray-400 py-8">
+                  PDF viewer is only available for PDF documents
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="details" className="mt-4">
+              {/* Additional Analysis Data */}
+              {analysisData && (
+                <div className="mb-6">
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-purple-300 mb-3 flex items-center">
+                      <span className="mr-2">⚙️</span>
+                      Technical Analysis
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {analysisData.documentType && (
+                        <div>
+                          <h4 className="text-md font-medium text-white mb-2">Document Type</h4>
+                          <p className="text-gray-300">{analysisData.documentType}</p>
+                        </div>
+                      )}
+                      
+                      {analysisData.category && (
+                        <div>
+                          <h4 className="text-md font-medium text-white mb-2">Business Category</h4>
+                          <p className="text-gray-300">{analysisData.category}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Complete OCR & Text Extraction Debug Section */}
+              <div className="mb-6">
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-orange-300 mb-3 flex items-center">
+                    <span className="mr-2">🔍</span>
+                    Complete Text Extraction Debug (Mistral OCR)
+                  </h3>
+                  
+                  {/* Basic Document Info */}
+                  <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
+                    <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
+                      <span className="text-xs text-gray-400">Document Metadata</span>
+                    </div>
+                    <div className="p-3">
+                      <div className="text-xs text-gray-200 space-y-2">
+                        <div><span className="text-orange-300">ID:</span> {document.id}</div>
+                        <div><span className="text-orange-300">Name:</span> {document.name}</div>
+                        <div><span className="text-orange-300">Type:</span> {document.type}</div>
+                        <div><span className="text-orange-300">Size:</span> {(document.size / 1024).toFixed(1)} KB</div>
+                        <div><span className="text-orange-300">Status:</span> {document.status}</div>
+                        <div><span className="text-orange-300">AI Summary Status:</span> {(document as any).aiSummaryStatus || 'Not processed'}</div>
                       </div>
                     </div>
                   </div>
-                  <div className="p-3 max-h-64 overflow-y-auto">
-                    <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono leading-relaxed">
-                      {document.ocrText}
-                    </pre>
+
+                  {/* OCR Text Analysis */}
+                  <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
+                    <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
+                      <span className="text-xs text-gray-400">OCR Text Analysis</span>
+                    </div>
+                    <div className="p-3">
+                      <div className="text-xs text-gray-200 space-y-2">
+                        <div><span className="text-orange-300">Has ocrText:</span> {document.ocrText ? 'Yes' : 'No'}</div>
+                        <div><span className="text-orange-300">OCR Text type:</span> {typeof document.ocrText}</div>
+                        <div><span className="text-orange-300">OCR Text length:</span> {document.ocrText ? document.ocrText.length : 'N/A'}</div>
+                        <div><span className="text-orange-300">OCR Text preview:</span> {document.ocrText ? `"${document.ocrText.substring(0, 100)}..."` : 'No text'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Complete Document Object Inspection */}
+                  <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden">
+                    <div className="bg-gray-800 px-3 py-2 border-b border-gray-600 flex items-center justify-between">
+                      <span className="text-xs text-gray-400">Complete Document Object</span>
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(JSON.stringify(document, null, 2))}
+                        className="text-xs bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded text-white transition-colors"
+                      >
+                        Copy JSON
+                      </button>
+                    </div>
+                    <div className="p-3 max-h-64 overflow-y-auto">
+                      <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono">
+                        {JSON.stringify(document, null, 2)}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Status and Metadata */}
-          <div className="mt-6 pt-6 border-t border-dark">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  {document.status === 'Analyzed' && <CheckCircleIcon className="w-4 h-4 text-green-500 mr-1" />}
-                  {document.status === 'Pending' && <ClockIcon className="w-4 h-4 text-yellow-500 mr-1" />}
-                  <span className="text-sm text-gray-400">Status: {document.status}</span>
+              {/* Status and Metadata */}
+              <div className="mt-6 pt-6 border-t border-dark">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      {document.status === 'Analyzed' && <CheckCircleIcon className="w-4 h-4 text-green-500 mr-1" />}
+                      {document.status === 'Pending' && <ClockIcon className="w-4 h-4 text-yellow-500 mr-1" />}
+                      <span className="text-sm text-gray-400">Status: {document.status}</span>
+                    </div>
+                    <span className="text-sm text-gray-400">
+                      Uploaded: {new Date(document.uploadedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => {
+                        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+                        refetch();
+                      }}
+                      className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
+                    >
+                      <span>Refresh</span>
+                    </button>
+                    <button 
+                      onClick={handleDownload}
+                      className="flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary-light rounded-lg text-white text-sm hover:bg-primary/80 transition-colors"
+                    >
+                      <DownloadIcon className="w-4 h-4" />
+                      <span>Download</span>
+                    </button>
+                  </div>
                 </div>
-                <span className="text-sm text-gray-400">
-                  Uploaded: {new Date(document.uploadedAt).toLocaleDateString()}
-                </span>
               </div>
-              <div className="flex items-center space-x-2">
-                <button 
-                  onClick={() => {
-                    queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-                    refetch();
-                  }}
-                  className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
-                >
-                  <span>Refresh</span>
-                </button>
-                <button 
-                  onClick={handleDownload}
-                  className="flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary-light rounded-lg text-white text-sm hover:bg-primary/80 transition-colors"
-                >
-                  <DownloadIcon className="w-4 h-4" />
-                  <span>Download</span>
-                </button>
-              </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
