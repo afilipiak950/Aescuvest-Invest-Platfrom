@@ -61,80 +61,8 @@ interface AIDocumentSummary {
   confidenceScore: number;
 }
 
-// Helper function to check if a document can be viewed
-const canViewDocument = (document: Document) => {
-  const fileType = document.type?.toLowerCase() || '';
-  const fileName = document.name?.toLowerCase() || '';
-  
-  return fileType.includes('pdf') || fileName.endsWith('.pdf') ||
-         fileType.includes('word') || fileType.includes('document') || 
-         fileType.includes('wordprocessing') ||
-         fileName.endsWith('.docx') || fileName.endsWith('.doc') ||
-         fileType.includes('excel') || fileType.includes('spreadsheet') ||
-         fileType.includes('sheet') ||
-         fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ||
-         document.ocrText; // Can view if we have extracted text
-};
-
-// Helper function to get document type for viewer
-const getDocumentViewerType = (document: Document) => {
-  const fileType = document.type?.toLowerCase() || '';
-  const fileName = document.name?.toLowerCase() || '';
-  
-  if (fileType.includes('pdf') || fileName.endsWith('.pdf')) return 'pdf';
-  if (fileType.includes('word') || fileType.includes('document') || 
-      fileName.endsWith('.docx') || fileName.endsWith('.doc') ||
-      fileType.includes('wordprocessing')) return 'word';
-  if (fileType.includes('excel') || fileType.includes('spreadsheet') || 
-      fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ||
-      fileType.includes('sheet')) return 'excel';
-  return 'text';
-};
-
 const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isOpen, onClose, dealId, refetch }) => {
   const queryClient = useQueryClient();
-  const [isExtractingText, setIsExtractingText] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  
-  const triggerOCR = async () => {
-    setIsExtractingText(true);
-    try {
-      const response = await fetch('/api/documents/ocr/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          documentId: document.id,
-          fileName: document.name,
-          fileType: document.type
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('OCR extraction successful:', result);
-        
-        // Update the document in the query cache immediately
-        queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-          if (!oldData || !Array.isArray(oldData)) return oldData;
-          return oldData.map(doc => 
-            doc.id === document.id 
-              ? { ...doc, ocrText: result.extractedText, status: 'Analyzed' }
-              : doc
-          );
-        });
-        
-        // Also refresh the data to ensure consistency
-        setTimeout(() => refetch(), 1000);
-      } else {
-        console.error('OCR extraction failed:', await response.text());
-      }
-    } catch (error) {
-      console.error('OCR extraction error:', error);
-    } finally {
-      setIsExtractingText(false);
-    }
-  };
   
   // Fetch agent analyses to determine which agents processed this document
   const { data: agentAnalyses, refetch: refetchAnalyses } = useQuery({
@@ -570,8 +498,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           <Tabs defaultValue="analysis" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-              <TabsTrigger value="viewer" disabled={!canViewDocument(document)}>
-                Document Viewer
+              <TabsTrigger value="pdf" disabled={!document.type?.toLowerCase().includes('pdf')}>
+                PDF Viewer
               </TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
             </TabsList>
@@ -836,227 +764,20 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
 
             </TabsContent>
             
-            <TabsContent value="viewer" className="mt-4">
-              {(() => {
-                const viewerType = getDocumentViewerType(document);
-                
-                // Debug logging
-                console.log('Document viewer debug:', {
-                  fileName: document.name,
-                  fileType: document.type,
-                  viewerType: viewerType,
-                  hasOcrText: !!document.ocrText,
-                  ocrTextLength: document.ocrText?.length || 0
-                });
-                
-                if (viewerType === 'pdf') {
-                  return (
-                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
-                      <InlinePDFPreview 
-                        document={document} 
-                        dealId={dealId} 
-                        className="w-full h-full"
-                      />
-                    </div>
-                  );
-                } else if (viewerType === 'word') {
-                  return (
-                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
-                      <div className="h-full flex flex-col">
-                        {/* Header */}
-                        <div className="bg-blue-600 text-white px-4 py-2 text-sm font-medium flex items-center">
-                          <FileTextIcon className="w-4 h-4 mr-2" />
-                          Word Document Viewer - {document.name}
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="flex-1 p-4 overflow-y-auto bg-white text-black">
-                          {document.ocrText ? (
-                            <div className="max-w-4xl mx-auto">
-                              <div className="prose prose-lg max-w-none">
-                                {document.ocrText.split('\n').map((paragraph, index) => (
-                                  <p key={index} className="mb-4 text-gray-800 leading-relaxed">
-                                    {paragraph.trim() || '\u00A0'}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col h-full">
-                              {/* Native Word Document Viewer */}
-                              <div className="flex-1 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 overflow-hidden relative">
-                                <iframe
-                                  src={`/api/documents/download/${document.id}?view=inline`}
-                                  className="w-full h-full border-0"
-                                  title={`Word Document: ${document.name}`}
-                                  onLoad={() => setIframeLoaded(true)}
-                                  onError={() => {
-                                    console.log('Word document iframe failed to load');
-                                    setIframeLoaded(false);
-                                  }}
-                                />
-                                
-                                {/* Show fallback content only when iframe fails to load or for better UX */}
-                                {!iframeLoaded && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
-                                  <div className="text-center">
-                                    <FileTextIcon className="w-16 h-16 mx-auto mb-4 text-blue-500" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Word Document</h3>
-                                    <p className="text-sm text-gray-600 mb-4">{document.name}</p>
-                                    <div className="space-y-2">
-                                      <button
-                                        onClick={() => window.open(`/api/documents/download/${document.id}`, '_blank')}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors mr-2"
-                                      >
-                                        Open in New Tab
-                                      </button>
-                                      <button
-                                        onClick={triggerOCR}
-                                        disabled={isExtractingText}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
-                                      >
-                                        {isExtractingText ? (
-                                          <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Extracting Text...
-                                          </>
-                                        ) : (
-                                          'Extract Text Content'
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                } else if (viewerType === 'excel') {
-                  return (
-                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
-                      <div className="h-full flex flex-col">
-                        {/* Header */}
-                        <div className="bg-green-600 text-white px-4 py-2 text-sm font-medium flex items-center">
-                          <FileIcon className="w-4 h-4 mr-2" />
-                          Excel Document Viewer - {document.name}
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-                          {document.ocrText ? (
-                            <div className="bg-white rounded-lg shadow-sm border">
-                              <div className="p-4">
-                                <div className="font-mono text-sm">
-                                  {document.ocrText.split('\n').map((line, index) => (
-                                    <div key={index} className="mb-2 p-2 border-b border-gray-100">
-                                      {line.trim() ? (
-                                        <span className="text-gray-800">{line}</span>
-                                      ) : (
-                                        <span className="text-gray-400">—</span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col h-full">
-                              {/* Native Excel Document Viewer */}
-                              <div className="flex-1 bg-white rounded-lg border-2 border-dashed border-gray-300 overflow-hidden relative">
-                                <iframe
-                                  src={`/api/documents/download/${document.id}?view=inline`}
-                                  className="w-full h-full border-0"
-                                  title={`Excel Document: ${document.name}`}
-                                  onLoad={() => setIframeLoaded(true)}
-                                  onError={() => {
-                                    console.log('Excel document iframe failed to load');
-                                    setIframeLoaded(false);
-                                  }}
-                                />
-                                
-                                {/* Show fallback content only when iframe fails to load or for better UX */}
-                                {!iframeLoaded && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
-                                  <div className="text-center">
-                                    <FileIcon className="w-16 h-16 mx-auto mb-4 text-green-500" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Excel Spreadsheet</h3>
-                                    <p className="text-sm text-gray-600 mb-4">{document.name}</p>
-                                    <div className="space-y-2">
-                                      <button
-                                        onClick={() => window.open(`/api/documents/download/${document.id}`, '_blank')}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors mr-2"
-                                      >
-                                        Open in New Tab
-                                      </button>
-                                      <button
-                                        onClick={triggerOCR}
-                                        disabled={isExtractingText}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
-                                      >
-                                        {isExtractingText ? (
-                                          <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Extracting Data...
-                                          </>
-                                        ) : (
-                                          'Extract Data Content'
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                } else {
-                  return (
-                    <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
-                      <div className="h-full flex flex-col">
-                        {/* Header */}
-                        <div className="bg-gray-700 text-white px-4 py-2 text-sm font-medium flex items-center">
-                          <FileIcon className="w-4 h-4 mr-2" />
-                          Document Viewer - {document.name}
-                        </div>
-                        
-                        {/* Debug Info */}
-                        <div className="bg-blue-600 text-white px-4 py-2 text-xs">
-                          Type: {document.type || 'Unknown'} | Viewer: {viewerType} | OCR: {document.ocrText ? 'Available' : 'None'}
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="flex-1 p-4 overflow-y-auto bg-gray-100">
-                          {document.ocrText ? (
-                            <div className="bg-white rounded-lg shadow-sm border p-4">
-                              <pre className="whitespace-pre-wrap text-gray-800 font-mono text-sm leading-relaxed">
-                                {document.ocrText}
-                              </pre>
-                            </div>
-                          ) : (
-                            <div className="text-center text-gray-500 py-8">
-                              <FileIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                              <p>No content available for this document</p>
-                              <div className="mt-4 text-sm text-gray-600">
-                                <p>File type: {document.type}</p>
-                                <p>Viewer type: {viewerType}</p>
-                                <p>This document may need OCR processing to extract text content.</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-              })()}
+            <TabsContent value="pdf" className="mt-4">
+              {document.type?.toLowerCase().includes('pdf') ? (
+                <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
+                  <InlinePDFPreview 
+                    document={document} 
+                    dealId={dealId} 
+                    className="w-full h-full"
+                  />
+                </div>
+              ) : (
+                <div className="text-center text-gray-400 py-8">
+                  PDF viewer is only available for PDF documents
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="details" className="mt-4">
