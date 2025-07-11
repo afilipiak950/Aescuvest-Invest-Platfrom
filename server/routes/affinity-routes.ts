@@ -63,7 +63,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Set or update Affinity API key
-  app.post('/api/affinity/configure', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/affinity/configure', async (req: Request, res: Response) => {
     try {
       const { apiKey } = req.body;
       
@@ -112,7 +112,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Get Affinity configuration status
-  app.get('/api/affinity/status', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/affinity/status', async (req: Request, res: Response) => {
     try {
       const apiKey = await getAffinityApiKey();
       
@@ -227,7 +227,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Get all Affinity lists
-  app.get('/api/affinity/lists', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/affinity/lists', async (req: Request, res: Response) => {
     try {
       const affinityService = await createAffinityServiceInstance();
       const lists = await affinityService.getLists();
@@ -384,7 +384,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Get sync metrics and statistics
-  app.get('/api/affinity/sync-metrics', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/affinity/sync-metrics', async (req: Request, res: Response) => {
     try {
       // Get sync statistics from database
       const [
