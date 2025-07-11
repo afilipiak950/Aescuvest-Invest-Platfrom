@@ -74,9 +74,11 @@ export class MatchingIntelligenceService {
         
         const response = await this.affinityService.getOrganizations({
           cursor,
-          limit: 100,
+          limit: 100, // Max limit allowed by Affinity API
           with_interaction_dates: true
         });
+
+        console.log(`📊 Response received: ${response.organizations.length} organizations, cursor: ${response.next_cursor ? 'has next' : 'none'}`);
 
         if (response.organizations.length === 0) {
           console.log('✅ No more organizations to process');
@@ -126,12 +128,12 @@ export class MatchingIntelligenceService {
             totalOrganizations++;
             processedCount++;
 
-            // Update job progress
-            if (processedCount % 50 === 0) {
+            // Update job progress more frequently
+            if (processedCount % 25 === 0) {
               await db.update(dailySyncJobs)
                 .set({
                   processedItems: processedCount,
-                  progress: Math.min(90, Math.floor((processedCount / 8000) * 100))
+                  progress: Math.min(95, Math.floor((processedCount / 10000) * 100))
                 })
                 .where(eq(dailySyncJobs.id, jobId));
             }
@@ -143,6 +145,14 @@ export class MatchingIntelligenceService {
         }
 
         cursor = response.next_cursor;
+        
+        console.log(`📊 Batch completed: ${response.organizations.length} organizations processed, next cursor: ${cursor || 'none'}`);
+        
+        // If no cursor, we've reached the end
+        if (!cursor) {
+          console.log('✅ Reached end of pagination - no more organizations available');
+          break;
+        }
         
         // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 200));
