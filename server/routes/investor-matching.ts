@@ -73,6 +73,103 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
+// Get investor matches with query parameters (for React Query compatibility)
+router.get("/matches", async (req: Request, res: Response) => {
+  try {
+    const dealId = req.query.dealId ? parseInt(req.query.dealId as string) : null;
+    
+    if (!dealId) {
+      // Return all investors if no dealId provided
+      const allInvestors = await db
+        .select()
+        .from(investors)
+        .where(eq(investors.active, true))
+        .orderBy(desc(investors.createdAt));
+      
+      return res.json({
+        matches: allInvestors.map(investor => ({
+          ...investor,
+          matchScore: 0,
+          status: 'unmatched'
+        })),
+        analytics: {
+          totalMatches: allInvestors.length,
+          avgMatchScore: 0,
+          topSectors: [],
+          topLocations: []
+        }
+      });
+    }
+    
+    console.log(`🔍 Fetching investor matches for deal ${dealId}...`);
+    
+    // Get deal details
+    const deal = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
+    if (!deal.length) {
+      return res.status(404).json({ error: "Deal not found" });
+    }
+    
+    // Get existing matches
+    const existingMatches = await db
+      .select({
+        investor: investors,
+        match: dealInvestorMatches
+      })
+      .from(dealInvestorMatches)
+      .innerJoin(investors, eq(dealInvestorMatches.investorId, investors.id))
+      .where(eq(dealInvestorMatches.dealId, dealId))
+      .orderBy(desc(dealInvestorMatches.matchScore));
+    
+    if (existingMatches.length > 0) {
+      console.log(`✅ Found ${existingMatches.length} existing matches`);
+      const formattedMatches = existingMatches.map(({ investor, match }) => ({
+        ...investor,
+        matchScore: match.matchScore,
+        matchReason: match.matchReason,
+        matchInsights: match.matchInsights,
+        sectorFit: match.sectorFit,
+        stageFit: match.stageFit,
+        geographyFit: match.geographyFit,
+        checkSizeFit: match.checkSizeFit,
+        thesisFit: match.thesisFit,
+        status: match.status,
+        outreachStatus: match.outreachStatus,
+        lastContactDate: match.lastContactDate,
+        nextFollowUpDate: match.nextFollowUpDate,
+        notes: match.notes
+      }));
+      
+      // Calculate analytics
+      const analytics = {
+        totalMatches: formattedMatches.length,
+        avgMatchScore: formattedMatches.reduce((sum, m) => sum + m.matchScore, 0) / formattedMatches.length,
+        topSectors: [...new Set(formattedMatches.flatMap(m => m.focus))].slice(0, 5),
+        topLocations: [...new Set(formattedMatches.map(m => m.location))].slice(0, 5)
+      };
+      
+      return res.json({
+        matches: formattedMatches,
+        analytics
+      });
+    }
+    
+    // No existing matches, return empty response
+    return res.json({
+      matches: [],
+      analytics: {
+        totalMatches: 0,
+        avgMatchScore: 0,
+        topSectors: [],
+        topLocations: []
+      }
+    });
+    
+  } catch (error) {
+    console.error("❌ Error fetching investor matches:", error);
+    res.status(500).json({ error: "Failed to fetch investor matches" });
+  }
+});
+
 // Get investor matches for a specific deal
 router.get("/matches/:dealId", async (req: Request, res: Response) => {
   try {
