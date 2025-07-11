@@ -1741,7 +1741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Determine if we should use inline disposition
-      const shouldUseInline = (ext === '.pdf' || ext === '.docx' || ext === '.xlsx' || ext === '.doc' || ext === '.xls') && (isIframe || isInlineView);
+      const shouldUseInline = ext === '.pdf' && (isIframe || isInlineView);
       
       console.log(`📤 Setting headers - MIME: ${mimeType}, Size: ${stats.size}, Filename: ${document.name}, Inline: ${shouldUseInline}`);
 
@@ -1757,15 +1757,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.setHeader('Cache-Control', 'no-cache');
       
-      // Chrome-optimized headers for document viewing
-      if (shouldUseInline) {
+      // Chrome-optimized headers for PDF viewing
+      if (ext === '.pdf' && shouldUseInline) {
         // Clear any blocking headers
         res.removeHeader('X-Frame-Options');
         res.removeHeader('Content-Security-Policy');
         res.removeHeader('X-Content-Type-Options');
         
-        // Force inline display with proper MIME type
-        res.setHeader('Content-Type', mimeType);
+        // Force PDF MIME type and inline display
+        res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline');
         
         // Enable cross-origin and caching for better compatibility
