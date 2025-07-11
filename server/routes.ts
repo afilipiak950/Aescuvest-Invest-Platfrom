@@ -29,6 +29,7 @@ import emailRoutes from "./routes/email";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
 import investorMatchingRoutes from "./routes/investor-matching";
 import { registerApiRoutes } from "./routes/api";
+import { registerAffinityRoutes } from "./routes/affinity-routes";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
@@ -407,6 +408,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount inbox routes
   app.use('/api/inbox', inboxRoutes);
+  
+  // Register Affinity CRM routes
+  registerAffinityRoutes(app);
   
   // Deal routes - Optimized with performance timing
   app.get('/api/deals', async (req: Request, res: Response) => {
