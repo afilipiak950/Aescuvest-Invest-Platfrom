@@ -252,18 +252,213 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
   );
 }
 
-// Simple PDF preview component for document cards
-export function InlinePDFPreview({ documentId, documentName, className = "" }: {
-  documentId: number;
-  documentName: string;
+// Inline PDF preview component for tabs
+export function InlinePDFPreview({ document, dealId, className = "" }: {
+  document: any;
+  dealId: number;
   className?: string;
 }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pageNum, setPageNum] = useState(1);
+  const [pageCount, setPageCount] = useState(0);
+  const [scale, setScale] = useState(1.2);
+
+  // Load PDF.js and document
+  useEffect(() => {
+    const loadPDF = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Load PDF.js from CDN if not already loaded
+        if (!window.pdfjsLib) {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+          document.head.appendChild(script);
+          
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+          });
+          
+          // Set worker
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // Fetch PDF as ArrayBuffer
+        const response = await fetch(`/api/documents/${document.id}/download`);
+        if (!response.ok) throw new Error('Failed to fetch PDF');
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        setPdfDoc(pdf);
+        setPageCount(pdf.numPages);
+        setPageNum(1);
+        setIsLoading(false);
+        
+      } catch (err) {
+        console.error('Inline PDF loading error:', err);
+        setError('Failed to load PDF. Please try downloading the document.');
+        setIsLoading(false);
+      }
+    };
+
+    loadPDF();
+  }, [document.id]);
+
+  // Render current page
+  useEffect(() => {
+    if (!pdfDoc || !canvasRef.current) return;
+
+    const renderPage = async () => {
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+        
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        
+        await page.render(renderContext).promise;
+      } catch (err) {
+        console.error('Inline PDF page rendering error:', err);
+        setError('Failed to render PDF page');
+      }
+    };
+
+    renderPage();
+  }, [pdfDoc, pageNum, scale]);
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = `/api/documents/${document.id}/download`;
+    link.download = document.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const nextPage = () => {
+    if (pageNum < pageCount) setPageNum(pageNum + 1);
+  };
+
+  const prevPage = () => {
+    if (pageNum > 1) setPageNum(pageNum - 1);
+  };
+
+  const zoomIn = () => {
+    setScale(prev => Math.min(prev + 0.2, 3));
+  };
+
+  const zoomOut = () => {
+    setScale(prev => Math.max(prev - 0.2, 0.5));
+  };
+
+  if (isLoading) {
+    return (
+      <div className={`flex items-center justify-center bg-gray-800 ${className}`}>
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mb-4"></div>
+          <p className="text-white text-sm">Loading PDF...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-gray-800 ${className}`}>
+        <div className="text-center max-w-md p-6">
+          <p className="text-red-400 mb-4 text-sm">{error}</p>
+          <Button onClick={handleDownload} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`relative bg-gray-100 rounded-lg overflow-hidden ${className}`}>
-      <div className="flex items-center justify-center h-full min-h-[200px] text-gray-500">
-        <div className="text-center">
-          <Download className="w-12 h-12 mx-auto mb-2" />
-          <p className="text-sm">Click to View PDF</p>
+    <div className={`flex flex-col bg-gray-800 ${className}`}>
+      {/* PDF Controls */}
+      <div className="flex items-center justify-between bg-gray-700 px-4 py-2 border-b border-gray-600">
+        <div className="flex items-center space-x-2">
+          <Button
+            onClick={prevPage}
+            disabled={pageNum <= 1}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 bg-gray-600 border-gray-500 text-white hover:bg-gray-500 disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-sm text-gray-300 min-w-[80px] text-center">
+            Page {pageNum} of {pageCount}
+          </span>
+          <Button
+            onClick={nextPage}
+            disabled={pageNum >= pageCount}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 bg-gray-600 border-gray-500 text-white hover:bg-gray-500 disabled:opacity-50"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button
+            onClick={zoomOut}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </Button>
+          <span className="text-sm text-gray-300 min-w-[50px] text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          <Button
+            onClick={zoomIn}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </Button>
+          <div className="w-px h-6 bg-gray-500 mx-2"></div>
+          <Button
+            onClick={handleDownload}
+            variant="outline"
+            size="sm"
+            className="bg-gray-600 border-gray-500 text-white hover:bg-gray-500"
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Download
+          </Button>
+        </div>
+      </div>
+
+      {/* PDF Canvas */}
+      <div className="flex-1 overflow-auto bg-gray-900 p-4">
+        <div className="flex justify-center">
+          <canvas
+            ref={canvasRef}
+            className="border border-gray-600 shadow-lg bg-white max-w-full"
+            style={{ height: 'auto' }}
+          />
         </div>
       </div>
     </div>
