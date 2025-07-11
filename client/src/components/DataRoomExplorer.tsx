@@ -977,14 +977,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   // Enhanced document click handler with PDF viewing support
   const handleDocumentClick = (document: Document) => {
-    // Check if document is a PDF and open in PDF viewer
-    if (document.type && document.type.toLowerCase().includes('pdf')) {
-      setPdfDocument(document);
-      setPdfViewerOpen(true);
-    } else {
-      // Open other documents in detail modal
-      setSelectedDocument(document);
-    }
+    // Always show document detail modal with extracted content and AI summary
+    setSelectedDocument(document);
   };
 
   const { data: documents, isLoading, refetch } = useQuery({
