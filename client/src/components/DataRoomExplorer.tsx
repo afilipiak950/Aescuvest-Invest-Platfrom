@@ -1494,7 +1494,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const { folderTree, emailAttachments } = buildFolderTree(documentsArray || []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       {/* Pitchdeck Section - Only show if there are email attachments */}
       {emailAttachments.length > 0 && (
         <div className="bg-dark-lighter rounded-lg">
@@ -1540,7 +1540,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       )}
 
       {/* Data Room Explorer Section */}
-      <div className="bg-dark-lighter rounded-lg">
+      <div className="bg-dark-lighter rounded-lg flex-1 flex flex-col">
         <div className="p-4 border-b border-dark">
           <div className="flex items-center justify-between">
             <div>
