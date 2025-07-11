@@ -896,8 +896,9 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                                   }}
                                 />
                                 
-                                {/* Always show fallback content for Word documents since they may not render properly in iframe */}
-                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
+                                {/* Show fallback content only when iframe fails to load or for better UX */}
+                                {!iframeLoaded && (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
                                   <div className="text-center">
                                     <FileTextIcon className="w-16 h-16 mx-auto mb-4 text-blue-500" />
                                     <h3 className="text-lg font-medium text-gray-900 mb-2">Word Document</h3>
@@ -925,7 +926,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                                       </button>
                                     </div>
                                   </div>
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -976,8 +978,9 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                                   }}
                                 />
                                 
-                                {/* Always show fallback content for Excel documents since they may not render properly in iframe */}
-                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
+                                {/* Show fallback content only when iframe fails to load or for better UX */}
+                                {!iframeLoaded && (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 backdrop-blur-sm">
                                   <div className="text-center">
                                     <FileIcon className="w-16 h-16 mx-auto mb-4 text-green-500" />
                                     <h3 className="text-lg font-medium text-gray-900 mb-2">Excel Spreadsheet</h3>
@@ -1005,7 +1008,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                                       </button>
                                     </div>
                                   </div>
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
