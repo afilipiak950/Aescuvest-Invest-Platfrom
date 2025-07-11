@@ -163,7 +163,7 @@ export class AffinityService {
   private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.config.baseUrl}${endpoint}`;
     const headers = {
-      'Authorization': `Bearer ${this.config.apiKey}`,
+      'Authorization': `Basic ${Buffer.from(`${this.config.apiKey}:`).toString('base64')}`,
       'Content-Type': 'application/json',
       ...options.headers
     };
