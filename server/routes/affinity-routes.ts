@@ -1,7 +1,7 @@
 import { Express, Request, Response } from 'express';
 import { createAffinityService } from '../services/affinity-service';
 import { db } from '../db';
-import { systemSettings } from '../../shared/schema';
+import { systemSettings, investors } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
 interface AuthenticatedRequest extends Request {
@@ -141,7 +141,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Sync all investors from Affinity
-  app.post('/api/affinity/sync-investors', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/affinity/sync-investors', async (req: Request, res: Response) => {
     try {
       const affinityService = await createAffinityServiceInstance();
       const metrics = await affinityService.syncAllInvestors();
@@ -269,7 +269,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Get all persons from Affinity
-  app.get('/api/affinity/persons', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/affinity/persons', async (req: Request, res: Response) => {
     try {
       const { cursor, limit, term } = req.query;
       
@@ -293,7 +293,7 @@ export function registerAffinityRoutes(app: Express) {
   });
 
   // Get all companies from Affinity
-  app.get('/api/affinity/companies', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/affinity/companies', async (req: Request, res: Response) => {
     try {
       const { cursor, limit, term } = req.query;
       
@@ -316,8 +316,34 @@ export function registerAffinityRoutes(app: Express) {
     }
   });
 
+  // Get organizations from Affinity (alias for companies)
+  app.get('/api/affinity/organizations', async (req: Request, res: Response) => {
+    try {
+      const { cursor, limit, term } = req.query;
+      
+      const affinityService = await createAffinityServiceInstance();
+      const result = await affinityService.getCompanies({
+        cursor: cursor as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        term: term as string,
+        with_interaction_dates: true
+      });
+      
+      res.json({
+        success: true,
+        organizations: result.companies || [],
+        next_cursor: result.next_cursor || null,
+        total_entries: result.total_entries || 0
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to get organizations' 
+      });
+    }
+  });
+
   // Get opportunities from Affinity
-  app.get('/api/affinity/opportunities', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/affinity/opportunities', async (req: Request, res: Response) => {
     try {
       const { cursor, limit, term, list_id } = req.query;
       
