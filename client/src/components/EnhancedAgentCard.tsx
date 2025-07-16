@@ -954,6 +954,14 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
+  // Check if legal analysis is available
+  const hasLegalAnalysis = analysisData && analysisData.findings && analysisData.findings.length > 0;
+  
+  // Debug logging
+  console.log('🔍 Legal Analysis Available:', hasLegalAnalysis);
+  console.log('🔍 Analysis Data:', analysisData);
+  console.log('🔍 Findings:', findings);
+
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(category)) {
@@ -983,10 +991,56 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
     return acc;
   }, {} as Record<string, LegalQuestion[]>);
 
-  // Mock function to get answer - in real implementation, this would come from analysisData
+  // Extract answers from legal analysis data
   const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
-    // This is placeholder logic - in real implementation, you'd extract from analysisData
-    return null;
+    if (!analysisData || !analysisData.findings) return null;
+    
+    // Convert question ID to searchable keywords
+    const questionKeywords = LEGAL_QUESTIONS.find(q => q.id === questionId);
+    if (!questionKeywords) return null;
+    
+    // Search through findings for relevant content
+    const relevantFindings = analysisData.findings.filter((finding: any) => {
+      const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
+      const questionText = questionKeywords.question.toLowerCase();
+      
+      // Check for keyword matches
+      const keywordMatches = [
+        'shares', 'liquidation', 'preferences', 'anti-dilution', 'drag-along', 'tag-along', 
+        'board', 'voting', 'veto', 'warrants', 'valuation', 'interest', 'maturity',
+        'conversion', 'ip assignment', 'founders', 'personnel', 'commercial', 'sla',
+        'distributor', 'termination', 'exclusivity', 'nda', 'confidentiality', 'litigation',
+        'regulatory', 'fda', 'clinical', 'data use'
+      ];
+      
+      return keywordMatches.some(keyword => 
+        findingText.includes(keyword) || questionText.includes(keyword)
+      );
+    });
+    
+    if (relevantFindings.length === 0) return null;
+    
+    // Combine relevant findings into a comprehensive answer
+    const combinedAnswer = relevantFindings
+      .map((finding: any) => finding.content || finding.description || finding.title)
+      .join(' ');
+    
+    // Calculate average confidence
+    const avgConfidence = relevantFindings.length > 0 
+      ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
+      : 80;
+    
+    // Extract source document names
+    const sources = relevantFindings
+      .map((finding: any) => finding.source || finding.document)
+      .filter((source: string) => source)
+      .slice(0, 3); // Limit to 3 sources
+    
+    return {
+      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
+      confidence: avgConfidence,
+      sources: sources
+    };
   };
 
   return (
@@ -998,6 +1052,22 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
           {assignedDocuments} Documents Analyzed
         </Badge>
       </div>
+
+      {/* Processing Message */}
+      {!hasLegalAnalysis && (
+        <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
+            <div>
+              <p className="text-yellow-400 font-medium">Legal Analysis in Progress</p>
+              <p className="text-gray-400 text-sm">
+                AI analysis is currently processing {assignedDocuments} legal documents. 
+                Questions will show answers as analysis completes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg">
