@@ -993,7 +993,20 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
 
   // Extract answers from legal analysis data
   const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
-    if (!analysisData || !analysisData.findings) return null;
+    if (!analysisData) return null;
+    
+    // First try to get answer from legalAnswers structure
+    if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
+      const answer = analysisData.legalAnswers[questionId];
+      return {
+        answer: answer.answer,
+        confidence: answer.confidence,
+        sources: answer.sources || ['Legal Documents']
+      };
+    }
+    
+    // Fallback to findings-based extraction
+    if (!analysisData.findings) return null;
     
     // Convert question ID to searchable keywords
     const questionKeywords = LEGAL_QUESTIONS.find(q => q.id === questionId);

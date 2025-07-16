@@ -203,6 +203,14 @@ export const agentAnalyses = pgTable("agent_analyses", {
   findings: json("findings").$type<{ id: number; content: string; type: string }[]>(),
   recommendations: json("recommendations").$type<{ title: string; description: string; priority: string; category: string; impact: string }[]>(),
   documentSources: json("document_sources").$type<string[]>(),
+  legalAnswers: json("legal_answers").$type<{
+    [key: string]: {
+      question: string;
+      answer: string;
+      confidence: number;
+      sources: string[];
+    };
+  }>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
