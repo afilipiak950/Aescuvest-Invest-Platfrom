@@ -1008,14 +1008,9 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
   const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
     if (!analysisData) return null;
     
-    // Debug log to check data structure
-    console.log('🔍 Getting answer for question ID:', questionId);
-    console.log('🔍 Analysis data legalAnswers:', analysisData.legalAnswers);
-    
     // First try to get answer from legalAnswers structure
     if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
       const answer = analysisData.legalAnswers[questionId];
-      console.log('🔍 Found answer in legalAnswers:', answer);
       return {
         answer: answer.answer,
         confidence: answer.confidence,
@@ -1164,8 +1159,8 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
                                     ))}
                                   </div>
                                 ) : (
-                                  <div className="text-xs text-gray-500">
-                                    No source documents available
+                                  <div className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded border border-gray-600">
+                                    📄 No source documents available
                                   </div>
                                 )}
                               </div>
