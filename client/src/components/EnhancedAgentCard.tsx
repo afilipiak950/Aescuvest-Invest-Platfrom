@@ -817,54 +817,6 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
     subQuestions: ['Voting procedures', 'Majority requirements', 'Veto rights']
   },
   {
-    id: 'extra_rights',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Do any clauses exist that grant existing shareholders extra rights?',
-    subQuestions: ['Warrants to subscribe to additional shares', 'Affirmative voting setups', 'Preferential valuations']
-  },
-  {
-    id: 'veto_rights',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are there any veto rights by existing shareholders?',
-    subQuestions: ['Based on shareholding percentage', 'Additional agreements in SHA and AoA']
-  },
-  {
-    id: 'side_letters',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are there any side letters or preferential investor rights not visible in the main SHA?'
-  },
-  {
-    id: 'founder_shareholding',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'What is the shareholding of the founders/C-level management pre round?'
-  },
-  {
-    id: 'investment_valuation',
-    category: 'Investment Agreements',
-    question: 'What is the valuation cap/discount (for SAFEs/Notes)?'
-  },
-  {
-    id: 'interest_maturity',
-    category: 'Investment Agreements',
-    question: 'Are interest rates and maturity conditions specified?'
-  },
-  {
-    id: 'mfn_conversion',
-    category: 'Investment Agreements',
-    question: 'Are MFN, conversion triggers and pro rata rights included?'
-  },
-  {
-    id: 'conversion_schedule',
-    category: 'Investment Agreements',
-    question: 'Is there a conversion schedule/example calculation?',
-    subQuestions: ['How will outstanding convertible loans dilute existing investors?', 'How will they dilute new investors upon conversion?']
-  },
-  {
-    id: 'hidden_warrants',
-    category: 'Investment Agreements',
-    question: 'Are there "hidden" warrants or convertible structures that could dilute new investors?'
-  },
-  {
     id: 'ip_1',
     category: 'IP Assignment & Key Personnel',
     question: 'Are IP assignment agreements in place?',
@@ -887,43 +839,6 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
     category: 'Commercial Agreements',
     question: 'Are termination clauses fair and mutual?',
     subQuestions: ['Notice periods', 'Termination triggers', 'Post-termination obligations']
-  },
-  {
-    id: 'distributor_terms',
-    category: 'Commercial Agreements',
-    question: 'Summarize the key terms of distributor agreements',
-    subQuestions: ['Signing date', 'Term', 'Scope', 'Payment terms', 'Exclusivities', 'Geographies covered']
-  },
-  {
-    id: 'partner_terms',
-    category: 'Commercial Agreements',
-    question: 'Summarize the key terms of agreements with other partners',
-    subQuestions: ['Placement agents', 'Clinical research partners', 'Other key partners']
-  },
-  {
-    id: 'termination_clauses',
-    category: 'Commercial Agreements',
-    question: 'Are termination clauses fair and mutual?'
-  },
-  {
-    id: 'exclusivity_clauses',
-    category: 'Commercial Agreements',
-    question: 'Are exclusivity clauses or MFN clauses present?'
-  },
-  {
-    id: 'nda_duration',
-    category: 'NDAs',
-    question: 'What is the duration of confidentiality?'
-  },
-  {
-    id: 'nda_ip_ownership',
-    category: 'NDAs',
-    question: 'Are IP ownership and data return clauses present?'
-  },
-  {
-    id: 'nda_mutual',
-    category: 'NDAs',
-    question: 'Is the NDA mutual or one-way?'
   },
   {
     id: 'lit_1',
@@ -951,15 +866,15 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
   },
   {
     id: 'financial_1',
-    category: 'Financial Audits',
-    question: 'Are financial statements audited?',
-    subQuestions: ['Audited statements', 'Auditor reports', 'Audit opinions']
+    category: 'Financial Instruments',
+    question: 'Are there warrants or convertible instruments?',
+    subQuestions: ['Exercise price', 'Conversion terms', 'Maturity dates']
   },
   {
     id: 'financial_2',
-    category: 'Financial Audits',
-    question: 'Are there any financial irregularities?',
-    subQuestions: ['Accounting errors', 'Financial restatements', 'Internal controls']
+    category: 'Financial Instruments',
+    question: 'What are the interest rates and maturity for debt instruments?',
+    subQuestions: ['Interest rate structure', 'Maturity timeline', 'Conversion features']
   }
 ];
 
