@@ -4,7 +4,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface EnhancedAgentCardProps {
@@ -492,118 +492,129 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Analysis Results */}
-        {findings.length > 0 ? (
-          <Tabs defaultValue="positive" className="w-full">
-            <TabsList className="border-b border-dark-lighter bg-transparent mb-6 w-full justify-start">
-              <TabsTrigger
-                value="positive"
-                className="data-[state=active]:border-green-400 data-[state=active]:text-green-400 border-b-2 border-transparent pb-2 px-1"
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Positive ({positiveInsights})
-              </TabsTrigger>
-              <TabsTrigger
-                value="neutral"
-                className="data-[state=active]:border-gray-400 data-[state=active]:text-gray-400 border-b-2 border-transparent pb-2 px-1"
-              >
-                <AlertCircle className="h-4 w-4 mr-1" />
-                Neutral ({findings.filter((f: any) => f.severity === 'neutral' || f.type === 'neutral' || f.category === 'neutral').length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="risks"
-                className="data-[state=active]:border-red-400 data-[state=active]:text-red-400 border-b-2 border-transparent pb-2 px-1"
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Risks ({riskFactors})
-              </TabsTrigger>
-            </TabsList>
+        {/* Legal Questions for Legal Agent */}
+        {agentType.toLowerCase() === 'legal' ? (
+          <LegalQuestionsSection 
+            analysisData={analysisData} 
+            findings={findings} 
+            assignedDocuments={assignedDocuments} 
+          />
+        ) : (
+          /* Analysis Results for other agents */
+          findings.length > 0 ? (
+            <Tabs defaultValue="positive" className="w-full">
+              <TabsList className="border-b border-dark-lighter bg-transparent mb-6 w-full justify-start">
+                <TabsTrigger
+                  value="positive"
+                  className="data-[state=active]:border-green-400 data-[state=active]:text-green-400 border-b-2 border-transparent pb-2 px-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Positive ({positiveInsights})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="neutral"
+                  className="data-[state=active]:border-gray-400 data-[state=active]:text-gray-400 border-b-2 border-transparent pb-2 px-1"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  Neutral ({findings.filter((f: any) => f.severity === 'neutral' || f.type === 'neutral' || f.category === 'neutral').length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="risks"
+                  className="data-[state=active]:border-red-400 data-[state=active]:text-red-400 border-b-2 border-transparent pb-2 px-1"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Risks ({riskFactors})
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="positive">
-              <div className="space-y-4">
-                {findings.filter((f: any) => f.severity === 'positive' || f.type === 'positive' || f.category === 'positive').length > 0 ? (
-                  findings.filter((f: any) => f.severity === 'positive' || f.type === 'positive' || f.category === 'positive').map((finding: any, index: number) => (
-                    <div key={index} className="border border-dark-lighter rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <TrendingUp className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
-                        <div>
-                          <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
-                          <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-green-400 border-green-400">
-                              Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
-                            </Badge>
-                            <Badge variant="outline" className="text-gray-400 border-gray-400">
-                              {finding.type || finding.category || 'analysis'}
-                            </Badge>
+              <TabsContent value="positive">
+                <div className="space-y-4">
+                  {findings.filter((f: any) => f.severity === 'positive' || f.type === 'positive' || f.category === 'positive').length > 0 ? (
+                    findings.filter((f: any) => f.severity === 'positive' || f.type === 'positive' || f.category === 'positive').map((finding: any, index: number) => (
+                      <div key={index} className="border border-dark-lighter rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <TrendingUp className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
+                          <div>
+                            <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
+                            <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-green-400 border-green-400">
+                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                              </Badge>
+                              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                                {finding.type || finding.category || 'analysis'}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-center py-8">No positive insights found for this agent type.</p>
-                )}
-              </div>
-            </TabsContent>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-center py-8">No positive insights found for this agent type.</p>
+                  )}
+                </div>
+              </TabsContent>
 
-            <TabsContent value="neutral">
-              <div className="space-y-4">
-                {findings.filter((f: any) => f.severity === 'neutral' || f.type === 'neutral' || f.category === 'neutral').length > 0 ? (
-                  findings.filter((f: any) => f.severity === 'neutral' || f.type === 'neutral' || f.category === 'neutral').map((finding: any, index: number) => (
-                    <div key={index} className="border border-dark-lighter rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-gray-400 mt-1 flex-shrink-0" />
-                        <div>
-                          <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
-                          <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-gray-400 border-gray-400">
-                              Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
-                            </Badge>
-                            <Badge variant="outline" className="text-gray-400 border-gray-400">
-                              {finding.type || finding.category || 'analysis'}
-                            </Badge>
+              <TabsContent value="neutral">
+                <div className="space-y-4">
+                  {findings.filter((f: any) => f.severity === 'neutral' || f.type === 'neutral' || f.category === 'neutral').length > 0 ? (
+                    findings.filter((f: any) => f.severity === 'neutral' || f.type === 'neutral' || f.category === 'neutral').map((finding: any, index: number) => (
+                      <div key={index} className="border border-dark-lighter rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="h-5 w-5 text-gray-400 mt-1 flex-shrink-0" />
+                          <div>
+                            <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
+                            <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                              </Badge>
+                              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                                {finding.type || finding.category || 'analysis'}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-center py-8">No neutral observations found for this agent type.</p>
-                )}
-              </div>
-            </TabsContent>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-center py-8">No neutral observations found for this agent type.</p>
+                  )}
+                </div>
+              </TabsContent>
 
-            <TabsContent value="risks">
-              <div className="space-y-4">
-                {findings.filter((f: any) => f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk').length > 0 ? (
-                  findings.filter((f: any) => f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk').map((finding: any, index: number) => (
-                    <div key={index} className="border border-dark-lighter rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-red-400 mt-1 flex-shrink-0" />
-                        <div>
-                          <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
-                          <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-red-400 border-red-400">
-                              Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
-                            </Badge>
-                            <Badge variant="outline" className="text-gray-400 border-gray-400">
-                              {finding.type || finding.category || 'analysis'}
-                            </Badge>
+              <TabsContent value="risks">
+                <div className="space-y-4">
+                  {findings.filter((f: any) => f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk').length > 0 ? (
+                    findings.filter((f: any) => f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk').map((finding: any, index: number) => (
+                      <div key={index} className="border border-dark-lighter rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="h-5 w-5 text-red-400 mt-1 flex-shrink-0" />
+                          <div>
+                            <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
+                            <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-red-400 border-red-400">
+                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                              </Badge>
+                              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                                {finding.type || finding.category || 'analysis'}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-center py-8">No risk factors identified for this agent type.</p>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        ) : shouldShowProcessingUI() ? (
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-center py-8">No risk factors identified for this agent type.</p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : null
+        )}
+
+        {shouldShowProcessingUI() ? (
           <div className="text-center py-8">
             <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
             <h3 className="text-lg font-medium text-white mb-2">Running {agentType} Analysis</h3>
@@ -730,5 +741,339 @@ export default function EnhancedAgentCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Legal Questions Section Component
+interface LegalQuestionsSectionProps {
+  analysisData: any;
+  findings: any[];
+  assignedDocuments: number;
+}
+
+interface LegalQuestion {
+  id: string;
+  category: string;
+  question: string;
+  subQuestions?: string[];
+  answer?: string;
+  confidence?: number;
+  sources?: string[];
+}
+
+const LEGAL_QUESTIONS: LegalQuestion[] = [
+  {
+    id: 'shareholders_agreement',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'What class of shares exist?',
+    subQuestions: ['Preferred shares', 'Common shares', 'Other share classes']
+  },
+  {
+    id: 'liquidation_preferences',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Are liquidation preferences defined?',
+    subQuestions: ['1x preferences', 'Participating preferences', 'Non-participating preferences']
+  },
+  {
+    id: 'anti_dilution',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Is anti-dilution protection present?',
+    subQuestions: ['Full ratchet protection', 'Weighted average protection']
+  },
+  {
+    id: 'rights_provisions',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Are drag-along, tag-along, ROFR and co-sale rights clearly defined?'
+  },
+  {
+    id: 'board_composition',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Are board composition and voting thresholds defined?'
+  },
+  {
+    id: 'extra_rights',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Do any clauses exist that grant existing shareholders extra rights?',
+    subQuestions: ['Warrants to subscribe to additional shares', 'Affirmative voting setups', 'Preferential valuations']
+  },
+  {
+    id: 'veto_rights',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Are there any veto rights by existing shareholders?',
+    subQuestions: ['Based on shareholding percentage', 'Additional agreements in SHA and AoA']
+  },
+  {
+    id: 'side_letters',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'Are there any side letters or preferential investor rights not visible in the main SHA?'
+  },
+  {
+    id: 'founder_shareholding',
+    category: 'Shareholders Agreement / Articles of Association',
+    question: 'What is the shareholding of the founders/C-level management pre round?'
+  },
+  {
+    id: 'investment_valuation',
+    category: 'Investment Agreements',
+    question: 'What is the valuation cap/discount (for SAFEs/Notes)?'
+  },
+  {
+    id: 'interest_maturity',
+    category: 'Investment Agreements',
+    question: 'Are interest rates and maturity conditions specified?'
+  },
+  {
+    id: 'mfn_conversion',
+    category: 'Investment Agreements',
+    question: 'Are MFN, conversion triggers and pro rata rights included?'
+  },
+  {
+    id: 'conversion_schedule',
+    category: 'Investment Agreements',
+    question: 'Is there a conversion schedule/example calculation?',
+    subQuestions: ['How will outstanding convertible loans dilute existing investors?', 'How will they dilute new investors upon conversion?']
+  },
+  {
+    id: 'hidden_warrants',
+    category: 'Investment Agreements',
+    question: 'Are there "hidden" warrants or convertible structures that could dilute new investors?'
+  },
+  {
+    id: 'ip_assignment_coverage',
+    category: 'IP Assignment Agreements',
+    question: 'Are all founders/key personnel covered?'
+  },
+  {
+    id: 'ip_retroactive',
+    category: 'IP Assignment Agreements',
+    question: 'Do they include retroactive clauses?'
+  },
+  {
+    id: 'ip_contractors',
+    category: 'IP Assignment Agreements',
+    question: 'Are external contractors included?'
+  },
+  {
+    id: 'commercial_slas',
+    category: 'Commercial Agreements',
+    question: 'Are SLAs, warranties, and indemnity clauses present?'
+  },
+  {
+    id: 'distributor_terms',
+    category: 'Commercial Agreements',
+    question: 'Summarize the key terms of distributor agreements',
+    subQuestions: ['Signing date', 'Term', 'Scope', 'Payment terms', 'Exclusivities', 'Geographies covered']
+  },
+  {
+    id: 'partner_terms',
+    category: 'Commercial Agreements',
+    question: 'Summarize the key terms of agreements with other partners',
+    subQuestions: ['Placement agents', 'Clinical research partners', 'Other key partners']
+  },
+  {
+    id: 'termination_clauses',
+    category: 'Commercial Agreements',
+    question: 'Are termination clauses fair and mutual?'
+  },
+  {
+    id: 'exclusivity_clauses',
+    category: 'Commercial Agreements',
+    question: 'Are exclusivity clauses or MFN clauses present?'
+  },
+  {
+    id: 'nda_duration',
+    category: 'NDAs',
+    question: 'What is the duration of confidentiality?'
+  },
+  {
+    id: 'nda_ip_ownership',
+    category: 'NDAs',
+    question: 'Are IP ownership and data return clauses present?'
+  },
+  {
+    id: 'nda_mutual',
+    category: 'NDAs',
+    question: 'Is the NDA mutual or one-way?'
+  },
+  {
+    id: 'pending_litigation',
+    category: 'Litigation Documents',
+    question: 'Are there pending litigations or regulatory proceedings?'
+  },
+  {
+    id: 'financial_exposure',
+    category: 'Litigation Documents',
+    question: 'Is financial exposure quantified?'
+  },
+  {
+    id: 'settlement_agreements',
+    category: 'Litigation Documents',
+    question: 'Are there settlement agreements or insurance protections?'
+  },
+  {
+    id: 'ethical_controversies',
+    category: 'Litigation Documents',
+    question: 'Has the company or founder been involved in any past ethical controversies or fraud cases?'
+  },
+  {
+    id: 'adverse_media',
+    category: 'Litigation Documents',
+    question: 'Are there adverse media reports or regulatory flags in their country of operation?'
+  },
+  {
+    id: 'fda_submissions',
+    category: 'Regulatory Compliance',
+    question: 'Are all FDA submissions properly documented with clear approval status?',
+    subQuestions: ['IND submissions', 'IDE submissions', 'NDA submissions', 'BLA submissions', 'CE MDR status']
+  },
+  {
+    id: 'clinical_trial_agreements',
+    category: 'Regulatory Compliance',
+    question: 'Do clinical trial agreements include proper indemnification clauses for investigator sites?'
+  },
+  {
+    id: 'data_use_agreements',
+    category: 'Regulatory Compliance',
+    question: 'Are there comprehensive data use agreements for patient data handling and sharing?'
+  },
+  {
+    id: 'regulatory_communications',
+    category: 'Regulatory Compliance',
+    question: 'What is the status of regulatory communications?',
+    subQuestions: ['FDA communications', 'EMA communications', 'Notified bodies', 'Other authorities']
+  },
+  {
+    id: 'regulatory_actions',
+    category: 'Regulatory Compliance',
+    question: 'Are there any regulatory actions pending?',
+    subQuestions: ['FDA warning letters', 'Consent decrees', 'Other regulatory actions']
+  }
+];
+
+function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: LegalQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  const toggleQuestion = (questionId: string) => {
+    const newExpanded = new Set(expandedQuestions);
+    if (newExpanded.has(questionId)) {
+      newExpanded.delete(questionId);
+    } else {
+      newExpanded.add(questionId);
+    }
+    setExpandedQuestions(newExpanded);
+  };
+
+  // Group questions by category
+  const categorizedQuestions = LEGAL_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, LegalQuestion[]>);
+
+  // Mock function to get answer - in real implementation, this would come from analysisData
+  const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
+    // This is placeholder logic - in real implementation, you'd extract from analysisData
+    return null;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-4">
+        <HelpCircle className="h-5 w-5 text-blue-400" />
+        <h3 className="text-lg font-semibold text-white">Legal Due Diligence Questions</h3>
+        <Badge variant="outline" className="text-gray-400 border-gray-400">
+          {assignedDocuments} Documents Analyzed
+        </Badge>
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg">
+          <button
+            onClick={() => toggleCategory(category)}
+            className="w-full flex items-center justify-between p-4 bg-dark-lighter/50 hover:bg-dark-lighter/70 transition-colors"
+          >
+            <h4 className="font-medium text-white text-left">{category}</h4>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                {questions.length} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              )}
+            </div>
+          </button>
+
+          {expandedCategories.has(category) && (
+            <div className="p-4 space-y-4">
+              {questions.map((question) => {
+                const answer = getAnswerForQuestion(question.id);
+                const hasAnswer = answer !== null;
+                
+                return (
+                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          hasAnswer ? 'bg-green-400' : 'bg-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          
+                          {question.subQuestions && (
+                            <div className="mt-2 space-y-1">
+                              {question.subQuestions.map((subQ, index) => (
+                                <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {hasAnswer ? (
+                            <div className="mt-3 bg-dark/50 rounded p-3">
+                              <p className="text-gray-300 text-sm">{answer.answer}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline" className="text-green-400 border-green-400">
+                                  Confidence: {answer.confidence}%
+                                </Badge>
+                                {answer.sources.length > 0 && (
+                                  <Badge variant="outline" className="text-gray-400 border-gray-400">
+                                    {answer.sources.length} sources
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 bg-dark/30 rounded p-3">
+                              <p className="text-gray-400 text-sm italic">No answer found in analyzed documents</p>
+                              <Badge variant="outline" className="text-gray-400 border-gray-400 mt-2">
+                                Requires analysis
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
