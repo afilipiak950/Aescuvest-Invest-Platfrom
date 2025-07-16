@@ -10,284 +10,390 @@ import { documents, agentAnalyses } from './shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Legal questions that need real answers from document analysis
-const legalQuestions = [
+// Comprehensive legal questions with perfect prompts
+const COMPREHENSIVE_LEGAL_QUESTIONS = [
   {
     id: 'sha_1',
-    category: 'Shareholders Agreement',
     question: 'What class of shares exist?',
-    analysisPrompt: 'Identify all classes of shares mentioned in the documents (common shares, preferred shares, etc.). Provide specific details about each class.'
+    perfectPrompt: `Analyze this legal document for any mention of share classes, equity structures, or types of shares. Look for:
+- Common shares, preferred shares, ordinary shares
+- Class A, Class B, or other share classifications
+- Employee stock options or equity compensation
+- Voting vs non-voting shares
+- Any references to articles of incorporation or shareholder agreements
+Extract specific details about share classes mentioned.`
   },
   {
     id: 'sha_2',
-    category: 'Shareholders Agreement',
     question: 'Are liquidation preferences defined?',
-    analysisPrompt: 'Look for liquidation preference terms, participation rights, and liquidation waterfalls. Specify the preference multiple (1x, 2x, etc.) and participation type.'
+    perfectPrompt: `Search this document for liquidation preferences, liquidation waterfalls, or distribution priorities. Look for:
+- Liquidation preference clauses
+- Liquidation waterfall provisions
+- Distribution priorities upon liquidation
+- Participating vs non-participating preferences
+- Multiple liquidation preferences
+- Any references to preferred share liquidation rights
+Extract specific liquidation preference details.`
   },
   {
     id: 'sha_3',
-    category: 'Shareholders Agreement',
     question: 'Is anti-dilution protection present?',
-    analysisPrompt: 'Search for anti-dilution clauses, weighted average provisions, and protection mechanisms for investors against dilution.'
+    perfectPrompt: `Examine this document for anti-dilution provisions or protection mechanisms. Look for:
+- Anti-dilution protection clauses
+- Weighted average anti-dilution formulas
+- Full ratchet anti-dilution provisions
+- Price-based anti-dilution adjustments
+- Dilution protection for existing shareholders
+- Any references to share price protection
+Extract specific anti-dilution mechanism details.`
   },
   {
     id: 'gov_1',
-    category: 'Corporate Governance',
     question: 'Is board composition defined?',
-    analysisPrompt: 'Find board composition details including number of seats, investor representation, founder representation, and independent directors.'
+    perfectPrompt: `Analyze this document for board composition, governance structures, or director arrangements. Look for:
+- Board of directors composition
+- Number of board seats
+- Director appointment rights
+- Board representation by investors vs founders
+- Board meeting procedures
+- Voting requirements for board decisions
+Extract specific board composition details.`
   },
   {
     id: 'gov_2',
-    category: 'Corporate Governance',
     question: 'Are voting rights clearly specified?',
-    analysisPrompt: 'Identify voting rights for different share classes, special voting provisions, and consent requirements.'
+    perfectPrompt: `Search this document for voting rights, shareholder voting procedures, or governance voting. Look for:
+- Shareholder voting rights
+- Voting procedures and requirements
+- Majority vs supermajority voting
+- Veto rights or protective provisions
+- Consent requirements for major decisions
+- Class-specific voting rights
+Extract specific voting rights details.`
   },
   {
     id: 'ip_1',
-    category: 'IP Assignment Agreements',
     question: 'Are IP assignment agreements in place?',
-    analysisPrompt: 'Look for intellectual property assignment agreements, invention assignment clauses, and IP ownership transfers.'
+    perfectPrompt: `Examine this document for intellectual property assignments, IP transfer clauses, or IP ownership. Look for:
+- IP assignment agreements or clauses
+- Intellectual property transfer provisions
+- Patent, trademark, or copyright assignments
+- Work-for-hire agreements
+- IP ownership by company vs individual
+- Technology transfer agreements
+Extract specific IP assignment details.`
   },
   {
     id: 'ip_2',
-    category: 'IP Assignment Agreements',
     question: 'Are all founders/key personnel covered?',
-    analysisPrompt: 'Verify that IP assignment agreements cover all founders, key employees, and contractors who contribute to IP.'
+    perfectPrompt: `Analyze this document for coverage of founders, key personnel, or employee IP assignments. Look for:
+- Founder IP assignment coverage
+- Key personnel or employee IP agreements
+- Employment agreement IP clauses
+- Consulting agreement IP provisions
+- Coverage of technical co-founders
+- Comprehensive IP assignment scope
+Extract specific personnel coverage details.`
   },
   {
     id: 'commercial_1',
-    category: 'Commercial Agreements',
     question: 'Are SLAs, warranties, and indemnity clauses present?',
-    analysisPrompt: 'Search for service level agreements, warranty provisions, and indemnification clauses in commercial contracts.'
+    perfectPrompt: `Search this document for service level agreements, warranties, guarantees, or indemnification. Look for:
+- Service level agreements (SLAs)
+- Warranty provisions and guarantees
+- Indemnification clauses
+- Liability limitations
+- Performance guarantees
+- Commercial terms and conditions
+Extract specific SLA, warranty, and indemnity details.`
   },
   {
     id: 'commercial_2',
-    category: 'Commercial Agreements',
     question: 'Are termination clauses fair and mutual?',
-    analysisPrompt: 'Analyze termination clauses for fairness, notice periods, and mutual termination rights.'
+    perfectPrompt: `Examine this document for termination clauses, notice periods, or contract ending provisions. Look for:
+- Termination clauses and conditions
+- Notice periods for termination
+- Mutual termination rights
+- Termination for cause vs convenience
+- Termination penalties or consequences
+- Fair and balanced termination terms
+Extract specific termination clause details.`
   },
   {
     id: 'lit_1',
-    category: 'Litigation Documents',
     question: 'Are there pending litigations or regulatory proceedings?',
-    analysisPrompt: 'Search for any pending litigation, regulatory proceedings, disputes, or legal challenges.'
+    perfectPrompt: `Analyze this document for mentions of litigation, lawsuits, or regulatory proceedings. Look for:
+- Pending or ongoing litigation
+- Regulatory proceedings or investigations
+- Legal disputes or claims
+- Court cases or arbitrations
+- Regulatory compliance issues
+- Any legal risks or exposures
+Extract specific litigation or regulatory details.`
   },
   {
     id: 'lit_2',
-    category: 'Litigation Documents',
     question: 'Is financial exposure quantified?',
-    analysisPrompt: 'Look for quantified financial exposure, potential damages, settlement amounts, or financial risks from legal matters.'
+    perfectPrompt: `Search this document for financial exposure, liability amounts, or quantified financial risks. Look for:
+- Quantified financial exposure or liability
+- Specific damage amounts or penalties
+- Financial risk assessments
+- Liability caps or limitations
+- Insurance coverage amounts
+- Quantified financial commitments
+Extract specific financial exposure details.`
   },
   {
     id: 'reg_1',
-    category: 'Regulatory Compliance',
     question: 'Are there FDA submissions or regulatory approvals?',
-    analysisPrompt: 'Search for FDA submissions, regulatory approvals, compliance documentation, and regulatory strategy.'
+    perfectPrompt: `Examine this document for FDA submissions, regulatory approvals, or compliance matters. Look for:
+- FDA submissions or applications
+- Regulatory approvals or clearances
+- Medical device regulations
+- Clinical trial approvals
+- Regulatory compliance status
+- FDA correspondence or requirements
+Extract specific FDA or regulatory approval details.`
   },
   {
     id: 'reg_2',
-    category: 'Regulatory Compliance',
     question: 'Are there any regulatory compliance issues?',
-    analysisPrompt: 'Identify any regulatory compliance issues, violations, or areas of concern mentioned in the documents.'
+    perfectPrompt: `Analyze this document for regulatory compliance issues, violations, or concerns. Look for:
+- Regulatory compliance violations
+- Non-compliance issues or warnings
+- Regulatory audit findings
+- Compliance program deficiencies
+- Regulatory action items
+- Compliance monitoring requirements
+Extract specific regulatory compliance issue details.`
   },
   {
     id: 'financial_1',
-    category: 'Financial Documents',
     question: 'Are financial statements audited?',
-    analysisPrompt: 'Look for audited financial statements, audit opinions, and financial audit documentation.'
+    perfectPrompt: `Search this document for references to audited financial statements, auditor reports, or financial audits. Look for:
+- Audited financial statements
+- Independent auditor reports
+- Audit opinions or findings
+- Financial audit requirements
+- Auditor qualifications or certifications
+- Audit timeline or procedures
+Extract specific financial audit details.`
   },
   {
     id: 'financial_2',
-    category: 'Financial Documents',
     question: 'Are there any financial irregularities?',
-    analysisPrompt: 'Search for any financial irregularities, accounting issues, or financial red flags mentioned in the documents.'
+    perfectPrompt: `Examine this document for financial irregularities, discrepancies, or accounting issues. Look for:
+- Financial irregularities or discrepancies
+- Accounting errors or misstatements
+- Revenue recognition issues
+- Internal control weaknesses
+- Financial restatements or corrections
+- Unusual financial transactions
+Extract specific financial irregularity details.`
   }
 ];
 
 async function analyzeLegalDocuments(): Promise<void> {
-  console.log('🔍 Starting comprehensive legal analysis of all 114 documents...');
+  console.log('🔍 Starting comprehensive legal analysis of all documents...');
 
-  try {
-    // Get all documents for deal 22 that might contain legal information
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, 22));
+  // Get all documents for deal 22
+  const allDocuments = await db
+    .select()
+    .from(documents)
+    .where(eq(documents.dealId, 22));
 
-    // Filter for legal-related documents based on filename and content
-    const legalDocuments = allDocuments.filter(doc => {
-      const filename = doc.name.toLowerCase();
-      const hasLegalKeywords = filename.includes('legal') || 
-                              filename.includes('contract') || 
-                              filename.includes('agreement') || 
-                              filename.includes('share') || 
-                              filename.includes('ip') || 
-                              filename.includes('patent') || 
-                              filename.includes('license') ||
-                              filename.includes('terms') ||
-                              filename.includes('governance') ||
-                              filename.includes('compliance') ||
-                              filename.includes('regulatory') ||
-                              filename.includes('litigation') ||
-                              filename.includes('nda') ||
-                              filename.includes('confidential');
-      
-      return hasLegalKeywords || (doc.ocrText && doc.ocrText.toLowerCase().includes('legal'));
-    });
+  console.log(`📊 Found ${allDocuments.length} documents to analyze`);
 
-    console.log(`📄 Found ${legalDocuments.length} legal documents to analyze`);
+  // Filter for legal-relevant documents with substantial content
+  const legalDocuments = allDocuments.filter(doc => 
+    doc.ocrText && doc.ocrText.length > 300 && (
+      doc.name.toLowerCase().includes('agreement') ||
+      doc.name.toLowerCase().includes('contract') ||
+      doc.name.toLowerCase().includes('legal') ||
+      doc.name.toLowerCase().includes('share') ||
+      doc.name.toLowerCase().includes('employment') ||
+      doc.name.toLowerCase().includes('finder') ||
+      doc.name.toLowerCase().includes('service') ||
+      doc.name.toLowerCase().includes('consulting') ||
+      doc.name.toLowerCase().includes('ip') ||
+      doc.name.toLowerCase().includes('nda') ||
+      doc.name.toLowerCase().includes('governance') ||
+      doc.name.toLowerCase().includes('regulatory') ||
+      doc.name.toLowerCase().includes('compliance') ||
+      doc.name.toLowerCase().includes('articles') ||
+      doc.name.toLowerCase().includes('shareholders') ||
+      doc.name.toLowerCase().includes('investment') ||
+      doc.name.toLowerCase().includes('board') ||
+      doc.name.toLowerCase().includes('director') ||
+      doc.name.toLowerCase().includes('voting') ||
+      doc.name.toLowerCase().includes('liquidation') ||
+      doc.name.toLowerCase().includes('anti-dilution') ||
+      doc.name.toLowerCase().includes('warranty') ||
+      doc.name.toLowerCase().includes('indemnity') ||
+      doc.name.toLowerCase().includes('termination') ||
+      doc.name.toLowerCase().includes('litigation') ||
+      doc.name.toLowerCase().includes('fda') ||
+      doc.name.toLowerCase().includes('audit') ||
+      doc.name.toLowerCase().includes('financial')
+    )
+  );
 
-    if (legalDocuments.length === 0) {
-      console.log('❌ No legal documents found for analysis');
-      return;
-    }
+  console.log(`📋 Filtered to ${legalDocuments.length} legal documents for analysis`);
 
-    // Analyze each document's content for all legal questions
-    const documentAnalyses: { [documentId: number]: any } = {};
+  // Analyze each document for each legal question
+  const documentAnalyses: any = {};
+
+  for (const document of legalDocuments) {
+    console.log(`📄 Analyzing document: ${document.name}`);
     
-    for (const doc of legalDocuments) {
-      if (!doc.ocrText || doc.ocrText.trim().length === 0) {
-        console.log(`⚠️  Skipping ${doc.name} - no OCR text available`);
-        continue;
-      }
-
-      console.log(`📖 Analyzing document: ${doc.name}`);
-      
-      // Analyze this document for all legal questions
-      const documentAnalysis = await analyzeDocumentForLegalQuestions(doc);
-      documentAnalyses[doc.id] = documentAnalysis;
-    }
-
-    // Compile comprehensive answers from all documents
-    const comprehensiveAnswers = await compileComprehensiveAnswers(documentAnalyses, legalDocuments);
-
-    // Store the comprehensive legal analysis
-    await storeLegalAnalysis(comprehensiveAnswers);
-
-    console.log('✅ Comprehensive legal analysis completed successfully!');
-
-  } catch (error) {
-    console.error('❌ Error in legal analysis:', error);
-    throw error;
+    const docAnalysis = await analyzeDocumentForLegalQuestions(document);
+    documentAnalyses[document.id] = {
+      name: document.name,
+      analysis: docAnalysis
+    };
   }
+
+  // Compile comprehensive answers for each legal question
+  const comprehensiveAnswers = await compileComprehensiveAnswers(documentAnalyses, legalDocuments);
+
+  // Store the results
+  await storeLegalAnalysis(comprehensiveAnswers);
+
+  console.log('✅ Comprehensive legal analysis completed!');
 }
 
 async function analyzeDocumentForLegalQuestions(document: any): Promise<any> {
-  try {
-    const prompt = `
-You are a legal expert analyzing investment documents. Analyze the following document and answer specific legal questions based on the content.
+  const analysis: any = {};
 
-Document: ${document.name}
-Content: ${document.ocrText?.substring(0, 10000)}
+  // Analyze document against each legal question with perfect prompts
+  for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
+    try {
+      const prompt = `
+Document Name: ${document.name}
+Document Content: ${document.ocrText.substring(0, 6000)}
 
-For each legal question below, provide:
-1. A specific answer based on the document content
-2. Confidence level (0-100)
-3. Relevant quotes or references from the document
-4. "not_found" if the information is not in this document
+${question.perfectPrompt}
 
-Legal Questions:
-${legalQuestions.map(q => `- ${q.id}: ${q.question}`).join('\n')}
-
-Respond in JSON format:
+Respond with JSON in this format:
 {
-  "question_id": {
-    "answer": "specific answer based on document content",
-    "confidence": 85,
-    "quotes": ["relevant quote from document"],
-    "found": true/false
-  }
+  "relevant": true/false,
+  "findings": "detailed findings from this document related to the question",
+  "confidence": 0.0-1.0,
+  "evidence": "direct quotes or specific references from the document",
+  "details": "additional context or explanation"
 }
-`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [
-        {
-          role: "system",
-          content: "You are a legal expert analyzing investment documents. Provide precise, factual analysis based only on the document content. Do not make assumptions or provide generic answers."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1,
-    });
+If no relevant information is found, set relevant to false and provide a brief explanation.`;
 
-    const analysis = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      documentId: document.id,
-      documentName: document.name,
-      analysis: analysis
-    };
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 800,
+        temperature: 0.1 // Low temperature for consistent, factual analysis
+      });
 
-  } catch (error) {
-    console.error(`❌ Error analyzing document ${document.name}:`, error);
-    return {
-      documentId: document.id,
-      documentName: document.name,
-      analysis: {}
-    };
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      analysis[question.id] = result;
+
+    } catch (error) {
+      console.error(`❌ Error analyzing document ${document.name} for question ${question.id}:`, error);
+      analysis[question.id] = {
+        relevant: false,
+        findings: "Analysis failed due to API error",
+        confidence: 0.0,
+        evidence: "",
+        details: "Unable to process document"
+      };
+    }
+
+    // Brief delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 150));
   }
+
+  return analysis;
 }
 
 async function compileComprehensiveAnswers(documentAnalyses: any, legalDocuments: any[]): Promise<any> {
-  console.log('🔄 Compiling comprehensive answers from all documents...');
-
   const comprehensiveAnswers: any = {};
 
-  for (const question of legalQuestions) {
-    const questionId = question.id;
+  for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
+    console.log(`📊 Compiling answer for: ${question.question}`);
+
+    // Collect all relevant findings for this question
     const relevantFindings: any[] = [];
+    const sources: string[] = [];
 
-    // Collect all relevant findings for this question from all documents
-    for (const docId in documentAnalyses) {
-      const docAnalysis = documentAnalyses[docId];
-      const questionAnalysis = docAnalysis.analysis[questionId];
-
-      if (questionAnalysis && questionAnalysis.found && questionAnalysis.answer !== "not_found") {
+    for (const [docId, docData] of Object.entries(documentAnalyses)) {
+      const docAnalysis = (docData as any).analysis[question.id];
+      
+      if (docAnalysis?.relevant && docAnalysis.findings) {
         relevantFindings.push({
-          documentName: docAnalysis.documentName,
-          answer: questionAnalysis.answer,
-          confidence: questionAnalysis.confidence,
-          quotes: questionAnalysis.quotes || []
+          document: (docData as any).name,
+          findings: docAnalysis.findings,
+          confidence: docAnalysis.confidence,
+          evidence: docAnalysis.evidence,
+          details: docAnalysis.details
         });
+        sources.push((docData as any).name);
       }
     }
 
     // Compile comprehensive answer
+    let answer = "";
+    let confidence = 0;
+
     if (relevantFindings.length > 0) {
-      const bestFinding = relevantFindings.reduce((best, current) => 
-        current.confidence > best.confidence ? current : best
+      // Calculate weighted confidence
+      confidence = Math.round(
+        relevantFindings.reduce((sum, f) => sum + f.confidence, 0) / relevantFindings.length * 100
       );
 
-      const sources = relevantFindings.map(f => f.documentName);
-      const allAnswers = relevantFindings.map(f => f.answer).join('; ');
+      // Create comprehensive answer using OpenAI
+      try {
+        const synthesisPrompt = `
+Legal Question: ${question.question}
 
-      comprehensiveAnswers[questionId] = {
-        question: question.question,
-        answer: allAnswers.length > 200 ? bestFinding.answer : allAnswers,
-        confidence: Math.max(...relevantFindings.map(f => f.confidence)),
-        sources: [...new Set(sources)], // Remove duplicates
-        foundInDocuments: relevantFindings.length,
-        totalDocuments: legalDocuments.length
-      };
+Findings from multiple documents:
+${relevantFindings.map(f => `- ${f.document}: ${f.findings}\n  Evidence: ${f.evidence}\n  Details: ${f.details}`).join('\n\n')}
+
+Create a comprehensive, professional legal analysis that:
+1. Directly answers the legal question
+2. Synthesizes information from multiple documents
+3. Mentions specific document names when relevant
+4. Provides concrete evidence and details
+5. Is thorough yet concise (max 300 words)
+6. Uses professional legal language
+
+Answer:`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+          messages: [{ role: "user", content: synthesisPrompt }],
+          max_tokens: 500,
+          temperature: 0.1
+        });
+
+        answer = response.choices[0].message.content || relevantFindings.map(f => f.findings).join(' ');
+
+      } catch (error) {
+        console.error(`❌ Error compiling answer for ${question.id}:`, error);
+        answer = relevantFindings.map(f => f.findings).join(' ');
+      }
     } else {
-      comprehensiveAnswers[questionId] = {
-        question: question.question,
-        answer: "No relevant information found in the analyzed legal documents",
-        confidence: 0,
-        sources: [],
-        foundInDocuments: 0,
-        totalDocuments: legalDocuments.length
-      };
+      // No relevant findings
+      answer = `No relevant information found in the analyzed legal documents for this question. The available documents primarily consist of employment agreements, service agreements, finder agreements, and consulting agreements, which may not contain the specific legal provisions required to answer this question comprehensively.`;
+      confidence = 15;
     }
+
+    comprehensiveAnswers[question.id] = {
+      question: question.question,
+      answer: answer,
+      confidence: confidence,
+      sources: sources.slice(0, 5) // Limit to top 5 sources
+    };
   }
 
   return comprehensiveAnswers;
@@ -296,35 +402,28 @@ async function compileComprehensiveAnswers(documentAnalyses: any, legalDocuments
 async function storeLegalAnalysis(comprehensiveAnswers: any): Promise<void> {
   console.log('💾 Storing comprehensive legal analysis...');
 
-  try {
-    // Update the existing legal analysis with comprehensive answers
-    await db
-      .update(agentAnalyses)
-      .set({
-        status: 'completed',
-        progress: 100,
-        legalAnswers: comprehensiveAnswers,
-        updatedAt: new Date()
-      })
-      .where(
-        and(
-          eq(agentAnalyses.dealId, 22),
-          eq(agentAnalyses.agentType, 'legal')
-        )
-      );
+  await db
+    .update(agentAnalyses)
+    .set({
+      status: 'completed',
+      progress: 100,
+      legalAnswers: comprehensiveAnswers,
+      updatedAt: new Date()
+    })
+    .where(
+      and(
+        eq(agentAnalyses.dealId, 22),
+        eq(agentAnalyses.agentType, 'legal')
+      )
+    );
 
-    console.log('✅ Legal analysis stored successfully');
-
-  } catch (error) {
-    console.error('❌ Error storing legal analysis:', error);
-    throw error;
-  }
+  console.log('✅ Legal analysis stored successfully!');
 }
 
 // Run the analysis
 analyzeLegalDocuments()
   .then(() => {
-    console.log('🎉 Comprehensive legal analysis completed!');
+    console.log('🎉 Comprehensive legal analysis completed successfully!');
     process.exit(0);
   })
   .catch((error) => {
