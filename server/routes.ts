@@ -35,6 +35,7 @@ import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
 import { websocketManager as wsManager } from './services/websocketManager';
+import { legalAnalysisService } from './legalAnalysisService';
 
 
 // Background processing function for company research
@@ -3463,6 +3464,34 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     } catch (error) {
       console.error(`Error stopping analyses for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to stop analyses' });
+    }
+  });
+
+  // Run comprehensive legal analysis
+  app.post('/api/deals/:dealId/legal-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
+      
+      // Run comprehensive legal analysis in background
+      setImmediate(async () => {
+        try {
+          const result = await legalAnalysisService.runComprehensiveAnalysis(dealId);
+          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}:`, result);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
+        }
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive legal analysis started',
+        dealId: dealId
+      });
+    } catch (error) {
+      console.error(`Error starting comprehensive legal analysis:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive legal analysis' });
     }
   });
 
