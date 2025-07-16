@@ -4,7 +4,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface EnhancedAgentCardProps {
@@ -1071,12 +1071,15 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 mb-4">
-        <HelpCircle className="h-5 w-5 text-blue-400" />
-        <h3 className="text-lg font-semibold text-white">Legal Due Diligence Questions</h3>
-        <Badge variant="outline" className="text-gray-400 border-gray-400">
-          {assignedDocuments} Documents Analyzed
-        </Badge>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Legal Due Diligence Questions</h3>
+          <Badge variant="outline" className="text-gray-400 border-gray-400">
+            {assignedDocuments} Documents Analyzed
+          </Badge>
+        </div>
+        <ComprehensiveLegalAnalysisButton dealId={22} />
       </div>
 
       {/* Processing Message */}
@@ -1184,5 +1187,67 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
         </div>
       ))}
     </div>
+  );
+}
+
+// Comprehensive Legal Analysis Button Component
+function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate the agent analyses to refresh the legal data
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      // Show success message
+      console.log('✅ Comprehensive legal analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive legal analysis:', error);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      // Keep the button in loading state for a few seconds to show feedback
+      setTimeout(() => {
+        setIsRunning(false);
+      }, 3000);
+    } catch (error) {
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      size="sm"
+      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Running Analysis...
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run AI Analysis
+        </>
+      )}
+    </Button>
   );
 }
