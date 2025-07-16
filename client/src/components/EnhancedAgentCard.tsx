@@ -968,11 +968,15 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   // Check if legal analysis is available
-  const hasLegalAnalysis = analysisData && analysisData.findings && analysisData.findings.length > 0;
+  const hasLegalAnalysis = analysisData && (
+    (analysisData.legalAnswers && Object.keys(analysisData.legalAnswers).length > 0) ||
+    (analysisData.findings && analysisData.findings.length > 0)
+  );
   
   // Debug logging
   console.log('🔍 Legal Analysis Available:', hasLegalAnalysis);
   console.log('🔍 Analysis Data:', analysisData);
+  console.log('🔍 Legal Answers:', analysisData?.legalAnswers);
   console.log('🔍 Findings:', findings);
 
   const toggleCategory = (category: string) => {
@@ -1008,9 +1012,15 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
   const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
     if (!analysisData) return null;
     
+    // Debug logging
+    console.log(`🔍 Looking for answer to question ${questionId}`);
+    console.log(`🔍 Legal Answers exists:`, !!analysisData.legalAnswers);
+    console.log(`🔍 Question ${questionId} exists in legal answers:`, !!analysisData.legalAnswers?.[questionId]);
+    
     // First try to get answer from legalAnswers structure
     if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
       const answer = analysisData.legalAnswers[questionId];
+      console.log(`🔍 Found answer for ${questionId}:`, answer);
       return {
         answer: answer.answer,
         confidence: answer.confidence,
