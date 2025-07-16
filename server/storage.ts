@@ -1378,7 +1378,8 @@ export class DatabaseStorage implements IStorage {
           status: analysisResult.status || 'Completed',
           progress: analysisResult.progress || 100,
           createdAt: analysisResult.createdAt,
-          documentSources: analysisResult.documentSources || []
+          documentSources: analysisResult.documentSources || [],
+          legalAnswers: analysisResult.legalAnswers || null
         };
       }
       
