@@ -517,7 +517,9 @@ export default function EnhancedAgentCard({
           <LegalQuestionsSection 
             analysisData={analysisData} 
             findings={findings} 
-            assignedDocuments={assignedDocuments} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
           />
         ) : (
           /* Analysis Results for other agents */
@@ -769,6 +771,8 @@ interface LegalQuestionsSectionProps {
   analysisData: any;
   findings: any[];
   assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
 }
 
 interface LegalQuestion {
@@ -959,7 +963,7 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
   }
 ];
 
-function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: LegalQuestionsSectionProps) {
+function LegalQuestionsSection({ analysisData, findings, assignedDocuments, documents, handleDocumentClick }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
@@ -1004,13 +1008,18 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
   const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
     if (!analysisData) return null;
     
+    // Debug log to check data structure
+    console.log('🔍 Getting answer for question ID:', questionId);
+    console.log('🔍 Analysis data legalAnswers:', analysisData.legalAnswers);
+    
     // First try to get answer from legalAnswers structure
     if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
       const answer = analysisData.legalAnswers[questionId];
+      console.log('🔍 Found answer in legalAnswers:', answer);
       return {
         answer: answer.answer,
         confidence: answer.confidence,
-        sources: answer.sources || ['Legal Documents']
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : []
       };
     }
     
@@ -1141,18 +1150,22 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {answer.confidence}%
                                 </Badge>
-                                {answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
                                     {answer.sources.map((source, idx) => (
                                       <button
                                         key={idx}
                                         onClick={() => handleDocumentClick(source)}
-                                        className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors"
+                                        className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                         title={`View document: ${source}`}
                                       >
                                         📄 {source.length > 20 ? `${source.substring(0, 20)}...` : source}
                                       </button>
                                     ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-500">
+                                    No source documents available
                                   </div>
                                 )}
                               </div>
