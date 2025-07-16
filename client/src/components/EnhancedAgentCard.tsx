@@ -31,6 +31,24 @@ export default function EnhancedAgentCard({
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const queryClient = useQueryClient();
 
+  // Handle document click to open document
+  const handleDocumentClick = (sourceName: string) => {
+    // Find the document by name in the documents array
+    const document = documents?.find(doc => 
+      doc.name === sourceName || 
+      doc.name.includes(sourceName) || 
+      sourceName.includes(doc.name)
+    );
+    
+    if (document) {
+      // Open the document in a new tab for viewing
+      window.open(`/api/documents/${document.id}/download?inline=true`, '_blank');
+    } else {
+      // If document not found, show a message
+      console.log(`Document "${sourceName}" not found in current documents`);
+    }
+  };
+
   // Fetch agent-specific results directly from the agent results endpoint
   const { data: agentResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`],
@@ -1133,9 +1151,18 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments }: Le
                                   Confidence: {answer.confidence}%
                                 </Badge>
                                 {answer.sources.length > 0 && (
-                                  <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                    {answer.sources.length} sources
-                                  </Badge>
+                                  <div className="flex flex-wrap gap-1">
+                                    {answer.sources.map((source, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => handleDocumentClick(source)}
+                                        className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors"
+                                        title={`View document: ${source}`}
+                                      >
+                                        📄 {source.length > 20 ? `${source.substring(0, 20)}...` : source}
+                                      </button>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
                             </div>
