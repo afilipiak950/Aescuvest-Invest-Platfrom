@@ -61,6 +61,14 @@ export default function EnhancedAgentCard({
   
   console.log(`🔍 ${agentType} Agent Analysis Data:`, analysisData);
   console.log(`🔍 ${agentType} Agent - Status: ${analysisData?.status}, Findings: ${analysisData?.findings?.length || 0}, Recommendations: ${analysisData?.recommendations?.length || 0}`);
+  
+  // Debug legal answers specifically
+  if (agentType.toLowerCase() === 'legal' && analysisData?.legalAnswers) {
+    console.log(`🔍 Legal Analysis legalAnswers Available:`, !!analysisData.legalAnswers);
+    console.log(`🔍 Legal Analysis legalAnswers Keys:`, Object.keys(analysisData.legalAnswers));
+    console.log(`🔍 Legal Analysis Sample sha_1:`, analysisData.legalAnswers.sha_1);
+    console.log(`🔍 Legal Analysis Sample sha_2:`, analysisData.legalAnswers.sha_2);
+  }
 
   // Mutation to run Mistral analysis for this agent
   const runMistralAnalysisMutation = useMutation({
