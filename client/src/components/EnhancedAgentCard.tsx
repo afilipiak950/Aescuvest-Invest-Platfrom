@@ -783,32 +783,34 @@ interface LegalQuestion {
 
 const LEGAL_QUESTIONS: LegalQuestion[] = [
   {
-    id: 'shareholders_agreement',
+    id: 'sha_1',
     category: 'Shareholders Agreement / Articles of Association',
     question: 'What class of shares exist?',
     subQuestions: ['Preferred shares', 'Common shares', 'Other share classes']
   },
   {
-    id: 'liquidation_preferences',
+    id: 'sha_2',
     category: 'Shareholders Agreement / Articles of Association',
     question: 'Are liquidation preferences defined?',
     subQuestions: ['1x preferences', 'Participating preferences', 'Non-participating preferences']
   },
   {
-    id: 'anti_dilution',
+    id: 'sha_3',
     category: 'Shareholders Agreement / Articles of Association',
     question: 'Is anti-dilution protection present?',
     subQuestions: ['Full ratchet protection', 'Weighted average protection']
   },
   {
-    id: 'rights_provisions',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are drag-along, tag-along, ROFR and co-sale rights clearly defined?'
+    id: 'gov_1',
+    category: 'Governance & Voting',
+    question: 'Is board composition defined?',
+    subQuestions: ['Board seats', 'Director appointments', 'Board procedures']
   },
   {
-    id: 'board_composition',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are board composition and voting thresholds defined?'
+    id: 'gov_2',
+    category: 'Governance & Voting',
+    question: 'Are voting rights clearly specified?',
+    subQuestions: ['Voting procedures', 'Majority requirements', 'Veto rights']
   },
   {
     id: 'extra_rights',
@@ -859,24 +861,28 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
     question: 'Are there "hidden" warrants or convertible structures that could dilute new investors?'
   },
   {
-    id: 'ip_assignment_coverage',
-    category: 'IP Assignment Agreements',
-    question: 'Are all founders/key personnel covered?'
+    id: 'ip_1',
+    category: 'IP Assignment & Key Personnel',
+    question: 'Are IP assignment agreements in place?',
+    subQuestions: ['Patents', 'Trademarks', 'Copyrights', 'Trade secrets']
   },
   {
-    id: 'ip_retroactive',
-    category: 'IP Assignment Agreements',
-    question: 'Do they include retroactive clauses?'
+    id: 'ip_2',
+    category: 'IP Assignment & Key Personnel',
+    question: 'Are all founders/key personnel covered?',
+    subQuestions: ['Founders', 'Key employees', 'Consultants', 'Advisors']
   },
   {
-    id: 'ip_contractors',
-    category: 'IP Assignment Agreements',
-    question: 'Are external contractors included?'
-  },
-  {
-    id: 'commercial_slas',
+    id: 'commercial_1',
     category: 'Commercial Agreements',
-    question: 'Are SLAs, warranties, and indemnity clauses present?'
+    question: 'Are SLAs, warranties, and indemnity clauses present?',
+    subQuestions: ['Service level agreements', 'Warranty terms', 'Indemnification clauses']
+  },
+  {
+    id: 'commercial_2',
+    category: 'Commercial Agreements',
+    question: 'Are termination clauses fair and mutual?',
+    subQuestions: ['Notice periods', 'Termination triggers', 'Post-termination obligations']
   },
   {
     id: 'distributor_terms',
@@ -916,57 +922,40 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
     question: 'Is the NDA mutual or one-way?'
   },
   {
-    id: 'pending_litigation',
-    category: 'Litigation Documents',
-    question: 'Are there pending litigations or regulatory proceedings?'
+    id: 'lit_1',
+    category: 'Litigation & Regulatory',
+    question: 'Are there pending litigations or regulatory proceedings?',
+    subQuestions: ['Ongoing litigation', 'Regulatory investigations', 'Compliance issues']
   },
   {
-    id: 'financial_exposure',
-    category: 'Litigation Documents',
-    question: 'Is financial exposure quantified?'
+    id: 'lit_2',
+    category: 'Litigation & Regulatory',
+    question: 'Is financial exposure quantified?',
+    subQuestions: ['Potential damages', 'Legal costs', 'Settlement amounts']
   },
   {
-    id: 'settlement_agreements',
-    category: 'Litigation Documents',
-    question: 'Are there settlement agreements or insurance protections?'
-  },
-  {
-    id: 'ethical_controversies',
-    category: 'Litigation Documents',
-    question: 'Has the company or founder been involved in any past ethical controversies or fraud cases?'
-  },
-  {
-    id: 'adverse_media',
-    category: 'Litigation Documents',
-    question: 'Are there adverse media reports or regulatory flags in their country of operation?'
-  },
-  {
-    id: 'fda_submissions',
+    id: 'reg_1',
     category: 'Regulatory Compliance',
-    question: 'Are all FDA submissions properly documented with clear approval status?',
-    subQuestions: ['IND submissions', 'IDE submissions', 'NDA submissions', 'BLA submissions', 'CE MDR status']
+    question: 'Are there FDA submissions or regulatory approvals?',
+    subQuestions: ['FDA submissions', 'Regulatory approvals', 'Compliance status']
   },
   {
-    id: 'clinical_trial_agreements',
+    id: 'reg_2',
     category: 'Regulatory Compliance',
-    question: 'Do clinical trial agreements include proper indemnification clauses for investigator sites?'
+    question: 'Are there any regulatory compliance issues?',
+    subQuestions: ['Compliance violations', 'Regulatory warnings', 'Audit findings']
   },
   {
-    id: 'data_use_agreements',
-    category: 'Regulatory Compliance',
-    question: 'Are there comprehensive data use agreements for patient data handling and sharing?'
+    id: 'financial_1',
+    category: 'Financial Audits',
+    question: 'Are financial statements audited?',
+    subQuestions: ['Audited statements', 'Auditor reports', 'Audit opinions']
   },
   {
-    id: 'regulatory_communications',
-    category: 'Regulatory Compliance',
-    question: 'What is the status of regulatory communications?',
-    subQuestions: ['FDA communications', 'EMA communications', 'Notified bodies', 'Other authorities']
-  },
-  {
-    id: 'regulatory_actions',
-    category: 'Regulatory Compliance',
-    question: 'Are there any regulatory actions pending?',
-    subQuestions: ['FDA warning letters', 'Consent decrees', 'Other regulatory actions']
+    id: 'financial_2',
+    category: 'Financial Audits',
+    question: 'Are there any financial irregularities?',
+    subQuestions: ['Accounting errors', 'Financial restatements', 'Internal controls']
   }
 ];
 
