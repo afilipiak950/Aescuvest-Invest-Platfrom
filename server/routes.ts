@@ -3478,15 +3478,11 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
       const legalService = new ComprehensiveLegalAnalysisService();
       
-      // Import persistent job manager for background processing
-      const { PersistentJobManager } = await import('./services/persistentJobManager');
-      const jobManager = new PersistentJobManager();
-      
       // Run comprehensive legal analysis in background with progress tracking
       (async () => {
         try {
           console.log(`🔧 Starting comprehensive legal analysis background process for deal ${dealId}`);
-          const result = await legalService.runComprehensiveAnalysis(dealId, jobManager);
+          const result = await legalService.runComprehensiveAnalysis(dealId, storage);
           console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}:`, result);
         } catch (error) {
           console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
