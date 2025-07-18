@@ -164,10 +164,12 @@ export class ComprehensiveLegalAnalysisService {
       });
       
       // Extract evidence from ALL assigned documents for this question
+      console.log(`📄 Processing ${assignedDocuments.length} documents for question: ${question.question}`);
       const documentEvidence = await this.extractEvidenceFromAllDocuments(
         assignedDocuments, 
         question
       );
+      console.log(`📊 Evidence extraction completed for question: ${question.question}`);
       
       // Compile comprehensive answer based on all evidence
       const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
@@ -288,15 +290,30 @@ export class ComprehensiveLegalAnalysisService {
     documents: any[], 
     question: any
   ): Promise<any[]> {
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    
+    // Process documents in batches to avoid overwhelming the system
+    const batchSize = 10;
     const evidence = [];
     
-    for (const doc of documents) {
-      console.log(`🔎 Extracting evidence from: ${doc.name}`);
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      const docEvidence = await this.extractEvidenceFromDocument(doc, question);
-      if (docEvidence && docEvidence.relevantContent.length > 0) {
-        evidence.push(docEvidence);
-      }
+      const batchResults = await Promise.all(
+        batch.map(async (doc) => {
+          console.log(`🔎 Extracting evidence from: ${doc.name}`);
+          return this.extractEvidenceFromDocument(doc, question);
+        })
+      );
+      
+      // Filter out null results and add to evidence
+      const validEvidence = batchResults.filter(docEvidence => 
+        docEvidence && docEvidence.relevantContent.length > 0
+      );
+      evidence.push(...validEvidence);
+      
+      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
     }
     
     console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
@@ -372,7 +389,11 @@ Only extract actual content from the document. If no relevant information is fou
    * Compile comprehensive answer based on all evidence
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    console.log(`🔍 Compiling answer for: ${question.question}`);
+    console.log(`📋 Evidence count: ${evidence.length}`);
+    
     if (evidence.length === 0) {
+      console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
         answer: `No relevant information found in the assigned legal documents for this question.`,
@@ -385,6 +406,7 @@ Only extract actual content from the document. If no relevant information is fou
     
     // Filter evidence with relevant information
     const relevantEvidence = evidence.filter(e => e.hasRelevantInfo);
+    console.log(`📋 Relevant evidence count: ${relevantEvidence.length}`);
     
     const prompt = `You are a senior legal analyst compiling a comprehensive answer based on evidence from multiple documents.
 
@@ -420,13 +442,24 @@ Respond in JSON format:
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
+      console.log(`🤖 Making OpenAI API call for: ${question.question}`);
+      console.log(`📋 Relevant evidence: ${relevantEvidence.length} documents`);
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('OpenAI API timeout after 60 seconds')), 60000);
+      });
+      
+      const apiPromise = openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 2000
       });
+      
+      const response = await Promise.race([apiPromise, timeoutPromise]);
+      console.log(`✅ OpenAI API call completed for: ${question.question}`);
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -445,10 +478,10 @@ Respond in JSON format:
       };
       
     } catch (error) {
-      console.error(`Error compiling answer for ${question.id}:`, error);
+      console.error(`❌ Error compiling answer for ${question.id}:`, error.message);
       return {
         question: question.question,
-        answer: `Analysis temporarily unavailable. Please try again.`,
+        answer: `Analysis temporarily unavailable: ${error.message}. Please try again.`,
         confidence: 10,
         sources: relevantEvidence.map(e => e.documentName),
         evidenceCount: relevantEvidence.length,
