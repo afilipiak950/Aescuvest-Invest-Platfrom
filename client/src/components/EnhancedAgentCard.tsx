@@ -621,6 +621,10 @@ export default function EnhancedAgentCard({
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
         ) : (
           /* Analysis Results for other agents */
@@ -877,6 +881,10 @@ interface LegalQuestionsSectionProps {
   assignedDocuments: number;
   documents: any[];
   handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
 }
 
 interface LegalQuestion {
@@ -982,7 +990,7 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
   }
 ];
 
-function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick }: LegalQuestionsSectionProps) {
+function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
