@@ -1284,113 +1284,75 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
     console.log('🚀 Starting comprehensive legal analysis for deal', dealId);
     
     try {
+      // Trigger custom event to show progress bar immediately
+      window.dispatchEvent(new CustomEvent('legalAnalysisStarted'));
+      
       await comprehensiveAnalysisMutation.mutateAsync();
       
-      // Force refresh of background jobs to show progress immediately
-      queryClient.invalidateQueries({
-        queryKey: [`/api/background-jobs/${dealId}`]
-      });
+      console.log('✅ Analysis request sent, waiting for completion...');
       
-      // Clear all caches immediately
-      queryClient.removeQueries({
-        queryKey: ['/api/analyses', dealId]
-      });
-      queryClient.removeQueries({
-        queryKey: [`/api/deals/${dealId}/agents/legal/results`]
-      });
-      
-      // Poll for completion every 2 seconds for up to 5 minutes
+      // Wait a bit longer for results since analysis takes time
       let attempts = 0;
-      const maxAttempts = 150; // 5 minutes
+      const maxAttempts = 60; // 2 minutes max wait
       
-      const pollForCompletion = async () => {
+      const checkForResults = async () => {
         attempts++;
         
         try {
-          // Check background jobs for progress first
-          const jobsResponse = await fetch(`/api/background-jobs/${dealId}?_t=${Date.now()}`);
-          const jobsData = await jobsResponse.json();
+          // Check for new analysis results
+          const response = await fetch(`/api/deals/${dealId}/agents/legal/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
           
-          const activeJob = jobsData.jobs?.find((job: any) => 
-            job.jobType === 'comprehensive_legal_analysis' && 
-            (job.status === 'processing' || job.status === 'completed')
-          );
+          console.log(`📊 Attempt ${attempts}: Checking for results...`);
           
-          if (activeJob) {
-            console.log(`📊 Analysis progress: ${activeJob.progress}% - ${activeJob.currentStep || 'Processing...'}`);
+          if (data.success && data.analysis && data.analysis.legalAnswers && Object.keys(data.analysis.legalAnswers).length > 0) {
+            console.log('✅ New comprehensive legal analysis completed! Questions answered:', Object.keys(data.analysis.legalAnswers).length);
             
-            // Refresh jobs data to update progress bar
+            // Force refresh of all related UI data
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
             queryClient.invalidateQueries({
               queryKey: [`/api/background-jobs/${dealId}`]
             });
             
-            // If completed, check for results
-            if (activeJob.status === 'completed' || activeJob.progress >= 100) {
-              console.log('✅ Analysis completed, checking for results...');
-              
-              // Force fresh fetch of analysis results
-              const response = await fetch(`/api/deals/${dealId}/agents/legal/results?_t=${Date.now()}`);
-              const data = await response.json();
-              
-              if (data.success && data.analysis && data.analysis.legalAnswers) {
-                console.log('✅ New comprehensive legal analysis detected and loaded');
-                
-                // Force refresh of all related data
-                queryClient.invalidateQueries({
-                  queryKey: [`/api/deals/${dealId}/agents/legal/results`]
-                });
-                queryClient.invalidateQueries({
-                  queryKey: ['/api/analyses', dealId]
-                });
-                queryClient.invalidateQueries({
-                  queryKey: [`/api/background-jobs/${dealId}`]
-                });
-                
-                setIsRunning(false);
-                return;
-              }
-            }
-          } else {
-            // If no active job, check if results are already there
-            const response = await fetch(`/api/deals/${dealId}/agents/legal/results?_t=${Date.now()}`);
-            const data = await response.json();
-            
-            if (data.success && data.analysis && data.analysis.legalAnswers) {
-              console.log('✅ New comprehensive legal analysis detected');
-              
-              // Force refresh of all related data
-              queryClient.invalidateQueries({
-                queryKey: [`/api/deals/${dealId}/agents/legal/results`]
-              });
-              queryClient.invalidateQueries({
-                queryKey: ['/api/analyses', dealId]
-              });
-              
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
               setIsRunning(false);
-              return;
-            }
+              console.log('🎉 Legal analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
           }
         } catch (error) {
-          console.error('Error polling for analysis completion:', error);
+          console.error('Error checking for results:', error);
         }
         
-        // Continue polling if not complete and under max attempts
+        // Continue checking if not complete and under max attempts
         if (attempts < maxAttempts) {
-          setTimeout(pollForCompletion, 2000);
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
         } else {
-          console.log('⏰ Polling timeout - forcing refresh anyway');
+          console.log('⏰ Timeout reached - analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+          });
           queryClient.invalidateQueries({
             queryKey: ['/api/analyses', dealId]
           });
-          queryClient.invalidateQueries({
-            queryKey: [`/api/background-jobs/${dealId}`]
-          });
+          
           setIsRunning(false);
         }
       };
       
-      // Start polling after a short delay
-      setTimeout(pollForCompletion, 2000);
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
       
     } catch (error) {
       console.error('❌ Error starting comprehensive analysis:', error);
@@ -1408,7 +1370,7 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
       {isRunning || comprehensiveAnalysisMutation.isPending ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Running Analysis...
+          {isRunning ? 'AI Analysis Running...' : 'Starting Analysis...'}
         </>
       ) : (
         <>
