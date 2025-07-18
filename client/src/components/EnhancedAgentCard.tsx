@@ -1275,11 +1275,10 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string, quoteIndex: number) => ({
+                                        quotes: answer.quotes.map((quote: string) => ({
                                           text: quote,
-                                          documentName: answer.sources?.[quoteIndex] || answer.sources?.[0] || 'Unknown Document',
-                                          confidence: (answer.confidence || 80) / 100,
-                                          context: answer.evidenceSummary || answer.legalAssessment || 'Legal analysis context'
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
                                         })),
                                         sources: [],
                                         title: question.question
@@ -1295,29 +1294,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
-                                      // Get comprehensive legal analysis data for document-specific evidence
-                                      const comprehensiveAnalysis = analysisData?.comprehensiveLegalAnalysis;
-                                      const questionData = comprehensiveAnalysis?.questions?.find((q: any) => q.id === question.id);
-                                      
                                       setSelectedQuoteData({
                                         quotes: [],
-                                        sources: answer.sources.map((source: string, sourceIndex: number) => {
-                                          // Try to find document-specific evidence from comprehensive analysis
-                                          const documentEvidence = questionData?.evidence?.find((ev: any) => 
-                                            ev.documentName === source || ev.documentName.includes(source.split('.')[0])
-                                          );
-                                          
-                                          const relevantSection = documentEvidence?.extractedText || 
-                                                                documentEvidence?.relevantSections?.[0] ||
-                                                                `Analysis performed on ${source} - specific evidence extracted during comprehensive legal review`;
-                                          
-                                          return {
-                                            documentName: source,
-                                            relevantSections: [relevantSection],
-                                            extractedText: documentEvidence?.context || answer.answer,
-                                            confidence: documentEvidence?.confidence || 0.8
-                                          };
-                                        }),
+                                        sources: answer.sources.map((source: string) => ({
+                                          documentName: source,
+                                          relevantSections: [answer.answer || 'No specific section identified'],
+                                          extractedText: answer.answer
+                                        })),
                                         title: question.question
                                       });
                                       setQuoteViewerOpen(true);
