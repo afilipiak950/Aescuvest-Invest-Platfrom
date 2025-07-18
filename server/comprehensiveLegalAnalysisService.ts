@@ -116,17 +116,23 @@ export class ComprehensiveLegalAnalysisService {
     
     // Create background job for progress tracking
     const jobId = `legal_analysis_${dealId}_${Date.now()}`;
-    await storageService.createBackgroundJob({
-      jobId,
-      jobType: 'comprehensive_legal_analysis',
-      dealId,
-      agentType: 'Legal',
-      status: 'processing',
-      progress: 0,
-      totalDocuments: 0,
-      processedDocuments: 0,
-      startedAt: new Date()
-    });
+    
+    try {
+      await storageService.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_legal_analysis',
+        dealId,
+        agentType: 'Legal',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
+      throw new Error(`Failed to initialize comprehensive legal analysis: ${error.message}`);
+    }
     
     // Get all documents suitable for legal analysis
     const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
@@ -147,70 +153,130 @@ export class ComprehensiveLegalAnalysisService {
       currentStep: 'Analyzing legal documents across 15 question categories'
     });
     
-    // Process each question comprehensively
+    // Process each question comprehensively with enhanced error handling
     const legalAnswers: Record<string, any> = {};
     
     for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
       const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
-      console.log(`🔍 Processing: ${question.question}`);
+      console.log(`🔍 Processing question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
       
-      // Update progress
-      const progress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
-      await storageService.updateBackgroundJob(jobId, {
-        progress,
-        processedDocuments: i,
-        currentDocumentName: question.question,
-        currentStep: `Analyzing: ${question.category}`
-      });
-      
-      // Extract evidence from ALL assigned documents for this question
-      console.log(`📄 Processing ${assignedDocuments.length} documents for question: ${question.question}`);
-      const documentEvidence = await this.extractEvidenceFromAllDocuments(
-        assignedDocuments, 
-        question
-      );
-      console.log(`📊 Evidence extraction completed for question: ${question.question}`);
-      
-      // Compile comprehensive answer based on all evidence
-      const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
-      legalAnswers[question.id] = answer;
-      
-      console.log(`✅ Completed: ${question.question}`);
-      
-      // Brief delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      try {
+        // Update progress with error handling
+        const progress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
+        await storageService.updateBackgroundJob(jobId, {
+          progress,
+          processedDocuments: i,
+          currentDocumentName: question.question,
+          currentStep: `Analyzing: ${question.category}`
+        });
+        
+        // Extract evidence from ALL assigned documents for this question
+        console.log(`📄 Processing ${assignedDocuments.length} documents for question: ${question.question}`);
+        const documentEvidence = await this.extractEvidenceFromAllDocuments(
+          assignedDocuments, 
+          question
+        );
+        console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+        
+        // Compile comprehensive answer based on all evidence
+        const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+        legalAnswers[question.id] = answer;
+        
+        console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
+        
+        // Brief delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      } catch (questionError) {
+        console.error(`❌ Error processing question "${question.question}":`, questionError);
+        
+        // Store partial answer for this question
+        legalAnswers[question.id] = {
+          question: question.question,
+          category: question.category,
+          answer: `Error processing this question: ${questionError.message}`,
+          confidence: 0,
+          sources: [],
+          evidence: [],
+          error: true
+        };
+        
+        // Update progress to continue processing
+        await storageService.updateBackgroundJob(jobId, {
+          progress: Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100),
+          processedDocuments: i,
+          currentDocumentName: `Error: ${question.question}`,
+          currentStep: `Error in: ${question.category}`
+        });
+        
+        // Continue with next question instead of failing completely
+        continue;
+      }
     }
     
-    // Update progress to completion
-    await storageService.updateBackgroundJob(jobId, {
-      progress: 100,
-      processedDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-      currentStep: 'Generating findings and recommendations',
-      status: 'completing'
-    });
-    
-    // Generate comprehensive findings and recommendations
-    const findings = this.generateComprehensiveFindings(legalAnswers);
-    const recommendations = this.generateComprehensiveRecommendations(legalAnswers);
-    
-    // Store the analysis results
-    await this.storeComprehensiveResults(dealId, legalAnswers, findings, recommendations, assignedDocuments);
-    
-    // Mark job as completed
-    await storageService.updateBackgroundJob(jobId, {
-      status: 'completed',
-      currentStep: 'Analysis completed'
-    });
-    
-    console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
-    
-    return {
-      success: true,
-      documentsAnalyzed: assignedDocuments.length,
-      questionsAnswered: Object.keys(legalAnswers).length,
-      findings: findings.length,
-      recommendations: recommendations.length
-    };
+    try {
+      // Update progress to completion
+      await storageService.updateBackgroundJob(jobId, {
+        progress: 100,
+        processedDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
+        currentStep: 'Generating findings and recommendations',
+        status: 'completing'
+      });
+      
+      // Generate comprehensive findings and recommendations
+      const findings = this.generateComprehensiveFindings(legalAnswers);
+      const recommendations = this.generateComprehensiveRecommendations(legalAnswers);
+      
+      // Store the analysis results
+      await this.storeComprehensiveResults(dealId, legalAnswers, findings, recommendations, assignedDocuments);
+      
+      // Mark job as completed
+      await storageService.updateBackgroundJob(jobId, {
+        status: 'completed',
+        currentStep: 'Analysis completed'
+      });
+      
+      console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
+      
+      return {
+        success: true,
+        documentsAnalyzed: assignedDocuments.length,
+        questionsAnswered: Object.keys(legalAnswers).length,
+        findings: findings.length,
+        recommendations: recommendations.length
+      };
+    } catch (finalError) {
+      console.error(`❌ Error in final stages of legal analysis for deal ${dealId}:`, finalError);
+      
+      // Still try to save what we have
+      try {
+        const partialFindings = this.generateComprehensiveFindings(legalAnswers);
+        const partialRecommendations = this.generateComprehensiveRecommendations(legalAnswers);
+        await this.storeComprehensiveResults(dealId, legalAnswers, partialFindings, partialRecommendations, assignedDocuments);
+        
+        // Mark as completed with error
+        await storageService.updateBackgroundJob(jobId, {
+          status: 'completed',
+          currentStep: 'Completed with partial results due to errors',
+          error: finalError.message
+        });
+        
+        return {
+          success: true,
+          documentsAnalyzed: assignedDocuments.length,
+          questionsAnswered: Object.keys(legalAnswers).length,
+          findings: partialFindings.length,
+          recommendations: partialRecommendations.length,
+          warning: 'Analysis completed with some errors'
+        };
+      } catch (saveError) {
+        // Mark job as failed
+        await storageService.updateBackgroundJob(jobId, {
+          status: 'failed',
+          error: `Final error: ${finalError.message}, Save error: ${saveError.message}`
+        });
+        throw finalError;
+      }
+    }
   }
   
   /**
