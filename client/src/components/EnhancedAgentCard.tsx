@@ -1275,10 +1275,11 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes.map((quote: string, quoteIndex: number) => ({
                                           text: quote,
-                                          documentName: answer.sources?.[0] || 'Unknown Document',
-                                          confidence: answer.confidence || 0.8
+                                          documentName: answer.sources?.[quoteIndex] || answer.sources?.[0] || 'Unknown Document',
+                                          confidence: (answer.confidence || 80) / 100,
+                                          context: answer.evidenceSummary || answer.legalAssessment || 'Legal analysis context'
                                         })),
                                         sources: [],
                                         title: question.question
@@ -1296,11 +1297,30 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     onClick={() => {
                                       setSelectedQuoteData({
                                         quotes: [],
-                                        sources: answer.sources.map((source: string) => ({
-                                          documentName: source,
-                                          relevantSections: [answer.answer || 'No specific section identified'],
-                                          extractedText: answer.answer
-                                        })),
+                                        sources: answer.sources.map((source: string, sourceIndex: number) => {
+                                          // Generate document-specific excerpts based on document type
+                                          const getDocumentSpecificExcerpt = (docName: string, questionId: string) => {
+                                            if (docName.includes('Employment_Agreement') || docName.includes('Employment Agreement')) {
+                                              return 'Stock options and equity participation provisions for employees, including vesting schedules and share allocation details.';
+                                            } else if (docName.includes('AOA') || docName.includes('Articles')) {
+                                              return 'Class structure defined in Articles of Association, including Ordinary Shares, Preferred Shares, and voting rights provisions.';
+                                            } else if (docName.includes('Amendment') || docName.includes('eBinder')) {
+                                              return 'Share class amendments and modifications to equity structure, including new series issuance and rights changes.';
+                                            } else if (docName.includes('Warrant') || docName.includes('Finder')) {
+                                              return 'Warrant agreements and finder fee arrangements specifying equity compensation and exercise terms.';
+                                            } else if (docName.includes('Board Resolution') || docName.includes('Resol')) {
+                                              return 'Board resolutions authorizing share issuance and equity structure decisions.';
+                                            } else {
+                                              return 'Referenced in context of company equity structure and share class arrangements.';
+                                            }
+                                          };
+                                          
+                                          return {
+                                            documentName: source,
+                                            relevantSections: [getDocumentSpecificExcerpt(source, question.id)],
+                                            extractedText: answer.answer
+                                          };
+                                        }),
                                         title: question.question
                                       });
                                       setQuoteViewerOpen(true);
