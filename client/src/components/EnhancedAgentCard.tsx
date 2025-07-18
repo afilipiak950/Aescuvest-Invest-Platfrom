@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import DocumentQuoteViewer from './DocumentQuoteViewer';
 
 interface EnhancedAgentCardProps {
   dealId: number;
@@ -30,6 +31,12 @@ export default function EnhancedAgentCard({
   currentDocumentName 
 }: EnhancedAgentCardProps) {
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
+  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
+  const [selectedQuoteData, setSelectedQuoteData] = useState<{
+    quotes?: any[];
+    sources?: any[];
+    title: string;
+  }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
 
   // Progress Display Component for Legal Analysis
@@ -1255,12 +1262,42 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                   Confidence: {answer.confidence}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
-                                  <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
                                     {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                                 {answer.sources && answer.sources.length > 0 && (
-                                  <Badge variant="outline" className="text-blue-400 border-blue-400">
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources: answer.sources.map((source: string) => ({
+                                          documentName: source,
+                                          relevantSections: [answer.answer || 'No specific section identified'],
+                                          extractedText: answer.answer
+                                        })),
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
                                     {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
@@ -1284,6 +1321,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
           )}
         </div>
       ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
     </div>
   );
 }
