@@ -148,7 +148,7 @@ export class SimpleLegalAnalysisService {
       
       for (let i = 0; i < LEGAL_QUESTIONS.length; i++) {
         const question = LEGAL_QUESTIONS[i];
-        const questionProgress = 10 + (i / totalQuestions) * 70; // 10% to 80%
+        const questionProgress = Math.round(10 + (i / totalQuestions) * 70); // 10% to 80%
         
         await this.updateProgress(jobId, questionProgress, `Processing: ${question.question}`);
         console.log(`🔍 Processing: ${question.question}`);
@@ -197,7 +197,11 @@ export class SimpleLegalAnalysisService {
 
   private async updateProgress(jobId: string, progress: number, currentStep: string) {
     try {
-      await storage.updateBackgroundJob(jobId, { progress, currentStep });
+      // Ensure progress is an integer to avoid database errors
+      await storage.updateBackgroundJob(jobId, { 
+        progress: Math.round(progress), 
+        currentStep 
+      });
     } catch (error) {
       console.error('Error updating progress:', error);
     }
