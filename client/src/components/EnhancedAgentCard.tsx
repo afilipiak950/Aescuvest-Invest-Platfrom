@@ -903,11 +903,11 @@ function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assign
           </div>
         </div>
         <p className="text-gray-400 text-xs mt-2">
-          {jobProgress?.jobs?.[0]?.currentStep || `Processing ${assignedDocuments} legal documents across 15 analysis categories`}
+          {currentStep || `Processing ${assignedDocuments} legal documents across 15 analysis categories`}
         </p>
-        {jobProgress?.jobs?.[0]?.currentDocumentName && (
+        {currentStep && (
           <p className="text-blue-400 text-xs mt-1 italic">
-            📄 Current: {jobProgress.jobs[0].currentDocumentName}
+            📄 Current: {currentStep}
           </p>
         )}
       </div>

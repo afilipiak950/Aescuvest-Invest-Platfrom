@@ -3506,7 +3506,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const dealId = parseInt(req.params.dealId);
       
       // Check for active comprehensive legal analysis job
-      const jobs = await storage.getBackgroundJobsByDeal(dealId);
+      const jobs = await storage.getBackgroundJobsByDealId(dealId);
       const comprehensiveJob = jobs.find(job => 
         job.jobType === 'comprehensive_legal_analysis' && 
         job.status === 'processing'
@@ -3517,6 +3517,10 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
           success: true,
           isRunning: true,
           progress: comprehensiveJob.progress || 0,
+          currentStep: comprehensiveJob.currentStep || 'Starting analysis',
+          currentDocumentName: comprehensiveJob.currentDocumentName || 'Initializing',
+          processedDocuments: comprehensiveJob.processedDocuments || 0,
+          totalDocuments: comprehensiveJob.totalDocuments || 15,
           message: 'Comprehensive legal analysis in progress'
         });
       } else {
