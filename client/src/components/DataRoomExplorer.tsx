@@ -1717,20 +1717,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         </div>
       </div>
 
-      {/* Background Job Progress Tracking */}
-      <div className="p-4 border-b border-dark">
-        <BackgroundJobProgress 
-          dealId={dealId}
-          onJobComplete={(jobId, result) => {
-            console.log(`Job ${jobId} completed:`, result);
-            // Refetch documents to show updated OCR results
-            refetch();
-            if (onUploadComplete) {
-              onUploadComplete();
-            }
-          }}
-        />
-      </div>
+
 
       {/* Additional File Upload Section */}
       {showAdditionalUpload && (
