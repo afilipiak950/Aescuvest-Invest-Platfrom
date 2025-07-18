@@ -3472,31 +3472,31 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
+      console.log(`🚀 Starting working legal analysis for deal ${dealId}`);
       
-      // Import the new comprehensive legal analysis service
-      const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
-      const comprehensiveLegalService = new ComprehensiveLegalAnalysisService();
+      // Import the working simple legal analysis service
+      const { SimpleLegalAnalysisService } = await import('./simpleLegalAnalysisService');
+      const legalService = new SimpleLegalAnalysisService();
       
-      // Run comprehensive legal analysis in background with better error handling
+      // Run legal analysis in background
       (async () => {
         try {
-          console.log(`🔧 Starting comprehensive legal analysis background process for deal ${dealId}`);
-          const result = await comprehensiveLegalService.runComprehensiveAnalysis(dealId);
-          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}:`, result);
+          console.log(`🔧 Starting legal analysis background process for deal ${dealId}`);
+          const result = await legalService.runSimpleLegalAnalysis(dealId);
+          console.log(`✅ Legal analysis completed for deal ${dealId}:`, result);
         } catch (error) {
-          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in legal analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive legal analysis started - processing 169 legal documents across 15 questions'
+        message: 'Legal analysis started - processing legal documents with AI analysis'
       });
     } catch (error) {
-      console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ success: false, error: 'Failed to start comprehensive legal analysis' });
+      console.error(`❌ Error starting legal analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start legal analysis' });
     }
   });
 
