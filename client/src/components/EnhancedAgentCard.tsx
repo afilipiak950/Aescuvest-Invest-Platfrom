@@ -571,6 +571,7 @@ export default function EnhancedAgentCard({
         {/* Legal Questions for Legal Agent */}
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
+            dealId={dealId}
             analysisData={analysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
@@ -911,6 +912,7 @@ function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assign
 
 // Legal Questions Section Component
 interface LegalQuestionsSectionProps {
+  dealId: number;
   analysisData: any;
   findings: any[];
   assignedDocuments: number;
@@ -1021,7 +1023,7 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
   }
 ];
 
-function LegalQuestionsSection({ analysisData, findings, assignedDocuments, documents, handleDocumentClick }: LegalQuestionsSectionProps) {
+function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
