@@ -3724,17 +3724,20 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
   // Also try to create database job as backup
   try {
     await storage.createBackgroundJob({
-      id: jobId,
+      jobId: jobId,
+      jobType: 'agent_analysis',
       dealId,
-      type: 'agent-analysis',
       agentType: agentType.toLowerCase(),
       status: 'processing',
       progress: 0,
       totalDocuments: documents.length,
+      processedDocuments: 0,
+      currentStep: `Starting ${agentType} analysis`,
       startedAt: new Date()
     });
+    console.log(`💾 Successfully created database background job ${jobId} for ${agentType} agent`);
   } catch (error) {
-    console.warn(`⚠️ Database job creation failed (using in-memory tracking):`, error);
+    console.error(`❌ Database job creation failed for ${agentType}:`, error.message);
   }
   
   // Check if analysis already exists for this agent and deal (AI caching)
@@ -3848,24 +3851,24 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
     // Create initial job progress entry for real-time tracking
     const trackingJobId = `${agentType}_${dealId}`;
     try {
-      await storage.createBackgroundJob({
-        id: trackingJobId,
+      console.log(`🚀 Creating background job ${trackingJobId} for ${agentType} agent...`);
+      const createdJob = await storage.createBackgroundJob({
+        jobId: trackingJobId,
+        jobType: 'agent_analysis',
         dealId,
-        type: 'agent_analysis',
-        status: 'running',
+        agentType: agentType.toLowerCase(),
+        status: 'processing',
         progress: 0,
-        totalSteps: assignedDocuments.length,
-        currentStep: 0,
-        agentType: agentType,
-        metadata: {
-          agentType,
-          documentCount: assignedDocuments.length,
-          startTime: new Date().toISOString()
-        }
+        totalDocuments: assignedDocuments.length,
+        processedDocuments: 0,
+        currentStep: `Starting ${agentType} analysis`,
+        startedAt: new Date()
       });
-      console.log(`🚀 Created job progress tracking for ${agentType} agent (${assignedDocuments.length} documents)`);
+      console.log(`✅ Successfully created background job ${trackingJobId} with ID ${createdJob.id}`);
     } catch (jobError) {
-      console.error(`Failed to create job progress for ${agentType}:`, jobError);
+      console.error(`❌ Failed to create job progress for ${agentType}:`, jobError.message);
+      // Don't continue if we can't track progress
+      throw new Error(`Cannot start ${agentType} analysis: database job creation failed`);
     }
 
     for (const document of assignedDocuments) {
