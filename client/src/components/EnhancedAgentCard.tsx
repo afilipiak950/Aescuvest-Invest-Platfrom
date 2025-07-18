@@ -32,16 +32,11 @@ export default function EnhancedAgentCard({
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const queryClient = useQueryClient();
 
-  // Legal Analysis Progress Component
-  function LegalAnalysisProgress({ dealId, hasLegalAnalysis, assignedDocuments }: { 
-    dealId: number; 
-    hasLegalAnalysis: boolean; 
-    assignedDocuments: number; 
-  }) {
+  // Progress Display Component for Legal Analysis
+  function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
     const { data: jobProgress } = useQuery({
       queryKey: [`/api/background-jobs/${dealId}`],
-      refetchInterval: hasLegalAnalysis ? false : 1000, // Stop polling when analysis is complete
-      enabled: !hasLegalAnalysis
+      refetchInterval: 1000, // Poll every second for progress updates
     });
 
     const legalJobs = jobProgress?.jobs?.filter((job: any) => 
@@ -49,10 +44,6 @@ export default function EnhancedAgentCard({
     ) || [];
 
     const activeLegalJob = legalJobs[0];
-
-    if (hasLegalAnalysis) {
-      return null; // Don't show progress bar when analysis is complete
-    }
 
     if (!activeLegalJob) {
       return (
@@ -1087,7 +1078,9 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
       </div>
 
       {/* Processing Message with Progress Bar */}
-      <LegalAnalysisProgress dealId={dealId} hasLegalAnalysis={hasLegalAnalysis} assignedDocuments={assignedDocuments} />
+      {!hasLegalAnalysis && (
+        <ProgressDisplay dealId={dealId} assignedDocuments={assignedDocuments} />
+      )}
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg">
