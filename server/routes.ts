@@ -3467,17 +3467,21 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive legal analysis
+  // Run comprehensive legal analysis - systematically analyzes ALL assigned documents
   app.post('/api/deals/:dealId/legal-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
       console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
       
+      // Import the new comprehensive legal analysis service
+      const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
+      const comprehensiveLegalService = new ComprehensiveLegalAnalysisService();
+      
       // Run comprehensive legal analysis in background
       setImmediate(async () => {
         try {
-          const result = await legalAnalysisService.runComprehensiveAnalysis(dealId);
+          const result = await comprehensiveLegalService.runComprehensiveAnalysis(dealId);
           console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}:`, result);
         } catch (error) {
           console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
@@ -3486,8 +3490,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive legal analysis started',
-        dealId: dealId
+        message: 'Comprehensive legal analysis started - analyzing ALL assigned documents systematically',
+        dealId: dealId,
+        approach: 'exhaustive_document_analysis'
       });
     } catch (error) {
       console.error(`Error starting comprehensive legal analysis:`, error);
