@@ -822,6 +822,93 @@ export default function EnhancedAgentCard({
   );
 }
 
+// Progress Display Component for Legal Agent
+function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
+  const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+
+  const { data: jobsData } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000, // Poll every 1 second for faster updates
+    onSuccess: (data) => {
+      const activeJob = data?.jobs?.find((job: any) => 
+        job.jobType === 'comprehensive_legal_analysis' && 
+        job.status === 'processing'
+      );
+
+      if (activeJob) {
+        setIsAnalysisRunning(true);
+        setProgress(activeJob.progress || 0);
+        setCurrentStep(activeJob.currentStep || 'Processing...');
+        console.log(`📊 Progress update: ${activeJob.progress}% - ${activeJob.currentStep}`);
+      } else {
+        // Check if we had a running analysis that just completed
+        if (isAnalysisRunning) {
+          console.log('✅ Analysis completed, refreshing results...');
+          // Give it a moment for the results to be stored, then stop showing progress
+          setTimeout(() => {
+            setIsAnalysisRunning(false);
+            setProgress(0);
+            setCurrentStep('');
+          }, 2000);
+        }
+      }
+    }
+  });
+
+  // Listen for analysis start events from the button
+  useEffect(() => {
+    const handleAnalysisStart = () => {
+      console.log('🚀 Analysis start detected, showing progress bar');
+      setIsAnalysisRunning(true);
+      setProgress(0);
+      setCurrentStep('Starting comprehensive legal analysis...');
+    };
+
+    // Custom event listener for when analysis starts
+    window.addEventListener('legalAnalysisStarted', handleAnalysisStart);
+    return () => window.removeEventListener('legalAnalysisStarted', handleAnalysisStart);
+  }, []);
+
+  if (!isAnalysisRunning) {
+    return null;
+  }
+
+  return (
+    <div className="text-center py-8 border border-blue-500/20 rounded-lg bg-blue-500/5">
+      <div className="flex items-center justify-center mb-4">
+        <Loader2 className="h-8 w-8 text-blue-400 mr-3 animate-spin" />
+        <div className="text-left">
+          <h3 className="text-lg font-medium text-white">AI Legal Analysis in Progress</h3>
+          <p className="text-blue-400 text-sm">{currentStep}</p>
+        </div>
+      </div>
+      
+      {/* Enhanced progress bar */}
+      <div className="w-full max-w-md mx-auto mb-4">
+        <div className="bg-dark-lighter rounded-full h-4 relative overflow-hidden border border-blue-500/30">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-blue-400 h-4 rounded-full transition-all duration-700 ease-out relative"
+            style={{ width: `${Math.max(5, Math.min(100, progress))}%` }}
+          >
+            <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 rounded-full"></div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-sm font-medium text-white drop-shadow-lg">
+              {progress}%
+            </span>
+          </div>
+        </div>
+        <p className="text-gray-400 text-xs mt-2">
+          Processing {assignedDocuments} legal documents across 15 analysis categories
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // Legal Questions Section Component
 interface LegalQuestionsSectionProps {
   analysisData: any;
