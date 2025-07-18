@@ -490,15 +490,17 @@ Respond in JSON format:
     recommendations: any[],
     documentsAnalyzed: any[]
   ): Promise<void> {
-    // Check if legal analysis already exists
-    const existingAnalysis = await db
-      .select()
-      .from(agentAnalyses)
+    // First, delete any existing legal analysis to ensure clean replacement
+    await db
+      .delete(agentAnalyses)
       .where(and(
         eq(agentAnalyses.dealId, dealId),
         eq(agentAnalyses.agentType, 'legal')
       ));
     
+    console.log(`🗑️ Cleared existing legal analysis for deal ${dealId}`);
+    
+    // Create the new comprehensive analysis
     const analysisData = {
       dealId,
       agentType: 'legal' as const,
@@ -508,27 +510,14 @@ Respond in JSON format:
       recommendations: JSON.stringify(recommendations),
       legalAnswers: JSON.stringify(legalAnswers),
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
+      createdAt: new Date(),
       updatedAt: new Date()
     };
     
-    if (existingAnalysis.length > 0) {
-      // Update existing analysis
-      await db
-        .update(agentAnalyses)
-        .set(analysisData)
-        .where(eq(agentAnalyses.id, existingAnalysis[0].id));
-      
-      console.log(`📊 Updated existing legal analysis for deal ${dealId}`);
-    } else {
-      // Create new analysis
-      await db
-        .insert(agentAnalyses)
-        .values({
-          ...analysisData,
-          createdAt: new Date()
-        });
-      
-      console.log(`📊 Created new legal analysis for deal ${dealId}`);
-    }
+    await db
+      .insert(agentAnalyses)
+      .values(analysisData);
+    
+    console.log(`📊 Created fresh comprehensive legal analysis for deal ${dealId} with ${Object.keys(legalAnswers).length} questions answered`);
   }
 }
