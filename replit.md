@@ -307,6 +307,12 @@ Changelog:
   - Import scripts operational: processing 500 organizations per page with proper error handling
   - Real-time progress tracking confirmed accessing 4,000+ organizations across multiple pages
   - System actively importing remaining 4,600+ organizations to reach full 8,000+ target
+- July 18, 2025: Fixed comprehensive legal analysis UI update issues and button conflicts
+  - Resolved critical cache invalidation problem preventing UI refresh when comprehensive analysis completes
+  - Fixed conflicting analysis systems: removed regular "Run Legal Analysis" for Legal agents to prevent interference
+  - Enhanced "Run AI Analysis" button to properly invalidate all relevant query keys for immediate UI updates
+  - System now correctly displays comprehensive legal analysis results (15 questions, 169 documents processed)
+  - Legal agent interface streamlined to show only comprehensive analysis with detailed question-answer format
 ```
 
 ## User Preferences

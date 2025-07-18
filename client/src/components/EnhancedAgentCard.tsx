@@ -636,7 +636,7 @@ export default function EnhancedAgentCard({
           ) : null
         )}
 
-        {shouldShowProcessingUI() ? (
+        {shouldShowProcessingUI() && agentType.toLowerCase() !== 'legal' ? (
           <div className="text-center py-8">
             <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
             <h3 className="text-lg font-medium text-white mb-2">Running {agentType} Analysis</h3>
@@ -685,7 +685,7 @@ export default function EnhancedAgentCard({
             
             <p className="text-sm text-gray-500">This may take several minutes to complete</p>
           </div>
-        ) : (
+        ) : agentType.toLowerCase() !== 'legal' ? (
           <div className="text-center py-8">
             <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-white mb-2">No Analysis Available</h3>
@@ -710,7 +710,7 @@ export default function EnhancedAgentCard({
               )}
             </Button>
           </div>
-        )}
+        ) : null}
 
         {/* Recommendations Section */}
         {recommendations.length > 0 && (
