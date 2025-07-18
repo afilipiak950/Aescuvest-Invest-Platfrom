@@ -2,6 +2,7 @@ import { db } from './db';
 import { agentAnalyses, documents } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { storage } from './storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -103,9 +104,24 @@ export class SimpleLegalAnalysisService {
   async runSimpleLegalAnalysis(dealId: number): Promise<any> {
     console.log(`🚀 Starting simple legal analysis for deal ${dealId}`);
     
+    // Create background job for progress tracking
+    const jobId = `legal_analysis_${dealId}_${Date.now()}`;
+    await storage.createBackgroundJob({
+      jobId,
+      dealId,
+      status: 'processing',
+      progress: 0,
+      jobType: 'comprehensive_legal_analysis',
+      currentStep: 'Initializing legal analysis...'
+    });
+    
     try {
       // Add a delay to ensure this runs after any cleanup
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update progress: Finding documents
+      await this.updateProgress(jobId, 5, 'Finding legal documents...');
+      
       // Get legal documents 
       const legalDocs = await this.getLegalDocuments(dealId);
       console.log(`📄 Found ${legalDocs.length} legal documents`);
@@ -116,13 +132,25 @@ export class SimpleLegalAnalysisService {
       });
       
       if (legalDocs.length === 0) {
+        await storage.updateBackgroundJob(jobId, { 
+          status: 'completed', 
+          progress: 100, 
+          currentStep: 'No legal documents found' 
+        });
         throw new Error('No legal documents found');
       }
       
-      // Process questions quickly
-      const legalAnswers: Record<string, any> = {};
+      await this.updateProgress(jobId, 10, `Analyzing ${legalDocs.length} legal documents...`);
       
-      for (const question of LEGAL_QUESTIONS) {
+      // Process questions with progress updates
+      const legalAnswers: Record<string, any> = {};
+      const totalQuestions = LEGAL_QUESTIONS.length;
+      
+      for (let i = 0; i < LEGAL_QUESTIONS.length; i++) {
+        const question = LEGAL_QUESTIONS[i];
+        const questionProgress = 10 + (i / totalQuestions) * 70; // 10% to 80%
+        
+        await this.updateProgress(jobId, questionProgress, `Processing: ${question.question}`);
         console.log(`🔍 Processing: ${question.question}`);
         
         const answer = await this.processQuestion(question, legalDocs);
@@ -132,11 +160,20 @@ export class SimpleLegalAnalysisService {
       }
       
       // Generate findings
+      await this.updateProgress(jobId, 85, 'Generating findings and recommendations...');
       const findings = this.generateFindings(legalAnswers);
       const recommendations = this.generateRecommendations(legalAnswers);
       
       // Store results
+      await this.updateProgress(jobId, 95, 'Storing analysis results...');
       await this.storeResults(dealId, legalAnswers, findings, recommendations, legalDocs);
+      
+      // Complete the job
+      await storage.updateBackgroundJob(jobId, { 
+        status: 'completed', 
+        progress: 100, 
+        currentStep: `Legal analysis completed - ${Object.keys(legalAnswers).length} questions analyzed` 
+      });
       
       console.log(`✅ Simple legal analysis completed for deal ${dealId}`);
       
@@ -150,7 +187,19 @@ export class SimpleLegalAnalysisService {
       
     } catch (error) {
       console.error(`❌ Error in simple legal analysis:`, error);
+      await storage.updateBackgroundJob(jobId, { 
+        status: 'failed', 
+        currentStep: `Error: ${error.message}` 
+      });
       throw error;
+    }
+  }
+
+  private async updateProgress(jobId: string, progress: number, currentStep: string) {
+    try {
+      await storage.updateBackgroundJob(jobId, { progress, currentStep });
+    } catch (error) {
+      console.error('Error updating progress:', error);
     }
   }
   
