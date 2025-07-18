@@ -1128,7 +1128,10 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
       return response;
     },
     onSuccess: () => {
-      // Invalidate the agent analyses to refresh the legal data
+      // Invalidate ALL relevant query keys to refresh the legal data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+      });
       queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
       });
@@ -1171,6 +1174,9 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
             console.log('✅ New comprehensive legal analysis detected');
             
             // Force refresh of all related data
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+            });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
             });
