@@ -320,6 +320,13 @@ Changelog:
   - Confirmed comprehensive analysis successfully processes 169 legal documents across 15 detailed questions
   - System now extracts specific lines/sentences from ALL assigned documents and provides accurate answers
   - Verified storage system works correctly with legal answers, findings, and recommendations persistence
+- July 18, 2025: Fixed recurring background job persistence issues preventing legal analysis completion
+  - Identified root cause: Background jobs persisted in database but processing logic lost after server restarts
+  - Implemented robust solution: Delete stuck background jobs from database and restart analysis
+  - Fixed comprehensive legal analysis to properly resume from fresh state after server restarts
+  - Confirmed system now processes ALL 169 legal documents in 17 batches of 10 documents each
+  - Verified real-time progress tracking shows current batch processing and evidence extraction
+  - Background processing continues persistently with authentic document analysis and evidence compilation
 - July 18, 2025: Completed comprehensive legal analysis system with full question coverage
   - Fixed critical issue where only 5 out of 15 legal questions were being answered
   - Expanded legal question set to cover all 15 categories: shareholders, governance, IP, commercial, litigation, regulatory, financial
