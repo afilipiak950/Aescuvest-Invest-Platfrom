@@ -570,61 +570,14 @@ export default function EnhancedAgentCard({
 
         {/* Legal Questions for Legal Agent */}
         {agentType.toLowerCase() === 'legal' ? (
-          <div>
-            {/* Display comprehensive analysis status */}
-            <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-white">Comprehensive Legal Analysis</h3>
-                <Badge variant="outline" className="text-blue-400 border-blue-400">
-                  ALL {assignedDocuments} Documents
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-300 mb-3">
-                This analysis covers every single document assigned to the legal agent, ensuring comprehensive and reliable answers across all 15 legal question categories.
-              </p>
-              {!hasAnalysis && (
-                <Button
-                  onClick={async () => {
-                    // Trigger comprehensive legal analysis
-                    try {
-                      const response = await fetch(`/api/deals/${dealId}/legal-analysis/comprehensive`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                      });
-                      
-                      if (response.ok) {
-                        // Emit event to start progress tracking
-                        window.dispatchEvent(new CustomEvent('legalAnalysisStarted'));
-                        
-                        // Refetch data to update UI
-                        setTimeout(() => {
-                          window.location.reload();
-                        }, 1000);
-                      }
-                    } catch (error) {
-                      console.error('Error starting comprehensive legal analysis:', error);
-                    }
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={assignedDocuments === 0}
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Run AI Analysis ({assignedDocuments} docs)
-                </Button>
-              )}
-            </div>
-            
-            <LegalQuestionsSection 
-              dealId={dealId}
-              analysisData={analysisData} 
-              findings={findings} 
-              assignedDocuments={assignedDocuments}
-              documents={documents || []}
-              handleDocumentClick={handleDocumentClick}
-            />
-          </div>
+          <LegalQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            findings={findings} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+          />
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (

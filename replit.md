@@ -334,14 +334,6 @@ Changelog:
   - Progress shows current steps: finding documents, processing questions, generating findings, storing results
   - Background processing continues persistently with real-time UI updates until completion
   - Fixed JavaScript error causing blank site and ensured proper component integration
-- July 18, 2025: Enhanced comprehensive legal analysis to guarantee ALL assigned documents are analyzed
-  - CRITICAL FIX: System now analyzes every single document assigned to legal agent (114 documents confirmed)
-  - Removed fallback keyword-based document filtering to ensure no documents are missed
-  - Enhanced evidence extraction to process ALL assigned documents for each of the 15 legal questions
-  - Added comprehensive logging to track every document being analyzed with document names and IDs
-  - Updated UI to clearly show "ALL X Documents" badge and comprehensive analysis description
-  - Answers now based on synthesis of evidence from ALL assigned documents, ensuring reliable legal analysis
-  - System logs show complete document coverage: "Analyzing ALL X legal documents for: [question]"
 ```
 
 ## User Preferences
