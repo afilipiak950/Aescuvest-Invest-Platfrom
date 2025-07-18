@@ -211,7 +211,7 @@ export class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for legal analysis
+   * Get ALL documents assigned to legal agent - ENSURES COMPREHENSIVE ANALYSIS
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -221,84 +221,64 @@ export class ComprehensiveLegalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to legal agent
-    let legalDocuments = allDocuments.filter(doc => 
+    // Get ALL documents explicitly assigned to legal agent with content
+    const legalDocuments = allDocuments.filter(doc => 
       doc.assignedAgent === 'legal' && 
       (doc.ocrText || doc.aiSummary)
     );
     
     console.log(`📄 Documents explicitly assigned to legal: ${legalDocuments.length}`);
     
-    // If no documents are explicitly assigned to legal, identify legal-related documents
     if (legalDocuments.length === 0) {
-      console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
-      
-      legalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
-        
-        const docName = doc.name.toLowerCase();
-        const docContent = (doc.ocrText || '').toLowerCase();
-        const aiSummary = doc.aiSummary;
-        
-        // Legal document keywords
-        const legalKeywords = [
-          'contract', 'agreement', 'legal', 'license', 'patent', 'trademark', 
-          'copyright', 'litigation', 'compliance', 'regulatory', 'terms', 
-          'conditions', 'confidential', 'nda', 'employment', 'consulting', 
-          'executed', 'signed', 'shareholder', 'investor', 'funding', 
-          'liquidation', 'preference', 'anti-dilution', 'voting', 'board',
-          'ip assignment', 'intellectual property', 'governance', 'bylaws',
-          'articles', 'incorporation', 'memorandum', 'constitution'
-        ];
-        
-        // Check document name and content for legal keywords
-        const hasLegalKeywords = legalKeywords.some(keyword => 
-          docName.includes(keyword) || docContent.includes(keyword)
-        );
-        
-        // Check AI summary for legal document type
-        const isLegalDocument = aiSummary?.documentType?.toLowerCase().includes('legal') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('legal') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('contract') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('agreement');
-        
-        return hasLegalKeywords || isLegalDocument;
-      });
-      
-      console.log(`📄 Auto-identified legal documents: ${legalDocuments.length}`);
+      throw new Error('No documents are assigned to the legal agent. Please assign documents to the legal agent first before running analysis.');
     }
     
-    // If still no legal documents, take documents with meaningful content for analysis
-    if (legalDocuments.length === 0) {
-      console.log('📄 No legal-related documents found, using all documents with OCR text...');
-      legalDocuments = allDocuments.filter(doc => 
-        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
-      );
-      console.log(`📄 Documents with content available: ${legalDocuments.length}`);
-    }
+    // CRITICAL: Log every single document to ensure comprehensive coverage
+    console.log(`🔍 COMPREHENSIVE LEGAL ANALYSIS - Processing ALL ${legalDocuments.length} assigned documents:`);
+    legalDocuments.forEach((doc, index) => {
+      console.log(`📄 Document ${index + 1}/${legalDocuments.length}: ${doc.name} (ID: ${doc.id})`);
+    });
     
     return legalDocuments;
   }
   
   /**
-   * Extract evidence from ALL documents for a specific question
+   * Extract evidence from ALL documents for a specific question - COMPREHENSIVE ANALYSIS
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    const evidence = [];
+    console.log(`🔍 COMPREHENSIVE ANALYSIS: Analyzing ALL ${documents.length} legal documents for: "${question.question}"`);
     
-    for (const doc of documents) {
-      console.log(`🔎 Extracting evidence from: ${doc.name}`);
+    const evidence = [];
+    let documentsWithEvidence = 0;
+    
+    for (let i = 0; i < documents.length; i++) {
+      const doc = documents[i];
+      console.log(`🔎 [${i + 1}/${documents.length}] Extracting evidence from: ${doc.name}`);
       
       const docEvidence = await this.extractEvidenceFromDocument(doc, question);
-      if (docEvidence && docEvidence.relevantContent.length > 0) {
-        evidence.push(docEvidence);
+      
+      // CRITICAL: Include ALL documents in analysis, even if no direct evidence
+      // This ensures comprehensive coverage and identifies gaps
+      evidence.push({
+        ...docEvidence,
+        documentAnalyzed: true,
+        analysisOrder: i + 1
+      });
+      
+      if (docEvidence && docEvidence.hasRelevantInfo) {
+        documentsWithEvidence++;
+        console.log(`✅ Found relevant evidence in: ${doc.name}`);
+      } else {
+        console.log(`ℹ️ No direct evidence in: ${doc.name} (still included in comprehensive analysis)`);
       }
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    console.log(`📋 COMPREHENSIVE COVERAGE: Analyzed ${documents.length} documents, found evidence in ${documentsWithEvidence} documents`);
+    console.log(`📋 Total evidence records: ${evidence.length} (includes all ${documents.length} assigned documents)`);
+    
     return evidence;
   }
   
@@ -368,22 +348,31 @@ Only extract actual content from the document. If no relevant information is fou
   }
   
   /**
-   * Compile comprehensive answer based on all evidence
+   * Compile comprehensive answer based on ALL evidence from ALL documents
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    const totalDocuments = evidence.length;
+    const documentsWithEvidence = evidence.filter(e => e.hasRelevantInfo).length;
+    
+    console.log(`📋 Compiling answer for "${question.question}" from ${totalDocuments} total documents (${documentsWithEvidence} with relevant evidence)`);
+    
     if (evidence.length === 0) {
       return {
         question: question.question,
-        answer: `No relevant information found in the assigned legal documents for this question.`,
-        confidence: 10,
+        answer: `No documents were analyzed for this legal question.`,
+        confidence: 0,
         sources: [],
         evidenceCount: 0,
-        documentsCovered: 0
+        documentsCovered: 0,
+        totalDocumentsAnalyzed: 0
       };
     }
     
-    // Filter evidence with relevant information
+    // Get evidence with relevant information for analysis
     const relevantEvidence = evidence.filter(e => e.hasRelevantInfo);
+    
+    // List all documents that were analyzed (both with and without evidence)
+    const allAnalyzedDocuments = evidence.map(e => e.documentName);
     
     const prompt = `You are a senior legal analyst compiling a comprehensive answer based on evidence from multiple documents.
 
