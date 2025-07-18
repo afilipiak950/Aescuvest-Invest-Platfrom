@@ -1146,10 +1146,24 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
       
-      // Keep the button in loading state for a few seconds to show feedback
+      // Aggressively invalidate all related caches to ensure fresh data
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+      });
+      
+      // Wait for analysis to complete and refresh data
       setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: ['/api/analyses', dealId]
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+        });
         setIsRunning(false);
-      }, 3000);
+      }, 10000); // Wait 10 seconds for analysis to complete
     } catch (error) {
       setIsRunning(false);
     }
