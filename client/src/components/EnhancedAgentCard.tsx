@@ -825,47 +825,19 @@ export default function EnhancedAgentCard({
 
 // Progress Display Component for Legal Agent
 function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
-  const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('');
-
   const { data: progressData } = useQuery({
     queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/progress`],
     refetchInterval: 1000, // Poll every 1 second for faster updates
-    onSuccess: (data) => {
-      if (data?.isRunning) {
-        setIsAnalysisRunning(true);
-        setProgress(data.progress || 0);
-        setCurrentStep(data.currentStep || 'Processing...');
-        console.log(`📊 Progress update: ${data.progress}% - ${data.currentStep}`);
-      } else {
-        // Check if we had a running analysis that just completed
-        if (isAnalysisRunning) {
-          console.log('✅ Analysis completed, refreshing results...');
-          // Give it a moment for the results to be stored, then stop showing progress
-          setTimeout(() => {
-            setIsAnalysisRunning(false);
-            setProgress(0);
-            setCurrentStep('');
-          }, 2000);
-        }
-      }
-    }
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data
   });
 
-  // Listen for analysis start events from the button
-  useEffect(() => {
-    const handleAnalysisStart = () => {
-      console.log('🚀 Analysis start detected, showing progress bar');
-      setIsAnalysisRunning(true);
-      setProgress(0);
-      setCurrentStep('Starting comprehensive legal analysis...');
-    };
+  // Extract progress data directly from the API response
+  const isAnalysisRunning = progressData?.isRunning || false;
+  const progress = progressData?.progress || 0;
+  const currentStep = progressData?.currentStep || 'Processing...';
 
-    // Custom event listener for when analysis starts
-    window.addEventListener('legalAnalysisStarted', handleAnalysisStart);
-    return () => window.removeEventListener('legalAnalysisStarted', handleAnalysisStart);
-  }, []);
+  console.log(`📊 Legal Section Progress Update: ${progress}% - ${currentStep} (running: ${isAnalysisRunning})`);
 
   if (!isAnalysisRunning) {
     return null;
