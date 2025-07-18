@@ -8,6 +8,7 @@ import { db } from './db';
 import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { storage } from './storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -115,7 +116,7 @@ export class ComprehensiveLegalAnalysisService {
     
     // Create background job for progress tracking
     const jobId = `legal_analysis_${dealId}_${Date.now()}`;
-    await jobManager.createBackgroundJob({
+    await storage.createBackgroundJob({
       jobId,
       jobType: 'comprehensive_legal_analysis',
       dealId,
@@ -132,7 +133,7 @@ export class ComprehensiveLegalAnalysisService {
     console.log(`📄 Found ${assignedDocuments.length} documents suitable for legal analysis`);
     
     if (assignedDocuments.length === 0) {
-      await jobManager.updateBackgroundJob(jobId, {
+      await storage.updateBackgroundJob(jobId, {
         status: 'completed',
         progress: 100,
         error: 'No documents available for legal analysis'
@@ -141,7 +142,7 @@ export class ComprehensiveLegalAnalysisService {
     }
     
     // Update job with total questions to process
-    await jobManager.updateBackgroundJob(jobId, {
+    await storage.updateBackgroundJob(jobId, {
       totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
       currentStep: 'Analyzing legal documents across 15 question categories'
     });
@@ -155,7 +156,7 @@ export class ComprehensiveLegalAnalysisService {
       
       // Update progress
       const progress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
-      await jobManager.updateBackgroundJob(jobId, {
+      await storage.updateBackgroundJob(jobId, {
         progress,
         processedDocuments: i,
         currentDocumentName: question.question,
@@ -179,7 +180,7 @@ export class ComprehensiveLegalAnalysisService {
     }
     
     // Update progress to completion
-    await jobManager.updateBackgroundJob(jobId, {
+    await storage.updateBackgroundJob(jobId, {
       progress: 100,
       processedDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
       currentStep: 'Generating findings and recommendations',
@@ -194,7 +195,7 @@ export class ComprehensiveLegalAnalysisService {
     await this.storeComprehensiveResults(dealId, legalAnswers, findings, recommendations, assignedDocuments);
     
     // Mark job as completed
-    await jobManager.updateBackgroundJob(jobId, {
+    await storage.updateBackgroundJob(jobId, {
       status: 'completed',
       currentStep: 'Analysis completed'
     });
