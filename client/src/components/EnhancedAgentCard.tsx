@@ -1087,7 +1087,7 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
       </div>
 
       {/* Processing Message with Progress Bar */}
-      <LegalAnalysisProgress dealId={22} hasLegalAnalysis={hasLegalAnalysis} assignedDocuments={assignedDocuments} />
+      <LegalAnalysisProgress dealId={dealId} hasLegalAnalysis={hasLegalAnalysis} assignedDocuments={assignedDocuments} />
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg">
