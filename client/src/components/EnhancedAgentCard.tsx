@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 
 interface EnhancedAgentCardProps {
   dealId: number;
@@ -30,6 +31,70 @@ export default function EnhancedAgentCard({
 }: EnhancedAgentCardProps) {
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const queryClient = useQueryClient();
+
+  // Legal Analysis Progress Component
+  function LegalAnalysisProgress({ dealId, hasLegalAnalysis, assignedDocuments }: { 
+    dealId: number; 
+    hasLegalAnalysis: boolean; 
+    assignedDocuments: number; 
+  }) {
+    const { data: jobProgress } = useQuery({
+      queryKey: [`/api/background-jobs/${dealId}`],
+      refetchInterval: hasLegalAnalysis ? false : 1000, // Stop polling when analysis is complete
+      enabled: !hasLegalAnalysis
+    });
+
+    const legalJobs = jobProgress?.jobs?.filter((job: any) => 
+      job.jobType === 'comprehensive_legal_analysis' && job.status === 'processing'
+    ) || [];
+
+    const activeLegalJob = legalJobs[0];
+
+    if (hasLegalAnalysis) {
+      return null; // Don't show progress bar when analysis is complete
+    }
+
+    if (!activeLegalJob) {
+      return (
+        <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
+            <div>
+              <p className="text-yellow-400 font-medium">Legal Analysis Ready</p>
+              <p className="text-gray-400 text-sm">
+                Ready to analyze {assignedDocuments} legal documents. Click "Run AI Analysis" to start.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
+          <div className="flex-1">
+            <p className="text-yellow-400 font-medium">Legal Analysis in Progress</p>
+            <p className="text-gray-400 text-sm">
+              {activeLegalJob.currentStep || 'Processing legal documents...'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-white font-medium">{Math.round(activeLegalJob.progress || 0)}%</p>
+          </div>
+        </div>
+        <Progress 
+          value={activeLegalJob.progress || 0} 
+          className="h-2 bg-dark-lighter"
+        />
+        <div className="flex justify-between text-xs text-gray-400 mt-2">
+          <span>Analyzing {assignedDocuments} documents</span>
+          <span>{Math.round(activeLegalJob.progress || 0)}% complete</span>
+        </div>
+      </div>
+    );
+  }
 
   // Handle document click to open document
   const handleDocumentClick = (sourceName: string) => {
@@ -1021,21 +1086,8 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
         <ComprehensiveLegalAnalysisButton dealId={22} />
       </div>
 
-      {/* Processing Message */}
-      {!hasLegalAnalysis && (
-        <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
-            <div>
-              <p className="text-yellow-400 font-medium">Legal Analysis in Progress</p>
-              <p className="text-gray-400 text-sm">
-                AI analysis is currently processing {assignedDocuments} legal documents. 
-                Questions will show answers as analysis completes.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Processing Message with Progress Bar */}
+      <LegalAnalysisProgress dealId={22} hasLegalAnalysis={hasLegalAnalysis} assignedDocuments={assignedDocuments} />
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg">
