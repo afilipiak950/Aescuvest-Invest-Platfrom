@@ -14,6 +14,12 @@ export class PersistentJobManager {
   }
 
   async startAgentAnalysis(dealId: number, agentType: string, totalDocuments: number): Promise<string> {
+    // Skip regular analysis for Legal agents - they use comprehensive analysis only
+    if (agentType.toLowerCase() === 'legal') {
+      console.log(`⏭️ Skipping regular analysis for Legal agent - use comprehensive analysis instead`);
+      throw new Error('Legal agents use comprehensive analysis only. Use /api/deals/:dealId/legal-analysis/comprehensive instead.');
+    }
+
     const jobId = `${agentType}-analysis-${dealId}`;
     
     try {
