@@ -823,64 +823,7 @@ export default function EnhancedAgentCard({
   );
 }
 
-// Progress Display Component for Legal Agent
-function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
-  const { data: progressData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/progress`],
-    refetchInterval: 1000, // Poll every 1 second for faster updates
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache data
-  });
-
-  // Extract progress data directly from the API response
-  const isAnalysisRunning = progressData?.isRunning || false;
-  const progress = progressData?.progress || 0;
-  const currentStep = progressData?.currentStep || 'Processing...';
-
-  console.log(`📊 Legal Section Progress Update: ${progress}% - ${currentStep} (running: ${isAnalysisRunning})`);
-
-  if (!isAnalysisRunning) {
-    return null;
-  }
-
-  return (
-    <div className="text-center py-8 border border-blue-500/20 rounded-lg bg-blue-500/5">
-      <div className="flex items-center justify-center mb-4">
-        <Loader2 className="h-8 w-8 text-blue-400 mr-3 animate-spin" />
-        <div className="text-left">
-          <h3 className="text-lg font-medium text-white">AI Legal Analysis in Progress</h3>
-          <p className="text-blue-400 text-sm">{currentStep}</p>
-        </div>
-      </div>
-      
-      {/* Enhanced progress bar */}
-      <div className="w-full max-w-md mx-auto mb-4">
-        <div className="bg-dark-lighter rounded-full h-4 relative overflow-hidden border border-blue-500/30">
-          <div 
-            className="bg-gradient-to-r from-blue-500 to-blue-400 h-4 rounded-full transition-all duration-700 ease-out relative"
-            style={{ width: `${Math.max(5, Math.min(100, progress))}%` }}
-          >
-            <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 rounded-full"></div>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-medium text-white drop-shadow-lg">
-              {progress}%
-            </span>
-          </div>
-        </div>
-        <p className="text-gray-400 text-xs mt-2">
-          {currentStep || `Processing ${assignedDocuments} legal documents across 15 analysis categories`}
-        </p>
-        {currentStep && (
-          <p className="text-blue-400 text-xs mt-1 italic">
-            📄 Current: {currentStep}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
+// Removed duplicate progress display - using only the main global progress bar at top of page
 
 // Legal Questions Section Component
 interface LegalQuestionsSectionProps {
@@ -1138,10 +1081,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
         <ComprehensiveLegalAnalysisButton dealId={22} />
       </div>
 
-      {/* Processing Message with Progress Bar */}
-      {!hasLegalAnalysis && (
-        <ProgressDisplay dealId={dealId} assignedDocuments={assignedDocuments} />
-      )}
+      {/* Progress is now shown in main progress bar at top of page - removed duplicate here */}
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg">
