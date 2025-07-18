@@ -3474,6 +3474,23 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
       
+      // Check for existing legal analysis jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingLegalJob = existingJobs.find(job => 
+        (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_analysis')) && 
+        job.status === 'processing'
+      );
+      
+      if (existingLegalJob) {
+        console.log(`⚠️ Legal analysis already running for deal ${dealId} (Job: ${existingLegalJob.jobId})`);
+        return res.json({ 
+          success: false, 
+          message: `Legal analysis already in progress (${Math.round(existingLegalJob.progress || 0)}% complete)`,
+          alreadyRunning: true,
+          progress: existingLegalJob.progress || 0
+        });
+      }
+      
       // Import the comprehensive legal analysis service
       const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
       const legalService = new ComprehensiveLegalAnalysisService();
