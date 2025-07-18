@@ -81,7 +81,7 @@ export default function DueDiligence() {
   // Fetch job progress data for real-time updates
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
-    enabled: !!selectedDeal && isRunningAllAnalyses,
+    enabled: !!selectedDeal,
     refetchInterval: 1000, // Poll every second for real-time progress
     queryFn: async () => {
       console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
@@ -447,29 +447,38 @@ export default function DueDiligence() {
         </CardContent>
       </Card>
       
-      {/* Global Legal Analysis Progress - Persistent across all tabs */}
-      {legalProgress?.isRunning && (
+      {/* Global Analysis Progress - Persistent across all tabs */}
+      {(legalProgress?.isRunning || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
         <Card className="bg-blue-500/5 border-blue-500/20 mb-6">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
                 <div>
-                  <h3 className="text-white font-medium">Legal Analysis in Progress</h3>
+                  <h3 className="text-white font-medium">
+                    {legalProgress?.isRunning ? 'Legal Analysis in Progress' : 'Analysis in Progress'}
+                  </h3>
                   <p className="text-blue-400 text-sm">
-                    {legalProgress.currentStep || 'Processing legal documents'}
+                    {legalProgress?.currentStep || 
+                     (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 
+                      `${jobProgress.jobs.length} agent${jobProgress.jobs.length > 1 ? 's' : ''} processing` : 
+                      'Processing documents')}
                   </p>
                 </div>
               </div>
               <Badge variant="outline" className="text-blue-400 border-blue-400">
-                {legalProgress.progress || 0}%
+                {legalProgress?.isRunning ? 
+                  `${legalProgress.progress || 0}%` : 
+                  `${jobProgress?.jobs?.length || 0} active`}
               </Badge>
             </div>
             
             <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-blue-500/30">
               <div 
                 className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${Math.max(5, Math.min(100, legalProgress.progress || 0))}%` }}
+                style={{ width: `${legalProgress?.isRunning ? 
+                  Math.max(5, Math.min(100, legalProgress.progress || 0)) : 
+                  (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 25 : 0)}%` }}
               >
                 <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
               </div>
