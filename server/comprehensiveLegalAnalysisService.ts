@@ -110,22 +110,57 @@ export class ComprehensiveLegalAnalysisService {
   /**
    * Run comprehensive analysis for all assigned legal documents
    */
-  async runComprehensiveAnalysis(dealId: number): Promise<any> {
+  async runComprehensiveAnalysis(dealId: number, jobManager: any): Promise<any> {
     console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
+    
+    // Create background job for progress tracking
+    const jobId = `legal_analysis_${dealId}_${Date.now()}`;
+    await jobManager.createBackgroundJob({
+      jobId,
+      jobType: 'comprehensive_legal_analysis',
+      dealId,
+      agentType: 'Legal',
+      status: 'processing',
+      progress: 0,
+      totalDocuments: 0,
+      processedDocuments: 0,
+      startedAt: new Date()
+    });
     
     // Get all documents suitable for legal analysis
     const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
     console.log(`📄 Found ${assignedDocuments.length} documents suitable for legal analysis`);
     
     if (assignedDocuments.length === 0) {
+      await jobManager.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        error: 'No documents available for legal analysis'
+      });
       throw new Error('No documents available for legal analysis');
     }
+    
+    // Update job with total questions to process
+    await jobManager.updateBackgroundJob(jobId, {
+      totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
+      currentStep: 'Analyzing legal documents across 15 question categories'
+    });
     
     // Process each question comprehensively
     const legalAnswers: Record<string, any> = {};
     
-    for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
-      console.log(`🔍 Analyzing question: ${question.question}`);
+    for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
+      const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
+      console.log(`🔍 Processing: ${question.question}`);
+      
+      // Update progress
+      const progress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
+      await jobManager.updateBackgroundJob(jobId, {
+        progress,
+        processedDocuments: i,
+        currentDocumentName: question.question,
+        currentStep: `Analyzing: ${question.category}`
+      });
       
       // Extract evidence from ALL assigned documents for this question
       const documentEvidence = await this.extractEvidenceFromAllDocuments(
@@ -137,11 +172,19 @@ export class ComprehensiveLegalAnalysisService {
       const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
       legalAnswers[question.id] = answer;
       
-      console.log(`✅ Completed analysis for: ${question.question}`);
+      console.log(`✅ Completed: ${question.question}`);
       
       // Brief delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
+    
+    // Update progress to completion
+    await jobManager.updateBackgroundJob(jobId, {
+      progress: 100,
+      processedDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
+      currentStep: 'Generating findings and recommendations',
+      status: 'completing'
+    });
     
     // Generate comprehensive findings and recommendations
     const findings = this.generateComprehensiveFindings(legalAnswers);
@@ -149,6 +192,12 @@ export class ComprehensiveLegalAnalysisService {
     
     // Store the analysis results
     await this.storeComprehensiveResults(dealId, legalAnswers, findings, recommendations, assignedDocuments);
+    
+    // Mark job as completed
+    await jobManager.updateBackgroundJob(jobId, {
+      status: 'completed',
+      currentStep: 'Analysis completed'
+    });
     
     console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
     
