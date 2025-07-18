@@ -160,92 +160,160 @@ export class SimpleLegalAnalysisService {
       .from(documents)
       .where(eq(documents.dealId, dealId));
     
-    // Get documents with legal keywords
-    return allDocs.filter(doc => {
+    // Get documents specifically assigned to legal agents
+    const legalDocs = allDocs.filter(doc => {
       if (!doc.ocrText && !doc.aiSummary) return false;
       
-      const content = (doc.name + ' ' + (doc.ocrText || '') + ' ' + (doc.aiSummary || '')).toLowerCase();
+      // Check if document is assigned to legal agent
+      const assignedAgents = doc.assignedAgents || [];
+      const isAssignedToLegal = assignedAgents.includes('legal');
       
+      if (isAssignedToLegal) {
+        console.log(`📋 Legal assigned document: ${doc.name}`);
+        return true;
+      }
+      
+      // Fallback: Use keyword matching if no assignments exist
+      const content = (doc.name + ' ' + (doc.ocrText || '') + ' ' + (doc.aiSummary || '')).toLowerCase();
       const legalKeywords = [
         'agreement', 'contract', 'legal', 'shareholder', 'equity', 'shares',
         'investment', 'employment', 'consulting', 'board', 'governance',
-        'intellectual property', 'patent', 'trademark', 'license'
+        'intellectual property', 'patent', 'trademark', 'license', 'aoa', 'articles'
       ];
       
-      return legalKeywords.some(keyword => content.includes(keyword));
-    }).slice(0, 50); // Limit to 50 docs for speed
+      const isLegalByKeywords = legalKeywords.some(keyword => content.includes(keyword));
+      if (isLegalByKeywords) {
+        console.log(`🔍 Legal keyword match: ${doc.name}`);
+      }
+      
+      return isLegalByKeywords;
+    });
+    
+    console.log(`📊 Total legal documents found: ${legalDocs.length}`);
+    return legalDocs.slice(0, 100); // Increased limit for comprehensive analysis
   }
   
   private async processQuestion(question: any, documents: any[]): Promise<any> {
-    // Find relevant documents
-    const relevantDocs = documents.filter(doc => {
-      const content = (doc.name + ' ' + (doc.ocrText || '') + ' ' + (doc.aiSummary || '')).toLowerCase();
-      return question.keywords.some((keyword: string) => content.includes(keyword));
-    }).slice(0, 10); // Limit to 10 most relevant docs
+    console.log(`🔍 Processing question: ${question.question}`);
+    console.log(`📄 Available documents: ${documents.length}`);
     
-    if (relevantDocs.length === 0) {
+    // Find relevant documents with actual content matching
+    const relevantDocsWithQuotes = [];
+    
+    for (const doc of documents) {
+      const content = doc.ocrText || doc.aiSummary || '';
+      const contentStr = typeof content === 'string' ? content : String(content);
+      
+      if (!contentStr || contentStr.length < 10) continue;
+      
+      // Check if document contains relevant keywords
+      const hasRelevantContent = question.keywords.some((keyword: string) => 
+        contentStr.toLowerCase().includes(keyword.toLowerCase()) ||
+        doc.name.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (hasRelevantContent) {
+        relevantDocsWithQuotes.push({
+          name: doc.name,
+          content: contentStr,
+          id: doc.id
+        });
+      }
+    }
+    
+    console.log(`📋 Found ${relevantDocsWithQuotes.length} relevant documents for: ${question.question}`);
+    
+    if (relevantDocsWithQuotes.length === 0) {
       return {
         question: question.question,
-        answer: 'No relevant information found in available documents.',
-        confidence: 20,
+        answer: 'No relevant information found in assigned legal documents.',
+        confidence: 10,
         sources: [],
+        quotes: [],
+        keyFindings: [],
+        evidenceSummary: 'No documents contain relevant information for this question.',
         evidenceCount: 0
       };
     }
     
-    // Create summary of relevant content
-    const documentSummaries = relevantDocs.map(doc => {
-      const content = doc.aiSummary || doc.ocrText || '';
-      const contentStr = typeof content === 'string' ? content : String(content);
-      return {
-        name: doc.name,
-        content: contentStr.substring(0, 500)
-      };
-    });
+    // Prepare documents for deep analysis with quote extraction
+    const documentContents = relevantDocsWithQuotes.slice(0, 8).map((doc, i) => 
+      `Document ${i+1}: ${doc.name}\nContent: ${doc.content.substring(0, 2000)}`
+    ).join('\n\n---\n\n');
     
-    const prompt = `Analyze legal documents to answer: "${question.question}"
+    const prompt = `You are a senior legal analyst conducting comprehensive due diligence. Analyze the provided legal documents to answer: "${question.question}"
 
-Document summaries:
-${documentSummaries.map((doc, i) => `${i+1}. ${doc.name}: ${doc.content}`).join('\n\n')}
+CRITICAL INSTRUCTIONS:
+1. Extract EXACT QUOTES from documents that directly relate to the question
+2. Provide detailed analysis with specific evidence
+3. Only reference documents that contain actual relevant information
+4. Include confidence scores based on evidence quality
+5. Provide comprehensive legal assessment
 
-Provide a comprehensive legal analysis in JSON format:
+Documents to analyze:
+${documentContents}
+
+Provide response in JSON format:
 {
-  "answer": "Direct answer to the question based on documents",
+  "answer": "Detailed, comprehensive answer with specific legal analysis (minimum 200 words)",
   "confidence": 0-100,
   "sources": ["document1.pdf", "document2.pdf"],
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "evidenceSummary": "Summary of evidence found"
+  "quotes": [
+    {
+      "document": "document_name.pdf",
+      "text": "exact quote from document",
+      "relevance": "why this quote is relevant to the question"
+    }
+  ],
+  "keyFindings": ["Detailed finding 1", "Detailed finding 2", "Detailed finding 3"],
+  "evidenceSummary": "Comprehensive summary of all evidence found",
+  "legalAssessment": "Professional legal opinion based on evidence",
+  "recommendations": ["Specific recommendation 1", "Specific recommendation 2"]
 }`;
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1000
+        max_tokens: 2000
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
+      // Validate that we have actual quotes and relevant content
+      const hasValidQuotes = analysis.quotes && analysis.quotes.length > 0;
+      const actualSources = hasValidQuotes ? 
+        analysis.sources || [] : 
+        [];
+      
+      console.log(`✅ Question "${question.question}" - Found ${hasValidQuotes ? analysis.quotes.length : 0} quotes from ${actualSources.length} documents`);
+      
       return {
         question: question.question,
-        answer: analysis.answer || 'Analysis completed',
+        answer: analysis.answer || 'Comprehensive analysis completed',
         confidence: analysis.confidence || 70,
-        sources: relevantDocs.map(d => d.name),
-        keyFindings: analysis.keyFindings || [],
+        sources: actualSources,
+        quotes: analysis.quotes || [],
+        keyFindings: Array.isArray(analysis.keyFindings) ? analysis.keyFindings : [],
         evidenceSummary: analysis.evidenceSummary || '',
-        evidenceCount: relevantDocs.length
+        legalAssessment: analysis.legalAssessment || '',
+        recommendations: analysis.recommendations || [],
+        evidenceCount: relevantDocsWithQuotes.length,
+        hasActualEvidence: hasValidQuotes
       };
       
     } catch (error) {
-      console.error(`Error processing question ${question.id}:`, error);
+      console.error(`❌ Error processing question "${question.question}":`, error);
       return {
         question: question.question,
-        answer: 'Analysis temporarily unavailable.',
-        confidence: 50,
-        sources: relevantDocs.map(d => d.name),
-        evidenceCount: relevantDocs.length
+        answer: 'Error occurred during comprehensive legal analysis',
+        confidence: 0,
+        sources: [],
+        quotes: [],
+        evidenceCount: 0,
+        hasActualEvidence: false
       };
     }
   }

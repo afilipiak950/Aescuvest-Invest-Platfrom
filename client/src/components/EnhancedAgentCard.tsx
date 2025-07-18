@@ -923,8 +923,17 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
     return acc;
   }, {} as Record<string, LegalQuestion[]>);
 
-  // Extract answers from legal analysis data
-  const getAnswerForQuestion = (questionId: string): { answer: string; confidence: number; sources: string[] } | null => {
+  // Extract answers from legal analysis data with enhanced quote support
+  const getAnswerForQuestion = (questionId: string): { 
+    answer: string; 
+    confidence: number; 
+    sources: string[];
+    quotes?: Array<{document: string; text: string; relevance: string}>;
+    keyFindings?: string[];
+    evidenceSummary?: string;
+    legalAssessment?: string;
+    recommendations?: string[];
+  } | null => {
     if (!analysisData) return null;
     
     // Debug logging
@@ -935,11 +944,16 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
     // First try to get answer from legalAnswers structure
     if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
       const answer = analysisData.legalAnswers[questionId];
-      console.log(`🔍 Found answer for ${questionId}:`, answer);
+      console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
       return {
         answer: answer.answer,
         confidence: answer.confidence,
-        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : []
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
+        quotes: answer.quotes || [],
+        keyFindings: answer.keyFindings || [],
+        evidenceSummary: answer.evidenceSummary || '',
+        legalAssessment: answer.legalAssessment || '',
+        recommendations: answer.recommendations || []
       };
     }
     
@@ -1067,29 +1081,105 @@ function LegalQuestionsSection({ analysisData, findings, assignedDocuments, docu
                           )}
                           
                           {hasAnswer ? (
-                            <div className="mt-3 bg-dark/50 rounded p-3">
-                              <p className="text-gray-300 text-sm">{answer.answer}</p>
-                              <div className="flex items-center gap-2 mt-2">
+                            <div className="mt-3 space-y-3">
+                              {/* Main Answer */}
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+
+                              {/* Enhanced Legal Assessment */}
+                              {answer.legalAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Legal Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.legalAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes.length})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(quote.document)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${quote.document}`}
+                                          >
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {quote.relevance}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{quote.text}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-blue-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-blue-400 text-xs mt-1">•</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {answer.confidence}%
                                 </Badge>
-                                {answer.sources && answer.sources.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {answer.sources.map((source, idx) => (
-                                      <button
-                                        key={idx}
-                                        onClick={() => handleDocumentClick(source)}
-                                        className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                        title={`View document: ${source}`}
-                                      >
-                                        📄 {source.length > 20 ? `${source.substring(0, 20)}...` : source}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded border border-gray-600">
-                                    📄 No source documents available
-                                  </div>
+                                {answer.quotes && answer.quotes.length > 0 && (
+                                  <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge variant="outline" className="text-blue-400 border-blue-400">
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
                                 )}
                               </div>
                             </div>
