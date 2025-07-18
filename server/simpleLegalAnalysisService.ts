@@ -10,19 +10,19 @@ const LEGAL_QUESTIONS = [
     id: 'sha_1',
     category: 'Shareholders Agreement',
     question: 'What class of shares exist?',
-    keywords: ['shares', 'equity', 'common', 'preferred', 'class']
+    keywords: ['shares', 'equity', 'common', 'preferred', 'class', 'aoa', 'articles']
   },
   {
     id: 'sha_2', 
     category: 'Shareholders Agreement',
     question: 'Are liquidation preferences defined?',
-    keywords: ['liquidation', 'preference', 'waterfall', 'distribution']
+    keywords: ['liquidation', 'preference', 'waterfall', 'distribution', 'aoa', 'articles']
   },
   {
-    id: 'ip_1',
-    category: 'IP Assignment',
-    question: 'Are IP assignment agreements in place?',
-    keywords: ['intellectual property', 'ip assignment', 'patent', 'copyright', 'trademark']
+    id: 'sha_3',
+    category: 'Shareholders Agreement',
+    question: 'Is anti-dilution protection present?',
+    keywords: ['anti-dilution', 'dilution', 'protection', 'ratchet', 'weighted', 'average']
   },
   {
     id: 'gov_1',
@@ -31,10 +31,70 @@ const LEGAL_QUESTIONS = [
     keywords: ['board', 'director', 'governance', 'voting', 'composition']
   },
   {
-    id: 'com_1',
+    id: 'gov_2',
+    category: 'Governance',
+    question: 'Are voting rights clearly specified?',
+    keywords: ['voting', 'rights', 'procedures', 'majority', 'veto', 'quorum']
+  },
+  {
+    id: 'ip_1',
+    category: 'IP Assignment',
+    question: 'Are IP assignment agreements in place?',
+    keywords: ['intellectual property', 'ip assignment', 'patent', 'copyright', 'trademark', 'employment']
+  },
+  {
+    id: 'ip_2',
+    category: 'IP Assignment',
+    question: 'Are all founders/key personnel covered?',
+    keywords: ['founders', 'key personnel', 'employees', 'consultants', 'advisors', 'ip assignment']
+  },
+  {
+    id: 'commercial_1',
     category: 'Commercial',
-    question: 'Are commercial agreements properly structured?',
-    keywords: ['commercial', 'agreement', 'contract', 'terms', 'sla']
+    question: 'Are SLAs, warranties, and indemnity clauses present?',
+    keywords: ['sla', 'service level', 'warranty', 'indemnity', 'commercial', 'agreement']
+  },
+  {
+    id: 'commercial_2',
+    category: 'Commercial',
+    question: 'Are termination clauses fair and mutual?',
+    keywords: ['termination', 'clause', 'notice', 'period', 'commercial', 'agreement']
+  },
+  {
+    id: 'lit_1',
+    category: 'Litigation',
+    question: 'Are there pending litigations or regulatory proceedings?',
+    keywords: ['litigation', 'lawsuit', 'proceeding', 'regulatory', 'investigation', 'compliance']
+  },
+  {
+    id: 'lit_2',
+    category: 'Litigation',
+    question: 'Is financial exposure quantified?',
+    keywords: ['financial', 'exposure', 'damages', 'legal costs', 'settlement', 'liability']
+  },
+  {
+    id: 'reg_1',
+    category: 'Regulatory',
+    question: 'Are there FDA submissions or regulatory approvals?',
+    keywords: ['fda', 'regulatory', 'approval', 'submission', 'clinical', 'trial']
+  },
+  {
+    id: 'reg_2',
+    category: 'Regulatory',
+    question: 'Are there any regulatory compliance issues?',
+    keywords: ['regulatory', 'compliance', 'violation', 'warning', 'audit', 'finding']
+  },
+  {
+    id: 'financial_1',
+    category: 'Financial',
+    question: 'Are there warrants or convertible instruments?',
+    keywords: ['warrant', 'convertible', 'instrument', 'exercise', 'conversion', 'terms']
+  },
+  {
+    id: 'financial_2',
+    category: 'Financial',
+    question: 'What are the interest rates and maturity for debt instruments?',
+    keywords: ['interest rate', 'maturity', 'debt', 'instrument', 'conversion', 'feature']
   }
 ];
 
