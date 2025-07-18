@@ -170,10 +170,18 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
         const data = await response.json();
         
         if (data.success && data.jobs) {
-          console.log(`📊 Polling found ${data.jobs.length} active jobs for deal ${dealId}`);
+          // Filter out legal analysis jobs from logging since they use their own progress endpoint
+          const nonLegalJobs = data.jobs.filter((job: JobProgress) => !job.jobId.toString().includes('legal_analysis'));
+          
+          if (nonLegalJobs.length > 0) {
+            console.log(`📊 Polling found ${nonLegalJobs.length} active jobs for deal ${dealId}`);
+            nonLegalJobs.forEach((job: JobProgress) => {
+              console.log(`📋 Job ${job.jobId}: ${job.progress}% - ${job.currentStep}`);
+            });
+          }
+          
           const jobsMap = new Map();
           data.jobs.forEach((job: JobProgress) => {
-            console.log(`📋 Job ${job.jobId}: ${job.progress}% - ${job.currentStep}`);
             jobsMap.set(job.jobId, job);
           });
           setActiveJobs(jobsMap);

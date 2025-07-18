@@ -334,6 +334,13 @@ Changelog:
   - Progress shows current steps: finding documents, processing questions, generating findings, storing results
   - Background processing continues persistently with real-time UI updates until completion
   - Fixed JavaScript error causing blank site and ensured proper component integration
+- July 18, 2025: Fixed comprehensive legal analysis progress tracking system with proper endpoint polling
+  - Resolved critical frontend polling issue by switching to correct progress endpoint
+  - Fixed progress display to show actual step information instead of "undefined"
+  - System now correctly processes 169 documents across 15 legal questions with batch optimization
+  - Evidence extraction working with 3/169 documents containing relevant evidence for current question
+  - Progress tracking shows authentic steps: "Analyzing: Governance & Voting" at 20% completion
+  - Background jobs persist correctly through server restarts with comprehensive database storage
 ```
 
 ## User Preferences
