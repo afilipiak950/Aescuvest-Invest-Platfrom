@@ -1146,24 +1146,60 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
       
-      // Aggressively invalidate all related caches to ensure fresh data
-      queryClient.invalidateQueries({
+      // Clear all caches immediately
+      queryClient.removeQueries({
         queryKey: ['/api/analyses', dealId]
       });
-      queryClient.invalidateQueries({
+      queryClient.removeQueries({
         queryKey: [`/api/deals/${dealId}/agents/legal/results`]
       });
       
-      // Wait for analysis to complete and refresh data
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: ['/api/analyses', dealId]
-        });
-        queryClient.invalidateQueries({
-          queryKey: [`/api/deals/${dealId}/agents/legal/results`]
-        });
-        setIsRunning(false);
-      }, 10000); // Wait 10 seconds for analysis to complete
+      // Poll for completion every 2 seconds for up to 2 minutes
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes
+      
+      const pollForCompletion = async () => {
+        attempts++;
+        
+        try {
+          // Force fresh fetch without cache
+          const response = await fetch(`/api/deals/${dealId}/agents/legal/results?_t=${Date.now()}`);
+          const data = await response.json();
+          
+          // Check if we have new analysis data with comprehensive results
+          if (data.success && data.analysis && data.analysis.legalAnswers) {
+            console.log('✅ New comprehensive legal analysis detected');
+            
+            // Force refresh of all related data
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+            });
+            
+            setIsRunning(false);
+            return;
+          }
+        } catch (error) {
+          console.error('Error polling for analysis completion:', error);
+        }
+        
+        // Continue polling if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(pollForCompletion, 2000);
+        } else {
+          console.log('⏰ Polling timeout - forcing refresh anyway');
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          setIsRunning(false);
+        }
+      };
+      
+      // Start polling after a short delay
+      setTimeout(pollForCompletion, 3000);
+      
     } catch (error) {
       setIsRunning(false);
     }
