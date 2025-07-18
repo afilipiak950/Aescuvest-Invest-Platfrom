@@ -24,7 +24,7 @@ import { Deal, AgentAnalysis, Document } from '@/types';
 
 export default function DueDiligence() {
   const [location] = useLocation();
-  const [selectedDeal, setSelectedDeal] = useState<string>('1'); // Default to first deal
+  const [selectedDeal, setSelectedDeal] = useState<string>('22'); // Default to deal 22
   const [activeAgent, setActiveAgent] = useState<string>('legal');
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadField, setShowUploadField] = useState(false);
@@ -97,12 +97,24 @@ export default function DueDiligence() {
     queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress`],
     enabled: !!selectedDeal,
     refetchInterval: 2000, // Poll every 2 seconds for progress updates
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data
     queryFn: async () => {
-      const response = await fetch(`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress`);
+      console.log(`🔄 Fetching legal progress for deal ${selectedDeal}`);
+      const response = await fetch(`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress?_t=${Date.now()}`, {
+        cache: 'no-cache'
+      });
       const data = await response.json();
+      console.log(`📊 Legal progress data:`, data);
+      console.log(`📊 isRunning:`, data?.isRunning);
+      console.log(`📊 progress:`, data?.progress);
       return data;
     }
   });
+
+  // Log current state immediately
+  console.log(`🎯 Current selectedDeal:`, selectedDeal);
+  console.log(`🎯 Current legalProgress:`, legalProgress);
 
   // Debug log for documents loading
   console.log('📄 Documents query state:', {
