@@ -3490,13 +3490,44 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive legal analysis started - analyzing ALL assigned documents systematically',
-        dealId: dealId,
-        approach: 'exhaustive_document_analysis'
+        message: 'Comprehensive legal analysis started - processing 169 legal documents across 15 questions'
       });
     } catch (error) {
-      console.error(`Error starting comprehensive legal analysis:`, error);
+      console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive legal analysis' });
+    }
+  });
+
+  // Get comprehensive legal analysis progress
+  app.get('/api/deals/:dealId/legal-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check for active comprehensive legal analysis job
+      const jobs = await storage.getBackgroundJobsByDeal(dealId);
+      const comprehensiveJob = jobs.find(job => 
+        job.jobType === 'comprehensive_legal_analysis' && 
+        job.status === 'processing'
+      );
+      
+      if (comprehensiveJob) {
+        res.json({
+          success: true,
+          isRunning: true,
+          progress: comprehensiveJob.progress || 0,
+          message: 'Comprehensive legal analysis in progress'
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0,
+          message: 'No comprehensive legal analysis running'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive legal analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get progress' });
     }
   });
 
