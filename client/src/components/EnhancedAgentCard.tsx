@@ -1351,7 +1351,13 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
       });
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log(`⚠️ Legal analysis already running (${data.progress}% complete)`);
+        setIsRunning(false);
+        return;
+      }
+      
       // Invalidate ALL relevant query keys to refresh the legal data
       queryClient.invalidateQueries({
         queryKey: [`/api/deals/${dealId}/agents/legal/results`]
@@ -1365,6 +1371,7 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
     },
     onError: (error) => {
       console.error('❌ Error starting comprehensive legal analysis:', error);
+      setIsRunning(false);
     }
   });
 

@@ -17,7 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload, Link as LinkIcon, Bot } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 
@@ -87,6 +88,18 @@ export default function DueDiligence() {
       const response = await fetch(`/api/background-jobs/${selectedDeal}`);
       const data = await response.json();
       console.log(`📊 Job progress data:`, data);
+      return data;
+    }
+  });
+
+  // Fetch comprehensive legal analysis progress for persistent display
+  const { data: legalProgress } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000, // Poll every 2 seconds for progress updates
+    queryFn: async () => {
+      const response = await fetch(`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress`);
+      const data = await response.json();
       return data;
     }
   });
@@ -421,6 +434,42 @@ export default function DueDiligence() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Global Legal Analysis Progress - Persistent across all tabs */}
+      {legalProgress?.isRunning && (
+        <Card className="bg-blue-500/5 border-blue-500/20 mb-6">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                <div>
+                  <h3 className="text-white font-medium">Legal Analysis in Progress</h3>
+                  <p className="text-blue-400 text-sm">
+                    {legalProgress.currentStep || 'Processing legal documents'}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-blue-400 border-blue-400">
+                {legalProgress.progress || 0}%
+              </Badge>
+            </div>
+            
+            <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-blue-500/30">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${Math.max(5, Math.min(100, legalProgress.progress || 0))}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+              <span>Analyzing 169 legal documents across 15 question categories</span>
+              <span>Current: {legalProgress.currentDocumentName || 'Processing'}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       {/* Upload Field - Shows when Upload Files button is clicked */}
       {showUploadField && (
