@@ -829,20 +829,15 @@ function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assign
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
 
-  const { data: jobsData } = useQuery({
-    queryKey: [`/api/background-jobs/${dealId}`],
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/progress`],
     refetchInterval: 1000, // Poll every 1 second for faster updates
     onSuccess: (data) => {
-      const activeJob = data?.jobs?.find((job: any) => 
-        job.jobType === 'comprehensive_legal_analysis' && 
-        job.status === 'processing'
-      );
-
-      if (activeJob) {
+      if (data?.isRunning) {
         setIsAnalysisRunning(true);
-        setProgress(activeJob.progress || 0);
-        setCurrentStep(activeJob.currentStep || 'Processing...');
-        console.log(`📊 Progress update: ${activeJob.progress}% - ${activeJob.currentStep}`);
+        setProgress(data.progress || 0);
+        setCurrentStep(data.currentStep || 'Processing...');
+        console.log(`📊 Progress update: ${data.progress}% - ${data.currentStep}`);
       } else {
         // Check if we had a running analysis that just completed
         if (isAnalysisRunning) {
