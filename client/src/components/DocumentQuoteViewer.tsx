@@ -210,7 +210,7 @@ export default function DocumentQuoteViewer({
                       {source.relevantSections.map((section, sectionIndex) => (
                         <div key={sectionIndex} className="bg-dark-lighter/50 rounded-lg p-3">
                           <h4 className="text-sm font-medium text-gray-300 mb-2">
-                            Relevant Section {sectionIndex + 1}:
+                            Evidence from Document:
                           </h4>
                           <p className="text-gray-300 text-sm leading-relaxed">
                             {section}
@@ -218,9 +218,9 @@ export default function DocumentQuoteViewer({
                         </div>
                       ))}
 
-                      {source.extractedText && (
+                      {source.extractedText && source.extractedText !== source.relevantSections[0] && (
                         <div className="bg-dark-lighter/30 rounded-lg p-3">
-                          <h4 className="text-sm font-medium text-gray-300 mb-2">Full Extract:</h4>
+                          <h4 className="text-sm font-medium text-gray-300 mb-2">Additional Context:</h4>
                           <p className="text-gray-300 text-sm leading-relaxed">
                             {source.extractedText}
                           </p>
