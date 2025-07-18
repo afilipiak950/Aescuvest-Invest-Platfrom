@@ -485,8 +485,12 @@ export default function DueDiligence() {
             </div>
             
             <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-              <span>Analyzing 169 legal documents across 15 question categories</span>
-              <span>Current: {legalProgress.currentDocumentName || 'Processing'}</span>
+              <span>
+                {legalProgress?.isRunning ? 
+                  'Analyzing 169 legal documents across 15 question categories' : 
+                  `Processing with ${jobProgress?.jobs?.length || 0} active agents`}
+              </span>
+              <span>Current: {legalProgress?.currentDocumentName || 'Processing'}</span>
             </div>
           </CardContent>
         </Card>
