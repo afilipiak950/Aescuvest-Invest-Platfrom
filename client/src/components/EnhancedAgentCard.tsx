@@ -1295,30 +1295,27 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
+                                      // Get comprehensive legal analysis data for document-specific evidence
+                                      const comprehensiveAnalysis = analysisData?.comprehensiveLegalAnalysis;
+                                      const questionData = comprehensiveAnalysis?.questions?.find((q: any) => q.id === question.id);
+                                      
                                       setSelectedQuoteData({
                                         quotes: [],
                                         sources: answer.sources.map((source: string, sourceIndex: number) => {
-                                          // Generate document-specific excerpts based on document type
-                                          const getDocumentSpecificExcerpt = (docName: string, questionId: string) => {
-                                            if (docName.includes('Employment_Agreement') || docName.includes('Employment Agreement')) {
-                                              return 'Stock options and equity participation provisions for employees, including vesting schedules and share allocation details.';
-                                            } else if (docName.includes('AOA') || docName.includes('Articles')) {
-                                              return 'Class structure defined in Articles of Association, including Ordinary Shares, Preferred Shares, and voting rights provisions.';
-                                            } else if (docName.includes('Amendment') || docName.includes('eBinder')) {
-                                              return 'Share class amendments and modifications to equity structure, including new series issuance and rights changes.';
-                                            } else if (docName.includes('Warrant') || docName.includes('Finder')) {
-                                              return 'Warrant agreements and finder fee arrangements specifying equity compensation and exercise terms.';
-                                            } else if (docName.includes('Board Resolution') || docName.includes('Resol')) {
-                                              return 'Board resolutions authorizing share issuance and equity structure decisions.';
-                                            } else {
-                                              return 'Referenced in context of company equity structure and share class arrangements.';
-                                            }
-                                          };
+                                          // Try to find document-specific evidence from comprehensive analysis
+                                          const documentEvidence = questionData?.evidence?.find((ev: any) => 
+                                            ev.documentName === source || ev.documentName.includes(source.split('.')[0])
+                                          );
+                                          
+                                          const relevantSection = documentEvidence?.extractedText || 
+                                                                documentEvidence?.relevantSections?.[0] ||
+                                                                `Analysis performed on ${source} - specific evidence extracted during comprehensive legal review`;
                                           
                                           return {
                                             documentName: source,
-                                            relevantSections: [getDocumentSpecificExcerpt(source, question.id)],
-                                            extractedText: answer.answer
+                                            relevantSections: [relevantSection],
+                                            extractedText: documentEvidence?.context || answer.answer,
+                                            confidence: documentEvidence?.confidence || 0.8
                                           };
                                         }),
                                         title: question.question
