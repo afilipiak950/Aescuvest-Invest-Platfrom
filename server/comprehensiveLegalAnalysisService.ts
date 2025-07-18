@@ -113,12 +113,12 @@ export class ComprehensiveLegalAnalysisService {
   async runComprehensiveAnalysis(dealId: number): Promise<any> {
     console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
     
-    // Get all documents assigned to legal agent
+    // Get all documents suitable for legal analysis
     const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
-    console.log(`📄 Found ${assignedDocuments.length} documents assigned to legal agent`);
+    console.log(`📄 Found ${assignedDocuments.length} documents suitable for legal analysis`);
     
     if (assignedDocuments.length === 0) {
-      throw new Error('No documents assigned to legal agent');
+      throw new Error('No documents available for legal analysis');
     }
     
     // Process each question comprehensively
@@ -162,7 +162,7 @@ export class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get all documents assigned to legal agent
+   * Get all documents suitable for legal analysis
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -170,11 +170,65 @@ export class ComprehensiveLegalAnalysisService {
       .from(documents)
       .where(eq(documents.dealId, dealId));
     
-    // Filter for documents assigned to legal agent
-    return allDocuments.filter(doc => 
+    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // First try documents explicitly assigned to legal agent
+    let legalDocuments = allDocuments.filter(doc => 
       doc.assignedAgent === 'legal' && 
       (doc.ocrText || doc.aiSummary)
     );
+    
+    console.log(`📄 Documents explicitly assigned to legal: ${legalDocuments.length}`);
+    
+    // If no documents are explicitly assigned to legal, identify legal-related documents
+    if (legalDocuments.length === 0) {
+      console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
+      
+      legalDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiSummary = doc.aiSummary;
+        
+        // Legal document keywords
+        const legalKeywords = [
+          'contract', 'agreement', 'legal', 'license', 'patent', 'trademark', 
+          'copyright', 'litigation', 'compliance', 'regulatory', 'terms', 
+          'conditions', 'confidential', 'nda', 'employment', 'consulting', 
+          'executed', 'signed', 'shareholder', 'investor', 'funding', 
+          'liquidation', 'preference', 'anti-dilution', 'voting', 'board',
+          'ip assignment', 'intellectual property', 'governance', 'bylaws',
+          'articles', 'incorporation', 'memorandum', 'constitution'
+        ];
+        
+        // Check document name and content for legal keywords
+        const hasLegalKeywords = legalKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword)
+        );
+        
+        // Check AI summary for legal document type
+        const isLegalDocument = aiSummary?.documentType?.toLowerCase().includes('legal') ||
+                               aiSummary?.executiveSummary?.toLowerCase().includes('legal') ||
+                               aiSummary?.executiveSummary?.toLowerCase().includes('contract') ||
+                               aiSummary?.executiveSummary?.toLowerCase().includes('agreement');
+        
+        return hasLegalKeywords || isLegalDocument;
+      });
+      
+      console.log(`📄 Auto-identified legal documents: ${legalDocuments.length}`);
+    }
+    
+    // If still no legal documents, take documents with meaningful content for analysis
+    if (legalDocuments.length === 0) {
+      console.log('📄 No legal-related documents found, using all documents with OCR text...');
+      legalDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
+      );
+      console.log(`📄 Documents with content available: ${legalDocuments.length}`);
+    }
+    
+    return legalDocuments;
   }
   
   /**
