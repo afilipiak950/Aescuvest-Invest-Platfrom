@@ -362,6 +362,12 @@ Changelog:
   - Implemented proper job completion tracking with detailed error reporting
   - System now gracefully handles OpenAI API issues, network problems, and processing errors
   - Enhanced progress tracking with detailed question-by-question completion status
+- July 19, 2025: Standardized Clinical tab sources popup to match Legal tab functionality  
+  - Fixed Clinical tab sources popup by adding DocumentQuoteViewer component with documents prop
+  - Made Clinical sources click handler identical to Legal tab implementation for consistency
+  - Confirmed clinical questions display 3 unique answers with different content and confidence scores
+  - Clinical analysis shows: trial design (85%), inclusion criteria (75%), FDA approval (90%)
+  - Sources popup functionality now standardized between Legal and Clinical tabs
 ```
 
 ## User Preferences
