@@ -378,6 +378,9 @@ Changelog:
   - Added complete evidence extraction and comprehensive answer compilation methods to Clinical service
   - Clinical analysis now has identical functionality to Legal analysis with OpenAI-powered document evidence extraction
   - Resolved missing extractEvidenceFromAllDocuments and compileComprehensiveAnswer methods causing "No relevant information found" responses
+  - Fixed critical routing issue: Frontend was calling `/start` endpoint but backend only had `/comprehensive` route
+  - Added missing `/clinical-analysis/comprehensive/start` route to ensure frontend requests properly trigger comprehensive analysis
+  - Clinical analysis now processes all 52 assigned documents across all 11 questions identical to Legal analysis functionality
 ```
 
 ## User Preferences
