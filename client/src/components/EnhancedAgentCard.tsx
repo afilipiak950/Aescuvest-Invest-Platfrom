@@ -1759,13 +1759,13 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
-                                      console.log('🚀 CLINICAL CLICK HANDLER TRIGGERED!');
-                                      console.log('🧬 Answer object:', answer);
+                                      console.log('🚀 CLICK HANDLER TRIGGERED!');
+                                      console.log('🔍 Answer object:', answer);
                                       // Create sources using detailed evidence with unique content from each document
-                                      console.log('🧬 Processing detailedEvidence:', answer.detailedEvidence);
+                                      console.log('🔍 Processing detailedEvidence:', answer.detailedEvidence);
                                       const sources = answer.detailedEvidence?.map((evidence: any) => {
-                                        console.log('🧬 Processing clinical evidence for:', evidence.documentName);
-                                        console.log('🧬 Evidence data:', evidence);
+                                        console.log('🔍 Processing evidence for:', evidence.documentName);
+                                        console.log('🔍 Evidence data:', evidence);
                                         return {
                                           documentName: evidence.documentName,
                                           relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
@@ -1776,7 +1776,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                         relevantSections: [answer.answer || 'No specific section identified'],
                                         extractedText: answer.answer
                                       }));
-                                      console.log('🧬 Final sources array:', sources);
+                                      console.log('🔍 Final sources array:', sources);
                                       
                                       setSelectedQuoteData({
                                         quotes: [],
