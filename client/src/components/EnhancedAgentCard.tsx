@@ -849,10 +849,14 @@ export default function EnhancedAgentCard({
             </h4>
             <div className="space-y-3">
               {recommendations.map((rec: any, index: number) => {
-                // Handle both string and object formats
+                // Handle both string and object formats (Clinical recommendations have 'content' field)
                 const isString = typeof rec === 'string';
-                const title = isString ? rec.split(':')[0] || `Recommendation ${index + 1}` : rec.title;
-                const description = isString ? rec.split(':').slice(1).join(':').trim() || rec : rec.description;
+                const title = isString ? 
+                  rec.split(':')[0] || `Recommendation ${index + 1}` : 
+                  rec.title || `Clinical Recommendation ${index + 1}`;
+                const description = isString ? 
+                  rec.split(':').slice(1).join(':').trim() || rec : 
+                  rec.description || rec.content || 'No description available';
                 const priority = isString ? 'medium' : rec.priority || 'medium';
                 const impact = isString ? null : rec.impact;
                 
