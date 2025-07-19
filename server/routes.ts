@@ -3728,6 +3728,49 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const dealId = parseInt(req.params.dealId);
       const agentType = req.params.agentType.toLowerCase();
       
+      // For HR agent, use comprehensive HR analysis results
+      if (agentType === 'hr') {
+        const { getComprehensiveHrAnalysisResults } = await import('./comprehensiveHrAnalysisService');
+        const hrResults = await getComprehensiveHrAnalysisResults(dealId);
+        
+        if (hrResults.success && hrResults.hrAnswers) {
+          // Transform comprehensive HR results to match the expected format
+          const hrAnswers = hrResults.hrAnswers || {};
+          const findings = hrResults.findings || [];
+          const recommendations = hrResults.recommendations || [];
+          
+          // Count answered questions
+          const answeredQuestions = Object.keys(hrAnswers).length;
+          const totalQuestions = 24; // HR has 24 questions
+          
+          const analysis = {
+            status: answeredQuestions > 0 ? 'Completed' : 'Failed',
+            progress: Math.round((answeredQuestions / totalQuestions) * 100),
+            findings,
+            recommendations,
+            hrAnswers,
+            questionsAnswered: answeredQuestions,
+            totalQuestions,
+            completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+          };
+          
+          console.log(`✅ Found comprehensive HR analysis for deal ${dealId}: ${answeredQuestions} questions answered, ${findings.length} findings, ${recommendations.length} recommendations`);
+          
+          return res.json({
+            success: true,
+            analysis
+          });
+        } else {
+          // Fallback to regular agent analysis if no comprehensive results
+          const analysis = await storage.getAgentAnalysis(dealId, agentType);
+          return res.json({ 
+            success: true, 
+            analysis: analysis || null
+          });
+        }
+      }
+      
+      // For other agent types, use regular agent analysis
       const analysis = await storage.getAgentAnalysis(dealId, agentType);
       
       res.json({ 
