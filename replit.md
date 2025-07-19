@@ -362,6 +362,15 @@ Changelog:
   - Implemented proper job completion tracking with detailed error reporting
   - System now gracefully handles OpenAI API issues, network problems, and processing errors
   - Enhanced progress tracking with detailed question-by-question completion status
+- July 19, 2025: Successfully fixed Commercial analysis document processing and progress tracking  
+  - Resolved critical aiSummary object vs string parsing error preventing Commercial analysis from starting
+  - Fixed document filtering logic to handle aiSummary as both object (with executiveSummary field) and string
+  - Updated document count display to show correct 263 documents being processed instead of 34
+  - Fixed persistent progress bar that was disappearing during analysis by implementing continuous polling
+  - Commercial analysis now processes 27 batches (263 documents ÷ 10 per batch) identical to Legal/Clinical systems
+  - Cleaned up stuck background jobs that were preventing new Commercial analysis from starting
+  - Confirmed Commercial analysis button triggers comprehensive document processing with real-time progress tracking
+  - All three analysis systems (Legal, Clinical, Commercial) now have identical functionality and comprehensive document coverage
 - July 19, 2025: Standardized Clinical tab sources popup to match Legal tab functionality  
   - Fixed Clinical tab sources popup by adding DocumentQuoteViewer component with documents prop
   - Made Clinical sources click handler identical to Legal tab implementation for consistency
