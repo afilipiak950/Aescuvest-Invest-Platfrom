@@ -1,6 +1,6 @@
 import { db } from './db';
 import { comprehensiveHrAnalyses, backgroundJobs } from '@shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
 
