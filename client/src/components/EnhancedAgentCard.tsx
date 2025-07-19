@@ -151,15 +151,22 @@ export default function EnhancedAgentCard({
     }
   };
 
-  // Fetch agent-specific results directly from the agent results endpoint
-  const { data: agentResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`],
-    enabled: !!dealId && !!agentType,
+  // Fetch comprehensive clinical analysis results if this is the clinical agent
+  const { data: comprehensiveClinicalResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
+    enabled: !!dealId && agentType.toLowerCase() === 'clinical',
     refetchInterval: 5000, // Poll every 5 seconds to get updates
   });
 
-  // Use agent results if available, fallback to passed analysis
-  const analysisData = (agentResults as any)?.analysis || analysis || {} as any;
+  // Fetch agent-specific results directly from the agent results endpoint (for non-clinical agents)
+  const { data: agentResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`],
+    enabled: !!dealId && !!agentType && agentType.toLowerCase() !== 'clinical',
+    refetchInterval: 5000, // Poll every 5 seconds to get updates
+  });
+
+  // Use comprehensive clinical results if available, otherwise use agent results, fallback to passed analysis
+  const analysisData = (comprehensiveClinicalResults as any)?.analysis || (agentResults as any)?.analysis || analysis || {} as any;
   
   console.log(`🔍 ${agentType} Agent Analysis Data:`, analysisData);
   console.log(`🔍 ${agentType} Agent - Status: ${analysisData?.status}, Findings: ${analysisData?.findings?.length || 0}, Recommendations: ${analysisData?.recommendations?.length || 0}`);

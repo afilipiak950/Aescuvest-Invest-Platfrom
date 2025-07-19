@@ -3627,6 +3627,70 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Get comprehensive clinical analysis results
+  app.get('/api/deals/:dealId/clinical-analysis/comprehensive/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🧬 Fetching comprehensive clinical analysis results for deal ${dealId}`);
+      
+      // Get comprehensive clinical analysis from agent_analyses table
+      const analysis = await storage.getAgentAnalysis(dealId, 'clinical');
+      
+      if (!analysis) {
+        console.log(`❌ No comprehensive clinical analysis found for deal ${dealId}`);
+        return res.json({ 
+          success: false, 
+          message: 'No comprehensive clinical analysis found',
+          analysis: null
+        });
+      }
+
+      // Parse the stored results
+      let clinicalAnswers = {};
+      let findings = [];
+      let recommendations = [];
+
+      try {
+        if (analysis.clinicalAnswers) {
+          clinicalAnswers = typeof analysis.clinicalAnswers === 'string' 
+            ? JSON.parse(analysis.clinicalAnswers) 
+            : analysis.clinicalAnswers;
+        }
+        if (analysis.findings) {
+          findings = typeof analysis.findings === 'string' 
+            ? JSON.parse(analysis.findings) 
+            : analysis.findings;
+        }
+        if (analysis.recommendations) {
+          recommendations = typeof analysis.recommendations === 'string' 
+            ? JSON.parse(analysis.recommendations) 
+            : analysis.recommendations;
+        }
+      } catch (parseError) {
+        console.error('Error parsing comprehensive clinical analysis data:', parseError);
+      }
+
+      console.log(`✅ Found comprehensive clinical analysis - ${Object.keys(clinicalAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
+      res.json({
+        success: true,
+        analysis: {
+          ...analysis,
+          clinicalAnswers,
+          findings,
+          recommendations,
+          questionsAnswered: Object.keys(clinicalAnswers).length,
+          totalQuestions: 11,
+          completionRate: Math.round((Object.keys(clinicalAnswers).length / 11) * 100)
+        }
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive clinical analysis results:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get comprehensive clinical analysis results' });
+    }
+  });
+
   // Get agent-specific analysis results
   app.get('/api/deals/:dealId/agents/:agentType/results', async (req: Request, res: Response) => {
     try {
