@@ -1,4 +1,4 @@
-import { useState } from 'react';
+// React imports removed - no longer needed for state management
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,6 @@ export default function DocumentQuoteViewer({
   title,
   documents = []
 }: DocumentQuoteViewerProps) {
-  const [selectedTab, setSelectedTab] = useState<'quotes' | 'sources'>('quotes');
 
   const handleDocumentClick = (documentName: string) => {
     // Find the document by name
@@ -80,16 +79,11 @@ export default function DocumentQuoteViewer({
           </Button>
         </DialogHeader>
 
-        <div className="flex gap-2 mb-4">
-          <Button
-            variant="default"
-            size="sm"
-            className="flex items-center gap-2"
-            disabled
-          >
-            <FileText className="h-4 w-4" />
-            Sources ({sources.length})
-          </Button>
+        <div className="mb-4">
+          <h3 className="text-lg font-medium text-white flex items-center gap-2">
+            <FileText className="h-5 w-5 text-green-400" />
+            Document Sources ({sources.length})
+          </h3>
         </div>
 
         <ScrollArea className="h-[500px] w-full">
