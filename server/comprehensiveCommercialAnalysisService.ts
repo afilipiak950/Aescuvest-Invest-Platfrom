@@ -134,52 +134,67 @@ class ComprehensiveCommercialAnalysisService {
     console.log(`🏢 Finding assigned commercial documents for deal ${dealId}`);
     
     try {
+      // Get ALL documents for the deal - same as Legal and Clinical analysis
       const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
-      // Commercial keywords for scoring
+      // Comprehensive commercial keywords for maximum document coverage
       const commercialKeywords = [
         'commercial', 'sales', 'marketing', 'pricing', 'revenue', 'customer', 'competitive', 
         'market', 'business', 'strategy', 'pipeline', 'crm', 'lead', 'prospect', 'conversion',
-        'retention', 'churn', 'nps', 'satisfaction', 'discount', 'pricing', 'competitor',
+        'retention', 'churn', 'nps', 'satisfaction', 'discount', 'competitor', 'analysis',
         'differentiation', 'value', 'proposition', 'positioning', 'segment', 'account',
-        'enterprise', 'subscription', 'usage', 'tier', 'freemium', 'upsell', 'cross-sell'
+        'enterprise', 'subscription', 'usage', 'tier', 'freemium', 'upsell', 'cross-sell',
+        'financial', 'finance', 'revenue', 'income', 'profit', 'cost', 'expense', 'budget',
+        'forecast', 'projection', 'model', 'metrics', 'kpi', 'performance', 'growth',
+        'plan', 'presentation', 'deck', 'executive', 'summary', 'overview', 'report',
+        'data', 'research', 'survey', 'feedback', 'testimonial', 'case', 'study'
       ];
 
+      // Use broad matching approach like Legal and Clinical analysis
       const commercialDocuments = allDocuments.filter(doc => {
-        let score = 0;
+        if (!doc.aiSummary && !doc.name) return false; // Skip documents without content
+        
         const content = (doc.name + ' ' + (doc.aiSummary || '')).toLowerCase();
         
-        // Weighted keyword scoring
-        commercialKeywords.forEach(keyword => {
-          if (content.includes(keyword)) {
-            score += 0.1;
-          }
-        });
+        // Check if document contains any commercial keywords
+        const hasCommercialKeyword = commercialKeywords.some(keyword => content.includes(keyword));
         
-        // AI summary boost
-        if (doc.aiSummary && doc.aiSummary.length > 100) {
-          score += 0.2;
-        }
+        // Include documents with AI summaries (they're likely relevant)
+        const hasAiSummary = doc.aiSummary && doc.aiSummary.length > 50;
         
-        // Document type multipliers
-        if (doc.name.toLowerCase().includes('commercial') || 
-            doc.name.toLowerCase().includes('sales') ||
-            doc.name.toLowerCase().includes('pricing') ||
-            doc.name.toLowerCase().includes('customer') ||
-            doc.name.toLowerCase().includes('competitive')) {
-          score += 0.3;
-        }
+        // Include any business documents
+        const isBusinessDoc = content.includes('business') || 
+                              content.includes('company') ||
+                              content.includes('market') ||
+                              content.includes('revenue') ||
+                              content.includes('customer');
         
-        return score >= 0.1; // Minimum threshold for assignment
+        return hasCommercialKeyword || hasAiSummary || isBusinessDoc;
       });
+
+      // Fallback: if very few documents match, include ALL documents with AI summaries
+      if (commercialDocuments.length < 20 && allDocuments.length > 50) {
+        console.log(`🏢 Using fallback: including ALL documents with AI summaries for comprehensive coverage`);
+        const fallbackDocuments = allDocuments.filter(doc => doc.aiSummary && doc.aiSummary.length > 10);
+        console.log(`🏢 Fallback assigned ${fallbackDocuments.length} documents to commercial analysis`);
+        return fallbackDocuments;
+      }
       
-      console.log(`🏢 Assigned ${commercialDocuments.length} documents to commercial analysis using intelligent scoring`);
+      console.log(`🏢 Assigned ${commercialDocuments.length} documents to commercial analysis using broad matching`);
       return commercialDocuments;
       
     } catch (error) {
       console.error(`❌ Error finding commercial documents:`, error);
-      return [];
+      // Fallback: return all documents if there's an error
+      try {
+        const allDocs = await db.select().from(documents).where(eq(documents.dealId, dealId));
+        console.log(`🏢 Error fallback: returning all ${allDocs.length} documents`);
+        return allDocs;
+      } catch (fallbackError) {
+        console.error(`❌ Fallback error:`, fallbackError);
+        return [];
+      }
     }
   }
 
