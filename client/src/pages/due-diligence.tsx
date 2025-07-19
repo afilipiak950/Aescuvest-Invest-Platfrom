@@ -112,6 +112,26 @@ export default function DueDiligence() {
     }
   });
 
+  // Fetch comprehensive clinical analysis progress for persistent display
+  const { data: clinicalProgress } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/progress`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000, // Poll every 2 seconds for progress updates
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data
+    queryFn: async () => {
+      console.log(`🔄 Fetching clinical progress for deal ${selectedDeal}`);
+      const response = await fetch(`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/progress?_t=${Date.now()}`, {
+        cache: 'no-cache'
+      });
+      const data = await response.json();
+      console.log(`🧬 Clinical progress data:`, data);
+      console.log(`🧬 isRunning:`, data?.isRunning);
+      console.log(`🧬 progress:`, data?.progress);
+      return data;
+    }
+  });
+
   // Log current state immediately
   console.log(`🎯 Current selectedDeal:`, selectedDeal);
   console.log(`🎯 Current legalProgress:`, legalProgress);
@@ -448,37 +468,65 @@ export default function DueDiligence() {
       </Card>
       
       {/* Global Analysis Progress - Persistent across all tabs */}
-      {(legalProgress?.isRunning || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
-        <Card className="bg-blue-500/5 border-blue-500/20 mb-6">
+      {(legalProgress?.isRunning || clinicalProgress?.isRunning || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
+        <Card className={`mb-6 ${
+          legalProgress?.isRunning ? 'bg-blue-500/5 border-blue-500/20' : 
+          clinicalProgress?.isRunning ? 'bg-green-500/5 border-green-500/20' : 
+          'bg-gray-500/5 border-gray-500/20'
+        }`}>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                <Loader2 className={`h-5 w-5 animate-spin ${
+                  legalProgress?.isRunning ? 'text-blue-400' : 
+                  clinicalProgress?.isRunning ? 'text-green-400' : 
+                  'text-gray-400'
+                }`} />
                 <div>
                   <h3 className="text-white font-medium">
-                    {legalProgress?.isRunning ? 'Legal Analysis in Progress' : 'Analysis in Progress'}
+                    {legalProgress?.isRunning ? 'Legal Analysis in Progress' : 
+                     clinicalProgress?.isRunning ? 'Clinical Analysis in Progress' : 
+                     'Analysis in Progress'}
                   </h3>
-                  <p className="text-blue-400 text-sm">
-                    {legalProgress?.currentStep || 
+                  <p className={`text-sm ${
+                    legalProgress?.isRunning ? 'text-blue-400' : 
+                    clinicalProgress?.isRunning ? 'text-green-400' : 
+                    'text-gray-400'
+                  }`}>
+                    {legalProgress?.currentStep || clinicalProgress?.currentStep || 
                      (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 
                       `${jobProgress.jobs.length} agent${jobProgress.jobs.length > 1 ? 's' : ''} processing` : 
                       'Processing documents')}
                   </p>
                 </div>
               </div>
-              <Badge variant="outline" className="text-blue-400 border-blue-400">
-                {legalProgress?.isRunning ? 
-                  `${legalProgress.progress || 0}%` : 
-                  `${jobProgress?.jobs?.length || 0} active`}
+              <Badge variant="outline" className={
+                legalProgress?.isRunning ? 'text-blue-400 border-blue-400' : 
+                clinicalProgress?.isRunning ? 'text-green-400 border-green-400' : 
+                'text-gray-400 border-gray-400'
+              }>
+                {legalProgress?.isRunning ? `${legalProgress.progress || 0}%` : 
+                 clinicalProgress?.isRunning ? `${clinicalProgress.progress || 0}%` : 
+                 `${jobProgress?.jobs?.length || 0} active`}
               </Badge>
             </div>
             
-            <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-blue-500/30">
+            <div className={`w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden ${
+              legalProgress?.isRunning ? 'border border-blue-500/30' : 
+              clinicalProgress?.isRunning ? 'border border-green-500/30' : 
+              'border border-gray-500/30'
+            }`}>
               <div 
-                className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${legalProgress?.isRunning ? 
-                  Math.max(5, Math.min(100, legalProgress.progress || 0)) : 
-                  (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 25 : 0)}%` }}
+                className={`h-3 rounded-full transition-all duration-1000 ease-out ${
+                  legalProgress?.isRunning ? 'bg-gradient-to-r from-blue-500 to-blue-400' : 
+                  clinicalProgress?.isRunning ? 'bg-gradient-to-r from-green-500 to-green-400' : 
+                  'bg-gradient-to-r from-gray-500 to-gray-400'
+                }`}
+                style={{ width: `${
+                  legalProgress?.isRunning ? Math.max(5, Math.min(100, legalProgress.progress || 0)) : 
+                  clinicalProgress?.isRunning ? Math.max(5, Math.min(100, clinicalProgress.progress || 0)) : 
+                  (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 25 : 0)
+                }%` }}
               >
                 <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
               </div>
@@ -488,9 +536,11 @@ export default function DueDiligence() {
               <span>
                 {legalProgress?.isRunning ? 
                   'Analyzing 169 legal documents across 15 question categories' : 
+                  clinicalProgress?.isRunning ? 
+                  'Analyzing clinical documents across 11 clinical question categories' : 
                   `Processing with ${jobProgress?.jobs?.length || 0} active agents`}
               </span>
-              <span>Current: {legalProgress?.currentDocumentName || 'Processing'}</span>
+              <span>Current: {legalProgress?.currentDocumentName || clinicalProgress?.currentDocumentName || 'Processing'}</span>
             </div>
           </CardContent>
         </Card>
