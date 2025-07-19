@@ -195,35 +195,67 @@ class ComprehensiveClinicalAnalysisService {
         }
       }
 
-      // Store results in database
+      // Store results in database (same format as legal analysis)
       this.setProgress(dealId, {
         progress: 95,
         currentStep: 'Storing clinical analysis results...'
       });
+
+      // Generate findings and recommendations from clinical answers (same as legal)
+      const findings = [];
+      const recommendations = [];
+      
+      for (const [questionId, answer] of Object.entries(clinicalAnswers)) {
+        if (answer.keyFindings && answer.keyFindings.length > 0) {
+          findings.push(...answer.keyFindings.map(finding => ({
+            id: findings.length + 1,
+            type: 'positive',
+            content: finding,
+            source: answer.sources?.[0] || 'Clinical Analysis',
+            confidence: answer.confidence || 85,
+            category: questionId,
+            evidenceCount: answer.evidenceCount || 0
+          })));
+        }
+        
+        if (answer.recommendations && answer.recommendations.length > 0) {
+          recommendations.push(...answer.recommendations.map(rec => ({
+            id: recommendations.length + 1,
+            type: 'clinical',
+            content: rec,
+            source: 'Clinical Analysis',
+            confidence: answer.confidence || 85,
+            category: questionId
+          })));
+        }
+      }
 
       const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'clinical');
       
       if (existingAnalysis) {
         await storage.updateAnalysis(existingAnalysis.id, {
           ...existingAnalysis,
-          results: JSON.stringify({
-            clinicalAnswers,
-            completedAt: new Date().toISOString(),
-            questionsProcessed: Object.keys(clinicalAnswers).length,
-            documentsAnalyzed: clinicalDocs.length
-          })
+          clinicalAnswers: JSON.stringify(clinicalAnswers),
+          findings: JSON.stringify(findings),
+          recommendations: JSON.stringify(recommendations),
+          status: 'completed',
+          progress: 100,
+          questionsAnswered: Object.keys(clinicalAnswers).length,
+          totalQuestions: CLINICAL_QUESTIONS.length,
+          completionRate: Math.round((Object.keys(clinicalAnswers).length / CLINICAL_QUESTIONS.length) * 100)
         });
       } else {
         await storage.createAnalysis({
           dealId,
           agentType: 'clinical',
           status: 'completed',
-          results: JSON.stringify({
-            clinicalAnswers,
-            completedAt: new Date().toISOString(),
-            questionsProcessed: Object.keys(clinicalAnswers).length,
-            documentsAnalyzed: clinicalDocs.length
-          }),
+          progress: 100,
+          clinicalAnswers: JSON.stringify(clinicalAnswers),
+          findings: JSON.stringify(findings),
+          recommendations: JSON.stringify(recommendations),
+          questionsAnswered: Object.keys(clinicalAnswers).length,
+          totalQuestions: CLINICAL_QUESTIONS.length,
+          completionRate: Math.round((Object.keys(clinicalAnswers).length / CLINICAL_QUESTIONS.length) * 100),
           createdAt: new Date()
         });
       }

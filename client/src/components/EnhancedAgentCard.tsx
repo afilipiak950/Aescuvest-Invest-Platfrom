@@ -1828,6 +1828,9 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
       
       // Invalidate ALL relevant query keys to refresh the clinical data
       queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
         queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
       });
       queryClient.invalidateQueries({
@@ -1868,18 +1871,21 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
         attempts++;
         
         try {
-          // Check for new analysis results
-          const response = await fetch(`/api/deals/${dealId}/agents/clinical/results?_t=${Date.now()}`, {
+          // Check for new comprehensive clinical analysis results
+          const response = await fetch(`/api/deals/${dealId}/clinical-analysis/comprehensive/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
           
-          console.log(`🧬 Attempt ${attempts}: Checking for clinical results...`);
+          console.log(`🧬 Attempt ${attempts}: Checking for comprehensive clinical results...`);
           
           if (data.success && data.analysis && data.analysis.clinicalAnswers && Object.keys(data.analysis.clinicalAnswers).length > 0) {
             console.log('✅ New comprehensive clinical analysis completed! Questions answered:', Object.keys(data.analysis.clinicalAnswers).length);
             
-            // Force refresh of all related UI data
+            // Force refresh of comprehensive clinical results
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`]
+            });
             queryClient.invalidateQueries({
               queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
             });
