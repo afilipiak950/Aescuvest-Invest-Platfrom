@@ -133,13 +133,30 @@ class ComprehensiveClinicalAnalysisService {
     });
 
     try {
-      // Get all documents assigned to clinical agents
+      // Get all documents for the deal
       const documents = await storage.getDocumentsByDealId(dealId);
-      const clinicalDocs = documents.filter(doc => 
-        doc.assignedAgent && doc.assignedAgent.toLowerCase().includes('clinical')
-      );
+      
+      // Import the assignment function from routes.ts
+      const { getAssignedAgentsForDocument } = await import('./routes');
+      
+      // Use intelligent document assignment logic (same as frontend)
+      const clinicalDocs = documents.filter(doc => {
+        const assignedAgents = getAssignedAgentsForDocument(doc);
+        const isClinical = assignedAgents.some(agent => agent.type.toLowerCase() === 'clinical');
+        if (isClinical) {
+          console.log(`🧬 Document ${doc.id} (${doc.name}) assigned to clinical agent`);
+        }
+        return isClinical;
+      });
 
-      console.log(`🧬 Found ${clinicalDocs.length} clinical documents for analysis`);
+      console.log(`🧬 Found ${clinicalDocs.length} clinical documents for analysis (using intelligent assignment)`);
+      
+      // Debug: Show first few document names and assigned agents
+      for (let i = 0; i < Math.min(5, documents.length); i++) {
+        const doc = documents[i];
+        const assignedAgents = getAssignedAgentsForDocument(doc);
+        console.log(`🧬 Debug: Document ${doc.id} (${doc.name.substring(0, 50)}...) -> agents: ${assignedAgents.map(a => a.type).join(', ')}`);
+      }
 
       if (clinicalDocs.length === 0) {
         this.setProgress(dealId, {
@@ -189,7 +206,7 @@ class ComprehensiveClinicalAnalysisService {
         currentStep: 'Storing clinical analysis results...'
       });
 
-      const existingAnalysis = await storage.getAnalysisByDealIdAndType(dealId, 'clinical');
+      const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'clinical');
       
       if (existingAnalysis) {
         await storage.updateAnalysis(existingAnalysis.id, {
