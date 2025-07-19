@@ -484,7 +484,7 @@ export default function DueDiligence() {
       </Card>
       
       {/* Global Analysis Progress - Persistent across all tabs */}
-      {(legalProgress?.isRunning || clinicalProgress?.isRunning || clinicalAnalysisStarted || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
+      {(legalProgress?.isRunning || (clinicalProgress?.isRunning && clinicalProgress?.progress < 100) || (clinicalAnalysisStarted && clinicalProgress?.progress < 100) || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
         <Card className={`mb-6 ${
           legalProgress?.isRunning ? 'bg-blue-500/5 border-blue-500/20' : 
           (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'bg-green-500/5 border-green-500/20' : 
