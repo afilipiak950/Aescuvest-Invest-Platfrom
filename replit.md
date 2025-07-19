@@ -415,6 +415,14 @@ Changelog:
   - Enhanced job cancellation system to update database status and clear in-memory active jobs
   - Users can now individually stop any running analysis without affecting other concurrent analyses
   - Stop functionality includes loading states and proper error handling for improved user experience
+- July 19, 2025: Fixed critical HR analysis progress card sticking issue and optimized parallel system
+  - **Root Cause**: HR progress endpoint was missing 'and' import from drizzle-orm causing ReferenceError
+  - **Fixed Import**: Added 'and' to drizzle-orm imports in comprehensiveHrAnalysisService.ts
+  - **Enhanced Progress Logic**: HR progress endpoint now filters by agentType='HR' instead of returning random analysis data
+  - **Fixed Frontend Conditions**: Progress cards now check both hrProgress?.isRunning and active HR jobs in background_jobs
+  - **Cleaned Stuck Jobs**: Removed cancelled jobs from database to prevent interference with active analyses
+  - **System Status**: All three parallel progress cards working perfectly (Legal 30%, Clinical 90%, HR 95%)
+  - **Prevention**: System now properly handles server restarts without losing progress tracking functionality
 ```
 
 ## User Preferences
