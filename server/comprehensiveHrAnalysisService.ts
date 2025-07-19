@@ -232,11 +232,18 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
     console.log(`🏢 ENHANCED HR ANALYSIS STARTED for deal ${dealId} with job ${jobId}`);
     console.log(`🚀 Background process executing with 10x enhanced document coverage`);
     
-    // Update progress - Finding relevant documents
+    // Force a small delay to ensure proper async execution
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Update progress - Finding relevant documents  
     await updateJobProgress(jobId, 5, 'Finding HR-relevant documents...');
     console.log(`📊 Updated progress to 5% - Finding documents`);
     
+    // Another small delay for database consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Get all documents with AI summaries for this deal
+    console.log(`🔍 Querying documents for deal ${dealId}...`);
     const documents = await db.query.documents.findMany({
       where: (documents, { eq, and, isNotNull }) => and(
         eq(documents.dealId, dealId),
@@ -247,9 +254,17 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
     console.log(`📋 Found ${documents.length} documents with AI summaries for HR analysis`);
     
     if (documents.length === 0) {
+      console.log(`❌ No documents found for deal ${dealId}, completing analysis`);
       await updateJobProgress(jobId, 100, 'No documents available for analysis', 'completed');
       return;
     }
+
+    // Update progress - Documents found
+    await updateJobProgress(jobId, 10, `Analyzing ${documents.length} documents for HR insights...`);
+    console.log(`📊 Updated progress to 10% - ${documents.length} documents found`);
+    
+    // Another small delay for consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // ENHANCED HR ANALYSIS - 10x better document coverage for comprehensive analysis
     
