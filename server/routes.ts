@@ -3636,6 +3636,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       // Get comprehensive clinical analysis from agent_analyses table
       const analysis = await storage.getAgentAnalysis(dealId, 'clinical');
+      console.log(`🧬 Raw analysis data from storage:`, analysis);
       
       if (!analysis) {
         console.log(`❌ No comprehensive clinical analysis found for deal ${dealId}`);
@@ -3652,10 +3653,12 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       let recommendations = [];
 
       try {
-        if (analysis.clinicalAnswers) {
-          clinicalAnswers = typeof analysis.clinicalAnswers === 'string' 
-            ? JSON.parse(analysis.clinicalAnswers) 
-            : analysis.clinicalAnswers;
+        // Fix field name mismatch: database uses clinical_answers (snake_case) but code expects clinicalAnswers (camelCase)
+        if (analysis.clinical_answers || analysis.clinicalAnswers) {
+          const clinicalAnswersData = analysis.clinical_answers || analysis.clinicalAnswers;
+          clinicalAnswers = typeof clinicalAnswersData === 'string' 
+            ? JSON.parse(clinicalAnswersData) 
+            : clinicalAnswersData;
         }
         if (analysis.findings) {
           findings = typeof analysis.findings === 'string' 
@@ -3669,6 +3672,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       } catch (parseError) {
         console.error('Error parsing comprehensive clinical analysis data:', parseError);
+        console.error('Analysis data received:', analysis);
       }
 
       console.log(`✅ Found comprehensive clinical analysis - ${Object.keys(clinicalAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
