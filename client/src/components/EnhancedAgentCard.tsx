@@ -1295,15 +1295,21 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
                                       // Create sources using detailed evidence with unique content from each document
-                                      const sources = answer.detailedEvidence?.map((evidence: any) => ({
-                                        documentName: evidence.documentName,
-                                        relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
-                                        extractedText: evidence.documentSummary || evidence.relevantContent?.join(' | ') || evidence.keyFindings?.join(' | ') || 'No specific content extracted'
-                                      })) || answer.sources.map((source: string) => ({
+                                      console.log('🔍 Processing detailedEvidence:', answer.detailedEvidence);
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        console.log('🔍 Processing evidence for:', evidence.documentName);
+                                        console.log('🔍 Evidence data:', evidence);
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
                                         documentName: source,
                                         relevantSections: [answer.answer || 'No specific section identified'],
                                         extractedText: answer.answer
                                       }));
+                                      console.log('🔍 Final sources array:', sources);
                                       
                                       setSelectedQuoteData({
                                         quotes: [],
