@@ -406,6 +406,8 @@ Changelog:
   - Progress bars show individual percentage completion, current steps, and processing details for each analysis
   - Fixed clinical analysis progress bar functionality with event listening and 1-second polling intervals
   - Enhanced user experience with clear visual separation of concurrent analysis processes
+  - Fixed grey fallback progress bar issue by creating progress detection from jobProgress data instead of disabled progress queries
+  - Progress states now properly extract from background job data to show Legal (13%) and Commercial (5%) analyses correctly
 ```
 
 ## User Preferences
