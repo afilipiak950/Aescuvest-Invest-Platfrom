@@ -371,59 +371,38 @@ export default function EnhancedAgentCard({
   
   const status = analysisData.status || 'Not Started';
 
+  // Get agent color classes for consistent styling
+  const getAgentColorClasses = (agentType: string) => {
+    const agentMap: Record<string, string> = {
+      'Legal': 'bg-red-500/10 border-red-500/20 text-red-300 bg-red-500',
+      'Clinical': 'bg-blue-500/10 border-blue-500/20 text-blue-300 bg-blue-500',
+      'Commercial': 'bg-green-500/10 border-green-500/20 text-green-300 bg-green-500',
+      'Hr': 'bg-purple-500/10 border-purple-500/20 text-purple-300 bg-purple-500',
+      'Financial': 'bg-orange-500/10 border-orange-500/20 text-orange-300 bg-orange-500',
+      'Ip': 'bg-yellow-500/10 border-yellow-500/20 text-yellow-300 bg-yellow-500',
+      'Research': 'bg-teal-500/10 border-teal-500/20 text-teal-300 bg-teal-500'
+    };
+    
+    return agentMap[agentType] || 'bg-gray-500/10 border-gray-500/20 text-gray-300 bg-gray-500';
+  };
+
   // Intelligent document-to-agent assignment (same logic as DataRoomExplorer)
   const getAssignedAgents = (document: any) => {
-    const docName = document.name.toLowerCase();
-    const docContent = (document.ocrText || '').toLowerCase();
-    const aiSummary = document.aiSummary;
-    
-    // Extract relevant content for analysis
-    const analysisText = [
-      docName,
-      docContent.substring(0, 2000), // First 2k chars for performance
-      aiSummary?.executiveSummary || '',
-      aiSummary?.documentType || '',
-      (aiSummary?.criticalFindings || []).join(' '),
-      (aiSummary?.keyFinancialData || []).join(' '),
-      (aiSummary?.riskAssessment || []).join(' '),
-      (aiSummary?.neutralFindings || []).join(' ')
-    ].join(' ').toLowerCase();
-    
-    // Weighted scoring system for each agent type
-    const agentScores = calculateAgentRelevanceScores(docName, analysisText, aiSummary);
-    
-    // Intelligent agent assignment based on score distribution
-    const sortedAgents = Object.entries(agentScores)
-      .sort(([,a], [,b]) => b - a)
-      .filter(([, score]) => score > 0.1); // Minimum relevance threshold
-    
-    if (sortedAgents.length === 0) {
-      return [getAgentInfo('Commercial')]; // Fallback
+    // Use the assignedAgents field populated by the intelligent assignment system
+    if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
+      return document.assignedAgents.map((agentType: string) => {
+        // Capitalize the agent type for display
+        const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
+        return {
+          type: agentType.toLowerCase(),
+          name: `${capitalizedType} Agent`,
+          colorClasses: getAgentColorClasses(capitalizedType)
+        };
+      });
     }
     
-    // Get the highest scoring agent
-    const topAgent = sortedAgents[0];
-    const [, topScore] = topAgent;
-    
-    // Only assign a second agent if:
-    // 1. There is a second agent above threshold
-    // 2. The second agent's score is at least 50% of the top score
-    // 3. The top score is not overwhelmingly dominant (< 0.8)
-    const selectedAgents = [topAgent];
-    
-    if (sortedAgents.length > 1 && topScore < 0.8) {
-      const secondAgent = sortedAgents[1];
-      const [, secondScore] = secondAgent;
-      
-      // Only add second agent if it's meaningfully relevant
-      if (secondScore >= topScore * 0.5) {
-        selectedAgents.push(secondAgent);
-      }
-    }
-    
-    return selectedAgents.map(([agentType]) => 
-      getAgentInfo(agentType.charAt(0).toUpperCase() + agentType.slice(1))
-    );
+    // Return empty array for truly unassigned documents
+    return [];
   };
 
   // Sophisticated scoring algorithm for agent relevance
