@@ -1317,8 +1317,21 @@ export class DatabaseStorage implements IStorage {
       const normalizedAgentType = agentType.toLowerCase();
       const capitalizedAgentType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
       
-      // Get all analysis records and prioritize those with actual content
-      let analysisResults = await db.select().from(agentAnalyses)
+      // Get all analysis records and prioritize those with actual content - explicitly select all needed fields
+      let analysisResults = await db.select({
+        id: agentAnalyses.id,
+        dealId: agentAnalyses.dealId,
+        agentType: agentAnalyses.agentType,
+        status: agentAnalyses.status,
+        progress: agentAnalyses.progress,
+        findings: agentAnalyses.findings,
+        recommendations: agentAnalyses.recommendations,
+        documentSources: agentAnalyses.documentSources,
+        legalAnswers: agentAnalyses.legalAnswers,
+        clinicalAnswers: agentAnalyses.clinicalAnswers,
+        createdAt: agentAnalyses.createdAt,
+        updatedAt: agentAnalyses.updatedAt
+      }).from(agentAnalyses)
         .where(and(
           eq(agentAnalyses.dealId, dealId), 
           eq(agentAnalyses.agentType, normalizedAgentType)
@@ -1379,7 +1392,9 @@ export class DatabaseStorage implements IStorage {
           progress: analysisResult.progress || 100,
           createdAt: analysisResult.createdAt,
           documentSources: analysisResult.documentSources || [],
-          legalAnswers: analysisResult.legalAnswers || null
+          legalAnswers: analysisResult.legalAnswers || null,
+          clinical_answers: analysisResult.clinical_answers || analysisResult.clinicalAnswers || null,
+          clinicalAnswers: analysisResult.clinicalAnswers || analysisResult.clinical_answers || null
         };
       }
       
