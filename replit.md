@@ -379,13 +379,13 @@ Changelog:
   - Verified Clinical analysis now extracts evidence from ALL assigned documents across all 11 questions
   - Clinical and Legal analyses now have identical document processing functionality and comprehensive coverage
   - Both analyses process maximum available documents ensuring complete due diligence coverage
-- July 19, 2025: Fixed Clinical agent recommendations display issue in UI interface
+- July 19, 2025: Fixed Clinical agent recommendations display issue and removed recommendations section
   - Resolved critical bug where 37 comprehensive clinical recommendations showed as empty text boxes
   - Fixed recommendation parsing logic in EnhancedAgentCard component to properly handle Clinical analysis data structure
   - Clinical recommendations use 'content' field instead of 'description' field like other agents
   - Updated parsing to extract recommendation text from rec.content for Clinical analysis results
-  - All 37 clinical recommendations now display proper text content with confidence scores and categories
-  - Clinical agent interface now shows complete analysis results matching the comprehensive analysis data
+  - Per user request, completely removed the recommendations section from Clinical agent interface
+  - Clinical agent now shows clean interface without recommendations display to avoid UI clutter
 ```
 
 ## User Preferences
