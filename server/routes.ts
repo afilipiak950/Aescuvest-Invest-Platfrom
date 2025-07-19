@@ -3554,6 +3554,79 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Run comprehensive clinical analysis - systematically analyzes ALL assigned clinical documents
+  app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🧬 Starting comprehensive clinical analysis for deal ${dealId}`);
+      
+      // Check for existing clinical analysis jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingClinicalJob = existingJobs.find(job => 
+        (job.jobType === 'comprehensive_clinical_analysis' || job.jobId.includes('clinical_analysis')) && 
+        job.status === 'processing'
+      );
+      
+      if (existingClinicalJob) {
+        console.log(`⚠️ Clinical analysis already running for deal ${dealId} (Job: ${existingClinicalJob.jobId})`);
+        return res.json({ 
+          success: false, 
+          message: `Clinical analysis already in progress (${Math.round(existingClinicalJob.progress || 0)}% complete)`,
+          alreadyRunning: true,
+          progress: existingClinicalJob.progress || 0
+        });
+      }
+      
+      // Import the comprehensive clinical analysis service
+      const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
+      
+      // Run comprehensive clinical analysis in background with progress tracking
+      (async () => {
+        try {
+          console.log(`🔧 Starting comprehensive clinical analysis background process for deal ${dealId}`);
+          await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId);
+          console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
+        }
+      })();
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive clinical analysis' });
+    }
+  });
+
+  // Get comprehensive clinical analysis progress
+  app.get('/api/deals/:dealId/clinical-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Import the service to get progress
+      const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
+      const progress = comprehensiveClinicalAnalysisService.getProgress(dealId);
+      
+      res.json({
+        success: true,
+        isRunning: progress.isRunning,
+        progress: progress.progress,
+        currentStep: progress.currentStep || 'Starting analysis',
+        message: progress.message || 'No comprehensive clinical analysis running',
+        totalSteps: progress.totalSteps || 11,
+        currentQuestion: progress.currentQuestion
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive clinical analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get progress' });
+    }
+  });
+
   // Get agent-specific analysis results
   app.get('/api/deals/:dealId/agents/:agentType/results', async (req: Request, res: Response) => {
     try {

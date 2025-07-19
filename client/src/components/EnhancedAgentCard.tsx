@@ -612,9 +612,22 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Legal Questions for Legal Agent */}
+        {/* Comprehensive Questions for Legal and Clinical Agents */}
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            findings={findings} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+          />
+        ) : agentType.toLowerCase() === 'clinical' ? (
+          <ClinicalQuestionsSection 
             dealId={dealId}
             analysisData={analysisData} 
             findings={findings} 
@@ -896,6 +909,133 @@ interface LegalQuestion {
   confidence?: number;
   sources?: string[];
 }
+
+interface ClinicalQuestion {
+  id: string;
+  category: string;
+  question: string;
+  subQuestions?: string[];
+  answer?: string;
+  confidence?: number;
+  sources?: string[];
+}
+
+const CLINICAL_QUESTIONS: ClinicalQuestion[] = [
+  // Clinical Trial Protocols
+  { 
+    id: 'trial_1', 
+    question: 'Are trial phases and designs clearly defined?', 
+    category: 'Clinical Trial Protocols',
+    subQuestions: [
+      'What phase is the current trial (Phase I, II, III)?',
+      'Is the study design (randomized, controlled, blinded) specified?',
+      'Are patient enrollment targets clearly defined?'
+    ]
+  },
+  { 
+    id: 'trial_2', 
+    question: 'What are primary and secondary endpoints?', 
+    category: 'Clinical Trial Protocols',
+    subQuestions: [
+      'Are primary efficacy endpoints clearly measured?',
+      'What secondary endpoints are being tracked?',
+      'Are endpoint measurement timelines specified?'
+    ]
+  },
+  { 
+    id: 'trial_3', 
+    question: 'How is efficacy/safety assessed?', 
+    category: 'Clinical Trial Protocols',
+    subQuestions: [
+      'What safety monitoring procedures are in place?',
+      'How is treatment efficacy being measured?',
+      'Are there defined stopping rules for safety?'
+    ]
+  },
+  // Regulatory Filings
+  { 
+    id: 'regulatory_1', 
+    question: 'What is current approval status?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    subQuestions: [
+      'What regulatory submissions have been made?',
+      'What is the current FDA/EMA approval status?',
+      'Are there any regulatory holds or delays?'
+    ]
+  },
+  { 
+    id: 'regulatory_2', 
+    question: 'Are fast-track or orphan designations received?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    subQuestions: [
+      'Has breakthrough therapy designation been granted?',
+      'Are there any orphan drug designations?',
+      'What regulatory incentives have been secured?'
+    ]
+  },
+  { 
+    id: 'regulatory_3', 
+    question: 'Are adverse events disclosed?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    subQuestions: [
+      'Are all adverse events properly documented?',
+      'What serious adverse events have occurred?',
+      'Are there patterns in adverse event reporting?'
+    ]
+  },
+  // Investigator Brochures & Study Reports
+  { 
+    id: 'study_1', 
+    question: 'Are inclusion/exclusion criteria consistent?', 
+    category: 'Investigator Brochures & Study Reports',
+    subQuestions: [
+      'Are patient selection criteria clearly defined?',
+      'Are exclusion criteria medically justified?',
+      'Is the target patient population appropriate?'
+    ]
+  },
+  { 
+    id: 'study_2', 
+    question: 'What patient population is used?', 
+    category: 'Investigator Brochures & Study Reports',
+    subQuestions: [
+      'What are the demographic characteristics?',
+      'What is the disease stage or severity?',
+      'Are there any special population considerations?'
+    ]
+  },
+  { 
+    id: 'study_3', 
+    question: 'Are SAE (Serious Adverse Events) tracked?', 
+    category: 'Investigator Brochures & Study Reports',
+    subQuestions: [
+      'What SAE reporting procedures are in place?',
+      'How are SAEs classified and analyzed?',
+      'Are there any concerning safety signals?'
+    ]
+  },
+  // Scientific Advisory Board Notes
+  { 
+    id: 'advisory_1', 
+    question: 'Are trial results debated by experts?', 
+    category: 'Scientific Advisory Board Notes',
+    subQuestions: [
+      'What do independent experts think of the data?',
+      'Are there any concerns raised by advisors?',
+      'What recommendations have been made?'
+    ]
+  },
+  { 
+    id: 'advisory_2', 
+    question: 'Are post-trial steps (e.g. Phase 3 readiness) described?', 
+    category: 'Scientific Advisory Board Notes',
+    subQuestions: [
+      'What are the next planned development steps?',
+      'Is the company ready for Phase 3 trials?',
+      'What regulatory strategy is recommended?'
+    ]
+  }
+];
 
 const LEGAL_QUESTIONS: LegalQuestion[] = [
   {
@@ -1360,7 +1500,428 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   );
 }
 
+// Clinical Questions Section Component
+function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+
+  // Check if clinical analysis is available
+  const hasClinicalAnalysis = analysisData && (
+    (analysisData.clinicalAnswers && Object.keys(analysisData.clinicalAnswers).length > 0) ||
+    (analysisData.findings && analysisData.findings.length > 0)
+  );
+  
+  console.log('🧬 Clinical Analysis Available:', hasClinicalAnalysis);
+  console.log('🧬 Analysis Data:', analysisData);
+  console.log('🧬 Clinical Answers:', analysisData?.clinicalAnswers);
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // Group clinical questions by category
+  const categorizedQuestions = CLINICAL_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, ClinicalQuestion[]>);
+
+  // Extract answers from clinical analysis data
+  const getAnswerForQuestion = (questionId: string): { 
+    answer: string; 
+    confidence: number; 
+    sources: string[];
+    quotes?: Array<{document: string; text: string; relevance: string}>;
+    keyFindings?: string[];
+    evidenceSummary?: string;
+    clinicalAssessment?: string;
+    recommendations?: string[];
+    detailedEvidence?: any[];
+  } | null => {
+    if (!analysisData) return null;
+    
+    console.log(`🧬 Looking for answer to clinical question ${questionId}`);
+    console.log(`🧬 Clinical Answers exists:`, !!analysisData.clinicalAnswers);
+    
+    // First try to get answer from clinicalAnswers structure
+    if (analysisData.clinicalAnswers && analysisData.clinicalAnswers[questionId]) {
+      const answer = analysisData.clinicalAnswers[questionId];
+      console.log(`🧬 Found enhanced answer for ${questionId}:`, answer);
+      console.log(`🧬 Has detailedEvidence:`, !!answer.detailedEvidence);
+      return {
+        answer: answer.answer,
+        confidence: answer.confidence,
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
+        quotes: answer.quotes || [],
+        keyFindings: answer.keyFindings || [],
+        evidenceSummary: answer.evidenceSummary || '',
+        clinicalAssessment: answer.clinicalAssessment || '',
+        recommendations: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || []
+      };
+    }
+
+    // Fallback to findings-based system
+    const questionKeywords = CLINICAL_QUESTIONS.find(q => q.id === questionId);
+    if (!questionKeywords) return null;
+    
+    // Search through findings for relevant content
+    const relevantFindings = analysisData.findings.filter((finding: any) => {
+      const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
+      const questionText = questionKeywords.question.toLowerCase();
+      
+      // Clinical-specific keywords
+      const keywordMatches = [
+        'trial', 'phase', 'clinical', 'regulatory', 'fda', 'ema', 'endpoint', 
+        'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol',
+        'approval', 'designation', 'orphan', 'breakthrough', 'inclusion',
+        'exclusion', 'population', 'advisory', 'sae', 'serious adverse'
+      ];
+      
+      return keywordMatches.some(keyword => 
+        findingText.includes(keyword) || questionText.includes(keyword)
+      );
+    });
+    
+    if (relevantFindings.length === 0) return null;
+    
+    // Combine relevant findings into a comprehensive answer
+    const combinedAnswer = relevantFindings
+      .map((finding: any) => finding.content || finding.description || finding.title)
+      .join(' ');
+    
+    // Calculate average confidence
+    const avgConfidence = relevantFindings.length > 0 
+      ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
+      : 80;
+    
+    // Extract source document names
+    const sources = relevantFindings
+      .map((finding: any) => finding.source || finding.document)
+      .filter((source: string) => source)
+      .slice(0, 3); // Limit to 3 sources
+    
+    return {
+      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
+      confidence: avgConfidence,
+      sources: sources
+    };
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 text-green-400" />
+          <h3 className="text-lg font-semibold text-white">Clinical Due Diligence Questions</h3>
+          <Badge variant="outline" className="text-gray-400 border-gray-400">
+            {assignedDocuments} Documents Analyzed
+          </Badge>
+        </div>
+        <ComprehensiveClinicalAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg">
+          <button
+            onClick={() => toggleCategory(category)}
+            className="w-full flex items-center justify-between p-4 bg-dark-lighter/50 hover:bg-dark-lighter/70 transition-colors"
+          >
+            <h4 className="font-medium text-white text-left">{category}</h4>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                {questions.length} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              )}
+            </div>
+          </button>
+
+          {expandedCategories.has(category) && (
+            <div className="p-4 space-y-4">
+              {questions.map((question) => {
+                const answer = getAnswerForQuestion(question.id);
+                const hasAnswer = answer !== null;
+                
+                return (
+                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          hasAnswer ? 'bg-green-400' : 'bg-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          
+                          {question.subQuestions && (
+                            <div className="mt-2 space-y-1">
+                              {question.subQuestions.map((subQ, index) => (
+                                <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {hasAnswer ? (
+                            <div className="mt-3 space-y-3">
+                              {/* Main Answer */}
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+
+                              {/* Enhanced Clinical Assessment */}
+                              {answer.clinicalAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Clinical Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.clinicalAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                <div className="bg-gradient-to-r from-green-400/10 to-blue-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">
+                                    🔬 Key Clinical Findings ({answer.keyFindings.length})
+                                  </h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-green-400 text-xs mt-1">✓</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    💡 Clinical Recommendations ({answer.recommendations.length})
+                                  </h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-yellow-400 text-xs mt-1">→</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-green-400 border-green-400">
+                                  Confidence: {answer.confidence}%
+                                </Badge>
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      console.log('🚀 CLINICAL CLICK HANDLER TRIGGERED!');
+                                      console.log('🧬 Answer object:', answer);
+                                      // Create sources using detailed evidence with unique content from each document
+                                      console.log('🧬 Processing detailedEvidence:', answer.detailedEvidence);
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        console.log('🧬 Processing clinical evidence for:', evidence.documentName);
+                                        console.log('🧬 Evidence data:', evidence);
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      console.log('🧬 Final sources array:', sources);
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No clinical analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Comprehensive Legal Analysis Button Component
+function ComprehensiveClinicalAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log(`⚠️ Clinical analysis already running (${data.progress}% complete)`);
+        setIsRunning(false);
+        return;
+      }
+      
+      // Invalidate ALL relevant query keys to refresh the clinical data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      // Show success message
+      console.log('✅ Comprehensive clinical analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive clinical analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('🧬 Starting comprehensive clinical analysis for deal', dealId);
+    
+    try {
+      // Trigger custom event to show progress bar immediately
+      window.dispatchEvent(new CustomEvent('clinicalAnalysisStarted'));
+      
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      console.log('✅ Analysis request sent, waiting for completion...');
+      
+      // Wait for results since analysis takes time
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes max wait
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          // Check for new analysis results
+          const response = await fetch(`/api/deals/${dealId}/agents/clinical/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🧬 Attempt ${attempts}: Checking for clinical results...`);
+          
+          if (data.success && data.analysis && data.analysis.clinicalAnswers && Object.keys(data.analysis.clinicalAnswers).length > 0) {
+            console.log('✅ New comprehensive clinical analysis completed! Questions answered:', Object.keys(data.analysis.clinicalAnswers).length);
+            
+            // Force refresh of all related UI data
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
+              setIsRunning(false);
+              console.log('🎉 Clinical analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for clinical results:', error);
+        }
+        
+        // Continue checking if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
+        } else {
+          console.log('⏰ Timeout reached - clinical analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          
+          setIsRunning(false);
+        }
+      };
+      
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      
+    } catch (error) {
+      console.error('❌ Error starting comprehensive clinical analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      size="sm"
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isRunning ? 'Clinical Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Clinical Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
 function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
