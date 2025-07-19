@@ -1329,6 +1329,7 @@ export class DatabaseStorage implements IStorage {
         documentSources: agentAnalyses.documentSources,
         legalAnswers: agentAnalyses.legalAnswers,
         clinicalAnswers: agentAnalyses.clinicalAnswers,
+        commercialAnswers: agentAnalyses.commercialAnswers,
         createdAt: agentAnalyses.createdAt,
         updatedAt: agentAnalyses.updatedAt
       }).from(agentAnalyses)
@@ -1394,7 +1395,8 @@ export class DatabaseStorage implements IStorage {
           documentSources: analysisResult.documentSources || [],
           legalAnswers: analysisResult.legalAnswers || null,
           clinical_answers: analysisResult.clinical_answers || analysisResult.clinicalAnswers || null,
-          clinicalAnswers: analysisResult.clinicalAnswers || analysisResult.clinical_answers || null
+          clinicalAnswers: analysisResult.clinicalAnswers || analysisResult.clinical_answers || null,
+          commercialAnswers: analysisResult.commercialAnswers || null
         };
       }
       
@@ -1483,6 +1485,19 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error fetching background jobs for deal ${dealId}:`, error);
       return [];
+    }
+  }
+
+  async getBackgroundJobsByDealAndType(dealId: number, jobType: string): Promise<BackgroundJob | undefined> {
+    try {
+      const jobs = await this.getBackgroundJobsByDealId(dealId);
+      return jobs.find(job => 
+        job.jobType === jobType && 
+        job.status === 'processing'
+      ) || undefined;
+    } catch (error) {
+      console.error(`❌ Error getting background jobs for deal ${dealId} and type ${jobType}:`, error);
+      return undefined;
     }
   }
 
