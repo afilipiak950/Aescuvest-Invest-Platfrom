@@ -398,6 +398,14 @@ Changelog:
   - Clinical agent now shows minimal, clean interface focusing only on essential analysis content
   - Fixed stuck progress bar issue by cleaning up background jobs at 0% progress and updating display logic
   - Progress bar now only shows when analysis is actually running with meaningful progress (>0%)
+- July 19, 2025: Implemented separate parallel analysis progress displays
+  - Replaced single combined progress bar with individual progress bars for each analysis type
+  - Each analysis now displays separately below each other instead of all at once in unified progress
+  - Created dedicated progress cards for Legal (blue), Commercial (purple), HR (orange), and Clinical (green) analyses
+  - Added ClinicalAnalysisProgress component with real-time polling for clinical analysis progress tracking
+  - Progress bars show individual percentage completion, current steps, and processing details for each analysis
+  - Fixed clinical analysis progress bar functionality with event listening and 1-second polling intervals
+  - Enhanced user experience with clear visual separation of concurrent analysis processes
 ```
 
 ## User Preferences
