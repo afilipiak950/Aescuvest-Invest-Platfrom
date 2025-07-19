@@ -2578,30 +2578,30 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   };
 
   const HR_QUESTIONS = [
-    { id: 'employment_1', question: 'Are all employment contracts signed and legally compliant?', category: 'Employment Contracts' },
-    { id: 'employment_2', question: 'Are termination clauses fair and standardized?', category: 'Employment Contracts' },
-    { id: 'employment_3', question: 'Are probation periods defined and reasonable?', category: 'Employment Contracts' },
-    { id: 'employment_4', question: 'Is intellectual property assignment clearly covered?', category: 'Employment Contracts' },
-    { id: 'executive_1', question: 'Are executive compensation packages documented?', category: 'Executive Contracts' },
-    { id: 'executive_2', question: 'Are change of control provisions clearly defined?', category: 'Executive Contracts' },
-    { id: 'executive_3', question: 'Do key executives have non-compete agreements?', category: 'Executive Contracts' },
-    { id: 'executive_4', question: 'Are clawback clauses included for performance?', category: 'Executive Contracts' },
-    { id: 'equity_1', question: 'Is the ESOP/VSOP plan legally established?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_2', question: 'Are vesting schedules clearly defined?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_3', question: 'Are strike prices set at fair market value?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_4', question: 'Are option pool reserves adequate for growth?', category: 'ESOP/VSOP Plans' },
-    { id: 'freelancer_1', question: 'Are freelancer agreements compliant with labor laws?', category: 'Freelancer Agreements' },
-    { id: 'freelancer_2', question: 'Is intellectual property assignment covered?', category: 'Freelancer Agreements' },
-    { id: 'freelancer_3', question: 'Are payment terms and deliverables clear?', category: 'Freelancer Agreements' },
-    { id: 'freelancer_4', question: 'Are confidentiality provisions adequate?', category: 'Freelancer Agreements' },
-    { id: 'hr_saas_1', question: 'Are HR systems compliant with data protection?', category: 'HR SaaS/Policies' },
-    { id: 'hr_saas_2', question: 'Are employee handbooks up-to-date?', category: 'HR SaaS/Policies' },
-    { id: 'hr_saas_3', question: 'Are performance review processes documented?', category: 'HR SaaS/Policies' },
-    { id: 'hr_saas_4', question: 'Are diversity and inclusion policies in place?', category: 'HR SaaS/Policies' },
-    { id: 'compensation_1', question: 'Are salary bands defined and fair?', category: 'Compensation Analysis' },
-    { id: 'compensation_2', question: 'Are benefits packages competitive?', category: 'Compensation Analysis' },
-    { id: 'compensation_3', question: 'Is pay equity maintained across demographics?', category: 'Compensation Analysis' },
-    { id: 'compensation_4', question: 'Are bonus structures tied to performance?', category: 'Compensation Analysis' }
+    // Employment Contracts (7 questions)
+    { id: 'employment_1', question: 'Are all employment contracts signed and dated?', category: 'Employment Contracts' },
+    { id: 'employment_2', question: 'Are notice periods in line with local labor law or extended?', category: 'Employment Contracts' },
+    { id: 'employment_3', question: 'Are probation periods defined? If yes, how long?', category: 'Employment Contracts' },
+    { id: 'employment_4', question: 'Are termination clauses (ordinary, extraordinary) present?', category: 'Employment Contracts' },
+    { id: 'employment_5', question: 'Is there mention of confidentiality, IP assignment, and post-contractual non-compete?', category: 'Employment Contracts' },
+    { id: 'employment_6', question: 'Are variable components (bonuses, stock options, commissions) clearly described?', category: 'Employment Contracts' },
+    { id: 'employment_7', question: 'Are working hours, overtime rules, and leave entitlements defined?', category: 'Employment Contracts' },
+    
+    // Executive/Managing Director Contracts (4 questions)
+    { id: 'executive_1', question: 'Is the total compensation package broken down (base, bonus, equity)?', category: 'Executive Contracts' },
+    { id: 'executive_2', question: 'Are KPI-driven bonuses explicitly defined?', category: 'Executive Contracts' },
+    { id: 'executive_3', question: 'Are severance packages or golden parachutes included?', category: 'Executive Contracts' },
+    { id: 'executive_4', question: 'What exit clauses exist in case of M&A or investor-led changes?', category: 'Executive Contracts' },
+    
+    // ESOP/VSOP Agreements (3 questions)
+    { id: 'equity_1', question: 'What is the total pool reserved (as % of shares)?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_2', question: 'What vesting model is used? (cliff, linear, backloaded)', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_3', question: 'Are good leaver/bad leaver rules defined?', category: 'ESOP/VSOP Plans' },
+    
+    // HR Systems and Policies (3 questions)
+    { id: 'systems_1', question: 'What HR SaaS systems are in use (Personio, Workday, HiBob)?', category: 'HR Systems' },
+    { id: 'policies_1', question: 'Are internal HR policies covering leave, diversity, misconduct documented?', category: 'HR Policies' },
+    { id: 'compensation_1', question: 'Are salaries benchmarked and pay bands defined by level and function?', category: 'Compensation Analysis' }
   ];
 
   const categories = [...new Set(HR_QUESTIONS.map(q => q.category))];
@@ -2612,7 +2612,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive HR Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} HR documents across 6 categories with 24 detailed questions
+            Analyze {assignedDocuments} HR documents across 6 categories with 17 detailed questions
           </p>
         </div>
         <ComprehensiveHrAnalysisButton dealId={dealId} />
