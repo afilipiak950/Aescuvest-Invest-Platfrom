@@ -139,7 +139,22 @@ class ComprehensiveCommercialAnalysisService {
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
       // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
-      const documentsWithAI = allDocuments.filter(doc => doc.aiSummary && doc.aiSummary.length > 10);
+      const documentsWithAI = allDocuments.filter(doc => {
+        // Check if aiSummary exists and is valid (could be object or string)
+        if (!doc.aiSummary) return false;
+        
+        // Handle aiSummary as object with executiveSummary field
+        if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          return doc.aiSummary.executiveSummary.length > 10;
+        }
+        
+        // Handle aiSummary as string
+        if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
+          return true;
+        }
+        
+        return false;
+      });
       
       console.log(`🏢 Commercial analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
       
