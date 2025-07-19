@@ -100,97 +100,30 @@ export default function DueDiligence() {
     }
   });
 
-  // Fetch comprehensive legal analysis progress for persistent display
-  const { data: legalProgress } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000, // Poll every 2 seconds for progress updates
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache data
-    queryFn: async () => {
-      console.log(`🔄 Fetching legal progress for deal ${selectedDeal}`);
-      const response = await fetch(`/api/deals/${selectedDeal}/legal-analysis/comprehensive/progress?_t=${Date.now()}`, {
-        cache: 'no-cache'
-      });
-      const data = await response.json();
-      console.log(`📊 Legal progress data:`, data);
-      console.log(`📊 isRunning:`, data?.isRunning);
-      console.log(`📊 progress:`, data?.progress);
-      return data;
-    }
-  });
+  // Disabled legal progress polling to prevent UI interference
+  const legalProgress = null;
 
-  // Fetch comprehensive clinical analysis progress for persistent display
-  const { data: clinicalProgress } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/progress`],
-    enabled: !!selectedDeal,
-    refetchInterval: 500, // Poll every 500ms for faster progress updates
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache data
-    queryFn: async () => {
-      console.log(`🔄 Fetching clinical progress for deal ${selectedDeal}`);
-      const response = await fetch(`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/progress?_t=${Date.now()}`, {
-        cache: 'no-cache'
-      });
-      const data = await response.json();
-      console.log(`🧬 Clinical progress data:`, data);
-      console.log(`🧬 isRunning:`, data?.isRunning);
-      console.log(`🧬 progress:`, data?.progress);
-      return data;
-    }
-  });
-
-  // Commercial progress query
-  const { data: commercialProgress } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/progress`],
-    enabled: !!selectedDeal,
-    refetchInterval: 500,
-    staleTime: 0,
-    gcTime: 0,
-    queryFn: async () => {
-      console.log(`🔄 Fetching commercial progress for deal ${selectedDeal}`);
-      const response = await fetch(`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/progress?_t=${Date.now()}`, {
-        cache: 'no-cache'
-      });
-      const data = await response.json();
-      console.log(`💼 Commercial progress data:`, data);
-      console.log(`💼 isRunning:`, data?.isRunning);
-      console.log(`💼 progress:`, data?.progress);
-      return data;
-    }
-  });
-
-  // HR progress query
-  const { data: hrProgress } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/progress`],
-    enabled: !!selectedDeal,
-    refetchInterval: 500,
-    staleTime: 0,
-    gcTime: 0,
-    queryFn: async () => {
-      console.log(`🔄 Fetching HR progress for deal ${selectedDeal}`);
-      const response = await fetch(`/api/deals/${selectedDeal}/hr-analysis/comprehensive/progress?_t=${Date.now()}`, {
-        cache: 'no-cache'
-      });
-      const data = await response.json();
-      console.log(`🧑‍💼 HR progress data:`, data);
-      console.log(`🧑‍💼 isRunning:`, data?.isRunning);
-      console.log(`🧑‍💼 progress:`, data?.progress);
-      return data;
-    }
-  });
+  // Disabled aggressive progress polling to prevent UI interference during navigation
+  // These queries were causing progress bars to appear inappropriately between pages
+  const clinicalProgress = null;
+  const commercialProgress = null; 
+  const hrProgress = null;
 
   // Reset clinical analysis started flag when analysis is complete
   useEffect(() => {
-    if (clinicalProgress && !clinicalProgress.isRunning && clinicalProgress.progress === 100 && clinicalAnalysisStarted) {
-      console.log(`🧬 Clinical analysis completed, resetting started flag`);
-      setClinicalAnalysisStarted(false);
+    // Disabled due to progress polling removal - clinical analysis completion is now handled elsewhere
+    if (clinicalAnalysisStarted) {
+      // Auto-reset flag after 30 seconds to prevent it from staying true indefinitely
+      const timer = setTimeout(() => {
+        setClinicalAnalysisStarted(false);
+      }, 30000);
+      return () => clearTimeout(timer);
     }
-  }, [clinicalProgress, clinicalAnalysisStarted]);
+  }, [clinicalAnalysisStarted]);
 
   // Log current state immediately
   console.log(`🎯 Current selectedDeal:`, selectedDeal);
-  console.log(`🎯 Current legalProgress:`, legalProgress);
+  console.log(`🎯 Progress polling disabled to fix UI interference issues`);
 
   // Debug log for documents loading
   console.log('📄 Documents query state:', {
