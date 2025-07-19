@@ -3881,20 +3881,18 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       console.log(`🏢 Starting comprehensive HR analysis for deal ${dealId}`);
       
-      // Check for existing HR analysis jobs to prevent duplicates
+      // Check for existing HR analysis jobs to prevent duplicates  
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
       const existingHrJob = existingJobs.find(job => 
-        (job.jobType === 'comprehensive_hr_analysis' || job.jobId.includes('hr_analysis')) && 
-        job.status === 'processing'
+        job.agentType === 'HR' && job.status === 'processing'
       );
       
       if (existingHrJob) {
         console.log(`⚠️ HR analysis already running for deal ${dealId} (Job: ${existingHrJob.jobId})`);
         return res.json({ 
-          success: false, 
-          message: `HR analysis already in progress (${Math.round(existingHrJob.progress || 0)}% complete)`,
-          alreadyRunning: true,
-          progress: existingHrJob.progress || 0
+          success: true, 
+          message: `HR analysis already running`,
+          jobId: existingHrJob.jobId
         });
       }
       
