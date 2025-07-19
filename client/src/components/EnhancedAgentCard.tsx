@@ -840,59 +840,7 @@ export default function EnhancedAgentCard({
           </div>
         ) : null}
 
-        {/* Recommendations Section */}
-        {recommendations.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-dark-lighter">
-            <h4 className="font-medium text-white mb-4 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Recommendations
-            </h4>
-            <div className="space-y-3">
-              {recommendations.map((rec: any, index: number) => {
-                // Handle both string and object formats (Clinical recommendations have 'content' field)
-                const isString = typeof rec === 'string';
-                const title = isString ? 
-                  rec.split(':')[0] || `Recommendation ${index + 1}` : 
-                  rec.title || `Clinical Recommendation ${index + 1}`;
-                const description = isString ? 
-                  rec.split(':').slice(1).join(':').trim() || rec : 
-                  rec.description || rec.content || 'No description available';
-                const priority = isString ? 'medium' : rec.priority || 'medium';
-                const impact = isString ? null : rec.impact;
-                
-                return (
-                  <div key={index} className="border border-dark-lighter rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                        priority === 'high' ? 'bg-red-400' :
-                        priority === 'medium' ? 'bg-yellow-400' :
-                        'bg-gray-400'
-                      }`} />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h5 className="font-medium text-white">{title}</h5>
-                          <Badge variant="outline" className={
-                            priority === 'high' ? 'text-red-400 border-red-400' :
-                            priority === 'medium' ? 'text-yellow-400 border-yellow-400' :
-                            'text-gray-400 border-gray-400'
-                          }>
-                            {priority}
-                          </Badge>
-                        </div>
-                        <p className="text-gray-400 text-sm mb-2">{description}</p>
-                        {impact && (
-                          <div className="bg-dark/50 rounded p-2 mt-2">
-                            <p className="text-gray-400 text-xs"><strong>Impact:</strong> {impact}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+
       </CardContent>
     </Card>
   );
