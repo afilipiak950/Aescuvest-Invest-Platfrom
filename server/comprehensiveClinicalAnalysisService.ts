@@ -127,6 +127,26 @@ class ComprehensiveClinicalAnalysisService {
   async startComprehensiveAnalysis(dealId: number): Promise<void> {
     console.log(`🧬 Starting comprehensive clinical analysis for deal ${dealId}`);
     
+    // Create background job for progress tracking (same as Legal)
+    const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
+    
+    try {
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_clinical_analysis',
+        dealId,
+        agentType: 'Clinical',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        startedAt: new Date()
+      });
+    } catch (error) {
+      console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
+      throw new Error(`Failed to initialize comprehensive clinical analysis: ${error.message}`);
+    }
+    
     this.setProgress(dealId, {
       isRunning: true,
       progress: 5,
@@ -141,6 +161,11 @@ class ComprehensiveClinicalAnalysisService {
       console.log(`🧬 Found ${clinicalDocs.length} clinical documents for analysis`);
 
       if (clinicalDocs.length === 0) {
+        await storage.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          error: 'No clinical documents available for analysis'
+        });
         this.setProgress(dealId, {
           isRunning: false,
           progress: 100,
@@ -148,6 +173,12 @@ class ComprehensiveClinicalAnalysisService {
         });
         throw new Error('No documents available for clinical analysis');
       }
+      
+      // Update job with total questions to process
+      await storage.updateBackgroundJob(jobId, {
+        totalDocuments: CLINICAL_QUESTIONS.length,
+        currentStep: 'Analyzing clinical documents across 11 question categories'
+      });
 
       // Process each question comprehensively with enhanced error handling (same as Legal)
       const clinicalAnswers: Record<string, any> = {};
@@ -157,8 +188,15 @@ class ComprehensiveClinicalAnalysisService {
         console.log(`🧬 Processing question ${i + 1}/${CLINICAL_QUESTIONS.length}: ${question.question}`);
         
         try {
-          // Update progress with error handling
+          // Update progress with error handling (both internal and background job)
           const progress = Math.round((i / CLINICAL_QUESTIONS.length) * 100);
+          await storage.updateBackgroundJob(jobId, {
+            progress,
+            processedDocuments: i,
+            currentDocumentName: question.question,
+            currentStep: `Analyzing: ${question.category}`
+          });
+          
           this.setProgress(dealId, {
             progress,
             currentStep: `Analyzing: ${question.category}`,
@@ -196,6 +234,11 @@ class ComprehensiveClinicalAnalysisService {
       }
 
       // Store results in database (same format as legal analysis)
+      await storage.updateBackgroundJob(jobId, {
+        progress: 95,
+        currentStep: 'Storing clinical analysis results...'
+      });
+      
       this.setProgress(dealId, {
         progress: 95,
         currentStep: 'Storing clinical analysis results...'
@@ -260,6 +303,14 @@ class ComprehensiveClinicalAnalysisService {
         });
       }
 
+      // Complete the job
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: `Clinical analysis completed - ${Object.keys(clinicalAnswers).length} questions analyzed`,
+        completedAt: new Date()
+      });
+      
       this.setProgress(dealId, {
         isRunning: false,
         progress: 100,
@@ -270,6 +321,14 @@ class ComprehensiveClinicalAnalysisService {
       
     } catch (error) {
       console.error(`🧬 Error in comprehensive clinical analysis:`, error);
+      
+      // Update background job status to failed
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        currentStep: `Error: ${error.message}`,
+        error: error.message
+      });
+      
       this.setProgress(dealId, {
         isRunning: false,
         progress: 0,

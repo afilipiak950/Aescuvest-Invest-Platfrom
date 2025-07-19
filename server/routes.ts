@@ -3956,6 +3956,128 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Run comprehensive Financial analysis
+  app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`💰 Starting comprehensive financial analysis for deal ${dealId}`);
+      
+      // Check for existing Financial analysis jobs to prevent duplicates  
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingFinancialJob = existingJobs.find(job => 
+        job.agentType === 'Financial' && job.status === 'processing'
+      );
+      
+      if (existingFinancialJob) {
+        console.log(`⚠️ Financial analysis already running for deal ${dealId} (Job: ${existingFinancialJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Financial analysis already running`,
+          jobId: existingFinancialJob.jobId
+        });
+      }
+      
+      // Import and start the comprehensive financial analysis service
+      const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
+      const service = new ComprehensiveFinancialAnalysisService();
+      
+      // Start comprehensive financial analysis in background
+      service.startComprehensiveAnalysis(dealId).catch(error => {
+        console.error(`❌ Background financial analysis failed for deal ${dealId}:`, error);
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive financial analysis started - processing 14 financial questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive financial analysis' });
+    }
+  });
+
+  // Run comprehensive IP analysis
+  app.post('/api/deals/:dealId/ip-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`⚖️ Starting comprehensive IP analysis for deal ${dealId}`);
+      
+      // Check for existing IP analysis jobs to prevent duplicates  
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingIpJob = existingJobs.find(job => 
+        job.agentType === 'IP' && job.status === 'processing'
+      );
+      
+      if (existingIpJob) {
+        console.log(`⚠️ IP analysis already running for deal ${dealId} (Job: ${existingIpJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `IP analysis already running`,
+          jobId: existingIpJob.jobId
+        });
+      }
+      
+      // Import and start the comprehensive IP analysis service
+      const { ComprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
+      const service = new ComprehensiveIpAnalysisService();
+      
+      // Start comprehensive IP analysis in background
+      service.startComprehensiveAnalysis(dealId).catch(error => {
+        console.error(`❌ Background IP analysis failed for deal ${dealId}:`, error);
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive IP analysis started - processing 14 IP questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive IP analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive IP analysis' });
+    }
+  });
+
+  // Run comprehensive Research analysis
+  app.post('/api/deals/:dealId/research-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🔬 Starting comprehensive research analysis for deal ${dealId}`);
+      
+      // Check for existing Research analysis jobs to prevent duplicates  
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingResearchJob = existingJobs.find(job => 
+        job.agentType === 'Research' && job.status === 'processing'
+      );
+      
+      if (existingResearchJob) {
+        console.log(`⚠️ Research analysis already running for deal ${dealId} (Job: ${existingResearchJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Research analysis already running`,
+          jobId: existingResearchJob.jobId
+        });
+      }
+      
+      // Import and start the comprehensive research analysis service
+      const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
+      
+      // Start comprehensive research analysis in background
+      comprehensiveResearchAnalysisService.startComprehensiveAnalysis(dealId).catch(error => {
+        console.error(`❌ Background research analysis failed for deal ${dealId}:`, error);
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive research analysis started - processing 12 research questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive research analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive research analysis' });
+    }
+  });
+
   return httpServer;
 }
 
