@@ -564,6 +564,14 @@ Respond in JSON format:
       });
       
       console.log(`🧬 Auto-identified clinical documents: ${clinicalDocuments.length}`);
+      
+      // Log first few documents for debugging
+      if (clinicalDocuments.length > 0) {
+        console.log(`🧬 Sample clinical documents found:`);
+        clinicalDocuments.slice(0, 3).forEach(doc => {
+          console.log(`  - ${doc.name} (score calculation based on content)`);
+        });
+      }
     }
     
     // If still no clinical documents, take documents with meaningful content for analysis
@@ -578,7 +586,203 @@ Respond in JSON format:
     return clinicalDocuments;
   }
 
+  /**
+   * Extract evidence from ALL documents for a specific question (IDENTICAL to Legal service)
+   */
+  private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<any[]> {
+    console.log(`🧬 Starting evidence extraction from ${documents.length} documents for question: ${question.question}`);
+    
+    // Debug: Log which documents we're actually processing
+    console.log(`🧬 Documents being processed:`, documents.map(d => d.name).slice(0, 5));
+    
+    // Process documents in batches to avoid overwhelming the system
+    const batchSize = 10;
+    const evidence = [];
+    
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`🧬 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (doc) => {
+          console.log(`🔎 Extracting evidence from: ${doc.name}`);
+          return this.extractEvidenceFromDocument(doc, question);
+        })
+      );
+      
+      // Collect evidence from this batch
+      const validEvidence = batchResults.filter(result => result && result.relevantContent && result.relevantContent.length > 0);
+      evidence.push(...validEvidence);
+      
+      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+    }
+    
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    
+    return evidence;
+  }
 
+  /**
+   * Extract evidence from a single document for a clinical question (IDENTICAL to Legal service)
+   */
+  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+    try {
+      const content = document.ocrText || '';
+      
+      if (!content || content.length < 50) {
+        return null;
+      }
+
+      // Use OpenAI to extract relevant evidence for this clinical question
+      const prompt = `
+You are a clinical affairs expert analyzing medical device documentation. 
+
+Question: ${question.question}
+${question.subQuestions ? `Sub-questions: ${question.subQuestions.join(', ')}` : ''}
+
+Document: ${document.name}
+Content: ${content.substring(0, 8000)}
+
+Extract relevant information that directly answers the clinical question. Focus on:
+- Clinical trial data and protocols
+- Regulatory submissions and approvals
+- Safety and efficacy information
+- Patient population and endpoints
+- Study designs and methodologies
+
+Respond with a JSON object:
+{
+  "relevantContent": ["specific relevant sentences or phrases from the document"],
+  "keyFindings": ["key clinical findings relevant to the question"],
+  "documentSummary": "brief summary of how this document relates to the question"
+}
+
+If no relevant clinical information is found, return:
+{
+  "relevantContent": [],
+  "keyFindings": [],
+  "documentSummary": ""
+}
+`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 1500
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      
+      // Only return evidence if we found relevant content
+      if (result.relevantContent && result.relevantContent.length > 0) {
+        return {
+          documentName: document.name,
+          documentId: document.id,
+          relevantContent: result.relevantContent,
+          keyFindings: result.keyFindings || [],
+          documentSummary: result.documentSummary || ''
+        };
+      }
+
+      return null;
+      
+    } catch (error) {
+      console.error(`Error extracting evidence from ${document.name}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Compile comprehensive answer based on all evidence (IDENTICAL to Legal service)
+   */
+  private async compileComprehensiveAnswer(question: any, documentEvidence: any[]): Promise<any> {
+    console.log(`🧬 Compiling comprehensive answer for: ${question.question}`);
+    console.log(`🧬 Evidence from ${documentEvidence.length} documents`);
+    
+    if (documentEvidence.length === 0) {
+      return {
+        question: question.question,
+        answer: 'No relevant information found in the assigned clinical documents for this question.',
+        confidence: 10,
+        sources: [],
+        evidenceCount: 0,
+        documentsCovered: 0
+      };
+    }
+
+    // Compile comprehensive prompt with all evidence
+    const evidenceText = documentEvidence.map(doc => 
+      `Document: ${doc.documentName}\n` +
+      `Key Findings: ${doc.keyFindings.join('; ')}\n` +
+      `Relevant Content: ${doc.relevantContent.join('; ')}\n`
+    ).join('\n---\n');
+
+    const prompt = `
+You are a clinical affairs expert conducting comprehensive due diligence analysis.
+
+Question: ${question.question}
+${question.subQuestions ? `Sub-questions: ${question.subQuestions.join(', ')}` : ''}
+
+Evidence from ${documentEvidence.length} relevant documents:
+${evidenceText}
+
+Based on this evidence, provide a comprehensive clinical analysis. Focus on:
+- Direct answers to the clinical question
+- Clinical trial protocols and methodologies
+- Regulatory status and submissions
+- Safety and efficacy data
+- Patient populations and study designs
+
+Respond with a JSON object:
+{
+  "answer": "comprehensive answer based on the evidence",
+  "confidence": number (0-100, based on evidence quality and completeness),
+  "keyFindings": ["key clinical findings from the evidence"],
+  "recommendations": ["clinical recommendations based on findings"],
+  "sources": ["list of document names that provided evidence"],
+  "evidenceCount": ${documentEvidence.length},
+  "documentsCovered": ${documentEvidence.length}
+}
+`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 2000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      
+      return {
+        question: question.question,
+        answer: result.answer || 'No relevant information found in the assigned clinical documents for this question.',
+        confidence: result.confidence || 10,
+        keyFindings: result.keyFindings || [],
+        recommendations: result.recommendations || [],
+        sources: result.sources || [],
+        detailedEvidence: documentEvidence, // Include the detailed evidence for sources popup
+        evidenceCount: documentEvidence.length,
+        documentsCovered: documentEvidence.length
+      };
+      
+    } catch (error) {
+      console.error(`Error compiling comprehensive answer for ${question.question}:`, error);
+      
+      return {
+        question: question.question,
+        answer: 'No relevant information found in the assigned clinical documents for this question.',
+        confidence: 10,
+        sources: [],
+        evidenceCount: 0,
+        documentsCovered: 0
+      };
+    }
+  }
 
 
 }
