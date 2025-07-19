@@ -408,6 +408,13 @@ Changelog:
   - Enhanced user experience with clear visual separation of concurrent analysis processes
   - Fixed grey fallback progress bar issue by creating progress detection from jobProgress data instead of disabled progress queries
   - Progress states now properly extract from background job data to show Legal (13%) and Commercial (5%) analyses correctly
+- July 19, 2025: Added stop functionality to all progress cards with individual stop buttons
+  - Added Square stop icons to each analysis progress card (Legal, Commercial, HR, Clinical)
+  - Created new /api/background-jobs/:jobId/stop endpoint supporting string job IDs
+  - Stop buttons properly identify and cancel specific background jobs using job IDs like "legal_analysis_22_1752937740692"
+  - Enhanced job cancellation system to update database status and clear in-memory active jobs
+  - Users can now individually stop any running analysis without affecting other concurrent analyses
+  - Stop functionality includes loading states and proper error handling for improved user experience
 ```
 
 ## User Preferences

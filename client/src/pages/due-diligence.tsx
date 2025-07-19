@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 
@@ -140,6 +140,29 @@ export default function DueDiligence() {
       currentDocumentName: clinicalJob.currentDocument || 'Processing'
     } : null;
   }, [jobProgress]);
+
+  // Stop job mutation
+  const stopJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const response = await apiRequest(`/api/background-jobs/${jobId}/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      // Refresh background jobs data
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+    },
+    onError: (error) => {
+      console.error('❌ Error stopping job:', error);
+    }
+  });
+
+  const handleStopJob = (jobId: string, agentType: string) => {
+    console.log(`🛑 Stopping ${agentType} analysis job: ${jobId}`);
+    stopJobMutation.mutate(jobId);
+  };
 
   // Reset clinical analysis started flag when analysis is complete
   useEffect(() => {
@@ -476,9 +499,23 @@ export default function DueDiligence() {
                     </p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-blue-400 border-blue-400">
-                  {legalProgress.progress || 0}%
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-blue-400 border-blue-400">
+                    {legalProgress.progress || 0}%
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const legalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Legal');
+                      if (legalJob) handleStopJob(legalJob.jobId, 'Legal');
+                    }}
+                    disabled={stopJobMutation.isPending}
+                    className="h-8 w-8 p-0 border-blue-400/50 hover:bg-blue-500/20 hover:border-blue-400"
+                  >
+                    <Square className="h-4 w-4 text-blue-400" />
+                  </Button>
+                </div>
               </div>
               
               <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-blue-500/30">
@@ -512,9 +549,23 @@ export default function DueDiligence() {
                     </p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-purple-400 border-purple-400">
-                  {commercialProgress.progress || 0}%
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-purple-400 border-purple-400">
+                    {commercialProgress.progress || 0}%
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const commercialJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Commercial');
+                      if (commercialJob) handleStopJob(commercialJob.jobId, 'Commercial');
+                    }}
+                    disabled={stopJobMutation.isPending}
+                    className="h-8 w-8 p-0 border-purple-400/50 hover:bg-purple-500/20 hover:border-purple-400"
+                  >
+                    <Square className="h-4 w-4 text-purple-400" />
+                  </Button>
+                </div>
               </div>
               
               <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-purple-500/30">
@@ -548,9 +599,23 @@ export default function DueDiligence() {
                     </p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-orange-400 border-orange-400">
-                  {hrProgress.progress || 0}%
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-orange-400 border-orange-400">
+                    {hrProgress.progress || 0}%
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const hrJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'HR');
+                      if (hrJob) handleStopJob(hrJob.jobId, 'HR');
+                    }}
+                    disabled={stopJobMutation.isPending}
+                    className="h-8 w-8 p-0 border-orange-400/50 hover:bg-orange-500/20 hover:border-orange-400"
+                  >
+                    <Square className="h-4 w-4 text-orange-400" />
+                  </Button>
+                </div>
               </div>
               
               <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-orange-500/30">
@@ -585,9 +650,23 @@ export default function DueDiligence() {
                     </p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-green-400 border-green-400">
-                  {clinicalProgress?.progress || 0}%
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-green-400 border-green-400">
+                    {clinicalProgress?.progress || 0}%
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const clinicalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Clinical');
+                      if (clinicalJob) handleStopJob(clinicalJob.jobId, 'Clinical');
+                    }}
+                    disabled={stopJobMutation.isPending}
+                    className="h-8 w-8 p-0 border-green-400/50 hover:bg-green-500/20 hover:border-green-400"
+                  >
+                    <Square className="h-4 w-4 text-green-400" />
+                  </Button>
+                </div>
               </div>
               
               <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-green-500/30">
