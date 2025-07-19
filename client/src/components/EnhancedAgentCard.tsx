@@ -2279,8 +2279,6 @@ function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, d
 
   return (
     <div>
-      <CommercialProgressDisplay dealId={dealId} documents={documents} />
-      
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <HelpCircle className="h-5 w-5 text-purple-400" />
