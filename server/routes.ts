@@ -4133,7 +4133,7 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
 }
 
 // Intelligent document-to-agent assignment function
-function getAssignedAgentsForDocument(document: any) {
+export function getAssignedAgentsForDocument(document: any) {
   const docName = document.name.toLowerCase();
   const docContent = (document.ocrText || '').toLowerCase();
   const aiSummary = document.aiSummary;
