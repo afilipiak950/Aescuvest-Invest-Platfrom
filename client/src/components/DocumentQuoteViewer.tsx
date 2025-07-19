@@ -64,7 +64,7 @@ export default function DocumentQuoteViewer({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] bg-dark-light border-dark-lighter">
+      <DialogContent className="max-w-4xl max-h-[80vh] bg-dark-light border-dark-lighter" aria-describedby="document-evidence-description">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-xl font-semibold text-white">
             {title} - Document Evidence
@@ -84,6 +84,9 @@ export default function DocumentQuoteViewer({
             <FileText className="h-5 w-5 text-green-400" />
             Document Sources ({sources.length})
           </h3>
+          <p id="document-evidence-description" className="text-sm text-gray-400 mt-1">
+            Evidence extracted from documents to support the analysis findings
+          </p>
         </div>
 
         <ScrollArea className="h-[500px] w-full">
@@ -131,7 +134,11 @@ export default function DocumentQuoteViewer({
                         </div>
                       ))}
 
-                      {source.extractedText && (
+                      {/* Only show Full Extract if it's different from relevant sections */}
+                      {source.extractedText && 
+                       !source.relevantSections.some(section => 
+                         section.trim().toLowerCase() === source.extractedText.trim().toLowerCase()
+                       ) && (
                         <div className="bg-dark-lighter/30 rounded-lg p-3">
                           <h4 className="text-sm font-medium text-gray-300 mb-2">Full Extract:</h4>
                           <p className="text-gray-300 text-sm leading-relaxed">
