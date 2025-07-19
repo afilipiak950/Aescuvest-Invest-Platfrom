@@ -64,7 +64,7 @@ router.get('/api/background-jobs', async (req: Request, res: Response) => {
   }
 });
 
-// Cancel a specific job
+// Cancel a specific job (numeric ID)
 router.post('/api/background-jobs/:jobId/cancel', async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.jobId);
@@ -92,6 +92,72 @@ router.post('/api/background-jobs/:jobId/cancel', async (req: Request, res: Resp
   } catch (error) {
     console.error('Error cancelling background job:', error);
     res.status(500).json({ success: false, error: 'Failed to cancel background job' });
+  }
+});
+
+// Stop a specific job (string ID like legal_analysis_22_1752937740692)
+router.post('/api/background-jobs/:jobId/stop', async (req: Request, res: Response) => {
+  try {
+    const jobId = req.params.jobId;
+    
+    if (!jobId) {
+      return res.status(400).json({ success: false, error: 'Job ID is required' });
+    }
+    
+    console.log(`🛑 Attempting to stop job: ${jobId}`);
+    
+    // Get the job from database using string jobId
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const [job] = await db.select().from(backgroundJobs)
+      .where(eq(backgroundJobs.jobId, jobId));
+    
+    if (!job) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `Job ${jobId} not found` 
+      });
+    }
+    
+    if (job.status !== 'processing') {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Job ${jobId} is not running (status: ${job.status})` 
+      });
+    }
+    
+    // Update job status to cancelled
+    await db.update(backgroundJobs)
+      .set({ 
+        status: 'cancelled',
+        currentStep: 'Cancelled by user',
+        completedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(backgroundJobs.jobId, jobId));
+    
+    // Clear from in-memory active jobs if it exists
+    if (global.activeJobs) {
+      for (const [key, activeJob] of global.activeJobs.entries()) {
+        if (activeJob.id === jobId || activeJob.jobId === jobId) {
+          global.activeJobs.delete(key);
+          break;
+        }
+      }
+    }
+    
+    console.log(`🛑 Job ${jobId} stopped successfully`);
+    res.json({ 
+      success: true, 
+      message: `Job ${jobId} has been stopped`,
+      jobId 
+    });
+    
+  } catch (error) {
+    console.error('Error stopping background job:', error);
+    res.status(500).json({ success: false, error: 'Failed to stop background job' });
   }
 });
 
