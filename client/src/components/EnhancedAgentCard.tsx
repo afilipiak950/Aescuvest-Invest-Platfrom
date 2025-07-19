@@ -1045,6 +1045,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     evidenceSummary?: string;
     legalAssessment?: string;
     recommendations?: string[];
+    detailedEvidence?: any[];
   } | null => {
     if (!analysisData) return null;
     
@@ -1057,6 +1058,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
       const answer = analysisData.legalAnswers[questionId];
       console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
+      console.log(`🔍 Has detailedEvidence:`, !!answer.detailedEvidence);
       return {
         answer: answer.answer,
         confidence: answer.confidence,
@@ -1065,7 +1067,8 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
         keyFindings: answer.keyFindings || [],
         evidenceSummary: answer.evidenceSummary || '',
         legalAssessment: answer.legalAssessment || '',
-        recommendations: answer.recommendations || []
+        recommendations: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || []
       };
     }
     
