@@ -1223,7 +1223,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     }
     
     // Fallback to findings-based extraction
-    if (!analysisData.findings) return null;
+    if (!analysisData.findings || !Array.isArray(analysisData.findings)) return null;
     
     // Convert question ID to searchable keywords
     const questionKeywords = LEGAL_QUESTIONS.find(q => q.id === questionId);
@@ -1596,6 +1596,9 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     // Fallback to findings-based system
     const questionKeywords = CLINICAL_QUESTIONS.find(q => q.id === questionId);
     if (!questionKeywords) return null;
+    
+    // Check if findings exist before filtering
+    if (!analysisData.findings || !Array.isArray(analysisData.findings)) return null;
     
     // Search through findings for relevant content
     const relevantFindings = analysisData.findings.filter((finding: any) => {
