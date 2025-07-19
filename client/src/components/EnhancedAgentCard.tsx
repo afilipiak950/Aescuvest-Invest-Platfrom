@@ -813,31 +813,6 @@ export default function EnhancedAgentCard({
             
             <p className="text-sm text-gray-500">This may take several minutes to complete</p>
           </div>
-        ) : agentType.toLowerCase() !== 'legal' ? (
-          <div className="text-center py-8">
-            <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">No Analysis Available</h3>
-            <p className="text-gray-400 mb-4">
-              Run the {agentType} analysis to process all {assignedDocuments} assigned documents with the Mistral AI agent.
-            </p>
-            <Button
-              onClick={handleRunMistralAnalysis}
-              disabled={isAnalysisCurrentlyRunning() || assignedDocuments === 0}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {isAnalysisCurrentlyRunning() ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Analyzing {assignedDocuments} Documents
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Run {agentType} Analysis ({assignedDocuments} docs)
-                </>
-              )}
-            </Button>
-          </div>
         ) : null}
 
 
