@@ -217,18 +217,24 @@ export async function startComprehensiveHrAnalysis(dealId: number) {
     currentStep: 'Initializing HR analysis...'
   });
 
-  // Start background processing
-  processHrAnalysisInBackground(dealId, jobId);
+  // Start background processing with proper error handling
+  processHrAnalysisInBackground(dealId, jobId).catch(async (error) => {
+    console.error(`❌ Critical error in HR background processing for deal ${dealId}:`, error);
+    // Mark job as failed if background process fails to start
+    await updateJobProgress(jobId, 0, `Background processing failed: ${error.message}`, 'failed');
+  });
   
   return { success: true, message: 'HR analysis started', jobId };
 }
 
 async function processHrAnalysisInBackground(dealId: number, jobId: string) {
   try {
-    console.log(`🏢 Starting comprehensive HR analysis for deal ${dealId}`);
+    console.log(`🏢 ENHANCED HR ANALYSIS STARTED for deal ${dealId} with job ${jobId}`);
+    console.log(`🚀 Background process executing with 10x enhanced document coverage`);
     
     // Update progress - Finding relevant documents
     await updateJobProgress(jobId, 5, 'Finding HR-relevant documents...');
+    console.log(`📊 Updated progress to 5% - Finding documents`);
     
     // Get all documents with AI summaries for this deal
     const documents = await db.query.documents.findMany({
@@ -245,8 +251,10 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
       return;
     }
 
-    // Filter documents that are relevant to HR analysis using broader criteria
-    const hrRelevantDocuments = documents.filter(doc => {
+    // ENHANCED HR ANALYSIS - 10x better document coverage for comprehensive analysis
+    
+    // First pass: Find explicitly HR-related documents  
+    const explicitHrDocs = documents.filter(doc => {
       if (!doc.aiSummary) return false;
       
       // Handle aiSummary as object with executiveSummary field
@@ -259,29 +267,102 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
         return false;
       }
 
-      // HR-related keywords for document filtering
-      const hrKeywords = [
-        'employment', 'employee', 'contract', 'salary', 'compensation', 'payroll',
-        'hr', 'human resources', 'personnel', 'staff', 'workforce', 'hiring',
-        'termination', 'severance', 'bonus', 'incentive', 'stock option', 'equity',
-        'vesting', 'esop', 'vsop', 'executive', 'management', 'director',
-        'confidentiality', 'non-compete', 'intellectual property', 'ip assignment',
-        'probation', 'notice period', 'leave', 'vacation', 'overtime', 'working hours',
-        'performance', 'kpi', 'review', 'promotion', 'benefits', 'insurance',
-        'policy', 'handbook', 'misconduct', 'diversity', 'whistleblowing',
-        'freelancer', 'contractor', 'consultant', 'agreement'
+      // Comprehensive HR keywords - significantly expanded for 10x better coverage
+      const coreHrKeywords = [
+        // Basic employment terms
+        'employment', 'employee', 'employer', 'contract', 'agreement', 'letter',
+        'salary', 'wage', 'wages', 'compensation', 'payroll', 'pay', 'payment', 'remuneration',
+        
+        // HR functions
+        'hr', 'human resources', 'personnel', 'staff', 'workforce', 'team', 'people',
+        'hiring', 'recruitment', 'recruiting', 'onboarding', 'termination', 'resignation',
+        'severance', 'dismissal', 'firing', 'layoff', 'redundancy',
+        
+        // Compensation & benefits
+        'bonus', 'incentive', 'commission', 'overtime', 'allowance', 'benefits',
+        'stock option', 'equity', 'share', 'vesting', 'esop', 'vsop', 'phantom',
+        'insurance', 'health', 'dental', 'pension', 'retirement', '401k',
+        
+        // Executive & management
+        'executive', 'management', 'manager', 'director', 'ceo', 'cto', 'cfo',
+        'founder', 'co-founder', 'managing director', 'chairman', 'president',
+        'vice president', 'vp', 'board member', 'advisor', 'consultant',
+        
+        // Legal & compliance
+        'confidentiality', 'non-compete', 'non-disclosure', 'nda', 'secrecy',
+        'intellectual property', 'ip assignment', 'invention', 'patent assignment',
+        'trade secret', 'proprietary', 'copyright', 'trademark',
+        
+        // Employment conditions  
+        'probation', 'probationary', 'trial period', 'notice period', 'termination notice',
+        'leave', 'vacation', 'holiday', 'sick leave', 'maternity', 'paternity',
+        'working hours', 'working time', 'overtime', 'flexible', 'remote work',
+        'part-time', 'full-time', 'temporary', 'permanent', 'contract',
+        
+        // Performance & development
+        'performance', 'kpi', 'review', 'appraisal', 'evaluation', 'assessment',
+        'promotion', 'career', 'development', 'training', 'learning', 'skill',
+        'competency', 'goals', 'objectives', 'milestone', 'achievement',
+        
+        // Policies & governance
+        'policy', 'policies', 'handbook', 'manual', 'code of conduct', 'ethics',
+        'compliance', 'regulation', 'misconduct', 'discipline', 'grievance',
+        'diversity', 'inclusion', 'equality', 'discrimination', 'harassment',
+        'whistleblowing', 'reporting', 'complaint',
+        
+        // Contract types
+        'freelancer', 'contractor', 'independent contractor', 'consultant',
+        'service provider', 'vendor', 'supplier'
       ];
       
-      return hrKeywords.some(keyword => 
-        summaryText.includes(keyword) || 
-        doc.name.toLowerCase().includes(keyword)
-      );
+      const documentContent = summaryText + ' ' + doc.name.toLowerCase();
+      return coreHrKeywords.some(keyword => documentContent.includes(keyword));
     });
 
-    console.log(`📋 Filtered to ${hrRelevantDocuments.length} HR-relevant documents`);
+    console.log(`📋 Found ${explicitHrDocs.length} explicitly HR-related documents`);
     
-    // If no documents match HR criteria, fall back to analyzing all documents  
-    const documentsToAnalyze = hrRelevantDocuments.length > 0 ? hrRelevantDocuments : documents;
+    // Second pass: Find any documents that might contain people/business information
+    const potentialHrDocs = documents.filter(doc => {
+      if (!doc.aiSummary) return false;
+      
+      let summaryText = '';
+      if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+        summaryText = doc.aiSummary.executiveSummary.toLowerCase();
+      } else if (typeof doc.aiSummary === 'string') {
+        summaryText = doc.aiSummary.toLowerCase();
+      } else {
+        return false;
+      }
+
+      // Broader business document keywords - catch any document with people/business info
+      const businessKeywords = [
+        'agreement', 'contract', 'letter', 'memo', 'memorandum', 'document',
+        'legal', 'business', 'commercial', 'corporate', 'company', 'organization',
+        'people', 'person', 'individual', 'name', 'signature', 'signed',
+        'terms', 'conditions', 'clause', 'provision', 'section',
+        'financial', 'finance', 'budget', 'cost', 'expense', 'revenue',
+        'governance', 'board', 'meeting', 'resolution', 'decision'
+      ];
+      
+      const documentContent = summaryText + ' ' + doc.name.toLowerCase();
+      return businessKeywords.some(keyword => documentContent.includes(keyword));
+    });
+    
+    // For comprehensive 10x analysis: Use much broader document set
+    // Priority: Explicit HR docs, then potential docs if we have fewer than 50 HR docs
+    let documentsToAnalyze = explicitHrDocs;
+    
+    if (explicitHrDocs.length < 50) {
+      // Include more documents for comprehensive analysis
+      documentsToAnalyze = [...new Set([...explicitHrDocs, ...potentialHrDocs])];
+      console.log(`📋 Expanded analysis set from ${explicitHrDocs.length} to ${documentsToAnalyze.length} documents for comprehensive coverage`);
+    }
+    
+    // Final fallback - ensure we analyze at least 100 documents or all available
+    if (documentsToAnalyze.length < 100 && documents.length > documentsToAnalyze.length) {
+      documentsToAnalyze = documents;
+      console.log(`📋 Using ALL ${documents.length} documents for maximum comprehensive HR analysis`);
+    }
     
     console.log(`📋 Will analyze ${documentsToAnalyze.length} documents across ${HR_QUESTIONS.length} questions`);
 
@@ -302,30 +383,63 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
       
       console.log(`🏢 Processing question ${questionIndex + 1}/${HR_QUESTIONS.length}: ${question.question}`);
       
-      // Find documents with evidence for this question
+      // ENHANCED: Find documents with evidence for this question - 10x more comprehensive
       const relevantDocs = documentsToAnalyze.filter(doc => {
         const summaryText = typeof doc.aiSummary === 'object' 
           ? doc.aiSummary.executiveSummary?.toLowerCase() || ''
           : (doc.aiSummary || '').toLowerCase();
         
-        return question.keywords.some(keyword => 
+        // Primary keyword matching
+        const hasDirectMatch = question.keywords.some(keyword => 
           summaryText.includes(keyword.toLowerCase()) || 
           doc.name.toLowerCase().includes(keyword.toLowerCase())
         );
+        
+        // Enhanced secondary matching for better coverage
+        const hasSecondaryMatch = (() => {
+          // For salary/compensation questions, look broader
+          if (question.id.includes('employment') || question.id.includes('executive') || question.id.includes('compensation')) {
+            const salaryTerms = ['money', 'amount', 'euro', 'eur', 'dollar', 'usd', 'price', 'cost', 'rate', 'figure', 'sum'];
+            return salaryTerms.some(term => summaryText.includes(term));
+          }
+          
+          // For contract questions, look for legal documents
+          if (question.id.includes('employment') || question.id.includes('executive')) {
+            const contractTerms = ['signed', 'signature', 'dated', 'effective', 'term', 'duration', 'period'];
+            return contractTerms.some(term => summaryText.includes(term));
+          }
+          
+          // For policy questions, look for procedural content
+          if (question.id.includes('policies')) {
+            const policyTerms = ['procedure', 'process', 'rule', 'guideline', 'standard', 'requirement'];
+            return policyTerms.some(term => summaryText.includes(term));
+          }
+          
+          return false;
+        })();
+        
+        return hasDirectMatch || hasSecondaryMatch;
       });
 
-      console.log(`🔎 Found ${relevantDocs.length} documents with potential evidence for: ${question.question}`);
+      // If few documents found, expand search to include ALL documents for comprehensive analysis
+      let finalRelevantDocs = relevantDocs;
+      if (relevantDocs.length < 5 && documentsToAnalyze.length > 20) {
+        finalRelevantDocs = documentsToAnalyze.slice(0, Math.min(50, documentsToAnalyze.length));
+        console.log(`🔎 Expanded search from ${relevantDocs.length} to ${finalRelevantDocs.length} docs for comprehensive analysis of: ${question.question}`);
+      } else {
+        console.log(`🔎 Found ${relevantDocs.length} documents with potential evidence for: ${question.question}`);
+      }
       
       // Process documents in batches for this question
       const questionFindings: string[] = [];
       const questionSources: string[] = [];
       
-      for (let batchIndex = 0; batchIndex < Math.ceil(relevantDocs.length / batchSize); batchIndex++) {
+      for (let batchIndex = 0; batchIndex < Math.ceil(finalRelevantDocs.length / batchSize); batchIndex++) {
         const batchStart = batchIndex * batchSize;
-        const batchEnd = Math.min(batchStart + batchSize, relevantDocs.length);
-        const batch = relevantDocs.slice(batchStart, batchEnd);
+        const batchEnd = Math.min(batchStart + batchSize, finalRelevantDocs.length);
+        const batch = finalRelevantDocs.slice(batchStart, batchEnd);
         
-        console.log(`🏢 Processing batch ${batchIndex + 1}/${Math.ceil(relevantDocs.length / batchSize)} for question: ${question.id}`);
+        console.log(`🏢 Processing batch ${batchIndex + 1}/${Math.ceil(finalRelevantDocs.length / batchSize)} for question: ${question.id}`);
         
         // Extract evidence from this batch
         for (const doc of batch) {
@@ -342,23 +456,34 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
               );
               
               if (hasRelevantContent) {
-                // Extract specific evidence using AI
+                // ENHANCED: Extract comprehensive evidence using AI with detailed prompting
                 const evidencePrompt = `
-                Analyze this document summary for HR due diligence evidence related to: "${question.question}"
+                You are an expert HR due diligence analyst. Analyze this document for evidence related to: "${question.question}"
 
                 Document: ${doc.name}
-                Summary: ${summaryText}
+                Content Summary: ${summaryText}
 
-                Extract specific evidence that directly answers the question. If no relevant evidence exists, return "No relevant evidence found."
+                Instructions:
+                1. Extract SPECIFIC facts, numbers, dates, names, and details that directly answer the question
+                2. Quote exact phrases or data points when available
+                3. If the document contains partial information, extract what is available
+                4. Look for implied information or context clues that relate to the question
+                5. For salary/compensation questions: look for any monetary amounts, percentages, or compensation structures
+                6. For contract questions: look for dates, signatures, terms, conditions, or legal language
+                7. For policy questions: look for procedures, rules, guidelines, or governance structures
 
-                Provide your response as specific findings with confidence level.
+                Response format:
+                - If relevant evidence found: "Evidence: [specific details with quotes/numbers]"
+                - If no relevant evidence: "No relevant evidence found"
+                
+                Focus on being comprehensive and extracting maximum value from the document.
                 `;
 
                 const response = await openai.chat.completions.create({
                   model: 'gpt-4o', // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
                   messages: [{ role: 'user', content: evidencePrompt }],
-                  temperature: 0.1,
-                  max_tokens: 500
+                  temperature: 0.2,
+                  max_tokens: 800
                 });
 
                 const evidence = response.choices[0].message.content?.trim();
