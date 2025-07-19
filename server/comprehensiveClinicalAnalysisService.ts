@@ -1,4 +1,7 @@
 import { storage } from './storage';
+import { db } from './db';
+import { documents } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -133,30 +136,9 @@ class ComprehensiveClinicalAnalysisService {
     });
 
     try {
-      // Get all documents for the deal
-      const documents = await storage.getDocumentsByDealId(dealId);
-      
-      // Import the assignment function from routes.ts
-      const { getAssignedAgentsForDocument } = await import('./routes');
-      
-      // Use intelligent document assignment logic (same as frontend)
-      const clinicalDocs = documents.filter(doc => {
-        const assignedAgents = getAssignedAgentsForDocument(doc);
-        const isClinical = assignedAgents.some(agent => agent.type.toLowerCase() === 'clinical');
-        if (isClinical) {
-          console.log(`🧬 Document ${doc.id} (${doc.name}) assigned to clinical agent`);
-        }
-        return isClinical;
-      });
-
-      console.log(`🧬 Found ${clinicalDocs.length} clinical documents for analysis (using intelligent assignment)`);
-      
-      // Debug: Show first few document names and assigned agents
-      for (let i = 0; i < Math.min(5, documents.length); i++) {
-        const doc = documents[i];
-        const assignedAgents = getAssignedAgentsForDocument(doc);
-        console.log(`🧬 Debug: Document ${doc.id} (${doc.name.substring(0, 50)}...) -> agents: ${assignedAgents.map(a => a.type).join(', ')}`);
-      }
+      // Get all documents suitable for clinical analysis (same approach as Legal)
+      const clinicalDocs = await this.getAssignedClinicalDocuments(dealId);
+      console.log(`🧬 Found ${clinicalDocs.length} clinical documents for analysis`);
 
       if (clinicalDocs.length === 0) {
         this.setProgress(dealId, {
@@ -164,7 +146,7 @@ class ComprehensiveClinicalAnalysisService {
           progress: 100,
           message: 'No clinical documents found for analysis'
         });
-        return;
+        throw new Error('No documents available for clinical analysis');
       }
 
       const clinicalAnswers: Record<string, ClinicalAnswer> = {};
@@ -250,6 +232,72 @@ class ComprehensiveClinicalAnalysisService {
       });
       throw error;
     }
+  }
+
+  /**
+   * Get all documents suitable for clinical analysis (same approach as Legal)
+   */
+  private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
+    const allDocuments = await storage.getDocumentsByDealId(dealId);
+    
+    console.log(`🧬 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // First try documents explicitly assigned to clinical agent
+    let clinicalDocuments = allDocuments.filter(doc => 
+      (doc.assignedAgents && doc.assignedAgents.includes('clinical')) && 
+      (doc.ocrText || doc.aiSummary)
+    );
+    
+    console.log(`🧬 Documents explicitly assigned to clinical: ${clinicalDocuments.length}`);
+    
+    // If no documents are explicitly assigned to clinical, identify clinical-related documents
+    if (clinicalDocuments.length === 0) {
+      console.log('🧬 No documents explicitly assigned to clinical agent, identifying clinical-related documents...');
+      
+      clinicalDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiSummary = doc.aiSummary;
+        
+        // Clinical document keywords
+        const clinicalKeywords = [
+          'trial', 'phase', 'clinical', 'regulatory', 'fda', 'ema', 'endpoint', 
+          'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol',
+          'approval', 'designation', 'orphan', 'breakthrough', 'inclusion',
+          'exclusion', 'population', 'advisory', 'sae', 'serious adverse',
+          'medical', 'therapy', 'treatment', 'drug', 'device', 'biologics',
+          'investigator', 'brochure', 'report', 'clinical trial', 'clinical study'
+        ];
+        
+        // Check document name and content for clinical keywords
+        const hasClinicalKeywords = clinicalKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword)
+        );
+        
+        // Check AI summary for clinical document type
+        const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('study');
+        
+        return hasClinicalKeywords || isClinicalDocument;
+      });
+      
+      console.log(`🧬 Auto-identified clinical documents: ${clinicalDocuments.length}`);
+    }
+    
+    // If still no clinical documents, take documents with meaningful content for analysis
+    if (clinicalDocuments.length === 0) {
+      console.log('🧬 No clinical-related documents found, using all documents with OCR text...');
+      clinicalDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
+      );
+      console.log(`🧬 Documents with content available: ${clinicalDocuments.length}`);
+    }
+    
+    return clinicalDocuments;
   }
 
   private findRelevantDocuments(documents: any[], keywords: string[]): any[] {
