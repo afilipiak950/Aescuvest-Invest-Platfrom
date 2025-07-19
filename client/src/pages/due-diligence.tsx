@@ -24,7 +24,8 @@ import { Deal, AgentAnalysis, Document } from '@/types';
 
 export default function DueDiligence() {
   const [location] = useLocation();
-  const [selectedDeal, setSelectedDeal] = useState<string>('22'); // Default to deal 22
+  const params = useParams();
+  const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
   const [activeAgent, setActiveAgent] = useState<string>('legal');
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadField, setShowUploadField] = useState(false);
@@ -37,12 +38,18 @@ export default function DueDiligence() {
 
   // Parse URL parameters and set selected deal
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const dealParam = searchParams.get('deal');
-    if (dealParam) {
-      setSelectedDeal(dealParam);
+    // Check for deal ID in URL path parameter first
+    if (params.dealId) {
+      setSelectedDeal(params.dealId);
+    } else {
+      // Fall back to URL search parameter
+      const searchParams = new URLSearchParams(window.location.search);
+      const dealParam = searchParams.get('deal');
+      if (dealParam) {
+        setSelectedDeal(dealParam);
+      }
     }
-  }, [location]);
+  }, [location, params.dealId]);
 
   // Fetch real deals from database
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
