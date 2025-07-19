@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 
 interface EnhancedAgentCardProps {
@@ -581,6 +582,16 @@ export default function EnhancedAgentCard({
   };
 
   const assignedDocuments = getAssignedDocumentCount();
+
+  // Helper function to get assigned documents for this agent
+  const getAssignedDocumentsForAgent = () => {
+    if (!documents || !Array.isArray(documents)) return [];
+    
+    return documents.filter(document => {
+      const assignedAgents = getAssignedAgents(document);
+      return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
+    });
+  };
   
   // Calculate real progress based on current state and backend progress
   const progress = (() => {
@@ -683,10 +694,57 @@ export default function EnhancedAgentCard({
       <CardContent>
         {/* KPI Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-dark border border-dark-lighter rounded-lg p-3 text-center">
-            <div className="text-xl md:text-2xl font-bold text-blue-400 mb-1">{assignedDocuments}</div>
-            <div className="text-xs md:text-sm text-gray-400">Assigned Documents</div>
-          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <div className="bg-dark border border-dark-lighter rounded-lg p-3 text-center cursor-pointer hover:border-blue-400/50 transition-colors">
+                <div className="text-xl md:text-2xl font-bold text-blue-400 mb-1">{assignedDocuments}</div>
+                <div className="text-xs md:text-sm text-gray-400">Assigned Documents</div>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] bg-dark border-dark-lighter">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-semibold text-white">
+                  {agentType} Agent - Assigned Documents ({assignedDocuments})
+                </DialogTitle>
+              </DialogHeader>
+              <div className="overflow-y-auto max-h-[60vh] pr-4">
+                <div className="grid grid-cols-1 gap-3">
+                  {getAssignedDocumentsForAgent().map((doc, index) => (
+                    <div 
+                      key={doc.id} 
+                      className="bg-dark-light border border-dark-lighter rounded-lg p-4 hover:border-gray-600 transition-colors cursor-pointer"
+                      onClick={() => handleDocumentClick(doc.name)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium text-sm mb-2 break-words">
+                            {doc.name}
+                          </h3>
+                          {doc.aiSummary && (
+                            <p className="text-gray-400 text-xs line-clamp-3">
+                              {typeof doc.aiSummary === 'object' 
+                                ? doc.aiSummary.executiveSummary || 'No summary available'
+                                : doc.aiSummary
+                              }
+                            </p>
+                          )}
+                        </div>
+                        <div className="ml-3 flex-shrink-0">
+                          <FileText className="h-4 w-4 text-gray-400" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {getAssignedDocumentsForAgent().length === 0 && (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400">No documents assigned to {agentType} agent</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <div className="bg-dark border border-dark-lighter rounded-lg p-3 text-center">
             <div className="text-xl md:text-2xl font-bold text-white mb-1">
               {hasAnalysis ? getAnalyzedDocumentCount() : assignedDocuments}
