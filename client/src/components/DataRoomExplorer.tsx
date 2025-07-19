@@ -106,70 +106,18 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
 
   // Intelligent document-to-agent assignment based on weighted analysis
   const getAssignedAgents = () => {
-    console.log('Analyzing document for intelligent agent assignment:', document.name);
-    
-    const docName = document.name.toLowerCase();
-    const docContent = (document.ocrText || '').toLowerCase();
-    const aiSummary = document.aiSummary;
-    
-    // Extract relevant content for analysis
-    const analysisText = [
-      docName,
-      docContent.substring(0, 2000), // First 2k chars for performance
-      aiSummary?.executiveSummary || '',
-      aiSummary?.documentType || '',
-      (aiSummary?.criticalFindings || []).join(' '),
-      (aiSummary?.keyFinancialData || []).join(' '),
-      (aiSummary?.riskAssessment || []).join(' '),
-      (aiSummary?.neutralFindings || []).join(' ')
-    ].join(' ').toLowerCase();
-    
-    // Weighted scoring system for each agent type
-    const agentScores = calculateAgentRelevanceScores(docName, analysisText, aiSummary);
-    
-    // Intelligent agent assignment based on score distribution
-    const sortedAgents = Object.entries(agentScores)
-      .sort(([,a], [,b]) => b - a)
-      .filter(([, score]) => score > 0.1); // Minimum relevance threshold
-    
-    console.log('Document relevance scores:', agentScores);
-    console.log('All agents above threshold:', sortedAgents.map(([type, score]) => `${type}: ${score.toFixed(2)}`));
-    
-    if (sortedAgents.length === 0) {
-      // Fallback to Commercial agent if no strong relevance detected
-      return [getAgentInfo('Commercial')];
+    // Use the assignedAgents field populated by the intelligent assignment system
+    if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
+      console.log(`📋 Document "${document.name}" assigned to agents:`, document.assignedAgents);
+      return document.assignedAgents.map(agentType => {
+        // Capitalize the agent type for display
+        const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
+        return getAgentInfo(capitalizedType);
+      });
     }
     
-    // Get the highest scoring agent
-    const topAgent = sortedAgents[0];
-    const [, topScore] = topAgent;
-    
-    // Only assign a second agent if:
-    // 1. There is a second agent above threshold
-    // 2. The second agent's score is at least 50% of the top score
-    // 3. The top score is not overwhelmingly dominant (< 0.8)
-    const selectedAgents = [topAgent];
-    
-    if (sortedAgents.length > 1 && topScore < 0.8) {
-      const secondAgent = sortedAgents[1];
-      const [, secondScore] = secondAgent;
-      
-      // Only add second agent if it's meaningfully relevant
-      if (secondScore >= topScore * 0.5) {
-        selectedAgents.push(secondAgent);
-        console.log(`Adding second agent: ${secondAgent[0]} (${secondScore.toFixed(2)}) - 50%+ of top score`);
-      } else {
-        console.log(`Skipping second agent: ${secondAgent[0]} (${secondScore.toFixed(2)}) - less than 50% of top score`);
-      }
-    } else if (topScore >= 0.8) {
-      console.log(`Single agent assignment: ${topAgent[0]} (${topScore.toFixed(2)}) - overwhelmingly dominant`);
-    }
-    
-    console.log('Final selected agents:', selectedAgents.map(([type, score]) => `${type}: ${score.toFixed(2)}`));
-    
-    return selectedAgents.map(([agentType]) => 
-      getAgentInfo(agentType.charAt(0).toUpperCase() + agentType.slice(1))
-    );
+    console.log(`⚠️ Document "${document.name}" has no intelligent assignments - showing as unassigned`);
+    return [];
   };
 
   // Sophisticated scoring algorithm for agent relevance
