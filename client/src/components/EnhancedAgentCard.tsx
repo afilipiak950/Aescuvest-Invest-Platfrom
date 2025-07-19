@@ -2075,32 +2075,7 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   );
 }
 
-// Commercial Progress Display Component
-function CommercialProgressDisplay({ dealId, documents }: { dealId: number; documents?: any[] }) {
-  const { data: commercialProgress } = useQuery({
-    queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
-    refetchInterval: 1000,
-    // Keep polling even when progress shows 100% to ensure UI updates properly
-    refetchIntervalInBackground: true,
-  });
-
-  // Count actual documents with AI summaries (what backend processes)
-  const documentsToAnalyze = documents ? documents.filter(doc => {
-    if (!doc.aiSummary) return false;
-    // Handle aiSummary as object with executiveSummary field  
-    if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-      return doc.aiSummary.executiveSummary.length > 10;
-    }
-    // Handle aiSummary as string
-    if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
-      return true;
-    }
-    return false;
-  }).length : 0;
-  
-  // Hidden per user request - no progress display shown
-  return null;
-}
+// CommercialProgressDisplay component removed per user request
 
 // Commercial Analysis Button Component  
 function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
