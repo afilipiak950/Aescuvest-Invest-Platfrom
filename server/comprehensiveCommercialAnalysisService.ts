@@ -194,8 +194,20 @@ class ComprehensiveCommercialAnalysisService {
     });
 
     try {
-      // Create background job
-      const jobId = `commercial-analysis-${dealId}`;
+      // Check for existing background job - if exists, analysis is already running
+      const existingJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
+      if (existingJob) {
+        console.log(`🏢 Commercial analysis already running for deal ${dealId} (Job: ${existingJob.jobId})`);
+        this.setProgress(dealId, {
+          isRunning: true,
+          progress: existingJob.progress || 0,
+          message: `Commercial analysis already in progress (${Math.round(existingJob.progress || 0)}% complete)`
+        });
+        return;
+      }
+
+      // Create unique background job ID
+      const jobId = `commercial-analysis-${dealId}-${Date.now()}`;
       await storage.createBackgroundJob({
         jobId,
         jobType: 'comprehensive_commercial_analysis',
@@ -268,14 +280,16 @@ class ComprehensiveCommercialAnalysisService {
         message: `Commercial analysis failed: ${error.message}`
       });
 
-      // Update background job as failed
-      const jobId = `commercial-analysis-${dealId}`;
+      // Find and update any existing background jobs as failed
       try {
-        await storage.updateBackgroundJob(jobId, {
-          status: 'failed',
-          progress: 0,
-          error: error.message
-        });
+        const existingJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
+        if (existingJob) {
+          await storage.updateBackgroundJob(existingJob.jobId, {
+            status: 'failed',
+            progress: 0,
+            error: error.message
+          });
+        }
       } catch (jobError) {
         console.error(`❌ Error updating background job:`, jobError);
       }
