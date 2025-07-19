@@ -387,6 +387,8 @@ Changelog:
   - Per user request, completely removed the recommendations section from Clinical agent interface
   - Hidden "No Analysis Available" section to further streamline Clinical agent display
   - Clinical agent now shows minimal, clean interface focusing only on essential analysis content
+  - Fixed stuck progress bar issue by cleaning up background jobs at 0% progress and updating display logic
+  - Progress bar now only shows when analysis is actually running with meaningful progress (>0%)
 ```
 
 ## User Preferences
