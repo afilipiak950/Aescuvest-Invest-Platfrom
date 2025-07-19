@@ -490,7 +490,8 @@ Respond in JSON format:
   }
 
   /**
-   * Get all documents suitable for clinical analysis (IDENTICAL to Legal Analysis approach)
+   * Get documents assigned to clinical analysis using EXACT frontend scoring logic
+   * This replicates the sophisticated scoring algorithm from DataRoomExplorer.tsx
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -500,57 +501,35 @@ Respond in JSON format:
     
     console.log(`🧬 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // Use the EXACT SAME broad approach as Legal analysis to get ALL relevant documents
-    // This ensures we process ALL documents that the frontend shows as assigned to clinical
-    let clinicalDocuments = allDocuments.filter(doc => {
+    // Use EXACT SAME scoring logic as frontend to get documents assigned to Clinical
+    const clinicalDocuments = allDocuments.filter(doc => {
       if (!doc.ocrText && !doc.aiSummary) return false;
       
       const docName = doc.name.toLowerCase();
       const docContent = (doc.ocrText || '').toLowerCase();
       const aiSummary = doc.aiSummary;
       
-      // EXPANDED clinical keywords - much broader than before (similar to Legal's broad approach)
-      const clinicalKeywords = [
-        'clinical', 'trial', 'phase', 'study', 'protocol', 'regulatory', 'fda', 'ema', 'approval', 
-        'medical', 'device', 'therapy', 'treatment', 'patient', 'safety', 'efficacy', 'adverse',
-        'endpoint', 'drug', 'biologics', 'investigator', 'report', 'designation', 'orphan', 
-        'breakthrough', 'inclusion', 'exclusion', 'population', 'advisory', 'compliance',
-        'submission', 'clearance', 'marketing', 'authorization', 'pre-submission', 'supplement',
-        'ide', 'ind', 'pma', '510k', 'ce mark', 'iso', 'gmp', 'gcp', 'ich', 'guidelines',
-        'enrollment', 'recruitment', 'screening', 'randomized', 'controlled', 'blinded', 
-        'placebo', 'intervention', 'dosage', 'administration', 'monitoring', 'follow-up'
-      ];
+      // Extract relevant content for analysis (same as frontend)
+      const analysisText = [
+        docName,
+        docContent.substring(0, 2000), // First 2k chars for performance
+        aiSummary?.executiveSummary || '',
+        aiSummary?.documentType || '',
+        (aiSummary?.criticalFindings || []).join(' '),
+        (aiSummary?.keyFinancialData || []).join(' '),
+        (aiSummary?.riskAssessment || []).join(' '),
+        (aiSummary?.neutralFindings || []).join(' ')
+      ].join(' ').toLowerCase();
       
-      // Check document name and content for ANY clinical keywords (broad matching like Legal)
-      const hasClinicalKeywords = clinicalKeywords.some(keyword => 
-        docName.includes(keyword) || docContent.includes(keyword)
-      );
+      // Calculate clinical relevance score using EXACT frontend algorithm
+      const clinicalScore = this.calculateClinicalRelevanceScore(docName, analysisText, aiSummary);
       
-      // Check AI summary for clinical/medical document type (broad matching like Legal)
-      const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
-                                 aiSummary?.documentType?.toLowerCase().includes('medical') ||
-                                 aiSummary?.documentType?.toLowerCase().includes('regulatory') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('medical') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('regulatory') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('study');
-      
-      // Accept documents if they have ANY clinical relevance (same broad approach as Legal)
-      return hasClinicalKeywords || isClinicalDocument;
+      // Only include documents that score high enough for Clinical assignment
+      // This matches the frontend's threshold of 0.1 minimum relevance
+      return clinicalScore > 0.1;
     });
     
-    console.log(`🧬 Clinical documents identified with broad matching: ${clinicalDocuments.length}`);
-    
-    // If still no clinical documents using broad matching, use ALL documents with meaningful content
-    // This ensures we NEVER have zero documents to analyze (same fallback as Legal)
-    if (clinicalDocuments.length === 0) {
-      console.log('🧬 No clinical-related documents found with broad matching, using ALL documents with OCR text...');
-      clinicalDocuments = allDocuments.filter(doc => 
-        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
-      );
-      console.log(`🧬 All documents with content available: ${clinicalDocuments.length}`);
-    }
+    console.log(`🧬 Clinical documents identified using frontend scoring logic: ${clinicalDocuments.length}`);
     
     // Log sample of documents being processed
     if (clinicalDocuments.length > 0) {
@@ -561,6 +540,64 @@ Respond in JSON format:
     }
     
     return clinicalDocuments;
+  }
+
+  /**
+   * Calculate clinical relevance score using EXACT frontend algorithm
+   * Replicates calculateAgentRelevanceScores from DataRoomExplorer.tsx
+   */
+  private calculateClinicalRelevanceScore(docName: string, analysisText: string, aiSummary: any): number {
+    // Clinical keyword definitions from frontend (exact copy)
+    const clinicalKeywords = {
+      high: ['clinical', 'medical', 'fda', 'ce mark', 'regulatory', 'trial', 'patient', 'safety', 'efficacy', 'device', 'pharma', 'therapeutic', 'healthcare', 'treatment', 'diagnosis', 'protocol', 'approval', 'submission'],
+      medium: ['health', 'study', 'test', 'validation', 'verification', 'quality', 'compliance', 'risk', 'benefit', 'outcome'],
+      low: ['report', 'data', 'analysis', 'documentation', 'procedure']
+    };
+    
+    let score = 0;
+    
+    // High-weight keywords (3x multiplier)
+    clinicalKeywords.high.forEach(keyword => {
+      const matches = (analysisText.match(new RegExp(keyword, 'g')) || []).length;
+      score += matches * 3;
+    });
+    
+    // Medium-weight keywords (2x multiplier)
+    clinicalKeywords.medium.forEach(keyword => {
+      const matches = (analysisText.match(new RegExp(keyword, 'g')) || []).length;
+      score += matches * 2;
+    });
+    
+    // Low-weight keywords (1x multiplier)
+    clinicalKeywords.low.forEach(keyword => {
+      const matches = (analysisText.match(new RegExp(keyword, 'g')) || []).length;
+      score += matches * 1;
+    });
+    
+    // Apply AI summary boosters (exact frontend logic)
+    if (aiSummary) {
+      const docType = (aiSummary.documentType || '').toLowerCase();
+      if (docType.includes('clinical') || docType.includes('medical') || docType.includes('regulatory')) {
+        score *= 1.5;
+      }
+      
+      const criticalFindings = (aiSummary.criticalFindings || []).join(' ').toLowerCase();
+      if (criticalFindings.includes('regulatory') || criticalFindings.includes('compliance')) {
+        score *= 1.3;
+      }
+    }
+    
+    // Apply filename pattern boosters (exact frontend logic)
+    if (docName.includes('clinical') || docName.includes('trial') || docName.includes('medical')) {
+      score *= 1.6;
+    }
+    
+    // Normalize score to 0-1 range (same as frontend)
+    // Using a reasonable max score based on typical document analysis
+    const maxPossibleScore = 50; // Adjust based on typical keyword density
+    const normalizedScore = Math.min(score / maxPossibleScore, 1.0);
+    
+    return normalizedScore;
   }
 
   /**
