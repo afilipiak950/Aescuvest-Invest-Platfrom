@@ -102,41 +102,49 @@ export default function DueDiligence() {
 
   // Create progress states from jobProgress data instead of separate queries to prevent UI interference
   const legalProgress = useMemo(() => {
-    const legalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Legal');
+    const legalJob = jobProgress?.jobs?.find((job: any) => 
+      job.agentType === 'Legal' || job.jobId?.includes('legal_analysis') || job.jobId?.includes('legal-analysis')
+    );
     return legalJob ? {
       isRunning: legalJob.status === 'processing',
       progress: legalJob.progress || 0,
-      currentStep: legalJob.currentDocument || 'Processing legal documents...',
+      currentStep: legalJob.currentDocument || legalJob.message || 'Processing legal documents...',
       currentDocumentName: legalJob.currentDocument || 'Processing'
     } : null;
   }, [jobProgress]);
 
   const commercialProgress = useMemo(() => {
-    const commercialJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Commercial');
+    const commercialJob = jobProgress?.jobs?.find((job: any) => 
+      job.agentType === 'Commercial' || job.jobId?.includes('commercial-analysis') || job.jobId?.includes('commercial_analysis')
+    );
     return commercialJob ? {
       isRunning: commercialJob.status === 'processing',
       progress: commercialJob.progress || 0,
-      currentStep: commercialJob.currentDocument || 'Processing commercial documents...',
+      currentStep: commercialJob.currentDocument || commercialJob.message || 'Processing commercial documents...',
       currentDocumentName: commercialJob.currentDocument || 'Processing'
     } : null;
   }, [jobProgress]);
 
   const hrProgress = useMemo(() => {
-    const hrJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'HR');
+    const hrJob = jobProgress?.jobs?.find((job: any) => 
+      job.agentType === 'HR' || job.jobId?.includes('hr_analysis') || job.jobId?.includes('hr-analysis')
+    );
     return hrJob ? {
       isRunning: hrJob.status === 'processing',
       progress: hrJob.progress || 0,
-      currentStep: hrJob.currentDocument || 'Processing HR documents...',
+      currentStep: hrJob.currentDocument || hrJob.message || 'Processing HR documents...',
       currentDocumentName: hrJob.currentDocument || 'Processing'
     } : null;
   }, [jobProgress]);
 
   const clinicalProgress = useMemo(() => {
-    const clinicalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Clinical');
+    const clinicalJob = jobProgress?.jobs?.find((job: any) => 
+      job.agentType === 'Clinical' || job.jobId?.includes('clinical_analysis') || job.jobId?.includes('clinical-analysis')
+    );
     return clinicalJob ? {
-      isRunning: clinicalJob.status === 'processing',
+      isRunning: clinicalJob.status === 'processing' && clinicalJob.progress > 0,
       progress: clinicalJob.progress || 0,
-      currentStep: clinicalJob.currentDocument || 'Processing clinical documents...',
+      currentStep: clinicalJob.currentDocument || clinicalJob.message || 'Processing clinical documents...',
       currentDocumentName: clinicalJob.currentDocument || 'Processing'
     } : null;
   }, [jobProgress]);
@@ -636,7 +644,7 @@ export default function DueDiligence() {
         )}
 
         {/* Clinical Analysis Progress */}
-        {(clinicalProgress?.isRunning || clinicalAnalysisStarted) && (
+        {(clinicalProgress?.isRunning || (clinicalProgress && clinicalProgress.progress > 0 && clinicalProgress.progress < 100)) && (
           <Card className="bg-green-500/5 border-green-500/20">
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-3">
