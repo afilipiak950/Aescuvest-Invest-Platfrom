@@ -136,9 +136,12 @@ export default function DocumentQuoteViewer({
 
                       {/* Only show Full Extract if it's different from relevant sections */}
                       {source.extractedText && 
-                       !source.relevantSections.some(section => 
-                         section.trim().toLowerCase() === source.extractedText.trim().toLowerCase()
-                       ) && (
+                       !source.relevantSections.some(section => {
+                         // Normalize both strings for comparison
+                         const normalizeText = (text: string) => 
+                           text.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[^\w\s]/g, '');
+                         return normalizeText(section) === normalizeText(source.extractedText);
+                       }) && (
                         <div className="bg-dark-lighter/30 rounded-lg p-3">
                           <h4 className="text-sm font-medium text-gray-300 mb-2">Full Extract:</h4>
                           <p className="text-gray-300 text-sm leading-relaxed">
