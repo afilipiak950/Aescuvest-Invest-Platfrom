@@ -428,107 +428,191 @@ export default function DueDiligence() {
         </CardContent>
       </Card>
       
-      {/* Global Analysis Progress - Persistent across all tabs */}
-      {(legalProgress?.isRunning || commercialProgress?.isRunning || hrProgress?.isRunning || (clinicalProgress?.isRunning && clinicalProgress?.progress > 0 && clinicalProgress?.progress < 100) || (clinicalAnalysisStarted && clinicalProgress?.progress > 0 && clinicalProgress?.progress < 100) || (jobProgress?.jobs && jobProgress.jobs.length > 0 && jobProgress.jobs.some(job => job.progress > 0))) && (
-        <Card className={`mb-6 ${
-          legalProgress?.isRunning ? 'bg-blue-500/5 border-blue-500/20' : 
-          commercialProgress?.isRunning ? 'bg-purple-500/5 border-purple-500/20' : 
-          hrProgress?.isRunning ? 'bg-orange-500/5 border-orange-500/20' : 
-          (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'bg-green-500/5 border-green-500/20' : 
-          'bg-gray-500/5 border-gray-500/20'
-        }`}>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <Loader2 className={`h-5 w-5 animate-spin ${
-                  legalProgress?.isRunning ? 'text-blue-400' : 
-                  commercialProgress?.isRunning ? 'text-purple-400' : 
-                  hrProgress?.isRunning ? 'text-orange-400' : 
-                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'text-green-400' : 
-                  'text-gray-400'
-                }`} />
-                <div>
-                  <h3 className="text-white font-medium">
-                    {legalProgress?.isRunning ? 'Legal Analysis in Progress' : 
-                     commercialProgress?.isRunning ? 'Commercial Analysis in Progress' : 
-                     hrProgress?.isRunning ? 'HR Analysis in Progress' : 
-                     (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'Clinical Analysis in Progress' : 
-                     'Analysis in Progress'}
-                  </h3>
-                  <p className={`text-sm ${
-                    legalProgress?.isRunning ? 'text-blue-400' : 
-                    commercialProgress?.isRunning ? 'text-purple-400' : 
-                    hrProgress?.isRunning ? 'text-orange-400' : 
-                    (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'text-green-400' : 
-                    'text-gray-400'
-                  }`}>
-                    {legalProgress?.currentStep || commercialProgress?.currentStep || hrProgress?.currentStep || clinicalProgress?.currentStep || 
-                     (clinicalAnalysisStarted && (!clinicalProgress?.currentStep) ? 'Analyzing clinical documents...' : '') ||
-                     (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 
-                      `${jobProgress.jobs.length} agent${jobProgress.jobs.length > 1 ? 's' : ''} processing` : 
-                      'Processing documents')}
-                  </p>
+      {/* Separate Analysis Progress Bars - Each analysis shows below each other */}
+      <div className="space-y-4 mb-6">
+        {/* Legal Analysis Progress */}
+        {legalProgress?.isRunning && (
+          <Card className="bg-blue-500/5 border-blue-500/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
+                  <div>
+                    <h3 className="text-white font-medium">Legal Analysis in Progress</h3>
+                    <p className="text-sm text-blue-400">
+                      {legalProgress.currentStep || 'Analyzing legal documents...'}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-blue-400 border-blue-400">
+                  {legalProgress.progress || 0}%
+                </Badge>
+              </div>
+              
+              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-blue-500/30">
+                <div 
+                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-blue-500 to-blue-400"
+                  style={{ width: `${Math.max(5, Math.min(100, legalProgress.progress || 0))}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
                 </div>
               </div>
-              <Badge variant="outline" className={
-                legalProgress?.isRunning ? 'text-blue-400 border-blue-400' : 
-                commercialProgress?.isRunning ? 'text-purple-400 border-purple-400' : 
-                hrProgress?.isRunning ? 'text-orange-400 border-orange-400' : 
-                (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'text-green-400 border-green-400' : 
-                'text-gray-400 border-gray-400'
-              }>
-                {legalProgress?.isRunning ? `${legalProgress.progress || 0}%` : 
-                 commercialProgress?.isRunning ? `${commercialProgress.progress || 0}%` : 
-                 hrProgress?.isRunning ? `${hrProgress.progress || 0}%` : 
-                 (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? `${clinicalProgress?.progress || 0}%` : 
-                 `${jobProgress?.jobs?.length || 0} active`}
-              </Badge>
-            </div>
-            
-            <div className={`w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden ${
-              legalProgress?.isRunning ? 'border border-blue-500/30' : 
-              commercialProgress?.isRunning ? 'border border-purple-500/30' : 
-              hrProgress?.isRunning ? 'border border-orange-500/30' : 
-              (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'border border-green-500/30' : 
-              'border border-gray-500/30'
-            }`}>
-              <div 
-                className={`h-3 rounded-full transition-all duration-1000 ease-out ${
-                  legalProgress?.isRunning ? 'bg-gradient-to-r from-blue-500 to-blue-400' : 
-                  commercialProgress?.isRunning ? 'bg-gradient-to-r from-purple-500 to-purple-400' : 
-                  hrProgress?.isRunning ? 'bg-gradient-to-r from-orange-500 to-orange-400' : 
-                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'bg-gradient-to-r from-green-500 to-green-400' : 
-                  'bg-gradient-to-r from-gray-500 to-gray-400'
-                }`}
-                style={{ width: `${
-                  legalProgress?.isRunning ? Math.max(5, Math.min(100, legalProgress.progress || 0)) : 
-                  commercialProgress?.isRunning ? Math.max(5, Math.min(100, commercialProgress.progress || 0)) : 
-                  hrProgress?.isRunning ? Math.max(5, Math.min(100, hrProgress.progress || 0)) : 
-                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? Math.max(5, Math.min(100, clinicalProgress?.progress || 10)) : 
-                  (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 25 : 0)
-                }%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+              
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+                <span>Analyzing 169 legal documents across 15 question categories</span>
+                <span>Current: {legalProgress.currentDocumentName || 'Processing'}</span>
               </div>
-            </div>
-            
-            <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-              <span>
-                {legalProgress?.isRunning ? 
-                  'Analyzing 169 legal documents across 15 question categories' : 
-                  commercialProgress?.isRunning ? 
-                  'Analyzing commercial documents across 12 commercial questions' : 
-                  hrProgress?.isRunning ? 
-                  'Analyzing HR documents across 24 HR questions in 6 categories' : 
-                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 
-                  'Analyzing clinical documents across 11 clinical question categories' : 
-                  `Processing with ${jobProgress?.jobs?.length || 0} active agents`}
-              </span>
-              <span>Current: {legalProgress?.currentDocumentName || commercialProgress?.currentDocumentName || hrProgress?.currentDocumentName || clinicalProgress?.currentDocumentName || 'Processing'}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Commercial Analysis Progress */}
+        {commercialProgress?.isRunning && (
+          <Card className="bg-purple-500/5 border-purple-500/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
+                  <div>
+                    <h3 className="text-white font-medium">Commercial Analysis in Progress</h3>
+                    <p className="text-sm text-purple-400">
+                      {commercialProgress.currentStep || 'Analyzing commercial documents...'}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-purple-400 border-purple-400">
+                  {commercialProgress.progress || 0}%
+                </Badge>
+              </div>
+              
+              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-purple-500/30">
+                <div 
+                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-purple-500 to-purple-400"
+                  style={{ width: `${Math.max(5, Math.min(100, commercialProgress.progress || 0))}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+                <span>Analyzing commercial documents across 12 commercial questions</span>
+                <span>Current: {commercialProgress.currentDocumentName || 'Processing'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* HR Analysis Progress */}
+        {hrProgress?.isRunning && (
+          <Card className="bg-orange-500/5 border-orange-500/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-orange-400" />
+                  <div>
+                    <h3 className="text-white font-medium">HR Analysis in Progress</h3>
+                    <p className="text-sm text-orange-400">
+                      {hrProgress.currentStep || 'Analyzing HR documents...'}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-orange-400 border-orange-400">
+                  {hrProgress.progress || 0}%
+                </Badge>
+              </div>
+              
+              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-orange-500/30">
+                <div 
+                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-orange-500 to-orange-400"
+                  style={{ width: `${Math.max(5, Math.min(100, hrProgress.progress || 0))}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+                <span>Analyzing HR documents across 24 HR questions in 6 categories</span>
+                <span>Current: {hrProgress.currentDocumentName || 'Processing'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Clinical Analysis Progress */}
+        {(clinicalProgress?.isRunning || clinicalAnalysisStarted) && (
+          <Card className="bg-green-500/5 border-green-500/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                  <div>
+                    <h3 className="text-white font-medium">Clinical Analysis in Progress</h3>
+                    <p className="text-sm text-green-400">
+                      {clinicalProgress?.currentStep || 
+                       (clinicalAnalysisStarted && (!clinicalProgress?.currentStep) ? 'Analyzing clinical documents...' : 'Processing clinical documents')}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-green-400 border-green-400">
+                  {clinicalProgress?.progress || 0}%
+                </Badge>
+              </div>
+              
+              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-green-500/30">
+                <div 
+                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-green-500 to-green-400"
+                  style={{ width: `${Math.max(5, Math.min(100, clinicalProgress?.progress || 10))}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+                <span>Analyzing clinical documents across 11 clinical question categories</span>
+                <span>Current: {clinicalProgress?.currentDocumentName || 'Processing'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Other Background Jobs Progress */}
+        {(jobProgress?.jobs && jobProgress.jobs.length > 0 && jobProgress.jobs.some(job => job.progress > 0) && 
+          !legalProgress?.isRunning && !commercialProgress?.isRunning && !hrProgress?.isRunning && 
+          !(clinicalProgress?.isRunning || clinicalAnalysisStarted)) && (
+          <Card className="bg-gray-500/5 border-gray-500/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                  <div>
+                    <h3 className="text-white font-medium">Analysis in Progress</h3>
+                    <p className="text-sm text-gray-400">
+                      {jobProgress.jobs.length} agent{jobProgress.jobs.length > 1 ? 's' : ''} processing
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-gray-400 border-gray-400">
+                  {jobProgress.jobs.length} active
+                </Badge>
+              </div>
+              
+              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-gray-500/30">
+                <div 
+                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-gray-500 to-gray-400"
+                  style={{ width: `25%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+                <span>Processing documents with {jobProgress.jobs.length} active agents</span>
+                <span>Current: Processing</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
       
       {/* Upload Field - Shows when Upload Files button is clicked */}
       {showUploadField && (
