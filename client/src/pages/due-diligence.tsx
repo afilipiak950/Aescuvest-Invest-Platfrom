@@ -594,7 +594,7 @@ export default function DueDiligence() {
         )}
 
         {/* HR Analysis Progress */}
-        {hrProgress?.isRunning && (
+        {(hrProgress?.isRunning || (jobProgress?.jobs?.find((job: any) => job.agentType === 'HR'))) && (
           <Card className="bg-orange-500/5 border-orange-500/20">
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-3">

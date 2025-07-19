@@ -671,7 +671,10 @@ export async function getComprehensiveHrAnalysisProgress(dealId: number) {
   const job = await db
     .select()
     .from(backgroundJobs)
-    .where(eq(backgroundJobs.dealId, dealId))
+    .where(and(
+      eq(backgroundJobs.dealId, dealId),
+      eq(backgroundJobs.agentType, 'HR')
+    ))
     .orderBy(desc(backgroundJobs.createdAt))
     .limit(1);
 
