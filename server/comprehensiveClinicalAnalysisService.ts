@@ -519,28 +519,48 @@ Respond in JSON format:
         const docContent = (doc.ocrText || '').toLowerCase();
         const aiSummary = doc.aiSummary;
         
-        // Clinical document keywords
-        const clinicalKeywords = [
-          'trial', 'phase', 'clinical', 'regulatory', 'fda', 'ema', 'endpoint', 
-          'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol',
-          'approval', 'designation', 'orphan', 'breakthrough', 'inclusion',
-          'exclusion', 'population', 'advisory', 'sae', 'serious adverse',
-          'medical', 'therapy', 'treatment', 'drug', 'device', 'biologics',
-          'investigator', 'brochure', 'report', 'clinical trial', 'clinical study'
-        ];
+        // Use IDENTICAL clinical scoring logic as frontend to match assigned document count
+        const content = `${docName} ${docContent} ${aiSummary?.executiveSummary || ''} ${aiSummary?.documentType || ''}`.toLowerCase();
         
-        // Check document name and content for clinical keywords
-        const hasClinicalKeywords = clinicalKeywords.some(keyword => 
-          docName.includes(keyword) || docContent.includes(keyword)
-        );
+        // Clinical keywords with weights (matching frontend logic exactly)
+        const clinicalKeywords = {
+          high: ['clinical', 'trial', 'phase', 'regulatory', 'fda', 'ema', 'endpoint', 'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol'],
+          medium: ['approval', 'designation', 'orphan', 'breakthrough', 'inclusion', 'exclusion', 'population', 'advisory'],
+          low: ['medical', 'therapy', 'treatment', 'drug', 'device', 'biologics', 'investigator', 'report']
+        };
         
-        // Check AI summary for clinical document type
-        const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('study');
+        // Calculate clinical relevance score
+        let clinicalScore = 0;
         
-        return hasClinicalKeywords || isClinicalDocument;
+        // High-weight keywords (3x multiplier)
+        clinicalKeywords.high.forEach(keyword => {
+          const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
+          clinicalScore += matches * 3;
+        });
+        
+        // Medium-weight keywords (2x multiplier)
+        clinicalKeywords.medium.forEach(keyword => {
+          const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
+          clinicalScore += matches * 2;
+        });
+        
+        // Low-weight keywords (1x multiplier)
+        clinicalKeywords.low.forEach(keyword => {
+          const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
+          clinicalScore += matches * 1;
+        });
+        
+        // Apply AI summary and filename boosters (matching frontend)
+        if (aiSummary?.documentType?.toLowerCase().includes('clinical') || aiSummary?.documentType?.toLowerCase().includes('medical')) {
+          clinicalScore *= 1.5;
+        }
+        if (docName.includes('clinical') || docName.includes('trial')) {
+          clinicalScore *= 1.6;
+        }
+        
+        // Consider document relevant if it has ANY clinical relevance (score > 0)
+        // This matches the frontend's getAssignedAgents logic that assigns documents with non-zero scores
+        return clinicalScore > 0;
       });
       
       console.log(`🧬 Auto-identified clinical documents: ${clinicalDocuments.length}`);
