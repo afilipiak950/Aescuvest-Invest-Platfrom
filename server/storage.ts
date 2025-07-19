@@ -321,14 +321,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocumentsByDealId(dealId: number): Promise<Document[]> {
-    // Check cache with reasonable TTL for performance
-    const cached = documentCache.get(dealId);
-    const now = Date.now();
-    
-    if (cached && (now - cached.timestamp) < CACHE_TTL) {
-      console.log(`📄 DB: Using cached documents for deal ${dealId} (${cached.data.length} docs)`);
-      return cached.data;
-    }
+    // Force fresh query to get updated assignment data
+    console.log(`📄 DB: Clearing cache and forcing fresh query for deal ${dealId}...`);
+    documentCache.delete(dealId);
     
     const startTime = Date.now();
     console.log(`📄 DB: Starting optimized documents query for deal ${dealId}...`);
@@ -352,7 +347,12 @@ export class DatabaseStorage implements IStorage {
         aiSummaryStatus: documents.aiSummaryStatus,
         aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
         aiSummary: documents.aiSummary, // Include for AI summary display
-        analyses: documents.analyses // Include for technical analysis
+        analyses: documents.analyses, // Include for technical analysis
+        assignedAgents: documents.assignedAgents, // Include for agent assignment display
+        assignmentReason: documents.assignmentReason,
+        assignmentConfidence: documents.assignmentConfidence,
+        manuallyAssigned: documents.manuallyAssigned,
+        assignedAt: documents.assignedAt
         // Exclude only: ocrText (heaviest field), insights, riskFactors
       })
       .from(documents)
@@ -363,7 +363,8 @@ export class DatabaseStorage implements IStorage {
     const queryTime = Date.now() - startTime;
     console.log(`📄 DB: Optimized query completed in ${queryTime}ms, found ${result.length} documents`);
     
-    // Re-enable caching after AI summary fix is confirmed
+    // Clear old cache and set new data with assignment fields
+    documentCache.delete(dealId);
     documentCache.set(dealId, { data: result, timestamp: Date.now() });
     
     // Log AI summary availability for debugging
