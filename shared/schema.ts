@@ -1043,6 +1043,28 @@ export const insertCampaignRecipientSchema = createInsertSchema(campaignRecipien
 export type CampaignRecipient = typeof campaignRecipients.$inferSelect;
 export type InsertCampaignRecipient = z.infer<typeof insertCampaignRecipientSchema>;
 
+// Comprehensive HR Analyses table
+export const comprehensiveHrAnalyses = pgTable("comprehensive_hr_analyses", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  hrAnswers: text("hr_answers"), // JSON string containing all HR question answers
+  findings: text("findings"), // JSON string containing HR findings
+  recommendations: text("recommendations"), // JSON string containing HR recommendations
+  status: text("status").notNull().default("In Progress"),
+  progress: integer("progress").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertComprehensiveHrAnalysisSchema = createInsertSchema(comprehensiveHrAnalyses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ComprehensiveHrAnalysis = typeof comprehensiveHrAnalyses.$inferSelect;
+export type InsertComprehensiveHrAnalysis = z.infer<typeof insertComprehensiveHrAnalysisSchema>;
+
 
 
 
