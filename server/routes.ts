@@ -3554,25 +3554,52 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive clinical analysis - systematically analyzes ALL assigned clinical documents
+  // Clinical Analysis Progress Route
+  app.get('/api/deals/:dealId/clinical-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      const comprehensiveJob = await storage.getBackgroundJobsByDealAndType(
+        dealId, 
+        'comprehensive_clinical_analysis'
+      );
+      
+      if (comprehensiveJob) {
+        res.json({
+          success: true,
+          isRunning: true,
+          progress: comprehensiveJob.progress || 0,
+          currentStep: comprehensiveJob.currentStep || 'Starting analysis',
+          currentDocumentName: comprehensiveJob.currentDocumentName || 'Initializing',
+          processedDocuments: comprehensiveJob.processedDocuments || 0,
+          totalDocuments: comprehensiveJob.totalDocuments || 11,
+          message: 'Comprehensive clinical analysis in progress'
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0,
+          message: 'No comprehensive clinical analysis running'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive clinical analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get progress' });
+    }
+  });
+
+  // Clinical Analysis Start Route
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🧬 Starting comprehensive clinical analysis for deal ${dealId}`);
-      
-      // Check for existing clinical analysis jobs to prevent duplicates
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingClinicalJob = existingJobs.find(job => 
-        (job.jobType === 'comprehensive_clinical_analysis' || job.jobId.includes('clinical_analysis')) && 
-        job.status === 'processing'
-      );
-      
+      // Check if there's already a running comprehensive clinical analysis
+      const existingClinicalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_clinical_analysis');
       if (existingClinicalJob) {
-        console.log(`⚠️ Clinical analysis already running for deal ${dealId} (Job: ${existingClinicalJob.jobId})`);
-        return res.json({ 
-          success: false, 
-          message: `Clinical analysis already in progress (${Math.round(existingClinicalJob.progress || 0)}% complete)`,
+        return res.json({
+          success: true,
+          message: 'Comprehensive clinical analysis already running',
           alreadyRunning: true,
           progress: existingClinicalJob.progress || 0
         });
@@ -3599,55 +3626,6 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ success: false, error: 'Failed to start comprehensive clinical analysis' });
-    }
-  });
-
-  // Add the /start endpoint that the frontend expects
-  app.post('/api/deals/:dealId/clinical-analysis/comprehensive/start', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      console.log(`🧬 [FRONTEND ROUTE] Starting comprehensive clinical analysis for deal ${dealId}`);
-      
-      // Check for existing clinical analysis jobs to prevent duplicates
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingClinicalJob = existingJobs.find(job => 
-        (job.jobType === 'comprehensive_clinical_analysis' || job.jobId.includes('clinical_analysis')) && 
-        job.status === 'processing'
-      );
-      
-      if (existingClinicalJob) {
-        console.log(`⚠️ Clinical analysis already running for deal ${dealId} (Job: ${existingClinicalJob.jobId})`);
-        return res.json({ 
-          success: false, 
-          message: `Clinical analysis already in progress (${Math.round(existingClinicalJob.progress || 0)}% complete)`,
-          alreadyRunning: true,
-          progress: existingClinicalJob.progress || 0
-        });
-      }
-      
-      // Import the comprehensive clinical analysis service
-      const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
-      
-      // Run comprehensive clinical analysis in background with progress tracking
-      (async () => {
-        try {
-          console.log(`🔧 [FRONTEND ROUTE] Starting comprehensive clinical analysis background process for deal ${dealId}`);
-          await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId);
-          console.log(`✅ [FRONTEND ROUTE] Comprehensive clinical analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ [FRONTEND ROUTE] Error in comprehensive clinical analysis for deal ${dealId}:`, error);
-          console.error(`❌ [FRONTEND ROUTE] Error stack:`, error.stack);
-        }
-      })();
-      
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all 52 assigned documents'
-      });
-    } catch (error) {
-      console.error(`❌ [FRONTEND ROUTE] Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive clinical analysis' });
     }
   });
@@ -3759,6 +3737,97 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     } catch (error) {
       console.error(`Error getting ${req.params.agentType} analysis:`, error);
       res.status(500).json({ success: false, error: 'Failed to get agent analysis' });
+    }
+  });
+
+  // Run comprehensive commercial analysis
+  app.post('/api/deals/:dealId/commercial-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
+      
+      // Check for existing commercial analysis jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingCommercialJob = existingJobs.find(job => 
+        (job.jobType === 'comprehensive_commercial_analysis' || job.jobId.includes('commercial_analysis')) && 
+        job.status === 'processing'
+      );
+      
+      if (existingCommercialJob) {
+        console.log(`⚠️ Commercial analysis already running for deal ${dealId} (Job: ${existingCommercialJob.jobId})`);
+        return res.json({ 
+          success: false, 
+          message: `Commercial analysis already in progress (${Math.round(existingCommercialJob.progress || 0)}% complete)`,
+          alreadyRunning: true,
+          progress: existingCommercialJob.progress || 0
+        });
+      }
+      
+      // Import the comprehensive commercial analysis service
+      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+      
+      // Run comprehensive commercial analysis in background with progress tracking
+      (async () => {
+        try {
+          console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
+          await comprehensiveCommercialAnalysisService.startComprehensiveAnalysis(dealId);
+          console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
+        }
+      })();
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive commercial analysis started - processing 12 commercial questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive commercial analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive commercial analysis' });
+    }
+  });
+
+  // Get comprehensive commercial analysis progress
+  app.get('/api/deals/:dealId/commercial-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+      const progress = comprehensiveCommercialAnalysisService.getProgress(dealId);
+      
+      res.json({
+        success: true,
+        ...progress
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive commercial analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get progress' });
+    }
+  });
+
+  // Get comprehensive commercial analysis results
+  app.get('/api/deals/:dealId/commercial-analysis/comprehensive/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+      const results = await comprehensiveCommercialAnalysisService.getAnalysisResults(dealId);
+      
+      if (results) {
+        res.json({
+          success: true,
+          ...results
+        });
+      } else {
+        res.json({
+          success: false,
+          message: 'No comprehensive commercial analysis results found'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive commercial analysis results:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
     }
   });
 

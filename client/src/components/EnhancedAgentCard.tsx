@@ -54,6 +54,12 @@ export default function EnhancedAgentCard({
       refetchInterval: 1000,
     });
 
+    // Check for comprehensive commercial analysis progress
+    const { data: commercialProgress } = useQuery({
+      queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
+      refetchInterval: 1000,
+    });
+
     // Look for both comprehensive legal analysis and regular legal agent jobs
     const legalJobs = jobProgress?.jobs?.filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
@@ -63,6 +69,34 @@ export default function EnhancedAgentCard({
 
     const activeLegalJob = legalJobs[0];
     
+    // Show comprehensive commercial analysis if running
+    if (commercialProgress?.isRunning) {
+      return (
+        <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
+            <div className="flex-1">
+              <p className="text-purple-400 font-medium">Comprehensive Commercial Analysis in Progress</p>
+              <p className="text-gray-300 text-sm">
+                {commercialProgress.currentStep || 'Processing comprehensive commercial analysis...'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{Math.round(commercialProgress.progress || 0)}%</p>
+            </div>
+          </div>
+          <Progress 
+            value={commercialProgress.progress || 0} 
+            className="h-2 bg-dark-lighter"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-2">
+            <span>Comprehensive analysis of {assignedDocuments} documents</span>
+            <span>{Math.round(commercialProgress.progress || 0)}% complete</span>
+          </div>
+        </div>
+      );
+    }
+
     // Show comprehensive legal analysis if running
     if (legalProgress?.isRunning) {
       return (
@@ -648,6 +682,13 @@ export default function EnhancedAgentCard({
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
             onClinicalAnalysisStart={onClinicalAnalysisStart}
+          />
+        ) : agentType.toLowerCase() === 'commercial' ? (
+          <CommercialQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
           />
         ) : (
           /* Analysis Results for other agents */
@@ -2031,5 +2072,342 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
         </>
       )}
     </Button>
+  );
+}
+
+// Commercial Progress Display Component
+function CommercialProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
+  const { data: commercialProgress } = useQuery({
+    queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
+  if (commercialProgress?.isRunning) {
+    return (
+      <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
+          <div className="flex-1">
+            <p className="text-purple-400 font-medium">Comprehensive Commercial Analysis in Progress</p>
+            <p className="text-gray-300 text-sm">
+              {commercialProgress.currentStep || 'Processing comprehensive commercial analysis...'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-white font-medium">{Math.round(commercialProgress.progress || 0)}%</p>
+          </div>
+        </div>
+        <Progress 
+          value={commercialProgress.progress || 0} 
+          className="h-2 bg-dark-lighter"
+        />
+        <div className="flex justify-between text-xs text-gray-400 mt-2">
+          <span>Comprehensive analysis of {assignedDocuments} documents</span>
+          <span>{Math.round(commercialProgress.progress || 0)}% complete</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
+        <div>
+          <p className="text-purple-400 font-medium">Commercial Analysis Ready</p>
+          <p className="text-gray-400 text-sm">
+            Ready to analyze {assignedDocuments} commercial documents. Click "Run Commercial Analysis" to start.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Commercial Analysis Button Component  
+function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log('Commercial analysis already running');
+        setIsRunning(false);
+        return;
+      }
+      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      console.log('Comprehensive commercial analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('Error starting comprehensive commercial analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive commercial analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/commercial-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`Commercial analysis attempt ${attempts}...`);
+          
+          if (data.success && data.commercialAnswers && Object.keys(data.commercialAnswers).length > 0) {
+            console.log('Commercial analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for commercial results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting commercial analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      size="sm"
+      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isRunning ? 'Commercial Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Commercial Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
+// Commercial Questions Section Component
+function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(['Competitive Analysis Decks']));
+  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
+  const [selectedQuoteData, setSelectedQuoteData] = useState<{
+    quotes?: any[];
+    sources?: any[];
+    title: string;
+  }>({ quotes: [], sources: [], title: '' });
+
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // Commercial questions structure matching the backend service
+  const COMMERCIAL_QUESTIONS = [
+    { id: 'competitive_1', question: 'Is the differentiation clearly articulated?', category: 'Competitive Analysis Decks' },
+    { id: 'competitive_2', question: 'Are comparison matrices based on price/features?', category: 'Competitive Analysis Decks' },
+    { id: 'competitive_3', question: 'Is switching cost vs. competitors assessed?', category: 'Competitive Analysis Decks' },
+    { id: 'pricing_1', question: 'What pricing logic is used (usage-based, tiered, per-seat)?', category: 'Pricing Models' },
+    { id: 'pricing_2', question: 'Are discount policies documented?', category: 'Pricing Models' },
+    { id: 'pricing_3', question: 'Is net revenue retention tracked?', category: 'Pricing Models' },
+    { id: 'sales_1', question: 'What are win/loss rates?', category: 'Sales Pipeline & CRM Data' },
+    { id: 'sales_2', question: 'What\'s the sales cycle per segment?', category: 'Sales Pipeline & CRM Data' },
+    { id: 'sales_3', question: 'Are conversion rates stable or improving?', category: 'Sales Pipeline & CRM Data' },
+    { id: 'customer_1', question: 'What share of revenue is concentrated on top 10 customers?', category: 'Customer Lists / Key Account Summaries' },
+    { id: 'customer_2', question: 'What is churn over last 12 months?', category: 'Customer Lists / Key Account Summaries' },
+    { id: 'customer_3', question: 'Are customer satisfaction/NPS tracked?', category: 'Customer Lists / Key Account Summaries' }
+  ];
+
+  const categorizedQuestions = COMMERCIAL_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    if (!comprehensiveResults?.commercialAnswers) return null;
+    return comprehensiveResults.commercialAnswers[questionId] || null;
+  };
+
+  return (
+    <div>
+      <CommercialProgressDisplay dealId={dealId} assignedDocuments={assignedDocuments} />
+      
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 text-purple-400" />
+          <h3 className="text-lg font-semibold text-white">Commercial Due Diligence Questions</h3>
+          <Badge variant="outline" className="text-gray-400 border-gray-400">
+            {assignedDocuments} Documents Analyzed
+          </Badge>
+        </div>
+        <ComprehensiveCommercialAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg mb-4">
+          <button
+            onClick={() => toggleCategory(category)}
+            className="w-full flex items-center justify-between p-4 bg-dark-lighter/50 hover:bg-dark-lighter/70 transition-colors"
+          >
+            <h4 className="font-medium text-white text-left">{category}</h4>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                {questions.length} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              )}
+            </div>
+          </button>
+
+          {expandedCategories.has(category) && (
+            <div className="p-4 space-y-4">
+              {questions.map((question) => {
+                const answer = getAnswerForQuestion(question.id);
+                const hasAnswer = answer !== null;
+                
+                return (
+                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          hasAnswer ? 'bg-purple-400' : 'bg-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          
+                          {hasAnswer ? (
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-purple-400 border-purple-400">
+                                  Confidence: {answer.confidence}%
+                                </Badge>
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No commercial analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
   );
 }
