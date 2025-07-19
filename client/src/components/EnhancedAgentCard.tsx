@@ -2076,12 +2076,28 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
 }
 
 // Commercial Progress Display Component
-function CommercialProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
+function CommercialProgressDisplay({ dealId, documents }: { dealId: number; documents?: any[] }) {
   const { data: commercialProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
     refetchInterval: 1000,
+    // Keep polling even when progress shows 100% to ensure UI updates properly
+    refetchIntervalInBackground: true,
   });
 
+  // Count actual documents with AI summaries (what backend processes)
+  const documentsToAnalyze = documents ? documents.filter(doc => {
+    if (!doc.aiSummary) return false;
+    // Handle aiSummary as object with executiveSummary field  
+    if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+      return doc.aiSummary.executiveSummary.length > 10;
+    }
+    // Handle aiSummary as string
+    if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
+      return true;
+    }
+    return false;
+  }).length : 0;
+  
   if (commercialProgress?.isRunning) {
     return (
       <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 mb-4">
@@ -2102,7 +2118,7 @@ function CommercialProgressDisplay({ dealId, assignedDocuments }: { dealId: numb
           className="h-2 bg-dark-lighter"
         />
         <div className="flex justify-between text-xs text-gray-400 mt-2">
-          <span>Comprehensive analysis of {assignedDocuments} documents</span>
+          <span>Comprehensive analysis of {documentsToAnalyze} documents</span>
           <span>{Math.round(commercialProgress.progress || 0)}% complete</span>
         </div>
       </div>
@@ -2116,7 +2132,7 @@ function CommercialProgressDisplay({ dealId, assignedDocuments }: { dealId: numb
         <div>
           <p className="text-purple-400 font-medium">Commercial Analysis Ready</p>
           <p className="text-gray-400 text-sm">
-            Ready to analyze {assignedDocuments} commercial documents. Click "Run Commercial Analysis" to start.
+            Ready to analyze {documentsToAnalyze} commercial documents. Click "Run Commercial Analysis" to start.
           </p>
         </div>
       </div>
@@ -2245,7 +2261,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   );
 }
 
-// Commercial Questions Section Component
+// Commercial Questions Section Component  
 function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(['Competitive Analysis Decks']));
   const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
@@ -2301,14 +2317,23 @@ function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, d
 
   return (
     <div>
-      <CommercialProgressDisplay dealId={dealId} assignedDocuments={assignedDocuments} />
+      <CommercialProgressDisplay dealId={dealId} documents={documents} />
       
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <HelpCircle className="h-5 w-5 text-purple-400" />
           <h3 className="text-lg font-semibold text-white">Commercial Due Diligence Questions</h3>
           <Badge variant="outline" className="text-gray-400 border-gray-400">
-            {assignedDocuments} Documents Analyzed
+            {documents ? documents.filter(doc => {
+              if (!doc.aiSummary) return false;
+              if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+                return doc.aiSummary.executiveSummary.length > 10;
+              }
+              if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
+                return true;
+              }
+              return false;
+            }).length : 0} Documents Analyzed
           </Badge>
         </div>
         <ComprehensiveCommercialAnalysisButton dealId={dealId} />
