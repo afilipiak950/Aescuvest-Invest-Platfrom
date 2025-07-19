@@ -149,36 +149,49 @@ class ComprehensiveClinicalAnalysisService {
         throw new Error('No documents available for clinical analysis');
       }
 
-      const clinicalAnswers: Record<string, ClinicalAnswer> = {};
+      // Process each question comprehensively with enhanced error handling (same as Legal)
+      const clinicalAnswers: Record<string, any> = {};
       
-      // Process each question with all relevant documents
       for (let i = 0; i < CLINICAL_QUESTIONS.length; i++) {
         const question = CLINICAL_QUESTIONS[i];
-        const progressPercent = Math.round(((i + 1) / CLINICAL_QUESTIONS.length) * 100);
-        
-        this.setProgress(dealId, {
-          progress: progressPercent,
-          currentStep: `Analyzing: ${question.category}`,
-          currentQuestion: question.question
-        });
-
         console.log(`🧬 Processing question ${i + 1}/${CLINICAL_QUESTIONS.length}: ${question.question}`);
         
         try {
-          // Find documents relevant to this question
-          const relevantDocs = this.findRelevantDocuments(clinicalDocs, question.keywords);
-          console.log(`🧬 Found ${relevantDocs.length} relevant documents for question: ${question.question}`);
+          // Update progress with error handling
+          const progress = Math.round((i / CLINICAL_QUESTIONS.length) * 100);
+          this.setProgress(dealId, {
+            progress,
+            currentStep: `Analyzing: ${question.category}`,
+            currentQuestion: question.question
+          });
           
-          if (relevantDocs.length > 0) {
-            const answer = await this.analyzeQuestionWithDocuments(question, relevantDocs);
-            if (answer) {
-              clinicalAnswers[question.id] = answer;
-              console.log(`🧬 Generated answer for ${question.id}`);
-            }
-          }
+          // Extract evidence from ALL clinical documents for this question (same as Legal)
+          console.log(`🧬 Processing ${clinicalDocs.length} documents for question: ${question.question}`);
+          const documentEvidence = await this.extractEvidenceFromAllDocuments(
+            clinicalDocs, 
+            question
+          );
+          console.log(`🧬 Evidence extraction completed for question: ${question.question}`);
+          
+          // Compile comprehensive answer based on all evidence
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          clinicalAnswers[question.id] = answer;
+          
+          console.log(`✅ Completed question ${i + 1}/${CLINICAL_QUESTIONS.length}: ${question.question}`);
+          
         } catch (error) {
-          console.error(`🧬 Error processing question ${question.id}:`, error);
-          // Continue with other questions even if one fails
+          console.error(`❌ Error processing question ${question.id}:`, error);
+          
+          // Create fallback answer for failed question (same as Legal)
+          clinicalAnswers[question.id] = {
+            question: question.question,
+            answer: `Analysis failed for this question due to processing error: ${error.message}`,
+            confidence: 0,
+            sources: [],
+            evidenceCount: 0,
+            documentsCovered: 0,
+            error: error.message
+          };
         }
       }
 
@@ -231,6 +244,216 @@ class ComprehensiveClinicalAnalysisService {
         message: 'Clinical analysis failed: ' + (error as Error).message
       });
       throw error;
+    }
+  }
+
+  /**
+   * Extract evidence from ALL documents for a specific question (same as Legal)
+   */
+  private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<any[]> {
+    console.log(`🧬 Starting evidence extraction from ${documents.length} documents for question: ${question.question}`);
+    
+    const evidence: any[] = [];
+    const batchSize = 10; // Process in batches to avoid overwhelming the API
+    
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(documents.length / batchSize);
+      
+      console.log(`🧬 Processing batch ${batchNumber}/${totalBatches} (${batch.length} documents)`);
+      
+      // Process batch in parallel for efficiency
+      const batchPromises = batch.map(async (doc) => {
+        try {
+          return await this.extractEvidenceFromDocument(doc, question);
+        } catch (error) {
+          console.error(`🧬 Error processing document ${doc.name}:`, error);
+          return null;
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Filter out null results and add to evidence
+      const validEvidence = batchResults.filter(docEvidence => 
+        docEvidence && docEvidence.relevantContent.length > 0
+      );
+      evidence.push(...validEvidence);
+      
+      console.log(`✅ Batch ${batchNumber} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+    }
+    
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    return evidence;
+  }
+
+  /**
+   * Extract specific evidence from a single document (same as Legal)
+   */
+  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    
+    if (!content) return null;
+    
+    const prompt = `You are a clinical research analyst. Analyze this document for specific clinical information.
+
+DOCUMENT: ${document.name}
+CONTENT: ${content.substring(0, 4000)}
+
+ANALYSIS TASK: ${question.analysisPrompt || question.question}
+
+Extract specific evidence that answers the question: "${question.question}"
+
+Respond in JSON format:
+{
+  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "hasRelevantInfo": true/false,
+  "confidence": 0-100,
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "documentSummary": "Brief summary of what this document contains relevant to the question"
+}
+
+Only extract actual content from the document. If no relevant information is found, set hasRelevantInfo to false.`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 1500
+      });
+      
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      
+      return {
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: analysis.relevantContent || [],
+        hasRelevantInfo: analysis.hasRelevantInfo || false,
+        confidence: analysis.confidence || 0,
+        keyFindings: analysis.keyFindings || [],
+        documentSummary: analysis.documentSummary || '',
+        fullContent: content.substring(0, 1000) // Keep sample for reference
+      };
+      
+    } catch (error) {
+      console.error(`Error extracting evidence from ${document.name}:`, error);
+      return {
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: [],
+        hasRelevantInfo: false,
+        confidence: 0,
+        keyFindings: [],
+        documentSummary: 'Analysis failed',
+        fullContent: content.substring(0, 1000)
+      };
+    }
+  }
+
+  /**
+   * Compile comprehensive answer based on all evidence (same as Legal)
+   */
+  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    console.log(`🔍 Compiling answer for: ${question.question}`);
+    console.log(`📋 Evidence count: ${evidence.length}`);
+    
+    if (evidence.length === 0) {
+      console.log(`⚠️ No evidence found for question: ${question.question}`);
+      return {
+        question: question.question,
+        answer: `No relevant information found in the assigned clinical documents for this question.`,
+        confidence: 10,
+        sources: [],
+        evidenceCount: 0,
+        documentsCovered: 0
+      };
+    }
+    
+    // Filter evidence with relevant information
+    const relevantEvidence = evidence.filter(e => e.hasRelevantInfo);
+    console.log(`📋 Relevant evidence count: ${relevantEvidence.length}`);
+    
+    // Prepare evidence summary for AI analysis
+    const evidenceSummary = relevantEvidence.map((e, index) => 
+      `Document ${index + 1}: ${e.documentName}
+      Key Findings: ${e.keyFindings.join(', ')}
+      Content Excerpts: ${e.relevantContent.join(' | ')}
+      Summary: ${e.documentSummary}
+      Confidence: ${e.confidence}%`
+    ).join('\n\n');
+    
+    const prompt = `You are a senior clinical research expert conducting comprehensive due diligence analysis.
+
+QUESTION: ${question.question}
+CATEGORY: ${question.category}
+
+CLINICAL EVIDENCE from ${relevantEvidence.length} documents:
+${evidenceSummary}
+
+Provide a comprehensive clinical analysis including:
+1. Direct answer to the question based on the evidence
+2. Clinical assessment and risk evaluation  
+3. Key recommendations for investors
+4. Summary of evidence quality and completeness
+
+Respond in JSON format:
+{
+  "answer": "Comprehensive answer based on evidence",
+  "confidence": 85,
+  "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "riskAssessment": "Clinical risk evaluation",
+  "evidenceSummary": "Summary of evidence quality"
+}`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 2000
+      });
+      
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      
+      return {
+        question: question.question,
+        answer: analysis.answer || 'Analysis completed but no specific answer generated.',
+        confidence: analysis.confidence || 70,
+        keyFindings: analysis.keyFindings || [],
+        recommendations: analysis.recommendations || [],
+        riskAssessment: analysis.riskAssessment || '',
+        evidenceSummary: analysis.evidenceSummary || '',
+        sources: relevantEvidence.map(e => ({
+          documentName: e.documentName,
+          documentId: e.documentId,
+          relevantContent: e.relevantContent,
+          keyFindings: e.keyFindings
+        })),
+        evidenceCount: evidence.length,
+        documentsCovered: relevantEvidence.length
+      };
+      
+    } catch (error) {
+      console.error(`Error compiling comprehensive answer:`, error);
+      
+      return {
+        question: question.question,
+        answer: `Analysis completed with ${relevantEvidence.length} relevant documents found, but final synthesis failed due to processing error.`,
+        confidence: 50,
+        sources: relevantEvidence.map(e => ({
+          documentName: e.documentName,
+          relevantContent: e.relevantContent,
+          keyFindings: e.keyFindings
+        })),
+        evidenceCount: evidence.length,
+        documentsCovered: relevantEvidence.length,
+        error: error.message
+      };
     }
   }
 
@@ -300,176 +523,9 @@ class ComprehensiveClinicalAnalysisService {
     return clinicalDocuments;
   }
 
-  private findRelevantDocuments(documents: any[], keywords: string[]): any[] {
-    return documents.filter(doc => {
-      const searchText = `${doc.name} ${doc.aiSummary || ''}`.toLowerCase();
-      return keywords.some(keyword => searchText.includes(keyword.toLowerCase()));
-    });
-  }
 
-  private async analyzeQuestionWithDocuments(question: any, documents: any[]): Promise<ClinicalAnswer | null> {
-    try {
-      console.log(`🧬 Analyzing question with ${documents.length} documents`);
-      
-      const detailedEvidence: ClinicalEvidence[] = [];
-      
-      // Process documents in batches to avoid token limits
-      const batchSize = 10;
-      for (let i = 0; i < documents.length; i += batchSize) {
-        const batch = documents.slice(i, i + batchSize);
-        
-        for (const doc of batch) {
-          if (!doc.aiSummary) continue;
-          
-          try {
-            const evidence = await this.extractEvidenceFromDocument(doc, question);
-            if (evidence) {
-              detailedEvidence.push(evidence);
-            }
-          } catch (error) {
-            console.error(`🧬 Error extracting evidence from ${doc.name}:`, error);
-            // Continue processing other documents
-          }
-        }
-      }
 
-      if (detailedEvidence.length === 0) {
-        console.log(`🧬 No evidence found for question: ${question.question}`);
-        return null;
-      }
 
-      // Generate comprehensive answer using all evidence
-      const comprehensiveAnswer = await this.generateComprehensiveAnswer(question, detailedEvidence);
-      return comprehensiveAnswer;
-      
-    } catch (error) {
-      console.error(`🧬 Error analyzing question:`, error);
-      return null;
-    }
-  }
-
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<ClinicalEvidence | null> {
-    try {
-      const prompt = `You are a clinical research expert analyzing a document for specific clinical information.
-
-Document: ${document.name}
-Content: ${document.aiSummary}
-
-Question: ${question.question}
-Category: ${question.category}
-
-Extract relevant clinical evidence for this question. Focus on:
-- Specific clinical details, protocols, or findings
-- Regulatory information and compliance
-- Safety and efficacy data
-- Patient population characteristics
-- Trial design and methodology
-
-Respond with JSON in this format:
-{
-  "relevantContent": ["specific relevant sentences or findings"],
-  "keyFindings": ["key clinical insights"],
-  "documentSummary": "brief summary of how this document relates to the question",
-  "confidence": 0.8
-}
-
-If the document contains no relevant information, return: {"relevantContent": [], "keyFindings": [], "documentSummary": "", "confidence": 0}`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.3
-      });
-
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-      
-      if (!result.relevantContent || result.relevantContent.length === 0) {
-        return null;
-      }
-
-      return {
-        documentName: document.name,
-        documentSummary: result.documentSummary || '',
-        relevantContent: result.relevantContent || [],
-        keyFindings: result.keyFindings || [],
-        confidence: result.confidence || 0.7
-      };
-      
-    } catch (error) {
-      console.error(`🧬 Error extracting evidence:`, error);
-      return null;
-    }
-  }
-
-  private async generateComprehensiveAnswer(question: any, evidence: ClinicalEvidence[]): Promise<ClinicalAnswer> {
-    try {
-      const evidenceText = evidence.map(e => 
-        `Document: ${e.documentName}\nFindings: ${e.keyFindings.join(', ')}\nContent: ${e.relevantContent.join(' ')}`
-      ).join('\n\n');
-
-      const prompt = `You are a senior clinical research expert conducting comprehensive due diligence analysis.
-
-Question: ${question.question}
-Category: ${question.category}
-
-Clinical Evidence from ${evidence.length} documents:
-${evidenceText}
-
-Provide a comprehensive clinical analysis with:
-1. Direct answer to the question based on evidence
-2. Clinical assessment of findings
-3. Key recommendations for investors
-4. Evidence summary
-
-Respond with JSON:
-{
-  "answer": "direct answer to the question",
-  "clinicalAssessment": "expert clinical assessment of findings",
-  "keyFindings": ["key clinical findings from evidence"],
-  "recommendations": ["specific recommendations for investors"],
-  "evidenceSummary": "summary of evidence quality and completeness",
-  "confidence": 85
-}`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.3
-      });
-
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-
-      return {
-        question: question.question,
-        answer: result.answer || 'No comprehensive answer available',
-        confidence: result.confidence || 70,
-        sources: evidence.map(e => e.documentName),
-        detailedEvidence: evidence,
-        keyFindings: result.keyFindings || [],
-        evidenceSummary: result.evidenceSummary || '',
-        clinicalAssessment: result.clinicalAssessment || '',
-        recommendations: result.recommendations || []
-      };
-      
-    } catch (error) {
-      console.error(`🧬 Error generating comprehensive answer:`, error);
-      
-      // Fallback answer
-      return {
-        question: question.question,
-        answer: 'Unable to generate comprehensive answer due to processing error',
-        confidence: 0,
-        sources: evidence.map(e => e.documentName),
-        detailedEvidence: evidence,
-        keyFindings: [],
-        evidenceSummary: 'Processing error occurred',
-        clinicalAssessment: 'Unable to assess',
-        recommendations: []
-      };
-    }
-  }
 }
 
 export const comprehensiveClinicalAnalysisService = new ComprehensiveClinicalAnalysisService();
