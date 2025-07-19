@@ -1899,32 +1899,32 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     refetchOnWindowFocus: false
   });
 
-  // Check if clinical analysis is running
-  const isRunning = React.useMemo(() => {
+  // Check if clinical analysis is running - Fix React hook usage
+  const isRunning = (() => {
     const clinicalJob = jobData?.jobs?.find((job: any) => 
       job.agentType === 'Clinical' || job.jobId?.includes('clinical')
     );
     return !!clinicalJob && clinicalJob.status === 'processing';
-  }, [jobData]);
+  })();
 
-  const progress = React.useMemo(() => {
+  const progress = (() => {
     if (progressData?.isRunning) return progressData.progress || 0;
     const clinicalJob = jobData?.jobs?.find((job: any) => 
       job.agentType === 'Clinical' || job.jobId?.includes('clinical')
     );
     return clinicalJob?.progress || 0;
-  }, [progressData, jobData]);
+  })();
 
-  const currentStep = React.useMemo(() => {
+  const currentStep = (() => {
     if (progressData?.currentStep) return progressData.currentStep;
     const clinicalJob = jobData?.jobs?.find((job: any) => 
       job.agentType === 'Clinical' || job.jobId?.includes('clinical')
     );
     return clinicalJob?.currentDocument || 'Processing...';
-  }, [progressData, jobData]);
+  })();
 
-  // Show/hide based on running status
-  React.useEffect(() => {
+  // Show/hide based on running status - Fix React hook usage
+  useEffect(() => {
     if (isRunning && progress > 0) {
       setIsVisible(true);
     } else if (!isRunning && progress >= 100) {
@@ -1934,8 +1934,8 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     }
   }, [isRunning, progress]);
 
-  // Listen for custom events to show progress immediately
-  React.useEffect(() => {
+  // Listen for custom events to show progress immediately - Fix React hook usage
+  useEffect(() => {
     const handleClinicalAnalysisStarted = () => {
       console.log('🧬 Clinical analysis started event received');
       setIsVisible(true);
