@@ -18,6 +18,7 @@ interface EnhancedAgentCardProps {
   isRunningAllAnalyses?: boolean;
   currentProgress?: number;
   currentDocumentName?: string;
+  onClinicalAnalysisStart?: () => void;
 }
 
 export default function EnhancedAgentCard({ 
@@ -28,7 +29,8 @@ export default function EnhancedAgentCard({
   documents, 
   isRunningAllAnalyses,
   currentProgress = 0,
-  currentDocumentName 
+  currentDocumentName,
+  onClinicalAnalysisStart
 }: EnhancedAgentCardProps) {
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
@@ -1626,7 +1628,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <ComprehensiveClinicalAnalysisButton dealId={dealId} />
+        <ComprehensiveClinicalAnalysisButton dealId={dealId} onAnalysisStart={onClinicalAnalysisStart} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -1784,7 +1786,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
 }
 
 // Comprehensive Legal Analysis Button Component
-function ComprehensiveClinicalAnalysisButton({ dealId }: { dealId: number }) {
+function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { dealId: number; onAnalysisStart?: () => void }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
 
@@ -1822,6 +1824,11 @@ function ComprehensiveClinicalAnalysisButton({ dealId }: { dealId: number }) {
   const handleRunAnalysis = async () => {
     setIsRunning(true);
     console.log('🧬 Starting comprehensive clinical analysis for deal', dealId);
+    
+    // Call the callback to trigger client-side progress state
+    if (onAnalysisStart) {
+      onAnalysisStart();
+    }
     
     try {
       // Trigger custom event to show progress bar immediately
