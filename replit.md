@@ -368,6 +368,13 @@ Changelog:
   - Confirmed clinical questions display 3 unique answers with different content and confidence scores
   - Clinical analysis shows: trial design (85%), inclusion criteria (75%), FDA approval (90%)
   - Sources popup functionality now standardized between Legal and Clinical tabs
+- July 19, 2025: Fixed Clinical analysis document processing to match frontend assignment logic
+  - Resolved critical disconnect between frontend document counting (52 documents) and backend processing (only 13 documents)
+  - Updated Clinical analysis service to use identical document filtering logic as frontend getAssignedAgents function
+  - Replaced restrictive keyword-based filtering with comprehensive scoring algorithm matching frontend
+  - Clinical service now uses weighted keyword scoring: high (3x), medium (2x), low (1x) multipliers
+  - Added AI summary and filename boosters to match frontend document assignment behavior
+  - Fixed Clinical analysis to process ALL documents identified as clinically relevant by frontend scoring system
 ```
 
 ## User Preferences
