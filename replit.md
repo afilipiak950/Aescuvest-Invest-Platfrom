@@ -375,6 +375,9 @@ Changelog:
   - Clinical service now uses weighted keyword scoring: high (3x), medium (2x), low (1x) multipliers
   - Added AI summary and filename boosters to match frontend document assignment behavior
   - Fixed Clinical analysis to process ALL documents identified as clinically relevant by frontend scoring system
+  - Added complete evidence extraction and comprehensive answer compilation methods to Clinical service
+  - Clinical analysis now has identical functionality to Legal analysis with OpenAI-powered document evidence extraction
+  - Resolved missing extractEvidenceFromAllDocuments and compileComprehensiveAnswer methods causing "No relevant information found" responses
 ```
 
 ## User Preferences
