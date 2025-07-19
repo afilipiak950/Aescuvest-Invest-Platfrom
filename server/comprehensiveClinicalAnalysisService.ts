@@ -490,10 +490,13 @@ Respond in JSON format:
   }
 
   /**
-   * Get all documents suitable for clinical analysis (same approach as Legal)
+   * Get all documents suitable for clinical analysis (IDENTICAL approach to Legal - uses DB directly)
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await storage.getDocumentsByDealId(dealId);
+    const allDocuments = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.dealId, dealId));
     
     console.log(`🧬 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
