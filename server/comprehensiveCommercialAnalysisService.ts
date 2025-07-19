@@ -134,55 +134,17 @@ class ComprehensiveCommercialAnalysisService {
     console.log(`🏢 Finding assigned commercial documents for deal ${dealId}`);
     
     try {
-      // Get ALL documents for the deal - same as Legal and Clinical analysis
+      // Get ALL documents for the deal with AI summaries - same approach as Legal and Clinical
       const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
-      // Comprehensive commercial keywords for maximum document coverage
-      const commercialKeywords = [
-        'commercial', 'sales', 'marketing', 'pricing', 'revenue', 'customer', 'competitive', 
-        'market', 'business', 'strategy', 'pipeline', 'crm', 'lead', 'prospect', 'conversion',
-        'retention', 'churn', 'nps', 'satisfaction', 'discount', 'competitor', 'analysis',
-        'differentiation', 'value', 'proposition', 'positioning', 'segment', 'account',
-        'enterprise', 'subscription', 'usage', 'tier', 'freemium', 'upsell', 'cross-sell',
-        'financial', 'finance', 'revenue', 'income', 'profit', 'cost', 'expense', 'budget',
-        'forecast', 'projection', 'model', 'metrics', 'kpi', 'performance', 'growth',
-        'plan', 'presentation', 'deck', 'executive', 'summary', 'overview', 'report',
-        'data', 'research', 'survey', 'feedback', 'testimonial', 'case', 'study'
-      ];
-
-      // Use broad matching approach like Legal and Clinical analysis
-      const commercialDocuments = allDocuments.filter(doc => {
-        if (!doc.aiSummary && !doc.name) return false; // Skip documents without content
-        
-        const content = (doc.name + ' ' + (doc.aiSummary || '')).toLowerCase();
-        
-        // Check if document contains any commercial keywords
-        const hasCommercialKeyword = commercialKeywords.some(keyword => content.includes(keyword));
-        
-        // Include documents with AI summaries (they're likely relevant)
-        const hasAiSummary = doc.aiSummary && doc.aiSummary.length > 50;
-        
-        // Include any business documents
-        const isBusinessDoc = content.includes('business') || 
-                              content.includes('company') ||
-                              content.includes('market') ||
-                              content.includes('revenue') ||
-                              content.includes('customer');
-        
-        return hasCommercialKeyword || hasAiSummary || isBusinessDoc;
-      });
-
-      // Fallback: if very few documents match, include ALL documents with AI summaries
-      if (commercialDocuments.length < 20 && allDocuments.length > 50) {
-        console.log(`🏢 Using fallback: including ALL documents with AI summaries for comprehensive coverage`);
-        const fallbackDocuments = allDocuments.filter(doc => doc.aiSummary && doc.aiSummary.length > 10);
-        console.log(`🏢 Fallback assigned ${fallbackDocuments.length} documents to commercial analysis`);
-        return fallbackDocuments;
-      }
+      // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
+      const documentsWithAI = allDocuments.filter(doc => doc.aiSummary && doc.aiSummary.length > 10);
       
-      console.log(`🏢 Assigned ${commercialDocuments.length} documents to commercial analysis using broad matching`);
-      return commercialDocuments;
+      console.log(`🏢 Commercial analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
+      
+      // Return ALL documents with AI summaries for maximum coverage
+      return documentsWithAI;
       
     } catch (error) {
       console.error(`❌ Error finding commercial documents:`, error);
@@ -190,7 +152,7 @@ class ComprehensiveCommercialAnalysisService {
       try {
         const allDocs = await db.select().from(documents).where(eq(documents.dealId, dealId));
         console.log(`🏢 Error fallback: returning all ${allDocs.length} documents`);
-        return allDocs;
+        return allDocs.filter(doc => doc.aiSummary);
       } catch (fallbackError) {
         console.error(`❌ Fallback error:`, fallbackError);
         return [];
