@@ -2578,30 +2578,51 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   };
 
   const HR_QUESTIONS = [
-    // Employment Contracts (7 questions)
+    // 1. Employment Contracts (Employees) - 8 questions
     { id: 'employment_1', question: 'Are all employment contracts signed and dated?', category: 'Employment Contracts' },
     { id: 'employment_2', question: 'Are notice periods in line with local labor law or extended?', category: 'Employment Contracts' },
     { id: 'employment_3', question: 'Are probation periods defined? If yes, how long?', category: 'Employment Contracts' },
     { id: 'employment_4', question: 'Are termination clauses (ordinary, extraordinary) present?', category: 'Employment Contracts' },
     { id: 'employment_5', question: 'Is there mention of confidentiality, IP assignment, and post-contractual non-compete?', category: 'Employment Contracts' },
-    { id: 'employment_6', question: 'Are variable components (bonuses, stock options, commissions) clearly described?', category: 'Employment Contracts' },
+    { id: 'employment_6', question: 'Are variable components (bonuses, stock options, commissions) clearly described and performance-based?', category: 'Employment Contracts' },
     { id: 'employment_7', question: 'Are working hours, overtime rules, and leave entitlements defined?', category: 'Employment Contracts' },
+    { id: 'employment_8', question: 'Are there unusual clauses (e.g. guaranteed salary raises, minimum employment duration)?', category: 'Employment Contracts' },
     
-    // Executive/Managing Director Contracts (4 questions)
+    // 2. Executive/Managing Director Contracts - 5 questions
     { id: 'executive_1', question: 'Is the total compensation package broken down (base, bonus, equity)?', category: 'Executive Contracts' },
     { id: 'executive_2', question: 'Are KPI-driven bonuses explicitly defined?', category: 'Executive Contracts' },
     { id: 'executive_3', question: 'Are severance packages or golden parachutes included?', category: 'Executive Contracts' },
-    { id: 'executive_4', question: 'What exit clauses exist in case of M&A or investor-led changes?', category: 'Executive Contracts' },
+    { id: 'executive_4', question: 'Are liability exclusions or indemnity clauses included?', category: 'Executive Contracts' },
+    { id: 'executive_5', question: 'What exit clauses exist in case of M&A or investor-led changes?', category: 'Executive Contracts' },
     
-    // ESOP/VSOP Agreements (3 questions)
+    // 3. ESOP/VSOP Agreements - 6 questions
     { id: 'equity_1', question: 'What is the total pool reserved (as % of shares)?', category: 'ESOP/VSOP Plans' },
     { id: 'equity_2', question: 'What vesting model is used? (cliff, linear, backloaded)', category: 'ESOP/VSOP Plans' },
     { id: 'equity_3', question: 'Are good leaver/bad leaver rules defined?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_4', question: 'Are rights in case of IPO or acquisition clearly set?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_5', question: 'Are conversion or dilution rules defined?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_6', question: 'Is board/shareholder approval included for issuance?', category: 'ESOP/VSOP Plans' },
     
-    // HR Systems and Policies (3 questions)
-    { id: 'systems_1', question: 'What HR SaaS systems are in use (Personio, Workday, HiBob)?', category: 'HR Systems' },
-    { id: 'policies_1', question: 'Are internal HR policies covering leave, diversity, misconduct documented?', category: 'HR Policies' },
-    { id: 'compensation_1', question: 'Are salaries benchmarked and pay bands defined by level and function?', category: 'Compensation Analysis' }
+    // 4. Freelancer/Contractor Agreements - 3 questions
+    { id: 'freelancer_1', question: 'Are contracts aligned with IR35 or similar compliance tests?', category: 'Freelancer Agreements' },
+    { id: 'freelancer_2', question: 'Is IP assignment clearly stated?', category: 'Freelancer Agreements' },
+    { id: 'freelancer_3', question: 'Are term, termination, deliverables, and payment terms detailed?', category: 'Freelancer Agreements' },
+    
+    // 5. HR SaaS Contracts - 4 questions
+    { id: 'hr_saas_1', question: 'What modules are in use? Payroll? Performance reviews? ATS?', category: 'HR SaaS Contracts' },
+    { id: 'hr_saas_2', question: 'What is the contractual term, renewal logic, and notice period?', category: 'HR SaaS Contracts' },
+    { id: 'hr_saas_3', question: 'Is data processing governed by a GDPR-compliant DPA?', category: 'HR SaaS Contracts' },
+    { id: 'hr_saas_4', question: 'What SLAs or uptime guarantees are defined?', category: 'HR SaaS Contracts' },
+    
+    // 6. Internal HR Policies/Guidelines - 3 questions
+    { id: 'policies_1', question: 'Are internal documents covering leave, diversity, misconduct, whistleblowing, etc.?', category: 'HR Policies' },
+    { id: 'policies_2', question: 'Are policies updated and compliant with local law?', category: 'HR Policies' },
+    { id: 'policies_3', question: 'Is there a documented performance review or promotion framework?', category: 'HR Policies' },
+    
+    // 7. Compensation Benchmarking/Salary Tables - 3 questions
+    { id: 'compensation_1', question: 'Are salaries benchmarked (e.g., Radford, Mercer)?', category: 'Compensation Analysis' },
+    { id: 'compensation_2', question: 'Are pay bands defined by level and function?', category: 'Compensation Analysis' },
+    { id: 'compensation_3', question: 'Is salary growth rate documented historically?', category: 'Compensation Analysis' }
   ];
 
   const categories = [...new Set(HR_QUESTIONS.map(q => q.category))];
@@ -2612,7 +2633,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive HR Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} HR documents across 6 categories with 17 detailed questions
+            Analyze {assignedDocuments} HR documents across 7 categories with 32 detailed questions
           </p>
         </div>
         <ComprehensiveHrAnalysisButton dealId={dealId} />
