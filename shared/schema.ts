@@ -222,6 +222,17 @@ export const agentAnalyses = pgTable("agent_analyses", {
       recommendations?: string[];
     };
   }>(),
+  commercialAnswers: json("commercial_answers").$type<{
+    [key: string]: {
+      question: string;
+      answer: string;
+      confidence: number;
+      sources: string[];
+      detailedEvidence?: any[];
+      keyFindings?: string[];
+      recommendations?: string[];
+    };
+  }>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
