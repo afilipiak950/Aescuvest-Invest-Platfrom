@@ -96,6 +96,9 @@ function AppContent() {
               <Route path="/due-diligence">
                 <DueDiligence />
               </Route>
+              <Route path="/due-diligence/:dealId">
+                <DueDiligence />
+              </Route>
               <Route path="/memo-generator">
                 <MemoGenerator />
               </Route>
