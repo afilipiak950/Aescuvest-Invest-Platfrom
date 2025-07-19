@@ -640,6 +640,7 @@ export default function EnhancedAgentCard({
             setQuoteViewerOpen={setQuoteViewerOpen}
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
+            onClinicalAnalysisStart={onClinicalAnalysisStart}
           />
         ) : (
           /* Analysis Results for other agents */
@@ -1502,8 +1503,22 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   );
 }
 
-// Clinical Questions Section Component
-function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
+// Clinical Questions Section Component  
+interface ClinicalQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  findings: any[];
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+  onClinicalAnalysisStart?: () => void;
+}
+
+function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onClinicalAnalysisStart }: ClinicalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
