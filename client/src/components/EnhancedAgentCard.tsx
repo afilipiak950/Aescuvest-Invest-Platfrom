@@ -41,6 +41,20 @@ export default function EnhancedAgentCard({
   }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
 
+  // Fetch comprehensive HR analysis data directly for HR agents
+  const { data: hrAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
+    enabled: agentType.toLowerCase() === 'hr',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use HR comprehensive analysis data if this is an HR agent and we have the data
+  const actualAnalysisData = agentType.toLowerCase() === 'hr' && hrAnalysisData?.analysis 
+    ? hrAnalysisData.analysis 
+    : analysis || {};
+
+  console.log(`🔍 ${agentType} Agent Analysis Data:`, actualAnalysisData);
+
   // Progress Display Component for Legal Analysis
   function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
     const { data: jobProgress } = useQuery({
@@ -234,7 +248,7 @@ export default function EnhancedAgentCard({
   });
 
   // Use comprehensive clinical results if available, otherwise use agent results, fallback to passed analysis
-  const analysisData = (comprehensiveClinicalResults as any)?.analysis || (agentResults as any)?.analysis || analysis || {} as any;
+  const analysisData = actualAnalysisData;
   
   console.log(`🔍 ${agentType} Agent Analysis Data:`, analysisData);
   console.log(`🔍 ${agentType} Agent - Status: ${analysisData?.status}, Findings: ${analysisData?.findings?.length || 0}, Recommendations: ${analysisData?.recommendations?.length || 0}`);
