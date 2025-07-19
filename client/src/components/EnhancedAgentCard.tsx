@@ -1715,6 +1715,8 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
         </div>
         <ComprehensiveClinicalAnalysisButton dealId={dealId} onAnalysisStart={onClinicalAnalysisStart} />
       </div>
+      
+      <ClinicalAnalysisProgress dealId={dealId} />
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg">
@@ -1879,7 +1881,97 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   );
 }
 
-// Comprehensive Legal Analysis Button Component
+// Clinical Analysis Progress Component
+function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
+  const [isVisible, setIsVisible] = useState(false);
+  
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+    enabled: isVisible,
+    refetchOnWindowFocus: false
+  });
+
+  const { data: jobData } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+    enabled: isVisible,
+    refetchOnWindowFocus: false
+  });
+
+  // Check if clinical analysis is running
+  const isRunning = React.useMemo(() => {
+    const clinicalJob = jobData?.jobs?.find((job: any) => 
+      job.agentType === 'Clinical' || job.jobId?.includes('clinical')
+    );
+    return !!clinicalJob && clinicalJob.status === 'processing';
+  }, [jobData]);
+
+  const progress = React.useMemo(() => {
+    if (progressData?.isRunning) return progressData.progress || 0;
+    const clinicalJob = jobData?.jobs?.find((job: any) => 
+      job.agentType === 'Clinical' || job.jobId?.includes('clinical')
+    );
+    return clinicalJob?.progress || 0;
+  }, [progressData, jobData]);
+
+  const currentStep = React.useMemo(() => {
+    if (progressData?.currentStep) return progressData.currentStep;
+    const clinicalJob = jobData?.jobs?.find((job: any) => 
+      job.agentType === 'Clinical' || job.jobId?.includes('clinical')
+    );
+    return clinicalJob?.currentDocument || 'Processing...';
+  }, [progressData, jobData]);
+
+  // Show/hide based on running status
+  React.useEffect(() => {
+    if (isRunning && progress > 0) {
+      setIsVisible(true);
+    } else if (!isRunning && progress >= 100) {
+      // Hide after completion with delay
+      const timer = setTimeout(() => setIsVisible(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isRunning, progress]);
+
+  // Listen for custom events to show progress immediately
+  React.useEffect(() => {
+    const handleClinicalAnalysisStarted = () => {
+      console.log('🧬 Clinical analysis started event received');
+      setIsVisible(true);
+    };
+
+    window.addEventListener('clinicalAnalysisStarted', handleClinicalAnalysisStarted);
+    return () => window.removeEventListener('clinicalAnalysisStarted', handleClinicalAnalysisStarted);
+  }, []);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-green-400/10 border border-green-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-green-400">Clinical Analysis in Progress</span>
+            <span className="text-sm text-green-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-green-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-green-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-green-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Comprehensive Clinical Analysis Button Component
 function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { dealId: number; onAnalysisStart?: () => void }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
