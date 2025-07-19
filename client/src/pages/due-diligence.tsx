@@ -491,247 +491,60 @@ export default function DueDiligence() {
         </CardContent>
       </Card>
       
-      {/* Separate Analysis Progress Bars - Each analysis shows below each other */}
-      <div className="space-y-4 mb-6">
-        {/* Legal Analysis Progress */}
-        {legalProgress?.isRunning && (
-          <Card className="bg-blue-500/5 border-blue-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
-                  <div>
-                    <h3 className="text-white font-medium">Legal Analysis in Progress</h3>
-                    <p className="text-sm text-blue-400">
-                      {legalProgress.currentStep || 'Analyzing legal documents...'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-blue-400 border-blue-400">
-                    {legalProgress.progress || 0}%
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const legalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Legal');
-                      if (legalJob) handleStopJob(legalJob.jobId, 'Legal');
-                    }}
-                    disabled={stopJobMutation.isPending}
-                    className="h-8 w-8 p-0 border-blue-400/50 hover:bg-blue-500/20 hover:border-blue-400"
-                  >
-                    <Square className="h-4 w-4 text-blue-400" />
-                  </Button>
+      {/* Main Progress Bar - Show when any analysis is running */}
+      {(legalProgress?.isRunning || commercialProgress?.isRunning || hrProgress?.isRunning || clinicalProgress?.isRunning || 
+        jobProgress?.jobs?.some((job: any) => ['Financial', 'IP', 'Research'].includes(job.agentType))) && (
+        <Card className="bg-dark-lighter/30 border-dark-lighter mb-6">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
+                <div>
+                  <h3 className="text-white font-medium">AI Analysis in Progress</h3>
+                  <p className="text-sm text-blue-400">
+                    {legalProgress?.isRunning ? `Legal: ${legalProgress.currentStep}` :
+                     commercialProgress?.isRunning ? `Commercial: ${commercialProgress.currentStep}` :
+                     hrProgress?.isRunning ? `HR: ${hrProgress.currentStep}` :
+                     clinicalProgress?.isRunning ? `Clinical: ${clinicalProgress.currentStep}` :
+                     jobProgress?.jobs?.find((job: any) => job.agentType === 'Financial') ? `Financial: ${jobProgress.jobs.find((job: any) => job.agentType === 'Financial').currentStep || 'Processing financial documents...'}` :
+                     jobProgress?.jobs?.find((job: any) => job.agentType === 'IP') ? `IP: ${jobProgress.jobs.find((job: any) => job.agentType === 'IP').currentStep || 'Processing IP documents...'}` :
+                     jobProgress?.jobs?.find((job: any) => job.agentType === 'Research') ? `Research: ${jobProgress.jobs.find((job: any) => job.agentType === 'Research').currentStep || 'Processing research documents...'}` :
+                     'Processing documents...'}
+                  </p>
                 </div>
               </div>
-              
-              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-blue-500/30">
-                <div 
-                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-blue-500 to-blue-400"
-                  style={{ width: `${Math.max(5, Math.min(100, legalProgress.progress || 0))}%` }}
-                >
-                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <span>Analyzing 169 legal documents across 15 question categories</span>
-                <span>Current: {legalProgress.currentDocumentName || 'Processing'}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Commercial Analysis Progress */}
-        {commercialProgress?.isRunning && (
-          <Card className="bg-purple-500/5 border-purple-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
-                  <div>
-                    <h3 className="text-white font-medium">Commercial Analysis in Progress</h3>
-                    <p className="text-sm text-purple-400">
-                      {commercialProgress.currentStep || 'Analyzing commercial documents...'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-purple-400 border-purple-400">
-                    {commercialProgress.progress || 0}%
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const commercialJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Commercial');
-                      if (commercialJob) handleStopJob(commercialJob.jobId, 'Commercial');
-                    }}
-                    disabled={stopJobMutation.isPending}
-                    className="h-8 w-8 p-0 border-purple-400/50 hover:bg-purple-500/20 hover:border-purple-400"
-                  >
-                    <Square className="h-4 w-4 text-purple-400" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-purple-500/30">
-                <div 
-                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-purple-500 to-purple-400"
-                  style={{ width: `${Math.max(5, Math.min(100, commercialProgress.progress || 0))}%` }}
-                >
-                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <span>Analyzing commercial documents across 12 commercial questions</span>
-                <span>Current: {commercialProgress.currentDocumentName || 'Processing'}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* HR Analysis Progress */}
-        {(hrProgress?.isRunning || (jobProgress?.jobs?.find((job: any) => job.agentType === 'HR'))) && (
-          <Card className="bg-orange-500/5 border-orange-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-orange-400" />
-                  <div>
-                    <h3 className="text-white font-medium">HR Analysis in Progress</h3>
-                    <p className="text-sm text-orange-400">
-                      {hrProgress.currentStep || 'Analyzing HR documents...'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-orange-400 border-orange-400">
-                    {hrProgress.progress || 0}%
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const hrJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'HR');
-                      if (hrJob) handleStopJob(hrJob.jobId, 'HR');
-                    }}
-                    disabled={stopJobMutation.isPending}
-                    className="h-8 w-8 p-0 border-orange-400/50 hover:bg-orange-500/20 hover:border-orange-400"
-                  >
-                    <Square className="h-4 w-4 text-orange-400" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-orange-500/30">
-                <div 
-                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-orange-500 to-orange-400"
-                  style={{ width: `${Math.max(5, Math.min(100, hrProgress.progress || 0))}%` }}
-                >
-                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <span>Analyzing HR documents across 24 HR questions in 6 categories</span>
-                <span>Current: {hrProgress.currentDocumentName || 'Processing'}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Clinical Analysis Progress */}
-        {(clinicalProgress?.isRunning || (clinicalProgress && clinicalProgress.progress > 0 && clinicalProgress.progress < 100)) && (
-          <Card className="bg-green-500/5 border-green-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                  <div>
-                    <h3 className="text-white font-medium">Clinical Analysis in Progress</h3>
-                    <p className="text-sm text-green-400">
-                      {clinicalProgress?.currentStep || 
-                       (clinicalAnalysisStarted && (!clinicalProgress?.currentStep) ? 'Analyzing clinical documents...' : 'Processing clinical documents')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-green-400 border-green-400">
-                    {clinicalProgress?.progress || 0}%
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const clinicalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Clinical');
-                      if (clinicalJob) handleStopJob(clinicalJob.jobId, 'Clinical');
-                    }}
-                    disabled={stopJobMutation.isPending}
-                    className="h-8 w-8 p-0 border-green-400/50 hover:bg-green-500/20 hover:border-green-400"
-                  >
-                    <Square className="h-4 w-4 text-green-400" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-green-500/30">
-                <div 
-                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-green-500 to-green-400"
-                  style={{ width: `${Math.max(5, Math.min(100, clinicalProgress?.progress || 10))}%` }}
-                >
-                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <span>Analyzing clinical documents across 11 clinical question categories</span>
-                <span>Current: {clinicalProgress?.currentDocumentName || 'Processing'}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Other Background Jobs Progress */}
-        {(jobProgress?.jobs && jobProgress.jobs.length > 0 && jobProgress.jobs.some(job => job.progress > 0) && 
-          !legalProgress?.isRunning && !commercialProgress?.isRunning && !hrProgress?.isRunning && 
-          !(clinicalProgress?.isRunning || clinicalAnalysisStarted)) && (
-          <Card className="bg-gray-500/5 border-gray-500/20">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-                  <div>
-                    <h3 className="text-white font-medium">Analysis in Progress</h3>
-                    <p className="text-sm text-gray-400">
-                      {jobProgress.jobs.length} agent{jobProgress.jobs.length > 1 ? 's' : ''} processing
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-gray-400 border-gray-400">
-                  {jobProgress.jobs.length} active
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="text-blue-400 border-blue-400">
+                  {legalProgress?.isRunning ? `${legalProgress.progress || 0}%` :
+                   commercialProgress?.isRunning ? `${commercialProgress.progress || 0}%` :
+                   hrProgress?.isRunning ? `${hrProgress.progress || 0}%` :
+                   clinicalProgress?.isRunning ? `${clinicalProgress.progress || 0}%` :
+                   jobProgress?.jobs?.find((job: any) => job.agentType === 'Financial') ? `${jobProgress.jobs.find((job: any) => job.agentType === 'Financial').progress || 0}%` :
+                   jobProgress?.jobs?.find((job: any) => job.agentType === 'IP') ? `${jobProgress.jobs.find((job: any) => job.agentType === 'IP').progress || 0}%` :
+                   jobProgress?.jobs?.find((job: any) => job.agentType === 'Research') ? `${jobProgress.jobs.find((job: any) => job.agentType === 'Research').progress || 0}%` :
+                   '0%'}
                 </Badge>
               </div>
-              
-              <div className="w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden border border-gray-500/30">
-                <div 
-                  className="h-3 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-gray-500 to-gray-400"
-                  style={{ width: `25%` }}
-                >
-                  <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <span>Processing documents with {jobProgress.jobs.length} active agents</span>
-                <span>Current: Processing</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            </div>
+            <div className="w-full bg-blue-400/20 rounded-full h-2">
+              <div 
+                className="bg-blue-400 h-2 rounded-full transition-all duration-500" 
+                style={{ width: `${
+                  legalProgress?.isRunning ? (legalProgress.progress || 0) :
+                  commercialProgress?.isRunning ? (commercialProgress.progress || 0) :
+                  hrProgress?.isRunning ? (hrProgress.progress || 0) :
+                  clinicalProgress?.isRunning ? (clinicalProgress.progress || 0) :
+                  jobProgress?.jobs?.find((job: any) => job.agentType === 'Financial')?.progress || 
+                  jobProgress?.jobs?.find((job: any) => job.agentType === 'IP')?.progress ||
+                  jobProgress?.jobs?.find((job: any) => job.agentType === 'Research')?.progress ||
+                  0
+                }%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       
       {/* Upload Field - Shows when Upload Files button is clicked */}
       {showUploadField && (

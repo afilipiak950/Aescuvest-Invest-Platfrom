@@ -423,6 +423,15 @@ Changelog:
   - **Cleaned Stuck Jobs**: Removed cancelled jobs from database to prevent interference with active analyses
   - **System Status**: All three parallel progress cards working perfectly (Legal 30%, Clinical 90%, HR 95%)
   - **Prevention**: System now properly handles server restarts without losing progress tracking functionality
+- July 19, 2025: Completed main progress bar restoration and comprehensive analysis system unification
+  - **Fixed UI Issue**: Removed all duplicate individual progress bars that were causing main progress bar to disappear
+  - **Restored Main Progress Bar**: Single progress bar now shows between "Select Deal" and "Company Information" sections as requested
+  - **Enhanced Progress Tracking**: Main progress bar tracks Legal, Commercial, HR, Clinical, Financial, IP, and Research analyses
+  - **Created Missing Services**: Added comprehensive Financial, IP, and Research analysis services with same pattern as Legal/Clinical
+  - **Unified Background Jobs**: All 7 agents now use consistent storage.createBackgroundJob() system for progress tracking
+  - **Added Route Handlers**: Created /api/deals/:dealId/financial-analysis/comprehensive, /ip-analysis/comprehensive, /research-analysis/comprehensive endpoints
+  - **Fixed Clinical Analysis**: Clinical analysis service now properly creates background jobs like Legal analysis
+  - **System Status**: All agent analysis buttons work consistently using same background job system, main progress bar restored
 ```
 
 ## User Preferences

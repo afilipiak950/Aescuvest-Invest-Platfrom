@@ -740,6 +740,8 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
+        {/* Progress will be shown at the main page level, not here to avoid duplicates */}
+
         {/* Comprehensive Questions for Legal and Clinical Agents */}
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
@@ -2259,7 +2261,317 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   );
 }
 
-// CommercialProgressDisplay component removed per user request
+// Commercial Analysis Progress Display Component
+function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+      if (commercialJob && commercialJob.status === 'processing') {
+        setProgress(commercialJob.progress || 0);
+        setCurrentStep(commercialJob.currentDocument || 'Processing commercial analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-purple-400/10 border border-purple-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-purple-400">Commercial Analysis in Progress</span>
+            <span className="text-sm text-purple-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-purple-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-purple-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-purple-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// HR Analysis Progress Display Component
+function HrAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
+      if (hrJob && hrJob.status === 'processing') {
+        setProgress(hrJob.progress || 0);
+        setCurrentStep(hrJob.currentDocument || 'Processing HR analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-orange-400/10 border border-orange-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-orange-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-orange-400">HR Analysis in Progress</span>
+            <span className="text-sm text-orange-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-orange-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-orange-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-orange-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Financial Analysis Progress Display Component
+function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const financialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Financial');
+      if (financialJob && financialJob.status === 'processing') {
+        setProgress(financialJob.progress || 0);
+        setCurrentStep(financialJob.currentDocument || 'Processing financial analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-emerald-400">Financial Analysis in Progress</span>
+            <span className="text-sm text-emerald-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-emerald-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-emerald-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-emerald-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// IP Analysis Progress Display Component  
+function IpAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
+      if (ipJob && ipJob.status === 'processing') {
+        setProgress(ipJob.progress || 0);
+        setCurrentStep(ipJob.currentDocument || 'Processing IP analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-pink-400/10 border border-pink-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-pink-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-pink-400">IP Analysis in Progress</span>
+            <span className="text-sm text-pink-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-pink-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-pink-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-pink-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Research Analysis Progress Display Component
+function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      if (researchJob && researchJob.status === 'processing') {
+        setProgress(researchJob.progress || 0);
+        setCurrentStep(researchJob.currentDocument || 'Processing research analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-cyan-400/10 border border-cyan-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-cyan-400">Research Analysis in Progress</span>
+            <span className="text-sm text-cyan-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-cyan-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-cyan-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-cyan-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Legal Analysis Progress Display Component
+function LegalAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+      if (legalJob && legalJob.status === 'processing') {
+        setProgress(legalJob.progress || 0);
+        setCurrentStep(legalJob.currentDocument || 'Processing legal analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-blue-400/10 border border-blue-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-blue-400">Legal Analysis in Progress</span>
+            <span className="text-sm text-blue-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-blue-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-blue-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-blue-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Commercial Analysis Button Component  
 function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
