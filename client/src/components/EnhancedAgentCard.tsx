@@ -2098,46 +2098,8 @@ function CommercialProgressDisplay({ dealId, documents }: { dealId: number; docu
     return false;
   }).length : 0;
   
-  if (commercialProgress?.isRunning) {
-    return (
-      <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 mb-4">
-        <div className="flex items-center gap-3 mb-3">
-          <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
-          <div className="flex-1">
-            <p className="text-purple-400 font-medium">Comprehensive Commercial Analysis in Progress</p>
-            <p className="text-gray-300 text-sm">
-              {commercialProgress.currentStep || 'Processing comprehensive commercial analysis...'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-white font-medium">{Math.round(commercialProgress.progress || 0)}%</p>
-          </div>
-        </div>
-        <Progress 
-          value={commercialProgress.progress || 0} 
-          className="h-2 bg-dark-lighter"
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-2">
-          <span>Comprehensive analysis of {documentsToAnalyze} documents</span>
-          <span>{Math.round(commercialProgress.progress || 0)}% complete</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
-      <div className="flex items-center gap-3">
-        <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
-        <div>
-          <p className="text-purple-400 font-medium">Commercial Analysis Ready</p>
-          <p className="text-gray-400 text-sm">
-            Ready to analyze {documentsToAnalyze} commercial documents. Click "Run Commercial Analysis" to start.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  // Hidden per user request - no progress display shown
+  return null;
 }
 
 // Commercial Analysis Button Component  
