@@ -1294,6 +1294,8 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
+                                      console.log('🚀 CLICK HANDLER TRIGGERED!');
+                                      console.log('🔍 Answer object:', answer);
                                       // Create sources using detailed evidence with unique content from each document
                                       console.log('🔍 Processing detailedEvidence:', answer.detailedEvidence);
                                       const sources = answer.detailedEvidence?.map((evidence: any) => {
