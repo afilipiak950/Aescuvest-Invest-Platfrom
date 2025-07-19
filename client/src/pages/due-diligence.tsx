@@ -30,6 +30,7 @@ export default function DueDiligence() {
   const [showUploadField, setShowUploadField] = useState(false);
   const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
   const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
+  const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -116,7 +117,7 @@ export default function DueDiligence() {
   const { data: clinicalProgress } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/progress`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000, // Poll every 2 seconds for progress updates
+    refetchInterval: 500, // Poll every 500ms for faster progress updates
     staleTime: 0, // Always fetch fresh data
     gcTime: 0, // Don't cache data
     queryFn: async () => {
@@ -131,6 +132,14 @@ export default function DueDiligence() {
       return data;
     }
   });
+
+  // Reset clinical analysis started flag when analysis is complete
+  useEffect(() => {
+    if (clinicalProgress && !clinicalProgress.isRunning && clinicalProgress.progress === 100 && clinicalAnalysisStarted) {
+      console.log(`🧬 Clinical analysis completed, resetting started flag`);
+      setClinicalAnalysisStarted(false);
+    }
+  }, [clinicalProgress, clinicalAnalysisStarted]);
 
   // Log current state immediately
   console.log(`🎯 Current selectedDeal:`, selectedDeal);
@@ -468,10 +477,10 @@ export default function DueDiligence() {
       </Card>
       
       {/* Global Analysis Progress - Persistent across all tabs */}
-      {(legalProgress?.isRunning || clinicalProgress?.isRunning || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
+      {(legalProgress?.isRunning || clinicalProgress?.isRunning || clinicalAnalysisStarted || (jobProgress?.jobs && jobProgress.jobs.length > 0)) && (
         <Card className={`mb-6 ${
           legalProgress?.isRunning ? 'bg-blue-500/5 border-blue-500/20' : 
-          clinicalProgress?.isRunning ? 'bg-green-500/5 border-green-500/20' : 
+          (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'bg-green-500/5 border-green-500/20' : 
           'bg-gray-500/5 border-gray-500/20'
         }`}>
           <CardContent className="pt-4">
@@ -479,21 +488,22 @@ export default function DueDiligence() {
               <div className="flex items-center gap-3">
                 <Loader2 className={`h-5 w-5 animate-spin ${
                   legalProgress?.isRunning ? 'text-blue-400' : 
-                  clinicalProgress?.isRunning ? 'text-green-400' : 
+                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'text-green-400' : 
                   'text-gray-400'
                 }`} />
                 <div>
                   <h3 className="text-white font-medium">
                     {legalProgress?.isRunning ? 'Legal Analysis in Progress' : 
-                     clinicalProgress?.isRunning ? 'Clinical Analysis in Progress' : 
+                     (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'Clinical Analysis in Progress' : 
                      'Analysis in Progress'}
                   </h3>
                   <p className={`text-sm ${
                     legalProgress?.isRunning ? 'text-blue-400' : 
-                    clinicalProgress?.isRunning ? 'text-green-400' : 
+                    (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'text-green-400' : 
                     'text-gray-400'
                   }`}>
                     {legalProgress?.currentStep || clinicalProgress?.currentStep || 
+                     (clinicalAnalysisStarted && (!clinicalProgress?.currentStep) ? 'Analyzing clinical documents...' : '') ||
                      (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 
                       `${jobProgress.jobs.length} agent${jobProgress.jobs.length > 1 ? 's' : ''} processing` : 
                       'Processing documents')}
@@ -502,29 +512,29 @@ export default function DueDiligence() {
               </div>
               <Badge variant="outline" className={
                 legalProgress?.isRunning ? 'text-blue-400 border-blue-400' : 
-                clinicalProgress?.isRunning ? 'text-green-400 border-green-400' : 
+                (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'text-green-400 border-green-400' : 
                 'text-gray-400 border-gray-400'
               }>
                 {legalProgress?.isRunning ? `${legalProgress.progress || 0}%` : 
-                 clinicalProgress?.isRunning ? `${clinicalProgress.progress || 0}%` : 
+                 (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? `${clinicalProgress?.progress || 0}%` : 
                  `${jobProgress?.jobs?.length || 0} active`}
               </Badge>
             </div>
             
             <div className={`w-full bg-dark-lighter rounded-full h-3 relative overflow-hidden ${
               legalProgress?.isRunning ? 'border border-blue-500/30' : 
-              clinicalProgress?.isRunning ? 'border border-green-500/30' : 
+              (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'border border-green-500/30' : 
               'border border-gray-500/30'
             }`}>
               <div 
                 className={`h-3 rounded-full transition-all duration-1000 ease-out ${
                   legalProgress?.isRunning ? 'bg-gradient-to-r from-blue-500 to-blue-400' : 
-                  clinicalProgress?.isRunning ? 'bg-gradient-to-r from-green-500 to-green-400' : 
+                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 'bg-gradient-to-r from-green-500 to-green-400' : 
                   'bg-gradient-to-r from-gray-500 to-gray-400'
                 }`}
                 style={{ width: `${
                   legalProgress?.isRunning ? Math.max(5, Math.min(100, legalProgress.progress || 0)) : 
-                  clinicalProgress?.isRunning ? Math.max(5, Math.min(100, clinicalProgress.progress || 0)) : 
+                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? Math.max(5, Math.min(100, clinicalProgress?.progress || 10)) : 
                   (jobProgress?.jobs && jobProgress.jobs.length > 0 ? 25 : 0)
                 }%` }}
               >
@@ -536,7 +546,7 @@ export default function DueDiligence() {
               <span>
                 {legalProgress?.isRunning ? 
                   'Analyzing 169 legal documents across 15 question categories' : 
-                  clinicalProgress?.isRunning ? 
+                  (clinicalProgress?.isRunning || clinicalAnalysisStarted) ? 
                   'Analyzing clinical documents across 11 clinical question categories' : 
                   `Processing with ${jobProgress?.jobs?.length || 0} active agents`}
               </span>
@@ -1011,6 +1021,7 @@ export default function DueDiligence() {
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.progress || 0}
                     currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.currentStep}
+                    onClinicalAnalysisStart={() => setClinicalAnalysisStarted(true)}
                   />
                 </TabsContent>
                 
