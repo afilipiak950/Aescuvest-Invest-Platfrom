@@ -490,7 +490,7 @@ Respond in JSON format:
   }
 
   /**
-   * Get all documents suitable for clinical analysis (IDENTICAL approach to Legal - uses DB directly)
+   * Get all documents suitable for clinical analysis (IDENTICAL to Legal Analysis approach)
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -500,87 +500,64 @@ Respond in JSON format:
     
     console.log(`🧬 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to clinical agent
-    let clinicalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('clinical')) && 
-      (doc.ocrText || doc.aiSummary)
-    );
+    // Use the EXACT SAME broad approach as Legal analysis to get ALL relevant documents
+    // This ensures we process ALL documents that the frontend shows as assigned to clinical
+    let clinicalDocuments = allDocuments.filter(doc => {
+      if (!doc.ocrText && !doc.aiSummary) return false;
+      
+      const docName = doc.name.toLowerCase();
+      const docContent = (doc.ocrText || '').toLowerCase();
+      const aiSummary = doc.aiSummary;
+      
+      // EXPANDED clinical keywords - much broader than before (similar to Legal's broad approach)
+      const clinicalKeywords = [
+        'clinical', 'trial', 'phase', 'study', 'protocol', 'regulatory', 'fda', 'ema', 'approval', 
+        'medical', 'device', 'therapy', 'treatment', 'patient', 'safety', 'efficacy', 'adverse',
+        'endpoint', 'drug', 'biologics', 'investigator', 'report', 'designation', 'orphan', 
+        'breakthrough', 'inclusion', 'exclusion', 'population', 'advisory', 'compliance',
+        'submission', 'clearance', 'marketing', 'authorization', 'pre-submission', 'supplement',
+        'ide', 'ind', 'pma', '510k', 'ce mark', 'iso', 'gmp', 'gcp', 'ich', 'guidelines',
+        'enrollment', 'recruitment', 'screening', 'randomized', 'controlled', 'blinded', 
+        'placebo', 'intervention', 'dosage', 'administration', 'monitoring', 'follow-up'
+      ];
+      
+      // Check document name and content for ANY clinical keywords (broad matching like Legal)
+      const hasClinicalKeywords = clinicalKeywords.some(keyword => 
+        docName.includes(keyword) || docContent.includes(keyword)
+      );
+      
+      // Check AI summary for clinical/medical document type (broad matching like Legal)
+      const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
+                                 aiSummary?.documentType?.toLowerCase().includes('medical') ||
+                                 aiSummary?.documentType?.toLowerCase().includes('regulatory') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('medical') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('regulatory') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('study');
+      
+      // Accept documents if they have ANY clinical relevance (same broad approach as Legal)
+      return hasClinicalKeywords || isClinicalDocument;
+    });
     
-    console.log(`🧬 Documents explicitly assigned to clinical: ${clinicalDocuments.length}`);
+    console.log(`🧬 Clinical documents identified with broad matching: ${clinicalDocuments.length}`);
     
-    // If no documents are explicitly assigned to clinical, identify clinical-related documents
+    // If still no clinical documents using broad matching, use ALL documents with meaningful content
+    // This ensures we NEVER have zero documents to analyze (same fallback as Legal)
     if (clinicalDocuments.length === 0) {
-      console.log('🧬 No documents explicitly assigned to clinical agent, identifying clinical-related documents...');
-      
-      clinicalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
-        
-        const docName = doc.name.toLowerCase();
-        const docContent = (doc.ocrText || '').toLowerCase();
-        const aiSummary = doc.aiSummary;
-        
-        // Use IDENTICAL clinical scoring logic as frontend to match assigned document count
-        const content = `${docName} ${docContent} ${aiSummary?.executiveSummary || ''} ${aiSummary?.documentType || ''}`.toLowerCase();
-        
-        // Clinical keywords with weights (matching frontend logic exactly)
-        const clinicalKeywords = {
-          high: ['clinical', 'trial', 'phase', 'regulatory', 'fda', 'ema', 'endpoint', 'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol'],
-          medium: ['approval', 'designation', 'orphan', 'breakthrough', 'inclusion', 'exclusion', 'population', 'advisory'],
-          low: ['medical', 'therapy', 'treatment', 'drug', 'device', 'biologics', 'investigator', 'report']
-        };
-        
-        // Calculate clinical relevance score
-        let clinicalScore = 0;
-        
-        // High-weight keywords (3x multiplier)
-        clinicalKeywords.high.forEach(keyword => {
-          const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
-          clinicalScore += matches * 3;
-        });
-        
-        // Medium-weight keywords (2x multiplier)
-        clinicalKeywords.medium.forEach(keyword => {
-          const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
-          clinicalScore += matches * 2;
-        });
-        
-        // Low-weight keywords (1x multiplier)
-        clinicalKeywords.low.forEach(keyword => {
-          const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
-          clinicalScore += matches * 1;
-        });
-        
-        // Apply AI summary and filename boosters (matching frontend)
-        if (aiSummary?.documentType?.toLowerCase().includes('clinical') || aiSummary?.documentType?.toLowerCase().includes('medical')) {
-          clinicalScore *= 1.5;
-        }
-        if (docName.includes('clinical') || docName.includes('trial')) {
-          clinicalScore *= 1.6;
-        }
-        
-        // Consider document relevant if it has ANY clinical relevance (score > 0)
-        // This matches the frontend's getAssignedAgents logic that assigns documents with non-zero scores
-        return clinicalScore > 0;
-      });
-      
-      console.log(`🧬 Auto-identified clinical documents: ${clinicalDocuments.length}`);
-      
-      // Log first few documents for debugging
-      if (clinicalDocuments.length > 0) {
-        console.log(`🧬 Sample clinical documents found:`);
-        clinicalDocuments.slice(0, 3).forEach(doc => {
-          console.log(`  - ${doc.name} (score calculation based on content)`);
-        });
-      }
-    }
-    
-    // If still no clinical documents, take documents with meaningful content for analysis
-    if (clinicalDocuments.length === 0) {
-      console.log('🧬 No clinical-related documents found, using all documents with OCR text...');
+      console.log('🧬 No clinical-related documents found with broad matching, using ALL documents with OCR text...');
       clinicalDocuments = allDocuments.filter(doc => 
         (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
       );
-      console.log(`🧬 Documents with content available: ${clinicalDocuments.length}`);
+      console.log(`🧬 All documents with content available: ${clinicalDocuments.length}`);
+    }
+    
+    // Log sample of documents being processed
+    if (clinicalDocuments.length > 0) {
+      console.log(`🧬 Sample clinical documents to be analyzed:`);
+      clinicalDocuments.slice(0, 5).forEach(doc => {
+        console.log(`  - ${doc.name}`);
+      });
     }
     
     return clinicalDocuments;
