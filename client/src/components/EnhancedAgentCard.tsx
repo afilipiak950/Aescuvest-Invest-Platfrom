@@ -60,6 +60,12 @@ export default function EnhancedAgentCard({
       refetchInterval: 1000,
     });
 
+    // Check for comprehensive HR analysis progress
+    const { data: hrProgress } = useQuery({
+      queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
+      refetchInterval: 1000,
+    });
+
     // Look for both comprehensive legal analysis and regular legal agent jobs
     const legalJobs = jobProgress?.jobs?.filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
@@ -92,6 +98,34 @@ export default function EnhancedAgentCard({
           <div className="flex justify-between text-xs text-gray-400 mt-2">
             <span>Comprehensive analysis of {assignedDocuments} documents</span>
             <span>{Math.round(commercialProgress.progress || 0)}% complete</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Show comprehensive HR analysis if running
+    if (hrProgress?.isRunning) {
+      return (
+        <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="h-5 w-5 text-orange-400 animate-spin" />
+            <div className="flex-1">
+              <p className="text-orange-400 font-medium">Comprehensive HR Analysis in Progress</p>
+              <p className="text-gray-300 text-sm">
+                {hrProgress.currentStep || 'Processing comprehensive HR analysis...'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{Math.round(hrProgress.progress || 0)}%</p>
+            </div>
+          </div>
+          <Progress 
+            value={hrProgress.progress || 0} 
+            className="h-2 bg-dark-lighter"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-2">
+            <span>Comprehensive analysis of {assignedDocuments} documents</span>
+            <span>{Math.round(hrProgress.progress || 0)}% complete</span>
           </div>
         </div>
       );
@@ -685,6 +719,13 @@ export default function EnhancedAgentCard({
           />
         ) : agentType.toLowerCase() === 'commercial' ? (
           <CommercialQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+          />
+        ) : agentType.toLowerCase() === 'hr' ? (
+          <HrQuestionsSection 
             dealId={dealId}
             analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
@@ -2198,6 +2239,127 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   );
 }
 
+// HR Analysis Button Component
+function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log('HR analysis already running');
+        setIsRunning(false);
+        return;
+      }
+      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      console.log('Comprehensive HR analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('Error starting comprehensive HR analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive HR analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/hr-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`HR analysis attempt ${attempts}...`);
+          
+          if (data.success && data.hrAnswers && Object.keys(data.hrAnswers).length > 0) {
+            console.log('HR analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for HR results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting HR analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      size="sm"
+      className="bg-orange-600 hover:bg-orange-700 text-white border-orange-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isRunning ? 'HR Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run HR Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
 // Commercial Questions Section Component  
 function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(['Competitive Analysis Decks']));
@@ -2347,6 +2509,196 @@ function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, d
                           ) : (
                             <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
                               <p className="text-gray-400 text-xs">No commercial analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}
+// HR Questions Section Component  
+function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[] }) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(['Employment Contracts']));
+  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
+  const [selectedQuoteData, setSelectedQuoteData] = useState<{
+    quotes?: any[];
+    sources?: any[];
+    title: string;
+  }>({ quotes: [], sources: [], title: '' });
+
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
+  const { data: hrProgress } = useQuery({
+    queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
+    refetchInterval: 2000,
+  });
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  const HR_QUESTIONS = [
+    { id: 'employment_1', question: 'Are all employment contracts signed and legally compliant?', category: 'Employment Contracts' },
+    { id: 'employment_2', question: 'Are termination clauses fair and standardized?', category: 'Employment Contracts' },
+    { id: 'employment_3', question: 'Are probation periods defined and reasonable?', category: 'Employment Contracts' },
+    { id: 'employment_4', question: 'Is intellectual property assignment clearly covered?', category: 'Employment Contracts' },
+    { id: 'executive_1', question: 'Are executive compensation packages documented?', category: 'Executive Contracts' },
+    { id: 'executive_2', question: 'Are change of control provisions clearly defined?', category: 'Executive Contracts' },
+    { id: 'executive_3', question: 'Do key executives have non-compete agreements?', category: 'Executive Contracts' },
+    { id: 'executive_4', question: 'Are clawback clauses included for performance?', category: 'Executive Contracts' },
+    { id: 'equity_1', question: 'Is the ESOP/VSOP plan legally established?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_2', question: 'Are vesting schedules clearly defined?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_3', question: 'Are strike prices set at fair market value?', category: 'ESOP/VSOP Plans' },
+    { id: 'equity_4', question: 'Are option pool reserves adequate for growth?', category: 'ESOP/VSOP Plans' },
+    { id: 'freelancer_1', question: 'Are freelancer agreements compliant with labor laws?', category: 'Freelancer Agreements' },
+    { id: 'freelancer_2', question: 'Is intellectual property assignment covered?', category: 'Freelancer Agreements' },
+    { id: 'freelancer_3', question: 'Are payment terms and deliverables clear?', category: 'Freelancer Agreements' },
+    { id: 'freelancer_4', question: 'Are confidentiality provisions adequate?', category: 'Freelancer Agreements' },
+    { id: 'hr_saas_1', question: 'Are HR systems compliant with data protection?', category: 'HR SaaS/Policies' },
+    { id: 'hr_saas_2', question: 'Are employee handbooks up-to-date?', category: 'HR SaaS/Policies' },
+    { id: 'hr_saas_3', question: 'Are performance review processes documented?', category: 'HR SaaS/Policies' },
+    { id: 'hr_saas_4', question: 'Are diversity and inclusion policies in place?', category: 'HR SaaS/Policies' },
+    { id: 'compensation_1', question: 'Are salary bands defined and fair?', category: 'Compensation Analysis' },
+    { id: 'compensation_2', question: 'Are benefits packages competitive?', category: 'Compensation Analysis' },
+    { id: 'compensation_3', question: 'Is pay equity maintained across demographics?', category: 'Compensation Analysis' },
+    { id: 'compensation_4', question: 'Are bonus structures tied to performance?', category: 'Compensation Analysis' }
+  ];
+
+  const categories = [...new Set(HR_QUESTIONS.map(q => q.category))];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-orange-500/5 to-orange-600/5 border border-orange-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive HR Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} HR documents across 6 categories with 24 detailed questions
+          </p>
+        </div>
+        <ComprehensiveHrAnalysisButton dealId={dealId} />
+      </div>
+
+      {hrProgress?.isRunning && (
+        <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="h-5 w-5 text-orange-400 animate-spin" />
+            <div className="flex-1">
+              <p className="text-orange-400 font-medium">Comprehensive HR Analysis in Progress</p>
+              <p className="text-gray-300 text-sm">
+                {hrProgress.currentStep || 'Processing comprehensive HR analysis...'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{Math.round(hrProgress.progress || 0)}%</p>
+            </div>
+          </div>
+          <Progress 
+            value={hrProgress.progress || 0} 
+            className="h-2 bg-dark-lighter"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-2">
+            <span>Comprehensive analysis of {assignedDocuments} documents</span>
+            <span>{Math.round(hrProgress.progress || 0)}% complete</span>
+          </div>
+        </div>
+      )}
+
+      {categories.map(category => (
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
+            onClick={() => toggleCategory(category)}
+          >
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {HR_QUESTIONS.filter(q => q.category === category).length} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {HR_QUESTIONS.filter(q => q.category === category).map(question => {
+                const answer = comprehensiveResults?.success && comprehensiveResults.hrAnswers 
+                  ? comprehensiveResults.hrAnswers[question.id] 
+                  : null;
+
+                return (
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-orange-400 border-orange-400">
+                                  Confidence: {answer.confidence}%
+                                </Badge>
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No HR analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>

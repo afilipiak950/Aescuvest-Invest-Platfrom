@@ -3831,6 +3831,90 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Run comprehensive HR analysis
+  app.post('/api/deals/:dealId/hr-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🏢 Starting comprehensive HR analysis for deal ${dealId}`);
+      
+      // Check for existing HR analysis jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingHrJob = existingJobs.find(job => 
+        (job.jobType === 'comprehensive_hr_analysis' || job.jobId.includes('hr_analysis')) && 
+        job.status === 'processing'
+      );
+      
+      if (existingHrJob) {
+        console.log(`⚠️ HR analysis already running for deal ${dealId} (Job: ${existingHrJob.jobId})`);
+        return res.json({ 
+          success: false, 
+          message: `HR analysis already in progress (${Math.round(existingHrJob.progress || 0)}% complete)`,
+          alreadyRunning: true,
+          progress: existingHrJob.progress || 0
+        });
+      }
+      
+      // Import the comprehensive HR analysis service
+      const { startComprehensiveHrAnalysis } = await import('./comprehensiveHrAnalysisService');
+      
+      // Start the comprehensive HR analysis
+      const result = await startComprehensiveHrAnalysis(dealId);
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive HR analysis started - processing 17 HR questions across all assigned documents',
+        ...result
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive HR analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive HR analysis' });
+    }
+  });
+
+  // Get comprehensive HR analysis progress
+  app.get('/api/deals/:dealId/hr-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      const { getComprehensiveHrAnalysisProgress } = await import('./comprehensiveHrAnalysisService');
+      const progress = await getComprehensiveHrAnalysisProgress(dealId);
+      
+      res.json({
+        success: true,
+        ...progress
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive HR analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get progress' });
+    }
+  });
+
+  // Get comprehensive HR analysis results
+  app.get('/api/deals/:dealId/hr-analysis/comprehensive/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      const { getComprehensiveHrAnalysisResults } = await import('./comprehensiveHrAnalysisService');
+      const results = await getComprehensiveHrAnalysisResults(dealId);
+      
+      if (results.success) {
+        res.json({
+          success: true,
+          ...results
+        });
+      } else {
+        res.json({
+          success: false,
+          message: 'No comprehensive HR analysis results found'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive HR analysis results:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
+    }
+  });
+
   return httpServer;
 }
 
