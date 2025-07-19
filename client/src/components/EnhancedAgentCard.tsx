@@ -1806,6 +1806,15 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
           )}
         </div>
       ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
     </div>
   );
 }
