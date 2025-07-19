@@ -2684,7 +2684,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  Confidence: {answer.confidence}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
                                 {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
