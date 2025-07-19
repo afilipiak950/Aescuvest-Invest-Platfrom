@@ -100,14 +100,46 @@ export default function DueDiligence() {
     }
   });
 
-  // Disabled legal progress polling to prevent UI interference
-  const legalProgress = null;
+  // Create progress states from jobProgress data instead of separate queries to prevent UI interference
+  const legalProgress = useMemo(() => {
+    const legalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Legal');
+    return legalJob ? {
+      isRunning: legalJob.status === 'processing',
+      progress: legalJob.progress || 0,
+      currentStep: legalJob.currentDocument || 'Processing legal documents...',
+      currentDocumentName: legalJob.currentDocument || 'Processing'
+    } : null;
+  }, [jobProgress]);
 
-  // Disabled aggressive progress polling to prevent UI interference during navigation
-  // These queries were causing progress bars to appear inappropriately between pages
-  const clinicalProgress = null;
-  const commercialProgress = null; 
-  const hrProgress = null;
+  const commercialProgress = useMemo(() => {
+    const commercialJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Commercial');
+    return commercialJob ? {
+      isRunning: commercialJob.status === 'processing',
+      progress: commercialJob.progress || 0,
+      currentStep: commercialJob.currentDocument || 'Processing commercial documents...',
+      currentDocumentName: commercialJob.currentDocument || 'Processing'
+    } : null;
+  }, [jobProgress]);
+
+  const hrProgress = useMemo(() => {
+    const hrJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'HR');
+    return hrJob ? {
+      isRunning: hrJob.status === 'processing',
+      progress: hrJob.progress || 0,
+      currentStep: hrJob.currentDocument || 'Processing HR documents...',
+      currentDocumentName: hrJob.currentDocument || 'Processing'
+    } : null;
+  }, [jobProgress]);
+
+  const clinicalProgress = useMemo(() => {
+    const clinicalJob = jobProgress?.jobs?.find((job: any) => job.agentType === 'Clinical');
+    return clinicalJob ? {
+      isRunning: clinicalJob.status === 'processing',
+      progress: clinicalJob.progress || 0,
+      currentStep: clinicalJob.currentDocument || 'Processing clinical documents...',
+      currentDocumentName: clinicalJob.currentDocument || 'Processing'
+    } : null;
+  }, [jobProgress]);
 
   // Reset clinical analysis started flag when analysis is complete
   useEffect(() => {
