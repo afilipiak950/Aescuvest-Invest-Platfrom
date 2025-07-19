@@ -6,9 +6,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// HR questions covering employment, executive contracts, ESOP/VSOP, freelancer agreements, HR SaaS, policies, and compensation
+// Complete HR questions covering all 7 categories with 32 detailed questions
 const HR_QUESTIONS = [
-  // Employment Contracts
+  // 1. Employment Contracts (Employees) - 8 questions
   {
     id: 'employment_1',
     question: 'Are all employment contracts signed and dated?',
@@ -36,16 +36,21 @@ const HR_QUESTIONS = [
   },
   {
     id: 'employment_6',
-    question: 'Are variable components (bonuses, stock options, commissions) clearly described?',
-    keywords: ['bonus', 'variable pay', 'stock options', 'commission', 'incentive compensation']
+    question: 'Are variable components (bonuses, stock options, commissions) clearly described and performance-based?',
+    keywords: ['bonus', 'variable pay', 'stock options', 'commission', 'incentive compensation', 'performance-based']
   },
   {
     id: 'employment_7',
     question: 'Are working hours, overtime rules, and leave entitlements defined?',
     keywords: ['working hours', 'overtime', 'leave', 'vacation', 'working time', 'time off']
   },
+  {
+    id: 'employment_8',
+    question: 'Are there unusual clauses (e.g. guaranteed salary raises, minimum employment duration)?',
+    keywords: ['unusual clauses', 'guaranteed salary', 'salary raises', 'minimum employment', 'employment duration']
+  },
   
-  // Executive/Managing Director Contracts
+  // 2. Executive/Managing Director Contracts - 5 questions
   {
     id: 'executive_1',
     question: 'Is the total compensation package broken down (base, bonus, equity)?',
@@ -63,11 +68,16 @@ const HR_QUESTIONS = [
   },
   {
     id: 'executive_4',
+    question: 'Are liability exclusions or indemnity clauses included?',
+    keywords: ['liability exclusion', 'indemnity clause', 'executive liability', 'indemnification']
+  },
+  {
+    id: 'executive_5',
     question: 'What exit clauses exist in case of M&A or investor-led changes?',
     keywords: ['exit clause', 'M&A', 'acquisition', 'change of control', 'investor changes']
   },
   
-  // ESOP/VSOP Agreements
+  // 3. ESOP/VSOP Agreements - 6 questions
   {
     id: 'equity_1',
     question: 'What is the total pool reserved (as % of shares)?',
@@ -83,22 +93,93 @@ const HR_QUESTIONS = [
     question: 'Are good leaver/bad leaver rules defined?',
     keywords: ['good leaver', 'bad leaver', 'leaver provisions', 'equity forfeiture']
   },
-  
-  // HR Systems and Policies
   {
-    id: 'systems_1',
-    question: 'What HR SaaS systems are in use (Personio, Workday, HiBob)?',
-    keywords: ['HR software', 'HRIS', 'Personio', 'Workday', 'HiBob', 'payroll system']
+    id: 'equity_4',
+    question: 'Are rights in case of IPO or acquisition clearly set?',
+    keywords: ['IPO rights', 'acquisition rights', 'equity rights', 'liquidity rights', 'exit rights']
   },
+  {
+    id: 'equity_5',
+    question: 'Are conversion or dilution rules defined?',
+    keywords: ['conversion rules', 'dilution rules', 'anti-dilution', 'equity conversion']
+  },
+  {
+    id: 'equity_6',
+    question: 'Is board/shareholder approval included for issuance?',
+    keywords: ['board approval', 'shareholder approval', 'equity issuance', 'approval process']
+  },
+  
+  // 4. Freelancer/Contractor Agreements - 3 questions
+  {
+    id: 'freelancer_1',
+    question: 'Are contracts aligned with IR35 or similar compliance tests?',
+    keywords: ['IR35', 'contractor compliance', 'freelancer compliance', 'employment status']
+  },
+  {
+    id: 'freelancer_2',
+    question: 'Is IP assignment clearly stated?',
+    keywords: ['IP assignment', 'intellectual property', 'contractor IP', 'freelancer IP']
+  },
+  {
+    id: 'freelancer_3',
+    question: 'Are term, termination, deliverables, and payment terms detailed?',
+    keywords: ['contractor terms', 'deliverables', 'payment terms', 'freelancer terms']
+  },
+  
+  // 5. HR SaaS Contracts - 4 questions
+  {
+    id: 'hr_saas_1',
+    question: 'What modules are in use? Payroll? Performance reviews? ATS?',
+    keywords: ['HR SaaS', 'payroll module', 'performance reviews', 'ATS', 'HR modules']
+  },
+  {
+    id: 'hr_saas_2',
+    question: 'What is the contractual term, renewal logic, and notice period?',
+    keywords: ['contract term', 'renewal', 'notice period', 'HR contract', 'SaaS contract']
+  },
+  {
+    id: 'hr_saas_3',
+    question: 'Is data processing governed by a GDPR-compliant DPA?',
+    keywords: ['GDPR', 'DPA', 'data processing', 'privacy', 'data protection']
+  },
+  {
+    id: 'hr_saas_4',
+    question: 'What SLAs or uptime guarantees are defined?',
+    keywords: ['SLA', 'uptime guarantee', 'service level', 'availability']
+  },
+  
+  // 6. Internal HR Policies/Guidelines - 3 questions
   {
     id: 'policies_1',
-    question: 'Are internal HR policies covering leave, diversity, misconduct documented?',
-    keywords: ['HR policy', 'leave policy', 'diversity policy', 'misconduct policy', 'employee handbook']
+    question: 'Are internal documents covering leave, diversity, misconduct, whistleblowing, etc.?',
+    keywords: ['HR policy', 'leave policy', 'diversity policy', 'misconduct policy', 'whistleblowing']
   },
   {
+    id: 'policies_2',
+    question: 'Are policies updated and compliant with local law?',
+    keywords: ['policy compliance', 'local law', 'updated policies', 'legal compliance']
+  },
+  {
+    id: 'policies_3',
+    question: 'Is there a documented performance review or promotion framework?',
+    keywords: ['performance review', 'promotion framework', 'career development', 'performance management']
+  },
+  
+  // 7. Compensation Benchmarking/Salary Tables - 3 questions
+  {
     id: 'compensation_1',
-    question: 'Are salaries benchmarked and pay bands defined by level and function?',
-    keywords: ['salary benchmarking', 'pay bands', 'compensation structure', 'salary levels']
+    question: 'Are salaries benchmarked (e.g., Radford, Mercer)?',
+    keywords: ['salary benchmarking', 'Radford', 'Mercer', 'compensation benchmark']
+  },
+  {
+    id: 'compensation_2',
+    question: 'Are pay bands defined by level and function?',
+    keywords: ['pay bands', 'salary levels', 'compensation structure', 'job levels']
+  },
+  {
+    id: 'compensation_3',
+    question: 'Is salary growth rate documented historically?',
+    keywords: ['salary growth', 'compensation history', 'pay progression', 'salary increases']
   }
 ];
 
