@@ -192,15 +192,19 @@ interface ProcessedDocument {
 export async function startComprehensiveHrAnalysis(dealId: number) {
   const jobId = `hr-analysis-${dealId}-${Date.now()}`;
   
-  // Check if analysis is already running
+  // Check if HR analysis is already running (filter by agentType)
   const existingJob = await db
     .select()
     .from(backgroundJobs)
-    .where(eq(backgroundJobs.dealId, dealId))
+    .where(and(
+      eq(backgroundJobs.dealId, dealId),
+      eq(backgroundJobs.agentType, 'HR'),
+      eq(backgroundJobs.status, 'processing')
+    ))
     .orderBy(desc(backgroundJobs.createdAt))
     .limit(1);
     
-  if (existingJob.length > 0 && existingJob[0].status === 'processing') {
+  if (existingJob.length > 0) {
     return { success: true, message: 'HR analysis already running', jobId: existingJob[0].jobId };
   }
 
@@ -212,7 +216,7 @@ export async function startComprehensiveHrAnalysis(dealId: number) {
     status: 'processing',
     progress: 0,
     message: 'Starting comprehensive HR analysis',
-    agentType: 'hr',
+    agentType: 'HR',
     totalSteps: HR_QUESTIONS.length,
     currentStep: 'Initializing HR analysis...'
   });
