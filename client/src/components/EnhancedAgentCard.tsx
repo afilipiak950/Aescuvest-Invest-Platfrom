@@ -3111,31 +3111,6 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         <ComprehensiveHrAnalysisButton dealId={dealId} />
       </div>
 
-      {hrProgress?.isRunning && (
-        <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-orange-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-orange-400 font-medium">Comprehensive HR Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {hrProgress.currentStep || 'Processing comprehensive HR analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round(hrProgress.progress || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={hrProgress.progress || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round(hrProgress.progress || 0)}% complete</span>
-          </div>
-        </div>
-      )}
-
       {categories.map(category => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
           <div 
