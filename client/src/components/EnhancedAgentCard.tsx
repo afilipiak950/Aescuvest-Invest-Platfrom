@@ -2061,6 +2061,21 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
 
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if legal analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+      return !!legalJob && legalJob.status === 'processing';
+    }
+    return false;
+  })();
+
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/comprehensive`, {
@@ -2176,14 +2191,14 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
       className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          {isRunning ? 'AI Analysis Running...' : 'Starting Analysis...'}
+          {isAlreadyRunning ? 'Legal Analysis Running...' : isRunning ? 'Legal Analysis Running...' : 'Starting Analysis...'}
         </>
       ) : (
         <>
@@ -2564,6 +2579,21 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
 
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if commercial analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+      return !!commercialJob && commercialJob.status === 'processing';
+    }
+    return false;
+  })();
+
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/comprehensive`, {
@@ -2661,14 +2691,14 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
       className="bg-purple-600 hover:bg-purple-700 text-white border-purple-500"
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          {isRunning ? 'Commercial Analysis Running...' : 'Starting Analysis...'}
+          {isAlreadyRunning ? 'Commercial Analysis Running...' : isRunning ? 'Commercial Analysis Running...' : 'Starting Analysis...'}
         </>
       ) : (
         <>
@@ -2684,6 +2714,21 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
 function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
+
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if HR analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
+      return !!hrJob && hrJob.status === 'processing';
+    }
+    return false;
+  })();
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -2782,14 +2827,14 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
       className="bg-orange-600 hover:bg-orange-700 text-white border-orange-500"
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          {isRunning ? 'HR Analysis Running...' : 'Starting Analysis...'}
+          {isAlreadyRunning ? 'HR Analysis Running...' : isRunning ? 'HR Analysis Running...' : 'Starting Analysis...'}
         </>
       ) : (
         <>
