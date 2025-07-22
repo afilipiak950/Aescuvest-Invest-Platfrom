@@ -675,6 +675,7 @@ export default function EnhancedAgentCard({
         {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'clinical' && <ClinicalAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'financial' && <FinancialAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'ip' && <IpAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'research' && <ResearchAnalysisProgress dealId={dealId} />}
@@ -1896,6 +1897,21 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
 
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if clinical analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+      return !!clinicalJob && clinicalJob.status === 'processing';
+    }
+    return false;
+  })();
+
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive`, {
@@ -2022,14 +2038,14 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
       className="bg-green-600 hover:bg-green-700 text-white border-green-500"
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          {isRunning ? 'Clinical Analysis Running...' : 'Starting Analysis...'}
+          {isAlreadyRunning ? 'Clinical Analysis Running...' : isRunning ? 'Clinical Analysis Running...' : 'Starting Analysis...'}
         </>
       ) : (
         <>
@@ -2223,6 +2239,58 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-purple-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Clinical Analysis Progress Display Component
+function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    if (jobProgress?.jobs) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+      if (clinicalJob && clinicalJob.status === 'processing') {
+        setProgress(clinicalJob.progress || 0);
+        setCurrentStep(clinicalJob.currentDocument || 'Processing clinical analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-green-400/10 border border-green-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-green-400">Clinical Analysis in Progress</span>
+            <span className="text-sm text-green-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-green-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-green-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-green-300/80 truncate">
             {currentStep}
           </div>
         </div>
