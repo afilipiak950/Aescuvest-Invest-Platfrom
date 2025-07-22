@@ -491,59 +491,7 @@ export default function DueDiligence() {
         </CardContent>
       </Card>
       
-      {/* Main Progress Bar - Show when any analysis is running */}
-      {(legalProgress?.isRunning || commercialProgress?.isRunning || hrProgress?.isRunning || clinicalProgress?.isRunning || 
-        jobProgress?.jobs?.some((job: any) => ['Financial', 'IP', 'Research'].includes(job.agentType))) && (
-        <Card className="bg-dark-lighter/30 border-dark-lighter mb-6">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
-                <div>
-                  <h3 className="text-white font-medium">AI Analysis in Progress</h3>
-                  <p className="text-sm text-blue-400">
-                    {legalProgress?.isRunning ? `Legal: ${legalProgress.currentStep}` :
-                     commercialProgress?.isRunning ? `Commercial: ${commercialProgress.currentStep}` :
-                     hrProgress?.isRunning ? `HR: ${hrProgress.currentStep}` :
-                     clinicalProgress?.isRunning ? `Clinical: ${clinicalProgress.currentStep}` :
-                     jobProgress?.jobs?.find((job: any) => job.agentType === 'Financial') ? `Financial: ${jobProgress.jobs.find((job: any) => job.agentType === 'Financial').currentStep || 'Processing financial documents...'}` :
-                     jobProgress?.jobs?.find((job: any) => job.agentType === 'IP') ? `IP: ${jobProgress.jobs.find((job: any) => job.agentType === 'IP').currentStep || 'Processing IP documents...'}` :
-                     jobProgress?.jobs?.find((job: any) => job.agentType === 'Research') ? `Research: ${jobProgress.jobs.find((job: any) => job.agentType === 'Research').currentStep || 'Processing research documents...'}` :
-                     'Processing documents...'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="text-blue-400 border-blue-400">
-                  {legalProgress?.isRunning ? `${legalProgress.progress || 0}%` :
-                   commercialProgress?.isRunning ? `${commercialProgress.progress || 0}%` :
-                   hrProgress?.isRunning ? `${hrProgress.progress || 0}%` :
-                   clinicalProgress?.isRunning ? `${clinicalProgress.progress || 0}%` :
-                   jobProgress?.jobs?.find((job: any) => job.agentType === 'Financial') ? `${jobProgress.jobs.find((job: any) => job.agentType === 'Financial').progress || 0}%` :
-                   jobProgress?.jobs?.find((job: any) => job.agentType === 'IP') ? `${jobProgress.jobs.find((job: any) => job.agentType === 'IP').progress || 0}%` :
-                   jobProgress?.jobs?.find((job: any) => job.agentType === 'Research') ? `${jobProgress.jobs.find((job: any) => job.agentType === 'Research').progress || 0}%` :
-                   '0%'}
-                </Badge>
-              </div>
-            </div>
-            <div className="w-full bg-blue-400/20 rounded-full h-2">
-              <div 
-                className="bg-blue-400 h-2 rounded-full transition-all duration-500" 
-                style={{ width: `${
-                  legalProgress?.isRunning ? (legalProgress.progress || 0) :
-                  commercialProgress?.isRunning ? (commercialProgress.progress || 0) :
-                  hrProgress?.isRunning ? (hrProgress.progress || 0) :
-                  clinicalProgress?.isRunning ? (clinicalProgress.progress || 0) :
-                  jobProgress?.jobs?.find((job: any) => job.agentType === 'Financial')?.progress || 
-                  jobProgress?.jobs?.find((job: any) => job.agentType === 'IP')?.progress ||
-                  jobProgress?.jobs?.find((job: any) => job.agentType === 'Research')?.progress ||
-                  0
-                }%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       
       {/* Upload Field - Shows when Upload Files button is clicked */}
