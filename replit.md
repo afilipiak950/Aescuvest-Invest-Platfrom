@@ -440,6 +440,14 @@ Changelog:
   - **Persistent Job Manager**: Enhanced with `clearStuckJobs()` and `stopJob()` methods for complete job lifecycle management
   - **System Status**: All background jobs cleared (0 active jobs), system ready for fresh analyses with proper timeout handling
   - **Prevention Measures**: Added comprehensive error handling and job cancellation mechanisms to prevent future 24+ hour stuck jobs
+- July 23, 2025: Enhanced AI analysis quality for HR, Commercial, Legal, and Clinical tabs without changing processes
+  - **Clinical Analysis Quality**: Improved AI prompts to be more aggressive in finding clinical, medical, and regulatory information
+  - **Legal Analysis Enhancement**: Enhanced prompts to find legal, corporate, governance, and compliance information more effectively
+  - **Commercial Analysis Upgrade**: Improved prompts to extract business, market, sales, and competitive intelligence comprehensively
+  - **HR Analysis Optimization**: Maintained existing comprehensive HR analysis with detailed evidence extraction and AI-powered insights
+  - **Prompt Strategy**: All agents now use aggressive relevance detection for investment due diligence context
+  - **Quality Focus**: Enhanced AI instructions to find both direct and indirect business implications for investor analysis
+  - **System Impact**: Better analysis results without changing core processes or functions as requested
 ```
 
 ## User Preferences

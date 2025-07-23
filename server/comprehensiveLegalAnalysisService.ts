@@ -394,14 +394,20 @@ export class ComprehensiveLegalAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `You are a legal document analyst. Analyze this document for specific information.
+    const prompt = `You are an expert legal due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY legal, corporate, governance, compliance, or regulatory information, even if indirectly related.
 
 DOCUMENT: ${document.name}
 CONTENT: ${content.substring(0, 4000)}
 
+QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
 
-Extract specific evidence that answers the question: "${question.question}"
+Instructions:
+- Look for DIRECT legal terms, contracts, agreements, governance matters, compliance issues
+- Look for INDIRECT references to corporate structure, business relationships, partnerships, licensing
+- Consider business documents that mention legal milestones, regulatory matters, corporate decisions
+- Even general business context often has legal implications for investment due diligence
+- For investment companies, most business documents contain legal information relevant to investors
 
 Respond in JSON format:
 {
@@ -409,10 +415,11 @@ Respond in JSON format:
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
   "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question"
+  "documentSummary": "Brief summary of what this document contains relevant to the question",
+  "legalContext": "How this document relates to legal/corporate aspects of the business"
 }
 
-Only extract actual content from the document. If no relevant information is found, set hasRelevantInfo to false.`;
+Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
 
     try {
       const response = await openai.chat.completions.create({
