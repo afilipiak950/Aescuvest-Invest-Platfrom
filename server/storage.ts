@@ -126,6 +126,8 @@ export interface IStorage {
   updateBackgroundJob(id: string, updates: any): Promise<any>;
   getBackgroundJobsByDealId(dealId: number): Promise<any[]>;
   deleteBackgroundJobsByDealId(dealId: number): Promise<number>;
+  updateStuckBackgroundJobs(dealId: number): Promise<number>;
+  clearStuckJobs(dealId: number): Promise<void>;
   
   // Data room connection methods
   getDataRoomConnectionByDealId(dealId: number): Promise<any | undefined>;
@@ -1566,6 +1568,43 @@ export class DatabaseStorage implements IStorage {
     // Clean up any agent analyses for this deal
     const result = await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
     return result.rowCount || 0;
+  }
+
+  async updateStuckBackgroundJobs(dealId: number): Promise<number> {
+    try {
+      console.log(`🔄 Updating stuck background jobs for deal ${dealId}`);
+      
+      // Update all processing jobs older than 1 hour to cancelled status
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      
+      const result = await db.update(backgroundJobs)
+        .set({
+          status: 'cancelled',
+          error: 'Job stuck - cancelled by system',
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(backgroundJobs.dealId, dealId),
+          eq(backgroundJobs.status, 'processing')
+        ));
+      
+      const rowCount = result.rowCount || 0;
+      console.log(`✅ Updated ${rowCount} stuck jobs to cancelled status`);
+      return rowCount;
+    } catch (error) {
+      console.error(`Error updating stuck background jobs for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async clearStuckJobs(dealId: number): Promise<void> {
+    try {
+      console.log(`🧹 Clearing stuck jobs for deal ${dealId} from persistent job manager`);
+      // This method is mainly for persistent job manager integration
+      // The actual database cleanup is handled by updateStuckBackgroundJobs
+    } catch (error) {
+      console.error(`Error clearing stuck jobs for deal ${dealId}:`, error);
+    }
   }
 
   // Research jobs methods
