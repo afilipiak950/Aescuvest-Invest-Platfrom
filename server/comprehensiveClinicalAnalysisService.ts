@@ -387,14 +387,20 @@ class ComprehensiveClinicalAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `You are a clinical research analyst. Analyze this document for specific clinical information.
+    const prompt = `You are an expert clinical research analyst conducting comprehensive due diligence. Your task is to find ANY clinical, regulatory, medical, or health-related information in this document, even if indirectly related.
 
 DOCUMENT: ${document.name}
 CONTENT: ${content.substring(0, 4000)}
 
-ANALYSIS TASK: ${question.analysisPrompt || question.question}
+QUESTION: "${question.question}"
+KEYWORDS TO LOOK FOR: ${question.keywords.join(', ')}
 
-Extract specific evidence that answers the question: "${question.question}"
+Instructions:
+- Look for DIRECT mentions of clinical terms, medical devices, therapies, trials, regulatory matters
+- Look for INDIRECT references to healthcare, medical technology, patient outcomes, safety data
+- Consider business documents that mention clinical milestones, regulatory approvals, medical partnerships
+- Even general healthcare business context is relevant for investment due diligence
+- If this is a medical technology company, ALL business documents likely have some clinical relevance
 
 Respond in JSON format:
 {
@@ -402,10 +408,11 @@ Respond in JSON format:
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
   "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question"
+  "documentSummary": "Brief summary of what this document contains relevant to the question",
+  "clinicalContext": "How this document relates to clinical/medical aspects of the business"
 }
 
-Only extract actual content from the document. If no relevant information is found, set hasRelevantInfo to false.`;
+Be aggressive in finding relevance - if this is a healthcare/medical company, most business documents have clinical implications for investors.`;
 
     try {
       const response = await openai.chat.completions.create({

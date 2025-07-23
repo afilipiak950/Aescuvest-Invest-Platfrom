@@ -354,25 +354,37 @@ class ComprehensiveCommercialAnalysisService {
 
     const content = doc.ocrText || doc.aiSummary || '';
     const prompt = `
-    You are a commercial due diligence expert. Analyze this document and extract key commercial information.
-    
-    Focus on:
-    1. Competitive positioning and differentiation
-    2. Pricing models and discount policies
-    3. Sales performance metrics (win rates, conversion rates, sales cycles)
-    4. Customer concentration and retention data
-    5. Market positioning and business strategy
-    
+    You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
+
     Document: ${doc.name}
     Content: ${content.substring(0, 4000)}
+    
+    Instructions:
+    - Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
+    - Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
+    - Consider business documents that mention commercial milestones, market positioning, competitive advantages
+    - Even general business context often has commercial implications for investment due diligence
+    - For investment companies, most business documents contain commercial information relevant to investors
+    
+    Focus on extracting:
+    1. Competitive positioning and market differentiation
+    2. Pricing strategies, revenue models, and discount policies
+    3. Sales performance, win rates, customer acquisition metrics
+    4. Customer concentration, retention, and satisfaction data
+    5. Market positioning, business strategy, and growth plans
+    6. Partnership agreements and distribution channels
+    7. Product positioning and value propositions
     
     Return a JSON response with:
     {
       "documentSummary": "Brief summary of the document's commercial relevance",
       "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
       "relevantContent": ["Quote 1", "Quote 2", "Quote 3"],
-      "confidence": 0.85
+      "confidence": 0.85,
+      "commercialContext": "How this document relates to commercial/business aspects"
     }
+    
+    Be aggressive in finding commercial relevance - most business documents have commercial implications for investment analysis.
     `;
 
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
