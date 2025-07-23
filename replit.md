@@ -432,6 +432,14 @@ Changelog:
   - **Added Route Handlers**: Created /api/deals/:dealId/financial-analysis/comprehensive, /ip-analysis/comprehensive, /research-analysis/comprehensive endpoints
   - **Fixed Clinical Analysis**: Clinical analysis service now properly creates background jobs like Legal analysis
   - **System Status**: All agent analysis buttons work consistently using same background job system, main progress bar restored
+- July 23, 2025: Fixed critical 24+ hour stuck background jobs issue and added comprehensive job management
+  - **Root Cause Identified**: Background jobs (Legal 33%, Clinical 27%, Commercial 5%, HR 16%) stuck running for 24+ hours without completion
+  - **Immediate Resolution**: Successfully cancelled all 4 stuck background jobs in database using SQL UPDATE to 'cancelled' status
+  - **Enhanced Job Management**: Added `/api/background-jobs/clear-stuck` and `/api/background-jobs/:jobId/stop` endpoints for stuck job recovery
+  - **Storage Layer Improvements**: Added `updateStuckBackgroundJobs()` and `clearStuckJobs()` methods to database storage interface
+  - **Persistent Job Manager**: Enhanced with `clearStuckJobs()` and `stopJob()` methods for complete job lifecycle management
+  - **System Status**: All background jobs cleared (0 active jobs), system ready for fresh analyses with proper timeout handling
+  - **Prevention Measures**: Added comprehensive error handling and job cancellation mechanisms to prevent future 24+ hour stuck jobs
 ```
 
 ## User Preferences

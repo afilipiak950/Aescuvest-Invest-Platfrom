@@ -3355,6 +3355,70 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Clear stuck background jobs endpoint (add timeout and error handling)
+  app.post('/api/background-jobs/clear-stuck', async (req: Request, res: Response) => {
+    try {
+      const dealId = req.body.dealId;
+      
+      console.log(`🧹 Clearing stuck background jobs for deal ${dealId}`);
+      
+      // Update all processing jobs to cancelled status and add timeout info
+      const result = await storage.updateStuckBackgroundJobs(dealId);
+      
+      // Also clear from memory tracking
+      if (global.activeJobs) {
+        const keysToDelete = [];
+        for (const [key, job] of global.activeJobs) {
+          if (job.dealId === dealId) {
+            keysToDelete.push(key);
+          }
+        }
+        keysToDelete.forEach(key => global.activeJobs.delete(key));
+        console.log(`🧹 Cleared ${keysToDelete.length} jobs from memory tracking`);
+      }
+      
+      // Clear from persistent job manager
+      await persistentJobManager.clearStuckJobs(dealId);
+      
+      res.json({ 
+        success: true, 
+        message: `Cleared stuck background jobs for deal ${dealId}`,
+        clearedJobs: result
+      });
+      
+    } catch (error) {
+      console.error('Error clearing stuck background jobs:', error);
+      res.status(500).json({ success: false, error: 'Failed to clear stuck jobs' });
+    }
+  });
+
+  // Stop specific background job endpoint
+  app.post('/api/background-jobs/:jobId/stop', async (req: Request, res: Response) => {
+    try {
+      const jobId = req.params.jobId;
+      
+      console.log(`🛑 Stopping background job: ${jobId}`);
+      
+      // Stop job in persistent manager
+      await persistentJobManager.stopJob(jobId);
+      
+      // Also remove from memory tracking
+      if (global.activeJobs && global.activeJobs.has(jobId)) {
+        global.activeJobs.delete(jobId);
+        console.log(`🧹 Removed job ${jobId} from memory tracking`);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Stopped background job ${jobId}`
+      });
+      
+    } catch (error) {
+      console.error('Error stopping background job:', error);
+      res.status(500).json({ success: false, error: 'Failed to stop job' });
+    }
+  });
+
   // Mount background job routes
   app.use('/', backgroundJobsRouter);
 
