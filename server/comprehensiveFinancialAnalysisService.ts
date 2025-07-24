@@ -175,7 +175,19 @@ class ComprehensiveFinancialAnalysisService {
       const relevantDocuments = allDocuments.filter((doc: any) => {
         if (!doc.ocrText && !doc.aiSummary) return false;
         
-        const content = (doc.ocrText || doc.aiSummary || '').toLowerCase();
+        // Extract text content from aiSummary (which could be object or string)
+        let aiSummaryText = '';
+        if (doc.aiSummary) {
+          if (typeof doc.aiSummary === 'string') {
+            aiSummaryText = doc.aiSummary;
+          } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+            aiSummaryText = doc.aiSummary.executiveSummary;
+          } else if (typeof doc.aiSummary === 'object') {
+            aiSummaryText = JSON.stringify(doc.aiSummary);
+          }
+        }
+        
+        const content = (doc.ocrText || aiSummaryText || '').toLowerCase();
         const name = (doc.name || '').toLowerCase();
         
         // Check if document name or content contains financial keywords
@@ -255,7 +267,19 @@ class ComprehensiveFinancialAnalysisService {
       };
     }
 
-    const content = doc.ocrText || doc.aiSummary || '';
+    // Extract text content from aiSummary (which could be object or string)
+    let aiSummaryText = '';
+    if (doc.aiSummary) {
+      if (typeof doc.aiSummary === 'string') {
+        aiSummaryText = doc.aiSummary;
+      } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+        aiSummaryText = doc.aiSummary.executiveSummary;
+      } else if (typeof doc.aiSummary === 'object') {
+        aiSummaryText = JSON.stringify(doc.aiSummary);
+      }
+    }
+
+    const content = doc.ocrText || aiSummaryText || '';
     const prompt = `
     You are an expert financial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY financial, accounting, monetary, or business performance information, even if indirectly related.
 
