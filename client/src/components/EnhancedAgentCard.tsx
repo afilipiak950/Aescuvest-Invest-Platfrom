@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,6 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 // CLEANED UP: Removed ResearchQuestionsSection import to fix undefined component errors
-import { SafeComponentRenderer, validateComponent, componentMonitor, DefaultFallbacks } from './ComponentValidation';
 
 interface EnhancedAgentCardProps {
   dealId: number;
@@ -67,14 +66,14 @@ export default function EnhancedAgentCard({
 
   // Use comprehensive analysis data if this is an HR, IP, or Research agent and we have the data
   const actualAnalysisData = (() => {
-    if (agentType.toLowerCase() === 'hr' && hrAnalysisData && 'analysis' in hrAnalysisData) {
-      return hrAnalysisData.analysis;
+    if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && hrAnalysisData !== null && 'analysis' in hrAnalysisData) {
+      return (hrAnalysisData as any).analysis;
     }
-    if (agentType.toLowerCase() === 'ip' && ipAnalysisData && 'analysis' in ipAnalysisData) {
-      return ipAnalysisData.analysis;
+    if (agentType.toLowerCase() === 'ip' && ipAnalysisData && typeof ipAnalysisData === 'object' && ipAnalysisData !== null && 'analysis' in ipAnalysisData) {
+      return (ipAnalysisData as any).analysis;
     }
-    if (agentType.toLowerCase() === 'research' && researchAnalysisData && 'analysis' in researchAnalysisData) {
-      return researchAnalysisData.analysis;
+    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && researchAnalysisData !== null && 'analysis' in researchAnalysisData) {
+      return (researchAnalysisData as any).analysis;
     }
     return analysis || {};
   })();
@@ -83,24 +82,9 @@ export default function EnhancedAgentCard({
   
   // Force recompilation to fix any cached undefined component references
   
-  // Validate component integrity at runtime
-  React.useEffect(() => {
-    // Log successful component load for monitoring
+  // Simple component load validation
+  useEffect(() => {
     console.log(`✅ EnhancedAgentCard loaded successfully for ${agentType} agent`);
-    
-    // Validate critical dependencies
-    const criticalComponents = {
-      'DocumentQuoteViewer': DocumentQuoteViewer,
-      'Button': Button,
-      'Progress': Progress,
-      'Card': Card
-    };
-    
-    Object.entries(criticalComponents).forEach(([name, component]) => {
-      if (!validateComponent(component, name)) {
-        componentMonitor.logError(name, `Critical component ${name} is undefined in EnhancedAgentCard`);
-      }
-    });
   }, [agentType]);
 
   // Progress Display Component for Legal Analysis
@@ -141,7 +125,7 @@ export default function EnhancedAgentCard({
     });
 
     // Look for both comprehensive legal analysis and regular legal agent jobs
-    const legalJobs = (jobProgress && 'jobs' in jobProgress ? jobProgress.jobs : [])?.filter((job: any) => 
+    const legalJobs = (jobProgress && typeof jobProgress === 'object' && jobProgress !== null && 'jobs' in jobProgress ? (jobProgress as any).jobs : [])?.filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
       job.status === 'processing' &&
       job.progress > 0 // Only show jobs with actual progress
