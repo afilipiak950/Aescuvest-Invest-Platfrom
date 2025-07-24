@@ -1,550 +1,532 @@
-/**
- * Comprehensive IP Analysis Service
- * Provides comprehensive intellectual property analysis for all assigned IP documents
- */
-
 import { storage } from './storage';
-import { db } from './db';
-import { documents } from '@shared/schema';
-import { eq } from 'drizzle-orm';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
-// Comprehensive IP questions covering all intellectual property areas
+// IP Questions based on user requirements
 const IP_QUESTIONS = [
   {
     id: 'patents_1',
-    category: 'Patent Portfolio',
-    question: 'What patents are owned or pending?',
-    analysisPrompt: 'Find patent applications, granted patents, patent numbers, filing dates, and patent families.'
+    category: 'Patent Applications / Grants',
+    question: 'What jurisdictions are covered?',
+    analysisPrompt: 'Find patent applications and grants, identify the jurisdictions (countries/regions) where patents are filed or granted. Look for PCT applications, national phase entries, and specific country filings.'
   },
   {
-    id: 'patents_2',
-    category: 'Patent Portfolio',
-    question: 'What is the patent landscape and freedom to operate?',
-    analysisPrompt: 'Analyze patent strength, enforceability, freedom to operate, and competitive patent landscape.'
+    id: 'patents_2', 
+    category: 'Patent Applications / Grants',
+    question: 'What is the legal status (granted, pending, expired)?',
+    analysisPrompt: 'Identify the current legal status of patents - whether they are granted, pending application, expired, abandoned, or under examination. Look for patent office communications and status updates.'
+  },
+  {
+    id: 'patents_3',
+    category: 'Patent Applications / Grants', 
+    question: 'What is the remaining protection duration?',
+    analysisPrompt: 'Calculate or find information about remaining patent protection duration, patent expiry dates, maintenance fee status, and term extensions.'
+  },
+  {
+    id: 'patents_4',
+    category: 'Patent Applications / Grants',
+    question: 'Is freedom-to-operate (FTO) mentioned?',
+    analysisPrompt: 'Look for freedom-to-operate analysis, FTO studies, patent landscape analysis, or clearance opinions that assess risk of patent infringement.'
   },
   {
     id: 'trademarks_1',
-    category: 'Trademarks & Brands',
-    question: 'What trademarks and brand assets exist?',
-    analysisPrompt: 'Identify registered trademarks, brand names, logos, and trademark applications.'
+    category: 'Trademark Registrations',
+    question: 'Which classes are covered?',
+    analysisPrompt: 'Identify trademark classes (Nice Classification) covered by trademark registrations, including goods and services classifications.'
   },
   {
     id: 'trademarks_2',
-    category: 'Trademarks & Brands',
-    question: 'Are there any trademark conflicts or risks?',
-    analysisPrompt: 'Look for trademark disputes, infringement risks, and brand protection issues.'
+    category: 'Trademark Registrations',
+    question: 'Are oppositions pending?',
+    analysisPrompt: 'Find any pending trademark oppositions, cancellation proceedings, or disputes related to trademark registrations.'
   },
   {
-    id: 'trade_secrets_1',
-    category: 'Trade Secrets & Know-how',
-    question: 'What trade secrets and proprietary knowledge exist?',
-    analysisPrompt: 'Identify proprietary processes, formulas, algorithms, and confidential information.'
-  },
-  {
-    id: 'trade_secrets_2',
-    category: 'Trade Secrets & Know-how',
-    question: 'Are trade secrets properly protected?',
-    analysisPrompt: 'Assess trade secret protection measures, NDAs, and employee confidentiality agreements.'
+    id: 'trademarks_3',
+    category: 'Trademark Registrations',
+    question: 'Are brand extensions protected?',
+    analysisPrompt: 'Look for trademark protection of brand extensions, product variants, or related brand elements beyond the core trademark.'
   },
   {
     id: 'licenses_1',
-    category: 'IP Licenses & Agreements',
-    question: 'What IP licenses are in place?',
-    analysisPrompt: 'Find inbound and outbound IP licenses, licensing agreements, and royalty obligations.'
+    category: 'License Agreements (Inbound / Outbound)',
+    question: 'Are licenses exclusive / non-exclusive?',
+    analysisPrompt: 'Identify whether intellectual property licenses are exclusive or non-exclusive, including territorial and field of use restrictions.'
   },
   {
     id: 'licenses_2',
-    category: 'IP Licenses & Agreements',
-    question: 'Are there any IP licensing risks or dependencies?',
-    analysisPrompt: 'Analyze licensing terms, restrictions, dependencies, and termination risks.'
+    category: 'License Agreements (Inbound / Outbound)', 
+    question: 'Are royalties, sublicensing, revocation rights defined?',
+    analysisPrompt: 'Find details about royalty rates, payment terms, sublicensing rights, termination conditions, and revocation clauses in license agreements.'
   },
   {
-    id: 'ownership_1',
-    category: 'IP Ownership & Assignment',
-    question: 'Is IP ownership clear and properly assigned?',
-    analysisPrompt: 'Review IP assignment agreements, inventor assignments, and ownership disputes.'
+    id: 'source_1',
+    category: 'Source Code Ownership Declarations',
+    question: 'Is third-party code used? Which licenses?',
+    analysisPrompt: 'Identify use of third-party code, open source components, libraries, and their respective licenses (GPL, MIT, Apache, etc.).'
   },
   {
-    id: 'ownership_2',
-    category: 'IP Ownership & Assignment',
-    question: 'Are there any IP ownership issues or disputes?',
-    analysisPrompt: 'Identify joint ownership, disputed ownership, or incomplete assignments.'
+    id: 'source_2',
+    category: 'Source Code Ownership Declarations',
+    question: 'Are open-source usage policies in place?',
+    analysisPrompt: 'Look for open source usage policies, compliance procedures, and governance frameworks for managing open source components.'
   },
   {
-    id: 'infringement_1',
-    category: 'IP Infringement & Enforcement',
-    question: 'Are there any IP infringement issues?',
-    analysisPrompt: 'Look for patent infringement, trademark infringement, or copyright violations.'
-  },
-  {
-    id: 'infringement_2',
-    category: 'IP Infringement & Enforcement',
-    question: 'What is the IP enforcement strategy and history?',
-    analysisPrompt: 'Analyze IP enforcement actions, litigation history, and defensive strategies.'
-  },
-  {
-    id: 'regulatory_1',
-    category: 'Regulatory & Compliance',
-    question: 'What regulatory approvals affect IP?',
-    analysisPrompt: 'Find FDA approvals, data exclusivity, market exclusivity, and regulatory protections.'
-  },
-  {
-    id: 'regulatory_2',
-    category: 'Regulatory & Compliance',
-    question: 'Are there any IP-related compliance issues?',
-    analysisPrompt: 'Review patent term extensions, regulatory filing requirements, and compliance obligations.'
+    id: 'source_3',
+    category: 'Source Code Ownership Declarations',
+    question: 'Is core IP clean and internally developed?',
+    analysisPrompt: 'Verify that core intellectual property is cleanly owned and internally developed, without conflicts or third-party claims.'
   }
 ];
 
-export class ComprehensiveIpAnalysisService {
-  private progressData = new Map<number, any>();
+interface IpEvidence {
+  documentName: string;
+  relevantText: string;
+  confidence: number;
+  jurisdiction?: string;
+  patentStatus?: string;
+  trademarkClass?: string;
+  licenseType?: string;
+}
 
-  getProgress(dealId: number) {
-    return this.progressData.get(dealId) || {
-      isRunning: false,
-      progress: 0,
-      message: 'No comprehensive IP analysis running'
-    };
+interface IpAnswer {
+  question: string;
+  answer: string;
+  confidence: number;
+  sources: string[];
+  detailedEvidence: IpEvidence[];
+  keyFindings: string[];
+  evidenceSummary: string;
+  ipAssessment: string;
+  recommendations: string[];
+}
+
+class ComprehensiveIpAnalysisService {
+  private progressCallbacks = new Map<number, (progress: any) => void>();
+  private jobId: string = '';
+  private storage: any = null;
+
+  setProgressCallback(dealId: number, callback: (progress: any) => void) {
+    this.progressCallbacks.set(dealId, callback);
   }
 
-  private setProgress(dealId: number, progress: any) {
-    const current = this.getProgress(dealId);
-    this.progressData.set(dealId, { ...current, ...progress });
-  }
-
-  async startComprehensiveAnalysis(dealId: number): Promise<void> {
-    console.log(`⚖️ Starting comprehensive IP analysis for deal ${dealId}`);
-    
-    // Create background job for progress tracking (same as Legal)
-    const jobId = `ip_analysis_${dealId}_${Date.now()}`;
-    
-    try {
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_ip_analysis',
-        dealId,
-        agentType: 'IP',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 0,
-        processedDocuments: 0,
-        startedAt: new Date()
-      });
-    } catch (error) {
-      console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-      throw new Error(`Failed to initialize comprehensive IP analysis: ${error.message}`);
+  private async setProgress(dealId: number, progress: any) {
+    const callback = this.progressCallbacks.get(dealId);
+    if (callback) {
+      callback(progress);
     }
     
-    this.setProgress(dealId, {
-      isRunning: true,
-      progress: 5,
-      message: 'Initializing comprehensive IP analysis...',
-      currentStep: 'Finding IP documents',
-      totalSteps: IP_QUESTIONS.length
-    });
+    // Also update database background job if we have storage and jobId
+    if (this.storage && this.jobId) {
+      try {
+        await this.storage.updateBackgroundJob(this.jobId, {
+          progress: progress.progress,
+          currentStep: progress.currentStep,
+          currentDocument: progress.currentDocument || null
+        });
+      } catch (error) {
+        console.error('Error updating background job progress:', error);
+      }
+    }
+  }
 
+  async runComprehensiveAnalysis(dealId: number, storageService?: any, jobId?: string): Promise<any> {
+    console.log(`🔐 Starting comprehensive IP analysis for deal ${dealId}`);
+    
+    // Store storage service and jobId for progress updates
+    if (storageService && jobId) {
+      this.storage = storageService;
+      this.jobId = jobId;
+    }
+    
     try {
-      // Get all documents suitable for IP analysis
-      const ipDocs = await this.getAssignedIpDocuments(dealId);
-      console.log(`⚖️ Found ${ipDocs.length} IP documents for analysis`);
-
-      if (ipDocs.length === 0) {
-        await storage.updateBackgroundJob(jobId, {
-          status: 'completed',
-          progress: 100,
-          error: 'No IP documents available for analysis'
-        });
-        this.setProgress(dealId, {
-          isRunning: false,
-          progress: 100,
-          message: 'No IP documents found for analysis'
-        });
-        throw new Error('No documents available for IP analysis');
-      }
-      
-      // Update job with total questions to process
-      await storage.updateBackgroundJob(jobId, {
-        totalDocuments: IP_QUESTIONS.length,
-        currentStep: 'Analyzing IP documents across 14 question categories'
+      // Set initial progress
+      await this.setProgress(dealId, {
+        progress: 5,
+        currentStep: 'Initializing IP analysis...'
       });
 
-      // Process each question comprehensively
-      const ipAnswers: Record<string, any> = {};
-      
-      for (let i = 0; i < IP_QUESTIONS.length; i++) {
-        const question = IP_QUESTIONS[i];
-        console.log(`⚖️ Processing question ${i + 1}/${IP_QUESTIONS.length}: ${question.question}`);
-        
-        try {
-          // Update progress with error handling (both internal and background job)
-          const progress = Math.round((i / IP_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(jobId, {
-            progress,
-            processedDocuments: i,
-            currentDocumentName: question.question,
-            currentStep: `Analyzing: ${question.category}`
-          });
-          
-          this.setProgress(dealId, {
-            progress,
-            currentStep: `Analyzing: ${question.category}`,
-            currentQuestion: question.question
-          });
+      // Get all documents for this deal that might contain IP information
+      const documents = await this.getAssignedIpDocuments(dealId);
+      console.log(`🔐 Found ${documents.length} documents for IP analysis`);
 
-          // Extract evidence from ALL assigned documents for this question
-          console.log(`⚖️ Processing ${ipDocs.length} documents for question: ${question.question}`);
-          const documentEvidence = await this.extractEvidenceFromAllDocuments(ipDocs, question);
-
-          // Generate comprehensive answer using AI
-          const answer = await this.generateComprehensiveAnswer(question, documentEvidence);
-          ipAnswers[question.id] = answer;
-
-          console.log(`✅ Completed question ${i + 1}/${IP_QUESTIONS.length}: ${question.question}`);
-
-        } catch (questionError) {
-          console.error(`⚖️ Error processing question ${question.question}:`, questionError);
-          // Continue with other questions even if one fails
-          ipAnswers[question.id] = {
-            question: question.question,
-            answer: "Error processing this question. Please review manually.",
-            confidence: 0,
-            sources: [],
-            evidenceCount: 0,
-            documentsCovered: 0
-          };
-        }
+      if (documents.length === 0) {
+        throw new Error('No documents found for IP analysis');
       }
 
-      // Store results in database (same format as legal analysis)
-      await storage.updateBackgroundJob(jobId, {
+      await this.setProgress(dealId, {
+        progress: 10,
+        currentStep: `Found ${documents.length} documents for analysis`
+      });
+
+      // Extract IP evidence from documents
+      const evidenceMap = await this.extractIpEvidence(documents, dealId);
+      
+      await this.setProgress(dealId, {
+        progress: 70,
+        currentStep: 'Generating comprehensive IP answers...'
+      });
+
+      // Generate comprehensive answers for all questions
+      const answers = await this.generateComprehensiveAnswers(evidenceMap, dealId);
+      
+      await this.setProgress(dealId, {
+        progress: 85,
+        currentStep: 'Compiling final analysis...'
+      });
+
+      // Compile results
+      const findings = this.compileFindingsFromAnswers(answers);
+      const recommendations = this.compileRecommendationsFromAnswers(answers);
+      
+      await this.setProgress(dealId, {
         progress: 95,
-        currentStep: 'Storing IP analysis results...'
-      });
-      
-      this.setProgress(dealId, {
-        progress: 95,
-        currentStep: 'Storing IP analysis results...'
+        currentStep: 'Storing results...'
       });
 
-      // Generate findings and recommendations from IP answers
-      const findings = [];
-      const recommendations = [];
+      // Store results in database
+      const analysisResult = await this.storeAnalysisResults(dealId, answers, findings, recommendations);
       
-      for (const [questionId, answer] of Object.entries(ipAnswers)) {
-        if (answer.keyFindings && answer.keyFindings.length > 0) {
-          findings.push(...answer.keyFindings.map(finding => ({
-            id: findings.length + 1,
-            type: 'positive',
-            content: finding,
-            source: answer.sources?.[0] || 'IP Analysis',
-            confidence: answer.confidence || 85,
-            category: questionId,
-            evidenceCount: answer.evidenceCount || 0
-          })));
-        }
-        
-        if (answer.recommendations && answer.recommendations.length > 0) {
-          recommendations.push(...answer.recommendations.map(rec => ({
-            id: recommendations.length + 1,
-            type: 'ip',
-            content: rec,
-            source: 'IP Analysis',
-            confidence: answer.confidence || 85,
-            category: questionId
-          })));
-        }
-      }
-
-      const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'ip');
-      
-      if (existingAnalysis) {
-        await storage.updateAnalysis(existingAnalysis.id, {
-          ...existingAnalysis,
-          ipAnswers: JSON.stringify(ipAnswers),
-          findings: JSON.stringify(findings),
-          recommendations: JSON.stringify(recommendations),
-          status: 'completed',
-          progress: 100,
-          questionsAnswered: Object.keys(ipAnswers).length,
-          totalQuestions: IP_QUESTIONS.length,
-          completionRate: Math.round((Object.keys(ipAnswers).length / IP_QUESTIONS.length) * 100)
-        });
-      } else {
-        await storage.createAnalysis({
-          dealId,
-          agentType: 'ip',
-          status: 'completed',
-          progress: 100,
-          ipAnswers: JSON.stringify(ipAnswers),
-          findings: JSON.stringify(findings),
-          recommendations: JSON.stringify(recommendations),
-          questionsAnswered: Object.keys(ipAnswers).length,
-          totalQuestions: IP_QUESTIONS.length,
-          completionRate: Math.round((Object.keys(ipAnswers).length / IP_QUESTIONS.length) * 100),
-          createdAt: new Date()
-        });
-      }
-
-      // Complete the job
-      await storage.updateBackgroundJob(jobId, {
-        status: 'completed',
+      await this.setProgress(dealId, {
         progress: 100,
-        currentStep: `IP analysis completed - ${Object.keys(ipAnswers).length} questions analyzed`,
-        completedAt: new Date()
-      });
-      
-      this.setProgress(dealId, {
-        isRunning: false,
-        progress: 100,
-        message: `Comprehensive IP analysis completed - ${Object.keys(ipAnswers).length} questions answered`
+        currentStep: 'IP analysis completed'
       });
 
-      console.log(`⚖️ Comprehensive IP analysis completed for deal ${dealId}`);
+      console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
+      console.log(`🔐 Generated ${findings.length} findings and ${recommendations.length} recommendations`);
+      
+      return analysisResult;
       
     } catch (error) {
-      console.error(`⚖️ Error in comprehensive IP analysis:`, error);
-      
-      // Update background job status to failed
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed',
-        currentStep: `Error: ${error.message}`,
-        error: error.message
-      });
-      
-      this.setProgress(dealId, {
-        isRunning: false,
+      console.error(`❌ IP analysis failed for deal ${dealId}:`, error);
+      await this.setProgress(dealId, {
         progress: 0,
-        message: 'IP analysis failed: ' + (error as Error).message
+        currentStep: 'Analysis failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }
   }
 
-  /**
-   * Extract evidence from ALL documents for a specific question
-   */
-  private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<any[]> {
-    console.log(`⚖️ Starting evidence extraction from ${documents.length} documents for question: ${question.question}`);
-    
-    const evidence: any[] = [];
+  async getAssignedIpDocuments(dealId: number): Promise<any[]> {
+    try {
+      // Get all documents for this deal
+      const allDocuments = await storage.getDocumentsByDealId(dealId);
+      
+      // Filter for documents that might contain IP information
+      const ipKeywords = [
+        'patent', 'trademark', 'copyright', 'license', 'intellectual property', 'ip',
+        'invention', 'patent application', 'trademark registration', 'license agreement',
+        'confidentiality', 'non-disclosure', 'nda', 'trade secret', 'proprietary',
+        'source code', 'software license', 'open source', 'gpl', 'mit license',
+        'apache license', 'bsd license', 'creative commons', 'royalty', 'licensing',
+        'patent portfolio', 'patent family', 'prior art', 'novelty', 'inventorship',
+        'assignment', 'transfer', 'ownership', 'inventor', 'applicant', 'assignee',
+        'fto', 'freedom to operate', 'clearance', 'infringement', 'validity',
+        'prosecution', 'examination', 'office action', 'response', 'claims',
+        'specification', 'drawings', 'abstract', 'priority', 'continuation',
+        'divisional', 'provisional', 'pct', 'national phase', 'foreign filing'
+      ];
+      
+      const assignedDocuments = allDocuments.filter((doc: any) => {
+        if (!doc.aiSummary) return false;
+        
+        // Handle aiSummary as both object and string
+        let summaryText = '';
+        if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          summaryText = doc.aiSummary.executiveSummary.toLowerCase();
+        } else if (typeof doc.aiSummary === 'string') {
+          summaryText = doc.aiSummary.toLowerCase();
+        }
+        
+        const docName = doc.name.toLowerCase();
+        
+        return ipKeywords.some(keyword => 
+          summaryText.includes(keyword) || docName.includes(keyword)
+        );
+      });
+
+      console.log(`🔐 Found ${assignedDocuments.length} documents with potential IP content`);
+      return assignedDocuments;
+      
+    } catch (error) {
+      console.error('Error getting assigned IP documents:', error);
+      throw error;
+    }
+  }
+
+  async extractIpEvidence(documents: any[], dealId: number): Promise<{[key: string]: IpEvidence[]}> {
+    const evidenceMap: {[key: string]: IpEvidence[]} = {};
     const batchSize = 10;
+    const totalBatches = Math.ceil(documents.length / batchSize);
     
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      const batchNumber = Math.floor(i / batchSize) + 1;
-      const totalBatches = Math.ceil(documents.length / batchSize);
+    console.log(`🔍 Processing ${documents.length} documents in ${totalBatches} batches for IP evidence extraction`);
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIdx = batchIndex * batchSize;
+      const batch = documents.slice(startIdx, startIdx + batchSize);
       
-      console.log(`⚖️ Processing batch ${batchNumber}/${totalBatches} (${batch.length} documents)`);
+      const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
+      await this.setProgress(dealId, {
+        progress: batchProgress,
+        currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
+      });
       
-      const batchPromises = batch.map(async (doc) => {
-        try {
-          return await this.extractEvidenceFromDocument(doc, question);
-        } catch (error) {
-          console.error(`⚖️ Error processing document ${doc.name}:`, error);
-          return null;
+      // Process documents in parallel within batch
+      const batchPromises = batch.map(async (doc: any) => {
+        console.log(`🔐 Extracting IP evidence from: ${doc.name}`);
+        
+        let docText = '';
+        if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          docText = doc.aiSummary.executiveSummary;
+        } else if (typeof doc.aiSummary === 'string') {
+          docText = doc.aiSummary;
+        }
+        
+        if (!docText) return;
+
+        // Extract evidence for each IP question
+        for (const question of IP_QUESTIONS) {
+          try {
+            const evidence = await this.extractEvidenceForQuestion(doc, docText, question);
+            if (evidence && evidence.relevantText) {
+              if (!evidenceMap[question.id]) {
+                evidenceMap[question.id] = [];
+              }
+              evidenceMap[question.id].push(evidence);
+            }
+          } catch (error) {
+            console.error(`Error extracting evidence for question ${question.id} from ${doc.name}:`, error);
+          }
         }
       });
       
-      const batchResults = await Promise.all(batchPromises);
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
-      );
-      evidence.push(...validEvidence);
-      
-      console.log(`✅ Batch ${batchNumber} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      await Promise.all(batchPromises);
+      console.log(`✅ Batch ${batchIndex + 1} completed: ${batch.length}/${batch.length} documents processed successfully`);
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
-    return evidence;
+    return evidenceMap;
   }
 
-  /**
-   * Extract specific evidence from a single document
-   */
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
-    
-    if (!content) return null;
-    
-    const prompt = `You are an intellectual property attorney. Analyze this document for specific IP information.
+  async extractEvidenceForQuestion(doc: any, docText: string, question: any): Promise<IpEvidence | null> {
+    try {
+      const prompt = `
+        You are an expert IP analyst conducting due diligence for investment purposes.
+        
+        Document: ${doc.name}
+        Question: ${question.question}
+        Analysis Focus: ${question.analysisPrompt}
+        
+        Document Content: ${docText}
+        
+        Extract specific evidence related to this IP question. Look for:
+        - Patent numbers, application numbers, filing dates
+        - Trademark registrations and classes
+        - License terms and conditions
+        - IP ownership and assignment details
+        - Open source usage and compliance
+        
+        Return ONLY a JSON object with this exact structure:
+        {
+          "relevantText": "Direct quote or summary of relevant information (empty string if none found)",
+          "confidence": 0.0-1.0,
+          "jurisdiction": "Country/region if applicable",
+          "patentStatus": "Status if patent-related", 
+          "trademarkClass": "Class if trademark-related",
+          "licenseType": "Type if license-related"
+        }
+      `;
 
-Question: ${question.question}
-Analysis Focus: ${question.analysisPrompt}
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      });
 
-Document: ${document.name}
-Content: ${content.substring(0, 2000)}
+      const result = JSON.parse(response.content[0].type === 'text' ? response.content[0].text : '');
+      
+      if (!result.relevantText || result.relevantText.trim() === '') {
+        return null;
+      }
 
-Extract relevant IP information, patent numbers, trademark details, or legal provisions that directly address this question.
-Return ONLY specific quotes, facts, or legal references - no interpretation.
-If no relevant information exists, return "No relevant content found."
-
-Format your response as specific evidence quotes.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
-      temperature: 0.1
-    });
-
-    const relevantContent = response.choices[0].message.content?.trim() || '';
-    
-    if (relevantContent === "No relevant content found." || relevantContent.length < 10) {
+      return {
+        documentName: doc.name,
+        relevantText: result.relevantText,
+        confidence: Math.max(0, Math.min(1, result.confidence || 0)),
+        jurisdiction: result.jurisdiction || undefined,
+        patentStatus: result.patentStatus || undefined,
+        trademarkClass: result.trademarkClass || undefined,
+        licenseType: result.licenseType || undefined
+      };
+      
+    } catch (error) {
+      console.error(`Error extracting IP evidence from ${doc.name}:`, error);
       return null;
     }
-
-    return {
-      documentName: document.name,
-      relevantContent: [relevantContent],
-      confidence: 0.85
-    };
   }
 
-  /**
-   * Generate comprehensive answer using AI analysis
-   */
-  private async generateComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+  async generateComprehensiveAnswers(evidenceMap: {[key: string]: IpEvidence[]}, dealId: number): Promise<{[key: string]: IpAnswer}> {
+    const answers: {[key: string]: IpAnswer} = {};
+    const questionCount = IP_QUESTIONS.length;
+    
+    for (let i = 0; i < IP_QUESTIONS.length; i++) {
+      const question = IP_QUESTIONS[i];
+      const questionProgress = 70 + Math.round((i / questionCount) * 15);
+      
+      await this.setProgress(dealId, {
+        progress: questionProgress,
+        currentStep: `Analyzing: ${question.category}`,
+        currentQuestion: question.question
+      });
+      
+      const evidence = evidenceMap[question.id] || [];
+      
+      try {
+        const answer = await this.generateAnswerForQuestion(question, evidence);
+        answers[question.id] = answer;
+        
+      } catch (error) {
+        console.error(`Error generating answer for question ${question.id}:`, error);
+        // Create fallback answer
+        answers[question.id] = {
+          question: question.question,
+          answer: 'Unable to analyze due to processing error',
+          confidence: 0,
+          sources: [],
+          detailedEvidence: evidence,
+          keyFindings: [],
+          evidenceSummary: 'Analysis could not be completed',
+          ipAssessment: 'Unable to assess',
+          recommendations: ['Review this area manually due to analysis error']
+        };
+      }
+    }
+    
+    return answers;
+  }
+
+  async generateAnswerForQuestion(question: any, evidence: IpEvidence[]): Promise<IpAnswer> {
     if (evidence.length === 0) {
       return {
         question: question.question,
-        answer: "No relevant information found in the assigned IP documents for this question.",
-        confidence: 10,
+        answer: 'No relevant information found in the provided documents.',
+        confidence: 0,
         sources: [],
-        evidenceCount: 0,
-        documentsCovered: 0
+        detailedEvidence: [],
+        keyFindings: [],
+        evidenceSummary: 'No evidence available',
+        ipAssessment: 'Cannot assess - insufficient information',
+        recommendations: ['Obtain additional IP documentation for proper analysis']
       };
     }
 
-    const evidenceText = evidence.map(e => 
-      `${e.documentName}: ${e.relevantContent.join('; ')}`
-    ).join('\n\n');
+    const evidenceText = evidence.map(e => `${e.documentName}: ${e.relevantText}`).join('\n\n');
+    
+    const prompt = `
+      You are an expert IP analyst conducting due diligence for venture capital investment.
+      
+      Question: ${question.question}
+      Category: ${question.category}
+      Analysis Focus: ${question.analysisPrompt}
+      
+      Evidence from documents:
+      ${evidenceText}
+      
+      Provide a comprehensive analysis in JSON format:
+      {
+        "answer": "Direct answer to the question with specific details",
+        "confidence": 0.0-1.0,
+        "keyFindings": ["Key finding 1", "Key finding 2", ...],
+        "evidenceSummary": "Summary of evidence quality and coverage",
+        "ipAssessment": "Investment risk assessment for this IP aspect",
+        "recommendations": ["Recommendation 1", "Recommendation 2", ...]
+      }
+      
+      Focus on investment due diligence perspective. Be specific about IP risks and opportunities.
+    `;
 
-    const prompt = `You are an intellectual property attorney conducting IP due diligence. Based on the evidence extracted from documents, provide a comprehensive answer to this IP question.
-
-Question: ${question.question}
-Category: ${question.category}
-Analysis Focus: ${question.analysisPrompt}
-
-Evidence from Documents:
-${evidenceText}
-
-Provide a comprehensive IP analysis including:
-1. Direct answer to the question based on evidence
-2. Key IP findings and legal insights
-3. Specific recommendations for IP strategy
-4. Assessment of IP risks and opportunities
-
-Format as JSON:
-{
-  "question": "${question.question}",
-  "answer": "comprehensive answer based on evidence",
-  "confidence": confidence_score_0_to_100,
-  "sources": ["document names"],
-  "keyFindings": ["finding1", "finding2"],
-  "recommendations": ["rec1", "rec2"],
-  "evidenceCount": ${evidence.length},
-  "documentsCovered": ${evidence.length}
-}`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 800,
-      temperature: 0.2
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514", 
+      max_tokens: 3000,
+      messages: [{ role: 'user', content: prompt }]
     });
 
-    try {
-      return JSON.parse(response.choices[0].message.content);
-    } catch (parseError) {
-      console.error(`⚖️ Error parsing AI response for question ${question.question}:`, parseError);
-      return {
-        question: question.question,
-        answer: response.choices[0].message.content,
-        confidence: 75,
-        sources: evidence.map(e => e.documentName),
-        keyFindings: [],
-        recommendations: [],
-        evidenceCount: evidence.length,
-        documentsCovered: evidence.length
-      };
-    }
+    const result = JSON.parse(response.content[0].type === 'text' ? response.content[0].text : '');
+    
+    return {
+      question: question.question,
+      answer: result.answer,
+      confidence: Math.max(0, Math.min(1, result.confidence || 0)),
+      sources: evidence.map(e => e.documentName),
+      detailedEvidence: evidence,
+      keyFindings: result.keyFindings || [],
+      evidenceSummary: result.evidenceSummary,
+      ipAssessment: result.ipAssessment,
+      recommendations: result.recommendations || []
+    };
   }
 
-  /**
-   * Get documents assigned to IP analysis
-   */
-  private async getAssignedIpDocuments(dealId: number): Promise<any[]> {
-    console.log(`⚖️ Getting IP documents for deal ${dealId}`);
+  compileFindingsFromAnswers(answers: {[key: string]: IpAnswer}): any[] {
+    const findings: any[] = [];
     
-    // IP keywords for document identification
-    const ipKeywords = [
-      'patent', 'trademark', 'copyright', 'intellectual', 'property', 'ip',
-      'license', 'licensing', 'royalty', 'invention', 'inventor', 'application',
-      'granted', 'pending', 'filing', 'prosecution', 'infringement', 'validity',
-      'enforcement', 'assignment', 'transfer', 'ownership', 'prior art', 'novelty',
-      'obviousness', 'claims', 'specification', 'disclosure', 'trade secret',
-      'confidential', 'proprietary', 'know-how', 'technology', 'algorithm'
-    ];
-    
-    const allDocuments = await db.select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
-
-    // Filter documents that contain IP-related content
-    const ipDocs = allDocuments.filter(doc => {
-      const docName = doc.name.toLowerCase();
-      const aiSummary = typeof doc.aiSummary === 'string' 
-        ? doc.aiSummary 
-        : doc.aiSummary?.executiveSummary || '';
-      const content = (docName + ' ' + aiSummary).toLowerCase();
-      
-      return ipKeywords.some(keyword => content.includes(keyword));
+    Object.values(answers).forEach(answer => {
+      answer.keyFindings.forEach((finding, index) => {
+        findings.push({
+          id: `${answer.question.replace(/\s+/g, '_').toLowerCase()}_finding_${index + 1}`,
+          category: 'IP Analysis',
+          finding: finding,
+          severity: answer.confidence > 0.7 ? 'high' : answer.confidence > 0.4 ? 'medium' : 'low',
+          sources: answer.sources,
+          confidence: answer.confidence
+        });
+      });
     });
+    
+    return findings;
+  }
 
-    // If no specific IP documents found, use all documents
-    if (ipDocs.length === 0) {
-      console.log(`⚖️ No specific IP documents found, using all ${allDocuments.length} documents`);
-      return allDocuments;
+  compileRecommendationsFromAnswers(answers: {[key: string]: IpAnswer}): any[] {
+    const recommendations: any[] = [];
+    
+    Object.values(answers).forEach(answer => {
+      answer.recommendations.forEach((rec, index) => {
+        recommendations.push({
+          id: `${answer.question.replace(/\s+/g, '_').toLowerCase()}_rec_${index + 1}`,
+          category: 'IP',
+          recommendation: rec,
+          priority: answer.confidence > 0.7 ? 'high' : answer.confidence > 0.4 ? 'medium' : 'low'
+        });
+      });
+    });
+    
+    return recommendations;
+  }
+
+  async storeAnalysisResults(dealId: number, answers: {[key: string]: IpAnswer}, findings: any[], recommendations: any[]): Promise<any> {
+    try {
+      const analysisData = {
+        dealId,
+        agentType: 'IP',
+        status: 'Completed',
+        progress: 100,
+        findings,
+        recommendations,
+        ipAnswers: JSON.stringify(answers),
+        completedAt: new Date().toISOString()
+      };
+
+      // Store in agent_analyses table
+      const result = await storage.saveAgentAnalysis(analysisData.dealId, analysisData.agentType, analysisData);
+      console.log(`✅ IP analysis results stored for deal ${dealId}`);
+      
+      return result;
+    } catch (error) {
+      console.error('Error storing IP analysis results:', error);
+      throw error;
     }
-
-    console.log(`⚖️ Found ${ipDocs.length} IP documents out of ${allDocuments.length} total`);
-    return ipDocs;
   }
 }
 
 export const comprehensiveIpAnalysisService = new ComprehensiveIpAnalysisService();
-
-/**
- * Get comprehensive IP analysis results
- */
-export async function getComprehensiveIpAnalysisResults(dealId: number) {
-  try {
-    const analysis = await storage.getAgentAnalysis(dealId, 'ip');
-    
-    if (!analysis) {
-      return {
-        success: false,
-        error: 'No IP analysis found for this deal'
-      };
-    }
-
-    return {
-      success: true,
-      ipAnswers: analysis.ipAnswers ? JSON.parse(analysis.ipAnswers) : {},
-      findings: analysis.findings ? JSON.parse(analysis.findings) : [],
-      recommendations: analysis.recommendations ? JSON.parse(analysis.recommendations) : [],
-      questionsAnswered: analysis.questionsAnswered || 0,
-      totalQuestions: analysis.totalQuestions || IP_QUESTIONS.length,
-      completionRate: analysis.completionRate || 0
-    };
-  } catch (error) {
-    console.error(`⚖️ Error getting IP analysis results:`, error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}

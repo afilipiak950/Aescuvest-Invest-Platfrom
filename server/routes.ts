@@ -4163,7 +4163,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`⚖️ Starting comprehensive IP analysis for deal ${dealId}`);
+      console.log(`🔐 Starting comprehensive IP analysis for deal ${dealId}`);
       
       // Check for existing IP analysis jobs to prevent duplicates  
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
@@ -4181,21 +4181,119 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       }
       
       // Import and start the comprehensive IP analysis service
-      const { ComprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
-      const service = new ComprehensiveIpAnalysisService();
+      const { comprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
+      
+      // Create background job
+      const jobId = `ip_analysis_${dealId}_${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_ip_analysis',
+        agentType: 'IP',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Starting IP analysis...'
+      });
       
       // Start comprehensive IP analysis in background
-      service.startComprehensiveAnalysis(dealId).catch(error => {
+      comprehensiveIpAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
         console.error(`❌ Background IP analysis failed for deal ${dealId}:`, error);
+        storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          error: error.message
+        });
       });
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive IP analysis started - processing 14 IP questions across all assigned documents'
+        message: 'Comprehensive IP analysis started - processing 12 IP categories across all assigned documents',
+        jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive IP analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive IP analysis' });
+    }
+  });
+
+  // Get comprehensive IP analysis progress
+  app.get('/api/deals/:dealId/ip-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check for active comprehensive IP analysis job
+      const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const comprehensiveJob = activeJobs.find(job => 
+        job.jobType === 'comprehensive_ip_analysis' && 
+        job.status === 'processing'
+      );
+      
+      if (comprehensiveJob) {
+        res.json({
+          success: true,
+          isRunning: true,
+          progress: comprehensiveJob.progress || 0,
+          currentStep: comprehensiveJob.currentStep || 'Processing...',
+          jobId: comprehensiveJob.jobId
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0,
+          currentStep: null,
+          message: 'No comprehensive IP analysis running'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive IP analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis progress' });
+    }
+  });
+
+  // Get comprehensive IP analysis results
+  app.get('/api/deals/:dealId/ip-analysis/comprehensive/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🔐 Fetching comprehensive IP analysis results for deal ${dealId}`);
+      
+      // Get comprehensive IP analysis from agent_analyses table
+      const analysis = await storage.getAgentAnalysisByDealAndType(dealId, 'IP');
+      
+      if (!analysis) {
+        console.log(`❌ No comprehensive IP analysis found for deal ${dealId}`);
+        return res.json({
+          success: false,
+          message: 'No comprehensive IP analysis found',
+          results: null
+        });
+      }
+      
+      // Parse IP answers if they exist
+      let ipAnswers = {};
+      if (analysis.ipAnswers) {
+        try {
+          ipAnswers = typeof analysis.ipAnswers === 'string' 
+            ? JSON.parse(analysis.ipAnswers) 
+            : analysis.ipAnswers;
+        } catch (error) {
+          console.error('Error parsing IP answers:', error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        results: {
+          status: analysis.status,
+          findings: analysis.findings || [],
+          recommendations: analysis.recommendations || [],
+          ipAnswers,
+          completedAt: analysis.completedAt
+        }
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive IP analysis results:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
     }
   });
 

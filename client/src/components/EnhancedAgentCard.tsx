@@ -49,10 +49,23 @@ export default function EnhancedAgentCard({
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
-  // Use HR comprehensive analysis data if this is an HR agent and we have the data
-  const actualAnalysisData = agentType.toLowerCase() === 'hr' && hrAnalysisData?.analysis 
-    ? hrAnalysisData.analysis 
-    : analysis || {};
+  // Fetch comprehensive IP analysis data directly for IP agents
+  const { data: ipAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
+    enabled: agentType.toLowerCase() === 'ip',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use comprehensive analysis data if this is an HR or IP agent and we have the data
+  const actualAnalysisData = (() => {
+    if (agentType.toLowerCase() === 'hr' && hrAnalysisData?.analysis) {
+      return hrAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'ip' && ipAnalysisData?.analysis) {
+      return ipAnalysisData.analysis;
+    }
+    return analysis || {};
+  })();
 
   console.log(`🔍 ${agentType} Agent Analysis Data:`, actualAnalysisData);
 
@@ -78,6 +91,18 @@ export default function EnhancedAgentCard({
     // Check for comprehensive HR analysis progress
     const { data: hrProgress } = useQuery({
       queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
+      refetchInterval: 1000,
+    });
+
+    // Check for comprehensive IP analysis progress
+    const { data: ipProgress } = useQuery({
+      queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
+      refetchInterval: 1000,
+    });
+
+    // Check for comprehensive Financial analysis progress
+    const { data: financialProgress } = useQuery({
+      queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
       refetchInterval: 1000,
     });
 
@@ -141,6 +166,62 @@ export default function EnhancedAgentCard({
           <div className="flex justify-between text-xs text-gray-400 mt-2">
             <span>Comprehensive analysis of {assignedDocuments} documents</span>
             <span>{Math.round(hrProgress.progress || 0)}% complete</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Show comprehensive IP analysis if running
+    if (ipProgress?.isRunning) {
+      return (
+        <div className="bg-purple-600/5 border border-purple-600/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
+            <div className="flex-1">
+              <p className="text-purple-400 font-medium">Comprehensive IP Analysis in Progress</p>
+              <p className="text-gray-300 text-sm">
+                {ipProgress.currentStep || 'Processing comprehensive IP analysis...'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{Math.round(ipProgress.progress || 0)}%</p>
+            </div>
+          </div>
+          <Progress 
+            value={ipProgress.progress || 0} 
+            className="h-2 bg-dark-lighter"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-2">
+            <span>Comprehensive analysis of {assignedDocuments} documents</span>
+            <span>{Math.round(ipProgress.progress || 0)}% complete</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Show comprehensive Financial analysis if running
+    if (financialProgress?.isRunning) {
+      return (
+        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="h-5 w-5 text-green-400 animate-spin" />
+            <div className="flex-1">
+              <p className="text-green-400 font-medium">Comprehensive Financial Analysis in Progress</p>
+              <p className="text-gray-300 text-sm">
+                {financialProgress.currentStep || 'Processing comprehensive financial analysis...'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{Math.round(financialProgress.progress || 0)}%</p>
+            </div>
+          </div>
+          <Progress 
+            value={financialProgress.progress || 0} 
+            className="h-2 bg-dark-lighter"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-2">
+            <span>Comprehensive analysis of {assignedDocuments} documents</span>
+            <span>{Math.round(financialProgress.progress || 0)}% complete</span>
           </div>
         </div>
       );
@@ -797,6 +878,13 @@ export default function EnhancedAgentCard({
           <FinancialQuestionsSection 
             dealId={dealId}
             analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+          />
+        ) : agentType.toLowerCase() === 'ip' ? (
+          <IpQuestionsSection 
+            dealId={dealId}
+            analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
           />
@@ -3157,6 +3245,132 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
   );
 }
 
+// Comprehensive IP Analysis Button
+function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
+  const isAlreadyRunning = progressData?.isRunning || 
+    jobProgress?.jobs?.some((job: any) => 
+      job.jobType === 'comprehensive_ip_analysis' && job.status === 'processing'
+    );
+
+  const queryClient = useQueryClient();
+  
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log('Starting comprehensive IP analysis for deal', dealId);
+      const response = await apiRequest(`/api/deals/${dealId}/ip-analysis/comprehensive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      console.log('✅ Comprehensive IP analysis started successfully');
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive IP analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive IP analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/ip-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🔐 IP analysis attempt ${attempts}...`);
+          
+          if (data.success && data.results && data.results.ipAnswers && Object.keys(data.results.ipAnswers).length > 0) {
+            console.log('✅ IP analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/ip/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for IP results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting IP analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'IP Analysis Running...' : isRunning ? 'IP Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run IP Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
 // Commercial Questions Section Component  
 function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(['Competitive Analysis Decks']));
@@ -3492,6 +3706,176 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                           ) : (
                             <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
                               <p className="text-gray-400 text-xs">No HR analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}
+
+// IP Questions Section Component
+function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[] }) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
+  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
+  const [selectedQuoteData, setSelectedQuoteData] = useState<{
+    quotes?: any[];
+    sources?: any[];
+    title: string;
+  }>({ quotes: [], sources: [], title: "" });
+
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // IP questions structure matching the backend service
+  const IP_QUESTIONS = [
+    // 1. Patent Applications/Grants - 4 questions
+    { id: "patents_1", question: "What jurisdictions are covered (US, EU, China, Japan)?", category: "Patent Applications/Grants" },
+    { id: "patents_2", question: "What is the legal status (granted, pending, abandoned)?", category: "Patent Applications/Grants" },
+    { id: "patents_3", question: "How long is the protection duration remaining?", category: "Patent Applications/Grants" },
+    { id: "patents_4", question: "Is there freedom to operate (FTO) analysis available?", category: "Patent Applications/Grants" },
+    
+    // 2. Trademark Registrations - 4 questions
+    { id: "trademarks_1", question: "What Nice classes are covered for trademark protection?", category: "Trademark Registrations" },
+    { id: "trademarks_2", question: "Are there any oppositions or disputes filed?", category: "Trademark Registrations" },
+    { id: "trademarks_3", question: "What renewal dates and maintenance requirements exist?", category: "Trademark Registrations" },
+    { id: "trademarks_4", question: "Are brand extensions or geographical expansions planned?", category: "Trademark Registrations" },
+    
+    // 3. License Agreements - 4 questions
+    { id: "licenses_1", question: "Are licenses exclusive or non-exclusive?", category: "License Agreements" },
+    { id: "licenses_2", question: "What royalty rates and payment terms are defined?", category: "License Agreements" },
+    { id: "licenses_3", question: "Are sublicensing rights granted or restricted?", category: "License Agreements" },
+    { id: "licenses_4", question: "What termination clauses and conditions exist?", category: "License Agreements" },
+    
+    // 4. Source Code Ownership Declarations - 4 questions
+    { id: "source_code_1", question: "Is all source code developed in-house or are there third-party components?", category: "Source Code Ownership" },
+    { id: "source_code_2", question: "What open-source licenses are used (GPL, MIT, Apache)?", category: "Source Code Ownership" },
+    { id: "source_code_3", question: "Are there clear policies for employee-created IP?", category: "Source Code Ownership" },
+    { id: "source_code_4", question: "Are all code contributions properly documented and assigned?", category: "Source Code Ownership" }
+  ];
+
+  const categorizedQuestions = IP_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof IP_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    if (!comprehensiveResults?.results?.ipAnswers) return null;
+    return comprehensiveResults.results.ipAnswers[questionId] || null;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive IP Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
+          </p>
+        </div>
+        <ComprehensiveIPAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
+            onClick={() => toggleCategory(category)}
+          >
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {questions.length} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
+
+                return (
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-purple-400 border-purple-400">
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                </Badge>
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || "No specific section identified"],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No IP analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
