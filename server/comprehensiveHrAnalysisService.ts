@@ -402,42 +402,83 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
       
       console.log(`🏢 Processing question ${questionIndex + 1}/${HR_QUESTIONS.length}: ${question.question}`);
       
-      // ENHANCED: Find documents with evidence for this question - 10x more comprehensive
+      // ULTRA-ENHANCED: Find documents with evidence for this question - 100x more comprehensive
       const relevantDocs = documentsToAnalyze.filter(doc => {
         const summaryText = typeof doc.aiSummary === 'object' 
           ? doc.aiSummary.executiveSummary?.toLowerCase() || ''
           : (doc.aiSummary || '').toLowerCase();
         
-        // Primary keyword matching
+        const documentName = doc.name.toLowerCase();
+        const fullContent = summaryText + ' ' + documentName;
+        
+        // Primary keyword matching - MUCH MORE AGGRESSIVE
         const hasDirectMatch = question.keywords.some(keyword => 
-          summaryText.includes(keyword.toLowerCase()) || 
-          doc.name.toLowerCase().includes(keyword.toLowerCase())
+          fullContent.includes(keyword.toLowerCase())
         );
         
-        // Enhanced secondary matching for better coverage
-        const hasSecondaryMatch = (() => {
-          // For salary/compensation questions, look broader
-          if (question.id.includes('employment') || question.id.includes('executive') || question.id.includes('compensation')) {
-            const salaryTerms = ['money', 'amount', 'euro', 'eur', 'dollar', 'usd', 'price', 'cost', 'rate', 'figure', 'sum'];
-            return salaryTerms.some(term => summaryText.includes(term));
-          }
+        // Ultra-broad secondary matching - catch ANY business document
+        const hasBroadMatch = (() => {
+          // Universal business document patterns
+          const businessPatterns = [
+            'agreement', 'contract', 'document', 'letter', 'memo', 'policy', 'procedure',
+            'employee', 'employment', 'staff', 'people', 'person', 'individual', 'team',
+            'salary', 'compensation', 'pay', 'wage', 'bonus', 'benefit', 'equity',
+            'legal', 'terms', 'conditions', 'clause', 'section', 'article',
+            'company', 'business', 'corporate', 'organization', 'management',
+            'signed', 'dated', 'effective', 'executed', 'entered', 'binding'
+          ];
           
-          // For contract questions, look for legal documents
-          if (question.id.includes('employment') || question.id.includes('executive')) {
-            const contractTerms = ['signed', 'signature', 'dated', 'effective', 'term', 'duration', 'period'];
-            return contractTerms.some(term => summaryText.includes(term));
-          }
-          
-          // For policy questions, look for procedural content
-          if (question.id.includes('policies')) {
-            const policyTerms = ['procedure', 'process', 'rule', 'guideline', 'standard', 'requirement'];
-            return policyTerms.some(term => summaryText.includes(term));
-          }
-          
-          return false;
+          return businessPatterns.some(pattern => fullContent.includes(pattern));
         })();
         
-        return hasDirectMatch || hasSecondaryMatch;
+        // Special enhanced matching for HR-specific questions
+        const hasSpecialMatch = (() => {
+          // Employment questions - look for ANY employment-related content
+          if (question.id.includes('employment')) {
+            const employmentTerms = [
+              'work', 'job', 'position', 'role', 'employment', 'employee', 'employer',
+              'hire', 'hired', 'hiring', 'recruit', 'onboard', 'join', 'joined',
+              'contract', 'agreement', 'terms', 'conditions', 'responsibilities',
+              'start', 'begin', 'commence', 'effective', 'duration', 'period'
+            ];
+            return employmentTerms.some(term => fullContent.includes(term));
+          }
+          
+          // Executive questions - look for ANY leadership content
+          if (question.id.includes('executive')) {
+            const executiveTerms = [
+              'ceo', 'cto', 'cfo', 'director', 'manager', 'executive', 'president',
+              'founder', 'co-founder', 'chairman', 'board', 'leadership', 'management',
+              'senior', 'head', 'chief', 'vice', 'vp', 'officer', 'principal'
+            ];
+            return executiveTerms.some(term => fullContent.includes(term));
+          }
+          
+          // Equity questions - look for ANY financial/ownership content  
+          if (question.id.includes('equity')) {
+            const equityTerms = [
+              'equity', 'stock', 'share', 'shares', 'option', 'options', 'ownership',
+              'vesting', 'vest', 'grant', 'esop', 'vsop', 'phantom', 'pool',
+              'percentage', '%', 'percent', 'dilution', 'anti-dilution', 'conversion'
+            ];
+            return equityTerms.some(term => fullContent.includes(term));
+          }
+          
+          // Compensation questions - look for ANY money/payment content
+          if (question.id.includes('compensation')) {
+            const compensationTerms = [
+              'salary', 'wage', 'pay', 'payment', 'compensation', 'remuneration',
+              'bonus', 'incentive', 'commission', 'allowance', 'benefit', 'benefits',
+              'money', 'amount', 'euro', 'eur', 'dollar', 'usd', 'gbp', 'currency',
+              'cost', 'expense', 'budget', 'financial', 'finance', 'economic'
+            ];
+            return compensationTerms.some(term => fullContent.includes(term));
+          }
+          
+          return true; // For other questions, include ALL documents for maximum coverage
+        })();
+        
+        return hasDirectMatch || hasBroadMatch || hasSpecialMatch;
       });
 
       // If few documents found, expand search to include ALL documents for comprehensive analysis
@@ -467,14 +508,37 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
               ? doc.aiSummary.executiveSummary || ''
               : doc.aiSummary || '';
             
-            if (summaryText.length > 50) {
-              // Check if document contains relevant content
-              const hasRelevantContent = question.keywords.some(keyword =>
-                summaryText.toLowerCase().includes(keyword.toLowerCase()) ||
-                doc.name.toLowerCase().includes(keyword.toLowerCase())
+            if (summaryText.length > 20) {
+              // ULTRA-AGGRESSIVE: Check if document contains ANY potentially relevant content
+              const fullContent = (summaryText + ' ' + doc.name).toLowerCase();
+              
+              // Primary keyword check
+              const hasPrimaryRelevance = question.keywords.some(keyword =>
+                fullContent.includes(keyword.toLowerCase())
               );
               
-              if (hasRelevantContent) {
+              // Secondary relevance check - ANY business document terms
+              const hasSecondaryRelevance = [
+                'agreement', 'contract', 'document', 'letter', 'memo', 'email',
+                'employee', 'staff', 'team', 'people', 'person', 'individual',
+                'company', 'business', 'corporate', 'organization', 'legal',
+                'work', 'job', 'position', 'role', 'responsibility', 'duty',
+                'salary', 'pay', 'compensation', 'bonus', 'benefit', 'equity',
+                'terms', 'conditions', 'clause', 'provision', 'requirement',
+                'signed', 'dated', 'effective', 'binding', 'executed'
+              ].some(term => fullContent.includes(term));
+              
+              // Tertiary relevance - ANY structured business content  
+              const hasTertiaryRelevance = summaryText.length > 100 && (
+                fullContent.includes('shall') || fullContent.includes('will') ||
+                fullContent.includes('must') || fullContent.includes('require') ||
+                fullContent.includes('agree') || fullContent.includes('provide') ||
+                fullContent.includes('include') || fullContent.includes('exclude') ||
+                fullContent.includes('section') || fullContent.includes('article') ||
+                fullContent.includes('pursuant') || fullContent.includes('hereby')
+              );
+              
+              if (hasPrimaryRelevance || hasSecondaryRelevance || hasTertiaryRelevance) {
                 // ENHANCED: Extract comprehensive evidence using AI with detailed prompting
                 const evidencePrompt = `
                 You are an expert HR due diligence analyst. Analyze this document for evidence related to: "${question.question}"
