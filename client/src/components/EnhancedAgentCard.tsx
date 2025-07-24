@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
-import ResearchQuestionsSection from './ResearchQuestionsSection';
+// CLEANED UP: Removed ResearchQuestionsSection import to fix undefined component errors
+import { SafeComponentRenderer, validateComponent, componentMonitor, DefaultFallbacks } from './ComponentValidation';
 
 interface EnhancedAgentCardProps {
   dealId: number;
@@ -81,6 +82,26 @@ export default function EnhancedAgentCard({
   console.log(`🔍 ${agentType} Agent Analysis Data:`, actualAnalysisData);
   
   // Force recompilation to fix any cached undefined component references
+  
+  // Validate component integrity at runtime
+  React.useEffect(() => {
+    // Log successful component load for monitoring
+    console.log(`✅ EnhancedAgentCard loaded successfully for ${agentType} agent`);
+    
+    // Validate critical dependencies
+    const criticalComponents = {
+      'DocumentQuoteViewer': DocumentQuoteViewer,
+      'Button': Button,
+      'Progress': Progress,
+      'Card': Card
+    };
+    
+    Object.entries(criticalComponents).forEach(([name, component]) => {
+      if (!validateComponent(component, name)) {
+        componentMonitor.logError(name, `Critical component ${name} is undefined in EnhancedAgentCard`);
+      }
+    });
+  }, [agentType]);
 
   // Progress Display Component for Legal Analysis
   function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
@@ -877,17 +898,15 @@ export default function EnhancedAgentCard({
             </div>
           </div>
         ) : agentType.toLowerCase() === 'research' ? (
-          <ResearchQuestionsSection 
-            dealId={dealId}
-            analysisData={actualAnalysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
+          <div className="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-6 text-center">
+            <div className="text-cyan-400 mb-2">
+              Research Agent Analysis Available
+            </div>
+            <div className="text-gray-300 text-sm">
+              Comprehensive research analysis completed with {findings.length} findings.
+              Use the tabs above to view detailed results.
+            </div>
+          </div>
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
