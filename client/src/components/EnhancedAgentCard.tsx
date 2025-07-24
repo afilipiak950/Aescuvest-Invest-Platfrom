@@ -876,6 +876,11 @@ export default function EnhancedAgentCard({
             analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
         ) : agentType.toLowerCase() === 'hr' ? (
           <HrQuestionsSection 
@@ -883,6 +888,11 @@ export default function EnhancedAgentCard({
             analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
         ) : agentType.toLowerCase() === 'financial' ? (
           <FinancialQuestionsSection 
@@ -890,6 +900,11 @@ export default function EnhancedAgentCard({
             analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
         ) : agentType.toLowerCase() === 'ip' ? (
           <IpQuestionsSection 
@@ -897,6 +912,11 @@ export default function EnhancedAgentCard({
             analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
         ) : agentType.toLowerCase() === 'research' ? (
           <ResearchQuestionsSection 
@@ -904,6 +924,11 @@ export default function EnhancedAgentCard({
             analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
         ) : (
           /* Analysis Results for other agents */
@@ -2091,28 +2116,21 @@ interface ResearchQuestionsSectionProps {
   analysisData: any;
   assignedDocuments: number;
   documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
 }
 
-function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: ResearchQuestionsSectionProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
-  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
-  const [selectedQuoteData, setSelectedQuoteData] = useState<any>({ quotes: [], sources: [], title: '' });
+function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: ResearchQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Whitepapers"]));
 
   // Check if research analysis is available from comprehensive endpoint
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
-    retry: false
   });
-
-  // Check if research analysis is available
-  const hasResearchAnalysis = comprehensiveResults?.results?.researchAnswers && 
-    Object.keys(comprehensiveResults.results.researchAnswers).length > 0;
-  
-  console.log('🔬 Research Analysis Available:', hasResearchAnalysis);
-  console.log('🔬 Comprehensive Results:', comprehensiveResults);
-  console.log('🔬 Research Answers:', comprehensiveResults?.results?.researchAnswers);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -2124,162 +2142,232 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  const toggleQuestion = (questionId: string) => {
-    const newExpanded = new Set(expandedQuestions);
-    if (newExpanded.has(questionId)) {
-      newExpanded.delete(questionId);
-    } else {
-      newExpanded.add(questionId);
-    }
-    setExpandedQuestions(newExpanded);
-  };
+  // Research questions structure matching the backend service
+  const RESEARCH_QUESTIONS = [
+    // 1. Technical Whitepapers - 3 questions
+    { id: "whitepapers_1", question: "What are the core technical innovations described?", category: "Technical Whitepapers" },
+    { id: "whitepapers_2", question: "Are there peer-reviewed publications supporting the technology?", category: "Technical Whitepapers" },
+    { id: "whitepapers_3", question: "What validation studies or proof-of-concept results are presented?", category: "Technical Whitepapers" },
+    
+    // 2. Market Research Reports - 3 questions
+    { id: "market_1", question: "What is the total addressable market (TAM) size?", category: "Market Research Reports" },
+    { id: "market_2", question: "Who are the main competitors and what is their market share?", category: "Market Research Reports" },
+    { id: "market_3", question: "What are the market growth projections and key drivers?", category: "Market Research Reports" },
+    
+    // 3. Academic Publications - 3 questions
+    { id: "academic_1", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
+    { id: "academic_2", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
+    { id: "academic_3", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
+    
+    // 4. Patent Landscape - 2 questions
+    { id: "patents_1", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
+    { id: "patents_2", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
+  ];
 
-  // Group questions by category
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
     if (!acc[question.category]) {
       acc[question.category] = [];
     }
     acc[question.category].push(question);
     return acc;
-  }, {} as Record<string, ResearchQuestion[]>);
+  }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    if (!comprehensiveResults?.results?.researchAnswers) return null;
+    return comprehensiveResults.results.researchAnswers[questionId] || null;
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Header with Run Analysis Button */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500/5 to-cyan-600/5 border border-cyan-500/20 rounded-lg p-4">
         <div>
-          <h3 className="text-lg font-semibold text-white mb-2">Research Analysis Questions</h3>
-          <p className="text-gray-400 text-sm">
-            AI-powered analysis of {assignedDocuments} research documents across 4 categories
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Research Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
           </p>
         </div>
         <ComprehensiveResearchAnalysisButton dealId={dealId} />
       </div>
 
-      {/* Progress will be shown at the main page level, not here to avoid duplicates */}
-
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
-        <div key={category} className="border border-dark-lighter rounded-lg bg-dark/50">
-          <button
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
             onClick={() => toggleCategory(category)}
-            className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-dark/30 transition-colors rounded-t-lg"
           >
+            <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-cyan-400"></div>
-              <span className="font-medium text-white">{category}</span>
               <Badge variant="outline" className="text-gray-400 border-gray-600">
                 {questions.length} questions
               </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
             </div>
-            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${
-              expandedCategories.has(category) ? 'rotate-180' : ''
-            }`} />
-          </button>
+          </div>
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map((question) => {
-                const hasAnswer = hasResearchAnalysis && 
-                  comprehensiveResults?.results?.researchAnswers?.[question.id];
-                const answer = hasAnswer ? comprehensiveResults.results.researchAnswers[question.id] : null;
-                
+              {questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
+
                 return (
-                  <div key={question.id} className="border-b border-dark-lighter last:border-b-0">
-                    <button
-                      onClick={() => toggleQuestion(question.id)}
-                      className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-dark/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${hasAnswer ? 'bg-green-400' : 'bg-gray-600'}`}></div>
-                        <span className="text-white text-sm font-medium">{question.question}</span>
-                        {hasAnswer && (
-                          <Badge variant="outline" className="text-green-400 border-green-400">
-                            Answered
-                          </Badge>
-                        )}
-                      </div>
-                      <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${
-                        expandedQuestions.has(question.id) ? 'rotate-180' : ''
-                      }`} />
-                    </button>
-                    
-                    {expandedQuestions.has(question.id) && (
-                      <div className="px-4 pb-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-1">
-                            <p className="text-white font-medium text-sm">{question.question}</p>
-                            
-                            {question.subQuestions && (
-                              <div className="mt-2 space-y-1">
-                                {question.subQuestions.map((subQ, index) => (
-                                  <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
-                                ))}
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-cyan-400 mb-2">Research Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
-                            )}
-                            
-                            {hasAnswer ? (
-                              <div className="mt-3 space-y-3">
-                                {/* Main Answer */}
-                                <div className="bg-dark/50 rounded p-3">
-                                  <h5 className="text-xs font-medium text-cyan-400 mb-2">Research Analysis</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
-                                </div>
 
-                                {/* Key Findings */}
-                                {answer.keyFindings && answer.keyFindings.length > 0 && (
-                                  <div className="bg-gradient-to-r from-cyan-400/10 to-blue-400/10 rounded p-3">
-                                    <h5 className="text-xs font-medium text-cyan-400 mb-2">
-                                      🔬 Key Research Findings ({answer.keyFindings.length})
-                                    </h5>
-                                    <ul className="space-y-1">
-                                      {answer.keyFindings.map((finding, index) => (
-                                        <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
-                                          <span className="text-cyan-400 text-xs mt-1">✓</span>
-                                          {finding}
-                                        </li>
-                                      ))}
-                                    </ul>
+                              {/* Enhanced Research Assessment */}
+                              {answer.researchAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Research Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.researchAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes.length})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(quote.document)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${quote.document}`}
+                                          >
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {quote.relevance}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{quote.text}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
                                   </div>
-                                )}
-
-                                {/* Metadata */}
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                    Confidence: {answer.confidence}%
-                                  </Badge>
-                                  {answer.sources && answer.sources.length > 0 && (
-                                    <Badge 
-                                      variant="outline" 
-                                      className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
-                                      onClick={() => {
-                                        const sources = answer.sources.map((source: string) => ({
-                                          documentName: source,
-                                          relevantSections: [answer.answer || 'No specific section identified'],
-                                          extractedText: answer.answer
-                                        }));
-                                        
-                                        setSelectedQuoteData({
-                                          quotes: [],
-                                          sources,
-                                          title: question.question
-                                        });
-                                        setQuoteViewerOpen(true);
-                                      }}
-                                    >
-                                      {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
-                                    </Badge>
-                                  )}
                                 </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-cyan-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-cyan-400 text-xs mt-1">•</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-cyan-400 border-cyan-400">
+                                  Confidence: {answer.confidence}%
+                                </Badge>
+                                {answer.quotes && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
                               </div>
-                            ) : (
-                              <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
-                                <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
-                              </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}
@@ -3427,14 +3515,20 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
 }
 
 // Financial Questions Section Component  
-function FinancialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(['Income Statements']));
-  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
-  const [selectedQuoteData, setSelectedQuoteData] = useState<{
-    quotes?: any[];
-    sources?: any[];
-    title: string;
-  }>({ quotes: [], sources: [], title: '' });
+interface FinancialQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
+
+function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
@@ -3482,101 +3576,196 @@ function FinancialQuestionsSection({ analysisData, assignedDocuments, dealId, do
   }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.financialAnswers) return null;
-    return comprehensiveResults.financialAnswers[questionId] || null;
+    if (!comprehensiveResults?.results?.financialAnswers) return null;
+    return comprehensiveResults.results.financialAnswers[questionId] || null;
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <HelpCircle className="h-5 w-5 text-green-400" />
-          <h3 className="text-lg font-semibold text-white">Financial Due Diligence Questions</h3>
-          <Badge variant="outline" className="text-gray-400 border-gray-400">
-            {documents ? documents.filter(doc => {
-              if (!doc.aiSummary) return false;
-              if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-                return doc.aiSummary.executiveSummary.length > 10;
-              }
-              if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
-                return true;
-              }
-              return false;
-            }).length : 0} Documents Analyzed
-          </Badge>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-green-500/5 to-green-600/5 border border-green-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Financial Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} financial documents across 4 categories with 12 detailed questions
+          </p>
         </div>
         <ComprehensiveFinancialAnalysisButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
-        <div key={category} className="border border-dark-lighter rounded-lg mb-4">
-          <button
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
             onClick={() => toggleCategory(category)}
-            className="w-full flex items-center justify-between p-4 bg-dark-lighter/50 hover:bg-dark-lighter/70 transition-colors"
           >
-            <h4 className="font-medium text-white text-left">{category}</h4>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-gray-400 border-gray-400">
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
                 {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
-                <ChevronDown className="h-4 w-4 text-gray-400" />
+                <ChevronUp className="h-5 w-5 text-gray-400" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-400" />
+                <ChevronDown className="h-5 w-5 text-gray-400" />
               )}
             </div>
-          </button>
-
+          </div>
+          
           {expandedCategories.has(category) && (
-            <div className="p-4 space-y-4">
-              {questions.map((question) => {
+            <div className="border-t border-dark-lighter">
+              {questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
-                const hasAnswer = answer !== null;
-                
+
                 return (
-                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
-                    <div className="p-3">
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                          hasAnswer ? 'bg-green-400' : 'bg-gray-400'
-                        }`} />
                         <div className="flex-1">
-                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          <p className="font-medium text-white mb-2">{question.question}</p>
                           
-                          {hasAnswer ? (
+                          {answer ? (
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Financial Analysis</h5>
                                 <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
+                              {/* Enhanced Financial Assessment */}
+                              {answer.financialAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-emerald-400 mb-2">Financial Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.financialAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes.length})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(quote.document)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${quote.document}`}
+                                          >
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {quote.relevance}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{quote.text}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-green-400 text-xs mt-1">•</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
                                 </Badge>
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
-                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.evidence || [],
-                                        sources: answer.sources || [],
+                                        quotes: answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
                                         title: question.question
                                       });
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} Sources
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3">
-                              <div className="bg-dark-lighter/30 rounded p-3 text-center">
-                                <p className="text-gray-500 text-sm">Run financial analysis to get answers</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No financial analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -3589,14 +3778,14 @@ function FinancialQuestionsSection({ analysisData, assignedDocuments, dealId, do
           )}
         </div>
       ))}
-
+      
       <DocumentQuoteViewer
-        open={quoteViewerOpen}
-        onOpenChange={setQuoteViewerOpen}
-        quotes={selectedQuoteData.quotes || []}
-        sources={selectedQuoteData.sources || []}
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
         title={selectedQuoteData.title}
-        documents={documents || []}
+        documents={documents}
       />
     </div>
   );
@@ -3840,14 +4029,20 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
 }
 
 // Commercial Questions Section Component  
-function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(['Competitive Analysis Decks']));
-  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
-  const [selectedQuoteData, setSelectedQuoteData] = useState<{
-    quotes?: any[];
-    sources?: any[];
-    title: string;
-  }>({ quotes: [], sources: [], title: '' });
+interface CommercialQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
+
+function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: CommercialQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`],
@@ -3889,84 +4084,175 @@ function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, d
   }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.commercialAnswers) return null;
-    return comprehensiveResults.commercialAnswers[questionId] || null;
+    if (!comprehensiveResults?.results?.commercialAnswers) return null;
+    return comprehensiveResults.results.commercialAnswers[questionId] || null;
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <HelpCircle className="h-5 w-5 text-purple-400" />
-          <h3 className="text-lg font-semibold text-white">Commercial Due Diligence Questions</h3>
-          <Badge variant="outline" className="text-gray-400 border-gray-400">
-            {documents ? documents.filter(doc => {
-              if (!doc.aiSummary) return false;
-              if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-                return doc.aiSummary.executiveSummary.length > 10;
-              }
-              if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
-                return true;
-              }
-              return false;
-            }).length : 0} Documents Analyzed
-          </Badge>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Commercial Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} commercial documents across 4 categories with 12 detailed questions
+          </p>
         </div>
         <ComprehensiveCommercialAnalysisButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
-        <div key={category} className="border border-dark-lighter rounded-lg mb-4">
-          <button
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
             onClick={() => toggleCategory(category)}
-            className="w-full flex items-center justify-between p-4 bg-dark-lighter/50 hover:bg-dark-lighter/70 transition-colors"
           >
-            <h4 className="font-medium text-white text-left">{category}</h4>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-gray-400 border-gray-400">
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
                 {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
-                <ChevronDown className="h-4 w-4 text-gray-400" />
+                <ChevronUp className="h-5 w-5 text-gray-400" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-400" />
+                <ChevronDown className="h-5 w-5 text-gray-400" />
               )}
             </div>
-          </button>
-
+          </div>
+          
           {expandedCategories.has(category) && (
-            <div className="p-4 space-y-4">
-              {questions.map((question) => {
+            <div className="border-t border-dark-lighter">
+              {questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
-                const hasAnswer = answer !== null;
-                
+
                 return (
-                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
-                    <div className="p-3">
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                          hasAnswer ? 'bg-purple-400' : 'bg-gray-400'
-                        }`} />
                         <div className="flex-1">
-                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          <p className="font-medium text-white mb-2">{question.question}</p>
                           
-                          {hasAnswer ? (
+                          {answer ? (
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
                                 <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
+                              {/* Enhanced Commercial Assessment */}
+                              {answer.commercialAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-indigo-400 mb-2">Commercial Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.commercialAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes.length})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(quote.document)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${quote.document}`}
+                                          >
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {quote.relevance}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{quote.text}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-purple-400 text-xs mt-1">•</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
                                   Confidence: {answer.confidence}%
                                 </Badge>
+                                {answer.quotes && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
                                 {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
-                                      const sources = answer.sources.map((source: string) => ({
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
                                         documentName: source,
                                         relevantSections: [answer.answer || 'No specific section identified'],
                                         extractedText: answer.answer
@@ -4013,14 +4299,20 @@ function CommercialQuestionsSection({ analysisData, assignedDocuments, dealId, d
   );
 }
 // HR Questions Section Component  
-function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[] }) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(['Employment Contracts']));
-  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
-  const [selectedQuoteData, setSelectedQuoteData] = useState<{
-    quotes?: any[];
-    sources?: any[];
-    title: string;
-  }>({ quotes: [], sources: [], title: '' });
+interface HrQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
+
+function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Employment Contracts"]));
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
@@ -4143,16 +4435,122 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
                                 <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
+
+                              {/* Enhanced HR Assessment */}
+                              {answer.hrAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.hrAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes.length})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(quote.document)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${quote.document}`}
+                                          >
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {quote.relevance}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{quote.text}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-orange-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-orange-400 text-xs mt-1">•</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
+                                {answer.quotes && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
                                 {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
                                     onClick={() => {
-                                      const sources = answer.sources.map((source: string) => ({
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
                                         documentName: source,
                                         relevantSections: [answer.answer || 'No specific section identified'],
                                         extractedText: answer.answer
