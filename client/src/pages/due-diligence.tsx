@@ -507,37 +507,22 @@ function DueDiligenceContent() {
         duration: 2000,
       });
       
-      // Immediately invalidate all agent queries to clear existing data and show loading states
-      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-      agentTypes.forEach(agentType => {
-        try {
-          queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
-        } catch (invalidateError) {
-          console.warn(`Failed to invalidate ${agentType} queries:`, invalidateError);
-        }
-      });
+      // Skip query invalidation to prevent crashes - let mutation handle cache updates
+      console.log('📋 Skipping immediate query invalidation to prevent component crashes');
       
+      // Start mutation immediately to prevent state conflicts
       try {
-        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-      } catch (invalidateError) {
-        console.warn(`Failed to invalidate analyses queries:`, invalidateError);
+        runAllAnalysesMutation.mutate();
+      } catch (mutationError) {
+        console.error('❌ Error starting mutation:', mutationError);
+        setIsRunningAllAnalyses(false);
+        toast({
+          title: "Mutation Error",
+          description: "Failed to start analysis mutation. Please try again.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
-      
-      // Use setTimeout to ensure UI updates before starting mutation
-      setTimeout(() => {
-        try {
-          runAllAnalysesMutation.mutate();
-        } catch (mutationError) {
-          console.error('❌ Error starting mutation:', mutationError);
-          setIsRunningAllAnalyses(false);
-          toast({
-            title: "Mutation Error",
-            description: "Failed to start analysis mutation. Please try again.",
-            variant: "destructive",
-            duration: 5000,
-          });
-        }
-      }, 100);
       
     } catch (error) {
       console.error('❌ Critical error in handleRunAllAnalyses:', error);
