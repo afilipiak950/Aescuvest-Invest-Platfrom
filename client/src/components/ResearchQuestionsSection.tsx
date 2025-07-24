@@ -143,8 +143,8 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
   React.useEffect(() => {
     if (comprehensiveResults) {
       console.log('🔬 Research comprehensive results:', comprehensiveResults);
-      console.log('🔬 Has research answers:', !!comprehensiveResults?.results?.researchAnswers);
-      console.log('🔬 Research answers keys:', Object.keys(comprehensiveResults?.results?.researchAnswers || {}));
+      console.log('🔬 Has research answers:', !!(comprehensiveResults as any)?.results?.researchAnswers);
+      console.log('🔬 Research answers keys:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}));
     }
   }, [comprehensiveResults]);
 
@@ -318,10 +318,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
           <ComprehensiveResearchAnalysisButton dealId={dealId} />
         </div>
 
-        {/* Research Analysis Progress - Only show during active processing */}
-        <div className="mb-4">
-          <ResearchAnalysisProgress dealId={dealId} />
-        </div>
+
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
