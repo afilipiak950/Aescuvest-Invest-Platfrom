@@ -233,6 +233,55 @@ export const agentAnalyses = pgTable("agent_analyses", {
       recommendations?: string[];
     };
   }>(),
+  ip_answers: json("ip_answers").$type<{
+    [key: string]: {
+      question: string;
+      answer: string;
+      confidence: number;
+      sources: string[];
+      keyFindings?: string[];
+      evidenceSummary?: string;
+      ipAssessment?: string;
+      recommendations?: string[];
+      jurisdiction?: string;
+      patentStatus?: string;
+      trademarkClass?: string;
+      licenseType?: string;
+    };
+  }>(),
+  hr_answers: json("hr_answers").$type<{
+    [key: string]: {
+      question: string;
+      answer: string;
+      confidence: number;
+      sources: string[];
+      detailedEvidence?: any[];
+      keyFindings?: string[];
+      recommendations?: string[];
+    };
+  }>(),
+  financial_answers: json("financial_answers").$type<{
+    [key: string]: {
+      question: string;
+      answer: string;
+      confidence: number;
+      sources: string[];
+      detailedEvidence?: any[];
+      keyFindings?: string[];
+      recommendations?: string[];
+    };
+  }>(),
+  research_answers: json("research_answers").$type<{
+    [key: string]: {
+      question: string;
+      answer: string;
+      confidence: number;
+      sources: string[];
+      detailedEvidence?: any[];
+      keyFindings?: string[];
+      recommendations?: string[];
+    };
+  }>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
