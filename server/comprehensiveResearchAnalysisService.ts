@@ -134,9 +134,9 @@ export class ComprehensiveResearchAnalysisService {
           startedAt: new Date()
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-      throw new Error(`Failed to initialize comprehensive research analysis: ${error.message}`);
+      throw new Error(`Failed to initialize comprehensive research analysis: ${error?.message || 'Unknown error'}`);
     }
     
     await this.setProgress(dealId, {
@@ -397,6 +397,19 @@ export class ComprehensiveResearchAnalysisService {
 
 
 
+  private getDocumentContent(doc: any): string {
+    if (typeof doc.aiSummary === 'object' && doc.aiSummary?.executiveSummary) {
+      return `${doc.name} ${doc.aiSummary.executiveSummary}`;
+    }
+    if (typeof doc.aiSummary === 'string') {
+      return `${doc.name} ${doc.aiSummary}`;
+    }
+    if (doc.ocrText && doc.ocrText.length > 0) {
+      return `${doc.name} ${doc.ocrText}`;
+    }
+    return doc.name || '';
+  }
+
   private calculateRelevance(docContent: string, questionContent: string): number {
     const docWords = docContent.toLowerCase().split(/\s+/);
     const questionWords = questionContent.toLowerCase().split(/\s+/);
@@ -471,9 +484,9 @@ export class ComprehensiveResearchAnalysisService {
       return {
         documentId: doc.id,
         documentName: doc.name,
-        extractedText: content.substring(0, 2000), // More comprehensive text extraction
+        extractedText: content ? content.substring(0, 2000) : '', // More comprehensive text extraction
         relevanceScore,
-        documentSummary: doc.aiSummary?.executiveSummary || content.substring(0, 500),
+        documentSummary: doc.aiSummary?.executiveSummary || (content ? content.substring(0, 500) : ''),
         matchingKeywords: keywords.filter(keyword => 
           content.toLowerCase().includes(keyword.toLowerCase())
         )
@@ -531,7 +544,7 @@ export class ComprehensiveResearchAnalysisService {
     }
     
     // Content length bonus (longer documents more likely to have research content)
-    if (content.length > 1000) score += 0.1;
+    if (content && content.length > 1000) score += 0.1;
     
     return Math.min(score, 1.0); // Cap at 1.0
   }
