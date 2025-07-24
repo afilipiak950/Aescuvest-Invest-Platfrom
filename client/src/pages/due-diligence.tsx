@@ -319,19 +319,25 @@ export default function DueDiligence() {
   // Mutation for running all agent analyses (manual trigger)
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
-      
-      // Step 1: Stop all running analyses first 
-      console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
       try {
-        await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
-      } catch (stopError) {
-        console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
-      }
+        console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
+        
+        // Validate selectedDeal is available in mutation context
+        if (!selectedDeal) {
+          throw new Error('No deal selected for analysis');
+        }
+        
+        // Step 1: Stop all running analyses first 
+        console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
+        try {
+          await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
+        } catch (stopError) {
+          console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
+        }
       
       // Step 2: Delete all existing analyses 
       console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
@@ -381,6 +387,11 @@ export default function DueDiligence() {
       });
       
       return Promise.all(promises);
+      
+      } catch (mutationError) {
+        console.error('❌ Critical error in mutation function:', mutationError);
+        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
+      }
     },
     onSuccess: (results) => {
       console.log(`✅ All comprehensive analyses started successfully:`, results);
@@ -473,6 +484,19 @@ export default function DueDiligence() {
   const handleRunAllAnalyses = () => {
     try {
       console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
+      
+      // Validate selectedDeal exists
+      if (!selectedDeal) {
+        console.error('❌ No deal selected');
+        toast({
+          title: "No Deal Selected",
+          description: "Please select a deal before running analyses.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+      
       setIsRunningAllAnalyses(true);
       
       // Immediately show loading feedback
@@ -485,18 +509,42 @@ export default function DueDiligence() {
       // Immediately invalidate all agent queries to clear existing data and show loading states
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       agentTypes.forEach(agentType => {
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+        try {
+          queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+        } catch (invalidateError) {
+          console.warn(`Failed to invalidate ${agentType} queries:`, invalidateError);
+        }
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       
-      runAllAnalysesMutation.mutate();
+      try {
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      } catch (invalidateError) {
+        console.warn(`Failed to invalidate analyses queries:`, invalidateError);
+      }
+      
+      // Use setTimeout to ensure UI updates before starting mutation
+      setTimeout(() => {
+        try {
+          runAllAnalysesMutation.mutate();
+        } catch (mutationError) {
+          console.error('❌ Error starting mutation:', mutationError);
+          setIsRunningAllAnalyses(false);
+          toast({
+            title: "Mutation Error",
+            description: "Failed to start analysis mutation. Please try again.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }, 100);
+      
     } catch (error) {
-      console.error('❌ Error in handleRunAllAnalyses:', error);
+      console.error('❌ Critical error in handleRunAllAnalyses:', error);
       setIsRunningAllAnalyses(false);
       
       toast({
-        title: "Error",
-        description: "Failed to start analyses. Please refresh the page and try again.",
+        title: "Critical Error",
+        description: `Failed to start analyses: ${(error as any)?.message || 'Unknown error'}. Please refresh the page and try again.`,
         variant: "destructive",
         duration: 5000,
       });
@@ -926,7 +974,19 @@ export default function DueDiligence() {
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
                 <Button 
-                  onClick={handleRunAllAnalyses}
+                  onClick={() => {
+                    try {
+                      handleRunAllAnalyses();
+                    } catch (buttonError) {
+                      console.error('❌ Button click error:', buttonError);
+                      toast({
+                        title: "Button Error",
+                        description: "Failed to handle button click. Please refresh the page.",
+                        variant: "destructive",
+                        duration: 5000,
+                      });
+                    }
+                  }}
                   disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
                   className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
                   size="sm"
