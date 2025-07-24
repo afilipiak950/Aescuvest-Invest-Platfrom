@@ -4269,13 +4269,13 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Parse IP answers if they exist
+      // Parse IP answers if they exist  
       let ipAnswers = {};
-      if (analysis.ipAnswers) {
+      if (analysis.ip_answers) {
         try {
-          ipAnswers = typeof analysis.ipAnswers === 'string' 
-            ? JSON.parse(analysis.ipAnswers) 
-            : analysis.ipAnswers;
+          ipAnswers = typeof analysis.ip_answers === 'string' 
+            ? JSON.parse(analysis.ip_answers) 
+            : analysis.ip_answers;
         } catch (error) {
           console.error('Error parsing IP answers:', error);
         }

@@ -1,8 +1,8 @@
 import { storage } from './storage';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // IP Questions based on user requirements
@@ -339,13 +339,14 @@ class ComprehensiveIpAnalysisService {
         }
       `;
 
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
         max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: "json_object" }
       });
 
-      const result = JSON.parse(response.content[0].type === 'text' ? response.content[0].text : '');
+      const result = JSON.parse(response.choices[0].message.content || '{}');
       
       if (!result.relevantText || result.relevantText.trim() === '') {
         return null;
@@ -447,13 +448,14 @@ class ComprehensiveIpAnalysisService {
       Focus on investment due diligence perspective. Be specific about IP risks and opportunities.
     `;
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514", 
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
       max_tokens: 3000,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.content[0].type === 'text' ? response.content[0].text : '');
+    const result = JSON.parse(response.choices[0].message.content || '{}');
     
     return {
       question: question.question,
@@ -513,7 +515,7 @@ class ComprehensiveIpAnalysisService {
         progress: 100,
         findings,
         recommendations,
-        ipAnswers: JSON.stringify(answers),
+        ip_answers: JSON.stringify(answers),
         completedAt: new Date().toISOString()
       };
 
