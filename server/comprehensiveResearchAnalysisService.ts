@@ -1,4 +1,7 @@
 import { storage } from './storage';
+import { db } from './db';
+import { documents } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -319,49 +322,80 @@ export class ComprehensiveResearchAnalysisService {
   }
 
   private async getAssignedResearchDocuments(dealId: number): Promise<any[]> {
-    const allDocs = await storage.getDocumentsByDealId(dealId);
+    const allDocuments = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.dealId, dealId));
     
-    // Enhanced research keywords for comprehensive document matching
-    const researchKeywords = [
-      // Market Analysis
-      'market', 'tam', 'sam', 'som', 'addressable', 'size', 'growth', 'trends', 'dynamics',
-      'industry', 'segment', 'opportunity', 'potential', 'forecast', 'projection',
-      // Competitive
-      'competitive', 'competitor', 'competition', 'landscape', 'analysis', 'positioning',
-      'differentiation', 'advantage', 'moat', 'benchmark', 'comparison', 'market share',
-      // Customer & Business Model
-      'customer', 'target', 'persona', 'segment', 'use case', 'pain point', 'value proposition',
-      'go-to-market', 'gtm', 'sales', 'marketing', 'channel', 'acquisition', 'retention',
-      // Technology & Innovation
-      'technology', 'innovation', 'r&d', 'research', 'development', 'technical', 'scalability',
-      'architecture', 'platform', 'solution', 'product', 'feature', 'roadmap',
-      // Investment
-      'investment', 'thesis', 'strategy', 'valuation', 'return', 'exit', 'risk', 'opportunity',
-      'due diligence', 'analysis', 'assessment', 'evaluation', 'recommendation'
-    ];
-
-    return allDocs.filter(doc => {
-      if (doc.agentAssignments?.includes('Research')) {
-        return true;
-      }
-
-      const content = this.getDocumentContent(doc).toLowerCase();
-      const matchCount = researchKeywords.filter(keyword => content.includes(keyword)).length;
+    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // First try documents explicitly assigned to research agent
+    let researchDocuments = allDocuments.filter(doc => 
+      (doc.assignedAgents && doc.assignedAgents.includes('Research')) && 
+      (doc.ocrText || doc.aiSummary)
+    );
+    
+    console.log(`📄 Documents explicitly assigned to research: ${researchDocuments.length}`);
+    
+    // If no documents are explicitly assigned to research, identify research-related documents
+    if (researchDocuments.length === 0) {
+      console.log('📄 No documents explicitly assigned to research agent, identifying research-related documents...');
       
-      // Return documents with at least 3 keyword matches for comprehensive coverage
-      return matchCount >= 3;
-    });
+      const researchKeywords = [
+        // Market Analysis
+        'market', 'tam', 'sam', 'som', 'addressable', 'size', 'growth', 'trends', 'dynamics',
+        'industry', 'segment', 'opportunity', 'potential', 'forecast', 'projection',
+        // Competitive
+        'competitive', 'competitor', 'competition', 'landscape', 'analysis', 'positioning',
+        'differentiation', 'advantage', 'moat', 'benchmark', 'comparison', 'market share',
+        // Customer & Business Model  
+        'customer', 'target', 'persona', 'segment', 'use case', 'pain point', 'value proposition',
+        'go-to-market', 'gtm', 'sales', 'marketing', 'channel', 'acquisition', 'retention',
+        // Technology & Innovation
+        'technology', 'innovation', 'r&d', 'research', 'development', 'technical', 'scalability',
+        'architecture', 'platform', 'solution', 'product', 'feature', 'roadmap',
+        // Investment
+        'investment', 'thesis', 'strategy', 'valuation', 'return', 'exit', 'risk', 'opportunity',
+        'due diligence', 'analysis', 'assessment', 'evaluation', 'recommendation'
+      ];
+
+      researchDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiSummary = doc.aiSummary;
+        
+        // Check document name and content for research keywords
+        const hasResearchKeywords = researchKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword)
+        );
+        
+        // Check AI summary for research document type
+        const isResearchDocument = aiSummary?.documentType?.toLowerCase().includes('research') ||
+                                  aiSummary?.executiveSummary?.toLowerCase().includes('market') ||
+                                  aiSummary?.executiveSummary?.toLowerCase().includes('competitive') ||
+                                  aiSummary?.executiveSummary?.toLowerCase().includes('analysis');
+        
+        return hasResearchKeywords || isResearchDocument;
+      });
+      
+      console.log(`📄 Auto-identified research documents: ${researchDocuments.length}`);
+    }
+    
+    // If still no research documents, take documents with meaningful content for analysis
+    if (researchDocuments.length === 0) {
+      console.log('📄 No research-related documents found, using all documents with OCR text...');
+      researchDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
+      );
+      console.log(`📄 Documents with content available: ${researchDocuments.length}`);
+    }
+    
+    return researchDocuments;
   }
 
-  private getDocumentContent(doc: any): string {
-    if (typeof doc.aiSummary === 'object' && doc.aiSummary?.executiveSummary) {
-      return `${doc.name} ${doc.aiSummary.executiveSummary}`;
-    }
-    if (typeof doc.aiSummary === 'string') {
-      return `${doc.name} ${doc.aiSummary}`;
-    }
-    return doc.name || '';
-  }
+
 
   private calculateRelevance(docContent: string, questionContent: string): number {
     const docWords = docContent.toLowerCase().split(/\s+/);
