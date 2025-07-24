@@ -1388,6 +1388,10 @@ export class DatabaseStorage implements IStorage {
         legalAnswers: agentAnalyses.legalAnswers,
         clinicalAnswers: agentAnalyses.clinicalAnswers,
         commercialAnswers: agentAnalyses.commercialAnswers,
+        research_answers: agentAnalyses.research_answers,
+        financial_answers: agentAnalyses.financial_answers,
+        hr_answers: agentAnalyses.hr_answers,
+        ip_answers: agentAnalyses.ip_answers,
         createdAt: agentAnalyses.createdAt,
         updatedAt: agentAnalyses.updatedAt
       }).from(agentAnalyses)
@@ -1408,6 +1412,10 @@ export class DatabaseStorage implements IStorage {
         legalAnswers: agentAnalyses.legalAnswers,
         clinicalAnswers: agentAnalyses.clinicalAnswers,
         commercialAnswers: agentAnalyses.commercialAnswers,
+        research_answers: agentAnalyses.research_answers,
+        financial_answers: agentAnalyses.financial_answers,
+        hr_answers: agentAnalyses.hr_answers,
+        ip_answers: agentAnalyses.ip_answers,
         createdAt: agentAnalyses.createdAt,
         updatedAt: agentAnalyses.updatedAt
       }).from(agentAnalyses)
