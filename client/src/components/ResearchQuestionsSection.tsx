@@ -142,6 +142,15 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
       </div>
     );
   }
+
+  // Add comprehensive null safety checks
+  if (!dealId || !documents) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-gray-400">Loading research analysis...</p>
+      </div>
+    );
+  }
   
   const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
   const [selectedQuoteData, setSelectedQuoteData] = useState<{
@@ -164,12 +173,23 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
 
   // Handle document click
   const handleDocumentClick = (documentName: string) => {
-    console.log('📄 Document clicked:', documentName);
-    // Find the document and open it
-    const document = documents.find(doc => doc.name === documentName);
-    if (document) {
-      // Open document viewer or download
-      window.open(`/api/documents/${document.id}/download`, '_blank');
+    try {
+      console.log('📄 Document clicked:', documentName);
+      if (!documents || !Array.isArray(documents)) {
+        console.warn('Documents array not available');
+        return;
+      }
+      
+      // Find the document and open it
+      const document = documents.find(doc => doc && doc.name === documentName);
+      if (document && document.id) {
+        // Open document viewer or download
+        window.open(`/api/documents/${document.id}/download`, '_blank');
+      } else {
+        console.warn('Document not found:', documentName);
+      }
+    } catch (error) {
+      console.error('Error handling document click:', error);
     }
   };
 
