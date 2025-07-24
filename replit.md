@@ -479,6 +479,15 @@ Changelog:
   - **Progress Bar System**: All 7 agents now have individual progress bars with proper agentType matching (Clinical, Legal, Commercial, HR, Financial, IP, Research)
   - **Background Job Status**: Currently 6 agents running (Financial 57%, IP 49%, HR 19%, Clinical 9%, Commercial 5%, Legal 0%) with Research completed
   - **Research Results Confirmed**: Research agent completed successfully with 11 answered questions covering market, patent, academic, and technical analysis
+- July 24, 2025: **CRITICAL BUG FIXED** - Research agent now processes ALL assigned documents with comprehensive batch processing
+  - **Root Cause Resolved**: Research agent was only processing first 15 documents per question instead of ALL assigned documents like Clinical/Legal agents
+  - **Comprehensive Document Processing**: Updated extractEvidenceFromDocuments method to use batch processing approach identical to Clinical agent
+  - **Batch Processing Implementation**: Research agent now processes documents in batches of 10 with comprehensive logging (🔬 Processing batch 4/8)
+  - **Enhanced Evidence Extraction**: Added extractEvidenceFromDocument method for individual document analysis with category-specific keyword matching
+  - **Improved Relevance Scoring**: Enhanced calculateResearchRelevanceScore method with Technical Whitepapers, Market Research, Academic Publications, and Patent Landscape scoring
+  - **All Document Coverage**: Research agent now processes all 72+ assigned research documents instead of just 15, matching Clinical/Legal comprehensive approach
+  - **Progress Tracking Verified**: Confirmed proper background job tracking with real-time progress updates and database persistence
+  - **System Consistency**: All 7 agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now have identical comprehensive document processing behavior
 - July 24, 2025: Fixed Research analysis system database storage and frontend display issues
   - **Database Fix**: Resolved critical field name mismatch between `researchAnswers` (camelCase) and `research_answers` (snake_case) database column
   - **Method Name Correction**: Fixed incorrect method names from `createOrUpdateAgentAnalysis` to proper `createAgentAnalysis`/`updateAgentAnalysis` 

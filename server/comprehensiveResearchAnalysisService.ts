@@ -194,7 +194,7 @@ export class ComprehensiveResearchAnalysisService {
             currentStep: `Processing: ${question.question}`
           });
           
-          // Extract evidence from all research documents for this specific question
+          // Extract evidence from ALL research documents for this specific question using comprehensive batch processing
           const questionEvidence = await this.extractEvidenceFromDocuments(researchDocs, question);
           
           if (questionEvidence.length > 0) {
@@ -374,36 +374,148 @@ export class ComprehensiveResearchAnalysisService {
     return matches.length / questionWords.length;
   }
 
+  // Extract evidence from ALL documents using comprehensive batch processing like Clinical/Legal agents
   private async extractEvidenceFromDocuments(documents: any[], question: any): Promise<any[]> {
-    const evidence = [];
-    const questionKeywords = [
-      ...question.question.toLowerCase().split(' ').filter(w => w.length > 3),
-      ...question.analysisPrompt.toLowerCase().split(' ').filter(w => w.length > 3),
-      ...question.category.toLowerCase().split(' ').filter(w => w.length > 3)
-    ];
+    console.log(`🔬 Extracting evidence from ${documents.length} documents for: ${question.question}`);
     
-    for (const doc of documents.slice(0, 15)) { // Process up to 15 docs per question
-      const content = this.getDocumentContent(doc);
-      if (!content || content.length < 30) continue;
+    const batchSize = 10;
+    const batches = [];
+    for (let i = 0; i < documents.length; i += batchSize) {
+      batches.push(documents.slice(i, i + batchSize));
+    }
+    
+    console.log(`🔬 Processing ${batches.length} batches of ${batchSize} documents each`);
+    
+    const allEvidence: any[] = [];
+    
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      console.log(`🔬 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} documents)`);
       
-      // Calculate relevance score
-      const relevanceScore = this.calculateRelevance(content, question.question + ' ' + question.analysisPrompt);
+      const batchEvidence = await Promise.all(
+        batch.map(async (doc) => {
+          console.log(`🔎 Extracting evidence from: ${doc.name}`);
+          return await this.extractEvidenceFromDocument(doc, question);
+        })
+      );
       
-      if (relevanceScore > 0.1) { // Only include documents with some relevance
-        evidence.push({
-          documentName: doc.name || doc.fileName,
-          documentId: doc.id,
-          extractedText: content.substring(0, 500) + (content.length > 500 ? '...' : ''),
-          relevanceScore: relevanceScore,
-          matchingKeywords: questionKeywords.filter(kw => content.toLowerCase().includes(kw)),
-          documentSummary: typeof doc.aiSummary === 'object' 
-            ? doc.aiSummary.executiveSummary || 'Document summary not available'
-            : doc.aiSummary || 'Document summary not available'
-        });
+      // Filter out null results and add to all evidence
+      const validEvidence = batchEvidence.filter(evidence => evidence !== null);
+      allEvidence.push(...validEvidence);
+      
+      console.log(`✅ Batch ${batchIndex + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      
+      // Add small delay between batches to prevent API rate limiting
+      if (batchIndex < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    return evidence.sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, 8);
+    console.log(`📋 Extracted evidence from ${allEvidence.length}/${documents.length} documents`);
+    return allEvidence.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  }
+
+  // Extract evidence from a single document for a specific research question
+  private async extractEvidenceFromDocument(doc: any, question: any): Promise<any | null> {
+    try {
+      const content = this.getDocumentContent(doc);
+      if (!content || content.trim().length < 50) {
+        return null;
+      }
+      
+      // Get research-specific keywords for this question category
+      const keywords = this.getResearchKeywords(question.category);
+      
+      // Calculate relevance score based on keyword matching and content analysis
+      const relevanceScore = this.calculateResearchRelevanceScore(doc.name, content, question, keywords);
+      
+      // Only include documents that have minimum relevance (same threshold as other agents)
+      if (relevanceScore < 0.1) {
+        return null;
+      }
+      
+      return {
+        documentId: doc.id,
+        documentName: doc.name,
+        extractedText: content.substring(0, 2000), // More comprehensive text extraction
+        relevanceScore,
+        documentSummary: doc.aiSummary?.executiveSummary || content.substring(0, 500),
+        matchingKeywords: keywords.filter(keyword => 
+          content.toLowerCase().includes(keyword.toLowerCase())
+        )
+      };
+    } catch (error) {
+      console.error(`Error extracting evidence from ${doc.name}:`, error);
+      return null;
+    }
+  }
+
+  // Calculate research relevance score using comprehensive approach
+  private calculateResearchRelevanceScore(docName: string, content: string, question: any, keywords: string[]): number {
+    const lowerContent = content.toLowerCase();
+    const lowerDocName = docName.toLowerCase();
+    let score = 0;
+    
+    // Base score for keyword matches in content
+    const keywordMatches = keywords.filter(keyword => 
+      lowerContent.includes(keyword.toLowerCase())
+    ).length;
+    score += (keywordMatches / keywords.length) * 0.4;
+    
+    // Bonus for keyword matches in document name
+    const nameMatches = keywords.filter(keyword => 
+      lowerDocName.includes(keyword.toLowerCase())
+    ).length;
+    score += (nameMatches / keywords.length) * 0.2;
+    
+    // Category-specific scoring
+    switch (question.category) {
+      case 'Technical Whitepapers':
+        if (lowerContent.includes('methodology') || lowerContent.includes('protocol') || 
+            lowerContent.includes('procedure') || lowerContent.includes('analysis')) {
+          score += 0.3;
+        }
+        break;
+      case 'Market Research Reports':
+        if (lowerContent.includes('market') || lowerContent.includes('forecast') || 
+            lowerContent.includes('tam') || lowerContent.includes('sam')) {
+          score += 0.3;
+        }
+        break;
+      case 'Academic Publications':
+        if (lowerContent.includes('peer-review') || lowerContent.includes('journal') || 
+            lowerContent.includes('publication') || lowerContent.includes('citation')) {
+          score += 0.3;
+        }
+        break;
+      case 'Patent Landscape Analyses':
+        if (lowerContent.includes('patent') || lowerContent.includes('citation') || 
+            lowerContent.includes('prior art') || lowerContent.includes('intellectual property')) {
+          score += 0.3;
+        }
+        break;
+    }
+    
+    // Content length bonus (longer documents more likely to have research content)
+    if (content.length > 1000) score += 0.1;
+    
+    return Math.min(score, 1.0); // Cap at 1.0
+  }
+
+  // Get research-specific keywords for each category
+  private getResearchKeywords(category: string): string[] {
+    switch (category) {
+      case 'Technical Whitepapers':
+        return ['methodology', 'protocol', 'procedure', 'analysis', 'technical', 'system', 'design', 'implementation', 'validation', 'testing'];
+      case 'Market Research Reports':
+        return ['market', 'tam', 'sam', 'som', 'forecast', 'growth', 'opportunity', 'competitive', 'industry', 'segment'];
+      case 'Academic Publications':
+        return ['peer-review', 'journal', 'publication', 'citation', 'research', 'study', 'academic', 'scientific', 'paper', 'conference'];
+      case 'Patent Landscape Analyses':
+        return ['patent', 'intellectual property', 'ip', 'citation', 'prior art', 'invention', 'claim', 'uspto', 'filing', 'prosecution'];
+      default:
+        return ['research', 'analysis', 'study', 'evaluation', 'assessment', 'investigation'];
+    }
   }
 
   private async generateResearchAnalysis(question: any, evidence: any[]): Promise<any> {
