@@ -352,7 +352,18 @@ class ComprehensiveCommercialAnalysisService {
       };
     }
 
-    const content = doc.ocrText || doc.aiSummary || '';
+    // Ensure content is a string for safe processing
+    let content = '';
+    if (doc.ocrText && typeof doc.ocrText === 'string') {
+      content = doc.ocrText;
+    } else if (doc.aiSummary) {
+      if (typeof doc.aiSummary === 'string') {
+        content = doc.aiSummary;
+      } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+        content = doc.aiSummary.executiveSummary;
+      }
+    }
+
     const prompt = `
     You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
 
