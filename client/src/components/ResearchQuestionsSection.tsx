@@ -73,6 +73,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   React.useEffect(() => {
+    try {
     if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray((jobProgress as any).jobs)) {
       const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research');
       if (researchJob && researchJob.status === 'processing') {
@@ -83,6 +84,10 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
         setIsVisible(false);
       }
     } else {
+      setIsVisible(false);
+    }
+    } catch (error) {
+      console.error('Error in ResearchAnalysisProgress useEffect:', error);
       setIsVisible(false);
     }
   }, [jobProgress]);
@@ -121,11 +126,25 @@ interface ResearchQuestionsSectionProps {
 export default function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: ResearchQuestionsSectionProps) {
   const queryClient = useQueryClient();
 
-  // Fetch comprehensive Research analysis data
-  const { data: comprehensiveResults } = useQuery({
+  // Fetch comprehensive Research analysis data with error handling
+  const { data: comprehensiveResults, error: comprehensiveError } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
+    retry: false,
+    onError: (error) => {
+      console.error('Error fetching comprehensive research results:', error);
+    }
   });
+
+  // Add error boundary protection
+  if (comprehensiveError) {
+    console.error('Research tab error:', comprehensiveError);
+    return (
+      <div className="text-center p-8">
+        <p className="text-red-400">Unable to load research analysis. Please refresh the page.</p>
+      </div>
+    );
+  }
   
   const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
   const [selectedQuoteData, setSelectedQuoteData] = useState<{
@@ -254,22 +273,23 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     return null;
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500/5 to-cyan-600/5 border border-cyan-500/20 rounded-lg p-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Research Analysis</h3>
-          <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
-          </p>
+  try {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500/5 to-cyan-600/5 border border-cyan-500/20 rounded-lg p-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Research Analysis</h3>
+            <p className="text-gray-300 text-sm">
+              Analyze {assignedDocuments || 0} research documents across 4 categories with 11 detailed questions
+            </p>
+          </div>
+          <ComprehensiveResearchAnalysisButton dealId={dealId} />
         </div>
-        <ComprehensiveResearchAnalysisButton dealId={dealId} />
-      </div>
 
-      {/* Research Analysis Progress */}
-      <div className="mb-4">
-        <ResearchAnalysisProgress dealId={dealId} />
-      </div>
+        {/* Research Analysis Progress */}
+        <div className="mb-4">
+          <ResearchAnalysisProgress dealId={dealId} />
+        </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
@@ -362,4 +382,12 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
       />
     </div>
   );
+  } catch (error) {
+    console.error('Error in ResearchQuestionsSection:', error);
+    return (
+      <div className="text-center p-8 bg-red-500/10 border border-red-500/20 rounded-lg">
+        <p className="text-red-400">Research tab encountered an error. Please refresh the page.</p>
+      </div>
+    );
+  }
 }
