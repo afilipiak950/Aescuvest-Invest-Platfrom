@@ -1489,8 +1489,8 @@ export class DatabaseStorage implements IStorage {
           commercialAnswers: analysisResult.commercialAnswers || null,
           research_answers: analysisResult.research_answers || null,
           researchAnswers: analysisResult.research_answers || null,
-          financialAnswers: analysisResult.financialAnswers || null,
-          hrAnswers: analysisResult.hrAnswers || null,
+          financialAnswers: analysisResult.financial_answers || null,
+          hrAnswers: analysisResult.hr_answers || null,
           ip_answers: analysisResult.ip_answers || null
         };
       }

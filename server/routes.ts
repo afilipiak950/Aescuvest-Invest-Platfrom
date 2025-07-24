@@ -3862,6 +3862,49 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
           });
         }
       }
+
+      // For Financial agent, use comprehensive financial analysis results
+      if (agentType === 'financial') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'Financial');
+        
+        if (analysis && analysis.financial_answers) {
+          // Transform comprehensive Financial results to match the expected format
+          const financialAnswers = analysis.financial_answers || {};
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : 
+                          (typeof analysis.findings === 'string' ? [analysis.findings] : []);
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : 
+                                 (typeof analysis.recommendations === 'string' ? [analysis.recommendations] : []);
+          
+          // Count answered questions
+          const answeredQuestions = Object.keys(financialAnswers).length;
+          const totalQuestions = 6; // Financial has 6 questions
+          
+          const formattedAnalysis = {
+            status: answeredQuestions > 0 ? 'Completed' : 'Failed',
+            progress: Math.round((answeredQuestions / totalQuestions) * 100),
+            findings,
+            recommendations,
+            financialAnswers,
+            questionsAnswered: answeredQuestions,
+            totalQuestions,
+            completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+          };
+          
+          console.log(`✅ Found comprehensive Financial analysis for deal ${dealId}: ${answeredQuestions} questions answered, ${findings.length} findings, ${recommendations.length} recommendations`);
+          
+          return res.json({
+            success: true,
+            analysis: formattedAnalysis
+          });
+        } else {
+          // Fallback to regular agent analysis if no comprehensive results
+          console.log(`❌ No financial analysis found for deal ${dealId}`);
+          return res.json({ 
+            success: true, 
+            analysis: analysis || null
+          });
+        }
+      }
       
       // For other agent types, use regular agent analysis
       const analysis = await storage.getAgentAnalysis(dealId, agentType);
