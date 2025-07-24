@@ -1,4 +1,9 @@
 import { storage } from './storage';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const RESEARCH_QUESTIONS = [
   // Technical Whitepapers
@@ -172,59 +177,58 @@ export class ComprehensiveResearchAnalysisService {
         console.log(`🔬 Processing question ${i + 1}/${RESEARCH_QUESTIONS.length}: ${question.question}`);
         
         try {
-          // Update progress with error handling (both internal and background job)
-          const progress = Math.round((i / RESEARCH_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(analysisJobId, {
-            progress,
-            currentStep: `Analyzing: ${question.category}`,
-            currentDocument: question.question
-          });
-
+          const progressPercent = Math.round(((i + 1) / RESEARCH_QUESTIONS.length) * 100);
+          
           await this.setProgress(dealId, {
-            progress,
-            currentStep: `Analyzing: ${question.category}`,
-            currentQuestion: question.question
+            progress: progressPercent,
+            currentStep: `Processing: ${question.question}`,
+            message: `Analyzing question ${i + 1}/${RESEARCH_QUESTIONS.length}`,
+            processedDocuments: i + 1
           }, storage, analysisJobId);
-
-          // Get relevant documents for this question using comprehensive matching
-          const relevantDocs = researchDocs.filter(doc => {
-            const docContent = this.getDocumentContent(doc).toLowerCase();
-            const questionContent = question.question.toLowerCase() + ' ' + question.analysisPrompt.toLowerCase();
-            return this.calculateRelevance(docContent, questionContent) > 0.1;
+          
+          // Update background job with current question being processed
+          await storage.updateBackgroundJob(analysisJobId, {
+            progress: progressPercent,
+            processedDocuments: i + 1,
+            currentDocument: question.question,
+            currentStep: `Processing: ${question.question}`
           });
-
-          console.log(`🔬 Found ${relevantDocs.length} relevant documents for question: ${question.question}`);
-
-          if (relevantDocs.length === 0) {
+          
+          // Extract evidence from all research documents for this specific question
+          const questionEvidence = await this.extractEvidenceFromDocuments(researchDocs, question);
+          
+          if (questionEvidence.length > 0) {
+            // Generate AI-powered answer for this question using the evidence
+            const analysis = await this.generateResearchAnalysis(question, questionEvidence);
             researchAnswers[question.id] = {
               question: question.question,
-              answer: 'No relevant research documents found for this analysis.',
+              answer: analysis.answer,
+              confidence: analysis.confidence,
+              sources: questionEvidence.map(e => e.documentName),
+              quotes: [],
+              keyFindings: analysis.keyFindings,
+              evidenceSummary: analysis.evidenceSummary,
+              recommendations: analysis.recommendations,
+              detailedEvidence: questionEvidence.slice(0, 5)
+            };
+            
+            console.log(`✅ Completed question ${i + 1}/${RESEARCH_QUESTIONS.length}: ${question.question}`);
+          } else {
+            // No evidence found for this question
+            researchAnswers[question.id] = {
+              question: question.question,
+              answer: `No relevant evidence found in the research documents for: ${question.question}`,
               confidence: 0,
               sources: [],
-              detailedEvidence: [],
+              quotes: [],
               keyFindings: [],
-              evidenceSummary: 'No evidence available in current document set.',
-              researchAssessment: 'Cannot assess due to lack of relevant documentation.',
-              recommendations: ['Consider gathering additional research documentation for this area.']
+              evidenceSummary: 'No evidence found',
+              recommendations: [],
+              detailedEvidence: []
             };
-            continue;
+            
+            console.log(`⚠️ No evidence found for question ${i + 1}/${RESEARCH_QUESTIONS.length}: ${question.question}`);
           }
-
-          // Process documents with AI analysis
-          const evidence = await this.extractEvidenceFromDocuments(relevantDocs, question);
-          const analysis = await this.generateResearchAnalysis(question, evidence);
-          
-          researchAnswers[question.id] = {
-            question: question.question,
-            answer: analysis.answer,
-            confidence: analysis.confidence,
-            sources: evidence.map(e => e.documentName),
-            detailedEvidence: evidence,
-            keyFindings: analysis.keyFindings,
-            evidenceSummary: analysis.evidenceSummary,
-            researchAssessment: analysis.researchAssessment,
-            recommendations: analysis.recommendations
-          };
 
         } catch (questionError) {
           console.error(`🔬 Error processing research question ${question.id}:`, questionError);
@@ -233,11 +237,11 @@ export class ComprehensiveResearchAnalysisService {
             answer: 'Error occurred during analysis of this question.',
             confidence: 0,
             sources: [],
-            detailedEvidence: [],
+            quotes: [],
             keyFindings: [],
             evidenceSummary: 'Analysis failed due to processing error.',
-            researchAssessment: 'Could not complete research assessment.',
-            recommendations: ['Retry analysis or review document quality.']
+            recommendations: ['Retry analysis or review document quality.'],
+            detailedEvidence: []
           };
         }
       }
@@ -260,9 +264,10 @@ export class ComprehensiveResearchAnalysisService {
         dealId,
         agentType: 'Research',
         status: 'Completed',
-        results: researchAnswers,
-        findings: Object.values(researchAnswers).flatMap((answer: any) => answer.keyFindings || []),
-        recommendations: Object.values(researchAnswers).flatMap((answer: any) => answer.recommendations || []),
+        findings: Object.values(researchAnswers).flatMap((answer: any) => answer.keyFindings || []).slice(0, 100),
+        recommendations: Object.values(researchAnswers).flatMap((answer: any) => answer.recommendations || []).slice(0, 50),
+        researchAnswers: JSON.stringify(researchAnswers),
+        completedAt: new Date(),
         metadata: {
           questionsAnalyzed: RESEARCH_QUESTIONS.length,
           documentsProcessed: researchDocs.length,
@@ -348,31 +353,137 @@ export class ComprehensiveResearchAnalysisService {
   }
 
   private async extractEvidenceFromDocuments(documents: any[], question: any): Promise<any[]> {
-    // Simplified evidence extraction - in production this would use AI
-    return documents.slice(0, 10).map(doc => ({
-      documentName: doc.name,
-      documentSummary: typeof doc.aiSummary === 'object' 
-        ? doc.aiSummary.executiveSummary || 'No summary available'
-        : doc.aiSummary || 'No summary available',
-      relevantContent: [`Content related to: ${question.question}`],
-      keyFindings: [`Finding from ${doc.name}`],
-      confidence: 0.7
-    }));
+    const evidence = [];
+    const questionKeywords = [
+      ...question.question.toLowerCase().split(' ').filter(w => w.length > 3),
+      ...question.analysisPrompt.toLowerCase().split(' ').filter(w => w.length > 3),
+      ...question.category.toLowerCase().split(' ').filter(w => w.length > 3)
+    ];
+    
+    for (const doc of documents.slice(0, 15)) { // Process up to 15 docs per question
+      const content = this.getDocumentContent(doc);
+      if (!content || content.length < 30) continue;
+      
+      // Calculate relevance score
+      const relevanceScore = this.calculateRelevance(content, question.question + ' ' + question.analysisPrompt);
+      
+      if (relevanceScore > 0.1) { // Only include documents with some relevance
+        evidence.push({
+          documentName: doc.name || doc.fileName,
+          documentId: doc.id,
+          extractedText: content.substring(0, 500) + (content.length > 500 ? '...' : ''),
+          relevanceScore: relevanceScore,
+          matchingKeywords: questionKeywords.filter(kw => content.toLowerCase().includes(kw)),
+          documentSummary: typeof doc.aiSummary === 'object' 
+            ? doc.aiSummary.executiveSummary || 'Document summary not available'
+            : doc.aiSummary || 'Document summary not available'
+        });
+      }
+    }
+    
+    return evidence.sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, 8);
   }
 
   private async generateResearchAnalysis(question: any, evidence: any[]): Promise<any> {
-    // Simplified analysis generation - in production this would use AI
-    return {
-      answer: `Based on analysis of ${evidence.length} documents, research findings indicate ${question.category.toLowerCase()} considerations are documented.`,
-      confidence: evidence.length > 0 ? 0.75 : 0.25,
-      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
-      evidenceSummary: `Analysis based on ${evidence.length} relevant documents covering ${question.category}.`,
-      researchAssessment: `Research assessment for ${question.category} shows ${evidence.length > 2 ? 'comprehensive' : 'limited'} documentation.`,
-      recommendations: [
-        `Continue monitoring ${question.category} developments`,
-        `Consider additional research in ${question.category} area`
-      ]
+    if (evidence.length === 0) {
+      return {
+        answer: `No relevant evidence found for: ${question.question}`,
+        confidence: 0,
+        keyFindings: [],
+        evidenceSummary: 'No evidence available in current document set',
+        researchAssessment: 'Cannot assess due to lack of evidence',
+        recommendations: ['Consider gathering additional research documentation for this area']
+      };
+    }
+
+    const evidenceText = evidence.map(e => 
+      `Document: ${e.documentName}\nSummary: ${e.documentSummary}\nRelevant content: ${e.extractedText}`
+    ).join('\n\n');
+    
+    const prompt = `
+As a venture capital research analyst, analyze this evidence for the research question:
+
+Research Question: ${question.question}
+Category: ${question.category}
+Analysis Focus: ${question.analysisPrompt}
+
+Evidence from ${evidence.length} documents:
+${evidenceText}
+
+Provide a comprehensive research analysis in JSON format:
+{
+  "answer": "Direct answer to the research question based on evidence (2-3 sentences)",
+  "confidence": "Confidence score 0-100 based on evidence quality and completeness",
+  "keyFindings": ["Key finding 1", "Key finding 2", "Key finding 3"],
+  "evidenceSummary": "Summary of what the evidence shows (1-2 sentences)",
+  "researchAssessment": "Assessment of research quality and methodology (1-2 sentences)",
+  "recommendations": ["Recommendation 1 for investors", "Recommendation 2 for investors"]
+}
+
+Focus on investment due diligence. Be thorough and critical in your analysis.
+`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 1000
+      });
+
+      const analysis = JSON.parse(response.choices[0].message.content);
+      
+      return {
+        answer: analysis.answer || `Analysis completed for: ${question.question}`,
+        confidence: Math.min(100, Math.max(0, analysis.confidence || 60)),
+        keyFindings: Array.isArray(analysis.keyFindings) ? analysis.keyFindings.slice(0, 3) : [],
+        evidenceSummary: analysis.evidenceSummary || 'Evidence analyzed successfully',
+        researchAssessment: analysis.researchAssessment || 'Research assessment completed',
+        recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations.slice(0, 2) : []
+      };
+      
+    } catch (error) {
+      console.error('🔬 Error generating research analysis:', error);
+      return {
+        answer: `AI analysis encountered an error for: ${question.question}`,
+        confidence: 25,
+        keyFindings: ['Analysis could not be completed due to processing error'],
+        evidenceSummary: 'Error in AI processing',
+        researchAssessment: 'Could not assess research quality due to error',
+        recommendations: ['Retry analysis or review evidence quality']
+      };
+    }
+  }
+
+  async getAnalysisResults(dealId: number) {
+    const analysis = await storage.getAgentAnalysisByDealAndType(dealId, 'Research');
+    
+    if (!analysis) {
+      return null;
+    }
+
+    const results = {
+      status: analysis.status,
+      findings: analysis.findings || [],
+      recommendations: analysis.recommendations || [],
+      completedAt: analysis.completedAt
     };
+
+    // Parse research answers if they exist
+    if (analysis.researchAnswers) {
+      try {
+        const researchAnswers = typeof analysis.researchAnswers === 'string' 
+          ? JSON.parse(analysis.researchAnswers) 
+          : analysis.researchAnswers;
+        results.researchAnswers = researchAnswers;
+      } catch (error) {
+        console.error('Error parsing research answers:', error);
+        results.researchAnswers = {};
+      }
+    }
+
+    return results;
   }
 }
 
