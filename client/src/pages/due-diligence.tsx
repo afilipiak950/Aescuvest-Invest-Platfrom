@@ -21,23 +21,24 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-export default function DueDiligence() {
-  const [location] = useLocation();
-  const params = useParams();
-  const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
-  const [activeAgent, setActiveAgent] = useState<string>('legal');
-  const [isUploading, setIsUploading] = useState(false);
-  const [showUploadField, setShowUploadField] = useState(false);
-  const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
-  const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
-  const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
+function DueDiligenceContent() {
+    const [location] = useLocation();
+    const params = useParams();
+    const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
+    const [activeAgent, setActiveAgent] = useState<string>('legal');
+    const [isUploading, setIsUploading] = useState(false);
+    const [showUploadField, setShowUploadField] = useState(false);
+    const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
+    const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
+    const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
 
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
 
-  // Parse URL parameters and set selected deal
-  useEffect(() => {
+    // Parse URL parameters and set selected deal
+    useEffect(() => {
     // Check for deal ID in URL path parameter first
     if (params.dealId) {
       setSelectedDeal(params.dealId);
@@ -551,14 +552,14 @@ export default function DueDiligence() {
     }
   };
 
-  return (
-    <div className="container mx-auto px-4 py-6">
-      <PageHeader 
-        title="Due Diligence Analysis" 
-        description="Analyze company documents and generate insights with AI agents."
-      />
-      
-      {/* Deal Selection */}
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <PageHeader 
+          title="Due Diligence Analysis" 
+          description="Analyze company documents and generate insights with AI agents."
+        />
+        
+        {/* Deal Selection */}
       <Card className="bg-dark-light border-dark-lighter mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4">
@@ -1188,7 +1189,15 @@ export default function DueDiligence() {
             <p className="text-gray-400 mb-4">Please select a deal to view its due diligence analysis.</p>
           </CardContent>
         </Card>
-      )}
-    </div>
+        )}
+      </div>
+    );
+}
+
+export default function DueDiligence() {
+  return (
+    <ErrorBoundary>
+      <DueDiligenceContent />
+    </ErrorBoundary>
   );
 }
