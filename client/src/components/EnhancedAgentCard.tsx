@@ -429,7 +429,7 @@ export default function EnhancedAgentCard({
   let findings = [];
   let recommendations = [];
   
-  if (analysisData.findings) {
+  if (analysisData && analysisData.findings) {
     if (Array.isArray(analysisData.findings)) {
       findings = analysisData.findings;
     } else if (typeof analysisData.findings === 'string') {
@@ -448,7 +448,7 @@ export default function EnhancedAgentCard({
     }
   }
   
-  if (analysisData.recommendations) {
+  if (analysisData && analysisData.recommendations) {
     if (Array.isArray(analysisData.recommendations)) {
       recommendations = analysisData.recommendations;
     } else if (typeof analysisData.recommendations === 'string') {
@@ -461,7 +461,7 @@ export default function EnhancedAgentCard({
     }
   }
   
-  const status = analysisData.status || 'Not Started';
+  const status = analysisData?.status || 'Not Started';
 
   // Get agent color classes for consistent styling
   const getAgentColorClasses = (agentType: string) => {
@@ -677,7 +677,7 @@ export default function EnhancedAgentCard({
     }
     
     // Use backend progress if available
-    if (analysisData.progress && analysisData.progress > 0) {
+    if (analysisData && analysisData.progress && analysisData.progress > 0) {
       return analysisData.progress;
     }
     
@@ -1331,7 +1331,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   // Check if legal analysis is available
   const hasLegalAnalysis = analysisData && (
     (analysisData.legalAnswers && Object.keys(analysisData.legalAnswers).length > 0) ||
-    (analysisData.findings && analysisData.findings.length > 0)
+    (analysisData?.findings && analysisData.findings.length > 0)
   );
   
   // Debug logging
@@ -1407,7 +1407,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     }
     
     // Fallback to findings-based extraction
-    if (!analysisData.findings || !Array.isArray(analysisData.findings)) return null;
+    if (!analysisData?.findings || !Array.isArray(analysisData.findings)) return null;
     
     // Convert question ID to searchable keywords
     const questionKeywords = LEGAL_QUESTIONS.find(q => q.id === questionId);
@@ -1716,7 +1716,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   // Check if clinical analysis is available
   const hasClinicalAnalysis = analysisData && (
     (analysisData.clinicalAnswers && Object.keys(analysisData.clinicalAnswers).length > 0) ||
-    (analysisData.findings && analysisData.findings.length > 0)
+    (analysisData?.findings && analysisData.findings.length > 0)
   );
   
   console.log('🧬 Clinical Analysis Available:', hasClinicalAnalysis);
@@ -1782,7 +1782,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     if (!questionKeywords) return null;
     
     // Check if findings exist before filtering
-    if (!analysisData.findings || !Array.isArray(analysisData.findings)) return null;
+    if (!analysisData?.findings || !Array.isArray(analysisData.findings)) return null;
     
     // Search through findings for relevant content
     const relevantFindings = analysisData.findings.filter((finding: any) => {
