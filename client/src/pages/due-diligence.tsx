@@ -1032,7 +1032,7 @@ export default function DueDiligence() {
                   <EnhancedAgentCard 
                     dealId={parseInt(selectedDeal)}
                     agentType="Research"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'research') : undefined}
+                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Research' || a.agentType.toLowerCase() === 'research') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
