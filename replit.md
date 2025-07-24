@@ -504,6 +504,14 @@ Changelog:
   - **Design Consistency**: All 7 agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now have identical expandable categories, question-answer format, quote viewer functionality, and UI components
   - **Enhanced Features**: Each tab includes document quotes with clickable links, evidence summaries, key findings, recommendations, confidence scores, and comprehensive metadata display
   - **User Experience**: Standardized gradient headers, consistent color schemes per agent type, and identical interaction patterns across all tabs
+- July 24, 2025: **FIXED CRITICAL DOCUMENT FILTERING DISCREPANCY** - Research analysis now processes ALL assigned documents consistently
+  - **Root Cause Resolved**: Research analysis was processing only 72 documents while UI showed 140 assigned documents due to restrictive keyword filtering
+  - **Document Processing Consistency**: Updated Research analysis service to use same comprehensive approach as Legal analysis service
+  - **Enhanced Document Assignment Logic**: Research analysis now processes all documents explicitly assigned to Research agent with comprehensive fallback logic
+  - **Database Integration**: Added proper database queries using db, documents schema, and drizzle-orm for consistent document retrieval
+  - **Comprehensive Coverage**: Research analysis service now processes ALL assigned documents (140) matching Legal, Clinical, and Commercial analysis patterns
+  - **System Verification**: Confirmed Research analysis completes successfully with all 11 questions (market_1-3, patent_1-2, academic_1-3, technical_1-3) analyzed across full document set
+  - **Performance Optimization**: Maintained robust fallback mechanism for OpenAI quota exceeded scenarios while ensuring complete document coverage
 ```
 
 ## User Preferences
