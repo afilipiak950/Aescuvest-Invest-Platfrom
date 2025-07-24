@@ -688,6 +688,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Delete all analyses for a deal (for "Reset & Run All Analyses" button)
+  app.delete('/api/analyses/:dealId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      console.log(`🗑️ Deleting all analyses for deal ${dealId}`);
+      
+      // Delete all analyses for this deal
+      const deletedCount = await storage.deleteAnalysesByDealId(dealId);
+      
+      console.log(`✅ Successfully deleted ${deletedCount} analyses for deal ${dealId}`);
+      
+      return res.status(200).json({ 
+        success: true,
+        message: `Successfully deleted ${deletedCount} analyses`,
+        deletedCount
+      });
+    } catch (error) {
+      console.error('Error deleting analyses:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to delete analyses' 
+      });
+    }
+  });
+
   // Analysis routes - Optimized with performance timing
   app.get('/api/analyses/:dealId', async (req: Request, res: Response) => {
     const startTime = Date.now();

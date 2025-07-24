@@ -342,8 +342,20 @@ export default function DueDiligence() {
         });
         console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
         
+        // Also clear any stuck background jobs
+        try {
+          await apiRequest(`/api/background-jobs/clear-stuck`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
+          });
+          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
+        } catch (clearError) {
+          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
+        }
+        
         // Wait for cleanup to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (deleteError) {
         console.error(`❌ Failed to delete existing analyses:`, deleteError);
         // Continue anyway - the analyses will be overwritten
