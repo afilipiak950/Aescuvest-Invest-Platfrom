@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
-import ResearchQuestionsSection from './ResearchQuestionsSection';
 
 interface EnhancedAgentCardProps {
   dealId: number;
@@ -1231,6 +1230,89 @@ const CLINICAL_QUESTIONS: ClinicalQuestion[] = [
   }
 ];
 
+interface ResearchQuestion {
+  id: string;
+  category: string;
+  question: string;
+  subQuestions?: string[];
+  answer?: string;
+  confidence?: number;
+  sources?: string[];
+}
+
+const RESEARCH_QUESTIONS: ResearchQuestion[] = [
+  // Market Research Reports
+  {
+    id: 'market_1',
+    category: 'Market Research Reports',
+    question: 'Are TAM/SAM/SOM defined with assumptions?',
+    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
+  },
+  {
+    id: 'market_2',
+    category: 'Market Research Reports',
+    question: 'What competitive landscape analysis is provided?',
+    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
+  },
+  {
+    id: 'market_3',
+    category: 'Market Research Reports',
+    question: 'Are market growth projections validated?',
+    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
+  },
+  // Technical Whitepapers
+  {
+    id: 'technical_1',
+    category: 'Technical Whitepapers',
+    question: 'What technical approach/architecture is described?',
+    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
+  },
+  {
+    id: 'technical_2',
+    category: 'Technical Whitepapers',
+    question: 'Are technical risks and mitigation strategies outlined?',
+    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
+  },
+  {
+    id: 'technical_3',
+    category: 'Technical Whitepapers',
+    question: 'What scalability and performance benchmarks are provided?',
+    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
+  },
+  // Academic Publications
+  {
+    id: 'academic_1',
+    category: 'Academic Publications',
+    question: 'What peer-reviewed research supports the technology?',
+    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
+  },
+  {
+    id: 'academic_2',
+    category: 'Academic Publications',
+    question: 'Are there collaborations with research institutions?',
+    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
+  },
+  {
+    id: 'academic_3',
+    category: 'Academic Publications',
+    question: 'What scientific evidence validates the approach?',
+    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
+  },
+  // Patent Landscape
+  {
+    id: 'patent_1',
+    category: 'Patent Landscape',
+    question: 'What patent portfolio exists and what gaps are identified?',
+    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
+  },
+  {
+    id: 'patent_2',
+    category: 'Patent Landscape',
+    question: 'Are there freedom-to-operate risks?',
+    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
+  }
+];
+
 const LEGAL_QUESTIONS: LegalQuestion[] = [
   {
     id: 'sha_1',
@@ -2003,7 +2085,375 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   );
 }
 
+// Research Questions Section Component  
+interface ResearchQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+}
 
+function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: ResearchQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
+  const [selectedQuoteData, setSelectedQuoteData] = useState<any>({ quotes: [], sources: [], title: '' });
+
+  // Check if research analysis is available from comprehensive endpoint
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+    retry: false
+  });
+
+  // Check if research analysis is available
+  const hasResearchAnalysis = comprehensiveResults?.results?.researchAnswers && 
+    Object.keys(comprehensiveResults.results.researchAnswers).length > 0;
+  
+  console.log('🔬 Research Analysis Available:', hasResearchAnalysis);
+  console.log('🔬 Comprehensive Results:', comprehensiveResults);
+  console.log('🔬 Research Answers:', comprehensiveResults?.results?.researchAnswers);
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  const toggleQuestion = (questionId: string) => {
+    const newExpanded = new Set(expandedQuestions);
+    if (newExpanded.has(questionId)) {
+      newExpanded.delete(questionId);
+    } else {
+      newExpanded.add(questionId);
+    }
+    setExpandedQuestions(newExpanded);
+  };
+
+  // Group questions by category
+  const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, ResearchQuestion[]>);
+
+  return (
+    <div className="space-y-4">
+      {/* Header with Run Analysis Button */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-2">Research Analysis Questions</h3>
+          <p className="text-gray-400 text-sm">
+            AI-powered analysis of {assignedDocuments} research documents across 4 categories
+          </p>
+        </div>
+        <ComprehensiveResearchAnalysisButton dealId={dealId} />
+      </div>
+
+      {/* Progress will be shown at the main page level, not here to avoid duplicates */}
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg bg-dark/50">
+          <button
+            onClick={() => toggleCategory(category)}
+            className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-dark/30 transition-colors rounded-t-lg"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-cyan-400"></div>
+              <span className="font-medium text-white">{category}</span>
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {questions.length} questions
+              </Badge>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${
+              expandedCategories.has(category) ? 'rotate-180' : ''
+            }`} />
+          </button>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {questions.map((question) => {
+                const hasAnswer = hasResearchAnalysis && 
+                  comprehensiveResults?.results?.researchAnswers?.[question.id];
+                const answer = hasAnswer ? comprehensiveResults.results.researchAnswers[question.id] : null;
+                
+                return (
+                  <div key={question.id} className="border-b border-dark-lighter last:border-b-0">
+                    <button
+                      onClick={() => toggleQuestion(question.id)}
+                      className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-dark/20 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${hasAnswer ? 'bg-green-400' : 'bg-gray-600'}`}></div>
+                        <span className="text-white text-sm font-medium">{question.question}</span>
+                        {hasAnswer && (
+                          <Badge variant="outline" className="text-green-400 border-green-400">
+                            Answered
+                          </Badge>
+                        )}
+                      </div>
+                      <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${
+                        expandedQuestions.has(question.id) ? 'rotate-180' : ''
+                      }`} />
+                    </button>
+                    
+                    {expandedQuestions.has(question.id) && (
+                      <div className="px-4 pb-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1">
+                            <p className="text-white font-medium text-sm">{question.question}</p>
+                            
+                            {question.subQuestions && (
+                              <div className="mt-2 space-y-1">
+                                {question.subQuestions.map((subQ, index) => (
+                                  <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {hasAnswer ? (
+                              <div className="mt-3 space-y-3">
+                                {/* Main Answer */}
+                                <div className="bg-dark/50 rounded p-3">
+                                  <h5 className="text-xs font-medium text-cyan-400 mb-2">Research Analysis</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                </div>
+
+                                {/* Key Findings */}
+                                {answer.keyFindings && answer.keyFindings.length > 0 && (
+                                  <div className="bg-gradient-to-r from-cyan-400/10 to-blue-400/10 rounded p-3">
+                                    <h5 className="text-xs font-medium text-cyan-400 mb-2">
+                                      🔬 Key Research Findings ({answer.keyFindings.length})
+                                    </h5>
+                                    <ul className="space-y-1">
+                                      {answer.keyFindings.map((finding, index) => (
+                                        <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                          <span className="text-cyan-400 text-xs mt-1">✓</span>
+                                          {finding}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Metadata */}
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-cyan-400 border-cyan-400">
+                                    Confidence: {answer.confidence}%
+                                  </Badge>
+                                  {answer.sources && answer.sources.length > 0 && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                      onClick={() => {
+                                        const sources = answer.sources.map((source: string) => ({
+                                          documentName: source,
+                                          relevantSections: [answer.answer || 'No specific section identified'],
+                                          extractedText: answer.answer
+                                        }));
+                                        
+                                        setSelectedQuoteData({
+                                          quotes: [],
+                                          sources,
+                                          title: question.question
+                                        });
+                                        setQuoteViewerOpen(true);
+                                      }}
+                                    >
+                                      {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                                <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}
+
+// Comprehensive Research Analysis Button Component
+function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if research analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      return !!researchJob && researchJob.status === 'processing';
+    }
+    return false;
+  })();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/research-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log('Research analysis already running');
+        setIsRunning(false);
+        return;
+      }
+      
+      // Invalidate ALL relevant query keys to refresh the research data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/research/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      console.log('✅ Comprehensive research analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive research analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('🔬 Starting comprehensive research analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      console.log('✅ Analysis request sent, waiting for completion...');
+      
+      // Wait for results since analysis takes time
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes max wait
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          // Check for new comprehensive research analysis results
+          const response = await fetch(`/api/deals/${dealId}/research-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🔬 Attempt ${attempts}: Checking for comprehensive research results...`);
+          
+          if (data.success && data.results && data.results.researchAnswers && Object.keys(data.results.researchAnswers).length > 0) {
+            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.results.researchAnswers).length);
+            
+            // Force refresh of comprehensive research results
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/research/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
+              setIsRunning(false);
+              console.log('🎉 Research analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for research results:', error);
+        }
+        
+        // Continue checking if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
+        } else {
+          console.log('⏰ Timeout reached - research analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/agents/research/results`]
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          
+          setIsRunning(false);
+        }
+      };
+      
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      
+    } catch (error) {
+      console.error('❌ Error starting comprehensive research analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Research Analysis Running...' : isRunning ? 'Research Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Research Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Comprehensive Clinical Analysis Button Component
 function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { dealId: number; onAnalysisStart?: () => void }) {
