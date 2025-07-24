@@ -2126,9 +2126,9 @@ interface ResearchQuestionsSectionProps {
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: ResearchQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Whitepapers"]));
 
-  // Check if research analysis is available from comprehensive endpoint
+  // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/research/results`],
     refetchInterval: 2000,
   });
 
@@ -2173,8 +2173,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.results?.researchAnswers) return null;
-    return comprehensiveResults.results.researchAnswers[questionId] || null;
+    if (!comprehensiveResults?.analysis?.researchAnswers) return null;
+    return comprehensiveResults.analysis.researchAnswers[questionId] || null;
   };
 
   return (
@@ -3531,7 +3531,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
     refetchInterval: 2000,
   });
 
@@ -3576,8 +3576,8 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.results?.financialAnswers) return null;
-    return comprehensiveResults.results.financialAnswers[questionId] || null;
+    if (!comprehensiveResults?.analysis?.financialAnswers) return null;
+    return comprehensiveResults.analysis.financialAnswers[questionId] || null;
   };
 
   return (
@@ -4045,7 +4045,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
     refetchInterval: 2000,
   });
 
@@ -4084,8 +4084,8 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.results?.commercialAnswers) return null;
-    return comprehensiveResults.results.commercialAnswers[questionId] || null;
+    if (!comprehensiveResults?.analysis?.commercialAnswers) return null;
+    return comprehensiveResults.analysis.commercialAnswers[questionId] || null;
   };
 
   return (
@@ -4315,7 +4315,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Employment Contracts"]));
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
     refetchInterval: 2000,
   });
 
@@ -4418,8 +4418,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
               {HR_QUESTIONS.filter(q => q.category === category).map(question => {
-                const answer = comprehensiveResults?.success && comprehensiveResults.hrAnswers 
-                  ? comprehensiveResults.hrAnswers[question.id] 
+                const answer = comprehensiveResults?.success && comprehensiveResults.analysis?.hrAnswers 
+                  ? comprehensiveResults.analysis.hrAnswers[question.id] 
                   : null;
 
                 return (
@@ -4608,7 +4608,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   }>({ quotes: [], sources: [], title: "" });
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
     refetchInterval: 2000,
   });
 
@@ -4658,8 +4658,8 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   }, {} as Record<string, typeof IP_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.results?.ipAnswers) return null;
-    return comprehensiveResults.results.ipAnswers[questionId] || null;
+    if (!comprehensiveResults?.analysis?.ipAnswers) return null;
+    return comprehensiveResults.analysis.ipAnswers[questionId] || null;
   };
 
   return (
