@@ -4942,7 +4942,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                             </div>
                           ) : (
                             <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
-                              <p className="text-gray-400 text-xs">No IP analysis available for this question yet.</p>
+                              <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
