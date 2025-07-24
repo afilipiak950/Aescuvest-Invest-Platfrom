@@ -154,7 +154,7 @@ export default function EnhancedAgentCard({
     }
 
     // Show comprehensive HR analysis if running
-    if (hrProgress && 'isRunning' in hrProgress && hrProgress.isRunning) {
+    if (hrProgress && typeof hrProgress === 'object' && 'isRunning' in hrProgress && hrProgress.isRunning) {
       return (
         <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
@@ -162,20 +162,20 @@ export default function EnhancedAgentCard({
             <div className="flex-1">
               <p className="text-orange-400 font-medium">Comprehensive HR Analysis in Progress</p>
               <p className="text-gray-300 text-sm">
-                {hrProgress.currentStep || 'Processing comprehensive HR analysis...'}
+                {(hrProgress && typeof hrProgress === 'object' && 'currentStep' in hrProgress ? hrProgress.currentStep : null) || 'Processing comprehensive HR analysis...'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-white font-medium">{Math.round(hrProgress.progress || 0)}%</p>
+              <p className="text-white font-medium">{Math.round((hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0)}%</p>
             </div>
           </div>
           <Progress 
-            value={hrProgress.progress || 0} 
+            value={(hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0} 
             className="h-2 bg-dark-lighter"
           />
           <div className="flex justify-between text-xs text-gray-400 mt-2">
             <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round(hrProgress.progress || 0)}% complete</span>
+            <span>{Math.round((hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0)}% complete</span>
           </div>
         </div>
       );
@@ -2173,8 +2173,19 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.analysis?.researchAnswers) return null;
-    return comprehensiveResults.analysis.researchAnswers[questionId] || null;
+    // Try comprehensive results first
+    if (comprehensiveResults?.analysis?.researchAnswers) {
+      const answer = comprehensiveResults.analysis.researchAnswers[questionId];
+      if (answer) return answer;
+    }
+    
+    // Fallback to regular analysis results if comprehensive is empty
+    if (analysisData?.researchAnswers) {
+      const answer = analysisData.researchAnswers[questionId];
+      if (answer) return answer;
+    }
+    
+    return null;
   };
 
   return (
