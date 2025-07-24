@@ -689,18 +689,18 @@ export default function EnhancedAgentCard({
   
   // Calculate how many documents were actually analyzed (have findings with document sources)
   const getAnalyzedDocumentCount = () => {
-    if (!findings || findings.length === 0) return 0;
+    if (!findings || !Array.isArray(findings) || findings.length === 0) return 0;
     
     const documentsWithSources = findings.filter((finding: any) => 
-      finding.documentSource || finding.documentSources
+      finding && (finding.documentSource || finding.documentSources)
     );
     
     const uniqueDocuments = new Set();
     documentsWithSources.forEach((finding: any) => {
-      if (finding.documentSource) {
+      if (finding && finding.documentSource) {
         uniqueDocuments.add(finding.documentSource);
       }
-      if (finding.documentSources && Array.isArray(finding.documentSources)) {
+      if (finding && finding.documentSources && Array.isArray(finding.documentSources)) {
         finding.documentSources.forEach((source: string) => uniqueDocuments.add(source));
       }
     });
@@ -708,10 +708,10 @@ export default function EnhancedAgentCard({
     return uniqueDocuments.size;
   };
 
-  const positiveInsights = findings.filter((f: any) => 
+  const positiveInsights = (findings || []).filter((f: any) => 
     f.severity === 'positive' || f.type === 'positive' || f.category === 'positive'
   ).length;
-  const riskFactors = findings.filter((f: any) => 
+  const riskFactors = (findings || []).filter((f: any) => 
     f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk'
   ).length;
   
@@ -720,13 +720,13 @@ export default function EnhancedAgentCard({
     totalDocuments: documents?.length || 0,
     assignedDocuments: assignedDocuments,
     hasAnalysis: !!analysisData && analysisData.status === 'Completed',
-    findingsCount: findings.length,
+    findingsCount: (findings || []).length,
     positiveInsights,
     riskFactors
   });
   
   // Check if we have any analysis data (findings, recommendations, or status indicating completion)
-  const hasAnalysis = findings.length > 0 || recommendations.length > 0 || 
+  const hasAnalysis = (findings || []).length > 0 || (recommendations || []).length > 0 || 
                      (analysisData && analysisData.status === 'Completed') ||
                      (analysisData && (analysisData.findings || analysisData.recommendations));
 
