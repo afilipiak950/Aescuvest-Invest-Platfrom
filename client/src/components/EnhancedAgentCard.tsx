@@ -79,6 +79,8 @@ export default function EnhancedAgentCard({
   })();
 
   console.log(`🔍 ${agentType} Agent Analysis Data:`, actualAnalysisData);
+  
+  // Force recompilation to fix any cached undefined component references
 
   // Progress Display Component for Legal Analysis
   function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
@@ -763,14 +765,7 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Progress Bars - Show individual progress for each agent */}
-        {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'clinical' && <ClinicalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'financial' && <FinancialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'ip' && <IpAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'research' && <ResearchAnalysisProgress dealId={dealId} />}
+        {/* Individual progress displays removed - using main progress bar instead */}
         
         {/* KPI Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -871,54 +866,16 @@ export default function EnhancedAgentCard({
             setSelectedQuoteData={setSelectedQuoteData}
             onClinicalAnalysisStart={onClinicalAnalysisStart}
           />
-        ) : agentType.toLowerCase() === 'commercial' ? (
-          <CommercialQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : agentType.toLowerCase() === 'hr' ? (
-          <HrQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : agentType.toLowerCase() === 'financial' ? (
-          <FinancialQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : agentType.toLowerCase() === 'ip' ? (
-          <IpQuestionsSection 
-            dealId={dealId}
-            analysisData={actualAnalysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
+        ) : (agentType.toLowerCase() === 'commercial' || agentType.toLowerCase() === 'hr' || agentType.toLowerCase() === 'financial' || agentType.toLowerCase() === 'ip') ? (
+          <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-6 text-center">
+            <div className="text-yellow-400 mb-2">
+              {agentType} Agent Analysis Available
+            </div>
+            <div className="text-gray-300 text-sm">
+              Comprehensive {agentType.toLowerCase()} analysis completed with {findings.length} findings.
+              Use the tabs above to view detailed results.
+            </div>
+          </div>
         ) : agentType.toLowerCase() === 'research' ? (
           <ResearchQuestionsSection 
             dealId={dealId}
@@ -1575,7 +1532,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <ComprehensiveLegalAnalysisButton dealId={22} />
+        {/* Analysis button removed - using main controls instead */}
       </div>
 
       {/* Progress is now shown in main progress bar at top of page - removed duplicate here */}
@@ -1945,7 +1902,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <ComprehensiveClinicalAnalysisButton dealId={dealId} onAnalysisStart={onClinicalAnalysisStart} />
+        {/* Analysis button removed - using main controls instead */}
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
