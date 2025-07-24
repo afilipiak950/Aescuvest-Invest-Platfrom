@@ -4058,7 +4058,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       });
       
       // Start comprehensive financial analysis in background
-      comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId).catch(error => {
+      comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
         console.error(`❌ Background financial analysis failed for deal ${dealId}:`, error);
         storage.updateBackgroundJob(jobId, {
           status: 'failed',
