@@ -4278,8 +4278,15 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
             : analysis.ip_answers;
         } catch (error) {
           console.error('Error parsing IP answers:', error);
+          ipAnswers = {};
         }
       }
+      
+      console.log(`🔐 IP Analysis Data:`, {
+        hasAnswers: !!analysis.ip_answers,
+        answersType: typeof analysis.ip_answers,
+        parsedAnswersKeys: Object.keys(ipAnswers)
+      });
       
       res.json({
         success: true,

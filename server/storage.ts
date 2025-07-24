@@ -1318,10 +1318,11 @@ export class DatabaseStorage implements IStorage {
     try {
       // Try both lowercase and capitalized versions to handle inconsistent data
       const normalizedAgentType = agentType.toLowerCase();
-      const capitalizedAgentType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
+      // Special handling for IP agent type to ensure proper case matching
+      const capitalizedAgentType = normalizedAgentType === 'ip' ? 'IP' : agentType.charAt(0).toUpperCase() + agentType.slice(1);
       
-      // Get all analysis records and prioritize those with actual content - explicitly select all needed fields
-      let analysisResults = await db.select({
+      // Get records matching both case variations by running two separate queries then combining
+      const lowercaseResults = await db.select({
         id: agentAnalyses.id,
         dealId: agentAnalyses.dealId,
         agentType: agentAnalyses.agentType,
@@ -1339,43 +1340,61 @@ export class DatabaseStorage implements IStorage {
         .where(and(
           eq(agentAnalyses.dealId, dealId), 
           eq(agentAnalyses.agentType, normalizedAgentType)
-        ))
-        .orderBy(desc(agentAnalyses.updatedAt));
+        ));
+        
+      const capitalizedResults = await db.select({
+        id: agentAnalyses.id,
+        dealId: agentAnalyses.dealId,
+        agentType: agentAnalyses.agentType,
+        status: agentAnalyses.status,
+        progress: agentAnalyses.progress,
+        findings: agentAnalyses.findings,
+        recommendations: agentAnalyses.recommendations,
+        documentSources: agentAnalyses.documentSources,
+        legalAnswers: agentAnalyses.legalAnswers,
+        clinicalAnswers: agentAnalyses.clinicalAnswers,
+        commercialAnswers: agentAnalyses.commercialAnswers,
+        createdAt: agentAnalyses.createdAt,
+        updatedAt: agentAnalyses.updatedAt
+      }).from(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, dealId), 
+          eq(agentAnalyses.agentType, capitalizedAgentType)
+        ));
+        
+      // Combine both result sets
+      const analysisResults = [...lowercaseResults, ...capitalizedResults]
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       
-      // If not found with lowercase, try capitalized version
-      if (!analysisResults.length) {
-        analysisResults = await db.select().from(agentAnalyses)
-          .where(and(
-            eq(agentAnalyses.dealId, dealId), 
-            eq(agentAnalyses.agentType, capitalizedAgentType)
-          ))
-          .orderBy(desc(agentAnalyses.updatedAt));
+      // Prioritize "Completed" status records over "Failed" ones, then by content
+      let analysisResult = analysisResults.find(result => result.status === 'Completed');
+      
+      // If no completed record, look for one with actual findings/recommendations
+      if (!analysisResult) {
+        analysisResult = analysisResults.find(result => {
+          // Handle both array and JSON string formats
+          let hasFindings = false;
+          let hasRecommendations = false;
+          
+          if (result.findings) {
+            if (Array.isArray(result.findings)) {
+              hasFindings = result.findings.length > 0;
+            } else if (typeof result.findings === 'string') {
+              hasFindings = result.findings.length > 2 && result.findings !== '[]'; // More than just empty array string
+            }
+          }
+          
+          if (result.recommendations) {
+            if (Array.isArray(result.recommendations)) {
+              hasRecommendations = result.recommendations.length > 0;
+            } else if (typeof result.recommendations === 'string') {
+              hasRecommendations = result.recommendations.length > 2 && result.recommendations !== '[]';
+            }
+          }
+          
+          return hasFindings || hasRecommendations;
+        });
       }
-      
-      // Prioritize records with actual findings/recommendations over empty ones
-      let analysisResult = analysisResults.find(result => {
-        // Handle both array and JSON string formats
-        let hasFindings = false;
-        let hasRecommendations = false;
-        
-        if (result.findings) {
-          if (Array.isArray(result.findings)) {
-            hasFindings = result.findings.length > 0;
-          } else if (typeof result.findings === 'string') {
-            hasFindings = result.findings.length > 2 && result.findings !== '[]'; // More than just empty array string
-          }
-        }
-        
-        if (result.recommendations) {
-          if (Array.isArray(result.recommendations)) {
-            hasRecommendations = result.recommendations.length > 0;
-          } else if (typeof result.recommendations === 'string') {
-            hasRecommendations = result.recommendations.length > 2 && result.recommendations !== '[]';
-          }
-        }
-        
-        return hasFindings || hasRecommendations;
-      });
       
       // If no record with content found, use the most recent one
       if (!analysisResult && analysisResults.length > 0) {
@@ -1384,9 +1403,15 @@ export class DatabaseStorage implements IStorage {
       
       if (analysisResult) {
         console.log(`✅ Found ${agentType} analysis for deal ${dealId}:`, {
+          id: analysisResult.id,
+          agentType: analysisResult.agentType,
           status: analysisResult.status,
           findingsLength: analysisResult.findings ? String(analysisResult.findings).length : 0,
-          recommendationsLength: analysisResult.recommendations ? String(analysisResult.recommendations).length : 0
+          recommendationsLength: analysisResult.recommendations ? String(analysisResult.recommendations).length : 0,
+          totalRecordsFound: analysisResults.length,
+          lowercaseCount: lowercaseResults.length,
+          capitalizedCount: capitalizedResults.length,
+          allRecordStatuses: analysisResults.map(r => ({ id: r.id, agentType: r.agentType, status: r.status }))
         });
         
         return {
@@ -1397,8 +1422,8 @@ export class DatabaseStorage implements IStorage {
           createdAt: analysisResult.createdAt,
           documentSources: analysisResult.documentSources || [],
           legalAnswers: analysisResult.legalAnswers || null,
-          clinical_answers: analysisResult.clinical_answers || analysisResult.clinicalAnswers || null,
-          clinicalAnswers: analysisResult.clinicalAnswers || analysisResult.clinical_answers || null,
+          clinical_answers: analysisResult.clinicalAnswers || null,
+          clinicalAnswers: analysisResult.clinicalAnswers || null,
           commercialAnswers: analysisResult.commercialAnswers || null
         };
       }
@@ -1427,6 +1452,47 @@ export class DatabaseStorage implements IStorage {
       return null;
     } catch (error) {
       console.error('Error getting agent analysis results:', error);
+      return null;
+    }
+  }
+
+  async getAgentAnalysisByDealAndType(dealId: number, agentType: string): Promise<any> {
+    try {
+      // Try both lowercase and capitalized versions to handle inconsistent data
+      const normalizedAgentType = agentType.toLowerCase();
+      const capitalizedAgentType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
+      
+      // First try with the exact agentType provided
+      let [analysisResult] = await db.select().from(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, dealId), 
+          eq(agentAnalyses.agentType, agentType)
+        ))
+        .orderBy(desc(agentAnalyses.updatedAt));
+      
+      // If not found, try with normalized case
+      if (!analysisResult) {
+        [analysisResult] = await db.select().from(agentAnalyses)
+          .where(and(
+            eq(agentAnalyses.dealId, dealId), 
+            eq(agentAnalyses.agentType, normalizedAgentType)
+          ))
+          .orderBy(desc(agentAnalyses.updatedAt));
+      }
+      
+      // If still not found, try with capitalized version
+      if (!analysisResult) {
+        [analysisResult] = await db.select().from(agentAnalyses)
+          .where(and(
+            eq(agentAnalyses.dealId, dealId), 
+            eq(agentAnalyses.agentType, capitalizedAgentType)
+          ))
+          .orderBy(desc(agentAnalyses.updatedAt));
+      }
+      
+      return analysisResult || null;
+    } catch (error) {
+      console.error(`Error getting ${agentType} analysis by deal and type:`, error);
       return null;
     }
   }
