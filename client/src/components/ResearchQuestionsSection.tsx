@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -72,18 +72,20 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
     refetchInterval: 1000,
   });
 
-  if (jobProgress && jobProgress.jobs) {
-    const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
-    if (researchJob && researchJob.status === 'processing') {
-      setProgress(researchJob.progress || 0);
-      setCurrentStep(researchJob.currentDocument || 'Processing research analysis...');
-      setIsVisible(true);
+  React.useEffect(() => {
+    if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray((jobProgress as any).jobs)) {
+      const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research');
+      if (researchJob && researchJob.status === 'processing') {
+        setProgress(researchJob.progress || 0);
+        setCurrentStep(researchJob.currentDocument || 'Processing research analysis...');
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
     } else {
       setIsVisible(false);
     }
-  } else {
-    setIsVisible(false);
-  }
+  }, [jobProgress]);
 
   if (!isVisible) return null;
 
@@ -198,8 +200,9 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     detailedEvidence?: any[];
   } | null => {
     // First try comprehensive results
-    if (comprehensiveResults?.results?.researchAnswers?.[questionId]) {
-      const answer = comprehensiveResults.results.researchAnswers[questionId];
+    if (comprehensiveResults && typeof comprehensiveResults === 'object' && 'results' in comprehensiveResults && 
+        (comprehensiveResults as any).results?.researchAnswers?.[questionId]) {
+      const answer = (comprehensiveResults as any).results.researchAnswers[questionId];
       return {
         answer: answer.answer,
         confidence: answer.confidence,
