@@ -133,11 +133,20 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
   const queryClient = useQueryClient();
 
   // Fetch comprehensive Research analysis data with error handling
-  const { data: comprehensiveResults, error: comprehensiveError } = useQuery({
+  const { data: comprehensiveResults, error: comprehensiveError, isLoading: comprehensiveLoading } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
     retry: false
   });
+
+  // Debug logging for data structure
+  React.useEffect(() => {
+    if (comprehensiveResults) {
+      console.log('🔬 Research comprehensive results:', comprehensiveResults);
+      console.log('🔬 Has research answers:', !!comprehensiveResults?.results?.researchAnswers);
+      console.log('🔬 Research answers keys:', Object.keys(comprehensiveResults?.results?.researchAnswers || {}));
+    }
+  }, [comprehensiveResults]);
 
   // Add error boundary protection
   if (comprehensiveError) {
@@ -229,7 +238,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
-  // Get answer for a specific question
+  // Get answer for a specific question  
   const getAnswerForQuestion = (questionId: string): {
     answer: string;
     confidence: number; 
@@ -246,8 +255,8 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
         (comprehensiveResults as any).results?.researchAnswers?.[questionId]) {
       const answer = (comprehensiveResults as any).results.researchAnswers[questionId];
       return {
-        answer: answer.answer,
-        confidence: answer.confidence,
+        answer: answer.answer || 'No analysis available',
+        confidence: answer.confidence || 0,
         sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
         quotes: answer.quotes || [],
         keyFindings: answer.keyFindings || [],
@@ -353,7 +362,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {answer.confidence}%
                                 </Badge>
                                 {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
