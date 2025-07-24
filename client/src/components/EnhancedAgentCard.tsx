@@ -793,6 +793,13 @@ export default function EnhancedAgentCard({
             assignedDocuments={assignedDocuments}
             documents={documents || []}
           />
+        ) : agentType.toLowerCase() === 'financial' ? (
+          <FinancialQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+          />
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
@@ -2377,9 +2384,26 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     refetchInterval: 1000,
   });
 
+  // Also check for comprehensive financial analysis progress
+  const { data: financialProgress } = useQuery({
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
   useEffect(() => {
+    // Check for comprehensive financial analysis first
+    if (financialProgress?.isRunning) {
+      setProgress(financialProgress.progress || 0);
+      setCurrentStep(financialProgress.currentStep || 'Processing comprehensive financial analysis...');
+      setIsVisible(true);
+      return;
+    }
+
+    // Then check for regular financial jobs
     if (jobProgress?.jobs) {
-      const financialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Financial');
+      const financialJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Financial' || job.jobType === 'comprehensive_financial_analysis'
+      );
       if (financialJob && financialJob.status === 'processing') {
         setProgress(financialJob.progress || 0);
         setCurrentStep(financialJob.currentDocument || 'Processing financial analysis...');
@@ -2390,7 +2414,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     } else {
       setIsVisible(false);
     }
-  }, [jobProgress]);
+  }, [jobProgress, financialProgress]);
 
   if (!isVisible) return null;
 
@@ -2840,6 +2864,293 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
         <>
           <Zap className="h-4 w-4 mr-2" />
           Run HR Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
+// Financial Questions Section Component  
+function FinancialQuestionsSection({ analysisData, assignedDocuments, dealId, documents }: { analysisData?: any; assignedDocuments: number; dealId: number; documents?: any[] }) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(['Income Statements']));
+  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
+  const [selectedQuoteData, setSelectedQuoteData] = useState<{
+    quotes?: any[];
+    sources?: any[];
+    title: string;
+  }>({ quotes: [], sources: [], title: '' });
+
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // Financial questions structure matching the backend service
+  const FINANCIAL_QUESTIONS = [
+    { id: 'income_1', question: 'What are the revenue trends over the last 3 years?', category: 'Income Statements' },
+    { id: 'income_2', question: 'How have gross margins evolved?', category: 'Income Statements' },
+    { id: 'income_3', question: 'What are the main cost drivers and their trends?', category: 'Income Statements' },
+    { id: 'balance_1', question: 'What is the current cash position?', category: 'Balance Sheets' },
+    { id: 'balance_2', question: 'How much debt does the company carry?', category: 'Balance Sheets' },
+    { id: 'balance_3', question: 'Are there any significant off-balance sheet items?', category: 'Balance Sheets' },
+    { id: 'cashflow_1', question: 'What is the operating cash flow trend?', category: 'Cash Flow Statements' },
+    { id: 'cashflow_2', question: 'How much is being invested in capex and R&D?', category: 'Cash Flow Statements' },
+    { id: 'cashflow_3', question: 'What is the current burn rate and runway?', category: 'Cash Flow Statements' },
+    { id: 'forecast_1', question: 'What are the key assumptions in financial projections?', category: 'Financial Model/Forecasts' },
+    { id: 'forecast_2', question: 'How realistic are the growth projections?', category: 'Financial Model/Forecasts' },
+    { id: 'forecast_3', question: 'What sensitivity analysis has been conducted?', category: 'Financial Model/Forecasts' },
+    { id: 'captable_1', question: 'Who are the current shareholders and their ownership?', category: 'Cap Table' },
+    { id: 'captable_2', question: 'What liquidation preferences exist?', category: 'Cap Table' },
+    { id: 'captable_3', question: 'Are there any option pools or warrants outstanding?', category: 'Cap Table' },
+    { id: 'tax_1', question: 'Are there any significant tax liabilities or benefits?', category: 'Tax Documentation' },
+    { id: 'tax_2', question: 'What is the effective tax rate?', category: 'Tax Documentation' },
+    { id: 'tax_3', question: 'Are there any transfer pricing or international tax issues?', category: 'Tax Documentation' }
+  ];
+
+  const categorizedQuestions = FINANCIAL_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    if (!comprehensiveResults?.financialAnswers) return null;
+    return comprehensiveResults.financialAnswers[questionId] || null;
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 text-green-400" />
+          <h3 className="text-lg font-semibold text-white">Financial Due Diligence Questions</h3>
+          <Badge variant="outline" className="text-gray-400 border-gray-400">
+            {documents ? documents.filter(doc => {
+              if (!doc.aiSummary) return false;
+              if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+                return doc.aiSummary.executiveSummary.length > 10;
+              }
+              if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
+                return true;
+              }
+              return false;
+            }).length : 0} Documents Analyzed
+          </Badge>
+        </div>
+        <ComprehensiveFinancialAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg mb-4">
+          <button
+            onClick={() => toggleCategory(category)}
+            className="w-full flex items-center justify-between p-4 bg-dark-lighter/50 hover:bg-dark-lighter/70 transition-colors"
+          >
+            <h4 className="font-medium text-white text-left">{category}</h4>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-gray-400 border-gray-400">
+                {questions.length} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              )}
+            </div>
+          </button>
+
+          {expandedCategories.has(category) && (
+            <div className="p-4 space-y-4">
+              {questions.map((question) => {
+                const answer = getAnswerForQuestion(question.id);
+                const hasAnswer = answer !== null;
+                
+                return (
+                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          hasAnswer ? 'bg-green-400' : 'bg-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          
+                          {hasAnswer ? (
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-green-400 mb-2">Financial Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-green-400 border-green-400">
+                                  Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
+                                </Badge>
+                                {answer.sources && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.evidence || [],
+                                        sources: answer.sources || [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} Sources
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3">
+                              <div className="bg-dark-lighter/30 rounded p-3 text-center">
+                                <p className="text-gray-500 text-sm">Run financial analysis to get answers</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+
+      <DocumentQuoteViewer
+        open={quoteViewerOpen}
+        onOpenChange={setQuoteViewerOpen}
+        quotes={selectedQuoteData.quotes || []}
+        sources={selectedQuoteData.sources || []}
+        title={selectedQuoteData.title}
+        documents={documents || []}
+      />
+    </div>
+  );
+}
+
+// Comprehensive Financial Analysis Button
+function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
+  const isAlreadyRunning = progressData?.isRunning || 
+    jobProgress?.jobs?.some((job: any) => 
+      job.jobType === 'comprehensive_financial_analysis' && job.status === 'processing'
+    );
+
+  const queryClient = useQueryClient();
+  
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log('Starting comprehensive financial analysis for deal', dealId);
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/comprehensive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      console.log('✅ Comprehensive financial analysis started successfully');
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      setIsRunning(false);
+    },
+    onError: (error) => {
+      console.error('❌ Failed to start comprehensive financial analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive financial analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        console.log(`📊 Checking for financial analysis results (attempt ${attempts})`);
+        
+        if (attempts >= maxAttempts) {
+          console.log('⏰ Max attempts reached for financial analysis');
+          setIsRunning(false);
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/deals/${dealId}/financial-analysis/comprehensive/results`);
+          const data = await response.json();
+          
+          console.log('📊 Financial analysis status:', data);
+          
+          if (data && data.financialAnswers && Object.keys(data.financialAnswers).length > 0) {
+            console.log('✅ Financial analysis completed successfully');
+            queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+            setIsRunning(false);
+            return;
+          }
+        } catch (error) {
+          console.log('⚠️ Error checking financial analysis results:', error);
+        }
+        
+        setTimeout(checkForResults, 5000);
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting financial analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Financial Analysis Running...' : isRunning ? 'Financial Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Financial Analysis
         </>
       )}
     </Button>

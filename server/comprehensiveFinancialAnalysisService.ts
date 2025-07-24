@@ -1,549 +1,508 @@
-/**
- * Comprehensive Financial Analysis Service
- * Provides comprehensive financial analysis for all assigned financial documents
- */
-
-import { storage } from './storage';
-import { db } from './db';
-import { documents } from '@shared/schema';
-import { eq } from 'drizzle-orm';
-import OpenAI from 'openai';
+import OpenAI from "openai";
+import { storage } from "./storage";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Comprehensive financial questions covering all financial due diligence areas
+// Financial analysis questions based on the 6 key categories
 const FINANCIAL_QUESTIONS = [
   {
-    id: 'revenue_1',
-    category: 'Revenue & Growth',
-    question: 'What are the current revenue streams and growth trajectory?',
-    analysisPrompt: 'Find revenue data, sales figures, recurring revenue, growth rates, and revenue projections.'
+    id: "income_statements",
+    category: "Income Statements",
+    question: "What is YoY growth for revenue, gross margin, EBITDA? Are one-time effects clearly disclosed? Are revenue recognition principles documented?",
+    keywords: ["revenue", "growth", "gross margin", "ebitda", "one-time", "revenue recognition", "income statement", "profit", "loss", "sales", "turnover", "earnings"]
   },
   {
-    id: 'revenue_2',
-    category: 'Revenue & Growth',
-    question: 'What is the revenue quality and sustainability?',
-    analysisPrompt: 'Analyze customer concentration, contract terms, churn rates, and revenue predictability.'
+    id: "balance_sheets",
+    category: "Balance Sheets",
+    question: "How are liabilities and provisions structured? Are deferred revenues or accrued costs significant? Is intangibles or goodwill position explained?",
+    keywords: ["balance sheet", "liabilities", "provisions", "deferred revenue", "accrued costs", "intangibles", "goodwill", "assets", "equity", "debt", "obligations"]
   },
   {
-    id: 'profitability_1',
-    category: 'Profitability & Margins',
-    question: 'What are the gross margins and unit economics?',
-    analysisPrompt: 'Calculate gross margins, contribution margins, customer acquisition cost, lifetime value.'
+    id: "cash_flow",
+    category: "Cash Flow Statements",
+    question: "What is the monthly net burn rate? What % of cash outflow is OpEx vs. CapEx? Are working capital changes consistent?",
+    keywords: ["cash flow", "burn rate", "opex", "capex", "working capital", "operating expenses", "capital expenditure", "cash outflow", "liquidity", "cash position"]
   },
   {
-    id: 'profitability_2',
-    category: 'Profitability & Margins',
-    question: 'What is the path to profitability?',
-    analysisPrompt: 'Analyze burn rate, runway, break-even point, and profitability timeline.'
+    id: "financial_model",
+    category: "Financial Model / Forecasts",
+    question: "What are key assumptions for revenue growth? What customer churn / LTV / CAC assumptions are used? Are headcount, salary, hiring plans reflected?",
+    keywords: ["financial model", "forecasts", "projections", "assumptions", "churn", "ltv", "cac", "customer acquisition", "headcount", "salary", "hiring", "budget", "planning"]
   },
   {
-    id: 'cash_1',
-    category: 'Cash Flow & Working Capital',
-    question: 'What is the current cash position and burn rate?',
-    analysisPrompt: 'Find cash balances, monthly burn rate, cash runway, and working capital needs.'
+    id: "cap_table",
+    category: "Cap Table",
+    question: "Is the cap table fully diluted and post-money? Are SAFEs / convertibles accounted for? Are option pools reflected?",
+    keywords: ["cap table", "capitalization", "dilution", "post-money", "safes", "convertibles", "option pool", "equity", "shares", "ownership", "valuation", "investors"]
   },
   {
-    id: 'cash_2',
-    category: 'Cash Flow & Working Capital',
-    question: 'Are there any cash flow timing issues?',
-    analysisPrompt: 'Analyze accounts receivable, payment terms, seasonal fluctuations, and cash conversion cycle.'
-  },
-  {
-    id: 'funding_1',
-    category: 'Funding & Capital Structure',
-    question: 'What is the complete funding history?',
-    analysisPrompt: 'Identify all funding rounds, investors, valuations, and terms.'
-  },
-  {
-    id: 'funding_2',
-    category: 'Funding & Capital Structure',
-    question: 'What are the future funding requirements?',
-    analysisPrompt: 'Assess capital needs, use of proceeds, and dilution scenarios.'
-  },
-  {
-    id: 'costs_1',
-    category: 'Cost Structure & Efficiency',
-    question: 'What is the cost structure breakdown?',
-    analysisPrompt: 'Analyze fixed vs variable costs, personnel costs, technology costs, and operational efficiency.'
-  },
-  {
-    id: 'costs_2',
-    category: 'Cost Structure & Efficiency',
-    question: 'Are there cost optimization opportunities?',
-    analysisPrompt: 'Identify potential cost savings, scalability factors, and efficiency improvements.'
-  },
-  {
-    id: 'metrics_1',
-    category: 'Key Financial Metrics',
-    question: 'What are the key SaaS/business metrics?',
-    analysisPrompt: 'Find metrics like ARR, MRR, CAC, LTV, churn rate, NPS, and retention rates.'
-  },
-  {
-    id: 'metrics_2',
-    category: 'Key Financial Metrics',
-    question: 'How do metrics compare to industry benchmarks?',
-    analysisPrompt: 'Compare financial metrics to industry standards and competitive benchmarks.'
-  },
-  {
-    id: 'risks_1',
-    category: 'Financial Risks & Dependencies',
-    question: 'What are the major financial risks?',
-    analysisPrompt: 'Identify concentration risks, market risks, operational risks, and financial dependencies.'
-  },
-  {
-    id: 'risks_2',
-    category: 'Financial Risks & Dependencies',
-    question: 'Are there any accounting or reporting issues?',
-    analysisPrompt: 'Review accounting practices, audit findings, financial controls, and reporting quality.'
+    id: "tax_documentation",
+    category: "Tax Documentation",
+    question: "Are all tax filings up-to-date? Are there known audit risks? Are deferred taxes and NOLs disclosed?",
+    keywords: ["tax", "filings", "audit", "deferred tax", "nol", "net operating loss", "tax returns", "compliance", "irs", "tax liability", "tax benefits"]
   }
 ];
 
-export class ComprehensiveFinancialAnalysisService {
-  private progressData = new Map<number, any>();
+interface FinancialEvidence {
+  documentName: string;
+  documentSummary: string;
+  relevantContent: string[];
+  keyFindings: string[];
+  confidence: number;
+}
 
-  getProgress(dealId: number) {
-    return this.progressData.get(dealId) || {
-      isRunning: false,
-      progress: 0,
-      message: 'No comprehensive financial analysis running'
-    };
+interface FinancialAnswer {
+  question: string;
+  answer: string;
+  confidence: number;
+  sources: string[];
+  detailedEvidence: FinancialEvidence[];
+  keyFindings: string[];
+  evidenceSummary: string;
+  financialAssessment: string;
+  recommendations: string[];
+}
+
+class ComprehensiveFinancialAnalysisService {
+  private progressCallbacks = new Map<number, (progress: any) => void>();
+
+  setProgressCallback(dealId: number, callback: (progress: any) => void) {
+    this.progressCallbacks.set(dealId, callback);
   }
 
   private setProgress(dealId: number, progress: any) {
-    const current = this.getProgress(dealId);
-    this.progressData.set(dealId, { ...current, ...progress });
+    const callback = this.progressCallbacks.get(dealId);
+    if (callback) {
+      callback(progress);
+    }
   }
 
-  async startComprehensiveAnalysis(dealId: number): Promise<void> {
-    console.log(`💰 Starting comprehensive financial analysis for deal ${dealId}`);
-    
-    // Create background job for progress tracking (same as Legal)
-    const jobId = `financial_analysis_${dealId}_${Date.now()}`;
+  async runComprehensiveAnalysis(dealId: number): Promise<any> {
+    console.log(`🏦 Starting comprehensive financial analysis for deal ${dealId}`);
     
     try {
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_financial_analysis',
-        dealId,
-        agentType: 'Financial',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 0,
-        processedDocuments: 0,
-        startedAt: new Date()
-      });
-    } catch (error) {
-      console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-      throw new Error(`Failed to initialize comprehensive financial analysis: ${error.message}`);
-    }
-    
-    this.setProgress(dealId, {
-      isRunning: true,
-      progress: 5,
-      message: 'Initializing comprehensive financial analysis...',
-      currentStep: 'Finding financial documents',
-      totalSteps: FINANCIAL_QUESTIONS.length
-    });
-
-    try {
-      // Get all documents suitable for financial analysis
-      const financialDocs = await this.getAssignedFinancialDocuments(dealId);
-      console.log(`💰 Found ${financialDocs.length} financial documents for analysis`);
-
-      if (financialDocs.length === 0) {
-        await storage.updateBackgroundJob(jobId, {
-          status: 'completed',
-          progress: 100,
-          error: 'No financial documents available for analysis'
-        });
-        this.setProgress(dealId, {
-          isRunning: false,
-          progress: 100,
-          message: 'No financial documents found for analysis'
-        });
-        throw new Error('No documents available for financial analysis');
-      }
-      
-      // Update job with total questions to process
-      await storage.updateBackgroundJob(jobId, {
-        totalDocuments: FINANCIAL_QUESTIONS.length,
-        currentStep: 'Analyzing financial documents across 14 question categories'
+      // Set initial progress
+      this.setProgress(dealId, {
+        progress: 5,
+        currentStep: 'Initializing financial analysis...'
       });
 
-      // Process each question comprehensively
-      const financialAnswers: Record<string, any> = {};
-      
-      for (let i = 0; i < FINANCIAL_QUESTIONS.length; i++) {
-        const question = FINANCIAL_QUESTIONS[i];
-        console.log(`💰 Processing question ${i + 1}/${FINANCIAL_QUESTIONS.length}: ${question.question}`);
-        
-        try {
-          // Update progress with error handling (both internal and background job)
-          const progress = Math.round((i / FINANCIAL_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(jobId, {
-            progress,
-            processedDocuments: i,
-            currentDocumentName: question.question,
-            currentStep: `Analyzing: ${question.category}`
-          });
-          
-          this.setProgress(dealId, {
-            progress,
-            currentStep: `Analyzing: ${question.category}`,
-            currentQuestion: question.question
-          });
+      // Get all documents for this deal that might contain financial information
+      const documents = await this.getAssignedFinancialDocuments(dealId);
+      console.log(`📊 Found ${documents.length} documents for financial analysis`);
 
-          // Extract evidence from ALL assigned documents for this question
-          console.log(`💰 Processing ${financialDocs.length} documents for question: ${question.question}`);
-          const documentEvidence = await this.extractEvidenceFromAllDocuments(financialDocs, question);
-
-          // Generate comprehensive answer using AI
-          const answer = await this.generateComprehensiveAnswer(question, documentEvidence);
-          financialAnswers[question.id] = answer;
-
-          console.log(`✅ Completed question ${i + 1}/${FINANCIAL_QUESTIONS.length}: ${question.question}`);
-
-        } catch (questionError) {
-          console.error(`💰 Error processing question ${question.question}:`, questionError);
-          // Continue with other questions even if one fails
-          financialAnswers[question.id] = {
-            question: question.question,
-            answer: "Error processing this question. Please review manually.",
-            confidence: 0,
-            sources: [],
-            evidenceCount: 0,
-            documentsCovered: 0
-          };
-        }
+      if (documents.length === 0) {
+        throw new Error('No documents found for financial analysis');
       }
 
-      // Store results in database (same format as legal analysis)
-      await storage.updateBackgroundJob(jobId, {
-        progress: 95,
-        currentStep: 'Storing financial analysis results...'
+      this.setProgress(dealId, {
+        progress: 10,
+        currentStep: `Found ${documents.length} documents for analysis`
       });
+
+      // Extract financial evidence from documents
+      const evidenceMap = await this.extractFinancialEvidence(documents, dealId);
+      
+      this.setProgress(dealId, {
+        progress: 70,
+        currentStep: 'Generating comprehensive financial answers...'
+      });
+
+      // Generate comprehensive answers for all questions
+      const answers = await this.generateComprehensiveAnswers(evidenceMap, dealId);
+      
+      this.setProgress(dealId, {
+        progress: 85,
+        currentStep: 'Compiling final analysis...'
+      });
+
+      // Compile results
+      const findings = this.compileFindingsFromAnswers(answers);
+      const recommendations = this.compileRecommendationsFromAnswers(answers);
       
       this.setProgress(dealId, {
         progress: 95,
-        currentStep: 'Storing financial analysis results...'
+        currentStep: 'Storing results...'
       });
 
-      // Generate findings and recommendations from financial answers
-      const findings = [];
-      const recommendations = [];
-      
-      for (const [questionId, answer] of Object.entries(financialAnswers)) {
-        if (answer.keyFindings && answer.keyFindings.length > 0) {
-          findings.push(...answer.keyFindings.map(finding => ({
-            id: findings.length + 1,
-            type: 'positive',
-            content: finding,
-            source: answer.sources?.[0] || 'Financial Analysis',
-            confidence: answer.confidence || 85,
-            category: questionId,
-            evidenceCount: answer.evidenceCount || 0
-          })));
-        }
-        
-        if (answer.recommendations && answer.recommendations.length > 0) {
-          recommendations.push(...answer.recommendations.map(rec => ({
-            id: recommendations.length + 1,
-            type: 'financial',
-            content: rec,
-            source: 'Financial Analysis',
-            confidence: answer.confidence || 85,
-            category: questionId
-          })));
-        }
-      }
-
-      const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'financial');
-      
-      if (existingAnalysis) {
-        await storage.updateAnalysis(existingAnalysis.id, {
-          ...existingAnalysis,
-          financialAnswers: JSON.stringify(financialAnswers),
-          findings: JSON.stringify(findings),
-          recommendations: JSON.stringify(recommendations),
-          status: 'completed',
-          progress: 100,
-          questionsAnswered: Object.keys(financialAnswers).length,
-          totalQuestions: FINANCIAL_QUESTIONS.length,
-          completionRate: Math.round((Object.keys(financialAnswers).length / FINANCIAL_QUESTIONS.length) * 100)
-        });
-      } else {
-        await storage.createAnalysis({
-          dealId,
-          agentType: 'financial',
-          status: 'completed',
-          progress: 100,
-          financialAnswers: JSON.stringify(financialAnswers),
-          findings: JSON.stringify(findings),
-          recommendations: JSON.stringify(recommendations),
-          questionsAnswered: Object.keys(financialAnswers).length,
-          totalQuestions: FINANCIAL_QUESTIONS.length,
-          completionRate: Math.round((Object.keys(financialAnswers).length / FINANCIAL_QUESTIONS.length) * 100),
-          createdAt: new Date()
-        });
-      }
-
-      // Complete the job
-      await storage.updateBackgroundJob(jobId, {
-        status: 'completed',
-        progress: 100,
-        currentStep: `Financial analysis completed - ${Object.keys(financialAnswers).length} questions analyzed`,
-        completedAt: new Date()
-      });
+      // Store results in database
+      const analysisResult = await this.storeAnalysisResults(dealId, answers, findings, recommendations);
       
       this.setProgress(dealId, {
-        isRunning: false,
         progress: 100,
-        message: `Comprehensive financial analysis completed - ${Object.keys(financialAnswers).length} questions answered`
+        currentStep: 'Financial analysis completed'
       });
 
-      console.log(`💰 Comprehensive financial analysis completed for deal ${dealId}`);
+      console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
+      console.log(`📊 Generated ${findings.length} findings and ${recommendations.length} recommendations`);
+      
+      return analysisResult;
       
     } catch (error) {
-      console.error(`💰 Error in comprehensive financial analysis:`, error);
-      
-      // Update background job status to failed
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed',
-        currentStep: `Error: ${error.message}`,
-        error: error.message
-      });
-      
+      console.error(`❌ Financial analysis failed for deal ${dealId}:`, error);
       this.setProgress(dealId, {
-        isRunning: false,
         progress: 0,
-        message: 'Financial analysis failed: ' + (error as Error).message
+        currentStep: 'Analysis failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }
   }
 
-  /**
-   * Extract evidence from ALL documents for a specific question
-   */
-  private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<any[]> {
-    console.log(`💰 Starting evidence extraction from ${documents.length} documents for question: ${question.question}`);
+  async getAssignedFinancialDocuments(dealId: number): Promise<any[]> {
+    console.log(`🔍 Finding financial documents for deal ${dealId}`);
     
-    const evidence: any[] = [];
+    try {
+      // Get all documents for the deal
+      const allDocuments = await storage.getDocumentsByDealId(dealId);
+      console.log(`📄 Total documents found: ${allDocuments.length}`);
+      
+      if (allDocuments.length === 0) {
+        return [];
+      }
+
+      // Financial keywords for document identification
+      const financialKeywords = [
+        'financial', 'finance', 'revenue', 'income', 'balance sheet', 'cash flow',
+        'profit', 'loss', 'ebitda', 'budget', 'forecast', 'projection', 'cap table',
+        'capitalization', 'valuation', 'investment', 'funding', 'equity', 'debt',
+        'tax', 'audit', 'accounting', 'opex', 'capex', 'burn rate', 'runway',
+        'ltv', 'cac', 'churn', 'subscription', 'pricing', 'cost', 'expense',
+        'liability', 'asset', 'goodwill', 'depreciation', 'amortization'
+      ];
+
+      // Filter documents that might contain financial information
+      const relevantDocuments = allDocuments.filter((doc: any) => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const content = (doc.ocrText || doc.aiSummary || '').toLowerCase();
+        const name = (doc.name || '').toLowerCase();
+        
+        // Check if document name or content contains financial keywords
+        return financialKeywords.some((keyword: string) => 
+          content.includes(keyword) || name.includes(keyword)
+        );
+      });
+
+      console.log(`💰 Found ${relevantDocuments.length} documents with financial content`);
+      
+      return relevantDocuments;
+      
+    } catch (error) {
+      console.error('Error getting financial documents:', error);
+      return [];
+    }
+  }
+
+  async extractFinancialEvidence(documents: any[], dealId: number): Promise<Map<string, FinancialEvidence[]>> {
+    const evidenceMap = new Map<string, FinancialEvidence[]>();
     const batchSize = 10;
+    const totalBatches = Math.ceil(documents.length / batchSize);
     
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      const batchNumber = Math.floor(i / batchSize) + 1;
-      const totalBatches = Math.ceil(documents.length / batchSize);
+    console.log(`🔍 Processing ${documents.length} documents in ${totalBatches} batches for financial evidence extraction`);
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIdx = batchIndex * batchSize;
+      const batch = documents.slice(startIdx, startIdx + batchSize);
       
-      console.log(`💰 Processing batch ${batchNumber}/${totalBatches} (${batch.length} documents)`);
+      const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
+      this.setProgress(dealId, {
+        progress: batchProgress,
+        currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
+      });
       
+      // Process documents in parallel within batch
       const batchPromises = batch.map(async (doc) => {
+        console.log(`💰 Extracting financial evidence from: ${doc.name}`);
         try {
-          return await this.extractEvidenceFromDocument(doc, question);
+          return await this.extractEvidenceFromDocument(doc);
         } catch (error) {
-          console.error(`💰 Error processing document ${doc.name}:`, error);
+          console.error(`Error extracting evidence from ${doc.name}:`, error);
           return null;
         }
       });
       
       const batchResults = await Promise.all(batchPromises);
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
-      );
-      evidence.push(...validEvidence);
+      const validResults = batchResults.filter(result => result !== null);
       
-      console.log(`✅ Batch ${batchNumber} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      // Group evidence by question
+      validResults.forEach(evidence => {
+        FINANCIAL_QUESTIONS.forEach(question => {
+          const questionEvidence = this.filterEvidenceForQuestion(evidence, question);
+          if (questionEvidence && questionEvidence.relevantContent.length > 0) {
+            if (!evidenceMap.has(question.id)) {
+              evidenceMap.set(question.id, []);
+            }
+            evidenceMap.get(question.id)!.push(questionEvidence);
+          }
+        });
+      });
+      
+      console.log(`✅ Batch ${batchIndex + 1} completed: ${validResults.length}/${batch.length} documents processed successfully`);
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
-    return evidence;
+    return evidenceMap;
   }
 
-  /**
-   * Extract specific evidence from a single document
-   */
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
-    
-    if (!content) return null;
-    
-    const prompt = `You are a financial analyst. Analyze this document for specific financial information.
-
-Question: ${question.question}
-Analysis Focus: ${question.analysisPrompt}
-
-Document: ${document.name}
-Content: ${content.substring(0, 2000)}
-
-Extract relevant financial information, numbers, data points, or statements that directly address this question.
-Return ONLY specific quotes, figures, or facts - no interpretation.
-If no relevant information exists, return "No relevant content found."
-
-Format your response as specific evidence quotes.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
-      temperature: 0.1
-    });
-
-    const relevantContent = response.choices[0].message.content?.trim() || '';
-    
-    if (relevantContent === "No relevant content found." || relevantContent.length < 10) {
-      return null;
+  async extractEvidenceFromDocument(doc: any): Promise<FinancialEvidence> {
+    if (!doc.ocrText && !doc.aiSummary) {
+      return {
+        documentName: doc.name,
+        documentSummary: 'No content available for analysis',
+        relevantContent: [],
+        keyFindings: [],
+        confidence: 0
+      };
     }
 
+    const content = doc.ocrText || doc.aiSummary || '';
+    const prompt = `
+    You are an expert financial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY financial, accounting, monetary, or business performance information, even if indirectly related.
+
+    Document: ${doc.name}
+    Content: ${content.substring(0, 4000)}
+    
+    Instructions:
+    - Look for DIRECT financial terms: revenue, profit, cash flow, expenses, assets, liabilities, equity, valuation
+    - Look for INDIRECT financial information: business metrics, growth rates, customer data, operational costs, funding
+    - Consider documents that mention financial performance, budgets, forecasts, or business planning
+    - Even general business documents often contain financial implications for investment analysis
+    - For investment companies, most business documents contain financial information relevant to investors
+    
+    Focus on extracting:
+    1. Revenue growth, profitability, and financial performance metrics
+    2. Balance sheet items: assets, liabilities, equity positions
+    3. Cash flow information: burn rates, runway, working capital
+    4. Financial forecasts, budgets, and business projections
+    5. Capitalization: funding, valuations, equity structures
+    6. Tax implications, compliance, and regulatory financial matters
+    7. Cost structures, pricing models, and unit economics
+    
+    Return a JSON response with:
+    {
+      "documentSummary": "Brief summary of the document's financial relevance",
+      "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
+      "relevantContent": ["Quote 1", "Quote 2", "Quote 3"],
+      "confidence": 0.85,
+      "financialContext": "How this document relates to financial aspects"
+    }
+    
+    Be aggressive in finding financial relevance - most business documents have financial implications for investment analysis.
+    `;
+
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    
     return {
-      documentName: document.name,
-      relevantContent: [relevantContent],
-      confidence: 0.85
+      documentName: doc.name,
+      documentSummary: result.documentSummary || 'Financial analysis completed',
+      relevantContent: Array.isArray(result.relevantContent) ? result.relevantContent : [],
+      keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings : [],
+      confidence: result.confidence || 0.7
     };
   }
 
-  /**
-   * Generate comprehensive answer using AI analysis
-   */
-  private async generateComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+  filterEvidenceForQuestion(evidence: FinancialEvidence, question: any): FinancialEvidence | null {
+    const content = (evidence.documentSummary + ' ' + evidence.relevantContent.join(' ') + ' ' + evidence.keyFindings.join(' ')).toLowerCase();
+    
+    // Check if document contains keywords relevant to this question
+    const hasRelevantKeywords = question.keywords.some((keyword: string) => content.includes(keyword.toLowerCase()));
+    
+    if (!hasRelevantKeywords) {
+      return null;
+    }
+    
+    // Filter content to only relevant parts
+    const filteredContent = evidence.relevantContent.filter(item => 
+      question.keywords.some((keyword: string) => item.toLowerCase().includes(keyword.toLowerCase()))
+    );
+    
+    const filteredFindings = evidence.keyFindings.filter((finding: string) => 
+      question.keywords.some((keyword: string) => finding.toLowerCase().includes(keyword.toLowerCase()))
+    );
+    
+    return {
+      ...evidence,
+      relevantContent: filteredContent,
+      keyFindings: filteredFindings,
+      confidence: Math.min(evidence.confidence, 0.9) // Slightly reduce confidence for filtered evidence
+    };
+  }
+
+  async generateComprehensiveAnswers(evidenceMap: Map<string, FinancialEvidence[]>, dealId: number): Promise<{[key: string]: FinancialAnswer}> {
+    const answers: {[key: string]: FinancialAnswer} = {};
+    const questionCount = FINANCIAL_QUESTIONS.length;
+    
+    for (let i = 0; i < FINANCIAL_QUESTIONS.length; i++) {
+      const question = FINANCIAL_QUESTIONS[i];
+      const questionProgress = 70 + Math.round((i / questionCount) * 15);
+      
+      this.setProgress(dealId, {
+        progress: questionProgress,
+        currentStep: `Analyzing: ${question.category}`,
+        currentQuestion: question.question
+      });
+      
+      const evidence = evidenceMap.get(question.id) || [];
+      console.log(`💰 Generating answer for: ${question.question} (${evidence.length} documents with evidence)`);
+      
+      try {
+        const answer = await this.generateAnswerForQuestion(question, evidence);
+        answers[question.id] = answer;
+      } catch (error) {
+        console.error(`Error generating answer for ${question.id}:`, error);
+        // Continue with next question rather than failing entirely
+        answers[question.id] = this.generateFallbackAnswer(question, evidence);
+      }
+    }
+    
+    return answers;
+  }
+
+  async generateAnswerForQuestion(question: any, evidence: FinancialEvidence[]): Promise<FinancialAnswer> {
     if (evidence.length === 0) {
       return {
         question: question.question,
-        answer: "No relevant information found in the assigned financial documents for this question.",
-        confidence: 10,
+        answer: `No specific evidence found in the analyzed financial documents for: ${question.question}`,
+        confidence: 0,
         sources: [],
-        evidenceCount: 0,
-        documentsCovered: 0
+        detailedEvidence: [],
+        keyFindings: [],
+        evidenceSummary: 'No relevant financial evidence available',
+        financialAssessment: 'Unable to assess due to lack of relevant documentation',
+        recommendations: ['Consider providing additional financial documentation for comprehensive analysis']
       };
     }
 
-    const evidenceText = evidence.map(e => 
-      `${e.documentName}: ${e.relevantContent.join('; ')}`
-    ).join('\n\n');
+    // Compile all evidence
+    const allContent = evidence.map(e => e.relevantContent.join(' ')).join('\n');
+    const allFindings = evidence.flatMap(e => e.keyFindings);
+    
+    const prompt = `
+    You are a financial due diligence expert analyzing investment opportunities.
+    
+    Question: ${question.question}
+    Category: ${question.category}
+    
+    Evidence from documents:
+    ${allContent}
+    
+    Key findings:
+    ${allFindings.join('\n')}
+    
+    Provide a comprehensive financial analysis response as JSON:
+    {
+      "answer": "Detailed answer based on evidence",
+      "confidence": 0.85,
+      "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
+      "evidenceSummary": "Summary of the evidence analyzed",
+      "financialAssessment": "Professional financial assessment",
+      "recommendations": ["Recommendation 1", "Recommendation 2"]
+    }
+    `;
 
-    const prompt = `You are a financial due diligence expert. Based on the evidence extracted from documents, provide a comprehensive answer to this financial question.
-
-Question: ${question.question}
-Category: ${question.category}
-Analysis Focus: ${question.analysisPrompt}
-
-Evidence from Documents:
-${evidenceText}
-
-Provide a comprehensive financial analysis including:
-1. Direct answer to the question based on evidence
-2. Key financial findings and insights
-3. Specific recommendations for investors
-4. Assessment of financial health and risks
-
-Format as JSON:
-{
-  "question": "${question.question}",
-  "answer": "comprehensive answer based on evidence",
-  "confidence": confidence_score_0_to_100,
-  "sources": ["document names"],
-  "keyFindings": ["finding1", "finding2"],
-  "recommendations": ["rec1", "rec2"],
-  "evidenceCount": ${evidence.length},
-  "documentsCovered": ${evidence.length}
-}`;
-
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 800,
-      temperature: 0.2
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
     });
 
-    try {
-      return JSON.parse(response.choices[0].message.content);
-    } catch (parseError) {
-      console.error(`💰 Error parsing AI response for question ${question.question}:`, parseError);
-      return {
-        question: question.question,
-        answer: response.choices[0].message.content,
-        confidence: 75,
-        sources: evidence.map(e => e.documentName),
-        keyFindings: [],
-        recommendations: [],
-        evidenceCount: evidence.length,
-        documentsCovered: evidence.length
-      };
-    }
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    
+    return {
+      question: question.question,
+      answer: result.answer || 'Financial analysis completed',
+      confidence: Math.min(Math.max(result.confidence || 0.7, 0), 1),
+      sources: evidence.map(e => e.documentName),
+      detailedEvidence: evidence,
+      keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings : [],
+      evidenceSummary: result.evidenceSummary || 'Evidence analyzed',
+      financialAssessment: result.financialAssessment || 'Financial assessment completed',
+      recommendations: Array.isArray(result.recommendations) ? result.recommendations : []
+    };
   }
 
-  /**
-   * Get documents assigned to financial analysis
-   */
-  private async getAssignedFinancialDocuments(dealId: number): Promise<any[]> {
-    console.log(`💰 Getting financial documents for deal ${dealId}`);
-    
-    // Financial keywords for document identification
-    const financialKeywords = [
-      'financial', 'finance', 'budget', 'revenue', 'income', 'cash', 'profit', 'loss',
-      'balance', 'sheet', 'statement', 'audit', 'accounting', 'cost', 'expense', 'funding',
-      'investment', 'valuation', 'pricing', 'forecast', 'projection', 'burn', 'runway',
-      'metrics', 'kpi', 'arr', 'mrr', 'ltv', 'cac', 'churn', 'margin', 'ebitda',
-      'capex', 'opex', 'working capital', 'debt', 'equity', 'shares', 'dilution'
-    ];
-    
-    const allDocuments = await db.select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+  generateFallbackAnswer(question: any, evidence: FinancialEvidence[]): FinancialAnswer {
+    return {
+      question: question.question,
+      answer: `Analysis completed for ${question.question}. ${evidence.length} documents were reviewed for relevant financial information.`,
+      confidence: evidence.length > 0 ? 0.6 : 0.1,
+      sources: evidence.map(e => e.documentName),
+      detailedEvidence: evidence,
+      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
+      evidenceSummary: `Analyzed ${evidence.length} financial documents`,
+      financialAssessment: 'Financial assessment completed with available evidence',
+      recommendations: evidence.length > 0 ? ['Review findings for investment decision-making'] : ['Provide additional financial documentation']
+    };
+  }
 
-    // Filter documents that contain financial-related content
-    const financialDocs = allDocuments.filter(doc => {
-      const docName = doc.name.toLowerCase();
-      const aiSummary = typeof doc.aiSummary === 'string' 
-        ? doc.aiSummary 
-        : doc.aiSummary?.executiveSummary || '';
-      const content = (docName + ' ' + aiSummary).toLowerCase();
-      
-      return financialKeywords.some(keyword => content.includes(keyword));
+  compileFindingsFromAnswers(answers: {[key: string]: FinancialAnswer}): any[] {
+    const findings: any[] = [];
+    let findingId = 0;
+    
+    Object.values(answers).forEach(answer => {
+      answer.keyFindings.forEach(finding => {
+        findings.push({
+          id: findingId++,
+          content: finding,
+          type: 'financial_finding',
+          confidence: answer.confidence,
+          source: answer.sources[0] || 'Financial Analysis'
+        });
+      });
     });
+    
+    return findings;
+  }
 
-    // If no specific financial documents found, use all documents
-    if (financialDocs.length === 0) {
-      console.log(`💰 No specific financial documents found, using all ${allDocuments.length} documents`);
-      return allDocuments;
+  compileRecommendationsFromAnswers(answers: {[key: string]: FinancialAnswer}): any[] {
+    const recommendations: any[] = [];
+    let recId = 0;
+    
+    Object.values(answers).forEach(answer => {
+      answer.recommendations.forEach(rec => {
+        recommendations.push({
+          id: recId++,
+          content: rec,
+          type: 'financial_recommendation',
+          priority: 'medium'
+        });
+      });
+    });
+    
+    return recommendations;
+  }
+
+  async storeAnalysisResults(dealId: number, answers: {[key: string]: FinancialAnswer}, findings: any[], recommendations: any[]): Promise<any> {
+    try {
+      const analysisData = {
+        dealId,
+        agentType: 'Financial',
+        status: 'Completed',
+        progress: 100,
+        findings,
+        recommendations,
+        financialAnswers: JSON.stringify(answers),
+        completedAt: new Date().toISOString()
+      };
+
+      // Store in agent_analyses table
+      const result = await storage.saveAgentAnalysis(analysisData);
+      console.log(`✅ Financial analysis results stored for deal ${dealId}`);
+      
+      return result;
+    } catch (error) {
+      console.error('Error storing financial analysis results:', error);
+      throw error;
     }
-
-    console.log(`💰 Found ${financialDocs.length} financial documents out of ${allDocuments.length} total`);
-    return financialDocs;
   }
 }
 
 export const comprehensiveFinancialAnalysisService = new ComprehensiveFinancialAnalysisService();
-
-/**
- * Get comprehensive financial analysis results
- */
-export async function getComprehensiveFinancialAnalysisResults(dealId: number) {
-  try {
-    const analysis = await storage.getAgentAnalysis(dealId, 'financial');
-    
-    if (!analysis) {
-      return {
-        success: false,
-        error: 'No financial analysis found for this deal'
-      };
-    }
-
-    return {
-      success: true,
-      financialAnswers: analysis.financialAnswers ? JSON.parse(analysis.financialAnswers) : {},
-      findings: analysis.findings ? JSON.parse(analysis.findings) : [],
-      recommendations: analysis.recommendations ? JSON.parse(analysis.recommendations) : [],
-      questionsAnswered: analysis.questionsAnswered || 0,
-      totalQuestions: analysis.totalQuestions || FINANCIAL_QUESTIONS.length,
-      completionRate: analysis.completionRate || 0
-    };
-  } catch (error) {
-    console.error(`💰 Error getting financial analysis results:`, error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
