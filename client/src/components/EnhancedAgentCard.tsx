@@ -66,13 +66,13 @@ export default function EnhancedAgentCard({
 
   // Use comprehensive analysis data if this is an HR, IP, or Research agent and we have the data
   const actualAnalysisData = (() => {
-    if (agentType.toLowerCase() === 'hr' && hrAnalysisData?.analysis) {
+    if (agentType.toLowerCase() === 'hr' && hrAnalysisData && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
     }
-    if (agentType.toLowerCase() === 'ip' && ipAnalysisData?.analysis) {
+    if (agentType.toLowerCase() === 'ip' && ipAnalysisData && 'analysis' in ipAnalysisData) {
       return ipAnalysisData.analysis;
     }
-    if (agentType.toLowerCase() === 'research' && researchAnalysisData?.analysis) {
+    if (agentType.toLowerCase() === 'research' && researchAnalysisData && 'analysis' in researchAnalysisData) {
       return researchAnalysisData.analysis;
     }
     return analysis || {};
@@ -118,7 +118,7 @@ export default function EnhancedAgentCard({
     });
 
     // Look for both comprehensive legal analysis and regular legal agent jobs
-    const legalJobs = jobProgress?.jobs?.filter((job: any) => 
+    const legalJobs = (jobProgress && 'jobs' in jobProgress ? jobProgress.jobs : [])?.filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
       job.status === 'processing' &&
       job.progress > 0 // Only show jobs with actual progress
@@ -127,7 +127,7 @@ export default function EnhancedAgentCard({
     const activeLegalJob = legalJobs[0];
     
     // Show comprehensive commercial analysis if running
-    if (commercialProgress?.isRunning) {
+    if (commercialProgress && 'isRunning' in commercialProgress && commercialProgress.isRunning) {
       return (
         <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
@@ -135,11 +135,11 @@ export default function EnhancedAgentCard({
             <div className="flex-1">
               <p className="text-purple-400 font-medium">Comprehensive Commercial Analysis in Progress</p>
               <p className="text-gray-300 text-sm">
-                {commercialProgress.currentStep || 'Processing comprehensive commercial analysis...'}
+                {(commercialProgress && 'currentStep' in commercialProgress ? commercialProgress.currentStep : null) || 'Processing comprehensive commercial analysis...'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-white font-medium">{Math.round(commercialProgress.progress || 0)}%</p>
+              <p className="text-white font-medium">{Math.round((commercialProgress && 'progress' in commercialProgress ? commercialProgress.progress : 0) || 0)}%</p>
             </div>
           </div>
           <Progress 
@@ -155,7 +155,7 @@ export default function EnhancedAgentCard({
     }
 
     // Show comprehensive HR analysis if running
-    if (hrProgress?.isRunning) {
+    if (hrProgress && 'isRunning' in hrProgress && hrProgress.isRunning) {
       return (
         <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
