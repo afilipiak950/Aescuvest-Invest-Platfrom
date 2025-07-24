@@ -190,7 +190,7 @@ app.use((req, res, next) => {
   app.get('/api/deals/:dealId/data-room/status', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const connection = await zipProcessor.getConnection(dealId);
+      const connection = await zipProcessor.getConnection(dealId.toString());
       
       res.json({
         success: true,
