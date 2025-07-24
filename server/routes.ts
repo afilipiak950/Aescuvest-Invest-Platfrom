@@ -4326,11 +4326,25 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
+      // Create background job for progress tracking
+      const jobId = `research_analysis_${dealId}_${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_research_analysis',
+        dealId,
+        agentType: 'Research',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        startedAt: new Date()
+      });
+
       // Import and start the comprehensive research analysis service
       const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
       
-      // Start comprehensive research analysis in background
-      comprehensiveResearchAnalysisService.startComprehensiveAnalysis(dealId).catch(error => {
+      // Start comprehensive research analysis in background with storage and jobId
+      comprehensiveResearchAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
         console.error(`❌ Background research analysis failed for deal ${dealId}:`, error);
       });
       
@@ -4341,6 +4355,60 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     } catch (error) {
       console.error(`❌ Error starting comprehensive research analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive research analysis' });
+    }
+  });
+
+  // Get comprehensive Research analysis results
+  app.get('/api/deals/:dealId/research-analysis/comprehensive/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🔬 Fetching comprehensive research analysis results for deal ${dealId}`);
+      
+      // Get comprehensive research analysis from agent_analyses table
+      const analysis = await storage.getAgentAnalysis(dealId, 'research');
+      
+      if (!analysis) {
+        console.log(`❌ No comprehensive research analysis found for deal ${dealId}`);
+        return res.json({
+          success: false,
+          message: 'No comprehensive research analysis found',
+          results: null
+        });
+      }
+      
+      // Parse research answers if they exist
+      let researchAnswers = {};
+      if (analysis.research_answers) {
+        try {
+          researchAnswers = typeof analysis.research_answers === 'string' 
+            ? JSON.parse(analysis.research_answers) 
+            : analysis.research_answers;
+        } catch (error) {
+          console.error('Error parsing research answers:', error);
+          researchAnswers = {};
+        }
+      }
+      
+      console.log(`🔬 Research Analysis Data:`, {
+        hasAnswers: !!analysis.research_answers,
+        answersType: typeof analysis.research_answers,
+        parsedAnswersKeys: Object.keys(researchAnswers)
+      });
+      
+      res.json({
+        success: true,
+        results: {
+          status: analysis.status,
+          findings: analysis.findings || [],
+          recommendations: analysis.recommendations || [],
+          researchAnswers,
+          completedAt: analysis.completedAt
+        }
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive research analysis results:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
     }
   });
 

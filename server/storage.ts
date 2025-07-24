@@ -1258,29 +1258,81 @@ export class DatabaseStorage implements IStorage {
         .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))));
       
       if (existing.length > 0) {
+        // Prepare update object with common fields
+        const updateData: any = {
+          findings: analysisData.findings || [],
+          recommendations: analysisData.recommendations || [],
+          status: 'Completed',
+          updatedAt: new Date()
+        };
+        
+        // Add agent-specific answer fields
+        if (agentType.toLowerCase() === 'research' && analysisData.results) {
+          updateData.research_answers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'legal' && analysisData.results) {
+          updateData.legalAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'clinical' && analysisData.results) {
+          updateData.clinicalAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'commercial' && analysisData.results) {
+          updateData.commercialAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'financial' && analysisData.results) {
+          updateData.financialAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'hr' && analysisData.results) {
+          updateData.hrAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'ip' && analysisData.results) {
+          updateData.ip_answers = analysisData.results;
+        }
+        
         const [updated] = await db
           .update(agentAnalyses)
-          .set({
-            findings: analysisData.findings || [],
-            recommendations: analysisData.recommendations || [],
-            status: 'Completed',
-            updatedAt: new Date()
-          })
+          .set(updateData)
           .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))))
           .returning();
         return updated;
       } else {
+        // Prepare insert object with common fields
+        const insertData: any = {
+          dealId,
+          agentType: agentType.charAt(0).toUpperCase() + agentType.slice(1),
+          findings: analysisData.findings || [],
+          recommendations: analysisData.recommendations || [],
+          status: 'Completed',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        // Add agent-specific answer fields
+        if (agentType.toLowerCase() === 'research' && analysisData.results) {
+          insertData.research_answers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'legal' && analysisData.results) {
+          insertData.legalAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'clinical' && analysisData.results) {
+          insertData.clinicalAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'commercial' && analysisData.results) {
+          insertData.commercialAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'financial' && analysisData.results) {
+          insertData.financialAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'hr' && analysisData.results) {
+          insertData.hrAnswers = analysisData.results;
+        }
+        if (agentType.toLowerCase() === 'ip' && analysisData.results) {
+          insertData.ip_answers = analysisData.results;
+        }
+        
         const [created] = await db
           .insert(agentAnalyses)
-          .values({
-            dealId,
-            agentType: agentType.charAt(0).toUpperCase() + agentType.slice(1),
-            findings: analysisData.findings || [],
-            recommendations: analysisData.recommendations || [],
-            status: 'Completed',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
+          .values(insertData)
           .returning();
         return created;
       }
@@ -1318,8 +1370,10 @@ export class DatabaseStorage implements IStorage {
     try {
       // Try both lowercase and capitalized versions to handle inconsistent data
       const normalizedAgentType = agentType.toLowerCase();
-      // Special handling for IP agent type to ensure proper case matching
-      const capitalizedAgentType = normalizedAgentType === 'ip' ? 'IP' : agentType.charAt(0).toUpperCase() + agentType.slice(1);
+      // Special handling for IP and Research agent types to ensure proper case matching
+      const capitalizedAgentType = normalizedAgentType === 'ip' ? 'IP' : 
+                                   normalizedAgentType === 'research' ? 'Research' : 
+                                   agentType.charAt(0).toUpperCase() + agentType.slice(1);
       
       // Get records matching both case variations by running two separate queries then combining
       const lowercaseResults = await db.select({
@@ -1424,7 +1478,12 @@ export class DatabaseStorage implements IStorage {
           legalAnswers: analysisResult.legalAnswers || null,
           clinical_answers: analysisResult.clinicalAnswers || null,
           clinicalAnswers: analysisResult.clinicalAnswers || null,
-          commercialAnswers: analysisResult.commercialAnswers || null
+          commercialAnswers: analysisResult.commercialAnswers || null,
+          research_answers: analysisResult.research_answers || null,
+          researchAnswers: analysisResult.research_answers || null,
+          financialAnswers: analysisResult.financialAnswers || null,
+          hrAnswers: analysisResult.hrAnswers || null,
+          ip_answers: analysisResult.ip_answers || null
         };
       }
       
