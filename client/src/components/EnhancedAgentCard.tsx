@@ -3591,8 +3591,32 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.analysis?.financialAnswers) return null;
-    return comprehensiveResults.analysis.financialAnswers[questionId] || null;
+    // First try comprehensive results
+    if (comprehensiveResults?.analysis?.financialAnswers?.[questionId]) {
+      return comprehensiveResults.analysis.financialAnswers[questionId];
+    }
+    
+    // Fallback to existing analysis data structure for backward compatibility
+    if (analysisData?.financialAnswers?.[questionId]) {
+      return analysisData.financialAnswers[questionId];
+    }
+    
+    // If no specific question data exists but analysis has findings/recommendations, show generic message
+    if (comprehensiveResults?.analysis?.findings?.length > 0 || comprehensiveResults?.analysis?.recommendations?.length > 0) {
+      return {
+        answer: `Financial analysis completed. Please run comprehensive analysis to see detailed question-specific answers.`,
+        confidence: 0.8,
+        sources: comprehensiveResults.analysis.documentSources || [],
+        quotes: [],
+        keyFindings: comprehensiveResults.analysis.findings || [],
+        evidenceSummary: '',
+        financialAssessment: 'Analysis available in findings and recommendations.',
+        recommendations: comprehensiveResults.analysis.recommendations || [],
+        detailedEvidence: []
+      };
+    }
+    
+    return null;
   };
 
   return (
