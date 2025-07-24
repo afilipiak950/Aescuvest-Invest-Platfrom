@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
+import ResearchQuestionsSection from './ResearchQuestionsSection';
 
 interface EnhancedAgentCardProps {
   dealId: number;
@@ -56,13 +57,23 @@ export default function EnhancedAgentCard({
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
-  // Use comprehensive analysis data if this is an HR or IP agent and we have the data
+  // Fetch comprehensive Research analysis data directly for Research agents
+  const { data: researchAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    enabled: agentType.toLowerCase() === 'research',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use comprehensive analysis data if this is an HR, IP, or Research agent and we have the data
   const actualAnalysisData = (() => {
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData?.analysis) {
       return hrAnalysisData.analysis;
     }
     if (agentType.toLowerCase() === 'ip' && ipAnalysisData?.analysis) {
       return ipAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'research' && researchAnalysisData?.analysis) {
+      return researchAnalysisData.analysis;
     }
     return analysis || {};
   })();
@@ -883,6 +894,13 @@ export default function EnhancedAgentCard({
           />
         ) : agentType.toLowerCase() === 'ip' ? (
           <IpQuestionsSection 
+            dealId={dealId}
+            analysisData={actualAnalysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+          />
+        ) : agentType.toLowerCase() === 'research' ? (
+          <ResearchQuestionsSection 
             dealId={dealId}
             analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
