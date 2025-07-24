@@ -319,8 +319,7 @@ export default function DueDiligence() {
   // Mutation for running all agent analyses (manual trigger)
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-      console.log(`🚀 Starting fresh comprehensive analysis for all ${agentTypes.length} agents`);
+      console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
       
       // Step 1: Stop all running analyses first 
       console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
@@ -350,33 +349,55 @@ export default function DueDiligence() {
         // Continue anyway - the analyses will be overwritten
       }
       
-      // Step 3: Run all agent analyses in parallel with force refresh
-      const promises = agentTypes.map(agentType => 
-        apiRequest(`/api/deals/${selectedDeal}/agents/${agentType}/analyze`, {
+      // Step 3: Run all comprehensive analyses in parallel
+      const comprehensiveEndpoints = [
+        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
+      ];
+
+      const promises = comprehensiveEndpoints.map(endpoint => {
+        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
+        return apiRequest(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ forceRefresh: true })
-        })
-      );
+          headers: { 'Content-Type': 'application/json' }
+        });
+      });
       
       return Promise.all(promises);
     },
     onSuccess: (results) => {
-      console.log(`✅ All agent analyses started successfully:`, results);
+      console.log(`✅ All comprehensive analyses started successfully:`, results);
       
       // Show immediate feedback
       toast({
-        title: "Analyses Started",
-        description: "All AI agents are now analyzing documents...",
-        duration: 3000,
+        title: "Comprehensive Analyses Started",
+        description: "All 7 AI agents are now running comprehensive document analysis...",
+        duration: 5000,
       });
       
-      // Invalidate all agent results queries to refresh UI
+      // Invalidate all comprehensive analysis results queries to refresh UI
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      
+      // Invalidate comprehensive analysis endpoints
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
+      
+      // Also invalidate regular agent endpoints for backwards compatibility
       agentTypes.forEach(agentType => {
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
       });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       
       // Set up completion monitoring
       const checkCompletion = setInterval(async () => {
@@ -390,20 +411,21 @@ export default function DueDiligence() {
             );
             
             if (allCompleted) {
-              console.log(`🎉 All analyses completed! Refreshing data...`);
+              console.log(`🎉 All comprehensive analyses completed! Refreshing data...`);
               setIsRunningAllAnalyses(false);
               clearInterval(checkCompletion);
               
               // Refresh all relevant queries
               queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
               agentTypes.forEach(agentType => {
                 queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
               });
               
               // Show completion notification
               toast({
-                title: "Analyses Complete",
-                description: "All agent analyses completed successfully!",
+                title: "Comprehensive Analyses Complete",
+                description: "All 7 agent comprehensive analyses completed successfully!",
                 duration: 5000,
               });
             }
@@ -411,13 +433,13 @@ export default function DueDiligence() {
         } catch (error) {
           console.error('Error checking analysis completion:', error);
         }
-      }, 2000); // Check every 2 seconds
+      }, 3000); // Check every 3 seconds
       
-      // Cleanup after 10 minutes max
+      // Cleanup after 15 minutes max
       setTimeout(() => {
         setIsRunningAllAnalyses(false);
         clearInterval(checkCompletion);
-      }, 600000);
+      }, 900000);
     },
     onError: (error) => {
       console.error(`❌ Failed to start all analyses:`, error);
