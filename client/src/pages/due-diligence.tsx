@@ -456,28 +456,51 @@ export default function DueDiligence() {
     onError: (error) => {
       console.error(`❌ Failed to start all analyses:`, error);
       setIsRunningAllAnalyses(false);
+      
+      // Show user-friendly error message
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to start analyses. This may be due to API quota limits. Please try again later.",
+        variant: "destructive",
+        duration: 5000,
+      });
+      
+      // Clear any loading states
+      queryClient.setQueryData([`/api/background-jobs/${selectedDeal}`], { jobs: [] });
     }
   });
 
   const handleRunAllAnalyses = () => {
-    console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
-    setIsRunningAllAnalyses(true);
-    
-    // Immediately show loading feedback
-    toast({
-      title: "Resetting Analyses",
-      description: "Stopping all running analyses and starting fresh...",
-      duration: 2000,
-    });
-    
-    // Immediately invalidate all agent queries to clear existing data and show loading states
-    const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-    agentTypes.forEach(agentType => {
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
-    });
-    queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-    
-    runAllAnalysesMutation.mutate();
+    try {
+      console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
+      setIsRunningAllAnalyses(true);
+      
+      // Immediately show loading feedback
+      toast({
+        title: "Resetting Analyses",
+        description: "Stopping all running analyses and starting fresh...",
+        duration: 2000,
+      });
+      
+      // Immediately invalidate all agent queries to clear existing data and show loading states
+      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      agentTypes.forEach(agentType => {
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      
+      runAllAnalysesMutation.mutate();
+    } catch (error) {
+      console.error('❌ Error in handleRunAllAnalyses:', error);
+      setIsRunningAllAnalyses(false);
+      
+      toast({
+        title: "Error",
+        description: "Failed to start analyses. Please refresh the page and try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
   };
 
   return (
