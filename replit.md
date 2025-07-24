@@ -464,6 +464,14 @@ Changelog:
   - **Data Integrity**: System now properly returns "Completed" status with authentic findings (1), recommendations (1), and parsed IP answers (patents_1)
   - **Debug Enhancement**: Added comprehensive logging showing record counts and status prioritization for troubleshooting
   - **Special Case Handling**: Implemented proper "ip" → "IP" mapping to handle database inconsistencies between lowercase and uppercase agent types
+- July 24, 2025: Enhanced "Reset & Run All Analyses" button to trigger comprehensive analysis for all 7 agents
+  - **Comprehensive Analysis Integration**: Updated button to use comprehensive analysis endpoints for all agents instead of basic analysis
+  - **All Agent Coverage**: Button now triggers Clinical, Legal, Commercial, HR, Financial, IP, and Research comprehensive analyses simultaneously
+  - **Enhanced User Feedback**: Improved toast notifications to show "All 7 AI agents are now running comprehensive document analysis"
+  - **Robust Error Handling**: Added proper cleanup, stopping existing analyses, and deletion of old results before starting fresh
+  - **Progress Monitoring**: Implemented completion monitoring with 3-second polling intervals and 15-minute timeout
+  - **Query Invalidation**: Enhanced cache invalidation for both comprehensive and regular agent endpoints
+  - **Research Tab Integration**: Fixed Research tab to work with new ResearchQuestionsSection component structure matching Legal/Clinical tabs
 ```
 
 ## User Preferences
