@@ -266,7 +266,7 @@ export class ComprehensiveResearchAnalysisService {
         status: 'Completed',
         findings: Object.values(researchAnswers).flatMap((answer: any) => answer.keyFindings || []).slice(0, 100),
         recommendations: Object.values(researchAnswers).flatMap((answer: any) => answer.recommendations || []).slice(0, 50),
-        researchAnswers: JSON.stringify(researchAnswers),
+        research_answers: researchAnswers, // Store directly as JSON object
         completedAt: new Date(),
         metadata: {
           questionsAnalyzed: RESEARCH_QUESTIONS.length,
@@ -275,22 +275,44 @@ export class ComprehensiveResearchAnalysisService {
         }
       };
 
-      await storage.saveAgentAnalysis(dealId, 'Research', analysisResults);
+      console.log(`🔬 DEBUG: About to save analysis with ${Object.keys(researchAnswers).length} answers:`, Object.keys(researchAnswers));
+      console.log(`🔬 DEBUG: Sample answer:`, researchAnswers[Object.keys(researchAnswers)[0]]);
+      console.log(`🔬 DEBUG: researchAnswers JSON length:`, JSON.stringify(researchAnswers).length);
+      
+      // Check if analysis already exists
+      const existingAnalysis = await storageService.getAgentAnalysisByDealAndType(dealId, 'Research');
+      
+      if (existingAnalysis) {
+        // Update existing analysis
+        await storageService.updateAgentAnalysis(existingAnalysis.id, {
+          status: 'Completed',
+          findings: analysisResults.findings,
+          recommendations: analysisResults.recommendations,
+          research_answers: analysisResults.research_answers,
+          completedAt: analysisResults.completedAt,
+          metadata: analysisResults.metadata
+        });
+      } else {
+        // Create new analysis
+        await storageService.createAgentAnalysis(analysisResults);
+      }
       console.log(`🔬 Research analysis completed for deal ${dealId} with ${Object.keys(researchAnswers).length} questions analyzed`);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(`🔬 Comprehensive research analysis failed for deal ${dealId}:`, error);
+      console.error(`🔬 Error details:`, error?.message || error);
+      console.error(`🔬 Error stack:`, error?.stack);
       
-      await storage.updateBackgroundJob(analysisJobId, {
+      await storageService.updateBackgroundJob(analysisJobId, {
         status: 'failed',
-        error: error.message
+        error: error?.message || 'Unknown error'
       });
       
       await this.setProgress(dealId, {
         isRunning: false,
         progress: 0,
-        message: `Analysis failed: ${error.message}`
-      }, storage, analysisJobId);
+        message: `Analysis failed: ${error?.message || 'Unknown error'}`
+      }, storageService, analysisJobId);
       
       throw error;
     }
@@ -463,22 +485,23 @@ Focus on investment due diligence. Be thorough and critical in your analysis.
       return null;
     }
 
-    const results = {
+    const results: any = {
       status: analysis.status,
       findings: analysis.findings || [],
       recommendations: analysis.recommendations || [],
       completedAt: analysis.completedAt
     };
 
-    // Parse research answers if they exist
-    if (analysis.researchAnswers) {
+    // Parse research answers if they exist (handle both camelCase and snake_case)
+    const researchAnswersData = analysis.research_answers || analysis.researchAnswers;
+    if (researchAnswersData) {
       try {
-        const researchAnswers = typeof analysis.researchAnswers === 'string' 
-          ? JSON.parse(analysis.researchAnswers) 
-          : analysis.researchAnswers;
+        const researchAnswers = typeof researchAnswersData === 'string' 
+          ? JSON.parse(researchAnswersData) 
+          : researchAnswersData;
         results.researchAnswers = researchAnswers;
-      } catch (error) {
-        console.error('Error parsing research answers:', error);
+      } catch (error: any) {
+        console.error('Error parsing research answers:', error?.message || error);
         results.researchAnswers = {};
       }
     }
