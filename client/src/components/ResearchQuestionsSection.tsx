@@ -74,18 +74,24 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
 
   React.useEffect(() => {
     try {
-    if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray((jobProgress as any).jobs)) {
-      const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research');
-      if (researchJob && researchJob.status === 'processing') {
-        setProgress(researchJob.progress || 0);
-        setCurrentStep(researchJob.currentDocument || 'Processing research analysis...');
-        setIsVisible(true);
+      if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray((jobProgress as any).jobs)) {
+        const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research');
+        
+        // Only show progress bar if research job is actively processing and has meaningful progress
+        if (researchJob && researchJob.status === 'processing' && researchJob.progress > 0) {
+          setProgress(researchJob.progress || 0);
+          setCurrentStep(researchJob.currentDocument || 'Processing research analysis...');
+          setIsVisible(true);
+          console.log('🔬 Research progress visible:', researchJob.progress + '%');
+        } else {
+          setIsVisible(false);
+          if (researchJob) {
+            console.log('🔬 Research progress hidden - Status:', researchJob.status, 'Progress:', researchJob.progress);
+          }
+        }
       } else {
         setIsVisible(false);
       }
-    } else {
-      setIsVisible(false);
-    }
     } catch (error) {
       console.error('Error in ResearchAnalysisProgress useEffect:', error);
       setIsVisible(false);
@@ -303,7 +309,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
           <ComprehensiveResearchAnalysisButton dealId={dealId} />
         </div>
 
-        {/* Research Analysis Progress */}
+        {/* Research Analysis Progress - Only show during active processing */}
         <div className="mb-4">
           <ResearchAnalysisProgress dealId={dealId} />
         </div>
