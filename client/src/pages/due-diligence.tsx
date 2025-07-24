@@ -39,27 +39,27 @@ function DueDiligenceContent() {
 
     // Parse URL parameters and set selected deal
     useEffect(() => {
-    // Check for deal ID in URL path parameter first
-    if (params.dealId) {
-      setSelectedDeal(params.dealId);
-    } else {
-      // Fall back to URL search parameter
-      const searchParams = new URLSearchParams(window.location.search);
-      const dealParam = searchParams.get('deal');
-      if (dealParam) {
-        setSelectedDeal(dealParam);
+      // Check for deal ID in URL path parameter first
+      if (params.dealId) {
+        setSelectedDeal(params.dealId);
+      } else {
+        // Fall back to URL search parameter
+        const searchParams = new URLSearchParams(window.location.search);
+        const dealParam = searchParams.get('deal');
+        if (dealParam) {
+          setSelectedDeal(dealParam);
+        }
       }
-    }
-  }, [location, params.dealId]);
+    }, [location, params.dealId]);
 
-  // Fetch real deals from database
-  const { data: deals, isLoading: isLoadingDeals } = useQuery({
-    queryKey: ['/api/deals'],
-    retry: false,
-  });
+    // Fetch real deals from database
+    const { data: deals, isLoading: isLoadingDeals } = useQuery({
+      queryKey: ['/api/deals'],
+      retry: false,
+    });
 
-  // Fetch real documents for selected deal
-  const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
+    // Fetch real documents for selected deal
+    const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 3,
     enabled: !!selectedDeal,
@@ -85,10 +85,10 @@ function DueDiligenceContent() {
       console.log(`✅ Received ${data?.length || 0} documents for deal ${selectedDeal}`);
       return data;
     }
-  });
+    });
 
-  // Fetch job progress data for real-time updates
-  const { data: jobProgress } = useQuery({
+    // Fetch job progress data for real-time updates
+    const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
     enabled: !!selectedDeal,
     refetchInterval: 1000, // Poll every second for real-time progress
@@ -99,59 +99,59 @@ function DueDiligenceContent() {
       console.log(`📊 Job progress data:`, data);
       return data;
     }
-  });
+    });
 
-  // Create progress states from jobProgress data instead of separate queries to prevent UI interference
-  const legalProgress = useMemo(() => {
-    const legalJob = jobProgress?.jobs?.find((job: any) => 
-      job.agentType === 'Legal' || job.jobId?.includes('legal_analysis') || job.jobId?.includes('legal-analysis')
-    );
-    return legalJob ? {
-      isRunning: legalJob.status === 'processing',
-      progress: legalJob.progress || 0,
-      currentStep: legalJob.currentDocument || legalJob.message || 'Processing legal documents...',
-      currentDocumentName: legalJob.currentDocument || 'Processing'
-    } : null;
-  }, [jobProgress]);
+    // Create progress states from jobProgress data instead of separate queries to prevent UI interference
+    const legalProgress = useMemo(() => {
+      const legalJob = jobProgress?.jobs?.find((job: any) => 
+        job.agentType === 'Legal' || job.jobId?.includes('legal_analysis') || job.jobId?.includes('legal-analysis')
+      );
+      return legalJob ? {
+        isRunning: legalJob.status === 'processing',
+        progress: legalJob.progress || 0,
+        currentStep: legalJob.currentDocument || legalJob.message || 'Processing legal documents...',
+        currentDocumentName: legalJob.currentDocument || 'Processing'
+      } : null;
+    }, [jobProgress]);
 
-  const commercialProgress = useMemo(() => {
-    const commercialJob = jobProgress?.jobs?.find((job: any) => 
-      job.agentType === 'Commercial' || job.jobId?.includes('commercial-analysis') || job.jobId?.includes('commercial_analysis')
-    );
-    return commercialJob ? {
-      isRunning: commercialJob.status === 'processing',
-      progress: commercialJob.progress || 0,
-      currentStep: commercialJob.currentDocument || commercialJob.message || 'Processing commercial documents...',
-      currentDocumentName: commercialJob.currentDocument || 'Processing'
-    } : null;
-  }, [jobProgress]);
+    const commercialProgress = useMemo(() => {
+      const commercialJob = jobProgress?.jobs?.find((job: any) => 
+        job.agentType === 'Commercial' || job.jobId?.includes('commercial-analysis') || job.jobId?.includes('commercial_analysis')
+      );
+      return commercialJob ? {
+        isRunning: commercialJob.status === 'processing',
+        progress: commercialJob.progress || 0,
+        currentStep: commercialJob.currentDocument || commercialJob.message || 'Processing commercial documents...',
+        currentDocumentName: commercialJob.currentDocument || 'Processing'
+      } : null;
+    }, [jobProgress]);
 
-  const hrProgress = useMemo(() => {
-    const hrJob = jobProgress?.jobs?.find((job: any) => 
-      job.agentType === 'HR' || job.jobId?.includes('hr_analysis') || job.jobId?.includes('hr-analysis')
-    );
-    return hrJob ? {
-      isRunning: hrJob.status === 'processing',
-      progress: hrJob.progress || 0,
-      currentStep: hrJob.currentDocument || hrJob.message || 'Processing HR documents...',
-      currentDocumentName: hrJob.currentDocument || 'Processing'
-    } : null;
-  }, [jobProgress]);
+    const hrProgress = useMemo(() => {
+      const hrJob = jobProgress?.jobs?.find((job: any) => 
+        job.agentType === 'HR' || job.jobId?.includes('hr_analysis') || job.jobId?.includes('hr-analysis')
+      );
+      return hrJob ? {
+        isRunning: hrJob.status === 'processing',
+        progress: hrJob.progress || 0,
+        currentStep: hrJob.currentDocument || hrJob.message || 'Processing HR documents...',
+        currentDocumentName: hrJob.currentDocument || 'Processing'
+      } : null;
+    }, [jobProgress]);
 
-  const clinicalProgress = useMemo(() => {
-    const clinicalJob = jobProgress?.jobs?.find((job: any) => 
-      job.agentType === 'Clinical' || job.jobId?.includes('clinical_analysis') || job.jobId?.includes('clinical-analysis')
-    );
-    return clinicalJob ? {
-      isRunning: clinicalJob.status === 'processing' && clinicalJob.progress > 0,
-      progress: clinicalJob.progress || 0,
-      currentStep: clinicalJob.currentDocument || clinicalJob.message || 'Processing clinical documents...',
-      currentDocumentName: clinicalJob.currentDocument || 'Processing'
-    } : null;
-  }, [jobProgress]);
+    const clinicalProgress = useMemo(() => {
+      const clinicalJob = jobProgress?.jobs?.find((job: any) => 
+        job.agentType === 'Clinical' || job.jobId?.includes('clinical_analysis') || job.jobId?.includes('clinical-analysis')
+      );
+      return clinicalJob ? {
+        isRunning: clinicalJob.status === 'processing' && clinicalJob.progress > 0,
+        progress: clinicalJob.progress || 0,
+        currentStep: clinicalJob.currentDocument || clinicalJob.message || 'Processing clinical documents...',
+        currentDocumentName: clinicalJob.currentDocument || 'Processing'
+      } : null;
+    }, [jobProgress]);
 
-  // Stop job mutation
-  const stopJobMutation = useMutation({
+    // Stop job mutation
+    const stopJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
       const response = await apiRequest(`/api/background-jobs/${jobId}/stop`, {
         method: 'POST',
@@ -166,49 +166,49 @@ function DueDiligenceContent() {
     onError: (error) => {
       console.error('❌ Error stopping job:', error);
     }
-  });
+    });
 
-  const handleStopJob = (jobId: string, agentType: string) => {
-    console.log(`🛑 Stopping ${agentType} analysis job: ${jobId}`);
-    stopJobMutation.mutate(jobId);
-  };
+    const handleStopJob = (jobId: string, agentType: string) => {
+      console.log(`🛑 Stopping ${agentType} analysis job: ${jobId}`);
+      stopJobMutation.mutate(jobId);
+    };
 
-  // Reset clinical analysis started flag when analysis is complete
-  useEffect(() => {
-    // Disabled due to progress polling removal - clinical analysis completion is now handled elsewhere
-    if (clinicalAnalysisStarted) {
-      // Auto-reset flag after 30 seconds to prevent it from staying true indefinitely
-      const timer = setTimeout(() => {
-        setClinicalAnalysisStarted(false);
-      }, 30000);
-      return () => clearTimeout(timer);
-    }
-  }, [clinicalAnalysisStarted]);
+    // Reset clinical analysis started flag when analysis is complete
+    useEffect(() => {
+      // Disabled due to progress polling removal - clinical analysis completion is now handled elsewhere
+      if (clinicalAnalysisStarted) {
+        // Auto-reset flag after 30 seconds to prevent it from staying true indefinitely
+        const timer = setTimeout(() => {
+          setClinicalAnalysisStarted(false);
+        }, 30000);
+        return () => clearTimeout(timer);
+      }
+    }, [clinicalAnalysisStarted]);
 
-  // Log current state immediately
-  console.log(`🎯 Current selectedDeal:`, selectedDeal);
-  console.log(`🎯 Progress polling disabled to fix UI interference issues`);
+    // Log current state immediately
+    console.log(`🎯 Current selectedDeal:`, selectedDeal);
+    console.log(`🎯 Progress polling disabled to fix UI interference issues`);
 
-  // Debug log for documents loading
-  console.log('📄 Documents query state:', {
-    selectedDeal,
-    isLoading: isLoadingDocuments,
-    hasData: !!documents,
-    dataLength: documents?.length || 0,
-    error: documentsError
-  });
+    // Debug log for documents loading
+    console.log('📄 Documents query state:', {
+      selectedDeal,
+      isLoading: isLoadingDocuments,
+      hasData: !!documents,
+      dataLength: documents?.length || 0,
+      error: documentsError
+    });
 
-  // Track document count for automated analysis triggering
-  const [previousDocumentCount, setPreviousDocumentCount] = useState(0);
-  const [hasTriggeredInitialAnalysis, setHasTriggeredInitialAnalysis] = useState(false);
+    // Track document count for automated analysis triggering
+    const [previousDocumentCount, setPreviousDocumentCount] = useState(0);
+    const [hasTriggeredInitialAnalysis, setHasTriggeredInitialAnalysis] = useState(false);
 
-  // Auto-show data room when documents exist (always show for immediate access)
-  useEffect(() => {
-    setShowDataRoom(true); // Always show data room for immediate document access
-  }, [documents]);
+    // Auto-show data room when documents exist (always show for immediate access)
+    useEffect(() => {
+      setShowDataRoom(true); // Always show data room for immediate document access
+    }, [documents]);
 
-  // Function to trigger automated analysis for all agents
-  const triggerAutomatedAnalysis = async () => {
+    // Function to trigger automated analysis for all agents
+    const triggerAutomatedAnalysis = async () => {
     if (isRunningAllAnalyses) {
       console.log('⏭️ Analysis already in progress, skipping automated trigger');
       return;
