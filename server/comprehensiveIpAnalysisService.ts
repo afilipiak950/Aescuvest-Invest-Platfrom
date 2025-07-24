@@ -194,6 +194,21 @@ class ComprehensiveIpAnalysisService {
         currentStep: 'IP analysis completed'
       });
 
+      // Clean up the background job by marking it as completed
+      if (this.storage && this.jobId) {
+        try {
+          await this.storage.updateBackgroundJob(this.jobId, {
+            status: 'completed',
+            progress: 100,
+            currentStep: 'Analysis completed',
+            completedAt: new Date().toISOString()
+          });
+          console.log(`✅ Background job ${this.jobId} marked as completed`);
+        } catch (error) {
+          console.error('Error marking background job as completed:', error);
+        }
+      }
+
       console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
       console.log(`🔐 Generated ${findings.length} findings and ${recommendations.length} recommendations`);
       
@@ -201,6 +216,23 @@ class ComprehensiveIpAnalysisService {
       
     } catch (error) {
       console.error(`❌ IP analysis failed for deal ${dealId}:`, error);
+      
+      // Clean up the background job by marking it as failed
+      if (this.storage && this.jobId) {
+        try {
+          await this.storage.updateBackgroundJob(this.jobId, {
+            status: 'failed',
+            progress: 0,
+            currentStep: 'Analysis failed',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            failedAt: new Date().toISOString()
+          });
+          console.log(`❌ Background job ${this.jobId} marked as failed`);
+        } catch (jobError) {
+          console.error('Error marking background job as failed:', jobError);
+        }
+      }
+      
       await this.setProgress(dealId, {
         progress: 0,
         currentStep: 'Analysis failed',
