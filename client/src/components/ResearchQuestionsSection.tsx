@@ -130,10 +130,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
   const { data: comprehensiveResults, error: comprehensiveError } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
-    retry: false,
-    onError: (error) => {
-      console.error('Error fetching comprehensive research results:', error);
-    }
+    retry: false
   });
 
   // Add error boundary protection
