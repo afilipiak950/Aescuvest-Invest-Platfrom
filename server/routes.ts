@@ -4043,21 +4043,118 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       }
       
       // Import and start the comprehensive financial analysis service
-      const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
-      const service = new ComprehensiveFinancialAnalysisService();
+      const { comprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
+      
+      // Create background job
+      const jobId = `financial_analysis_${dealId}_${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_financial_analysis',
+        agentType: 'Financial',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Starting financial analysis...'
+      });
       
       // Start comprehensive financial analysis in background
-      service.startComprehensiveAnalysis(dealId).catch(error => {
+      comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId).catch(error => {
         console.error(`❌ Background financial analysis failed for deal ${dealId}:`, error);
+        storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          error: error.message
+        });
       });
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive financial analysis started - processing 14 financial questions across all assigned documents'
+        message: 'Comprehensive financial analysis started - processing 6 financial categories across all assigned documents',
+        jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive financial analysis' });
+    }
+  });
+
+  // Get comprehensive Financial analysis progress
+  app.get('/api/deals/:dealId/financial-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check for active comprehensive financial analysis job
+      const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const comprehensiveJob = activeJobs.find(job => 
+        job.jobType === 'comprehensive_financial_analysis' && 
+        job.status === 'processing'
+      );
+      
+      if (comprehensiveJob) {
+        res.json({
+          success: true,
+          isRunning: true,
+          progress: comprehensiveJob.progress || 0,
+          currentStep: comprehensiveJob.currentStep || 'Starting analysis',
+          jobId: comprehensiveJob.jobId
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0,
+          message: 'No comprehensive financial analysis running'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive financial analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis progress' });
+    }
+  });
+
+  // Get comprehensive Financial analysis results
+  app.get('/api/deals/:dealId/financial-analysis/comprehensive/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`💰 Fetching comprehensive financial analysis results for deal ${dealId}`);
+      
+      // Get comprehensive financial analysis from agent_analyses table
+      const analysis = await storage.getAgentAnalysisByDealAndType(dealId, 'Financial');
+      
+      if (!analysis) {
+        console.log(`❌ No comprehensive financial analysis found for deal ${dealId}`);
+        return res.json({
+          success: false,
+          message: 'No comprehensive financial analysis found',
+          results: null
+        });
+      }
+      
+      // Parse financial answers if they exist
+      let financialAnswers = {};
+      if (analysis.financialAnswers) {
+        try {
+          financialAnswers = typeof analysis.financialAnswers === 'string' 
+            ? JSON.parse(analysis.financialAnswers) 
+            : analysis.financialAnswers;
+        } catch (error) {
+          console.error('Error parsing financial answers:', error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        results: {
+          status: analysis.status,
+          findings: analysis.findings || [],
+          recommendations: analysis.recommendations || [],
+          financialAnswers,
+          completedAt: analysis.completedAt
+        }
+      });
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive financial analysis results:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
     }
   });
 
