@@ -65,24 +65,45 @@ interface FinancialAnswer {
 
 class ComprehensiveFinancialAnalysisService {
   private progressCallbacks = new Map<number, (progress: any) => void>();
+  private jobId: string = '';
+  private storage: any = null;
 
   setProgressCallback(dealId: number, callback: (progress: any) => void) {
     this.progressCallbacks.set(dealId, callback);
   }
 
-  private setProgress(dealId: number, progress: any) {
+  private async setProgress(dealId: number, progress: any) {
     const callback = this.progressCallbacks.get(dealId);
     if (callback) {
       callback(progress);
     }
+    
+    // Also update database background job if we have storage and jobId
+    if (this.storage && this.jobId) {
+      try {
+        await this.storage.updateBackgroundJob(this.jobId, {
+          progress: progress.progress,
+          currentStep: progress.currentStep,
+          currentDocument: progress.currentDocument || null
+        });
+      } catch (error) {
+        console.error('Error updating background job progress:', error);
+      }
+    }
   }
 
-  async runComprehensiveAnalysis(dealId: number): Promise<any> {
+  async runComprehensiveAnalysis(dealId: number, storageService?: any, jobId?: string): Promise<any> {
     console.log(`🏦 Starting comprehensive financial analysis for deal ${dealId}`);
+    
+    // Store storage service and jobId for progress updates
+    if (storageService && jobId) {
+      this.storage = storageService;
+      this.jobId = jobId;
+    }
     
     try {
       // Set initial progress
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 5,
         currentStep: 'Initializing financial analysis...'
       });
@@ -95,7 +116,7 @@ class ComprehensiveFinancialAnalysisService {
         throw new Error('No documents found for financial analysis');
       }
 
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 10,
         currentStep: `Found ${documents.length} documents for analysis`
       });
@@ -103,7 +124,7 @@ class ComprehensiveFinancialAnalysisService {
       // Extract financial evidence from documents
       const evidenceMap = await this.extractFinancialEvidence(documents, dealId);
       
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 70,
         currentStep: 'Generating comprehensive financial answers...'
       });
@@ -111,7 +132,7 @@ class ComprehensiveFinancialAnalysisService {
       // Generate comprehensive answers for all questions
       const answers = await this.generateComprehensiveAnswers(evidenceMap, dealId);
       
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 85,
         currentStep: 'Compiling final analysis...'
       });
@@ -120,7 +141,7 @@ class ComprehensiveFinancialAnalysisService {
       const findings = this.compileFindingsFromAnswers(answers);
       const recommendations = this.compileRecommendationsFromAnswers(answers);
       
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 95,
         currentStep: 'Storing results...'
       });
@@ -128,7 +149,7 @@ class ComprehensiveFinancialAnalysisService {
       // Store results in database
       const analysisResult = await this.storeAnalysisResults(dealId, answers, findings, recommendations);
       
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 100,
         currentStep: 'Financial analysis completed'
       });
@@ -140,7 +161,7 @@ class ComprehensiveFinancialAnalysisService {
       
     } catch (error) {
       console.error(`❌ Financial analysis failed for deal ${dealId}:`, error);
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 0,
         currentStep: 'Analysis failed',
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -218,7 +239,7 @@ class ComprehensiveFinancialAnalysisService {
       const batch = documents.slice(startIdx, startIdx + batchSize);
       
       const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: batchProgress,
         currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
       });
@@ -367,7 +388,7 @@ class ComprehensiveFinancialAnalysisService {
       const question = FINANCIAL_QUESTIONS[i];
       const questionProgress = 70 + Math.round((i / questionCount) * 15);
       
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: questionProgress,
         currentStep: `Analyzing: ${question.category}`,
         currentQuestion: question.question

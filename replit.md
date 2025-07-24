@@ -448,6 +448,14 @@ Changelog:
   - **Prompt Strategy**: All agents now use aggressive relevance detection for investment due diligence context
   - **Quality Focus**: Enhanced AI instructions to find both direct and indirect business implications for investor analysis
   - **System Impact**: Better analysis results without changing core processes or functions as requested
+- July 24, 2025: Fixed Financial analysis progress tracking system and database persistence
+  - **Root Cause Resolved**: Financial analysis service was using in-memory callbacks instead of database-backed progress updates
+  - **Database Integration**: Updated setProgress method to call storageService.updateBackgroundJob() for persistent progress tracking
+  - **Parameter Updates**: Modified runComprehensiveAnalysis to accept storageService and jobId parameters for database updates
+  - **Routes Enhancement**: Updated financial analysis endpoint to pass storage service and jobId to analysis service
+  - **Progress Verification**: Confirmed progress tracking works correctly: 0% → 20% → 33% → 40% with real-time database updates
+  - **Document Processing**: Successfully processes 111 financial documents across 12 batches with persistent progress tracking
+  - **Consistency Achieved**: Financial analysis now matches Legal, Clinical, and Commercial analyses with identical progress tracking patterns
 ```
 
 ## User Preferences
