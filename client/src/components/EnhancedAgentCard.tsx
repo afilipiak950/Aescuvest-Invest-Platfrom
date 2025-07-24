@@ -3097,10 +3097,25 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     refetchInterval: 1000,
   });
 
+  // Also check for comprehensive IP analysis progress
+  const { data: ipProgress } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
   useEffect(() => {
+    // Check for comprehensive IP analysis first
+    if (ipProgress?.isRunning) {
+      setProgress(ipProgress.progress || 0);
+      setCurrentStep(ipProgress.currentStep || 'Processing comprehensive IP analysis...');
+      setIsVisible(true);
+      return;
+    }
+
+    // Then check for regular IP jobs - but exclude jobs stuck at 100%
     if (jobProgress?.jobs) {
       const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
-      if (ipJob && ipJob.status === 'processing') {
+      if (ipJob && ipJob.status === 'processing' && ipJob.progress < 100) {
         setProgress(ipJob.progress || 0);
         setCurrentStep(ipJob.currentDocument || 'Processing IP analysis...');
         setIsVisible(true);
@@ -3110,7 +3125,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     } else {
       setIsVisible(false);
     }
-  }, [jobProgress]);
+  }, [jobProgress, ipProgress]);
 
   if (!isVisible) return null;
 
