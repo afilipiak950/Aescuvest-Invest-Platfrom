@@ -1864,15 +1864,25 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
+  // Check if clinical analysis is available from comprehensive endpoint
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
+  // Use comprehensive results if available, fallback to analysisData
+  const clinicalData = comprehensiveResults?.analysis || analysisData;
+
   // Check if clinical analysis is available
-  const hasClinicalAnalysis = analysisData && (
-    (analysisData.clinicalAnswers && Object.keys(analysisData.clinicalAnswers).length > 0) ||
-    (analysisData?.findings && analysisData.findings.length > 0)
+  const hasClinicalAnalysis = clinicalData && (
+    (clinicalData.clinicalAnswers && Object.keys(clinicalData.clinicalAnswers).length > 0) ||
+    (clinicalData?.findings && clinicalData.findings.length > 0)
   );
   
   console.log('🧬 Clinical Analysis Available:', hasClinicalAnalysis);
-  console.log('🧬 Analysis Data:', analysisData);
-  console.log('🧬 Clinical Answers:', analysisData?.clinicalAnswers);
+  console.log('🧬 Comprehensive Results:', comprehensiveResults?.analysis);
+  console.log('🧬 Clinical Data:', clinicalData);
+  console.log('🧬 Clinical Answers:', clinicalData?.clinicalAnswers);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -1905,14 +1915,14 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     recommendations?: string[];
     detailedEvidence?: any[];
   } | null => {
-    if (!analysisData) return null;
+    if (!clinicalData) return null;
     
     console.log(`🧬 Looking for answer to clinical question ${questionId}`);
-    console.log(`🧬 Clinical Answers exists:`, !!analysisData.clinicalAnswers);
+    console.log(`🧬 Clinical Answers exists:`, !!clinicalData.clinicalAnswers);
     
     // First try to get answer from clinicalAnswers structure
-    if (analysisData.clinicalAnswers && analysisData.clinicalAnswers[questionId]) {
-      const answer = analysisData.clinicalAnswers[questionId];
+    if (clinicalData.clinicalAnswers && clinicalData.clinicalAnswers[questionId]) {
+      const answer = clinicalData.clinicalAnswers[questionId];
       console.log(`🧬 Found enhanced answer for ${questionId}:`, answer);
       console.log(`🧬 Has detailedEvidence:`, !!answer.detailedEvidence);
       return {
@@ -1933,10 +1943,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     if (!questionKeywords) return null;
     
     // Check if findings exist before filtering
-    if (!analysisData?.findings || !Array.isArray(analysisData.findings)) return null;
+    if (!clinicalData?.findings || !Array.isArray(clinicalData.findings)) return null;
     
     // Search through findings for relevant content
-    const relevantFindings = analysisData.findings.filter((finding: any) => {
+    const relevantFindings = clinicalData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
