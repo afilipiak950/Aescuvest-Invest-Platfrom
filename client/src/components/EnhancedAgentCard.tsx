@@ -2884,18 +2884,35 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (jobProgress?.jobs) {
       const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
       if (commercialJob && commercialJob.status === 'processing') {
         setProgress(commercialJob.progress || 0);
-        setCurrentStep(commercialJob.currentDocument || 'Processing commercial analysis...');
+        setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
         setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (commercialJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${commercialJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [jobProgress]);
 
   if (!isVisible) return null;
@@ -2936,18 +2953,35 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (jobProgress?.jobs) {
       const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
       if (clinicalJob && clinicalJob.status === 'processing') {
         setProgress(clinicalJob.progress || 0);
-        setCurrentStep(clinicalJob.currentDocument || 'Processing clinical analysis...');
+        setCurrentStep(clinicalJob.currentDocument || clinicalJob.currentStep || 'Processing clinical analysis...');
         setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (clinicalJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${clinicalJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [jobProgress]);
 
   if (!isVisible) return null;
@@ -2988,18 +3022,35 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (jobProgress?.jobs) {
       const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
       if (hrJob && hrJob.status === 'processing') {
         setProgress(hrJob.progress || 0);
-        setCurrentStep(hrJob.currentDocument || 'Processing HR analysis...');
+        setCurrentStep(hrJob.currentDocument || hrJob.currentStep || 'Processing HR analysis...');
         setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (hrJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${hrJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [jobProgress]);
 
   if (!isVisible) return null;
@@ -3046,6 +3097,8 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     // Check for comprehensive financial analysis first
     if (financialProgress?.isRunning) {
       setProgress(financialProgress.progress || 0);
@@ -3061,14 +3114,29 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
       );
       if (financialJob && financialJob.status === 'processing') {
         setProgress(financialJob.progress || 0);
-        setCurrentStep(financialJob.currentDocument || 'Processing financial analysis...');
+        setCurrentStep(financialJob.currentDocument || financialJob.currentStep || 'Processing financial analysis...');
         setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (financialJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${financialJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [jobProgress, financialProgress]);
 
   if (!isVisible) return null;
@@ -3115,6 +3183,8 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     // Check for comprehensive IP analysis first
     if (ipProgress?.isRunning) {
       setProgress(ipProgress.progress || 0);
@@ -3123,19 +3193,38 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
       return;
     }
 
-    // Then check for regular IP jobs - but exclude jobs stuck at 100%
+    // Then check for regular IP jobs
     if (jobProgress?.jobs) {
       const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
-      if (ipJob && ipJob.status === 'processing' && ipJob.progress < 100) {
+      if (ipJob && ipJob.status === 'processing') {
         setProgress(ipJob.progress || 0);
-        setCurrentStep(ipJob.currentDocument || 'Processing IP analysis...');
+        setCurrentStep(ipJob.currentDocument || ipJob.currentStep || 'Processing IP analysis...');
         setIsVisible(true);
+        
+        // If job reaches 100% progress but is still processing, 
+        // show completion message and auto-hide
+        if (ipJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            // Cleanup stuck job by marking it as completed
+            fetch(`/api/background-jobs/${ipJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [jobProgress, ipProgress]);
 
   if (!isVisible) return null;
@@ -3176,18 +3265,35 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (jobProgress?.jobs) {
       const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
       if (researchJob && researchJob.status === 'processing') {
         setProgress(researchJob.progress || 0);
-        setCurrentStep(researchJob.currentDocument || 'Processing research analysis...');
+        setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
         setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (researchJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${researchJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [jobProgress]);
 
   if (!isVisible) return null;
@@ -3228,18 +3334,35 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (jobProgress?.jobs) {
       const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
       if (legalJob && legalJob.status === 'processing') {
         setProgress(legalJob.progress || 0);
-        setCurrentStep(legalJob.currentDocument || 'Processing legal analysis...');
+        setCurrentStep(legalJob.currentDocument || legalJob.currentStep || 'Processing legal analysis...');
         setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (legalJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${legalJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
       } else {
         setIsVisible(false);
       }
     } else {
       setIsVisible(false);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [jobProgress]);
 
   if (!isVisible) return null;
