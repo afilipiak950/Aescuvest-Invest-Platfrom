@@ -139,6 +139,9 @@ class ComprehensiveIpAnalysisService {
     if (storageService && jobId) {
       this.storage = storageService;
       this.jobId = jobId;
+      console.log(`📝 IP Analysis: Storage service and jobId set - jobId: ${jobId}`);
+    } else {
+      console.warn(`⚠️ IP Analysis: Missing storage service or jobId - storage: ${!!storageService}, jobId: ${jobId}`);
     }
     
     try {
@@ -195,17 +198,36 @@ class ComprehensiveIpAnalysisService {
       });
 
       // Clean up the background job by marking it as completed
+      console.log(`🔍 Checking job completion cleanup: storage=${!!this.storage}, jobId=${this.jobId}`);
       if (this.storage && this.jobId) {
         try {
+          console.log(`📝 Updating background job ${this.jobId} to completed status`);
           await this.storage.updateBackgroundJob(this.jobId, {
             status: 'completed',
             progress: 100,
             currentStep: 'Analysis completed',
-            completedAt: new Date().toISOString()
+            completedAt: new Date()
           });
-          console.log(`✅ Background job ${this.jobId} marked as completed`);
+          console.log(`✅ Background job ${this.jobId} marked as completed successfully`);
         } catch (error) {
-          console.error('Error marking background job as completed:', error);
+          console.error(`❌ Error marking background job ${this.jobId} as completed:`, error);
+        }
+      } else {
+        console.warn(`⚠️ Cannot mark job as completed - storage: ${!!this.storage}, jobId: ${this.jobId}`);
+        // Fallback: try to update using the provided parameters directly
+        if (storageService && jobId) {
+          try {
+            console.log(`🔄 Fallback: Updating job ${jobId} using provided storage service`);
+            await storageService.updateBackgroundJob(jobId, {
+              status: 'completed',
+              progress: 100,
+              currentStep: 'Analysis completed',
+              completedAt: new Date()
+            });
+            console.log(`✅ Background job ${jobId} marked as completed via fallback`);
+          } catch (fallbackError) {
+            console.error(`❌ Fallback job completion failed for ${jobId}:`, fallbackError);
+          }
         }
       }
 
@@ -225,7 +247,7 @@ class ComprehensiveIpAnalysisService {
             progress: 0,
             currentStep: 'Analysis failed',
             error: error instanceof Error ? error.message : 'Unknown error',
-            failedAt: new Date().toISOString()
+            failedAt: new Date()
           });
           console.log(`❌ Background job ${this.jobId} marked as failed`);
         } catch (jobError) {
