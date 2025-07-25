@@ -124,24 +124,30 @@ class ComprehensiveClinicalAnalysisService {
     this.progressData.set(dealId, { ...current, ...progress });
   }
 
-  async startComprehensiveAnalysis(dealId: number): Promise<void> {
+  async startComprehensiveAnalysis(dealId: number, storageService?: any, jobId?: string): Promise<void> {
     console.log(`🧬 Starting comprehensive clinical analysis for deal ${dealId}`);
     
-    // Create background job for progress tracking (same as Legal)
-    const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
+    // Use provided storage service and jobId or create new ones
+    const storageToUse = storageService || storage;
+    const backgroundJobId = jobId || `clinical_analysis_${dealId}_${Date.now()}`;
     
     try {
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_clinical_analysis',
-        dealId,
-        agentType: 'Clinical',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 0,
-        processedDocuments: 0,
-        startedAt: new Date()
-      });
+      if (!jobId) {
+        // Only create job if not provided (called from route)
+        await storageToUse.createBackgroundJob({
+          jobId: backgroundJobId,
+          jobType: 'comprehensive_clinical_analysis',
+          dealId,
+          agentType: 'Clinical',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 0,
+          processedDocuments: 0,
+          startedAt: new Date()
+        });
+      }
+      
+      console.log(`🧬 Clinical Analysis: Storage service and jobId set - jobId: ${backgroundJobId}`);
     } catch (error) {
       console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
       throw new Error(`Failed to initialize comprehensive clinical analysis: ${error.message}`);
@@ -161,7 +167,7 @@ class ComprehensiveClinicalAnalysisService {
       console.log(`🧬 Found ${clinicalDocs.length} clinical documents for analysis`);
 
       if (clinicalDocs.length === 0) {
-        await storage.updateBackgroundJob(jobId, {
+        await storageToUse.updateBackgroundJob(backgroundJobId, {
           status: 'completed',
           progress: 100,
           error: 'No clinical documents available for analysis'
@@ -175,7 +181,7 @@ class ComprehensiveClinicalAnalysisService {
       }
       
       // Update job with total questions to process
-      await storage.updateBackgroundJob(jobId, {
+      await storageToUse.updateBackgroundJob(backgroundJobId, {
         totalDocuments: CLINICAL_QUESTIONS.length,
         currentStep: 'Analyzing clinical documents across 11 question categories'
       });
@@ -190,7 +196,7 @@ class ComprehensiveClinicalAnalysisService {
         try {
           // Update progress with error handling (both internal and background job)
           const progress = Math.round((i / CLINICAL_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(jobId, {
+          await storageToUse.updateBackgroundJob(backgroundJobId, {
             progress,
             processedDocuments: i,
             currentDocumentName: question.question,
@@ -234,7 +240,7 @@ class ComprehensiveClinicalAnalysisService {
       }
 
       // Store results in database (same format as legal analysis)
-      await storage.updateBackgroundJob(jobId, {
+      await storageToUse.updateBackgroundJob(backgroundJobId, {
         progress: 95,
         currentStep: 'Storing clinical analysis results...'
       });
@@ -273,10 +279,10 @@ class ComprehensiveClinicalAnalysisService {
         }
       }
 
-      const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'clinical');
+      const existingAnalysis = await storageToUse.getAnalysisByDealAndAgent(dealId, 'clinical');
       
       if (existingAnalysis) {
-        await storage.updateAnalysis(existingAnalysis.id, {
+        await storageToUse.updateAnalysis(existingAnalysis.id, {
           ...existingAnalysis,
           clinicalAnswers: JSON.stringify(clinicalAnswers),
           findings: JSON.stringify(findings),
@@ -288,7 +294,7 @@ class ComprehensiveClinicalAnalysisService {
           completionRate: Math.round((Object.keys(clinicalAnswers).length / CLINICAL_QUESTIONS.length) * 100)
         });
       } else {
-        await storage.createAnalysis({
+        await storageToUse.createAnalysis({
           dealId,
           agentType: 'clinical',
           status: 'completed',
@@ -304,7 +310,7 @@ class ComprehensiveClinicalAnalysisService {
       }
 
       // Complete the job
-      await storage.updateBackgroundJob(jobId, {
+      await storageToUse.updateBackgroundJob(backgroundJobId, {
         status: 'completed',
         progress: 100,
         currentStep: `Clinical analysis completed - ${Object.keys(clinicalAnswers).length} questions analyzed`,
@@ -323,7 +329,7 @@ class ComprehensiveClinicalAnalysisService {
       console.error(`🧬 Error in comprehensive clinical analysis:`, error);
       
       // Update background job status to failed
-      await storage.updateBackgroundJob(jobId, {
+      await storageToUse.updateBackgroundJob(backgroundJobId, {
         status: 'failed',
         currentStep: `Error: ${error.message}`,
         error: error.message

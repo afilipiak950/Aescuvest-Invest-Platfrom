@@ -3701,11 +3701,34 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Import the comprehensive clinical analysis service
       const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
       
+      // Create background job for progress tracking
+      const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
+      
+      try {
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'comprehensive_clinical_analysis',
+          dealId,
+          agentType: 'Clinical',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 0,
+          processedDocuments: 0,
+          startedAt: new Date()
+        });
+      } catch (error) {
+        console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
+        return res.status(500).json({ 
+          success: false, 
+          error: `Failed to initialize comprehensive clinical analysis: ${error.message}` 
+        });
+      }
+
       // Run comprehensive clinical analysis in background with progress tracking
       (async () => {
         try {
           console.log(`🔧 Starting comprehensive clinical analysis background process for deal ${dealId}`);
-          await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId);
+          await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId);
           console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
         } catch (error) {
           console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
