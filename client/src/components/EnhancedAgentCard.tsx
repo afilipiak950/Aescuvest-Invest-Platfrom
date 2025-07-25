@@ -10,6 +10,33 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 
+// Type definitions for better type safety
+interface JobProgress {
+  jobs?: Array<{
+    jobId: string;
+    agentType: string;
+    progress: number;
+    status: string;
+    processedDocuments?: number;
+    totalDocuments?: number;
+    currentDocument?: string;
+    currentStep?: string;
+    metadata?: any;
+  }>;
+}
+
+interface AnalysisData {
+  clinicalAnswers?: Record<string, any>;
+  findings?: any[];
+  recommendations?: any[];
+  [key: string]: any;
+}
+
+interface ComprehensiveResults {
+  success?: boolean;
+  analysis?: AnalysisData;
+}
+
 interface EnhancedAgentCardProps {
   dealId: number;
   agentType: string;
@@ -43,14 +70,14 @@ export default function EnhancedAgentCard({
   const queryClient = useQueryClient();
 
   // Fetch comprehensive HR analysis data directly for HR agents
-  const { data: hrAnalysisData } = useQuery({
+  const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
     queryKey: [`/api/deals/${dealId}/agents/hr/results`],
     enabled: agentType.toLowerCase() === 'hr',
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
   // Fetch comprehensive IP analysis data directly for IP agents
-  const { data: ipAnalysisData } = useQuery({
+  const { data: ipAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
     queryKey: [`/api/deals/${dealId}/agents/ip/results`],
     enabled: agentType.toLowerCase() === 'ip',
     refetchInterval: 2000, // Refresh every 2 seconds
@@ -1869,7 +1896,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
     refetchInterval: 2000,
     staleTime: 0, // Always treat as stale to force fresh data
-    cacheTime: 0, // Don't cache results
+    gcTime: 0, // Don't cache results (replaces cacheTime in newer versions)
   });
 
   // Force refetch on component mount to ensure fresh data
@@ -1878,11 +1905,11 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   }, [refetchComprehensive]);
 
   // Use comprehensive results if available, fallback to analysisData
-  const clinicalData = comprehensiveResults?.analysis || analysisData;
+  const clinicalData = comprehensiveResults?.analysis || analysisData || null;
 
   // Check if clinical analysis is available
   const hasClinicalAnalysis = clinicalData && (
-    (clinicalData.clinicalAnswers && Object.keys(clinicalData.clinicalAnswers).length > 0) ||
+    (clinicalData?.clinicalAnswers && Object.keys(clinicalData.clinicalAnswers).length > 0) ||
     (clinicalData?.findings && clinicalData.findings.length > 0)
   );
   
