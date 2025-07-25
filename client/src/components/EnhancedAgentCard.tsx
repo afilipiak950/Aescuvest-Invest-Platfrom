@@ -3171,6 +3171,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [lastJobId, setLastJobId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
@@ -3197,7 +3198,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
       setIsVisible(true);
       setLastJobId('comprehensive-ip');
       
-      // Handle comprehensive analysis stuck at 100%
+      // Handle comprehensive analysis at 100% - auto-cleanup after 3 seconds
       if (ipProgress.progress >= 100) {
         setCurrentStep('Analysis completed - finalizing results...');
         timeoutId = setTimeout(() => {
@@ -3205,7 +3206,11 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
           setProgress(0);
           setCurrentStep('');
           setLastJobId(null);
-        }, 2000);
+          // Force invalidate cache to refresh UI
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`]
+          });
+        }, 3000);
       }
       
       return () => {
@@ -3229,7 +3234,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
         setIsVisible(true);
         setLastJobId(ipJob.jobId);
         
-        // Handle jobs stuck at 100%
+        // Handle jobs at 100% - auto-cleanup and stop job
         if (ipJob.progress >= 100) {
           setCurrentStep('Analysis completed - finalizing results...');
           timeoutId = setTimeout(() => {
@@ -3237,10 +3242,15 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
             setProgress(0);
             setCurrentStep('');
             setLastJobId(null);
+            // Stop the background job
             fetch(`/api/background-jobs/${ipJob.jobId}/stop`, {
               method: 'POST'
             }).catch(console.error);
-          }, 2000);
+            // Force invalidate cache to refresh UI
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+          }, 3000);
         }
       } else {
         // No IP job found - ensure we hide the progress bar
@@ -3260,7 +3270,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress, ipProgress, lastJobId]);
+  }, [jobProgress, ipProgress, lastJobId, dealId]);
 
   // Extra safety check - if no IP jobs exist at all, never show progress
   const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
