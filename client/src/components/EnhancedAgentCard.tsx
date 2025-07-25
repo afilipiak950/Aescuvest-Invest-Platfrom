@@ -1865,10 +1865,17 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   // Check if clinical analysis is available from comprehensive endpoint
-  const { data: comprehensiveResults } = useQuery({
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
     refetchInterval: 2000,
+    staleTime: 0, // Always treat as stale to force fresh data
+    cacheTime: 0, // Don't cache results
   });
+
+  // Force refetch on component mount to ensure fresh data
+  React.useEffect(() => {
+    refetchComprehensive();
+  }, [refetchComprehensive]);
 
   // Use comprehensive results if available, fallback to analysisData
   const clinicalData = comprehensiveResults?.analysis || analysisData;
@@ -1880,9 +1887,17 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   );
   
   console.log('🧬 Clinical Analysis Available:', hasClinicalAnalysis);
-  console.log('🧬 Comprehensive Results:', comprehensiveResults?.analysis);
+  console.log('🧬 Comprehensive Results:', comprehensiveResults?.analysis);  
   console.log('🧬 Clinical Data:', clinicalData);
   console.log('🧬 Clinical Answers:', clinicalData?.clinicalAnswers);
+  
+  // Debug: Log all clinical answers to verify uniqueness
+  if (clinicalData?.clinicalAnswers) {
+    Object.keys(clinicalData.clinicalAnswers).forEach(questionId => {
+      const answer = clinicalData.clinicalAnswers[questionId];
+      console.log(`🧬 Question ${questionId}:`, answer?.answer?.substring(0, 100) + '...');
+    });
+  }
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
