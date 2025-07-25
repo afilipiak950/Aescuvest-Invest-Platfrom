@@ -1887,15 +1887,15 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   );
   
   console.log('🧬 Clinical Analysis Available:', hasClinicalAnalysis);
-  console.log('🧬 Comprehensive Results:', comprehensiveResults?.analysis);  
-  console.log('🧬 Clinical Data:', clinicalData);
-  console.log('🧬 Clinical Answers:', clinicalData?.clinicalAnswers);
+  console.log('🧬 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
+  console.log('🧬 Clinical Data from Comprehensive:', !!clinicalData?.clinicalAnswers);
   
-  // Debug: Log all clinical answers to verify uniqueness
+  // Debug: Log unique answer previews to verify no caching issues
   if (clinicalData?.clinicalAnswers) {
-    Object.keys(clinicalData.clinicalAnswers).forEach(questionId => {
+    console.log('🧬 Clinical Answers Keys:', Object.keys(clinicalData.clinicalAnswers));
+    Object.keys(clinicalData.clinicalAnswers).slice(0, 3).forEach(questionId => {
       const answer = clinicalData.clinicalAnswers[questionId];
-      console.log(`🧬 Question ${questionId}:`, answer?.answer?.substring(0, 100) + '...');
+      console.log(`🧬 Question ${questionId} Preview:`, answer?.answer?.substring(0, 80) + '...');
     });
   }
 
