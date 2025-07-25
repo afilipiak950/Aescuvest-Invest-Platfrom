@@ -1917,13 +1917,12 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   console.log('🧬 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
   console.log('🧬 Clinical Data from Comprehensive:', !!clinicalData?.clinicalAnswers);
   
-  // Debug: Log unique answer previews to verify no caching issues
-  if (clinicalData?.clinicalAnswers) {
-    console.log('🧬 Clinical Answers Keys:', Object.keys(clinicalData.clinicalAnswers));
-    Object.keys(clinicalData.clinicalAnswers).slice(0, 3).forEach(questionId => {
-      const answer = clinicalData.clinicalAnswers[questionId];
-      console.log(`🧬 Question ${questionId} Preview:`, answer?.answer?.substring(0, 80) + '...');
-    });
+  // Debug: Log clinical data structure for verification
+  if (clinicalData) {
+    console.log('🧬 Clinical Data Available:', !!clinicalData);
+    console.log('🧬 Has clinicalAnswers:', !!clinicalData?.clinicalAnswers);
+    console.log('🧬 Has findings:', !!clinicalData?.findings);
+    console.log('🧬 Has recommendations:', !!clinicalData?.recommendations);
   }
 
   const toggleCategory = (category: string) => {
@@ -1963,13 +1962,11 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     console.log(`🧬 Clinical Answers exists:`, !!clinicalData.clinicalAnswers);
     
     // First try to get answer from clinicalAnswers structure
-    if (clinicalData.clinicalAnswers && clinicalData.clinicalAnswers[questionId]) {
+    if (clinicalData?.clinicalAnswers && clinicalData.clinicalAnswers[questionId]) {
       const answer = clinicalData.clinicalAnswers[questionId];
-      console.log(`🧬 Found enhanced answer for ${questionId}:`, answer);
-      console.log(`🧬 Has detailedEvidence:`, !!answer.detailedEvidence);
       return {
-        answer: answer.answer,
-        confidence: answer.confidence,
+        answer: answer.answer || 'Analysis in progress...',
+        confidence: answer.confidence || 0,
         sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
         quotes: answer.quotes || [],
         keyFindings: answer.keyFindings || [],
