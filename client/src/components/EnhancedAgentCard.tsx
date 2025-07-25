@@ -63,7 +63,14 @@ export default function EnhancedAgentCard({
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
-  // Use comprehensive analysis data if this is an HR, IP, or Research agent and we have the data
+  // Fetch comprehensive Clinical analysis data directly for Clinical agents
+  const { data: clinicalAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/clinical/results`],
+    enabled: agentType.toLowerCase() === 'clinical',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use comprehensive analysis data if this is an HR, IP, Research, or Clinical agent and we have the data
   const actualAnalysisData = (() => {
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
@@ -73,6 +80,9 @@ export default function EnhancedAgentCard({
     }
     if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'analysis' in researchAnalysisData) {
       return researchAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
+      return clinicalAnalysisData.analysis;
     }
     return analysis || {};
   })();
@@ -113,6 +123,12 @@ export default function EnhancedAgentCard({
     // Check for comprehensive Financial analysis progress
     const { data: financialProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
+      refetchInterval: 1000,
+    });
+
+    // Check for comprehensive Clinical analysis progress
+    const { data: clinicalProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
+      queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/progress`],
       refetchInterval: 1000,
     });
 
@@ -176,6 +192,34 @@ export default function EnhancedAgentCard({
           <div className="flex justify-between text-xs text-gray-400 mt-2">
             <span>Comprehensive analysis of {assignedDocuments} documents</span>
             <span>{Math.round((hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0)}% complete</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Show comprehensive Clinical analysis if running
+    if (clinicalProgress && typeof clinicalProgress === 'object' && 'isRunning' in clinicalProgress && clinicalProgress.isRunning) {
+      return (
+        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="h-5 w-5 text-green-400 animate-spin" />
+            <div className="flex-1">
+              <p className="text-green-400 font-medium">Comprehensive Clinical Analysis in Progress</p>
+              <p className="text-gray-300 text-sm">
+                {(clinicalProgress && typeof clinicalProgress === 'object' && 'currentStep' in clinicalProgress ? clinicalProgress.currentStep : null) || 'Processing comprehensive clinical analysis...'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{Math.round((clinicalProgress && typeof clinicalProgress === 'object' && 'progress' in clinicalProgress ? clinicalProgress.progress as number : 0) || 0)}%</p>
+            </div>
+          </div>
+          <Progress 
+            value={(clinicalProgress && typeof clinicalProgress === 'object' && 'progress' in clinicalProgress ? clinicalProgress.progress as number : 0) || 0} 
+            className="h-2 bg-dark-lighter"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-2">
+            <span>Comprehensive analysis of {assignedDocuments} documents</span>
+            <span>{Math.round((clinicalProgress && typeof clinicalProgress === 'object' && 'progress' in clinicalProgress ? clinicalProgress.progress as number : 0) || 0)}% complete</span>
           </div>
         </div>
       );
