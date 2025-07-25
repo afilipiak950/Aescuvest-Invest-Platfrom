@@ -4267,14 +4267,36 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         currentStep: 'Starting IP analysis...'
       });
       
-      // Start comprehensive IP analysis in background
-      comprehensiveIpAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
-        console.error(`❌ Background IP analysis failed for deal ${dealId}:`, error);
-        storage.updateBackgroundJob(jobId, {
-          status: 'failed',
-          error: error.message
+      // Start comprehensive IP analysis in background with enhanced error handling
+      comprehensiveIpAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId)
+        .then(result => {
+          console.log(`✅ IP analysis completed successfully for deal ${dealId}`);
+          // Ensure job is marked as completed even if service didn't do it
+          return storage.updateBackgroundJob(jobId, {
+            status: 'completed',
+            progress: 100,
+            currentStep: 'Analysis completed',
+            completedAt: new Date()
+          }).then(() => {
+            console.log(`✅ Route-level: Background job ${jobId} marked as completed`);
+          }).catch(error => {
+            console.error(`❌ Route-level: Failed to mark job ${jobId} as completed:`, error);
+          });
+        })
+        .catch(error => {
+          console.error(`❌ Background IP analysis failed for deal ${dealId}:`, error);
+          return storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            progress: 0,
+            currentStep: 'Analysis failed',
+            error: error.message,
+            failedAt: new Date()
+          }).then(() => {
+            console.log(`❌ Route-level: Background job ${jobId} marked as failed`);
+          }).catch(jobError => {
+            console.error(`❌ Route-level: Failed to mark job ${jobId} as failed:`, jobError);
+          });
         });
-      });
       
       res.json({ 
         success: true, 
