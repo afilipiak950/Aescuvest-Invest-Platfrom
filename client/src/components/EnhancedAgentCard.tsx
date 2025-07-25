@@ -1873,7 +1873,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   });
 
   // Force refetch on component mount to ensure fresh data
-  React.useEffect(() => {
+  useEffect(() => {
     refetchComprehensive();
   }, [refetchComprehensive]);
 
