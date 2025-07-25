@@ -3170,16 +3170,21 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [lastJobId, setLastJobId] = useState<string | null>(null);
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
+    retry: false,
+    staleTime: 0, // Always fetch fresh data
   });
 
   // Also check for comprehensive IP analysis progress
   const { data: ipProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
     refetchInterval: 1000,
+    retry: false,
+    staleTime: 0, // Always fetch fresh data
   });
 
   useEffect(() => {
@@ -3190,44 +3195,77 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
       setProgress(ipProgress.progress || 0);
       setCurrentStep(ipProgress.currentStep || 'Processing comprehensive IP analysis...');
       setIsVisible(true);
-      return;
+      setLastJobId('comprehensive-ip');
+      
+      // Handle comprehensive analysis stuck at 100%
+      if (ipProgress.progress >= 100) {
+        setCurrentStep('Analysis completed - finalizing results...');
+        timeoutId = setTimeout(() => {
+          setIsVisible(false);
+          setProgress(0);
+          setCurrentStep('');
+          setLastJobId(null);
+        }, 2000);
+      }
+      
+      return () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
 
     // Then check for regular IP jobs
     if (jobProgress?.jobs) {
       const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
       if (ipJob && ipJob.status === 'processing') {
+        // Check if this is a new job or continuing existing one
+        if (lastJobId && lastJobId !== ipJob.jobId) {
+          // Reset state for new job
+          setProgress(0);
+          setCurrentStep('');
+        }
+        
         setProgress(ipJob.progress || 0);
         setCurrentStep(ipJob.currentDocument || ipJob.currentStep || 'Processing IP analysis...');
         setIsVisible(true);
+        setLastJobId(ipJob.jobId);
         
-        // If job reaches 100% progress but is still processing, 
-        // show completion message and auto-hide
+        // Handle jobs stuck at 100%
         if (ipJob.progress >= 100) {
           setCurrentStep('Analysis completed - finalizing results...');
           timeoutId = setTimeout(() => {
             setIsVisible(false);
-            // Cleanup stuck job by marking it as completed
+            setProgress(0);
+            setCurrentStep('');
+            setLastJobId(null);
             fetch(`/api/background-jobs/${ipJob.jobId}/stop`, {
               method: 'POST'
             }).catch(console.error);
           }, 2000);
         }
       } else {
+        // No IP job found - ensure we hide the progress bar
         setIsVisible(false);
+        setProgress(0);
+        setCurrentStep('');
+        setLastJobId(null);
       }
     } else {
+      // No jobs data - hide progress bar
       setIsVisible(false);
+      setProgress(0);
+      setCurrentStep('');
+      setLastJobId(null);
     }
 
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress, ipProgress]);
+  }, [jobProgress, ipProgress, lastJobId]);
 
-  if (!isVisible) return null;
+  // Extra safety check - if no IP jobs exist at all, never show progress
+  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
+  
+  if (!isVisible || !hasActiveIpJob) return null;
 
   return (
     <div className="mb-4 p-4 bg-pink-400/10 border border-pink-400/20 rounded-lg">
