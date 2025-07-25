@@ -1907,10 +1907,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   // Use comprehensive results if available, fallback to analysisData
   const clinicalData = comprehensiveResults?.analysis || analysisData || null;
 
-  // Check if clinical analysis is available
+  // Check if clinical analysis is available  
   const hasClinicalAnalysis = clinicalData && (
-    (clinicalData?.clinicalAnswers && Object.keys(clinicalData.clinicalAnswers).length > 0) ||
-    (clinicalData?.findings && clinicalData.findings.length > 0)
+    (clinicalData?.clinicalAnswers && typeof clinicalData.clinicalAnswers === 'object' && Object.keys(clinicalData.clinicalAnswers).length > 0) ||
+    (clinicalData?.findings && Array.isArray(clinicalData.findings) && clinicalData.findings.length > 0)
   );
   
   console.log('🧬 Clinical Analysis Available:', hasClinicalAnalysis);
