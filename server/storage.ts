@@ -125,7 +125,7 @@ export interface IStorage {
   createBackgroundJob(job: any): Promise<any>;
   updateBackgroundJob(jobId: string, data: any): Promise<any>;
   getBackgroundJobsByDealId(dealId: number): Promise<any[]>;
-  getRunningBackgroundJobs(): Promise<any[]>;
+  getRunningBackgroundJobs(dealId?: number): Promise<any[]>;
   clearStuckBackgroundJobs(dealId?: number): Promise<number>;
   getActiveBackgroundJobsForDeal(dealId: number): Promise<any[]>;
   completeBackgroundJob(jobId: string, results: any): Promise<void>;
@@ -1629,11 +1629,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRunningBackgroundJobs(): Promise<BackgroundJob[]> {
+  async getRunningBackgroundJobs(dealId?: number): Promise<BackgroundJob[]> {
     try {
+      let whereConditions = [eq(backgroundJobs.status, 'processing')];
+      
+      if (dealId !== undefined) {
+        whereConditions.push(eq(backgroundJobs.dealId, dealId));
+      }
+      
       const jobs = await db.select().from(backgroundJobs)
-        .where(eq(backgroundJobs.status, 'processing'))
+        .where(and(...whereConditions))
         .orderBy(backgroundJobs.createdAt);
+      
+      console.log(`📊 Found ${jobs.length} running background jobs${dealId ? ` for deal ${dealId}` : ''}`);
       return jobs;
     } catch (error) {
       console.error('Error fetching running background jobs:', error);

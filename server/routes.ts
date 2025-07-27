@@ -3359,30 +3359,44 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      // Get persistent background jobs from database and memory
-      const persistentJobs = await persistentJobManager.getActiveJobsForDeal(dealId);
-      
-      // Transform to expected format
-      const jobs = persistentJobs.map(job => ({
-        jobId: job.jobId,
-        agentType: job.agentType,
-        progress: job.progress || 0,
-        status: job.status,
-        processedDocuments: job.processedDocuments || 0,
-        totalDocuments: job.totalDocuments || 0,
-        currentDocument: job.currentDocumentName,
-        metadata: {
-          agentType: job.agentType,
-          startTime: job.startedAt,
-          lastUpdate: job.updatedAt
-        }
-      }));
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
 
-      console.log(`📊 Found ${jobs.length} persistent background jobs for deal ${dealId}`);
+      // Get running background jobs from storage with error handling
+      let jobs = [];
+      try {
+        const dbJobs = await storage.getRunningBackgroundJobs(dealId);
+        
+        // Transform to expected format
+        jobs = dbJobs.map(job => ({
+          jobId: job.jobId,
+          agentType: job.agentType,
+          progress: job.progress || 0,
+          status: job.status,
+          processedDocuments: job.processedDocuments || 0,
+          totalDocuments: job.totalDocuments || 0,
+          currentDocument: job.currentDocument || '',
+          currentStep: job.currentStep || '',
+          metadata: {
+            agentType: job.agentType,
+            startTime: job.createdAt,
+            lastUpdate: job.updatedAt
+          }
+        }));
+        
+        console.log(`📊 Found ${jobs.length} background jobs for deal ${dealId}`);
+      } catch (storageError) {
+        console.error('Storage error fetching background jobs:', storageError);
+        // Return empty array to prevent frontend crashes
+        jobs = [];
+      }
+
       res.json({ success: true, jobs });
     } catch (error) {
       console.error('Error fetching background jobs:', error);
-      res.status(500).json({ success: false, error: 'Failed to fetch background jobs' });
+      // Return empty array with success flag to prevent frontend crashes
+      res.json({ success: true, jobs: [] });
     }
   });
 
