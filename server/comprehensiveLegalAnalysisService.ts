@@ -170,16 +170,43 @@ export class ComprehensiveLegalAnalysisService {
           currentStep: `Analyzing: ${question.category}`
         });
         
-        // Extract evidence from ALL assigned documents for this question
+        // Extract evidence from ALL assigned documents for this question with quota handling
         console.log(`📄 Processing ${assignedDocuments.length} documents for question: ${question.question}`);
-        const documentEvidence = await this.extractEvidenceFromAllDocuments(
-          assignedDocuments, 
-          question
-        );
-        console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+        let documentEvidence;
+        try {
+          documentEvidence = await this.extractEvidenceFromAllDocuments(
+            assignedDocuments, 
+            question
+          );
+          console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+        } catch (error) {
+          console.error(`❌ Error extracting evidence for question ${question.question}:`, error);
+          // Continue with empty evidence to prevent getting stuck
+          documentEvidence = [];
+          console.log(`📊 Continuing with empty evidence due to API limitations`);
+        }
         
-        // Compile comprehensive answer based on all evidence
-        const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+        // Compile comprehensive answer based on all evidence with quota handling
+        let answer;
+        try {
+          answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+        } catch (error) {
+          console.error(`❌ Error compiling answer for question ${question.question}:`, error);
+          // Provide fallback answer to continue progress
+          answer = {
+            question: question.question,
+            category: question.category,
+            answer: documentEvidence.length > 0 ? 
+              'Analysis partially completed with limited API availability' : 
+              'Analysis temporarily unavailable due to API quota limitations',
+            confidence: documentEvidence.length > 0 ? 50 : 25,
+            sources: [],
+            evidenceCount: documentEvidence.length,
+            documentsCovered: documentEvidence.length,
+            quotaLimited: true
+          };
+        }
+        
         legalAnswers[question.id] = answer;
         
         console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
@@ -445,6 +472,23 @@ Be thorough in finding relevance - most business documents have legal implicatio
       
     } catch (error) {
       console.error(`Error extracting evidence from ${document.name}:`, error);
+      
+      // Handle specific OpenAI quota exceeded errors
+      if (error.status === 429 || error.code === 'insufficient_quota') {
+        console.log(`🚫 OpenAI quota exceeded - skipping document ${document.name} and continuing analysis`);
+        return {
+          documentName: document.name,
+          documentId: document.id,
+          relevantContent: ['Analysis skipped due to API quota limitations'],
+          keyFindings: ['Document analysis temporarily unavailable'],
+          documentSummary: 'Analysis could not be completed due to OpenAI quota limits',
+          hasRelevantInfo: true, // Mark as relevant to continue processing
+          confidence: 25,
+          quotaExceeded: true,
+          fullContent: content.substring(0, 1000)
+        };
+      }
+      
       return {
         documentName: document.name,
         documentId: document.id,
