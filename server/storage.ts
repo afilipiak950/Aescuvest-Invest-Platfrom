@@ -123,8 +123,13 @@ export interface IStorage {
   
   // Background jobs methods
   createBackgroundJob(job: any): Promise<any>;
-  updateBackgroundJob(id: string, updates: any): Promise<any>;
+  updateBackgroundJob(jobId: string, data: any): Promise<any>;
   getBackgroundJobsByDealId(dealId: number): Promise<any[]>;
+  getRunningBackgroundJobs(): Promise<any[]>;
+  clearStuckBackgroundJobs(dealId?: number): Promise<number>;
+  getActiveBackgroundJobsForDeal(dealId: number): Promise<any[]>;
+  completeBackgroundJob(jobId: string, results: any): Promise<void>;
+  failBackgroundJob(jobId: string, errorMessage: string): Promise<void>;
   deleteBackgroundJobsByDealId(dealId: number): Promise<number>;
   updateStuckBackgroundJobs(dealId: number): Promise<number>;
   clearStuckJobs(dealId: number): Promise<void>;
@@ -1621,6 +1626,80 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error fetching background jobs for deal ${dealId}:`, error);
       return [];
+    }
+  }
+
+  async getRunningBackgroundJobs(): Promise<BackgroundJob[]> {
+    try {
+      const jobs = await db.select().from(backgroundJobs)
+        .where(eq(backgroundJobs.status, 'processing'))
+        .orderBy(backgroundJobs.createdAt);
+      return jobs;
+    } catch (error) {
+      console.error('Error fetching running background jobs:', error);
+      return [];
+    }
+  }
+
+  async completeBackgroundJob(jobId: string, results: any): Promise<void> {
+    try {
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'completed',
+          progress: 100,
+          completedAt: new Date(),
+          results: JSON.stringify(results)
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      
+      console.log(`✅ Background job ${jobId} marked as completed`);
+    } catch (error) {
+      console.error(`❌ Error completing background job ${jobId}:`, error);
+      throw error;
+    }
+  }
+
+  async failBackgroundJob(jobId: string, errorMessage: string): Promise<void> {
+    try {
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'failed',
+          error: errorMessage,
+          failedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      
+      console.log(`❌ Background job ${jobId} marked as failed: ${errorMessage}`);
+    } catch (error) {
+      console.error(`❌ Error failing background job ${jobId}:`, error);
+      throw error;
+    }
+  }
+
+  async clearStuckBackgroundJobs(dealId?: number): Promise<number> {
+    try {
+      let query = db
+        .update(backgroundJobs)
+        .set({
+          status: 'cancelled',
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.status, 'processing'));
+      
+      if (dealId) {
+        query = query.where(and(
+          eq(backgroundJobs.status, 'processing'),
+          eq(backgroundJobs.dealId, dealId)
+        ));
+      }
+      
+      const result = await query;
+      return result.rowCount || 0;
+    } catch (error) {
+      console.error('Error clearing stuck background jobs:', error);
+      return 0;
     }
   }
 

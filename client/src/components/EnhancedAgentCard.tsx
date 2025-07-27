@@ -1,4 +1,12 @@
 import { useState, useEffect } from 'react';
+
+// Persistent job management endpoints
+const PERSISTENT_JOB_ENDPOINTS = {
+  startAllAnalyses: (dealId: number) => `/api/deals/${dealId}/start-all-analyses`,
+  getJobStatus: (dealId: number) => `/api/deals/${dealId}/persistent-jobs-status`,
+  stopJob: (jobId: string) => `/api/persistent-jobs/${jobId}/stop`,
+  clearStuckJobs: (dealId: number) => `/api/deals/${dealId}/clear-stuck-jobs`
+};
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -36,6 +36,8 @@ import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
 import { websocketManager as wsManager } from './services/websocketManager';
 import { legalAnalysisService } from './legalAnalysisService';
+import { persistentJobManager } from './PersistentJobManager';
+import persistentAnalysisRoutes from './routes/persistentAnalysis';
 
 
 // Background processing function for company research
@@ -5931,7 +5933,7 @@ function calculateInvestmentScore(insights: any): number {
 import { registerAffinityRoutes } from './routes/affinity-routes';
 
 // Register API routes at the end of the file
-export function registerAllRoutes(app: Express) {
+export async function registerAllRoutes(app: Express) {
   // Register existing routes first
   authRoutes(app);
   emailRoutes(app);
@@ -5943,4 +5945,16 @@ export function registerAllRoutes(app: Express) {
   
   // Register Affinity CRM routes
   registerAffinityRoutes(app);
+  
+  // Register persistent analysis routes
+  app.use('/', persistentAnalysisRoutes);
+  
+  // Initialize persistent job manager
+  console.log('🔄 Initializing persistent job manager...');
+  try {
+    await persistentJobManager.initialize();
+    console.log('✅ Persistent job manager initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize persistent job manager:', error);
+  }
 }
