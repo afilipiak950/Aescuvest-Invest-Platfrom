@@ -186,24 +186,56 @@ export class ComprehensiveLegalAnalysisService {
           console.log(`📊 Continuing with empty evidence due to API limitations`);
         }
         
-        // Compile comprehensive answer based on all evidence with quota handling
+        // Compile comprehensive answer based on all evidence - with enhanced quota handling
         let answer;
-        try {
-          answer = await this.compileComprehensiveAnswer(question, documentEvidence);
-        } catch (error) {
-          console.error(`❌ Error compiling answer for question ${question.question}:`, error);
-          // Provide fallback answer to continue progress
+        if (documentEvidence.length > 0) {
+          try {
+            // Try OpenAI API call with timeout
+            console.log(`🤖 Attempting OpenAI analysis for: ${question.question}`);
+            answer = await Promise.race([
+              this.compileComprehensiveAnswer(question, documentEvidence),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('OpenAI timeout')), 15000)
+              )
+            ]);
+            console.log(`✅ OpenAI analysis completed for: ${question.question}`);
+          } catch (error) {
+            console.log(`🚫 OpenAI quota exceeded for ${question.question} - using evidence-based fallback`);
+            
+            // Generate comprehensive answer from evidence without OpenAI
+            const evidenceSummary = documentEvidence
+              .filter(e => e.hasRelevantInfo)
+              .map(e => `${e.documentName}: ${e.keyFindings?.join(', ') || e.documentSummary}`)
+              .join('; ');
+            
+            answer = {
+              question: question.question,
+              category: question.category,
+              answer: `Based on ${documentEvidence.length} legal documents: ${evidenceSummary.substring(0, 400)}...`,
+              confidence: Math.min(75, documentEvidence.length * 5), // Scale with evidence quality
+              sources: documentEvidence.map(e => e.documentName),
+              keyFindings: documentEvidence.flatMap(e => e.keyFindings || []).slice(0, 5),
+              evidenceSummary: `Evidence extracted from ${documentEvidence.length} documents`,
+              gaps: ['Full AI analysis limited by quota restrictions'],
+              recommendations: ['Manual review recommended for complete analysis'],
+              evidenceCount: documentEvidence.length,
+              documentsCovered: documentEvidence.length,
+              detailedEvidence: documentEvidence,
+              quotaLimited: true
+            };
+          }
+        } else {
+          // No evidence found
           answer = {
             question: question.question,
             category: question.category,
-            answer: documentEvidence.length > 0 ? 
-              'Analysis partially completed with limited API availability' : 
-              'Analysis temporarily unavailable due to API quota limitations',
-            confidence: documentEvidence.length > 0 ? 50 : 25,
+            answer: 'No relevant legal information found in assigned documents for this question',
+            confidence: 15,
             sources: [],
-            evidenceCount: documentEvidence.length,
-            documentsCovered: documentEvidence.length,
-            quotaLimited: true
+            evidenceCount: 0,
+            documentsCovered: 0,
+            gaps: ['Insufficient documentation'],
+            recommendations: ['Additional legal documents may be required']
           };
         }
         
@@ -596,6 +628,36 @@ Respond in JSON format:
       
     } catch (error) {
       console.error(`❌ Error compiling answer for ${question.id}:`, error.message);
+      
+      // Handle specific OpenAI quota exceeded errors
+      if (error.status === 429 || error.code === 'insufficient_quota' || error.message?.includes('quota')) {
+        console.log(`🚫 OpenAI quota exceeded for question ${question.question} - providing partial analysis from evidence`);
+        
+        // Generate answer from evidence without API call
+        const evidenceSummary = relevantEvidence.map(e => 
+          `${e.documentName}: ${e.relevantContent?.[0] || e.documentSummary || 'Document analyzed'}`
+        ).join('; ');
+        
+        return {
+          question: question.question,
+          answer: relevantEvidence.length > 0 ? 
+            `Based on ${relevantEvidence.length} legal documents: ${evidenceSummary.substring(0, 300)}...` :
+            'Legal analysis requires manual review due to API quota limitations',
+          confidence: relevantEvidence.length > 0 ? 60 : 20,
+          sources: relevantEvidence.map(e => e.documentName),
+          keyFindings: relevantEvidence.length > 0 ? 
+            [`${relevantEvidence.length} relevant documents identified`, 'Evidence extraction completed'] :
+            ['Analysis pending API availability'],
+          evidenceSummary: evidenceSummary || 'Legal documents require manual review',
+          gaps: ['Full AI analysis temporarily unavailable'],
+          recommendations: ['Manual legal review recommended', 'Retry analysis when API quota restored'],
+          evidenceCount: relevantEvidence.length,
+          documentsCovered: evidence.length,
+          detailedEvidence: relevantEvidence,
+          quotaLimited: true
+        };
+      }
+      
       return {
         question: question.question,
         answer: `Analysis temporarily unavailable: ${error.message}. Please try again.`,
