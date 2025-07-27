@@ -1514,32 +1514,17 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
-  // Fetch comprehensive legal analysis results
-  const { data: comprehensiveLegalResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`],
-    refetchInterval: 2000,
-    staleTime: 0, // Always treat as stale to force fresh data
-    gcTime: 0, // Don't cache results
-  });
-
-  // Use comprehensive results if available, fallback to analysisData
-  const legalData = comprehensiveLegalResults?.analysis || analysisData || null;
-
-  // Check if legal analysis is available - look for findings and recommendations which indicate completed analysis
-  const hasLegalAnalysis = legalData && (
-    (legalData?.findings && Array.isArray(legalData.findings) && legalData.findings.length > 0) ||
-    (legalData?.recommendations && Array.isArray(legalData.recommendations) && legalData.recommendations.length > 0) ||
-    (legalData?.legalAnswers && typeof legalData.legalAnswers === 'string' && legalData.legalAnswers.length > 0) ||
-    (legalData?.status === 'completed')
+  // Check if legal analysis is available
+  const hasLegalAnalysis = analysisData && (
+    (analysisData.legalAnswers && Object.keys(analysisData.legalAnswers).length > 0) ||
+    (analysisData?.findings && analysisData.findings.length > 0)
   );
   
   // Debug logging
   console.log('🔍 Legal Analysis Available:', hasLegalAnalysis);
-  console.log('🔍 Comprehensive Legal Results:', !!comprehensiveLegalResults?.analysis);
-  console.log('🔍 Legal Data:', legalData);
-  console.log('🔍 Legal Data Status:', legalData?.status);
-  console.log('🔍 Legal Findings Length:', legalData?.findings?.length);
-  console.log('🔍 Legal Recommendations Length:', legalData?.recommendations?.length);
+  console.log('🔍 Analysis Data:', analysisData);
+  console.log('🔍 Legal Answers:', analysisData?.legalAnswers);
+  console.log('🔍 Findings:', findings);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -1582,53 +1567,40 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     recommendations?: string[];
     detailedEvidence?: any[];
   } | null => {
-    if (!legalData) return null;
+    if (!analysisData) return null;
     
     // Debug logging
     console.log(`🔍 Looking for answer to question ${questionId}`);
-    console.log(`🔍 Legal Answers exists:`, !!legalData.legalAnswers);
-    console.log(`🔍 Question ${questionId} exists in legal answers:`, !!legalData.legalAnswers?.[questionId]);
+    console.log(`🔍 Legal Answers exists:`, !!analysisData.legalAnswers);
+    console.log(`🔍 Question ${questionId} exists in legal answers:`, !!analysisData.legalAnswers?.[questionId]);
     
-    // First try to get answer from legalAnswers structure (JSON string that needs parsing)
-    if (legalData.legalAnswers) {
-      try {
-        let parsedAnswers;
-        if (typeof legalData.legalAnswers === 'string') {
-          parsedAnswers = JSON.parse(legalData.legalAnswers);
-        } else {
-          parsedAnswers = legalData.legalAnswers;
-        }
-        
-        if (parsedAnswers && parsedAnswers[questionId]) {
-          const answer = parsedAnswers[questionId];
-          console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
-          console.log(`🔍 Has detailedEvidence:`, !!answer.detailedEvidence);
-          return {
-            answer: answer.answer || answer,
-            confidence: answer.confidence || 85,
-            sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
-            quotes: answer.quotes || [],
-            keyFindings: answer.keyFindings || [],
-            evidenceSummary: answer.evidenceSummary || '',
-            legalAssessment: answer.legalAssessment || '',
-            recommendations: answer.recommendations || [],
-            detailedEvidence: answer.detailedEvidence || []
-          };
-        }
-      } catch (error) {
-        console.log('🔍 Error parsing legal answers:', error);
-      }
+    // First try to get answer from legalAnswers structure
+    if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
+      const answer = analysisData.legalAnswers[questionId];
+      console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
+      console.log(`🔍 Has detailedEvidence:`, !!answer.detailedEvidence);
+      return {
+        answer: answer.answer,
+        confidence: answer.confidence,
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
+        quotes: answer.quotes || [],
+        keyFindings: answer.keyFindings || [],
+        evidenceSummary: answer.evidenceSummary || '',
+        legalAssessment: answer.legalAssessment || '',
+        recommendations: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || []
+      };
     }
     
     // Fallback to findings-based extraction
-    if (!legalData?.findings || !Array.isArray(legalData.findings)) return null;
+    if (!analysisData?.findings || !Array.isArray(analysisData.findings)) return null;
     
     // Convert question ID to searchable keywords
     const questionKeywords = LEGAL_QUESTIONS.find(q => q.id === questionId);
     if (!questionKeywords) return null;
     
     // Search through findings for relevant content
-    const relevantFindings = legalData.findings.filter((finding: any) => {
+    const relevantFindings = analysisData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
