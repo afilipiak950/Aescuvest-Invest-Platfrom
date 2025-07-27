@@ -209,16 +209,42 @@ class ComprehensiveClinicalAnalysisService {
             currentQuestion: question.question
           });
           
-          // Extract evidence from ALL clinical documents for this question (same as Legal)
+          // Extract evidence from ALL clinical documents for this question with quota handling
           console.log(`🧬 Processing ${clinicalDocs.length} documents for question: ${question.question}`);
-          const documentEvidence = await this.extractEvidenceFromAllDocuments(
-            clinicalDocs, 
-            question
-          );
-          console.log(`🧬 Evidence extraction completed for question: ${question.question}`);
+          let documentEvidence;
+          try {
+            documentEvidence = await this.extractEvidenceFromAllDocuments(
+              clinicalDocs, 
+              question
+            );
+            console.log(`🧬 Evidence extraction completed for question: ${question.question}`);
+          } catch (error) {
+            console.error(`❌ Error extracting evidence for question ${question.question}:`, error);
+            // Continue with empty evidence to prevent getting stuck
+            documentEvidence = [];
+            console.log(`🧬 Continuing with empty evidence due to API limitations`);
+          }
           
-          // Compile comprehensive answer based on all evidence
-          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          // Compile comprehensive answer based on all evidence with quota handling
+          let answer;
+          try {
+            answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          } catch (error) {
+            console.error(`❌ Error compiling answer for question ${question.question}:`, error);
+            // Provide fallback answer to continue progress
+            answer = {
+              question: question.question,
+              answer: documentEvidence.length > 0 ? 
+                'Analysis partially completed with limited API availability' : 
+                'Analysis temporarily unavailable due to API quota limitations',
+              confidence: documentEvidence.length > 0 ? 50 : 25,
+              sources: [],
+              evidenceCount: documentEvidence.length,
+              documentsCovered: documentEvidence.length,
+              quotaLimited: true
+            };
+          }
+          
           clinicalAnswers[question.id] = answer;
           
           console.log(`✅ Completed question ${i + 1}/${CLINICAL_QUESTIONS.length}: ${question.question}`);
@@ -328,11 +354,33 @@ class ComprehensiveClinicalAnalysisService {
     } catch (error) {
       console.error(`🧬 Error in comprehensive clinical analysis:`, error);
       
-      // Update background job status to failed
+      // For quota errors, complete the analysis with partial results rather than failing
+      if (error.status === 429 || error.code === 'insufficient_quota' || error.message.includes('quota exceeded')) {
+        console.log(`🚫 OpenAI quota exceeded - completing Clinical analysis with available results`);
+        
+        await storageToUse.updateBackgroundJob(backgroundJobId, {
+          status: 'completed',
+          progress: 100,
+          currentStep: 'Clinical analysis completed with quota limitations',
+          completedAt: new Date(),
+          error: 'Completed with API quota limitations'
+        });
+        
+        this.setProgress(dealId, {
+          isRunning: false,
+          progress: 100,
+          message: 'Clinical analysis completed with API quota limitations'
+        });
+        
+        return; // Don't throw error for quota issues
+      }
+      
+      // Update background job status to failed for other errors
       await storageToUse.updateBackgroundJob(backgroundJobId, {
         status: 'failed',
         currentStep: `Error: ${error.message}`,
-        error: error.message
+        error: error.message,
+        failedAt: new Date()
       });
       
       this.setProgress(dealId, {
@@ -776,6 +824,20 @@ If no relevant clinical information is found, return:
       
     } catch (error) {
       console.error(`Error extracting evidence from ${document.name}:`, error);
+      
+      // Handle specific OpenAI quota exceeded errors
+      if (error.status === 429 || error.code === 'insufficient_quota') {
+        console.log(`🚫 OpenAI quota exceeded - skipping document ${document.name} and continuing analysis`);
+        return {
+          documentName: document.name,
+          documentId: document.id,
+          relevantContent: ['Analysis skipped due to API quota limitations'],
+          keyFindings: ['Document analysis temporarily unavailable'],
+          documentSummary: 'Analysis could not be completed due to OpenAI quota limits',
+          quotaExceeded: true
+        };
+      }
+      
       return null;
     }
   }
