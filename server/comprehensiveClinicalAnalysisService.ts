@@ -148,7 +148,7 @@ class ComprehensiveClinicalAnalysisService {
       }
       
       console.log(`🧬 Clinical Analysis: Storage service and jobId set - jobId: ${backgroundJobId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
       throw new Error(`Failed to initialize comprehensive clinical analysis: ${error.message}`);
     }
@@ -218,7 +218,7 @@ class ComprehensiveClinicalAnalysisService {
               question
             );
             console.log(`🧬 Evidence extraction completed for question: ${question.question}`);
-          } catch (error) {
+          } catch (error: any) {
             console.error(`❌ Error extracting evidence for question ${question.question}:`, error);
             // Continue with empty evidence to prevent getting stuck
             documentEvidence = [];
@@ -229,7 +229,7 @@ class ComprehensiveClinicalAnalysisService {
           let answer;
           try {
             answer = await this.compileComprehensiveAnswer(question, documentEvidence);
-          } catch (error) {
+          } catch (error: any) {
             console.error(`❌ Error compiling answer for question ${question.question}:`, error);
             // Provide fallback answer to continue progress
             answer = {
