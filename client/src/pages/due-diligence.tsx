@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
@@ -870,6 +871,40 @@ function DueDiligenceContent() {
           </Card>
 
           
+          {/* Main Progress Bar - Restored */}
+          {jobProgress && jobProgress.jobs && jobProgress.jobs.length > 0 && (
+            <Card className="bg-dark-light border-dark-lighter mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Analysis Progress</CardTitle>
+                <CardDescription>
+                  {jobProgress.jobs.length} analysis{jobProgress.jobs.length > 1 ? 'es' : ''} running
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  {jobProgress.jobs.map((job: any) => (
+                    <div key={job.jobId} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-300">
+                          {job.agentType} Analysis
+                        </span>
+                        <span className="text-sm text-gray-400">
+                          {job.progress}%
+                        </span>
+                      </div>
+                      <Progress value={job.progress} className="h-2" />
+                      {job.currentStep && (
+                        <p className="text-xs text-gray-500">
+                          {job.currentStep}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Documents */}
           <Card className="bg-dark-light border-dark-lighter mb-6">
             <CardHeader className="pb-3">
