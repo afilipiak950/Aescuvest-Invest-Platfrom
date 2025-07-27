@@ -302,34 +302,62 @@ class ComprehensiveFinancialAnalysisService {
 
     const content = doc.ocrText || aiSummaryText || '';
     const prompt = `
-    You are an expert financial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY financial, accounting, monetary, or business performance information, even if indirectly related.
+    You are an expert financial due diligence analyst. Extract SPECIFIC FINANCIAL DATA AND NUMBERS from this document.
 
     Document: ${doc.name}
     Content: ${content.substring(0, 4000)}
     
-    Instructions:
-    - Look for DIRECT financial terms: revenue, profit, cash flow, expenses, assets, liabilities, equity, valuation
-    - Look for INDIRECT financial information: business metrics, growth rates, customer data, operational costs, funding
-    - Consider documents that mention financial performance, budgets, forecasts, or business planning
-    - Even general business documents often contain financial implications for investment analysis
-    - For investment companies, most business documents contain financial information relevant to investors
+    Extract CONCRETE FINANCIAL INFORMATION including:
     
-    Focus on extracting:
-    1. Revenue growth, profitability, and financial performance metrics
-    2. Balance sheet items: assets, liabilities, equity positions
-    3. Cash flow information: burn rates, runway, working capital
-    4. Financial forecasts, budgets, and business projections
-    5. Capitalization: funding, valuations, equity structures
-    6. Tax implications, compliance, and regulatory financial matters
-    7. Cost structures, pricing models, and unit economics
+    REVENUE & GROWTH:
+    - Exact revenue figures (e.g., "$2.5M in 2024", "€450K monthly recurring revenue")
+    - Growth percentages (e.g., "35% YoY growth", "150% revenue increase")
+    - Revenue breakdown by product/segment/geography
+    
+    PROFITABILITY & MARGINS:
+    - Gross margin percentages (e.g., "72% gross margin", "EBITDA of -$1.2M")
+    - Net profit/loss amounts (e.g., "Net loss: $850K in Q3")
+    - Operating expenses and cost structure
+    
+    CASH FLOW & BURN:
+    - Monthly/quarterly burn rate (e.g., "$120K monthly burn")
+    - Cash runway (e.g., "18 months runway remaining")
+    - Working capital changes and cash position
+    
+    BALANCE SHEET DATA:
+    - Total assets, liabilities, equity amounts
+    - Debt levels and payment terms
+    - Deferred revenue and accrued expenses
+    
+    VALUATION & FUNDING:
+    - Company valuation (e.g., "$15M pre-money valuation")
+    - Funding amounts and rounds (e.g., "Series A: $5M raised")
+    - Cap table details and ownership percentages
+    
+    FINANCIAL METRICS:
+    - Customer acquisition cost (CAC), lifetime value (LTV)
+    - Churn rates, retention rates
+    - Unit economics and key performance indicators
+    
+    FORECASTS & PROJECTIONS:
+    - Future revenue projections (e.g., "$10M projected for 2025")
+    - Hiring plans and salary budgets
+    - Capital expenditure plans
+    
+    TAX & COMPLIANCE:
+    - Tax liabilities, NOLs, deferred tax assets
+    - Audit findings or compliance issues
+    
+    IMPORTANT: Always include the EXACT NUMBERS, PERCENTAGES, DOLLAR AMOUNTS, and TIMEFRAMES found in the document. Do not provide generic statements.
     
     Return a JSON response with:
     {
-      "documentSummary": "Brief summary of the document's financial relevance",
-      "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
-      "relevantContent": ["Quote 1", "Quote 2", "Quote 3"],
+      "documentSummary": "Brief summary with specific financial data found",
+      "keyFindings": ["$X.XM revenue in 2024", "YY% gross margin reported", "Z months runway remaining"],
+      "relevantContent": ["Exact quotes with numbers from document"],
       "confidence": 0.85,
-      "financialContext": "How this document relates to financial aspects"
+      "specificNumbers": ["All numerical data found: $amounts, percentages, dates"],
+      "financialMetrics": ["Concrete metrics: CAC, LTV, burn rate, growth rates"]
     }
     
     Be aggressive in finding financial relevance - most business documents have financial implications for investment analysis.
@@ -430,8 +458,8 @@ class ComprehensiveFinancialAnalysisService {
     const allFindings = evidence.flatMap(e => e.keyFindings);
     
     const prompt = `
-    You are a financial due diligence expert analyzing investment opportunities.
-    
+    You are a financial due diligence expert analyzing investment opportunities. Extract SPECIFIC FINANCIAL DATA AND NUMBERS.
+
     Question: ${question.question}
     Category: ${question.category}
     
@@ -441,15 +469,29 @@ class ComprehensiveFinancialAnalysisService {
     Key findings:
     ${allFindings.join('\n')}
     
+    CRITICAL: Extract CONCRETE FINANCIAL INFORMATION including:
+    - Exact revenue figures (e.g., "$2.5M in 2024", "€450K monthly recurring revenue")
+    - Growth percentages (e.g., "35% YoY growth", "150% revenue increase")  
+    - Gross margin percentages (e.g., "72% gross margin", "EBITDA of -$1.2M")
+    - Monthly/quarterly burn rate (e.g., "$120K monthly burn")
+    - Cash runway (e.g., "18 months runway remaining")
+    - Company valuation (e.g., "$15M pre-money valuation")
+    - Funding amounts (e.g., "Series A: $5M raised")
+    - Financial metrics (CAC, LTV, churn rates, retention rates)
+    - Future projections (e.g., "$10M projected for 2025")
+    - Tax liabilities, debt levels, asset amounts
+    
     Provide a comprehensive financial analysis response as JSON:
     {
-      "answer": "Detailed answer based on evidence",
+      "answer": "Detailed answer with SPECIFIC NUMBERS, PERCENTAGES, DOLLAR AMOUNTS, and TIMEFRAMES found in evidence. Include actual financial data, not generic statements.",
       "confidence": 0.85,
-      "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
-      "evidenceSummary": "Summary of the evidence analyzed",
-      "financialAssessment": "Professional financial assessment",
-      "recommendations": ["Recommendation 1", "Recommendation 2"]
+      "keyFindings": ["$X.XM revenue in 2024", "YY% gross margin reported", "Z months runway remaining"],
+      "evidenceSummary": "Summary with specific financial metrics extracted",
+      "financialAssessment": "Assessment based on concrete financial data found",
+      "recommendations": ["Specific recommendations based on actual financial data"]
     }
+    
+    IMPORTANT: Always include the EXACT NUMBERS, PERCENTAGES, DOLLAR AMOUNTS found in the evidence. Do not provide generic responses.
     `;
 
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
