@@ -398,19 +398,21 @@ class ComprehensiveCommercialAnalysisService {
     Be aggressive in finding commercial relevance - most business documents have commercial implications for investment analysis.
     `;
 
-    // Skip OpenAI to prevent hanging - use evidence-based extraction directly
-    console.log(`📊 Using evidence-based extraction for: ${doc.name} (bypassing OpenAI to prevent hanging)`);
-    
-    // Generate evidence directly from document content without AI
-    const evidenceText = content.substring(0, 500);
-    const hasCommercialTerms = ['price', 'revenue', 'sales', 'customer', 'market', 'business', 'commercial', 'competitive', 'strategy'].some(term => content.toLowerCase().includes(term));
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
     
     return {
       documentName: doc.name,
-      documentSummary: `Evidence-based commercial analysis: ${evidenceText.substring(0, 100)}...`,
-      relevantContent: hasCommercialTerms ? [evidenceText] : [],
-      keyFindings: hasCommercialTerms ? [`Commercial evidence from ${doc.name}: ${evidenceText.substring(0, 200)}...`] : [],
-      confidence: hasCommercialTerms ? 0.8 : 0.3
+      documentSummary: result.documentSummary || 'Commercial analysis completed',
+      relevantContent: Array.isArray(result.relevantContent) ? result.relevantContent : [],
+      keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings : [],
+      confidence: result.confidence || 0.7
     };
   }
 

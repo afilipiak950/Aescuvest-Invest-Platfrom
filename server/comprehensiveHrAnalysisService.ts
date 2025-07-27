@@ -562,19 +562,17 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
                 Focus on being comprehensive and extracting maximum value from the document.
                 `;
 
-                try {
-                  // Skip OpenAI to prevent hanging - use evidence-based extraction directly
-                  console.log(`📊 Using evidence-based extraction for: ${doc.name} (bypassing OpenAI to prevent hanging)`);
-                  
-                  // Generate evidence directly from document content without AI
-                  const evidenceText = `Evidence from ${doc.name}: ${summaryText.substring(0, 300)}...`;
-                  
-                  if (evidenceText.length > 20) {
-                    questionFindings.push(evidenceText);
-                    questionSources.push(doc.name);
-                  }
-                } catch (error) {
-                  console.error(`Error processing document ${doc.name}:`, error);
+                const response = await openai.chat.completions.create({
+                  model: 'gpt-4o', // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+                  messages: [{ role: 'user', content: evidencePrompt }],
+                  temperature: 0.2,
+                  max_tokens: 800
+                });
+
+                const evidence = response.choices[0].message.content?.trim();
+                if (evidence && !evidence.includes('No relevant evidence found') && evidence.length > 20) {
+                  questionFindings.push(evidence);
+                  questionSources.push(doc.name);
                 }
               }
             }
@@ -617,29 +615,31 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
           }
           `;
 
-          // Skip OpenAI to prevent hanging - use evidence-based answers directly
-          console.log(`📊 Using evidence-based analysis for: ${question.question} (bypassing OpenAI to prevent hanging)`);
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o', // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            messages: [{ role: 'user', content: answerPrompt }],
+            temperature: 0.1,
+            response_format: { type: "json_object" }
+          });
+
+          const result = JSON.parse(response.choices[0].message.content || '{}');
           
-          const evidenceSummary = questionFindings
-            .map((finding, i) => `${questionSources[i]}: ${finding}`)  
-            .join('; ');
-          
-          answer = questionFindings.length > 0 ? 
-            `Based on ${questionFindings.length} HR documents: ${evidenceSummary.substring(0, 500)}...` :
-            `Evidence found in documents - detailed HR analysis available`;
-          confidence = Math.min(85, questionFindings.length * 8 + 40) / 100; // Higher confidence for evidence-based
-          keyFindings = questionFindings.map(f => f.substring(0, 100)).slice(0, 5);
+          answer = result.answer || 'Analysis completed but no specific answer generated';
+          confidence = Math.min(100, Math.max(0, result.confidence || 75)) / 100;
+          keyFindings = result.keyFindings || [];
           sources = [...new Set(questionSources)]; // Remove duplicates
           evidenceCount = questionFindings.length;
           
-          // Add evidence-based recommendations
-          if (questionFindings.length > 0) {
-            allRecommendations.push({
-              title: `HR: Review detailed evidence for ${question.question.substring(0, 30)}...`,
-              content: `Evidence-based HR analysis shows relevant information in ${questionFindings.length} documents. Review for compliance.`,
-              category: 'HR',
-              priority: 'Medium',
-              impact: 'Medium'
+          // Add recommendations to global list
+          if (result.recommendations && Array.isArray(result.recommendations)) {
+            result.recommendations.forEach((rec: string) => {
+              allRecommendations.push({
+                title: `HR: ${rec.substring(0, 50)}...`,
+                content: rec,
+                category: 'HR',
+                priority: 'Medium',
+                impact: 'Medium'
+              });
             });
           }
           

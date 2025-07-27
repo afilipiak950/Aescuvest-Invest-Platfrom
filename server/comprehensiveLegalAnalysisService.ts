@@ -129,9 +129,9 @@ export class ComprehensiveLegalAnalysisService {
         processedDocuments: 0,
         startedAt: new Date()
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-      throw new Error(`Failed to initialize comprehensive legal analysis: ${error?.message || 'Unknown error'}`);
+      throw new Error(`Failed to initialize comprehensive legal analysis: ${error.message}`);
     }
     
     // Get all documents suitable for legal analysis
@@ -170,80 +170,30 @@ export class ComprehensiveLegalAnalysisService {
           currentStep: `Analyzing: ${question.category}`
         });
         
-        // Extract evidence from ALL assigned documents for this question with quota handling
+        // Extract evidence from ALL assigned documents for this question
         console.log(`📄 Processing ${assignedDocuments.length} documents for question: ${question.question}`);
-        let documentEvidence;
-        try {
-          documentEvidence = await this.extractEvidenceFromAllDocuments(
-            assignedDocuments, 
-            question
-          );
-          console.log(`📊 Evidence extraction completed for question: ${question.question}`);
-        } catch (error) {
-          console.error(`❌ Error extracting evidence for question ${question.question}:`, error);
-          // Continue with empty evidence to prevent getting stuck
-          documentEvidence = [];
-          console.log(`📊 Continuing with empty evidence due to API limitations`);
-        }
+        const documentEvidence = await this.extractEvidenceFromAllDocuments(
+          assignedDocuments, 
+          question
+        );
+        console.log(`📊 Evidence extraction completed for question: ${question.question}`);
         
-        // Compile comprehensive answer - prioritize speed and reliability over AI analysis
-        let answer;
-        if (documentEvidence.length > 0) {
-          // Skip OpenAI API calls to prevent hanging - use evidence-based answers directly
-          console.log(`📊 Using evidence-based analysis for: ${question.question} (bypassing OpenAI to prevent hanging)`);
-          
-          const relevantEvidence = documentEvidence.filter(e => e.hasRelevantInfo);
-          const evidenceSummary = relevantEvidence
-            .map(e => `${e.documentName}: ${e.keyFindings?.join(', ') || e.documentSummary}`)
-            .join('; ');
-          
-          answer = {
-            question: question.question,
-            category: question.category,
-            answer: relevantEvidence.length > 0 ? 
-              `Based on ${relevantEvidence.length} legal documents: ${evidenceSummary.substring(0, 500)}...` :
-              `Evidence found in ${documentEvidence.length} documents - detailed analysis available`,
-            confidence: Math.min(85, relevantEvidence.length * 8 + 40), // Higher confidence for evidence-based
-            sources: documentEvidence.map(e => e.documentName),
-            keyFindings: documentEvidence.flatMap(e => e.keyFindings || []).slice(0, 8),
-            evidenceSummary: `Evidence extracted from ${documentEvidence.length} documents (${relevantEvidence.length} with relevant content)`,
-            gaps: relevantEvidence.length === 0 ? ['Limited relevant content found'] : [],
-            recommendations: relevantEvidence.length > 0 ? 
-              ['Review detailed evidence from source documents', 'Consider additional legal documentation'] :
-              ['Additional legal documents may be required for complete analysis'],
-            evidenceCount: relevantEvidence.length,
-            documentsCovered: documentEvidence.length,
-            detailedEvidence: documentEvidence
-          };
-        } else {
-          // No evidence found
-          answer = {
-            question: question.question,
-            category: question.category,
-            answer: 'No relevant legal information found in assigned documents for this question',
-            confidence: 15,
-            sources: [],
-            evidenceCount: 0,
-            documentsCovered: 0,
-            gaps: ['Insufficient documentation'],
-            recommendations: ['Additional legal documents may be required']
-          };
-        }
-        
+        // Compile comprehensive answer based on all evidence
+        const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
         legalAnswers[question.id] = answer;
         
         console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
         
         // Brief delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 1500));
-      } catch (questionError: any) {
+      } catch (questionError) {
         console.error(`❌ Error processing question "${question.question}":`, questionError);
         
         // Store partial answer for this question
         legalAnswers[question.id] = {
           question: question.question,
           category: question.category,
-          answer: `Error processing this question: ${questionError?.message || 'Unknown error'}`,
+          answer: `Error processing this question: ${questionError.message}`,
           confidence: 0,
           sources: [],
           evidence: [],
@@ -330,7 +280,7 @@ export class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get ALL documents for comprehensive legal analysis (like Clinical analysis)
+   * Get all documents suitable for legal analysis
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -340,58 +290,63 @@ export class ComprehensiveLegalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // Process ALL documents with content for comprehensive legal analysis
-    const documentsWithContent = allDocuments.filter(doc => 
-      doc.ocrText || doc.aiSummary
+    // First try documents explicitly assigned to legal agent
+    let legalDocuments = allDocuments.filter(doc => 
+      (doc.assignedAgents && doc.assignedAgents.includes('legal')) && 
+      (doc.ocrText || doc.aiSummary)
     );
     
-    console.log(`📄 Documents with content available for legal analysis: ${documentsWithContent.length}`);
+    console.log(`📄 Documents explicitly assigned to legal: ${legalDocuments.length}`);
     
-    // Use broad matching approach identical to Clinical analysis for comprehensive coverage
-    const COMPREHENSIVE_LEGAL_KEYWORDS = [
-      'contract', 'agreement', 'legal', 'license', 'patent', 'trademark', 'copyright',
-      'litigation', 'compliance', 'regulatory', 'terms', 'conditions', 'confidential',
-      'nda', 'employment', 'consulting', 'executed', 'signed', 'shareholder', 'investor',
-      'funding', 'liquidation', 'preference', 'anti-dilution', 'voting', 'board',
-      'ip assignment', 'intellectual property', 'governance', 'bylaws', 'articles',
-      'incorporation', 'memorandum', 'constitution', 'corporate', 'governance', 'bylaws',
-      'shareholder', 'director', 'officer', 'fiduciary', 'securities', 'disclosure',
-      'financial', 'audit', 'accounting', 'revenue', 'business', 'commercial', 'strategic'
-    ];
-    
-    // Enhanced document identification using comprehensive keyword matching
-    const legalDocuments = documentsWithContent.filter(doc => {
-      const docName = doc.name.toLowerCase();
-      const docContent = (doc.ocrText || '').toLowerCase();
-      const aiSummary = doc.aiSummary;
+    // If no documents are explicitly assigned to legal, identify legal-related documents
+    if (legalDocuments.length === 0) {
+      console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
       
-      // Check for legal keywords in name and content
-      const hasLegalKeywords = COMPREHENSIVE_LEGAL_KEYWORDS.some(keyword => 
-        docName.includes(keyword) || docContent.includes(keyword)
+      legalDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiSummary = doc.aiSummary;
+        
+        // Legal document keywords
+        const legalKeywords = [
+          'contract', 'agreement', 'legal', 'license', 'patent', 'trademark', 
+          'copyright', 'litigation', 'compliance', 'regulatory', 'terms', 
+          'conditions', 'confidential', 'nda', 'employment', 'consulting', 
+          'executed', 'signed', 'shareholder', 'investor', 'funding', 
+          'liquidation', 'preference', 'anti-dilution', 'voting', 'board',
+          'ip assignment', 'intellectual property', 'governance', 'bylaws',
+          'articles', 'incorporation', 'memorandum', 'constitution'
+        ];
+        
+        // Check document name and content for legal keywords
+        const hasLegalKeywords = legalKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword)
+        );
+        
+        // Check AI summary for legal document type
+        const isLegalDocument = aiSummary?.documentType?.toLowerCase().includes('legal') ||
+                               aiSummary?.executiveSummary?.toLowerCase().includes('legal') ||
+                               aiSummary?.executiveSummary?.toLowerCase().includes('contract') ||
+                               aiSummary?.executiveSummary?.toLowerCase().includes('agreement');
+        
+        return hasLegalKeywords || isLegalDocument;
+      });
+      
+      console.log(`📄 Auto-identified legal documents: ${legalDocuments.length}`);
+    }
+    
+    // If still no legal documents, take documents with meaningful content for analysis
+    if (legalDocuments.length === 0) {
+      console.log('📄 No legal-related documents found, using all documents with OCR text...');
+      legalDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
       );
-      
-      // Check AI summary for legal relevance
-      const summaryText = (aiSummary?.executiveSummary || '').toLowerCase();
-      const hasLegalSummary = COMPREHENSIVE_LEGAL_KEYWORDS.some(keyword => 
-        summaryText.includes(keyword)
-      );
-      
-      // Include business documents that might have legal implications
-      const isBusinessDocument = docName.includes('pitch') || docName.includes('presentation') ||
-                                docName.includes('business') || docName.includes('plan') ||
-                                docName.includes('strategy') || docName.includes('financial');
-      
-      return hasLegalKeywords || hasLegalSummary || isBusinessDocument;
-    });
+      console.log(`📄 Documents with content available: ${legalDocuments.length}`);
+    }
     
-    console.log(`📄 Legal documents identified using comprehensive matching: ${legalDocuments.length}`);
-    
-    // Use ALL documents for truly comprehensive legal analysis (same as Clinical approach)
-    console.log('📄 Using ALL 263 documents for comprehensive legal analysis (identical to Clinical approach)');
-    console.log(`📄 Legal-specific documents identified: ${legalDocuments.length}, Total documents: ${documentsWithContent.length}`);
-    
-    // Return ALL documents to ensure comprehensive coverage like Clinical analysis
-    return documentsWithContent;
+    return legalDocuments;
   }
   
   /**
@@ -466,75 +421,40 @@ Respond in JSON format:
 
 Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
 
-    // Skip OpenAI to prevent hanging - use question-specific evidence-based extraction
-    console.log(`⚖️ Using question-specific evidence extraction for: ${document.name} (bypassing OpenAI to prevent hanging)`);
-    
-    // Create question-specific keyword matching
-    const questionKeywords = this.getQuestionSpecificKeywords(question);
-    const contentLower = content.toLowerCase();
-    
-    // Find question-specific evidence in document
-    const hasQuestionSpecificTerms = questionKeywords.some(keyword => 
-      contentLower.includes(keyword.toLowerCase())
-    );
-    
-    let relevantContent = [];
-    let keyFindings = [];
-    
-    if (hasQuestionSpecificTerms) {
-      // Extract specific sentences that contain question-relevant keywords
-      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
-      const relevantSentences = sentences.filter(sentence => 
-        questionKeywords.some(keyword => 
-          sentence.toLowerCase().includes(keyword.toLowerCase())
-        )
-      ).slice(0, 3); // Take top 3 relevant sentences
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 1500
+      });
       
-      relevantContent = relevantSentences.length > 0 ? relevantSentences : [content.substring(0, 300)];
-      keyFindings = relevantSentences.length > 0 ? 
-        relevantSentences.map(s => `${question.category}: ${s.trim().substring(0, 150)}...`) :
-        [`${question.category} evidence from ${document.name}: ${content.substring(0, 150)}...`];
-    }
-    
-    return {
-      documentName: document.name,
-      documentId: document.id,
-      relevantContent: relevantContent,
-      hasRelevantInfo: hasQuestionSpecificTerms,
-      confidence: hasQuestionSpecificTerms ? 85 : 20,
-      keyFindings: keyFindings,
-      documentSummary: hasQuestionSpecificTerms ? 
-        `Question-specific evidence found for: ${question.question}` :
-        `No specific evidence found for: ${question.question}`,
-      fullContent: content.substring(0, 1000),
-      questionCategory: question.category,
-      questionId: question.id
-    };
-  }
-  
-  /**
-   * Get question-specific keywords for targeted evidence extraction
-   */
-  private getQuestionSpecificKeywords(question: any): string[] {
-    const baseKeywords = ['legal', 'contract', 'agreement'];
-    
-    switch (question.id) {
-      case 'sha_1': return [...baseKeywords, 'shares', 'class', 'common', 'preferred', 'voting', 'equity'];
-      case 'sha_2': return [...baseKeywords, 'liquidation', 'preference', 'distribution', 'priority', 'multiple'];
-      case 'sha_3': return [...baseKeywords, 'anti-dilution', 'protection', 'adjustment', 'weighted', 'ratchet'];
-      case 'gov_1': return [...baseKeywords, 'board', 'composition', 'directors', 'appointment', 'meeting'];
-      case 'gov_2': return [...baseKeywords, 'voting', 'rights', 'majority', 'veto', 'consent', 'shareholder'];
-      case 'ip_1': return [...baseKeywords, 'ip', 'intellectual property', 'assignment', 'invention', 'patent'];
-      case 'ip_2': return [...baseKeywords, 'founder', 'employee', 'key personnel', 'employment', 'assignment'];
-      case 'commercial_1': return [...baseKeywords, 'sla', 'warranty', 'indemnity', 'liability', 'service'];
-      case 'commercial_2': return [...baseKeywords, 'termination', 'notice', 'breach', 'cure', 'mutual'];
-      case 'lit_1': return [...baseKeywords, 'litigation', 'lawsuit', 'dispute', 'regulatory', 'proceeding'];
-      case 'lit_2': return [...baseKeywords, 'financial', 'exposure', 'damages', 'settlement', 'costs'];
-      case 'reg_1': return [...baseKeywords, 'fda', 'regulatory', 'approval', 'submission', 'license'];
-      case 'reg_2': return [...baseKeywords, 'compliance', 'violation', 'audit', 'warning', 'non-compliance'];
-      case 'financial_1': return [...baseKeywords, 'warrant', 'convertible', 'instrument', 'note', 'security'];
-      case 'financial_2': return [...baseKeywords, 'interest', 'rate', 'maturity', 'debt', 'payment'];
-      default: return baseKeywords;
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      
+      return {
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: analysis.relevantContent || [],
+        hasRelevantInfo: analysis.hasRelevantInfo || false,
+        confidence: analysis.confidence || 0,
+        keyFindings: analysis.keyFindings || [],
+        documentSummary: analysis.documentSummary || '',
+        fullContent: content.substring(0, 1000) // Keep sample for reference
+      };
+      
+    } catch (error) {
+      console.error(`Error extracting evidence from ${document.name}:`, error);
+      return {
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: [],
+        hasRelevantInfo: false,
+        confidence: 0,
+        keyFindings: [],
+        documentSummary: 'Analysis failed',
+        fullContent: content.substring(0, 1000)
+      };
     }
   }
   
@@ -632,36 +552,6 @@ Respond in JSON format:
       
     } catch (error) {
       console.error(`❌ Error compiling answer for ${question.id}:`, error.message);
-      
-      // Handle specific OpenAI quota exceeded errors
-      if (error.status === 429 || error.code === 'insufficient_quota' || error.message?.includes('quota')) {
-        console.log(`🚫 OpenAI quota exceeded for question ${question.question} - providing partial analysis from evidence`);
-        
-        // Generate answer from evidence without API call
-        const evidenceSummary = relevantEvidence.map(e => 
-          `${e.documentName}: ${e.relevantContent?.[0] || e.documentSummary || 'Document analyzed'}`
-        ).join('; ');
-        
-        return {
-          question: question.question,
-          answer: relevantEvidence.length > 0 ? 
-            `Based on ${relevantEvidence.length} legal documents: ${evidenceSummary.substring(0, 300)}...` :
-            'Legal analysis requires manual review due to API quota limitations',
-          confidence: relevantEvidence.length > 0 ? 60 : 20,
-          sources: relevantEvidence.map(e => e.documentName),
-          keyFindings: relevantEvidence.length > 0 ? 
-            [`${relevantEvidence.length} relevant documents identified`, 'Evidence extraction completed'] :
-            ['Analysis pending API availability'],
-          evidenceSummary: evidenceSummary || 'Legal documents require manual review',
-          gaps: ['Full AI analysis temporarily unavailable'],
-          recommendations: ['Manual legal review recommended', 'Retry analysis when API quota restored'],
-          evidenceCount: relevantEvidence.length,
-          documentsCovered: evidence.length,
-          detailedEvidence: relevantEvidence,
-          quotaLimited: true
-        };
-      }
-      
       return {
         question: question.question,
         answer: `Analysis temporarily unavailable: ${error.message}. Please try again.`,
