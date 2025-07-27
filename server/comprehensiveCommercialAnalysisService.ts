@@ -493,8 +493,8 @@ class ComprehensiveCommercialAnalysisService {
     const allFindings = evidence.flatMap(e => e.keyFindings);
     
     const prompt = `
-    You are a commercial due diligence expert analyzing investment opportunities.
-    
+    You are a commercial due diligence expert analyzing investment opportunities. Extract SPECIFIC COMMERCIAL DATA AND METRICS.
+
     Question: ${question.question}
     Category: ${question.category}
     
@@ -504,15 +504,29 @@ class ComprehensiveCommercialAnalysisService {
     Key findings:
     ${allFindings.join('\n')}
     
+    CRITICAL: Extract CONCRETE COMMERCIAL INFORMATION including:
+    - Specific customer names and contract values (e.g., "Microsoft $2.5M contract", "Amazon 3-year $890K deal")
+    - Exact pricing data (e.g., "$50/month per seat", "€25K enterprise license", "15% volume discount")
+    - Win/loss rates with percentages (e.g., "75% win rate in Q1", "12% churn rate", "85% renewal rate")
+    - Sales cycle data (e.g., "Average 6.5 months sales cycle", "Enterprise deals: 12 months", "SMB: 2.3 months")
+    - Market size numbers (e.g., "TAM: $50B", "SAM: $5.2B", "SOM: $250M by 2027")
+    - Revenue concentration (e.g., "Top 5 customers: 68% of revenue", "Largest customer: $1.2M ARR")
+    - Competitive positioning (e.g., "25% market share", "2nd largest player", "40% price premium vs competitors")
+    - Growth metrics (e.g., "NRR: 115%", "CAC: $2,400", "LTV: $18,500", "LTV/CAC: 7.7x")
+    - Customer segments (e.g., "Enterprise: 70% revenue", "SMB: 25%", "Mid-market: 5%")
+    - Geographic data (e.g., "US: 60% revenue", "Europe: 30%", "APAC: 10%")
+    
     Provide a comprehensive commercial analysis response as JSON:
     {
-      "answer": "Detailed answer based on evidence",
+      "answer": "Detailed answer with SPECIFIC NUMBERS, PERCENTAGES, CUSTOMER NAMES, CONTRACT VALUES, and TIMEFRAMES found in evidence. Include actual commercial data, not generic statements.",
       "confidence": 0.85,
-      "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
-      "evidenceSummary": "Summary of the evidence analyzed",
-      "commercialAssessment": "Professional commercial assessment",
-      "recommendations": ["Recommendation 1", "Recommendation 2"]
+      "keyFindings": ["Microsoft $2.5M contract signed Q1", "75% win rate in enterprise segment", "Average 8.2 month sales cycle"],
+      "evidenceSummary": "Summary with specific commercial metrics extracted",
+      "commercialAssessment": "Assessment based on concrete commercial data found",
+      "recommendations": ["Specific recommendations based on actual commercial performance data"]
     }
+    
+    IMPORTANT: Always include the EXACT NUMBERS, PERCENTAGES, CUSTOMER NAMES, CONTRACT VALUES found in the evidence. Do not provide generic responses.
     `;
 
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
