@@ -1790,7 +1790,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {answer.confidence}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
@@ -2144,7 +2144,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {answer.confidence}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
                                 {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
@@ -2420,7 +2420,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {answer.confidence}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
@@ -4586,7 +4586,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {answer.confidence}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
