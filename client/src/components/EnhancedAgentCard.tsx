@@ -4965,14 +4965,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 }
 
 // IP Questions Section Component
-function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[] }) {
+function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
-  const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
-  const [selectedQuoteData, setSelectedQuoteData] = useState<{
-    quotes?: any[];
-    sources?: any[];
-    title: string;
-  }>({ quotes: [], sources: [], title: "" });
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/ip/results`],
