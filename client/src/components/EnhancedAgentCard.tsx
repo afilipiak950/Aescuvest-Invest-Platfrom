@@ -4975,116 +4975,48 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   );
 }
 
-// IP Questions Section Component
+// IP Questions Section Component - Following Clinical format exactly
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
+  const [expandedFindings, setExpandedFindings] = useState(new Set([0]));
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/ip/results`],
     refetchInterval: 2000,
   });
 
-  const toggleCategory = (category: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(category)) {
-      newExpanded.delete(category);
+  const toggleFinding = (index: number) => {
+    const newExpanded = new Set(expandedFindings);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
     } else {
-      newExpanded.add(category);
+      newExpanded.add(index);
     }
-    setExpandedCategories(newExpanded);
+    setExpandedFindings(newExpanded);
   };
 
-  // IP questions structure matching the backend service
-  const IP_QUESTIONS = [
-    // 1. Patent Applications/Grants - 4 questions
-    { id: "patents_1", question: "What jurisdictions are covered (US, EU, China, Japan)?", category: "Patent Applications/Grants" },
-    { id: "patents_2", question: "What is the legal status (granted, pending, abandoned)?", category: "Patent Applications/Grants" },
-    { id: "patents_3", question: "How long is the protection duration remaining?", category: "Patent Applications/Grants" },
-    { id: "patents_4", question: "Is there freedom to operate (FTO) analysis available?", category: "Patent Applications/Grants" },
-    
-    // 2. Trademark Registrations - 4 questions
-    { id: "trademarks_1", question: "What Nice classes are covered for trademark protection?", category: "Trademark Registrations" },
-    { id: "trademarks_2", question: "Are there any oppositions or disputes filed?", category: "Trademark Registrations" },
-    { id: "trademarks_3", question: "What renewal dates and maintenance requirements exist?", category: "Trademark Registrations" },
-    { id: "trademarks_4", question: "Are brand extensions or geographical expansions planned?", category: "Trademark Registrations" },
-    
-    // 3. License Agreements - 4 questions
-    { id: "licenses_1", question: "Are licenses exclusive or non-exclusive?", category: "License Agreements" },
-    { id: "licenses_2", question: "What royalty rates and payment terms are defined?", category: "License Agreements" },
-    { id: "licenses_3", question: "Are sublicensing rights granted or restricted?", category: "License Agreements" },
-    { id: "licenses_4", question: "What termination clauses and conditions exist?", category: "License Agreements" },
-    
-    // 4. Source Code Ownership Declarations - 4 questions
-    { id: "source_code_1", question: "Is all source code developed in-house or are there third-party components?", category: "Source Code Ownership" },
-    { id: "source_code_2", question: "What open-source licenses are used (GPL, MIT, Apache)?", category: "Source Code Ownership" },
-    { id: "source_code_3", question: "Are there clear policies for employee-created IP?", category: "Source Code Ownership" },
-    { id: "source_code_4", question: "Are all code contributions properly documented and assigned?", category: "Source Code Ownership" }
-  ];
+  // Get findings and recommendations from IP analysis
+  const findings = comprehensiveResults?.analysis?.findings || [];
+  const recommendations = comprehensiveResults?.analysis?.recommendations || [];
 
-  const categorizedQuestions = IP_QUESTIONS.reduce((acc, question) => {
-    if (!acc[question.category]) {
-      acc[question.category] = [];
-    }
-    acc[question.category].push(question);
-    return acc;
-  }, {} as Record<string, typeof IP_QUESTIONS>);
-
-  const getAnswerForQuestion = (questionId: string) => {
-    // Check for snake_case field name from API first
-    if (comprehensiveResults?.analysis?.ip_answers) {
-      return comprehensiveResults.analysis.ip_answers[questionId] || null;
-    }
-    // Fallback to camelCase if available
-    if (comprehensiveResults?.analysis?.ipAnswers) {
-      return comprehensiveResults.analysis.ipAnswers[questionId] || null;
-    }
-    
-    // If no structured answers, extract from findings based on question content
-    if (comprehensiveResults?.analysis?.findings) {
-      const findings = comprehensiveResults.analysis.findings;
-      // Map question IDs to question text patterns for finding relevant data
-      const questionPatterns = {
-        'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan'],
-        'patents_2': ['legal status', 'granted', 'pending', 'abandoned'],
-        'patents_3': ['protection duration', 'remaining', 'expir'],
-        'patents_4': ['freedom to operate', 'FTO', 'analysis'],
-        'trademarks_1': ['Nice classes', 'trademark protection'],
-        'trademarks_2': ['opposition', 'dispute'],
-        'trademarks_3': ['renewal', 'maintenance'],
-        'trademarks_4': ['brand extension', 'geographical expansion'],
-        'licenses_1': ['exclusive', 'non-exclusive'],
-        'licenses_2': ['royalty', 'payment terms'],
-        'licenses_3': ['sublicensing', 'rights'],
-        'licenses_4': ['termination', 'clause'],
-        'source_code_1': ['source code', 'in-house', 'third-party'],
-        'source_code_2': ['open-source', 'GPL', 'MIT', 'Apache'],
-        'source_code_3': ['employee', 'IP policy'],
-        'source_code_4': ['code contribution', 'documented']
-      };
-      
-      const patterns = questionPatterns[questionId];
-      if (patterns) {
-        const relevantFindings = findings.filter((finding: any) => 
-          patterns.some(pattern => 
-            finding.finding?.toLowerCase().includes(pattern.toLowerCase())
-          )
-        );
-        
-        if (relevantFindings.length > 0) {
-          // Create a structured answer from findings
-          return {
-            answer: relevantFindings.map((f: any) => f.finding).join(' '),
-            confidence: Math.max(...relevantFindings.map((f: any) => f.confidence || 0.5)) * 100,
-            sources: relevantFindings.flatMap((f: any) => f.sources || []),
-            keyFindings: relevantFindings.map((f: any) => f.finding),
-            ipAssessment: `Based on ${relevantFindings.length} finding(s) with confidence levels ranging from ${Math.min(...relevantFindings.map((f: any) => (f.confidence || 0.5) * 100))}% to ${Math.max(...relevantFindings.map((f: any) => (f.confidence || 0.5) * 100))}%.`
-          };
-        }
-      }
-    }
-    
-    return null;
-  };
+  // Create structured display like Clinical format
+  if (!findings || findings.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Comprehensive IP Analysis</h3>
+            <p className="text-gray-300 text-sm">
+              Analyze {assignedDocuments} IP documents for patent, trademark, and licensing insights
+            </p>
+          </div>
+          <ComprehensiveIPAnalysisButton dealId={dealId} />
+        </div>
+        <div className="text-center py-8 text-gray-400">
+          <p>No IP analysis available. Click "Run AI Analysis" to start comprehensive IP assessment.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -5092,24 +5024,25 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive IP Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
+            Analyze {assignedDocuments} IP documents • Found {findings.length} findings • {recommendations.length} recommendations
           </p>
         </div>
         <ComprehensiveIPAnalysisButton dealId={dealId} />
       </div>
 
-      {Object.entries(categorizedQuestions).map(([category, questions]) => (
-        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+      {/* Findings Section - Matching Clinical format exactly */}
+      {findings.map((finding: any, index: number) => (
+        <div key={finding.id || index} className="border border-dark-lighter rounded-lg overflow-hidden">
           <div 
             className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
-            onClick={() => toggleCategory(category)}
+            onClick={() => toggleFinding(index)}
           >
-            <h4 className="font-medium text-white">{category}</h4>
+            <h4 className="font-medium text-white">IP Finding #{index + 1}</h4>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+              <Badge variant="outline" className="text-purple-400 border-purple-600">
+                {Math.round((finding.confidence || 0.5) * 100)}% confidence
               </Badge>
-              {expandedCategories.has(category) ? (
+              {expandedFindings.has(index) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
               ) : (
                 <ChevronDown className="h-5 w-5 text-gray-400" />
@@ -5117,173 +5050,89 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             </div>
           </div>
           
-          {expandedCategories.has(category) && (
-            <div className="border-t border-dark-lighter">
-              {questions.map(question => {
-                const answer = getAnswerForQuestion(question.id);
+          {expandedFindings.has(index) && (
+            <div className="border-t border-dark-lighter p-4">
+              <div className="space-y-3">
+                {/* Main Finding */}
+                <div className="bg-dark/50 rounded p-3">
+                  <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis Finding</h5>
+                  <p className="text-gray-300 text-sm leading-relaxed">{finding.finding}</p>
+                </div>
 
-                return (
-                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
-                          
-                          {answer ? (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
-                              </div>
+                {/* Severity Badge */}
+                {finding.severity && (
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        finding.severity === 'high' ? 'text-red-400 border-red-400' :
+                        finding.severity === 'medium' ? 'text-yellow-400 border-yellow-400' :
+                        'text-green-400 border-green-400'
+                      }`}
+                    >
+                      {finding.severity.toUpperCase()} SEVERITY
+                    </Badge>
+                  </div>
+                )}
 
-                              {/* Enhanced IP Assessment */}
-                              {answer.ipAssessment && (
-                                <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-violet-400 mb-2">IP Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.ipAssessment}</p>
-                                </div>
-                              )}
-
-                              {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
-                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
-                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
-                                  </h5>
-                                  <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
-                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
-                                        <div className="flex items-start justify-between mb-1">
-                                          <button
-                                            onClick={() => handleDocumentClick(quote.document)}
-                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
-                                          >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
-                                          </button>
-                                          {quote.relevance && (
-                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
-                                        </blockquote>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Evidence Summary */}
-                              {answer.evidenceSummary && (
-                                <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
-                                </div>
-                              )}
-
-                              {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
-                                <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
-                                  <ul className="space-y-1">
-                                    {answer.keyFindings.map((finding, index) => (
-                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
-                                        <span className="text-purple-400 text-xs mt-1">•</span>
-                                        {finding}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
-                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
-                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
-                                  <ul className="space-y-1">
-                                    {answer.recommendations.map((rec, index) => (
-                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
-                                        <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {/* Metadata */}
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
-                                </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
-                                    onClick={() => {
-                                      setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
-                                          text: quote,
-                                          documentName: answer.sources?.[0] || 'Unknown Document',
-                                          confidence: answer.confidence || 0.8
-                                        })),
-                                        sources: [],
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
-                                  </Badge>
-                                )}
-                                {answer.sources && answer.sources.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
-                                    onClick={() => {
-                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
-                                        return {
-                                          documentName: evidence.documentName,
-                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
-                                          extractedText: evidence.documentSummary || 'No specific content extracted'
-                                        };
-                                      }) || answer.sources.map((source: string) => ({
-                                        documentName: source,
-                                        relevantSections: [answer.answer || 'No specific section identified'],
-                                        extractedText: answer.answer
-                                      }));
-                                      
-                                      setSelectedQuoteData({
-                                        quotes: [],
-                                        sources,
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
-                              <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                {/* Sources */}
+                {finding.sources && finding.sources.length > 0 && (
+                  <div className="bg-gradient-to-r from-gray-400/10 to-slate-400/10 rounded p-3">
+                    <h5 className="text-xs font-medium text-gray-400 mb-2">
+                      📚 Sources ({finding.sources.length})
+                    </h5>
+                    <div className="flex flex-wrap gap-1">
+                      {finding.sources.map((source: string, sourceIndex: number) => (
+                        <button
+                          key={sourceIndex}
+                          onClick={() => handleDocumentClick(source)}
+                          className="text-xs px-2 py-1 bg-gray-500/20 text-gray-400 rounded border border-gray-500/30 hover:bg-gray-500/30 transition-colors cursor-pointer"
+                          title={`View document: ${source}`}
+                        >
+                          📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+                )}
+
+                {/* Confidence Score */}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-purple-400 border-purple-400">
+                    Confidence: {Math.round((finding.confidence || 0.5) * 100)}%
+                  </Badge>
+                  {finding.category && (
+                    <Badge variant="outline" className="text-gray-400 border-gray-600">
+                      {finding.category}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
       ))}
+
+      {/* Recommendations Section */}
+      {recommendations && recommendations.length > 0 && (
+        <div className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div className="p-4 bg-dark-light">
+            <h4 className="font-medium text-white">IP Recommendations ({recommendations.length})</h4>
+          </div>
+          <div className="border-t border-dark-lighter p-4">
+            <div className="space-y-3">
+              {recommendations.map((rec: any, index: number) => (
+                <div key={index} className="bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-blue-400 font-bold text-xs mt-1">•</span>
+                    <p className="text-gray-300 text-sm leading-relaxed">{rec.content || rec.recommendation || rec}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
