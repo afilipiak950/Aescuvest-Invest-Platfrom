@@ -2274,13 +2274,24 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // Try comprehensive results first
+    // Try comprehensive results first - check snake_case field name from API
+    if (comprehensiveResults?.analysis?.research_answers) {
+      const answer = comprehensiveResults.analysis.research_answers[questionId];
+      if (answer) return answer;
+    }
+    
+    // Fallback to camelCase if available
     if (comprehensiveResults?.analysis?.researchAnswers) {
       const answer = comprehensiveResults.analysis.researchAnswers[questionId];
       if (answer) return answer;
     }
     
     // Fallback to regular analysis results if comprehensive is empty
+    if (analysisData?.research_answers) {
+      const answer = analysisData.research_answers[questionId];
+      if (answer) return answer;
+    }
+    
     if (analysisData?.researchAnswers) {
       const answer = analysisData.researchAnswers[questionId];
       if (answer) return answer;
@@ -5019,8 +5030,60 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   }, {} as Record<string, typeof IP_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.analysis?.ipAnswers) return null;
-    return comprehensiveResults.analysis.ipAnswers[questionId] || null;
+    // Check for snake_case field name from API first
+    if (comprehensiveResults?.analysis?.ip_answers) {
+      return comprehensiveResults.analysis.ip_answers[questionId] || null;
+    }
+    // Fallback to camelCase if available
+    if (comprehensiveResults?.analysis?.ipAnswers) {
+      return comprehensiveResults.analysis.ipAnswers[questionId] || null;
+    }
+    
+    // If no structured answers, extract from findings based on question content
+    if (comprehensiveResults?.analysis?.findings) {
+      const findings = comprehensiveResults.analysis.findings;
+      // Map question IDs to question text patterns for finding relevant data
+      const questionPatterns = {
+        'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan'],
+        'patents_2': ['legal status', 'granted', 'pending', 'abandoned'],
+        'patents_3': ['protection duration', 'remaining', 'expir'],
+        'patents_4': ['freedom to operate', 'FTO', 'analysis'],
+        'trademarks_1': ['Nice classes', 'trademark protection'],
+        'trademarks_2': ['opposition', 'dispute'],
+        'trademarks_3': ['renewal', 'maintenance'],
+        'trademarks_4': ['brand extension', 'geographical expansion'],
+        'licenses_1': ['exclusive', 'non-exclusive'],
+        'licenses_2': ['royalty', 'payment terms'],
+        'licenses_3': ['sublicensing', 'rights'],
+        'licenses_4': ['termination', 'clause'],
+        'source_code_1': ['source code', 'in-house', 'third-party'],
+        'source_code_2': ['open-source', 'GPL', 'MIT', 'Apache'],
+        'source_code_3': ['employee', 'IP policy'],
+        'source_code_4': ['code contribution', 'documented']
+      };
+      
+      const patterns = questionPatterns[questionId];
+      if (patterns) {
+        const relevantFindings = findings.filter((finding: any) => 
+          patterns.some(pattern => 
+            finding.finding?.toLowerCase().includes(pattern.toLowerCase())
+          )
+        );
+        
+        if (relevantFindings.length > 0) {
+          // Create a structured answer from findings
+          return {
+            answer: relevantFindings.map((f: any) => f.finding).join(' '),
+            confidence: Math.max(...relevantFindings.map((f: any) => f.confidence || 0.5)) * 100,
+            sources: relevantFindings.flatMap((f: any) => f.sources || []),
+            keyFindings: relevantFindings.map((f: any) => f.finding),
+            ipAssessment: `Based on ${relevantFindings.length} finding(s) with confidence levels ranging from ${Math.min(...relevantFindings.map((f: any) => (f.confidence || 0.5) * 100))}% to ${Math.max(...relevantFindings.map((f: any) => (f.confidence || 0.5) * 100))}%.`
+          };
+        }
+      }
+    }
+    
+    return null;
   };
 
   return (
