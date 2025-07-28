@@ -1514,17 +1514,20 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
-  // Check if legal analysis is available
+  // Check if legal analysis is available - enhanced detection
   const hasLegalAnalysis = analysisData && (
     (analysisData.legalAnswers && Object.keys(analysisData.legalAnswers).length > 0) ||
-    (analysisData?.findings && analysisData.findings.length > 0)
+    (analysisData?.findings && analysisData.findings.length > 0) ||
+    (analysisData?.status === 'Completed' || analysisData?.status === 'completed')
   );
   
-  // Debug logging
+  // Debug logging - enhanced for troubleshooting
   console.log('🔍 Legal Analysis Available:', hasLegalAnalysis);
-  console.log('🔍 Analysis Data:', analysisData);
-  console.log('🔍 Legal Answers:', analysisData?.legalAnswers);
-  console.log('🔍 Findings:', findings);
+  console.log('🔍 Analysis Data exists:', !!analysisData);
+  console.log('🔍 Legal Answers exists:', !!analysisData?.legalAnswers);
+  console.log('🔍 Legal Answers keys:', analysisData?.legalAnswers ? Object.keys(analysisData.legalAnswers) : 'none');
+  console.log('🔍 Analysis Status:', analysisData?.status);
+  console.log('🔍 Findings count:', findings?.length || 0);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
