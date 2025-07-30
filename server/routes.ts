@@ -3963,24 +3963,10 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
+      console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId} (BYPASSING DUPLICATE CHECK)`);
       
-      // Check for existing commercial analysis jobs to prevent duplicates
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingCommercialJob = existingJobs.find(job => 
-        (job.jobType === 'comprehensive_commercial_analysis' || job.jobId.includes('commercial_analysis')) && 
-        job.status === 'processing'
-      );
-      
-      if (existingCommercialJob) {
-        console.log(`⚠️ Commercial analysis already running for deal ${dealId} (Job: ${existingCommercialJob.jobId})`);
-        return res.json({ 
-          success: false, 
-          message: `Commercial analysis already in progress (${Math.round(existingCommercialJob.progress || 0)}% complete)`,
-          alreadyRunning: true,
-          progress: existingCommercialJob.progress || 0
-        });
-      }
+      // REMOVED: Check for existing jobs - this was blocking the cleanup from running
+      // The service will handle cleanup internally
       
       // Import the comprehensive commercial analysis service
       const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
