@@ -125,9 +125,21 @@ class ComprehensiveCommercialAnalysisService {
     };
   }
 
-  private setProgress(dealId: number, progress: Partial<CommercialAnalysisProgress>) {
+  private async setProgress(dealId: number, progress: Partial<CommercialAnalysisProgress>, jobId?: string) {
     const current = this.getProgress(dealId);
     this.progressData.set(dealId, { ...current, ...progress });
+    
+    // Also update database background job if jobId provided
+    if (jobId && progress.progress !== undefined) {
+      try {
+        await storage.updateBackgroundJob(jobId, {
+          progress: progress.progress,
+          currentStep: progress.currentStep || current.currentStep || 'Processing commercial analysis'
+        });
+      } catch (error) {
+        console.error(`❌ Error updating background job ${jobId}:`, error);
+      }
+    }
   }
 
   async getAssignedCommercialDocuments(dealId: number): Promise<any[]> {
@@ -178,7 +190,7 @@ class ComprehensiveCommercialAnalysisService {
   async startComprehensiveAnalysis(dealId: number): Promise<void> {
     console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
     
-    this.setProgress(dealId, {
+    await this.setProgress(dealId, {
       isRunning: true,
       progress: 5,
       message: 'Starting comprehensive commercial analysis',
@@ -211,10 +223,10 @@ class ComprehensiveCommercialAnalysisService {
       });
 
       // Find assigned commercial documents
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 10,
         currentStep: 'Finding assigned commercial documents'
-      });
+      }, jobId);
 
       const documents = await this.getAssignedCommercialDocuments(dealId);
       console.log(`🏢 Found ${documents.length} assigned commercial documents`);
@@ -224,35 +236,35 @@ class ComprehensiveCommercialAnalysisService {
       }
 
       // Extract evidence from all documents
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 20,
         currentStep: 'Extracting evidence from commercial documents'
-      });
+      }, jobId);
 
-      const evidenceResults = await this.extractEvidenceFromAllDocuments(documents, dealId);
+      const evidenceResults = await this.extractEvidenceFromAllDocuments(documents, dealId, jobId);
       
       // Generate comprehensive answers for all questions
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 70,
         currentStep: 'Generating comprehensive commercial analysis'
-      });
+      }, jobId);
 
       const commercialAnswers = await this.generateComprehensiveAnswers(evidenceResults, dealId);
       
       // Store results
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: 90,
         currentStep: 'Storing commercial analysis results'
-      });
+      }, jobId);
 
       await this.storeAnalysisResults(dealId, commercialAnswers, evidenceResults);
       
       // Complete
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         isRunning: false,
         progress: 100,
         message: 'Commercial analysis completed successfully'
-      });
+      }, jobId);
 
       // Update background job
       await storage.updateBackgroundJob(jobId, {
@@ -288,7 +300,7 @@ class ComprehensiveCommercialAnalysisService {
     }
   }
 
-  async extractEvidenceFromAllDocuments(documents: any[], dealId: number): Promise<Map<string, CommercialEvidence[]>> {
+  async extractEvidenceFromAllDocuments(documents: any[], dealId: number, jobId?: string): Promise<Map<string, CommercialEvidence[]>> {
     const evidenceMap = new Map<string, CommercialEvidence[]>();
     const BATCH_SIZE = 10;
     const totalBatches = Math.ceil(documents.length / BATCH_SIZE);
@@ -303,10 +315,10 @@ class ComprehensiveCommercialAnalysisService {
       
       // Update progress
       const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
-      this.setProgress(dealId, {
+      await this.setProgress(dealId, {
         progress: batchProgress,
         currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
-      });
+      }, jobId);
       
       // Process documents in parallel within batch
       const batchPromises = batch.map(async (doc) => {
