@@ -198,28 +198,22 @@ class ComprehensiveCommercialAnalysisService {
     });
 
     try {
-      // Clean up any stuck jobs before starting
-      await storage.cleanupStuckJobs(dealId, 'Commercial');
+      // Force cleanup of ALL Commercial jobs for this deal - no mercy for stuck jobs
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq, and } = await import('drizzle-orm');
       
-      // Check for existing active background job
-      const existingJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
-      if (existingJob && existingJob.status === 'processing' && existingJob.progress < 100) {
-        // Only block if job is actually progressing (updated within last 5 minutes)
-        const lastUpdate = new Date(existingJob.updatedAt || existingJob.createdAt);
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-        
-        if (lastUpdate > fiveMinutesAgo) {
-          console.log(`🏢 Commercial analysis actively running for deal ${dealId} (Job: ${existingJob.jobId})`);
-          await this.setProgress(dealId, {
-            isRunning: true,
-            progress: existingJob.progress || 0,
-            message: `Commercial analysis in progress (${Math.round(existingJob.progress || 0)}% complete)`
-          });
-          return;
-        } else {
-          console.log(`🏢 Removing stuck Commercial job for deal ${dealId} (older than 5 minutes)`);
-          await storage.deleteBackgroundJob(existingJob.jobId);
-        }
+      // Delete ALL existing Commercial jobs for this deal
+      await db.delete(backgroundJobs).where(and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.agentType, 'Commercial')
+      ));
+      console.log(`🧹 Forcefully cleared ALL Commercial jobs for deal ${dealId}`);
+      
+      // Double-check no jobs exist
+      const remainingJobs = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
+      if (remainingJobs) {
+        console.log(`⚠️ Found remaining job after cleanup: ${remainingJobs.jobId}, force deleting...`);
+        await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, remainingJobs.jobId));
       }
 
       // Create unique background job ID
