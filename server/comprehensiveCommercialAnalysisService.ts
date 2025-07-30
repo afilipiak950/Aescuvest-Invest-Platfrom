@@ -291,7 +291,7 @@ class ComprehensiveCommercialAnalysisService {
       this.setProgress(dealId, {
         isRunning: false,
         progress: 0,
-        message: `Commercial analysis failed: ${error.message}`
+        message: `Commercial analysis failed: ${(error as Error).message}`
       });
 
       // Find and update any existing background jobs as failed
@@ -301,7 +301,7 @@ class ComprehensiveCommercialAnalysisService {
           await storage.updateBackgroundJob(existingJob.jobId, {
             status: 'failed',
             progress: 0,
-            error: error.message
+            error: (error as Error).message
           });
         }
       } catch (jobError) {
@@ -442,7 +442,7 @@ class ComprehensiveCommercialAnalysisService {
     const content = (evidence.documentSummary + ' ' + evidence.relevantContent.join(' ') + ' ' + evidence.keyFindings.join(' ')).toLowerCase();
     
     // Check if document contains keywords relevant to this question
-    const hasRelevantKeywords = question.keywords.some(keyword => content.includes(keyword.toLowerCase()));
+    const hasRelevantKeywords = question.keywords.some((keyword: string) => content.includes(keyword.toLowerCase()));
     
     if (!hasRelevantKeywords) {
       return null;
@@ -450,11 +450,11 @@ class ComprehensiveCommercialAnalysisService {
     
     // Filter content to only relevant parts
     const filteredContent = evidence.relevantContent.filter(item => 
-      question.keywords.some(keyword => item.toLowerCase().includes(keyword.toLowerCase()))
+      question.keywords.some((keyword: string) => item.toLowerCase().includes(keyword.toLowerCase()))
     );
     
     const filteredFindings = evidence.keyFindings.filter(finding => 
-      question.keywords.some(keyword => finding.toLowerCase().includes(keyword.toLowerCase()))
+      question.keywords.some((keyword: string) => finding.toLowerCase().includes(keyword.toLowerCase()))
     );
     
     return {
@@ -602,7 +602,7 @@ class ComprehensiveCommercialAnalysisService {
     const recommendations = Object.values(answers).flatMap(answer => 
       answer.recommendations.map(rec => ({
         title: `Commercial: ${rec.substring(0, 50)}...`,
-        content: rec,
+        description: rec,
         priority: 'Medium',
         category: 'Commercial',
         impact: 'Medium'

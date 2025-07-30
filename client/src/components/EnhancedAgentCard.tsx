@@ -4532,6 +4532,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">
+                              {/* Main Finding - Clinical style */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
                                 <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
