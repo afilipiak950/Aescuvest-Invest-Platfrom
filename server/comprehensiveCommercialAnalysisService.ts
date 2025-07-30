@@ -190,31 +190,19 @@ class ComprehensiveCommercialAnalysisService {
   async startComprehensiveAnalysis(dealId: number): Promise<void> {
     console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
     
-    await this.setProgress(dealId, {
-      isRunning: true,
-      progress: 5,
-      message: 'Starting comprehensive commercial analysis',
-      currentStep: 'Initializing commercial analysis'
-    });
-
     try {
-      // Force cleanup of ALL Commercial jobs for this deal - no mercy for stuck jobs
+      // FORCE CLEANUP FIRST - Delete ALL existing Commercial jobs for this deal
       const { backgroundJobs } = await import('../shared/schema');
       const { eq, and } = await import('drizzle-orm');
       
-      // Delete ALL existing Commercial jobs for this deal
+      console.log(`🧹 Force deleting ALL Commercial jobs for deal ${dealId}`);
       await db.delete(backgroundJobs).where(and(
         eq(backgroundJobs.dealId, dealId),
         eq(backgroundJobs.agentType, 'Commercial')
       ));
-      console.log(`🧹 Forcefully cleared ALL Commercial jobs for deal ${dealId}`);
       
-      // Double-check no jobs exist
-      const remainingJobs = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
-      if (remainingJobs) {
-        console.log(`⚠️ Found remaining job after cleanup: ${remainingJobs.jobId}, force deleting...`);
-        await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, remainingJobs.jobId));
-      }
+      // Wait a moment for database consistency
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Create unique background job ID
       const jobId = `commercial-analysis-${dealId}-${Date.now()}`;

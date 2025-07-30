@@ -3008,6 +3008,24 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
         setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
         setIsVisible(true);
         
+        // Handle stuck jobs - check if job hasn't updated in 5+ minutes
+        const jobCreated = new Date(commercialJob.metadata?.startTime || commercialJob.createdAt);
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        
+        if (jobCreated < fiveMinutesAgo && commercialJob.progress <= 5) {
+          console.log(`⚠️ Detected stuck Commercial job: ${commercialJob.jobId}, force cleaning...`);
+          setCurrentStep('Stuck job detected - cleaning up...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${commercialJob.jobId}/stop`, {
+              method: 'POST'
+            }).then(() => {
+              // Force refresh after cleanup
+              window.location.reload();
+            }).catch(console.error);
+          }, 1000);
+        }
+        
         // Handle jobs stuck at 100%
         if (commercialJob.progress >= 100) {
           setCurrentStep('Analysis completed - finalizing results...');
