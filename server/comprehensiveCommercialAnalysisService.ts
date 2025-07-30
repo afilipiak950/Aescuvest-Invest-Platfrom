@@ -198,16 +198,28 @@ class ComprehensiveCommercialAnalysisService {
     });
 
     try {
-      // Check for existing background job - if exists, analysis is already running
+      // Clean up any stuck jobs before starting
+      await storage.cleanupStuckJobs(dealId, 'Commercial');
+      
+      // Check for existing active background job
       const existingJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
-      if (existingJob) {
-        console.log(`🏢 Commercial analysis already running for deal ${dealId} (Job: ${existingJob.jobId})`);
-        this.setProgress(dealId, {
-          isRunning: true,
-          progress: existingJob.progress || 0,
-          message: `Commercial analysis already in progress (${Math.round(existingJob.progress || 0)}% complete)`
-        });
-        return;
+      if (existingJob && existingJob.status === 'processing' && existingJob.progress < 100) {
+        // Only block if job is actually progressing (updated within last 5 minutes)
+        const lastUpdate = new Date(existingJob.updatedAt || existingJob.createdAt);
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        
+        if (lastUpdate > fiveMinutesAgo) {
+          console.log(`🏢 Commercial analysis actively running for deal ${dealId} (Job: ${existingJob.jobId})`);
+          await this.setProgress(dealId, {
+            isRunning: true,
+            progress: existingJob.progress || 0,
+            message: `Commercial analysis in progress (${Math.round(existingJob.progress || 0)}% complete)`
+          });
+          return;
+        } else {
+          console.log(`🏢 Removing stuck Commercial job for deal ${dealId} (older than 5 minutes)`);
+          await storage.deleteBackgroundJob(existingJob.jobId);
+        }
       }
 
       // Create unique background job ID
