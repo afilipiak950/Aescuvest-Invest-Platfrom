@@ -557,6 +557,14 @@ Changelog:
   - **Progress Tracking Verified**: Real-time progress bars working correctly for running analyses with proper completion detection
   - **System Recovery Implemented**: Robust background job management with stuck job detection and automatic cleanup
   - **Frontend Display Ready**: All analysis tabs now show proper question-answer format, findings, recommendations, and metadata
+- July 30, 2025: **FIXED DEAL CREATION AND IP ANALYSIS INTERFACE ENHANCEMENT**
+  - **Deal Creation Fix**: Resolved critical "processAIEvaluationForDeal is not defined" error preventing new deal creation
+  - **Background AI Processing**: Successfully restored automatic AI evaluation and company research for new deals
+  - **IP Analysis UI Redesign**: Completely redesigned IP analysis interface to match Clinical analysis format exactly
+  - **Enhanced IP Display**: Added comprehensive sections (IP Assessment, Document Quotes, Evidence Summary, Key Findings, Recommendations)
+  - **Improved Keyword Matching**: Enhanced IP question-to-finding mapping with better keyword detection for authentic data display
+  - **Visual Consistency**: All analysis tabs now follow identical design patterns with professional styling and organized information hierarchy
+  - **System Verification**: Confirmed deal creation API working with proper background job triggering and authentic data processing
 ```
 
 ## User Preferences

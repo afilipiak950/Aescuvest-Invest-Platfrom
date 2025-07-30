@@ -39,6 +39,24 @@ import { legalAnalysisService } from './legalAnalysisService';
 import { persistentJobManager } from './PersistentJobManager';
 import persistentAnalysisRoutes from './routes/persistentAnalysis';
 
+// Background processing function for AI evaluation
+async function processAIEvaluationForDeal(
+  dealId: number, 
+  website: string, 
+  companyName: string
+): Promise<void> {
+  try {
+    console.log(`Starting AI evaluation for deal ${dealId}: ${companyName}`);
+    
+    // Trigger AI evaluation using the existing service
+    await evaluateCompanyByDeal(dealId);
+    
+    console.log(`Completed AI evaluation for deal ${dealId}: ${companyName}`);
+  } catch (error) {
+    console.error(`AI evaluation failed for deal ${dealId}:`, error);
+    throw error;
+  }
+}
 
 // Background processing function for company research
 async function processCompanyResearchForDeal(
