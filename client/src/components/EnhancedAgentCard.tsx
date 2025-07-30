@@ -5061,8 +5061,8 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       // Find the most relevant finding for this question
       const relevantFinding = findings.find((finding: any) => {
         const questionKeywords = {
-          'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan', 'country', 'countries'],
-          'patents_2': ['status', 'granted', 'pending', 'abandoned', 'approved'],
+          'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan', 'country', 'countries', 'filed', 'application'],
+          'patents_2': ['status', 'granted', 'pending', 'abandoned', 'approved', 'allowed', 'legal'],
           'patents_3': ['duration', 'remaining', 'expir', 'protection', 'term'],
           'patents_4': ['freedom', 'operate', 'FTO', 'analysis'],
           'trademarks_1': ['Nice', 'class', 'trademark', 'protection'],
@@ -5073,8 +5073,8 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           'licenses_2': ['royalty', 'payment', 'terms', 'rate'],
           'licenses_3': ['sublicensing', 'rights', 'granted', 'restricted'],
           'licenses_4': ['termination', 'clause', 'condition'],
-          'source_code_1': ['source', 'code', 'in-house', 'third-party', 'component'],
-          'source_code_2': ['open-source', 'GPL', 'MIT', 'Apache', 'license'],
+          'source_code_1': ['source', 'code', 'in-house', 'third-party', 'component', 'developed'],
+          'source_code_2': ['open-source', 'GPL', 'MIT', 'Apache', 'license', 'open source'],
           'source_code_3': ['employee', 'policy', 'IP', 'created'],
           'source_code_4': ['contribution', 'documented', 'assigned']
         };
@@ -5093,6 +5093,25 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           category: relevantFinding.category || 'IP Analysis',
           severity: relevantFinding.severity
         };
+      }
+      
+      // Fallback: If no exact match, return the first finding with some basic relevance
+      if (findings.length > 0 && questionId.startsWith('patents_')) {
+        const patentFinding = findings.find((finding: any) => 
+          finding.finding?.toLowerCase().includes('patent') ||
+          finding.finding?.toLowerCase().includes('IP') ||
+          finding.finding?.toLowerCase().includes('intellectual property')
+        );
+        
+        if (patentFinding) {
+          return {
+            answer: patentFinding.finding,
+            confidence: Math.round((patentFinding.confidence || 0.5) * 100),
+            sources: patentFinding.sources || [],
+            category: patentFinding.category || 'IP Analysis',
+            severity: patentFinding.severity
+          };
+        }
       }
     }
     
