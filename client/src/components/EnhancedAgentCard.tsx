@@ -4465,14 +4465,6 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // Debug logging for Commercial analysis
-    console.log('🏢 Commercial - Looking for question:', questionId);
-    console.log('🏢 Commercial - comprehensiveResults exists:', !!comprehensiveResults);
-    console.log('🏢 Commercial - analysis exists:', !!comprehensiveResults?.analysis);
-    console.log('🏢 Commercial - commercialAnswers exists:', !!comprehensiveResults?.analysis?.commercialAnswers);
-    console.log('🏢 Commercial - commercialAnswers keys:', comprehensiveResults?.analysis?.commercialAnswers ? Object.keys(comprehensiveResults.analysis.commercialAnswers) : 'none');
-    console.log('🏢 Commercial - specific answer exists:', !!comprehensiveResults?.analysis?.commercialAnswers?.[questionId]);
-    
     if (!comprehensiveResults?.analysis?.commercialAnswers) return null;
     return comprehensiveResults.analysis.commercialAnswers[questionId] || null;
   };
