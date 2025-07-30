@@ -191,34 +191,50 @@ class ComprehensiveCommercialAnalysisService {
     console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
     
     try {
-      // FORCE CLEANUP FIRST - Delete ALL existing Commercial jobs for this deal
+      // NUCLEAR OPTION: Force delete the specific zombie job that's causing problems
       const { backgroundJobs } = await import('../shared/schema');
       const { eq, and } = await import('drizzle-orm');
       
-      console.log(`🧹 Force deleting ALL Commercial jobs for deal ${dealId}`);
+      // First, delete the specific zombie job by ID
+      const zombieJobId = 'commercial-analysis-22-1753885055889';
+      console.log(`🧹 NUCLEAR: Force deleting zombie job ${zombieJobId}`);
+      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, zombieJobId));
+      
+      // Then delete ALL Commercial jobs for this deal as backup
+      console.log(`🧹 NUCLEAR: Force deleting ALL Commercial jobs for deal ${dealId}`);
       await db.delete(backgroundJobs).where(and(
         eq(backgroundJobs.dealId, dealId),
         eq(backgroundJobs.agentType, 'Commercial')
       ));
       
-      // Wait a moment for database consistency
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for database consistency
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Create unique background job ID
-      const jobId = `commercial-analysis-${dealId}-${Date.now()}`;
+      // Create unique background job ID - use timestamp to ensure uniqueness
+      const timestamp = Date.now();
+      const jobId = `commercial-analysis-${dealId}-${timestamp}`;
+      console.log(`🚀 Creating NEW Commercial job: ${jobId}`);
+      
       await storage.createBackgroundJob({
         jobId,
         jobType: 'comprehensive_commercial_analysis',
         dealId,
-        agentType: 'Commercial',
+        agentType: 'Commercial', 
         status: 'processing',
-        progress: 5,
-        currentStep: 'Starting commercial analysis'
+        progress: 10,
+        currentStep: 'Initializing commercial analysis'
       });
+
+      await this.setProgress(dealId, {
+        isRunning: true,
+        progress: 10,
+        message: 'Starting comprehensive commercial analysis',
+        currentStep: 'Initializing commercial analysis'
+      }, jobId);
 
       // Find assigned commercial documents
       await this.setProgress(dealId, {
-        progress: 10,
+        progress: 20,
         currentStep: 'Finding assigned commercial documents'
       }, jobId);
 
