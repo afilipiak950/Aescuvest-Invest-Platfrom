@@ -135,8 +135,8 @@ class InvestmentMemoService {
     }
 
     // Get all documents with AI summaries and OCR content
-    const documents = await storage.getDocumentsByDealId(dealId);
-    console.log(`📄 Found ${documents.length} documents for deal ${dealId}`);
+    const documents = await storage.getDocumentsWithOCRForMemo(dealId);
+    console.log(`📄 Found ${documents.length} documents with OCR content for deal ${dealId}`);
 
     // Get all agent analyses 
     const agentAnalyses = await storage.getAnalysesByDealId(dealId);

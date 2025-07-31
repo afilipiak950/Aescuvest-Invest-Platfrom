@@ -418,8 +418,13 @@ export default function MemoGenerator() {
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
                                 <ul className="space-y-1">
-                                  {currentMemo.teamAssessment.keyPersonnel.map((person: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm">{person}</li>
+                                  {currentMemo.teamAssessment.keyPersonnel.map((person: any, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm">
+                                      {typeof person === 'string' ? person : 
+                                       typeof person === 'object' && person !== null ? 
+                                       `${person.name || ''} - ${person.role || ''} ${person.background ? `(${person.background})` : ''}`.trim() :
+                                       String(person)}
+                                    </li>
                                   ))}
                                 </ul>
                               </div>

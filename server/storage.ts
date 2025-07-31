@@ -381,14 +381,21 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  // NEW: Get documents WITH complete OCR text for memo generation using raw SQL
+  // NEW: Get documents WITH complete OCR text for memo generation using direct database connection
   async getDocumentsWithOCRForMemo(dealId: number): Promise<any[]> {
     console.log(`🔍 Fetching ALL documents WITH complete OCR text for memo generation - deal ${dealId}`);
     
     const startTime = Date.now();
     
     try {
-      // Use raw SQL to ensure we get the OCR content properly
+      // Use direct PostgreSQL connection to bypass any ORM limitations
+      const client = await pool.connect();
+      
+      // First, verify OCR content exists
+      const ocrCheckQuery = `SELECT COUNT(*) as ocr_docs, SUM(LENGTH(ocr_text)) as total_chars FROM documents WHERE deal_id = $1 AND ocr_text IS NOT NULL AND LENGTH(ocr_text) > 100`;
+      const ocrCheck = await client.query(ocrCheckQuery, [dealId]);
+      console.log(`🔍 OCR CHECK: ${ocrCheck.rows[0].ocr_docs} docs with OCR, ${ocrCheck.rows[0].total_chars} total chars`);
+      
       const query = `
         SELECT id, deal_id, name, type, path, size, status, uploaded_at,
                folder_path, is_folder, parent_id, category, document_type,
@@ -401,11 +408,10 @@ export class DatabaseStorage implements IStorage {
         ORDER BY name
       `;
       
-      const result = await db.execute(sql.raw(query, [dealId]));
-      const documents = result.rows as any[];
+      const result = await client.query(query, [dealId]);
+      const documents = result.rows;
       
-      console.log(`🔍 RAW SQL RESULT: ${documents.length} documents returned`);
-      console.log(`🔍 FIRST DOCUMENT FIELDS:`, documents[0] ? Object.keys(documents[0]) : 'No documents');
+      client.release();
       
       const queryTime = Date.now() - startTime;
       
@@ -414,27 +420,26 @@ export class DatabaseStorage implements IStorage {
       let totalOcrChars = 0;
       
       documents.forEach((doc, index) => {
-        console.log(`🔍 Document ${index + 1} OCR field check:`, {
-          name: doc.name,
-          hasOcrText: !!doc.ocr_text,
-          ocrLength: doc.ocr_text ? doc.ocr_text.length : 0,
-          ocrPreview: doc.ocr_text ? doc.ocr_text.substring(0, 100) + '...' : 'No OCR content'
-        });
-        
         if (doc.ocr_text && doc.ocr_text.length > 100) {
           ocrDocsCount++;
           totalOcrChars += doc.ocr_text.length;
-          console.log(`📄 Document ${index + 1} (${doc.name}): ${doc.ocr_text.length.toLocaleString()} OCR characters`);
+          console.log(`📄 Document ${index + 1} (${doc.name}): ${doc.ocr_text.length.toLocaleString()} OCR characters - SUCCESSFULLY RETRIEVED!`);
         } else {
-          console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available`);
+          console.log(`📄 Document ${index + 1} (${doc.name}): No substantial OCR text`);
         }
       });
       
-      console.log(`📄 MEMO RAW SQL QUERY: ${documents.length} docs, ${ocrDocsCount} with OCR, ${totalOcrChars.toLocaleString()} total OCR chars in ${queryTime}ms`);
+      console.log(`📄 DIRECT DB QUERY COMPLETE: ${documents.length} docs, ${ocrDocsCount} with OCR, ${totalOcrChars.toLocaleString()} total OCR chars in ${queryTime}ms`);
+      
+      if (ocrDocsCount > 0) {
+        console.log(`✅ OCR EXTRACTION SUCCESS: Found ${totalOcrChars.toLocaleString()} characters across ${ocrDocsCount} documents`);
+      } else {
+        console.log(`❌ OCR EXTRACTION FAILED: No OCR content retrieved despite database verification`);
+      }
       
       return documents;
     } catch (error) {
-      console.error('Error with raw SQL query:', error);
+      console.error('Error with direct database query:', error);
       
       // Fallback to Drizzle query
       const result = await db
