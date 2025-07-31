@@ -13,6 +13,7 @@ import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
+import { FormattedContent, SectionHeader, InfoGrid } from '@/components/FormattedContent';
 
 interface ComprehensiveMemo {
   coverPage: string;                        // Professional cover page
@@ -276,23 +277,24 @@ export default function MemoGenerator() {
                       {/* Cover Page */}
                       {currentMemo?.coverPage && (
                         <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg p-8">
-                          <h3 className="text-2xl font-bold text-white mb-4">Investment Memorandum</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.coverPage)}
-                          </div>
+                          <SectionHeader 
+                            title="Investment Memorandum" 
+                            subtitle="Professional investment opportunity presentation"
+                            className="mb-8"
+                          />
+                          <FormattedContent content={currentMemo.coverPage} variant="large" />
                         </div>
                       )}
                       
                       {/* Executive Summary */}
                       {currentMemo?.executiveSummary && (
                         <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                            <TrendingUp className="h-5 w-5 mr-2 text-blue-400" />
-                            Executive Summary
-                          </h3>
-                          <div className="text-gray-300 leading-relaxed prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.executiveSummary)}
-                          </div>
+                          <SectionHeader 
+                            title="Executive Summary" 
+                            subtitle="Investment opportunity overview and key value proposition"
+                            icon={<TrendingUp className="h-5 w-5 text-blue-400" />}
+                          />
+                          <FormattedContent content={currentMemo.executiveSummary} variant="large" />
                         </div>
                       )}
 
@@ -324,85 +326,60 @@ export default function MemoGenerator() {
                       {/* Market Analysis */}
                       {currentMemo?.marketAnalysis && (
                         <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Market Analysis</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Market Context</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatBusinessText(currentMemo.marketAnalysis.marketContext)}
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Market Timing</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatBusinessText(currentMemo.marketAnalysis.marketTiming)}
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">TAM/SAM/SOM</h4>
-                              <div className="text-gray-300 text-sm space-y-1">
-                                <div>TAM: {currentMemo.marketAnalysis.marketSize.tam}</div>
-                                <div>SAM: {currentMemo.marketAnalysis.marketSize.sam}</div>
-                                <div>SOM: {currentMemo.marketAnalysis.marketSize.som}</div>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Competitive Landscape</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatBusinessText(currentMemo.marketAnalysis.competitiveLandscape)}
-                              </div>
-                            </div>
-                          </div>
+                          <SectionHeader 
+                            title="Market Analysis" 
+                            subtitle="Market size, timing, and competitive landscape assessment"
+                          />
+                          <InfoGrid 
+                            items={[
+                              { label: "Market Context", content: currentMemo.marketAnalysis.marketContext },
+                              { label: "Market Timing", content: currentMemo.marketAnalysis.marketTiming },
+                              { 
+                                label: "TAM/SAM/SOM", 
+                                content: `TAM: ${currentMemo.marketAnalysis.marketSize.tam}\nSAM: ${currentMemo.marketAnalysis.marketSize.sam}\nSOM: ${currentMemo.marketAnalysis.marketSize.som}`
+                              },
+                              { label: "Competitive Landscape", content: currentMemo.marketAnalysis.competitiveLandscape }
+                            ]}
+                            columns={2}
+                          />
                         </div>
                       )}
 
                       {/* Product Analysis */}
                       {currentMemo?.productAnalysis && (
                         <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Product & Technology Analysis</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Product Overview</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.productOverview)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Technology Advantage</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.technologyAdvantage)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Competitive Edge</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.competitiveEdge)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Development Stage</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.developmentStage)}</div>
-                            </div>
-                          </div>
+                          <SectionHeader 
+                            title="Product & Technology Analysis" 
+                            subtitle="Product overview and technological differentiation"
+                          />
+                          <InfoGrid 
+                            items={[
+                              { label: "Product Overview", content: currentMemo.productAnalysis.productOverview },
+                              { label: "Technology Advantage", content: currentMemo.productAnalysis.technologyAdvantage },
+                              { label: "Competitive Edge", content: currentMemo.productAnalysis.competitiveEdge },
+                              { label: "Development Stage", content: currentMemo.productAnalysis.developmentStage }
+                            ]}
+                            columns={2}
+                          />
                         </div>
                       )}
 
                       {/* Business Model */}
                       {currentMemo?.businessModel && (
                         <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Business Model</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Revenue Model</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.revenueModel)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Pricing Strategy</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.pricingStrategy)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Sales Channels</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.salesChannels)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Customer Acquisition</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.customerAcquisition)}</div>
-                            </div>
-                          </div>
+                          <SectionHeader 
+                            title="Business Model" 
+                            subtitle="Revenue strategy and customer acquisition approach"
+                          />
+                          <InfoGrid 
+                            items={[
+                              { label: "Revenue Model", content: currentMemo.businessModel.revenueModel },
+                              { label: "Pricing Strategy", content: currentMemo.businessModel.pricingStrategy },
+                              { label: "Sales Channels", content: currentMemo.businessModel.salesChannels },
+                              { label: "Customer Acquisition", content: currentMemo.businessModel.customerAcquisition }
+                            ]}
+                            columns={2}
+                          />
                         </div>
                       )}
 
@@ -469,26 +446,33 @@ export default function MemoGenerator() {
                       {/* Clinical Assessment */}
                       {currentMemo?.clinicalAssessment && (
                         <div className="bg-gradient-to-r from-red-500/10 to-pink-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Clinical Assessment</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.clinicalAssessment)}
-                          </div>
+                          <SectionHeader 
+                            title="Clinical Assessment" 
+                            subtitle="Clinical evaluation and regulatory pathway analysis"
+                          />
+                          <FormattedContent content={currentMemo.clinicalAssessment} variant="default" />
                         </div>
                       )}
 
                       {/* IP Analysis */}
                       {currentMemo?.ipAnalysis && (
                         <div className="bg-gradient-to-r from-indigo-500/10 to-blue-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Intellectual Property Analysis</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{formatBusinessText(currentMemo.ipAnalysis)}</div>
+                          <SectionHeader 
+                            title="Intellectual Property Analysis" 
+                            subtitle="Patent portfolio and IP protection strategy"
+                          />
+                          <FormattedContent content={currentMemo.ipAnalysis} variant="default" />
                         </div>
                       )}
 
                       {/* Research Insights */}
                       {currentMemo?.researchInsights && (
                         <div className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Research Insights</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{formatBusinessText(currentMemo.researchInsights)}</div>
+                          <SectionHeader 
+                            title="Research Insights" 
+                            subtitle="Market research and competitive intelligence"
+                          />
+                          <FormattedContent content={currentMemo.researchInsights} variant="default" />
                         </div>
                       )}
                       
@@ -505,60 +489,43 @@ export default function MemoGenerator() {
                       {/* Financial Analysis */}
                       {currentMemo?.financialAnalysis && (
                         <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Financial Analysis</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Current Financials</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.currentFinancials)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Projections</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.projections)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Funding History</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.fundingHistory)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Use of Funds</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.useOfFunds)}</div>
-                            </div>
-                          </div>
+                          <SectionHeader 
+                            title="Financial Analysis" 
+                            subtitle="Financial performance and projections overview"
+                          />
+                          <InfoGrid 
+                            items={[
+                              { label: "Current Financials", content: currentMemo.financialAnalysis.currentFinancials },
+                              { label: "Projections", content: currentMemo.financialAnalysis.projections },
+                              { label: "Funding History", content: currentMemo.financialAnalysis.fundingHistory },
+                              { label: "Use of Funds", content: currentMemo.financialAnalysis.useOfFunds }
+                            ]}
+                            columns={2}
+                          />
                         </div>
                       )}
 
                       {/* Investment Terms */}
                       {currentMemo?.investmentTerms && (
                         <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Investment Terms</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Valuation</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatObjectContent(currentMemo.investmentTerms.valuation)}
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Funding Amount</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.investmentTerms.fundingAmount)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Securities</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatObjectContent(currentMemo.investmentTerms.securities)}
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Board Rights</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatObjectContent(currentMemo.investmentTerms.boardRights)}
-                              </div>
-                            </div>
-                            <div className="md:col-span-2">
-                              <h4 className="font-semibold text-gray-200 mb-2">Liquidation Preference</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.investmentTerms.liquidationPreference)}</div>
-                            </div>
-                          </div>
+                          <SectionHeader 
+                            title="Investment Terms" 
+                            subtitle="Deal structure, valuation, and investment terms"
+                          />
+                          <InfoGrid 
+                            items={[
+                              { label: "Valuation", content: formatObjectContent(currentMemo.investmentTerms.valuation) },
+                              { label: "Funding Amount", content: currentMemo.investmentTerms.fundingAmount },
+                              { label: "Securities", content: formatObjectContent(currentMemo.investmentTerms.securities) },
+                              { label: "Board Rights", content: formatObjectContent(currentMemo.investmentTerms.boardRights) },
+                              { 
+                                label: "Liquidation Preference", 
+                                content: currentMemo.investmentTerms.liquidationPreference,
+                                className: "md:col-span-2"
+                              }
+                            ]}
+                            columns={2}
+                          />
                         </div>
                       )}
                       
@@ -659,8 +626,11 @@ export default function MemoGenerator() {
                       {/* Mitigation Strategies */}
                       {currentMemo?.mitigationStrategies && (
                         <div className="bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Risk Mitigation Strategies</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{formatBusinessText(currentMemo.mitigationStrategies)}</div>
+                          <SectionHeader 
+                            title="Risk Mitigation Strategies" 
+                            subtitle="Risk management and mitigation approaches"
+                          />
+                          <FormattedContent content={currentMemo.mitigationStrategies} variant="default" />
                         </div>
                       )}
 
@@ -746,35 +716,30 @@ export default function MemoGenerator() {
                       {/* Legal Assessment */}
                       {currentMemo?.legalAssessment && (
                         <div className="bg-gradient-to-r from-slate-500/10 to-gray-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Legal Assessment</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Corporate Structure</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.corporateStructure)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">IP Protection</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.ipProtection)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Regulatory Compliance</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.regulatoryCompliance)}</div>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Contractual Obligations</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.contractualObligations)}</div>
-                            </div>
-                          </div>
+                          <SectionHeader 
+                            title="Legal Assessment" 
+                            subtitle="Legal structure, IP protection, and compliance evaluation"
+                          />
+                          <InfoGrid 
+                            items={[
+                              { label: "Corporate Structure", content: currentMemo.legalAssessment.corporateStructure },
+                              { label: "IP Protection", content: currentMemo.legalAssessment.ipProtection },
+                              { label: "Regulatory Compliance", content: currentMemo.legalAssessment.regulatoryCompliance },
+                              { label: "Contractual Obligations", content: currentMemo.legalAssessment.contractualObligations }
+                            ]}
+                            columns={2}
+                          />
                         </div>
                       )}
 
                       {/* Regulatory Analysis */}
                       {currentMemo?.regulatoryAnalysis && (
                         <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Regulatory Analysis</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.regulatoryAnalysis)}
-                          </div>
+                          <SectionHeader 
+                            title="Regulatory Analysis" 
+                            subtitle="Regulatory requirements and compliance pathway"
+                          />
+                          <FormattedContent content={currentMemo.regulatoryAnalysis} variant="default" />
                         </div>
                       )}
                       
@@ -791,38 +756,39 @@ export default function MemoGenerator() {
                       {/* Investment Recommendation */}
                       {currentMemo?.recommendation && (
                         <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Investment Recommendation</h3>
-                          <div className="space-y-4">
+                          <SectionHeader 
+                            title="Investment Recommendation" 
+                            subtitle="Final investment decision and strategic rationale"
+                          />
+                          <div className="space-y-6">
                             <div>
-                              <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-primary text-white mb-3">
+                              <span className="inline-block px-4 py-2 rounded-full text-sm font-medium bg-primary text-white mb-4">
                                 {currentMemo.recommendation.investment_recommendation}
                               </span>
-                              <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                                {formatBusinessText(currentMemo.recommendation.rationale)}
-                              </div>
+                              <FormattedContent content={currentMemo.recommendation.rationale} variant="default" />
                             </div>
-                            {Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones.length > 0 && (
+                            {(Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones.length > 0) && (
                               <div>
-                                <h4 className="font-semibold text-gray-200 mb-2">Key Milestones</h4>
-                                <ul className="space-y-1">
+                                <h4 className="font-semibold text-gray-200 mb-3">Key Milestones</h4>
+                                <div className="space-y-2">
                                   {currentMemo.recommendation.keyMilestones.map((milestone: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-primary mr-2">•</span>
-                                      {milestone}
-                                    </li>
+                                    <div key={index} className="flex items-start">
+                                      <span className="text-primary mt-1 mr-3 flex-shrink-0">•</span>
+                                      <span className="text-gray-300 text-sm">{milestone}</span>
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
                               </div>
                             )}
                             {!Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones && (
                               <div>
-                                <h4 className="font-semibold text-gray-200 mb-2">Key Milestones</h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.recommendation.keyMilestones)}</div>
+                                <h4 className="font-semibold text-gray-200 mb-3">Key Milestones</h4>
+                                <FormattedContent content={currentMemo.recommendation.keyMilestones} variant="small" />
                               </div>
                             )}
                             <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Exit Strategy</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.recommendation.exitStrategy)}</div>
+                              <h4 className="font-semibold text-gray-200 mb-3">Exit Strategy</h4>
+                              <FormattedContent content={currentMemo.recommendation.exitStrategy} variant="small" />
                             </div>
                           </div>
                         </div>
@@ -831,20 +797,22 @@ export default function MemoGenerator() {
                       {/* Exit Strategy */}
                       {currentMemo?.exitStrategy && (
                         <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Exit Strategy Analysis</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.exitStrategy)}
-                          </div>
+                          <SectionHeader 
+                            title="Exit Strategy Analysis" 
+                            subtitle="Potential exit opportunities and timeline"
+                          />
+                          <FormattedContent content={currentMemo.exitStrategy} variant="default" />
                         </div>
                       )}
 
                       {/* Appendices */}
                       {currentMemo?.appendices && (
                         <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Appendices</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.appendices)}
-                          </div>
+                          <SectionHeader 
+                            title="Appendices" 
+                            subtitle="Additional supporting documentation and data"
+                          />
+                          <FormattedContent content={currentMemo.appendices} variant="default" />
                         </div>
                       )}
                       
