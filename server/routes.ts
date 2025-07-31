@@ -6215,6 +6215,48 @@ export async function registerAllRoutes(app: Express) {
   // Register persistent analysis routes
   app.use('/', persistentAnalysisRoutes);
   
+  // Investment Memo Generator Routes
+  app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      console.log(`🔄 Starting investment memo generation for deal ${dealId}`);
+      
+      // Import the service here to avoid circular dependencies
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      
+      res.json({
+        success: true,
+        memo
+      });
+    } catch (error) {
+      console.error('❌ Investment memo generation error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate investment memo'
+      });
+    }
+  });
+
+  app.get('/api/deals/:dealId/memo', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // TODO: Get stored memo from database
+      res.json({
+        success: true,
+        memo: null // No stored memos yet
+      });
+    } catch (error) {
+      console.error('❌ Get memo error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get memo'
+      });
+    }
+  });
+  
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
   try {
