@@ -412,7 +412,13 @@ export default function MemoGenerator() {
                           <div className="space-y-4">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Management</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.teamAssessment.management}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {typeof currentMemo.teamAssessment.management === 'string' 
+                                  ? currentMemo.teamAssessment.management 
+                                  : typeof currentMemo.teamAssessment.management === 'object' && currentMemo.teamAssessment.management !== null
+                                  ? JSON.stringify(currentMemo.teamAssessment.management, null, 2)
+                                  : String(currentMemo.teamAssessment.management || 'No management information available')}
+                              </div>
                             </div>
                             {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
                               <div>
@@ -432,16 +438,34 @@ export default function MemoGenerator() {
                             {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.teamAssessment.keyPersonnel}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">
+                                  {typeof currentMemo.teamAssessment.keyPersonnel === 'string' 
+                                    ? currentMemo.teamAssessment.keyPersonnel 
+                                    : typeof currentMemo.teamAssessment.keyPersonnel === 'object' && currentMemo.teamAssessment.keyPersonnel !== null
+                                    ? JSON.stringify(currentMemo.teamAssessment.keyPersonnel, null, 2)
+                                    : String(currentMemo.teamAssessment.keyPersonnel)}
+                                </div>
                               </div>
                             )}
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Advisors</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.teamAssessment.advisors}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {typeof currentMemo.teamAssessment.advisors === 'string' 
+                                  ? currentMemo.teamAssessment.advisors 
+                                  : typeof currentMemo.teamAssessment.advisors === 'object' && currentMemo.teamAssessment.advisors !== null
+                                  ? JSON.stringify(currentMemo.teamAssessment.advisors, null, 2)
+                                  : String(currentMemo.teamAssessment.advisors || 'No advisor information available')}
+                              </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Board Composition</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.teamAssessment.boardComposition}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {typeof currentMemo.teamAssessment.boardComposition === 'string' 
+                                  ? currentMemo.teamAssessment.boardComposition 
+                                  : typeof currentMemo.teamAssessment.boardComposition === 'object' && currentMemo.teamAssessment.boardComposition !== null
+                                  ? JSON.stringify(currentMemo.teamAssessment.boardComposition, null, 2)
+                                  : String(currentMemo.teamAssessment.boardComposition || 'No board composition information available')}
+                              </div>
                             </div>
                           </div>
                         </div>
