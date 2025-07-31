@@ -30,19 +30,37 @@ export function cleanMarkdown(text: string | null | undefined): string {
     .replace(/[ \t]+$/gm, ''); // Remove trailing spaces
 }
 
-export function formatBusinessText(text: string | null | undefined): string {
+// Enhanced business text formatter with better paragraph and section handling
+export function formatBusinessTextEnhanced(text: string | null | undefined): string {
   if (!text || typeof text !== 'string') {
     return 'No information available';
   }
 
-  const cleaned = cleanMarkdown(text);
+  let formatted = cleanMarkdown(text);
   
   // If text is very short or empty after cleaning, return fallback
-  if (cleaned.length < 3) {
+  if (formatted.length < 3) {
     return 'No information available';
   }
 
-  return cleaned;
+  // Enhanced formatting for better readability
+  formatted = formatted
+    // Ensure proper spacing after periods and colons in lists
+    .replace(/([.:])\s*\n\s*([A-Z•])/g, '$1\n\n$2')
+    // Add spacing around section breaks
+    .replace(/([a-z])\n([A-Z][A-Za-z\s]+:)/g, '$1\n\n$2')
+    // Fix spacing around bullet points
+    .replace(/\n•\s*/g, '\n• ')
+    // Ensure consistent paragraph spacing
+    .replace(/\n{2,}/g, '\n\n')
+    // Clean up any remaining formatting issues
+    .trim();
+
+  return formatted;
+}
+
+export function formatBusinessText(text: string | null | undefined): string {
+  return formatBusinessTextEnhanced(text);
 }
 
 export function formatArrayContent(content: any): string {
