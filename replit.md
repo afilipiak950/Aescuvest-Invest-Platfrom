@@ -1,610 +1,69 @@
 # Aescuvest AI Investment Platform
 
 ## Overview
+The Aescuvest AI Investment Platform is a venture capital investment platform that uses artificial intelligence to enhance investment analysis and decision-making. It aims to transform complex investment analysis into actionable insights through intelligent technology, comprehensive research, and automated due diligence. The platform's vision is to streamline the investment process, from deal flow management to in-depth AI-powered analysis and intelligent matching, thereby improving efficiency and decision quality for venture capitalists.
 
-The Aescuvest AI Investment Platform is a comprehensive venture capital investment platform that leverages artificial intelligence to streamline investment analysis and decision-making. The platform transforms complex investment analysis into actionable insights through intelligent technology, comprehensive research capabilities, and automated due diligence processes.
+## User Preferences
+Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript for type safety and modern development
-- **Routing**: Wouter for lightweight client-side routing
-- **State Management**: TanStack Query for server state management and caching
-- **UI Components**: Shadcn/UI component library built on Radix UI primitives
-- **Styling**: Tailwind CSS for utility-first styling with custom design system
-- **Animations**: Framer Motion for smooth UI transitions and interactions
-- **Build Tool**: Vite for fast development and optimized production builds
+### Frontend
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter
+- **State Management**: TanStack Query
+- **UI Components**: Shadcn/UI (built on Radix UI)
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Build Tool**: Vite
 
-### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
-- **Language**: TypeScript for full-stack type safety
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
-- **File Handling**: Multer for multipart file uploads with local storage
-- **Authentication**: Passport.js with Express sessions for user management
-- **Background Processing**: Custom job queue system with WebSocket progress updates
+### Backend
+- **Runtime**: Node.js with Express.js
+- **Language**: TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **File Handling**: Multer for multipart uploads
+- **Authentication**: Passport.js with Express sessions
+- **Background Processing**: Custom job queue with WebSocket updates
 
-## Key Components
+### Key Features
+- **Investment Pipeline Management**: Kanban-style deal flow across 7 stages with real-time updates and AI-driven transitions.
+- **AI-Powered Document Processing**: OCR (Mistral AI) and AI analysis (OpenAI GPT-4o) for document summarization from various formats, with batch processing and WebSocket progress updates.
+- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring.
+- **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration (web scraping), financial intelligence, and competitor analysis.
+- **Matching Intelligence System**: Daily sync with Affinity CRM for 8,000+ organizations, AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment, with persistent background processing.
+- **PDF Viewer**: Inline PDF viewing with canvas-based rendering for reliable display.
+- **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) triggered automatically after company research.
+- **Investment Memo Generation**: Extracts authentic company details from comprehensive agent analyses to generate detailed investment memorandums.
+- **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy (agent analyses, document batches, synthesis) for comprehensive data extraction.
 
-### Investment Pipeline Management
-- Kanban-style deal flow visualization with 7 investment stages
-- Real-time status updates and progress tracking
-- Automated stage transitions based on AI analysis results
+### Data Flow
+Deals are submitted, documents processed, AI agents analyze different aspects, external research augments profiles, leading to scoring and evaluation. Deals then progress through pipeline stages with notifications.
 
-### AI-Powered Document Processing
-- **OCR Integration**: Mistral AI for document text extraction from PDF, images, and Office documents
-- **AI Analysis**: OpenAI GPT-4o for intelligent document summarization and insights
-- **Batch Processing**: ZIP file extraction and bulk document processing
-- **Background Jobs**: Asynchronous processing with real-time progress updates via WebSockets
-
-### Multi-Agent AI Analysis System
-- **Due Diligence Team**: Clinical, Legal, Commercial, HR, Financial, IP, and Research agents
-- **Founder Success Team**: Investment evaluation and founder assessment
-- **Advisory Team**: Strategic guidance and teaser generation
-- **Intelligent Scoring**: Weighted criteria-based evaluation with configurable parameters
-
-### Company Intelligence Platform
-- **Comprehensive Research**: Automated company profiling with CEO background analysis
-- **External Data Integration**: Web scraping and third-party data aggregation
-- **Financial Intelligence**: Funding history, valuation tracking, and market analysis
-- **Competitor Analysis**: Market positioning and industry benchmarking
-
-### Matching Intelligence System
-- **Automated Daily Sync**: Retrieves 8,000+ organizations from Affinity CRM daily
-- **Ultra-Intelligent Matching**: AI-powered organization-to-deal matching with multi-criteria scoring
-- **Comprehensive Database**: Organizations table with domains, sectors, funding stages, and metadata
-- **Advanced Analytics**: Sector fit, stage fit, geography fit, check size fit, and thesis alignment scoring
-- **Background Processing**: Persistent sync jobs with progress tracking and error handling
-
-## Data Flow
-
-1. **Deal Submission**: Companies submit investment proposals through web interface or email parsing
-2. **Document Processing**: Uploaded documents undergo OCR extraction and AI analysis
-3. **AI Agent Analysis**: Multiple specialized agents analyze different aspects of the investment
-4. **Research Augmentation**: External research enhances deal profiles with market intelligence
-5. **Scoring & Evaluation**: Weighted criteria produce investment recommendations
-6. **Pipeline Management**: Deals progress through investment stages with stakeholder notifications
+### Deployment
+- **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
+- **Production**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
+- **Configuration**: Environment variables, modular service architecture.
 
 ## External Dependencies
 
 ### AI Services
-- **OpenAI GPT-4o**: Primary AI model for analysis, evaluation, and natural language processing
-- **Mistral AI**: OCR processing and document text extraction
-- **Anthropic Claude**: Alternative AI model for comprehensive research tasks
+- **OpenAI GPT-4o**: Core AI model for analysis, evaluation, and NLP.
+- **Mistral AI**: OCR and document text extraction.
+- **Anthropic Claude**: Used for comprehensive research tasks.
 
 ### Authentication & Email
-- **Microsoft Graph API**: OAuth2 integration for email inbox monitoring and processing
-- **SendGrid**: Transactional email delivery service
-- **Azure MSAL**: Microsoft authentication library for secure OAuth flows
+- **Microsoft Graph API**: OAuth2 for email inbox monitoring.
+- **SendGrid**: Transactional email delivery.
+- **Azure MSAL**: Microsoft authentication.
 
-### Document Processing
-- **Sharp**: Image processing and optimization
-- **Mammoth**: Word document (.docx) text extraction
-- **XLSX**: Excel spreadsheet processing
-- **PDF Processing**: Custom PDF text extraction utilities
+### Document Processing Libraries
+- **Sharp**: Image processing.
+- **Mammoth**: .docx text extraction.
+- **XLSX**: Excel spreadsheet processing.
+- **Custom PDF utilities**: For text extraction.
 
 ### Infrastructure
-- **PostgreSQL**: Primary database with connection pooling
-- **WebSocket**: Real-time communication for job progress and notifications
-- **File Storage**: Local file system with organized upload directories
-
-## Deployment Strategy
-
-### Development Environment
-- **Platform**: Replit with Node.js 20 runtime
-- **Database**: PostgreSQL 16 with Drizzle migrations
-- **File Processing**: ImageMagick, Ghostscript, and Poppler utilities for document handling
-- **Development Server**: Concurrent frontend (Vite) and backend (Express) serving on port 5000
-
-### Production Deployment
-- **Target**: Google Cloud Run for containerized deployment
-- **Build Process**: Vite frontend build with esbuild backend bundling
-- **Environment**: Node.js production runtime with optimized asset serving
-- **Database**: External PostgreSQL with SSL connections
-
-### Configuration Management
-- Environment variables for API keys and database connections
-- Modular service architecture for easy scaling and maintenance
-- Background job processing with persistence and recovery
-
-## Deployment Optimization
-
-### Size Reduction Measures
-- **Uploads Directory**: Removed from deployments, recreated at runtime
-- **Node Modules**: Cleaned cache and optimized production dependencies  
-- **Build Process**: Enhanced with minification and tree-shaking
-- **File Exclusions**: Added comprehensive `.dockerignore` patterns
-
-### Production Build Pipeline
-- Automated build script (`build.sh`) with size optimizations
-- Development dependency removal in production
-- Runtime directory creation for file uploads
-- Environment variable validation and examples
-
-### Deployment Readiness
-- Current size: ~507MB (well under 8GB limit)
-- Production environment configuration ready
-- Comprehensive deployment guide provided
-- Verification script for deployment checks
-
-## Changelog
-
-```
-Changelog:
-- June 13, 2025: Initial setup
-- June 13, 2025: Applied comprehensive deployment size optimizations
-  - Removed uploads directory content
-  - Cleaned node_modules cache  
-  - Added production build optimizations
-  - Created deployment configuration and guides
-- June 14, 2025: Enhanced file management and Git repository fixes
-  - Fixed TypeScript errors in DataRoomExplorer component
-  - Improved file deletion feedback with success notifications
-  - Enhanced error handling and type safety
-  - Created Git repository repair script for GitHub synchronization
-  - Resolved deployment readiness issues
-- June 23, 2025: Fixed email attachment downloads and authentication
-  - Resolved Microsoft OAuth token authentication for attachment downloads
-  - Fixed email dialog layout optimization for full popup utilization
-  - Added comprehensive debugging for email attachment processing
-  - Created admin user with proper credentials (admin/admin123)
-  - Enhanced token refresh mechanism for expired Microsoft tokens
-- June 24, 2025: Completed document analysis pipeline to 100%
-  - Fixed document analysis stuck at 85% completion (222/263 documents)
-  - Resolved missing AI summaries for 41 documents that lacked OCR text extraction
-  - Implemented batch completion solution for all remaining documents
-  - Achieved 100% document analysis completion (263/263 documents)
-  - Removed debug information from email attachment interface for cleaner UI
-- June 26, 2025: Fixed "Reset & Run All Analyses" background job system
-  - Resolved critical persistence issue where background jobs stopped after server restarts
-  - Fixed database storage problems with empty job_id and agent_type fields
-  - Successfully implemented silent bulk analysis processing without progress indicators
-  - Confirmed all 7 agents (Clinical, Legal, Commercial, HR, Financial, IP, Research) run persistently
-  - Background analysis continues when navigating away from pages until completion
-- June 26, 2025: Enhanced document handling and AI assignment system
-  - Fixed document click functionality to show AI summary popups in unassigned documents tab
-  - Improved download functionality with proper UTF-8 encoding for international filenames
-  - Enhanced AI-powered document assignment with fallback to rule-based assignment
-  - Created DocumentSummaryDialog component for detailed AI analysis display
-  - Added comprehensive error handling for document downloads and assignment processing
-- June 26, 2025: Fixed document assignment UI synchronization
-  - Resolved critical issue where documents weren't disappearing from unassigned tab after assignment
-  - Updated unassigned documents calculation to use real database assignments instead of keyword matching
-  - Documents now properly move from unassigned tab to agent-specific tabs after AI assignment
-  - Confirmed AI auto-assignment system working correctly with 111+ documents successfully assigned
-- June 27, 2025: Implemented authentic company research functionality
-  - Renamed "Refresh" button to "Rerun" for company research feature
-  - Fixed research endpoint to use authentic research service instead of synthetic data generation
-  - Confirmed authentic web scraping from company websites, Crunchbase, Google News, and external sources
-  - Research process now extracts real CEO profiles, financial data, and business intelligence
-  - Authentic research completes in 2-3 minutes with real-time progress tracking and database storage
-- June 27, 2025: Fixed "Rerun" button to perform authentic AI company research
-  - Renamed "Refresh" button to "Rerun" with improved loading states
-  - Confirmed button triggers authentic research service with real web scraping capabilities
-  - Verified system performs genuine data collection from company websites instead of synthetic data
-  - Background processing confirmed working with 2-3 minute completion time for comprehensive analysis
-- June 27, 2025: Completed "Rerun" button progress tracking functionality
-  - Fixed frontend progress polling to use correct research progress endpoint
-  - Implemented real-time percentage display during research execution (0% to 100%)
-  - Confirmed persistent background jobs continue running independently with proper database storage
-  - Verified authentic AI research completes in 11 seconds with comprehensive data collection
-  - System performs genuine web scraping from company websites, Google News, and external sources
-- June 27, 2025: Successfully debugged and fixed "Rerun" button progress percentage display
-  - Added visible progress indicator with animated progress bar showing real-time percentages
-  - Confirmed progress tracking displays all 8 research steps: 5%, 20%, 50%, 85%, 110%, 115%
-  - Verified frontend properly shows "AI Research in Progress" with live percentage updates
-  - Research jobs complete in 11 seconds with authentic data collection from external sources
-  - All progress tracking persists correctly in database with proper status management
-- June 27, 2025: Completed real user activity tracking implementation in profile page
-  - Replaced all placeholder user activity data with authentic database-driven content
-  - Implemented user_activities and user_stats database tables with proper schema
-  - Created backend API endpoints (/api/user/activities, /api/user/stats) for real data fetching
-  - Updated profile page to display authentic user activities, stats, and profile information
-  - Confirmed real-time user activity logging with 10 sample activities and comprehensive user statistics
-- June 27, 2025: Completed PDF viewer functionality with inline viewing support
-  - Fixed PDF pitchdeck loading issue by implementing inline viewing detection in download endpoint
-  - Enhanced download endpoint to support both attachment downloads and inline PDF viewing
-  - Implemented smart document click handling: PDFs open in viewer, other documents in detail modal
-  - Added comprehensive PDF viewer with zoom, rotation, navigation controls, and proper error handling
-  - Confirmed successful PDF viewing directly in browser with scrolling capability for pitch decks
-- June 27, 2025: Successfully resolved PDF viewer Chrome restrictions with canvas-based rendering
-  - Completely reimplemented PDF viewer using Mozilla's PDF.js library to bypass Chrome iframe blocking
-  - Replaced iframe-based viewing with HTML5 canvas rendering for reliable PDF display
-  - Added dynamic PDF.js loading from CDN with zero installation overhead
-  - Implemented page navigation controls (previous/next) and zoom functionality (in/out with percentage display)
-  - Applied comprehensive dark theme styling with gray-900 background and white text
-  - Fixed TypeScript declarations and proper error handling for production-ready implementation
-- June 27, 2025: Enhanced data room interface with improved labeling
-  - Renamed "Email Attachments" section to "Pitchdeck" for clearer document categorization
-  - Updated section icon from email (📧) to chart (📊) to better represent presentation materials
-  - Changed description from "attachments from emails" to "presentation documents" for improved clarity
-- July 8, 2025: Integrated Affinity CRM settings into main Settings page
-  - Moved comprehensive Affinity CRM functionality from separate page to Settings tab
-  - Added "Affinity CRM" tab with connection status, API configuration, sync controls, and lists management
-  - Removed separate /affinity-settings route and consolidated navigation into Settings page
-  - Enhanced database schema with full Affinity synchronization fields for investors table
-  - Fixed API query response handling to prevent undefined data errors
-- July 8, 2025: Fixed critical AI research hallucination bug and progress tracking issues
-  - Removed hardcoded venture capital fallback data that was causing false company identification
-  - Fixed system to correctly identify "Intellywave" as AI services company instead of venture capital
-  - Added aiAnalysis column to company_research table for proper AI analysis storage
-  - Resolved research job stuck at 110% progress preventing new research from starting
-  - Verified authentic OpenAI analysis now working with real website content and proper error handling
-- July 8, 2025: Fixed AI analysis data retrieval and display system
-  - Resolved critical bug where authentic AI analysis data was being lost during database retrieval
-  - Fixed authenticResearchService to properly return AI analysis without double-parsing JSON data
-  - Confirmed authentic OpenAI analysis (investment scores, business insights, recommendations) now displayed correctly
-  - Verified system shows real investment analysis including 78/100 score, 90% confidence, detailed risk assessment
-  - Removed debug code and ensured clean data flow from database to frontend display
-- July 8, 2025: Enhanced CEO research with Google search capabilities
-  - Upgraded CEO information extraction from basic text pattern matching to AI-powered analysis using OpenAI
-  - Added Google search functionality to find CEO information when not available on company website
-  - Implemented comprehensive CEO profile extraction including background, experience, education, and previous companies
-  - Added multi-query search strategy: "CEO of [company]", "[company] CEO founder", "[company] leadership team CEO"
-  - Enhanced research service to fall back to Google search when website content doesn't contain CEO information
-  - Improved data validation and error handling for authentic CEO data extraction
-- July 8, 2025: Simplified CEO research with direct OpenAI queries
-  - Replaced complex web scraping approach with simple, direct OpenAI queries for CEO information
-  - Implemented direct prompts like "Who is the CEO of [company]?" for more reliable results
-  - Added proper fallback messaging for companies where CEO information is not publicly available
-  - Enhanced UI display logic to show clear "not found" messages instead of placeholder text
-  - Verified system works correctly for well-known companies (Tesla CEO: Elon Musk) and handles unknown companies gracefully
-- July 9, 2025: Integrated financial search into main company research flow
-  - Removed separate financial search button as requested by user
-  - Financial research now automatically runs as part of the main "Start AI Company Research" process
-  - Enhanced financial data retrieval is handled by the existing financialResearchService during research step 4
-  - Removed duplicate financial search endpoint and unnecessary service code
-  - Financial data (revenue, valuation, funding history) is now seamlessly integrated into comprehensive research results
-- July 9, 2025: Implemented automatic AI evaluation with enhanced critical scoring
-  - AI evaluation now automatically triggers after company research completion in both persistent and authentic research services
-  - Made evaluation significantly more critical with stricter thresholds: PASS (85+), INVESTIGATE (65-84), REJECT (0-64)
-  - Lowered all sector-specific scoring ranges by 10-15 points to increase selectivity
-  - Enhanced evaluation criteria with additional critical factors: technology risk, regulatory compliance, financial sustainability
-  - Added investment thesis validation framework demanding hard evidence over claims
-  - Updated UI components to reflect new critical thresholds and automatic workflow
-  - System now runs comprehensive AI evaluation automatically 2-3 seconds after research completion
-- July 11, 2025: Fixed complete investor matching API system with comprehensive database schema
-  - Resolved critical database table issues preventing investor matching functionality
-  - Created missing `deal_investor_matches` table with complete schema including all required columns
-  - Created missing `email_campaigns` table with comprehensive campaign tracking capabilities
-  - Fixed API routing conflicts that were causing HTML responses instead of JSON
-  - Verified all investor matching endpoints now return proper JSON responses with 200 status codes
-  - Confirmed API endpoints working: /api/investor-matching/matches, /api/investor-matching/matches?dealId=X, /api/investor-matching/campaigns/X
-  - Database now supports full investor matching workflow with AI-powered analysis and campaign management
-  - All endpoints integrated with existing 10 investors in database and 7 deals with proper relationship structure
-- July 11, 2025: Fixed Affinity API authentication and data synchronization issues
-  - Resolved critical authentication issue - switched from Basic to Bearer token authentication
-  - Fixed API endpoint paths to use correct Affinity v2 API structure
-  - Resolved cursor pagination issues causing "Invalid cursor provided" errors
-  - Organizations endpoint now working correctly via lists-based approach
-  - Successfully pulling authentic data from user's Affinity account with 6,881+ organizations and 8,468+ people
-  - Real data confirmed: NIMBLE Diagnostics, iThera Medical, 2099 R&D, Piur Imaging, GlucoSet, etc.
-  - Real contacts confirmed: Patrick Pfeffer, Jonny Newfield, Christoph Aescuvest, Sebastian Aescuvest, etc.
-  - Background synchronization now working properly with proper cursor handling
-  - All Affinity API endpoints returning proper JSON responses with 200 status codes
-- July 11, 2025: Created comprehensive matching intelligence system with automated daily sync
-  - Built ultra-intelligent matching system that automatically retrieves 8,000+ organizations daily from Affinity
-  - Created new organizations table with complete schema including domains, sectors, funding stage, and metadata
-  - Implemented deal_organization_matches table for AI-powered matching results with scoring and analytics
-  - Created daily_sync_jobs table for automated background processing and sync job management
-  - Developed matching intelligence service with authentic web scraping and OpenAI analysis capabilities
-  - Added comprehensive API endpoints: /api/matching-intelligence/dashboard-stats, /organizations, /sync-organizations, /generate-matches
-  - Successfully tested system with 31 authentic organizations synced from Affinity (ViraSoft, Synoptech, STIMIT, etc.)
-  - Confirmed intelligent matching algorithm with sector fit, stage fit, geography fit, and thesis alignment scoring
-  - System ready for automated daily sync to retrieve 8,000+ organizations and provide ultra-intelligent matching
-  - All 6 out of 7 components passing comprehensive testing (OpenAI quota expected limitation)
-- July 11, 2025: Successfully completed comprehensive Affinity organization import with 500+ organizations
-  - Fixed critical API endpoint issue: changed from `/v2/organizations` to `/organizations` based on official documentation
-  - Corrected authentication format to use `:$APIKEY` (empty username, API key as password) instead of `$APIKEY:`
-  - Successfully imported 500 authentic organizations from Affinity account including Aescuvest, 2099 R&D, AI21 Labs
-  - Organizations include complete metadata: domains, interaction dates, global flags, and CRM integration data
-  - Confirmed system processes pagination automatically to retrieve all available organizations
-  - Matching intelligence system now operational with 526 total organizations ready for AI-powered matching
-  - All API endpoints returning proper JSON responses with authentic data from production Affinity account
-- July 11, 2025: Import system actively processing ALL 8,000+ organizations from Affinity
-  - Resolved timestamp formatting issues preventing large-scale import completion
-  - Successfully progressed from 526 to 1,025 organizations (499 new imports confirmed)
-  - Technical breakthrough: Fixed database constraint errors and pagination system
-  - Import scripts operational: processing 500 organizations per page with proper error handling
-  - Real-time progress tracking confirmed accessing 4,000+ organizations across multiple pages
-  - System actively importing remaining 4,600+ organizations to reach full 8,000+ target
-- July 18, 2025: Fixed comprehensive legal analysis UI update issues and button conflicts
-  - Resolved critical cache invalidation problem preventing UI refresh when comprehensive analysis completes
-  - Fixed conflicting analysis systems: removed regular "Run Legal Analysis" for Legal agents to prevent interference
-  - Enhanced "Run AI Analysis" button to properly invalidate all relevant query keys for immediate UI updates
-  - System now correctly displays comprehensive legal analysis results (15 questions, 169 documents processed)
-  - Legal agent interface streamlined to show only comprehensive analysis with detailed question-answer format
-- July 18, 2025: Fixed comprehensive legal analysis background processing and storage persistence
-  - Resolved critical issue where comprehensive analysis would start but fail to complete or store results
-  - Enhanced error handling and logging in background analysis process to prevent silent failures
-  - Fixed storage mechanism to properly persist comprehensive legal analysis results in database
-  - Confirmed comprehensive analysis successfully processes 169 legal documents across 15 detailed questions
-  - System now extracts specific lines/sentences from ALL assigned documents and provides accurate answers
-  - Verified storage system works correctly with legal answers, findings, and recommendations persistence
-- July 18, 2025: Fixed recurring background job persistence issues preventing legal analysis completion
-  - Identified root cause: Background jobs persisted in database but processing logic lost after server restarts
-  - Implemented robust solution: Delete stuck background jobs from database and restart analysis
-  - Fixed comprehensive legal analysis to properly resume from fresh state after server restarts
-  - Confirmed system now processes ALL 169 legal documents in 17 batches of 10 documents each
-  - Verified real-time progress tracking shows current batch processing and evidence extraction
-  - Background processing continues persistently with authentic document analysis and evidence compilation
-- July 18, 2025: Completed comprehensive legal analysis system with full question coverage
-  - Fixed critical issue where only 5 out of 15 legal questions were being answered
-  - Expanded legal question set to cover all 15 categories: shareholders, governance, IP, commercial, litigation, regulatory, financial
-  - Resolved data type errors preventing analysis completion and enhanced keyword matching for better document relevance
-  - System now generates 191 findings and 143 recommendations (vs. previous 63/31) with authentic AI-powered analysis
-  - All 15 questions answered with detailed responses, confidence scores, source documents, and evidence summaries
-  - Confirmed database persistence with 21,937 characters of legal answers and complete analysis status tracking
-- July 18, 2025: Implemented comprehensive progress bar for legal analysis background processing
-  - Added real-time progress tracking from 0% to 100% with detailed step descriptions
-  - Created LegalAnalysisProgress component with visual progress bar and percentage display
-  - Enhanced legal analysis service with comprehensive background job management and progress updates
-  - Progress shows current steps: finding documents, processing questions, generating findings, storing results
-  - Background processing continues persistently with real-time UI updates until completion
-  - Fixed JavaScript error causing blank site and ensured proper component integration
-- July 18, 2025: Fixed comprehensive legal analysis progress tracking system with proper endpoint polling
-  - Resolved critical frontend polling issue by switching to correct progress endpoint
-  - Fixed progress display to show actual step information instead of "undefined"
-  - System now correctly processes 169 documents across 15 legal questions with batch optimization
-  - Evidence extraction working with 3/169 documents containing relevant evidence for current question
-  - Progress tracking shows authentic steps: "Analyzing: Governance & Voting" at 20% completion
-  - Background jobs persist correctly through server restarts with comprehensive database storage
-- July 18, 2025: Fixed recurring background job persistence issues preventing legal analysis completion
-  - Identified root cause: Background jobs persisted in database but processing logic lost after server restarts
-  - Implemented robust solution: Delete stuck background jobs from database and restart analysis
-  - Fixed comprehensive legal analysis to properly resume from fresh state after server restarts
-  - Confirmed system now processes ALL 169 legal documents in 17 batches of 10 documents each
-  - Verified real-time progress tracking shows current batch processing and evidence extraction
-  - Background processing continues persistently with authentic document analysis and evidence compilation
-- July 18, 2025: Enhanced comprehensive legal analysis with comprehensive error handling and recovery
-  - Added robust error handling to prevent jobs from getting stuck during processing
-  - Enhanced each question processing with try-catch blocks to continue analysis if individual questions fail
-  - Added fallback mechanisms to save partial results even when final stages encounter errors
-  - Implemented proper job completion tracking with detailed error reporting
-  - System now gracefully handles OpenAI API issues, network problems, and processing errors
-  - Enhanced progress tracking with detailed question-by-question completion status
-- July 19, 2025: Successfully fixed Commercial analysis document processing and progress tracking  
-  - Resolved critical aiSummary object vs string parsing error preventing Commercial analysis from starting
-  - Fixed document filtering logic to handle aiSummary as both object (with executiveSummary field) and string
-  - Updated document count display to show correct 263 documents being processed instead of 34
-  - Fixed persistent progress bar that was disappearing during analysis by implementing continuous polling
-  - Commercial analysis now processes 27 batches (263 documents ÷ 10 per batch) identical to Legal/Clinical systems
-  - Cleaned up stuck background jobs that were preventing new Commercial analysis from starting
-  - Confirmed Commercial analysis button triggers comprehensive document processing with real-time progress tracking
-  - All three analysis systems (Legal, Clinical, Commercial) now have identical functionality and comprehensive document coverage
-- July 19, 2025: Standardized Clinical tab sources popup to match Legal tab functionality  
-  - Fixed Clinical tab sources popup by adding DocumentQuoteViewer component with documents prop
-  - Made Clinical sources click handler identical to Legal tab implementation for consistency
-  - Confirmed clinical questions display 3 unique answers with different content and confidence scores
-  - Clinical analysis shows: trial design (85%), inclusion criteria (75%), FDA approval (90%)
-  - Sources popup functionality now standardized between Legal and Clinical tabs
-- July 19, 2025: Successfully fixed Clinical analysis to process ALL assigned documents like Legal analysis
-  - Resolved critical issue where Clinical analysis only processed 13 documents vs Legal's 169 documents
-  - Updated Clinical document retrieval method to use same broad matching approach as Legal analysis
-  - Replaced restrictive keyword filtering with comprehensive document identification using 40+ clinical keywords
-  - Enhanced document matching to include regulatory, medical, and trial-related terms for complete coverage
-  - Clinical analysis now processes 183+ documents across 19 batches (10 documents per batch) matching Legal's comprehensive approach
-  - Fixed getAssignedClinicalDocuments method to identify ALL clinically relevant documents instead of small subset
-  - Added comprehensive fallback logic to ensure Clinical analysis never has zero documents to process
-  - Verified Clinical analysis now extracts evidence from ALL assigned documents across all 11 questions
-  - Clinical and Legal analyses now have identical document processing functionality and comprehensive coverage
-  - Both analyses process maximum available documents ensuring complete due diligence coverage
-- July 19, 2025: Fixed Clinical agent recommendations display and streamlined interface
-  - Resolved critical bug where 37 comprehensive clinical recommendations showed as empty text boxes
-  - Fixed recommendation parsing logic in EnhancedAgentCard component to properly handle Clinical analysis data structure
-  - Clinical recommendations use 'content' field instead of 'description' field like other agents
-  - Updated parsing to extract recommendation text from rec.content for Clinical analysis results
-  - Per user request, completely removed the recommendations section from Clinical agent interface
-  - Hidden "No Analysis Available" section to further streamline Clinical agent display
-  - Clinical agent now shows minimal, clean interface focusing only on essential analysis content
-  - Fixed stuck progress bar issue by cleaning up background jobs at 0% progress and updating display logic
-  - Progress bar now only shows when analysis is actually running with meaningful progress (>0%)
-- July 19, 2025: Implemented separate parallel analysis progress displays
-  - Replaced single combined progress bar with individual progress bars for each analysis type
-  - Each analysis now displays separately below each other instead of all at once in unified progress
-  - Created dedicated progress cards for Legal (blue), Commercial (purple), HR (orange), and Clinical (green) analyses
-  - Added ClinicalAnalysisProgress component with real-time polling for clinical analysis progress tracking
-  - Progress bars show individual percentage completion, current steps, and processing details for each analysis
-  - Fixed clinical analysis progress bar functionality with event listening and 1-second polling intervals
-  - Enhanced user experience with clear visual separation of concurrent analysis processes
-  - Fixed grey fallback progress bar issue by creating progress detection from jobProgress data instead of disabled progress queries
-  - Progress states now properly extract from background job data to show Legal (13%) and Commercial (5%) analyses correctly
-- July 19, 2025: Added stop functionality to all progress cards with individual stop buttons
-  - Added Square stop icons to each analysis progress card (Legal, Commercial, HR, Clinical)
-  - Created new /api/background-jobs/:jobId/stop endpoint supporting string job IDs
-  - Stop buttons properly identify and cancel specific background jobs using job IDs like "legal_analysis_22_1752937740692"
-  - Enhanced job cancellation system to update database status and clear in-memory active jobs
-  - Users can now individually stop any running analysis without affecting other concurrent analyses
-  - Stop functionality includes loading states and proper error handling for improved user experience
-- July 19, 2025: Fixed critical HR analysis progress card sticking issue and optimized parallel system
-  - **Root Cause**: HR progress endpoint was missing 'and' import from drizzle-orm causing ReferenceError
-  - **Fixed Import**: Added 'and' to drizzle-orm imports in comprehensiveHrAnalysisService.ts
-  - **Enhanced Progress Logic**: HR progress endpoint now filters by agentType='HR' instead of returning random analysis data
-  - **Fixed Frontend Conditions**: Progress cards now check both hrProgress?.isRunning and active HR jobs in background_jobs
-  - **Cleaned Stuck Jobs**: Removed cancelled jobs from database to prevent interference with active analyses
-  - **System Status**: All three parallel progress cards working perfectly (Legal 30%, Clinical 90%, HR 95%)
-  - **Prevention**: System now properly handles server restarts without losing progress tracking functionality
-- July 19, 2025: Completed main progress bar restoration and comprehensive analysis system unification
-  - **Fixed UI Issue**: Removed all duplicate individual progress bars that were causing main progress bar to disappear
-  - **Restored Main Progress Bar**: Single progress bar now shows between "Select Deal" and "Company Information" sections as requested
-  - **Enhanced Progress Tracking**: Main progress bar tracks Legal, Commercial, HR, Clinical, Financial, IP, and Research analyses
-  - **Created Missing Services**: Added comprehensive Financial, IP, and Research analysis services with same pattern as Legal/Clinical
-  - **Unified Background Jobs**: All 7 agents now use consistent storage.createBackgroundJob() system for progress tracking
-  - **Added Route Handlers**: Created /api/deals/:dealId/financial-analysis/comprehensive, /ip-analysis/comprehensive, /research-analysis/comprehensive endpoints
-  - **Fixed Clinical Analysis**: Clinical analysis service now properly creates background jobs like Legal analysis
-  - **System Status**: All agent analysis buttons work consistently using same background job system, main progress bar restored
-- July 23, 2025: Fixed critical 24+ hour stuck background jobs issue and added comprehensive job management
-  - **Root Cause Identified**: Background jobs (Legal 33%, Clinical 27%, Commercial 5%, HR 16%) stuck running for 24+ hours without completion
-  - **Immediate Resolution**: Successfully cancelled all 4 stuck background jobs in database using SQL UPDATE to 'cancelled' status
-  - **Enhanced Job Management**: Added `/api/background-jobs/clear-stuck` and `/api/background-jobs/:jobId/stop` endpoints for stuck job recovery
-  - **Storage Layer Improvements**: Added `updateStuckBackgroundJobs()` and `clearStuckJobs()` methods to database storage interface
-  - **Persistent Job Manager**: Enhanced with `clearStuckJobs()` and `stopJob()` methods for complete job lifecycle management
-  - **System Status**: All background jobs cleared (0 active jobs), system ready for fresh analyses with proper timeout handling
-  - **Prevention Measures**: Added comprehensive error handling and job cancellation mechanisms to prevent future 24+ hour stuck jobs
-- July 23, 2025: Enhanced AI analysis quality for HR, Commercial, Legal, and Clinical tabs without changing processes
-  - **Clinical Analysis Quality**: Improved AI prompts to be more aggressive in finding clinical, medical, and regulatory information
-  - **Legal Analysis Enhancement**: Enhanced prompts to find legal, corporate, governance, and compliance information more effectively
-  - **Commercial Analysis Upgrade**: Improved prompts to extract business, market, sales, and competitive intelligence comprehensively
-  - **HR Analysis Optimization**: Maintained existing comprehensive HR analysis with detailed evidence extraction and AI-powered insights
-  - **Prompt Strategy**: All agents now use aggressive relevance detection for investment due diligence context
-  - **Quality Focus**: Enhanced AI instructions to find both direct and indirect business implications for investor analysis
-  - **System Impact**: Better analysis results without changing core processes or functions as requested
-- July 24, 2025: Fixed Financial analysis progress tracking system and database persistence
-  - **Root Cause Resolved**: Financial analysis service was using in-memory callbacks instead of database-backed progress updates
-  - **Database Integration**: Updated setProgress method to call storageService.updateBackgroundJob() for persistent progress tracking
-  - **Parameter Updates**: Modified runComprehensiveAnalysis to accept storageService and jobId parameters for database updates
-  - **Routes Enhancement**: Updated financial analysis endpoint to pass storage service and jobId to analysis service
-  - **Progress Verification**: Confirmed progress tracking works correctly: 0% → 20% → 33% → 40% with real-time database updates
-  - **Document Processing**: Successfully processes 111 financial documents across 12 batches with persistent progress tracking
-  - **Consistency Achieved**: Financial analysis now matches Legal, Clinical, and Commercial analyses with identical progress tracking patterns
-- July 24, 2025: Successfully fixed IP agent analysis system with comprehensive database schema and endpoint resolution
-  - **Database Schema Fix**: Added missing ip_answers, hr_answers, financial_answers, and research_answers fields to shared/schema.ts
-  - **Case Sensitivity Resolution**: Fixed critical issue where agent type "ip" vs "IP" caused wrong record selection in database queries
-  - **Query Optimization**: Enhanced getAgentAnalysis method to query both case variations and prioritize "Completed" over "Failed" status
-  - **Endpoint Verification**: Both IP agent results (/api/deals/:dealId/agents/ip/results) and comprehensive results (/api/deals/:dealId/ip-analysis/comprehensive/results) working correctly
-  - **Data Integrity**: System now properly returns "Completed" status with authentic findings (1), recommendations (1), and parsed IP answers (patents_1)
-  - **Debug Enhancement**: Added comprehensive logging showing record counts and status prioritization for troubleshooting
-  - **Special Case Handling**: Implemented proper "ip" → "IP" mapping to handle database inconsistencies between lowercase and uppercase agent types
-- July 24, 2025: Enhanced "Reset & Run All Analyses" button to trigger comprehensive analysis for all 7 agents
-  - **Comprehensive Analysis Integration**: Updated button to use comprehensive analysis endpoints for all agents instead of basic analysis
-  - **All Agent Coverage**: Button now triggers Clinical, Legal, Commercial, HR, Financial, IP, and Research comprehensive analyses simultaneously
-  - **Enhanced User Feedback**: Improved toast notifications to show "All 7 AI agents are now running comprehensive document analysis"
-  - **Robust Error Handling**: Added proper cleanup, stopping existing analyses, and deletion of old results before starting fresh
-  - **Progress Monitoring**: Implemented completion monitoring with 3-second polling intervals and 15-minute timeout
-  - **Query Invalidation**: Enhanced cache invalidation for both comprehensive and regular agent endpoints
-  - **Research Tab Integration**: Fixed Research tab to work with new ResearchQuestionsSection component structure matching Legal/Clinical tabs
-- July 24, 2025: Successfully resolved Research agent missing from background jobs and verified all 7 agents working
-  - **Root Cause Identified**: Research agent wasn't included in original "Reset & Run All Analyses" execution, causing missing progress bar
-  - **Research Agent Verification**: Confirmed Research analysis endpoint works correctly and processes 11 questions across 4 categories
-  - **Comprehensive Error Handling**: Created ErrorBoundary component to prevent black screen crashes with auto-recovery interface
-  - **Progress Bar System**: All 7 agents now have individual progress bars with proper agentType matching (Clinical, Legal, Commercial, HR, Financial, IP, Research)
-  - **Background Job Status**: Currently 6 agents running (Financial 57%, IP 49%, HR 19%, Clinical 9%, Commercial 5%, Legal 0%) with Research completed
-  - **Research Results Confirmed**: Research agent completed successfully with 11 answered questions covering market, patent, academic, and technical analysis
-- July 24, 2025: **CRITICAL BUG FIXED** - Research agent now processes ALL assigned documents with comprehensive batch processing
-  - **Root Cause Resolved**: Research agent was only processing first 15 documents per question instead of ALL assigned documents like Clinical/Legal agents
-  - **Comprehensive Document Processing**: Updated extractEvidenceFromDocuments method to use batch processing approach identical to Clinical agent
-  - **Batch Processing Implementation**: Research agent now processes documents in batches of 10 with comprehensive logging (🔬 Processing batch 4/8)
-  - **Enhanced Evidence Extraction**: Added extractEvidenceFromDocument method for individual document analysis with category-specific keyword matching
-  - **Improved Relevance Scoring**: Enhanced calculateResearchRelevanceScore method with Technical Whitepapers, Market Research, Academic Publications, and Patent Landscape scoring
-  - **All Document Coverage**: Research agent now processes all 72+ assigned research documents instead of just 15, matching Clinical/Legal comprehensive approach
-  - **Progress Tracking Verified**: Confirmed proper background job tracking with real-time progress updates and database persistence
-  - **System Consistency**: All 7 agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now have identical comprehensive document processing behavior
-- July 24, 2025: Fixed Research analysis system database storage and frontend display issues
-  - **Database Fix**: Resolved critical field name mismatch between `researchAnswers` (camelCase) and `research_answers` (snake_case) database column
-  - **Method Name Correction**: Fixed incorrect method names from `createOrUpdateAgentAnalysis` to proper `createAgentAnalysis`/`updateAgentAnalysis` 
-  - **Data Storage Verification**: Confirmed Research analysis data properly stored with 833 findings characters and 987 recommendations characters
-  - **Frontend Integration**: Enhanced ResearchQuestionsSection component with comprehensive data retrieval and display logic
-  - **Complete Question Coverage**: All 11 research questions across 4 categories working: Technical Whitepapers (3), Market Research Reports (3), Academic Publications (3), Patent Landscape (2)
-  - **UI/UX Consistency**: Research tab now matches Legal, Clinical, Commercial, HR, Financial, and IP agents with identical question-answer format
-  - **Debug Integration**: Added comprehensive logging for data structure verification and frontend debugging capabilities
-- July 24, 2025: **RESOLVED SYSTEM-WIDE ANALYSIS ISSUES** - Fixed critical Research tab display and IP analysis stuck at 100%
-  - **Research Tab Display Fix**: Updated ResearchQuestionsSection to check both comprehensive and regular analysis results as fallback
-  - **IP Analysis Progress Fix**: Implemented proper job completion handling to prevent jobs getting stuck at 100% with "processing" status
-  - **TypeScript Error Resolution**: Fixed 103+ TypeScript errors in EnhancedAgentCard.tsx for system stability
-  - **Background Job Management**: Enhanced job clearing system and progress tracking for reliable analysis execution
-  - **Data Retrieval Enhancement**: Improved fallback logic for displaying analysis results when comprehensive data is unavailable
-  - **System Recovery**: Successfully completed restart and fresh analysis initialization for all 7 agents
-  - **Analysis Status Verified**: 6 out of 7 agents working with authentic document-based insights (Legal: 15, Financial: 6, Commercial: 12, HR: 14, Research: 11, Clinical/IP: in progress)
-  - **Commercial Tab Standardized**: Complete rewrite with Legal tab's comprehensive format including enhanced features, expandable sections, document quotes, evidence summaries, key findings, and recommendations
-  - **HR Tab Standardized**: Updated with Legal tab's exact structure including enhanced HR assessment, document quotes with clickable document links, evidence summaries, and comprehensive metadata display
-  - **Financial Tab Standardized**: Complete standardization with Legal tab's format including enhanced financial assessment, document quotes, evidence summaries, key findings, and recommendations sections
-  - **Interface Standardization**: All tabs now use identical props structure (dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData)
-  - **Design Consistency**: All 7 agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now have identical expandable categories, question-answer format, quote viewer functionality, and UI components
-  - **Enhanced Features**: Each tab includes document quotes with clickable links, evidence summaries, key findings, recommendations, confidence scores, and comprehensive metadata display
-  - **User Experience**: Standardized gradient headers, consistent color schemes per agent type, and identical interaction patterns across all tabs
-- July 24, 2025: **FIXED CRITICAL DOCUMENT FILTERING DISCREPANCY** - Research analysis now processes ALL assigned documents consistently
-  - **Root Cause Resolved**: Research analysis was processing only 72 documents while UI showed 140 assigned documents due to restrictive keyword filtering
-  - **Document Processing Consistency**: Updated Research analysis service to use same comprehensive approach as Legal analysis service
-  - **Enhanced Document Assignment Logic**: Research analysis now processes all documents explicitly assigned to Research agent with comprehensive fallback logic
-  - **Database Integration**: Added proper database queries using db, documents schema, and drizzle-orm for consistent document retrieval
-  - **Comprehensive Coverage**: Research analysis service now processes ALL assigned documents (140) matching Legal, Clinical, and Commercial analysis patterns
-  - **System Verification**: Confirmed Research analysis completes successfully with all 11 questions (market_1-3, patent_1-2, academic_1-3, technical_1-3) analyzed across full document set
-  - **Performance Optimization**: Maintained robust fallback mechanism for OpenAI quota exceeded scenarios while ensuring complete document coverage
-- July 25, 2025: **COMPLETELY FIXED IP ANALYSIS STUCK AT 100% ISSUE** - Resolved final hanging progress bars and implemented comprehensive protection across all analysis types
-  - **Root Cause Resolution**: Fixed frontend progress components that were excluding jobs at 100% progress, causing infinite loading states
-  - **Database Cleanup**: Successfully removed stuck IP analysis job (ip_analysis_22_1753423385834) that was at 100% but still marked as "processing"
-  - **Universal Fix Applied**: Enhanced all 7 progress components (IP, Financial, Research, Legal, Commercial, Clinical, HR) with timeout and cleanup logic
-  - **Auto-Cleanup System**: Jobs reaching 100% now show "Analysis completed - finalizing results..." and auto-hide after 2 seconds with automatic job cleanup
-  - **Backend Integration**: Progress components now call `/api/background-jobs/:jobId/stop` endpoint to properly clean up stuck jobs
-  - **Status Verification**: IP analysis properly shows "Completed" status with all results available (0 findings, 191 recommendations)
-  - **System Health**: Background jobs reduced from 6 to 5 active jobs, confirming successful stuck job removal
-  - **Prevention Measures**: Implemented timeout cleanup and proper error handling in all progress useEffect hooks to prevent future stuck states
-  - **System Verification**: Confirmed stuck IP analysis job successfully removed from background jobs list and progress bars no longer display for completed analyses
-- July 25, 2025: **COMPLETELY FIXED IP ANALYSIS STUCK AT 100% ISSUE** - Resolved final hanging progress bars and implemented comprehensive protection across all analysis types
-  - **Root Cause Resolution**: Fixed frontend progress components that were excluding jobs at 100% progress, causing infinite loading states
-  - **Database Cleanup**: Successfully removed stuck IP analysis job (ip_analysis_22_1753423385834) that was at 100% but still marked as "processing"
-  - **Universal Fix Applied**: Enhanced all 7 progress components (IP, Financial, Research, Legal, Commercial, Clinical, HR) with timeout and cleanup logic
-  - **Auto-Cleanup System**: Jobs reaching 100% now show "Analysis completed - finalizing results..." and auto-hide after 2 seconds with automatic job cleanup
-  - **Backend Integration**: Progress components now call `/api/background-jobs/:jobId/stop` endpoint to properly clean up stuck jobs
-  - **Status Verification**: IP analysis properly shows "Completed" status with all results available (0 findings, 191 recommendations)
-  - **System Health**: Background jobs reduced from 6 to 5 active jobs, confirming successful stuck job removal
-  - **Prevention Measures**: Implemented timeout cleanup and proper error handling in all progress useEffect hooks to prevent future stuck states
-  - **System Verification**: Confirmed stuck IP analysis job successfully removed from background jobs list and progress bars no longer display for completed analyses
-- July 25, 2025: **FINAL ROOT CAUSE RESOLUTION - IP ANALYSIS PROGRESS TRACKING SYSTEM COMPLETELY FIXED**
-  - **Critical Discovery**: Enhanced logging revealed exact root cause - timestamp format error in job completion: `TypeError: value.toISOString is not a function`
-  - **Database Schema Issue**: Drizzle ORM expects `Date` objects for timestamp fields, not ISO strings from `new Date().toISOString()`
-  - **Comprehensive Fix Applied**: Updated all timestamp fields in IP analysis service and routes to use `new Date()` instead of `new Date().toISOString()`
-  - **Multi-Layer Protection**: Implemented enhanced error handling at both service level (with fallback mechanisms) and route level (guaranteed completion)
-  - **Complete Success Verification**: Fresh IP analysis completed successfully from 0% to 84% with proper job cleanup - no more stuck jobs
-  - **Enhanced Logging System**: Added comprehensive debugging that identified the timestamp issue: "📝 Updating background job to completed status"
-  - **System Health Confirmed**: IP analysis now properly completes with status "Completed", zero background jobs, and clean UI state
-  - **Permanent Solution**: Timestamp format fix prevents all future IP analysis stuck jobs - issue completely resolved across all analysis types
-- July 25, 2025: **COMPREHENSIVE ANALYSIS SYSTEM COMPLETION - ALL TABS WORKING WITH ERROR RESOLUTION**
-  - **TypeScript Error Resolution**: Fixed all 105+ TypeScript errors in EnhancedAgentCard.tsx with proper type interfaces and safety checks
-  - **Analysis Tab Status Verified**: 5/7 tabs fully functional (Clinical: 50 findings, Commercial: 12 answers, HR: 32 answers, IP: 34 findings, Research: 11 answers)
-  - **Background Job System Fixed**: Cleared stuck jobs and restarted Legal (0% progress) and Financial (27% progress) comprehensive analyses
-  - **Data Structure Optimization**: Enhanced Clinical tab to display findings properly when structured answers unavailable
-  - **Comprehensive Testing**: Created automated test scripts confirming all working tabs display unique, authentic analysis content
-  - **Progress Tracking Verified**: Real-time progress bars working correctly for running analyses with proper completion detection
-  - **System Recovery Implemented**: Robust background job management with stuck job detection and automatic cleanup
-  - **Frontend Display Ready**: All analysis tabs now show proper question-answer format, findings, recommendations, and metadata
-- July 30, 2025: **FIXED DEAL CREATION AND IP ANALYSIS INTERFACE ENHANCEMENT**
-  - **Deal Creation Fix**: Resolved critical "processAIEvaluationForDeal is not defined" error preventing new deal creation
-  - **Background AI Processing**: Successfully restored automatic AI evaluation and company research for new deals
-  - **IP Analysis UI Redesign**: Completely redesigned IP analysis interface to match Clinical analysis format exactly
-  - **Enhanced IP Display**: Added comprehensive sections (IP Assessment, Document Quotes, Evidence Summary, Key Findings, Recommendations)
-  - **Improved Keyword Matching**: Enhanced IP question-to-finding mapping with better keyword detection for authentic data display
-  - **Visual Consistency**: All analysis tabs now follow identical design patterns with professional styling and organized information hierarchy
-  - **TypeScript Error Resolution**: Fixed blank site issue after deal creation by adding @ts-nocheck directive to resolve 95+ TypeScript errors
-  - **React Component Error Fix**: Resolved critical "Objects are not valid as a React child (found: object with keys [twitter, linkedin])" error in Due Diligence analysis
-  - **Enhanced Type Safety**: Added type checking in EnhancedCompanyResearch.tsx to prevent objects from being rendered as React children
-  - **System Verification**: Confirmed deal creation API working with proper background job triggering and authentic data processing
-- July 31, 2025: **COMPREHENSIVE FIX: AI PROCESSING AND DOCUMENT ASSIGNMENTS SYSTEM**
-  - **Critical Bug Resolution**: Fixed "Cannot read properties of null (reading 'includes')" crashes in AI document processing
-  - **Future-Proofing Implementation**: Created comprehensive server/utils/documentUtils.ts with safeGetDocumentContent() utility for type-safe document handling
-  - **AI Processing Completion**: Resolved 13 pending AI summaries stuck at 87/100 documents - now 100% complete (100/100)
-  - **Document Assignment System**: Fixed missing document-agent assignment system - all 100 documents now properly assigned to relevant agents
-  - **Intelligent Assignment Distribution**: Enhanced AI-powered assignment logic with realistic distribution: Legal (79), Commercial (95), Research (21), HR (4), Financial (1)
-  - **Safe Document Processing**: Updated all document processing code to use safe extraction methods preventing future type mismatch errors
-  - **Comprehensive Error Handling**: Enhanced fallback analysis functions and document categorization with robust error recovery
-  - **Database Schema Optimization**: Confirmed proper document assignment storage using assignedAgents field with intelligent confidence scoring
-  - **System Stability**: Deal 33 now loads successfully with stable AI processing and complete agent assignment coverage
-- July 31, 2025: **FIXED LEGAL ANALYSIS PROGRESS BAR VISIBILITY ISSUE**
-  - **Root Cause Resolution**: Removed blocking comment preventing progress bars from showing in individual agent cards
-  - **Progress Bar Restoration**: Legal analysis progress bars now properly visible during background processing
-  - **Real-Time Progress Tracking**: Confirmed legal analysis running with live progress updates (7% progress, question 2/15)
-  - **All Agent Progress Components**: Verified all 7 progress components (Legal, Commercial, HR, Clinical, Financial, IP, Research) working correctly
-  - **Background Job Monitoring**: Legal analysis actively processing with authentic document analysis and step-by-step progress updates
-- July 31, 2025: **CRITICAL BREAKTHROUGH: INVESTMENT MEMO GENERATOR NOW EXTRACTING AUTHENTIC COMPANY DETAILS**
-  - **Enhanced Document Extraction**: Fixed fundamental content extraction to pull detailed company information from comprehensive agent analyses
-  - **Authentic Data Extraction**: System now extracts specific CEO, CTO, CFO names and details from Legal, Commercial, HR, and Research agent analyses
-  - **Agent Analysis Integration**: Modified extraction system to use existing comprehensive agent analyses (4 completed analyses) instead of failed document text extraction
-  - **Real Company Details Confirmed**: Successfully extracted authentic information including CEO (Isaac Litman), CFO (Boaz Gur-Lavie) from Neteera IM documents
-  - **Backend Content Processing**: Updated memo generation to process detailed findings and recommendations from all agent types to extract company information
-  - **Cover Page Enhancement**: Fixed cover page generation to display specific company details instead of generic placeholders like "[Insert Name]"
-  - **Comprehensive Analysis Utilization**: System processes Legal answers, Commercial answers, Research answers, HR answers, findings, and recommendations for detailed extraction
-  - **Investment Memo Quality**: Memo generation now produces 30-50 page detailed investment memorandums with authentic company information matching BAIBYS PDF structure
-- July 31, 2025: **REVOLUTIONARY MULTI-PASS OCR EXTRACTION SYSTEM IMPLEMENTATION**
-  - **Complete OCR Processing**: Removed all 6,000 character truncation limits - system now processes complete OCR text from all 100 documents
-  - **Multi-Pass Document Analysis**: Implemented batch processing system that processes documents in groups of 10 to handle massive OCR content
-  - **Enhanced Context Limits**: Increased AI analysis context from 15,000 to 120,000+ characters for comprehensive document analysis
-  - **Three-Pass Extraction Strategy**: Pass 1 (agent analyses), Pass 2 (document batches), Pass 3 (synthesis) for maximum data extraction
-  - **Complete Content Utilization**: System now logs and processes every character of OCR text with detailed length tracking per document
-  - **Performance Enhancement**: Willing to accept longer processing times (2-3 minutes) for complete authenticity and data extraction quality
-  - **Quality Priority**: Enhanced system prioritizes extraction quality over speed to ensure no company details are missed due to truncation
-```
-
-## User Preferences
-
-```
-Preferred communication style: Simple, everyday language.
-```
+- **PostgreSQL**: Primary database.
+- **WebSocket**: Real-time communication.
+- **Local File System**: For file storage.
+- **Affinity CRM**: For organization data synchronization.
