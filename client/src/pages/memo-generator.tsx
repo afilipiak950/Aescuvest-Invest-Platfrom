@@ -296,7 +296,7 @@ export default function MemoGenerator() {
                       )}
 
                       {/* Investment Highlights */}
-                      {currentMemo?.investmentHighlights && currentMemo.investmentHighlights.length > 0 && (
+                      {Array.isArray(currentMemo?.investmentHighlights) && currentMemo.investmentHighlights.length > 0 && (
                         <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Investment Highlights</h3>
                           <ul className="space-y-3">
@@ -307,6 +307,14 @@ export default function MemoGenerator() {
                               </li>
                             ))}
                           </ul>
+                        </div>
+                      )}
+                      {!Array.isArray(currentMemo?.investmentHighlights) && currentMemo?.investmentHighlights && (
+                        <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
+                          <h3 className="text-xl font-bold text-white mb-4">Investment Highlights</h3>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.investmentHighlights}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
                     </TabsContent>
@@ -406,7 +414,7 @@ export default function MemoGenerator() {
                               <h4 className="font-semibold text-gray-200 mb-2">Management</h4>
                               <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.teamAssessment.management}</div>
                             </div>
-                            {currentMemo.teamAssessment.keyPersonnel.length > 0 && (
+                            {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
                                 <ul className="space-y-1">
@@ -414,6 +422,12 @@ export default function MemoGenerator() {
                                     <li key={index} className="text-gray-300 text-sm">{person}</li>
                                   ))}
                                 </ul>
+                              </div>
+                            )}
+                            {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
+                              <div>
+                                <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.teamAssessment.keyPersonnel}</div>
                               </div>
                             )}
                             <div>
@@ -529,58 +543,78 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-red-400 mb-3">Technical Risks</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.riskAssessment.technicalRisks.map((risk: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-red-400 mr-2">⚠</span>
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.riskAssessment.technicalRisks) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.riskAssessment.technicalRisks.map((risk: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-red-400 mr-2">⚠</span>
+                                      {risk}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.technicalRisks || 'No technical risks identified'}</div>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-semibold text-orange-400 mb-3">Market Risks</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.riskAssessment.marketRisks.map((risk: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-orange-400 mr-2">⚠</span>
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.riskAssessment.marketRisks) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.riskAssessment.marketRisks.map((risk: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-orange-400 mr-2">⚠</span>
+                                      {risk}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.marketRisks || 'No market risks identified'}</div>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-semibold text-yellow-400 mb-3">Competitive Risks</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.riskAssessment.competitiveRisks.map((risk: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-yellow-400 mr-2">⚠</span>
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.riskAssessment.competitiveRisks) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.riskAssessment.competitiveRisks.map((risk: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-yellow-400 mr-2">⚠</span>
+                                      {risk}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.competitiveRisks || 'No competitive risks identified'}</div>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-semibold text-pink-400 mb-3">Regulatory Risks</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.riskAssessment.regulatoryRisks.map((risk: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-pink-400 mr-2">⚠</span>
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.riskAssessment.regulatoryRisks) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.riskAssessment.regulatoryRisks.map((risk: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-pink-400 mr-2">⚠</span>
+                                      {risk}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.regulatoryRisks || 'No regulatory risks identified'}</div>
+                              )}
                             </div>
                             <div className="md:col-span-2">
                               <h4 className="font-semibold text-purple-400 mb-3">Management Risks</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.riskAssessment.managementRisks.map((risk: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-purple-400 mr-2">⚠</span>
-                                    {risk}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.riskAssessment.managementRisks) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.riskAssessment.managementRisks.map((risk: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-purple-400 mr-2">⚠</span>
+                                      {risk}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.managementRisks || 'No management risks identified'}</div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -601,47 +635,63 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.swotAnalysis.strengths.map((item: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-green-400 mr-2">+</span>
-                                    {item}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.swotAnalysis.strengths) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.strengths.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-green-400 mr-2">+</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.strengths || 'No strengths identified'}</div>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.swotAnalysis.weaknesses.map((item: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-red-400 mr-2">-</span>
-                                    {item}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.swotAnalysis.weaknesses) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.weaknesses.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-red-400 mr-2">-</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.weaknesses || 'No weaknesses identified'}</div>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.swotAnalysis.opportunities.map((item: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-blue-400 mr-2">↗</span>
-                                    {item}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.swotAnalysis.opportunities) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.opportunities.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-blue-400 mr-2">↗</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.opportunities || 'No opportunities identified'}</div>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
-                              <ul className="space-y-2">
-                                {currentMemo.swotAnalysis.threats.map((item: string, index: number) => (
-                                  <li key={index} className="text-gray-300 text-sm flex items-start">
-                                    <span className="text-yellow-400 mr-2">⚠</span>
-                                    {item}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(currentMemo.swotAnalysis.threats) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.threats.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-yellow-400 mr-2">⚠</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.threats || 'No threats identified'}</div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -699,7 +749,7 @@ export default function MemoGenerator() {
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.recommendation.rationale}</ReactMarkdown>
                               </div>
                             </div>
-                            {currentMemo.recommendation.keyMilestones.length > 0 && (
+                            {Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones.length > 0 && (
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-2">Key Milestones</h4>
                                 <ul className="space-y-1">
@@ -710,6 +760,12 @@ export default function MemoGenerator() {
                                     </li>
                                   ))}
                                 </ul>
+                              </div>
+                            )}
+                            {!Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones && (
+                              <div>
+                                <h4 className="font-semibold text-gray-200 mb-2">Key Milestones</h4>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.recommendation.keyMilestones}</div>
                               </div>
                             )}
                             <div>
