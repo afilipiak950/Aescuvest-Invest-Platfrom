@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
 
 interface ComprehensiveMemo {
   coverPage: string;                        // Professional cover page
@@ -276,8 +277,8 @@ export default function MemoGenerator() {
                       {currentMemo?.coverPage && (
                         <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg p-8">
                           <h3 className="text-2xl font-bold text-white mb-4">Investment Memorandum</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.coverPage}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.coverPage)}
                           </div>
                         </div>
                       )}
@@ -289,8 +290,8 @@ export default function MemoGenerator() {
                             <TrendingUp className="h-5 w-5 mr-2 text-blue-400" />
                             Executive Summary
                           </h3>
-                          <div className="text-gray-300 leading-relaxed prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.executiveSummary}</ReactMarkdown>
+                          <div className="text-gray-300 leading-relaxed prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.executiveSummary)}
                           </div>
                         </div>
                       )}
@@ -312,8 +313,8 @@ export default function MemoGenerator() {
                       {!Array.isArray(currentMemo?.investmentHighlights) && currentMemo?.investmentHighlights && (
                         <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Investment Highlights</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.investmentHighlights}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.investmentHighlights)}
                           </div>
                         </div>
                       )}
@@ -327,14 +328,14 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Market Context</h4>
-                              <div className="text-gray-300 text-sm prose prose-invert max-w-none">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.marketAnalysis.marketContext}</ReactMarkdown>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {formatBusinessText(currentMemo.marketAnalysis.marketContext)}
                               </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Market Timing</h4>
-                              <div className="text-gray-300 text-sm prose prose-invert max-w-none">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.marketAnalysis.marketTiming}</ReactMarkdown>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {formatBusinessText(currentMemo.marketAnalysis.marketTiming)}
                               </div>
                             </div>
                             <div>
@@ -347,8 +348,8 @@ export default function MemoGenerator() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Competitive Landscape</h4>
-                              <div className="text-gray-300 text-sm prose prose-invert max-w-none">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.marketAnalysis.competitiveLandscape}</ReactMarkdown>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {formatBusinessText(currentMemo.marketAnalysis.competitiveLandscape)}
                               </div>
                             </div>
                           </div>
@@ -362,19 +363,19 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Product Overview</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.productAnalysis.productOverview}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.productOverview)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Technology Advantage</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.productAnalysis.technologyAdvantage}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.technologyAdvantage)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Competitive Edge</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.productAnalysis.competitiveEdge}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.competitiveEdge)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Development Stage</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.productAnalysis.developmentStage}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.productAnalysis.developmentStage)}</div>
                             </div>
                           </div>
                         </div>
@@ -387,19 +388,19 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Revenue Model</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.businessModel.revenueModel}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.revenueModel)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Pricing Strategy</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.businessModel.pricingStrategy}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.pricingStrategy)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Sales Channels</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.businessModel.salesChannels}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.salesChannels)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Customer Acquisition</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.businessModel.customerAcquisition}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.businessModel.customerAcquisition)}</div>
                             </div>
                           </div>
                         </div>
@@ -413,11 +414,7 @@ export default function MemoGenerator() {
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Management</h4>
                               <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {typeof currentMemo.teamAssessment.management === 'string' 
-                                  ? currentMemo.teamAssessment.management 
-                                  : typeof currentMemo.teamAssessment.management === 'object' && currentMemo.teamAssessment.management !== null
-                                  ? JSON.stringify(currentMemo.teamAssessment.management, null, 2)
-                                  : String(currentMemo.teamAssessment.management || 'No management information available')}
+                                {formatObjectContent(currentMemo.teamAssessment.management)}
                               </div>
                             </div>
                             {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
@@ -439,32 +436,20 @@ export default function MemoGenerator() {
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
                                 <div className="text-gray-300 text-sm whitespace-pre-line">
-                                  {typeof currentMemo.teamAssessment.keyPersonnel === 'string' 
-                                    ? currentMemo.teamAssessment.keyPersonnel 
-                                    : typeof currentMemo.teamAssessment.keyPersonnel === 'object' && currentMemo.teamAssessment.keyPersonnel !== null
-                                    ? JSON.stringify(currentMemo.teamAssessment.keyPersonnel, null, 2)
-                                    : String(currentMemo.teamAssessment.keyPersonnel)}
+                                  {formatObjectContent(currentMemo.teamAssessment.keyPersonnel)}
                                 </div>
                               </div>
                             )}
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Advisors</h4>
                               <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {typeof currentMemo.teamAssessment.advisors === 'string' 
-                                  ? currentMemo.teamAssessment.advisors 
-                                  : typeof currentMemo.teamAssessment.advisors === 'object' && currentMemo.teamAssessment.advisors !== null
-                                  ? JSON.stringify(currentMemo.teamAssessment.advisors, null, 2)
-                                  : String(currentMemo.teamAssessment.advisors || 'No advisor information available')}
+                                {formatObjectContent(currentMemo.teamAssessment.advisors)}
                               </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Board Composition</h4>
                               <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {typeof currentMemo.teamAssessment.boardComposition === 'string' 
-                                  ? currentMemo.teamAssessment.boardComposition 
-                                  : typeof currentMemo.teamAssessment.boardComposition === 'object' && currentMemo.teamAssessment.boardComposition !== null
-                                  ? JSON.stringify(currentMemo.teamAssessment.boardComposition, null, 2)
-                                  : String(currentMemo.teamAssessment.boardComposition || 'No board composition information available')}
+                                {formatObjectContent(currentMemo.teamAssessment.boardComposition)}
                               </div>
                             </div>
                           </div>
@@ -475,8 +460,8 @@ export default function MemoGenerator() {
                       {currentMemo?.commercialAnalysis && (
                         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Commercial Analysis</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.commercialAnalysis}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.commercialAnalysis)}
                           </div>
                         </div>
                       )}
@@ -485,8 +470,8 @@ export default function MemoGenerator() {
                       {currentMemo?.clinicalAssessment && (
                         <div className="bg-gradient-to-r from-red-500/10 to-pink-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Clinical Assessment</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.clinicalAssessment}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.clinicalAssessment)}
                           </div>
                         </div>
                       )}
@@ -495,7 +480,7 @@ export default function MemoGenerator() {
                       {currentMemo?.ipAnalysis && (
                         <div className="bg-gradient-to-r from-indigo-500/10 to-blue-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Intellectual Property Analysis</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.ipAnalysis}</div>
+                          <div className="text-gray-300 whitespace-pre-line">{formatBusinessText(currentMemo.ipAnalysis)}</div>
                         </div>
                       )}
 
@@ -503,7 +488,7 @@ export default function MemoGenerator() {
                       {currentMemo?.researchInsights && (
                         <div className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Research Insights</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.researchInsights}</div>
+                          <div className="text-gray-300 whitespace-pre-line">{formatBusinessText(currentMemo.researchInsights)}</div>
                         </div>
                       )}
                       
@@ -524,19 +509,19 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Current Financials</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.financialAnalysis.currentFinancials}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.currentFinancials)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Projections</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.financialAnalysis.projections}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.projections)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Funding History</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.financialAnalysis.fundingHistory}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.fundingHistory)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Use of Funds</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.financialAnalysis.useOfFunds}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.financialAnalysis.useOfFunds)}</div>
                             </div>
                           </div>
                         </div>
@@ -549,41 +534,29 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Valuation</h4>
-                              <div className="text-gray-300 text-sm">
-                                {typeof currentMemo.investmentTerms.valuation === 'string' 
-                                  ? currentMemo.investmentTerms.valuation 
-                                  : typeof currentMemo.investmentTerms.valuation === 'object' && currentMemo.investmentTerms.valuation !== null
-                                  ? JSON.stringify(currentMemo.investmentTerms.valuation, null, 2)
-                                  : String(currentMemo.investmentTerms.valuation || 'No valuation information available')}
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {formatObjectContent(currentMemo.investmentTerms.valuation)}
                               </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Funding Amount</h4>
-                              <div className="text-gray-300 text-sm">{currentMemo.investmentTerms.fundingAmount}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.investmentTerms.fundingAmount)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Securities</h4>
-                              <div className="text-gray-300 text-sm">
-                                {typeof currentMemo.investmentTerms.securities === 'string' 
-                                  ? currentMemo.investmentTerms.securities 
-                                  : typeof currentMemo.investmentTerms.securities === 'object' && currentMemo.investmentTerms.securities !== null
-                                  ? JSON.stringify(currentMemo.investmentTerms.securities, null, 2)
-                                  : String(currentMemo.investmentTerms.securities || 'No securities information available')}
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {formatObjectContent(currentMemo.investmentTerms.securities)}
                               </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Board Rights</h4>
-                              <div className="text-gray-300 text-sm">
-                                {typeof currentMemo.investmentTerms.boardRights === 'string' 
-                                  ? currentMemo.investmentTerms.boardRights 
-                                  : typeof currentMemo.investmentTerms.boardRights === 'object' && currentMemo.investmentTerms.boardRights !== null
-                                  ? JSON.stringify(currentMemo.investmentTerms.boardRights, null, 2)
-                                  : String(currentMemo.investmentTerms.boardRights || 'No board rights information available')}
+                              <div className="text-gray-300 text-sm whitespace-pre-line">
+                                {formatObjectContent(currentMemo.investmentTerms.boardRights)}
                               </div>
                             </div>
                             <div className="md:col-span-2">
                               <h4 className="font-semibold text-gray-200 mb-2">Liquidation Preference</h4>
-                              <div className="text-gray-300 text-sm">{currentMemo.investmentTerms.liquidationPreference}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.investmentTerms.liquidationPreference)}</div>
                             </div>
                           </div>
                         </div>
@@ -616,7 +589,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.technicalRisks || 'No technical risks identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.technicalRisks) || 'No technical risks identified'}</div>
                               )}
                             </div>
                             <div>
@@ -631,7 +604,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.marketRisks || 'No market risks identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.marketRisks) || 'No market risks identified'}</div>
                               )}
                             </div>
                             <div>
@@ -646,7 +619,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.competitiveRisks || 'No competitive risks identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.competitiveRisks) || 'No competitive risks identified'}</div>
                               )}
                             </div>
                             <div>
@@ -661,7 +634,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.regulatoryRisks || 'No regulatory risks identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.regulatoryRisks) || 'No regulatory risks identified'}</div>
                               )}
                             </div>
                             <div className="md:col-span-2">
@@ -687,7 +660,7 @@ export default function MemoGenerator() {
                       {currentMemo?.mitigationStrategies && (
                         <div className="bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Risk Mitigation Strategies</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.mitigationStrategies}</div>
+                          <div className="text-gray-300 whitespace-pre-line">{formatBusinessText(currentMemo.mitigationStrategies)}</div>
                         </div>
                       )}
 
@@ -708,7 +681,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.strengths || 'No strengths identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.strengths) || 'No strengths identified'}</div>
                               )}
                             </div>
                             <div>
@@ -723,7 +696,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.weaknesses || 'No weaknesses identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.weaknesses) || 'No weaknesses identified'}</div>
                               )}
                             </div>
                             <div>
@@ -738,7 +711,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.opportunities || 'No opportunities identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.opportunities) || 'No opportunities identified'}</div>
                               )}
                             </div>
                             <div>
@@ -753,7 +726,7 @@ export default function MemoGenerator() {
                                   ))}
                                 </ul>
                               ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.swotAnalysis.threats || 'No threats identified'}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.threats) || 'No threats identified'}</div>
                               )}
                             </div>
                           </div>
@@ -777,19 +750,19 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Corporate Structure</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.legalAssessment.corporateStructure}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.corporateStructure)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">IP Protection</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.legalAssessment.ipProtection}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.ipProtection)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Regulatory Compliance</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.legalAssessment.regulatoryCompliance}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.regulatoryCompliance)}</div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Contractual Obligations</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.legalAssessment.contractualObligations}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.legalAssessment.contractualObligations)}</div>
                             </div>
                           </div>
                         </div>
@@ -799,8 +772,8 @@ export default function MemoGenerator() {
                       {currentMemo?.regulatoryAnalysis && (
                         <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Regulatory Analysis</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.regulatoryAnalysis}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.regulatoryAnalysis)}
                           </div>
                         </div>
                       )}
@@ -824,8 +797,8 @@ export default function MemoGenerator() {
                               <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-primary text-white mb-3">
                                 {currentMemo.recommendation.investment_recommendation}
                               </span>
-                              <div className="text-gray-300 prose prose-invert max-w-none">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.recommendation.rationale}</ReactMarkdown>
+                              <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                                {formatBusinessText(currentMemo.recommendation.rationale)}
                               </div>
                             </div>
                             {Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones.length > 0 && (
@@ -844,12 +817,12 @@ export default function MemoGenerator() {
                             {!Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones && (
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-2">Key Milestones</h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.recommendation.keyMilestones}</div>
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.recommendation.keyMilestones)}</div>
                               </div>
                             )}
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Exit Strategy</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.recommendation.exitStrategy}</div>
+                              <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.recommendation.exitStrategy)}</div>
                             </div>
                           </div>
                         </div>
@@ -859,8 +832,8 @@ export default function MemoGenerator() {
                       {currentMemo?.exitStrategy && (
                         <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Exit Strategy Analysis</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.exitStrategy}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.exitStrategy)}
                           </div>
                         </div>
                       )}
@@ -869,8 +842,8 @@ export default function MemoGenerator() {
                       {currentMemo?.appendices && (
                         <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Appendices</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.appendices}</ReactMarkdown>
+                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
+                            {formatBusinessText(currentMemo.appendices)}
                           </div>
                         </div>
                       )}
