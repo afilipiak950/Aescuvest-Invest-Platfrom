@@ -253,130 +253,148 @@ class InvestmentMemoService {
   }
 
   /**
-   * COMPREHENSIVE DATA EXTRACTION - Uses ALL documents, OCR text, and agent analyses
-   * This is the core method that extracts maximum information for quality memo generation
+   * MULTI-PASS COMPREHENSIVE DATA EXTRACTION - Uses ALL documents, every line of OCR text, and all agent analyses
+   * This method processes documents in multiple passes to ensure maximum information extraction
    */
   private async prepareComprehensiveAnalysisContext(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`🔍 Extracting comprehensive data from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+    console.log(`🔍 Starting MULTI-PASS extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
     
+    // First pass: Extract and log all OCR content lengths
+    let totalOcrLength = 0;
+    const documentOcrLengths: number[] = [];
+    
+    data.documents.forEach((doc, index) => {
+      if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
+        const ocrLength = doc.ocrText.length;
+        documentOcrLengths.push(ocrLength);
+        totalOcrLength += ocrLength;
+        console.log(`📄 Document ${index + 1} (${doc.name}): ${ocrLength.toLocaleString()} characters of OCR text`);
+      } else {
+        documentOcrLengths.push(0);
+        console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available`);
+      }
+    });
+    
+    console.log(`📊 TOTAL OCR CONTENT: ${totalOcrLength.toLocaleString()} characters across ${data.documents.length} documents`);
+    
+    // Build comprehensive context with ALL content
     let context = `
 COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
 =========================================================
+TOTAL OCR CONTENT: ${totalOcrLength.toLocaleString()} characters
+TOTAL DOCUMENTS: ${data.documents.length}
+TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
+=========================================================
 
-=== DEAL INFORMATION ===
-Company: ${data.companyName}
-Deal ID: ${data.dealId}
-Total Documents: ${data.documents.length}
-Total Agent Analyses: ${data.agentAnalyses.length}
-
+=== COMPLETE DOCUMENT OCR CONTENT - ALL ${data.documents.length} DOCUMENTS ===
 `;
 
-    // ========== EXTRACT FROM ALL DOCUMENT OCR CONTENT ==========
-    context += `=== COMPREHENSIVE DOCUMENT OCR CONTENT (${data.documents.length} documents) ===\n\n`;
-    
+    // Second pass: Include COMPLETE OCR content from ALL documents
     data.documents.forEach((doc, index) => {
-      let documentContent = '';
-      
-      // Extract COMPLETE OCR text (highest priority for specific details)
       if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
-        // Use FULL OCR text - no truncation for comprehensive data extraction
-        documentContent += `OCR CONTENT:\n${doc.ocrText}\n`;
-        console.log(`📄 Document ${index + 1} (${doc.name}): Using ${doc.ocrText.length} characters of OCR text`);
-      }
-      
-      // Extract AI summary content
-      if (doc.aiSummary) {
-        try {
-          let summaryText = '';
-          if (typeof doc.aiSummary === 'string') {
-            summaryText = doc.aiSummary;
-          } else if (typeof doc.aiSummary === 'object') {
-            if (doc.aiSummary.executiveSummary) summaryText += doc.aiSummary.executiveSummary + '\n';
-            if (doc.aiSummary.criticalFindings) summaryText += (Array.isArray(doc.aiSummary.criticalFindings) ? doc.aiSummary.criticalFindings.join('\n') : doc.aiSummary.criticalFindings) + '\n';
-            if (doc.aiSummary.keyFinancialData) summaryText += (Array.isArray(doc.aiSummary.keyFinancialData) ? doc.aiSummary.keyFinancialData.join('\n') : doc.aiSummary.keyFinancialData) + '\n';
-            if (doc.aiSummary.strategicImplications) summaryText += doc.aiSummary.strategicImplications;
-          }
-          if (summaryText.trim().length > 50) {
-            documentContent += `\nAI SUMMARY:\n${summaryText}\n`;
-          }
-        } catch (e) {
-          console.warn('Error extracting AI summary:', e);
-        }
-      }
-      
-      if (documentContent.trim().length > 0) {
         context += `
-========== DOCUMENT ${index + 1}: ${doc.name} ==========
-File Type: ${doc.contentType || 'Unknown'}
-Size: ${doc.size || 'Unknown'} bytes
 
-${documentContent}
-=============================================
+>>>>>>> DOCUMENT ${index + 1}: ${doc.name} <<<<<<<
+OCR LENGTH: ${doc.ocrText.length.toLocaleString()} characters
+FILE TYPE: ${doc.contentType || 'Unknown'}
+
+COMPLETE OCR CONTENT:
+${doc.ocrText}
 
 `;
+        
+        // Also include AI summary if available
+        if (doc.aiSummary) {
+          try {
+            let summaryText = '';
+            if (typeof doc.aiSummary === 'string') {
+              summaryText = doc.aiSummary;
+            } else if (typeof doc.aiSummary === 'object') {
+              if (doc.aiSummary.executiveSummary) summaryText += `EXECUTIVE SUMMARY: ${doc.aiSummary.executiveSummary}\n`;
+              if (doc.aiSummary.criticalFindings) summaryText += `CRITICAL FINDINGS: ${Array.isArray(doc.aiSummary.criticalFindings) ? doc.aiSummary.criticalFindings.join('\n') : doc.aiSummary.criticalFindings}\n`;
+              if (doc.aiSummary.keyFinancialData) summaryText += `FINANCIAL DATA: ${Array.isArray(doc.aiSummary.keyFinancialData) ? doc.aiSummary.keyFinancialData.join('\n') : doc.aiSummary.keyFinancialData}\n`;
+              if (doc.aiSummary.strategicImplications) summaryText += `STRATEGIC IMPLICATIONS: ${doc.aiSummary.strategicImplications}\n`;
+            }
+            if (summaryText.trim().length > 50) {
+              context += `AI ANALYSIS SUMMARY:
+${summaryText}
+
+`;
+            }
+          } catch (e) {
+            console.warn(`Error extracting AI summary for document ${index + 1}:`, e);
+          }
+        }
+        
+        context += `======================================\n`;
       }
     });
 
-    // ========== EXTRACT FROM ALL AGENT ANALYSES ==========
-    context += `\n=== COMPREHENSIVE AGENT ANALYSES (${data.agentAnalyses.length} analyses) ===\n\n`;
+    // Third pass: Include ALL agent analysis content
+    context += `\n\n=== COMPLETE AGENT ANALYSES - ALL ${data.agentAnalyses.length} ANALYSES ===\n`;
     
     data.agentAnalyses.forEach(analysis => {
-      context += `
-========== ${analysis.agentType.toUpperCase()} AGENT ANALYSIS ==========
-Status: ${analysis.status}
-Findings: ${analysis.findings?.length || 0}
-Recommendations: ${analysis.recommendations?.length || 0}
+      context += `\n>>>>>>> ${analysis.agentType.toUpperCase()} AGENT ANALYSIS <<<<<<<\n`;
+      context += `STATUS: ${analysis.status}\n`;
+      context += `FINDINGS COUNT: ${analysis.findings?.length || 0}\n`;
+      context += `RECOMMENDATIONS COUNT: ${analysis.recommendations?.length || 0}\n\n`;
 
-`;
-
-      // Extract ALL analysis content based on agent type
-      const extractAnalysisContent = (answers: any, label: string) => {
+      // Extract COMPLETE analysis content for each agent type
+      const extractCompleteAnalysisContent = (answers: any, label: string) => {
         if (!answers) return;
         
         try {
           const data = typeof answers === 'string' ? JSON.parse(answers) : answers;
-          context += `${label} ANALYSIS CONTENT:\n`;
+          context += `${label} COMPLETE ANALYSIS:\n`;
           
           if (typeof data === 'object' && data !== null) {
             Object.entries(data).forEach(([key, value]) => {
-              const content = typeof value === 'string' ? value : JSON.stringify(value);
-              context += `${key}: ${content.substring(0, 1000)}\n`;
+              const content = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+              context += `${key.toUpperCase()}: ${content}\n\n`;
             });
+          } else {
+            context += `${data}\n\n`;
           }
         } catch (e) {
-          context += `${label} ANALYSIS: ${answers.toString().substring(0, 1500)}\n`;
+          if (answers) {
+            context += `${label} RAW CONTENT: ${answers.toString()}\n\n`;
+          }
         }
       };
 
-      // Extract from all agent types
-      extractAnalysisContent(analysis.legalAnswers, 'LEGAL');
-      extractAnalysisContent(analysis.clinicalAnswers, 'CLINICAL');
-      extractAnalysisContent(analysis.commercialAnswers, 'COMMERCIAL');
-      extractAnalysisContent(analysis.hrAnswers, 'HR');
-      extractAnalysisContent(analysis.financialAnswers, 'FINANCIAL');
-      extractAnalysisContent(analysis.ipAnswers, 'IP');
-      extractAnalysisContent(analysis.researchAnswers, 'RESEARCH');
+      // Extract COMPLETE content from all agent types (no truncation)
+      extractCompleteAnalysisContent(analysis.legalAnswers, 'LEGAL');
+      extractCompleteAnalysisContent(analysis.clinicalAnswers, 'CLINICAL');
+      extractCompleteAnalysisContent(analysis.commercialAnswers, 'COMMERCIAL');
+      extractCompleteAnalysisContent(analysis.hrAnswers, 'HR');
+      extractCompleteAnalysisContent(analysis.financialAnswers, 'FINANCIAL');
+      extractCompleteAnalysisContent(analysis.ipAnswers, 'IP');
+      extractCompleteAnalysisContent(analysis.researchAnswers, 'RESEARCH');
 
-      // Add findings and recommendations
+      // Include ALL findings with complete content
       if (analysis.findings && Array.isArray(analysis.findings)) {
-        context += `\nFINDINGS:\n`;
+        context += `COMPLETE FINDINGS (${analysis.findings.length}):\n`;
         analysis.findings.forEach((finding, index) => {
-          const content = typeof finding === 'string' ? finding : (finding.content || JSON.stringify(finding));
-          context += `${index + 1}. ${content.substring(0, 500)}\n`;
+          const content = typeof finding === 'string' ? finding : (finding.content || JSON.stringify(finding, null, 2));
+          context += `FINDING ${index + 1}: ${content}\n\n`;
         });
       }
       
+      // Include ALL recommendations with complete content  
       if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
-        context += `\nRECOMMENDATIONS:\n`;
+        context += `COMPLETE RECOMMENDATIONS (${analysis.recommendations.length}):\n`;
         analysis.recommendations.forEach((rec, index) => {
-          const content = typeof rec === 'string' ? rec : (rec.content || rec.description || JSON.stringify(rec));
-          context += `${index + 1}. ${content.substring(0, 500)}\n`;
+          const content = typeof rec === 'string' ? rec : (rec.content || rec.description || JSON.stringify(rec, null, 2));
+          context += `RECOMMENDATION ${index + 1}: ${content}\n\n`;
         });
       }
       
-      context += `=============================================\n\n`;
+      context += `=======================================\n`;
     });
 
+    const finalContextLength = context.length;
+    console.log(`📊 FINAL CONTEXT LENGTH: ${finalContextLength.toLocaleString()} characters for comprehensive analysis`);
+    
     return context;
   }
 
@@ -428,66 +446,158 @@ ${companyInfo}`
   }
 
   private async extractComprehensiveCompanyInformation(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`🔍 Extracting specific company details from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+    console.log(`🔍 MULTI-PASS company information extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
     
-    // Prepare comprehensive context with focus on company-specific details
-    const comprehensiveContent = await this.prepareComprehensiveAnalysisContext(data);
+    // Strategy: Process documents in batches to extract maximum information without exceeding context limits
+    const batchSize = 10; // Process 10 documents at a time
+    const extractedInfo: string[] = [];
     
-    // Use AI to extract specific company information
-    const response = await openai.chat.completions.create({
+    // First pass: Extract from agent analyses
+    console.log(`🔍 PASS 1: Extracting from ${data.agentAnalyses.length} agent analyses`);
+    if (data.agentAnalyses.length > 0) {
+      let agentContent = '';
+      data.agentAnalyses.forEach(analysis => {
+        agentContent += `\n=== ${analysis.agentType.toUpperCase()} ANALYSIS ===\n`;
+        
+        // Extract all available analysis content
+        const extractAnalysisData = (answers: any, type: string) => {
+          if (!answers) return '';
+          try {
+            const parsed = typeof answers === 'string' ? JSON.parse(answers) : answers;
+            return `${type}: ${JSON.stringify(parsed, null, 2)}\n`;
+          } catch (e) {
+            return `${type}: ${answers.toString()}\n`;
+          }
+        };
+        
+        agentContent += extractAnalysisData(analysis.legalAnswers, 'LEGAL');
+        agentContent += extractAnalysisData(analysis.clinicalAnswers, 'CLINICAL');
+        agentContent += extractAnalysisData(analysis.commercialAnswers, 'COMMERCIAL');
+        agentContent += extractAnalysisData(analysis.hrAnswers, 'HR');
+        agentContent += extractAnalysisData(analysis.financialAnswers, 'FINANCIAL');
+        agentContent += extractAnalysisData(analysis.ipAnswers, 'IP');
+        agentContent += extractAnalysisData(analysis.researchAnswers, 'RESEARCH');
+        
+        // Add findings and recommendations
+        if (analysis.findings) {
+          agentContent += `FINDINGS: ${JSON.stringify(analysis.findings, null, 2)}\n`;
+        }
+        if (analysis.recommendations) {
+          agentContent += `RECOMMENDATIONS: ${JSON.stringify(analysis.recommendations, null, 2)}\n`;
+        }
+      });
+      
+      const agentExtraction = await this.extractFromContent(agentContent, data.companyName, 'agent analyses');
+      extractedInfo.push(agentExtraction);
+    }
+    
+    // Second pass: Process documents in batches
+    const totalBatches = Math.ceil(data.documents.length / batchSize);
+    console.log(`🔍 PASS 2: Processing ${data.documents.length} documents in ${totalBatches} batches of ${batchSize}`);
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIndex = batchIndex * batchSize;
+      const endIndex = Math.min(startIndex + batchSize, data.documents.length);
+      const batch = data.documents.slice(startIndex, endIndex);
+      
+      console.log(`🔍 Processing batch ${batchIndex + 1}/${totalBatches}: documents ${startIndex + 1}-${endIndex}`);
+      
+      let batchContent = '';
+      batch.forEach((doc, index) => {
+        if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
+          batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
+          batchContent += `OCR CONTENT (${doc.ocrText.length} chars):\n${doc.ocrText}\n`;
+          
+          // Add AI summary if available
+          if (doc.aiSummary) {
+            try {
+              const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary, null, 2);
+              batchContent += `AI SUMMARY:\n${summary}\n`;
+            } catch (e) {
+              console.warn(`Error extracting AI summary for ${doc.name}:`, e);
+            }
+          }
+          batchContent += `\n`;
+        }
+      });
+      
+      if (batchContent.trim().length > 100) {
+        const batchExtraction = await this.extractFromContent(batchContent, data.companyName, `document batch ${batchIndex + 1}`);
+        extractedInfo.push(batchExtraction);
+      }
+    }
+    
+    // Third pass: Combine and synthesize all extracted information
+    console.log(`🔍 PASS 3: Synthesizing ${extractedInfo.length} extraction results`);
+    
+    const combinedExtractions = extractedInfo.join('\n\n=== NEXT EXTRACTION ===\n\n');
+    
+    const finalSynthesis = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system",
-        content: `You are an expert data extraction specialist. Extract SPECIFIC company information from comprehensive document analysis and agent reports.
+        content: `You are synthesizing multiple company information extractions into one comprehensive company profile. 
 
-EXTRACT THESE SPECIFIC DETAILS (only if found):
-1. EXECUTIVE TEAM:
-   - CEO: Full name, educational background, previous experience, years with company
-   - CTO: Technical background, patents, previous companies, expertise areas
-   - CFO: Financial experience, qualifications, previous roles
-   - Founders: Names, founding roles, equity distribution, backgrounds
-   - Other Executives: Department heads, senior management with specific names
+Combine and deduplicate information from multiple sources. Prioritize the most specific and detailed information. If information conflicts, note both versions.
 
-2. CORPORATE DETAILS:
-   - Exact headquarters address (street, city, state/country)
-   - Incorporation date and jurisdiction
-   - Company registration number
-   - Corporate structure (LLC, Corporation, etc.)
-   - Office locations with addresses
+Output a comprehensive company profile with:
+1. Executive Team (CEO, CTO, CFO, founders, key executives)
+2. Corporate Details (headquarters, incorporation, registration)
+3. Shareholding & Governance (ownership, board members, investors)
+4. Company Structure (employees, departments, subsidiaries)
+5. Financial Information (funding, valuation, revenue)
+6. Key Partnerships and Strategic Alliances
 
-3. SHAREHOLDING & GOVERNANCE:
-   - Ownership percentages with specific shareholder names
-   - Share classes and voting rights
-   - Board members with full names and backgrounds
-   - Advisory board members and their expertise
-   - Major investors with investment amounts and dates
-
-4. COMPANY STRUCTURE:
-   - Total employee count
-   - Department structure and key department heads
-   - Subsidiary companies
-   - Key partnerships and strategic alliances
-
-5. FINANCIAL INFORMATION:
-   - Funding rounds with dates, amounts, and investor names
-   - Current valuation
-   - Revenue figures (if disclosed)
-   - Major contracts or agreements
-
-CRITICAL: Extract only factual information explicitly mentioned in the documents. If specific information is not found, clearly state "Not found in available documents" for that category. Provide exact names, dates, addresses, and percentages where available.`
+Be specific with names, dates, addresses, and percentages. If information is not found, state "Not found in available documents".`
       }, {
         role: "user",
-        content: `Extract detailed company information for ${data.companyName} from this comprehensive analysis:
+        content: `Synthesize these company information extractions for ${data.companyName}:
 
-${comprehensiveContent.substring(0, 80000)}...
-
-Focus on finding specific executive names, corporate details, addresses, shareholding information, and governance structures mentioned in the documents and agent analyses. Look through ALL the OCR content for any mention of CEO names, addresses, incorporation details, shareholding percentages, board members, etc.`
+${combinedExtractions}`
       }],
       temperature: 0.1,
-      max_tokens: 3000
+      max_tokens: 4000
     });
+    
+    console.log(`✅ Multi-pass extraction completed for ${data.companyName}`);
+    
+    return finalSynthesis.choices[0].message.content || 'No specific company information could be extracted from the available documents and analyses.';
+  }
+  
+  private async extractFromContent(content: string, companyName: string, sourceType: string): Promise<string> {
+    try {
+      console.log(`🔍 Extracting from ${sourceType} (${content.length.toLocaleString()} characters)`);
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Extract specific company information from this content. Focus on:
 
-    return response.choices[0].message.content || 'No specific company information could be extracted from the available documents and analyses.';
+1. Executive names and roles (CEO, CTO, CFO, founders)
+2. Corporate details (addresses, incorporation dates, registration numbers)
+3. Shareholding information (ownership percentages, investor names)
+4. Board and governance (board members, advisory board)
+5. Financial information (funding rounds, valuations, revenue)
+6. Company structure (employee count, departments, subsidiaries)
+7. Key partnerships and agreements
+
+Extract only factual information explicitly mentioned. Include exact names, dates, addresses, percentages.`
+        }, {
+          role: "user",
+          content: `Extract company information for ${companyName} from this ${sourceType}:
+
+${content.substring(0, 120000)}`
+        }],
+        temperature: 0.1,
+        max_tokens: 2000
+      });
+      
+      return response.choices[0].message.content || `No information extracted from ${sourceType}`;
+    } catch (error) {
+      console.error(`Error extracting from ${sourceType}:`, error);
+      return `Error processing ${sourceType}`;
+    }
   }
 
   // ==================== MEMO SECTION GENERATORS ====================
