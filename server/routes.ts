@@ -3035,6 +3035,16 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         console.log('WebSocket notification failed:', wsError);
       }
 
+      // 🎯 AUTOMATIC AGENT ASSIGNMENT: Immediately assign this document to relevant agents after AI analysis
+      console.log(`🎯 Starting automatic agent assignment for document ${documentId}: ${document.name}`);
+      
+      try {
+        await assignDocumentToAgentsAutomatically(documentId, document, aiSummary);
+        console.log(`✅ Automatic agent assignment completed for: ${document.name}`);
+      } catch (assignmentError) {
+        console.error(`❌ Automatic agent assignment failed for ${document.name}:`, assignmentError);
+      }
+
       // Check if this document completes a batch and trigger agent analysis
       setTimeout(async () => {
         try {
@@ -5702,6 +5712,115 @@ async function runAgentAnalysisWithPersistence(dealId: number, agentType: string
 }
 
 
+
+// 🎯 AUTOMATIC AGENT ASSIGNMENT: Assign document to relevant agents immediately after AI analysis
+async function assignDocumentToAgentsAutomatically(documentId: number, document: any, aiSummary: any): Promise<void> {
+  try {
+    console.log(`🎯 Auto-assigning document ${documentId} (${document.name}) to relevant agents based on AI analysis...`);
+    
+    // Define enhanced agent assignment logic based on AI summary content
+    const agentAssignments: string[] = [];
+    
+    const summaryText = JSON.stringify(aiSummary).toLowerCase();
+    const docName = document.name.toLowerCase();
+    const docType = document.type?.toLowerCase() || '';
+    
+    // Clinical Agent - Medical, regulatory, clinical trial content
+    if (
+      summaryText.includes('clinical') || summaryText.includes('medical') || summaryText.includes('trial') ||
+      summaryText.includes('patient') || summaryText.includes('regulatory') || summaryText.includes('fda') ||
+      summaryText.includes('drug') || summaryText.includes('device') || summaryText.includes('therapy') ||
+      docName.includes('clinical') || docName.includes('medical') || docName.includes('regulatory')
+    ) {
+      agentAssignments.push('Clinical');
+    }
+    
+    // Legal Agent - Contracts, agreements, legal documents
+    if (
+      summaryText.includes('contract') || summaryText.includes('agreement') || summaryText.includes('legal') ||
+      summaryText.includes('terms') || summaryText.includes('compliance') || summaryText.includes('liability') ||
+      summaryText.includes('employment') || summaryText.includes('shareholder') || summaryText.includes('governance') ||
+      docName.includes('contract') || docName.includes('agreement') || docName.includes('legal') ||
+      docType.includes('pdf') && (docName.includes('term') || docName.includes('employee'))
+    ) {
+      agentAssignments.push('Legal');
+    }
+    
+    // Commercial Agent - Business, market, sales, revenue content (most documents)
+    if (
+      summaryText.includes('market') || summaryText.includes('business') || summaryText.includes('sales') ||
+      summaryText.includes('revenue') || summaryText.includes('customer') || summaryText.includes('commercial') ||
+      summaryText.includes('product') || summaryText.includes('service') || summaryText.includes('competitive') ||
+      summaryText.includes('strategy') || summaryText.includes('growth') || summaryText.includes('partnership') ||
+      docName.includes('business') || docName.includes('market') || docName.includes('pitch') ||
+      docType.includes('pdf') || docType.includes('ppt') || docType.includes('doc')
+    ) {
+      agentAssignments.push('Commercial');
+    }
+    
+    // HR Agent - Human resources, employment, team content
+    if (
+      summaryText.includes('employee') || summaryText.includes('employment') || summaryText.includes('hr') ||
+      summaryText.includes('human resource') || summaryText.includes('payroll') || summaryText.includes('team') ||
+      summaryText.includes('hiring') || summaryText.includes('staff') || summaryText.includes('compensation') ||
+      docName.includes('employee') || docName.includes('hr') || docName.includes('team')
+    ) {
+      agentAssignments.push('HR');
+    }
+    
+    // Financial Agent - Financial data, budgets, accounting
+    if (
+      summaryText.includes('financial') || summaryText.includes('finance') || summaryText.includes('budget') ||
+      summaryText.includes('accounting') || summaryText.includes('revenue') || summaryText.includes('cost') ||
+      summaryText.includes('funding') || summaryText.includes('investment') || summaryText.includes('valuation') ||
+      docName.includes('financial') || docName.includes('budget') || docName.includes('accounting')
+    ) {
+      agentAssignments.push('Financial');
+    }
+    
+    // IP Agent - Intellectual property, patents, technology
+    if (
+      summaryText.includes('patent') || summaryText.includes('trademark') || summaryText.includes('intellectual') ||
+      summaryText.includes('property') || summaryText.includes('innovation') || summaryText.includes('technology') ||
+      summaryText.includes('copyright') || summaryText.includes('licensing') || summaryText.includes('proprietary') ||
+      docName.includes('patent') || docName.includes('ip') || docName.includes('intellectual')
+    ) {
+      agentAssignments.push('IP');
+    }
+    
+    // Research Agent - Research, development, technical content
+    if (
+      summaryText.includes('research') || summaryText.includes('development') || summaryText.includes('r&d') ||
+      summaryText.includes('innovation') || summaryText.includes('technology') || summaryText.includes('study') ||
+      summaryText.includes('technical') || summaryText.includes('whitepaper') || summaryText.includes('academic') ||
+      docName.includes('research') || docName.includes('whitepaper') || docName.includes('technical')
+    ) {
+      agentAssignments.push('Research');
+    }
+    
+    // Fallback: If no specific assignments, assign to Commercial agent (most common)
+    if (agentAssignments.length === 0) {
+      agentAssignments.push('Commercial');
+      console.log(`📝 No specific agent matches found for ${document.name}, defaulting to Commercial agent`);
+    }
+    
+    // Update document with agent assignments
+    const assignedAgents = agentAssignments.join(',');
+    await storage.updateDocument(documentId, { assignedAgents });
+    
+    console.log(`✅ Document ${documentId} (${document.name}) automatically assigned to agents: ${assignedAgents}`);
+    
+  } catch (error) {
+    console.error(`❌ Failed to auto-assign document ${documentId} to agents:`, error);
+    // Fallback to Commercial assignment on error
+    try {
+      await storage.updateDocument(documentId, { assignedAgents: 'Commercial' });
+      console.log(`🔄 Fallback: Document ${documentId} assigned to Commercial agent after error`);
+    } catch (fallbackError) {
+      console.error(`❌ Fallback assignment also failed for document ${documentId}:`, fallbackError);
+    }
+  }
+}
 
 // Document categorization using Mistral AI
 async function categorizeDocumentToAgents(document: any, agents: any): Promise<string[]> {
