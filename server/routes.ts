@@ -39,6 +39,7 @@ import { legalAnalysisService } from './legalAnalysisService';
 import { persistentJobManager } from './PersistentJobManager';
 import persistentAnalysisRoutes from './routes/persistentAnalysis';
 import { safeGetDocumentContent } from './utils/documentUtils';
+import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -706,6 +707,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting documents:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // AI Document Assignment Routes
+  
+  // Assign agents to all documents for a deal
+  app.post('/api/deals/:dealId/assign-agents', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      console.log(`🤖 Starting AI document assignment for deal ${dealId}`);
+      
+      const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId);
+      
+      console.log(`✅ Assignment completed for deal ${dealId}: ${assignments.length} documents processed`);
+      
+      return res.status(200).json({
+        success: true,
+        message: `Successfully assigned agents to ${assignments.length} documents`,
+        assignments,
+        summary: {
+          totalDocuments: assignments.length,
+          agentCounts: assignments.reduce((acc, assignment) => {
+            assignment.assignedAgents.forEach(agent => {
+              acc[agent] = (acc[agent] || 0) + 1;
+            });
+            return acc;
+          }, {} as Record<string, number>)
+        }
+      });
+    } catch (error) {
+      console.error('Error in AI document assignment:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to assign agents to documents',
+        error: String(error)
+      });
+    }
+  });
+
+  // Reassign agents for a specific document
+  app.post('/api/documents/:documentId/reassign-agents', async (req: Request, res: Response) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: 'Invalid document ID' });
+      }
+
+      console.log(`🔄 Reassigning agents for document ${documentId}`);
+      
+      const assignment = await aiDocumentAssignmentService.reassignDocument(documentId);
+      
+      if (!assignment) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Document not found or has no content for analysis' 
+        });
+      }
+      
+      console.log(`✅ Document ${documentId} reassigned to: ${assignment.assignedAgents.join(', ')}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: `Document reassigned to ${assignment.assignedAgents.length} agents`,
+        assignment
+      });
+    } catch (error) {
+      console.error('Error reassigning document:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to reassign document agents',
+        error: String(error)
+      });
+    }
+  });
+
+  // Get assignment statistics for a deal
+  app.get('/api/deals/:dealId/assignment-stats', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      const documents = await storage.getDocumentsByDealId(dealId);
+      
+      const stats = {
+        totalDocuments: documents.length,
+        assignedDocuments: documents.filter(doc => doc.assignedAgents && doc.assignedAgents.length > 0).length,
+        unassignedDocuments: documents.filter(doc => !doc.assignedAgents || doc.assignedAgents.length === 0).length,
+        agentCounts: documents.reduce((acc, doc) => {
+          if (doc.assignedAgents) {
+            doc.assignedAgents.forEach(agent => {
+              acc[agent] = (acc[agent] || 0) + 1;
+            });
+          }
+          return acc;
+        }, {} as Record<string, number>),
+        documentsWithContent: documents.filter(doc => doc.ocrText || doc.aiSummary).length,
+        documentsWithoutContent: documents.filter(doc => !doc.ocrText && !doc.aiSummary).length
+      };
+      
+      return res.status(200).json({
+        success: true,
+        stats
+      });
+    } catch (error) {
+      console.error('Error fetching assignment stats:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to fetch assignment statistics' 
+      });
     }
   });
   
