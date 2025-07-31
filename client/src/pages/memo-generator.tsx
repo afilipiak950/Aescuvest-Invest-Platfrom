@@ -112,7 +112,8 @@ export default function MemoGenerator() {
   // Fetch existing memo if available
   const { data: existingMemo, isLoading: isLoadingMemo } = useQuery({
     queryKey: ['/api/deals', selectedDeal, 'memo'],
-    enabled: !!selectedDeal
+    enabled: !!selectedDeal,
+    staleTime: 1000 * 60 * 60, // 1 hour cache to avoid re-fetching frequently
   });
 
   // Memo generation mutation
@@ -135,10 +136,12 @@ export default function MemoGenerator() {
       setGeneratedMemo(memo);
       toast({
         title: "Investment Memo Generated",
-        description: "Comprehensive memo created using all documents and agent analyses.",
+        description: "Comprehensive memo created and saved. It will persist when you return.",
       });
-      // Invalidate memo query to refetch if stored
+      // Invalidate memo query to refetch the newly saved memo from database
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      // Clear the temporary generated memo since it's now saved in database
+      setTimeout(() => setGeneratedMemo(null), 1000);
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
@@ -165,7 +168,8 @@ export default function MemoGenerator() {
   
   const isLoading = isLoadingDeals || isLoadingMemo;
   const isGenerating = generateMemoMutation.isPending;
-  const currentMemo = generatedMemo || existingMemo?.memo;
+  // Use existing memo from database first, then fallback to newly generated memo
+  const currentMemo = existingMemo?.memo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
   return (
@@ -1218,6 +1222,11 @@ export default function MemoGenerator() {
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Generating...
                       </>
+                    ) : existingMemo?.memo ? (
+                      <>
+                        <Brain className="h-4 w-4 mr-2" />
+                        Regenerate Memo
+                      </>
                     ) : (
                       <>
                         <Brain className="h-4 w-4 mr-2" />
@@ -1225,6 +1234,18 @@ export default function MemoGenerator() {
                       </>
                     )}
                   </Button>
+
+                  {existingMemo?.memo && (
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <span className="text-green-400 text-sm font-medium">Saved Memo Available</span>
+                      </div>
+                      <p className="text-green-300 text-xs">
+                        Generated on {existingMemo.createdAt ? new Date(existingMemo.createdAt).toLocaleDateString() : 'Unknown date'}
+                      </p>
+                    </div>
+                  )}
                   
                   {currentMemo && (
                     <div className="space-y-2">
