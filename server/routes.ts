@@ -4777,11 +4777,33 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      // TODO: Get stored memo from database
-      res.json({
-        success: true,
-        memo: null // No stored memos yet
-      });
+      if (isNaN(dealId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid deal ID'
+        });
+      }
+      
+      console.log(`📋 Fetching saved memo for deal ${dealId}`);
+      
+      // Get stored memo from database
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      
+      if (existingMemo) {
+        console.log(`✅ Found saved memo for deal ${dealId}, created at ${existingMemo.createdAt}`);
+        res.json({
+          success: true,
+          memo: existingMemo.memo,
+          createdAt: existingMemo.createdAt,
+          updatedAt: existingMemo.updatedAt
+        });
+      } else {
+        console.log(`📋 No saved memo found for deal ${dealId}`);
+        res.json({
+          success: true,
+          memo: null
+        });
+      }
     } catch (error) {
       console.error('❌ Get memo error:', error);
       res.status(500).json({
@@ -6468,11 +6490,33 @@ export async function registerAllRoutes(app: Express) {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      // TODO: Get stored memo from database
-      res.json({
-        success: true,
-        memo: null // No stored memos yet
-      });
+      if (isNaN(dealId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid deal ID'
+        });
+      }
+      
+      console.log(`📋 Fetching saved memo for deal ${dealId}`);
+      
+      // Get stored memo from database
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      
+      if (existingMemo) {
+        console.log(`✅ Found saved memo for deal ${dealId}, created at ${existingMemo.createdAt}`);
+        res.json({
+          success: true,
+          memo: existingMemo.memo,
+          createdAt: existingMemo.createdAt,
+          updatedAt: existingMemo.updatedAt
+        });
+      } else {
+        console.log(`📋 No saved memo found for deal ${dealId}`);
+        res.json({
+          success: true,
+          memo: null
+        });
+      }
     } catch (error) {
       console.error('❌ Get memo error:', error);
       res.status(500).json({
