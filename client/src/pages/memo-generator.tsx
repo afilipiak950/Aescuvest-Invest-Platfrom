@@ -145,9 +145,24 @@ export default function MemoGenerator() {
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
+      
+      // Handle specific error types
+      let title = "Generation Failed";
+      let description = "Failed to generate investment memo. Please try again.";
+      
+      if (error?.message?.includes('quota') || error?.message?.includes('429')) {
+        title = "API Quota Exceeded";
+        description = "OpenAI API quota has been exceeded. Please check your billing and upgrade your plan if needed.";
+      } else if (error?.message?.includes('rate limit')) {
+        title = "Rate Limit Exceeded";
+        description = "Too many requests. Please wait a moment and try again.";
+      } else if (error?.message) {
+        description = error.message;
+      }
+      
       toast({
-        title: "Generation Failed",
-        description: error?.message || "Failed to generate investment memo. Please try again.",
+        title,
+        description,
         variant: "destructive",
       });
     }
