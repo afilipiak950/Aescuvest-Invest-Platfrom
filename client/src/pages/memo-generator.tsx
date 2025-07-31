@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, Brain, TrendingUp } from 'lucide-react';
+import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -549,7 +549,13 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Valuation</h4>
-                              <div className="text-gray-300 text-sm">{currentMemo.investmentTerms.valuation}</div>
+                              <div className="text-gray-300 text-sm">
+                                {typeof currentMemo.investmentTerms.valuation === 'string' 
+                                  ? currentMemo.investmentTerms.valuation 
+                                  : typeof currentMemo.investmentTerms.valuation === 'object' && currentMemo.investmentTerms.valuation !== null
+                                  ? JSON.stringify(currentMemo.investmentTerms.valuation, null, 2)
+                                  : String(currentMemo.investmentTerms.valuation || 'No valuation information available')}
+                              </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Funding Amount</h4>
@@ -557,11 +563,23 @@ export default function MemoGenerator() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Securities</h4>
-                              <div className="text-gray-300 text-sm">{currentMemo.investmentTerms.securities}</div>
+                              <div className="text-gray-300 text-sm">
+                                {typeof currentMemo.investmentTerms.securities === 'string' 
+                                  ? currentMemo.investmentTerms.securities 
+                                  : typeof currentMemo.investmentTerms.securities === 'object' && currentMemo.investmentTerms.securities !== null
+                                  ? JSON.stringify(currentMemo.investmentTerms.securities, null, 2)
+                                  : String(currentMemo.investmentTerms.securities || 'No securities information available')}
+                              </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Board Rights</h4>
-                              <div className="text-gray-300 text-sm">{currentMemo.investmentTerms.boardRights}</div>
+                              <div className="text-gray-300 text-sm">
+                                {typeof currentMemo.investmentTerms.boardRights === 'string' 
+                                  ? currentMemo.investmentTerms.boardRights 
+                                  : typeof currentMemo.investmentTerms.boardRights === 'object' && currentMemo.investmentTerms.boardRights !== null
+                                  ? JSON.stringify(currentMemo.investmentTerms.boardRights, null, 2)
+                                  : String(currentMemo.investmentTerms.boardRights || 'No board rights information available')}
+                              </div>
                             </div>
                             <div className="md:col-span-2">
                               <h4 className="font-semibold text-gray-200 mb-2">Liquidation Preference</h4>
@@ -918,20 +936,95 @@ export default function MemoGenerator() {
                   </Button>
                   
                   {currentMemo && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
-                      onClick={() => {
-                        // TODO: Implement export functionality
-                        toast({
-                          title: "Export Feature",
-                          description: "Export functionality will be added soon.",
-                        });
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export PDF
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline" 
+                        className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/deals/${selectedDeal}/export-pdf`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error('Export failed');
+                            }
+                            
+                            // Create blob and download
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `Investment_Memo_${selectedDealData?.companyName || 'Company'}_${new Date().toISOString().split('T')[0]}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            toast({
+                              title: "PDF Export Complete",
+                              description: "Investment memo has been exported as PDF with BAIBYS structure.",
+                            });
+                          } catch (error) {
+                            toast({
+                              title: "Export Failed",
+                              description: "Failed to export PDF. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Export PDF
+                      </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/deals/${selectedDeal}/export-docx`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error('Export failed');
+                            }
+                            
+                            // Create blob and download
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `Investment_Memo_${selectedDealData?.companyName || 'Company'}_${new Date().toISOString().split('T')[0]}.docx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            toast({
+                              title: "Word Export Complete", 
+                              description: "Investment memo has been exported as Word document with BAIBYS structure.",
+                            });
+                          } catch (error) {
+                            toast({
+                              title: "Export Failed",
+                              description: "Failed to export Word document. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Word
+                      </Button>
+                    </div>
                   )}
                 </div>
                 
