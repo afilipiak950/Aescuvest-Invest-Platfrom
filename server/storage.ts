@@ -73,6 +73,9 @@ export interface IStorage {
   getAllMemos(): Promise<InvestmentMemo[]>;
   getMemoById(id: number): Promise<InvestmentMemo | undefined>;
   getMemoByDealId(dealId: number): Promise<InvestmentMemo | undefined>;
+  createMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo>;
+  updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined>;
+  deleteMemosByDealId(dealId: number): Promise<number>;
   createInvestmentMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo>;
   updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined>;
   
@@ -872,24 +875,54 @@ export class DatabaseStorage implements IStorage {
     return deletedCount;
   }
 
+  // Investment memo methods - full implementation
   async getAllMemos(): Promise<InvestmentMemo[]> {
-    return [];
+    return await db.select().from(investmentMemos).orderBy(desc(investmentMemos.createdAt));
   }
 
   async getMemoById(id: number): Promise<InvestmentMemo | undefined> {
-    return undefined;
+    const result = await db.select().from(investmentMemos).where(eq(investmentMemos.id, id));
+    return result[0];
   }
 
   async getMemoByDealId(dealId: number): Promise<InvestmentMemo | undefined> {
-    return undefined;
+    const result = await db.select().from(investmentMemos)
+      .where(and(eq(investmentMemos.dealId, dealId), eq(investmentMemos.isActive, true)))
+      .orderBy(desc(investmentMemos.createdAt));
+    return result[0];
   }
 
-  async createInvestmentMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo> {
-    throw new Error('Not implemented');
+  async createMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo> {
+    // First, deactivate any existing active memos for this deal
+    await db.update(investmentMemos)
+      .set({ isActive: false })
+      .where(and(eq(investmentMemos.dealId, memo.dealId), eq(investmentMemos.isActive, true)));
+
+    // Create new memo as active
+    const [newMemo] = await db.insert(investmentMemos).values({
+      ...memo,
+      isActive: true
+    }).returning();
+    
+    console.log(`💾 Created new investment memo for deal ${memo.dealId}`);
+    return newMemo;
   }
 
   async updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined> {
-    return undefined;
+    const [updatedMemo] = await db.update(investmentMemos)
+      .set(data)
+      .where(eq(investmentMemos.id, id))
+      .returning();
+    
+    return updatedMemo;
+  }
+
+  async deleteMemosByDealId(dealId: number): Promise<number> {
+    const result = await db.delete(investmentMemos)
+      .where(eq(investmentMemos.dealId, dealId));
+    
+    console.log(`🗑️ Deleted ${result.rowCount || 0} memos for deal ${dealId}`);
+    return result.rowCount || 0;
   }
 
   async getAllInvestors(): Promise<Investor[]> {

@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
 import { FormattedContent, SectionHeader, InfoGrid } from '@/components/FormattedContent';
+import { ProfessionalFormattedContent, ProfessionalInfoGrid } from '@/components/ProfessionalFormattedContent';
 
 interface ComprehensiveMemo {
   coverPage: string;                        // Professional cover page
@@ -165,7 +166,7 @@ export default function MemoGenerator() {
   const isLoading = isLoadingDeals || isLoadingMemo;
   const isGenerating = generateMemoMutation.isPending;
   const currentMemo = generatedMemo || existingMemo?.memo;
-  const selectedDealData = deals?.find(d => d.id.toString() === selectedDeal);
+  const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
   return (
     <div className="container mx-auto px-4 py-6">
@@ -189,7 +190,7 @@ export default function MemoGenerator() {
                     <SelectValue placeholder="Select a deal to generate memo" />
                   </SelectTrigger>
                   <SelectContent className="bg-dark-lighter border-dark-lighter">
-                    {deals?.map(deal => (
+                    {Array.isArray(deals) && deals.map((deal: any) => (
                       <SelectItem key={deal.id} value={deal.id.toString()}>
                         {deal.companyName} - {deal.stage} {deal.id === 33 ? "✅ (100 docs + analyses)" : deal.id === 22 ? "✅ (263 docs)" : deal.id === 18 ? "✅ (263 docs)" : "❌ (no data)"}
                       </SelectItem>
@@ -334,7 +335,7 @@ export default function MemoGenerator() {
                             title="Market Analysis" 
                             subtitle="Market size, timing, and competitive landscape assessment"
                           />
-                          <InfoGrid 
+                          <ProfessionalInfoGrid 
                             items={[
                               { label: "Market Context", content: currentMemo.marketAnalysis.marketContext },
                               { label: "Market Timing", content: currentMemo.marketAnalysis.marketTiming },
@@ -356,7 +357,7 @@ export default function MemoGenerator() {
                             title="Product & Technology Analysis" 
                             subtitle="Product overview and technological differentiation"
                           />
-                          <InfoGrid 
+                          <ProfessionalInfoGrid 
                             items={[
                               { label: "Product Overview", content: currentMemo.productAnalysis.productOverview },
                               { label: "Technology Advantage", content: currentMemo.productAnalysis.technologyAdvantage },
@@ -375,7 +376,7 @@ export default function MemoGenerator() {
                             title="Business Model" 
                             subtitle="Revenue strategy and customer acquisition approach"
                           />
-                          <InfoGrid 
+                          <ProfessionalInfoGrid 
                             items={[
                               { label: "Revenue Model", content: currentMemo.businessModel.revenueModel },
                               { label: "Pricing Strategy", content: currentMemo.businessModel.pricingStrategy },
@@ -397,7 +398,7 @@ export default function MemoGenerator() {
                           <div className="space-y-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-3">Management</h4>
-                              <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.management)} variant="small" />
+                              <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.management)} variant="small" />
                             </div>
                             {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
                               <div>
@@ -420,16 +421,16 @@ export default function MemoGenerator() {
                             {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
                               <div>
                                 <h4 className="font-semibold text-gray-200 mb-3">Key Personnel</h4>
-                                <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.keyPersonnel)} variant="small" />
+                                <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.keyPersonnel)} variant="small" />
                               </div>
                             )}
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-3">Advisors</h4>
-                              <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.advisors)} variant="small" />
+                              <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.advisors)} variant="small" />
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-3">Board Composition</h4>
-                              <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.boardComposition)} variant="small" />
+                              <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.boardComposition)} variant="small" />
                             </div>
                           </div>
                         </div>
@@ -442,7 +443,7 @@ export default function MemoGenerator() {
                             title="Commercial Analysis" 
                             subtitle="Commercial viability and market readiness assessment"
                           />
-                          <FormattedContent content={currentMemo.commercialAnalysis} variant="default" />
+                          <ProfessionalFormattedContent content={currentMemo.commercialAnalysis} variant="default" className="bg-gray-800/30 p-4 rounded-md border border-gray-600" />
                         </div>
                       )}
 
@@ -453,7 +454,7 @@ export default function MemoGenerator() {
                             title="Clinical Assessment" 
                             subtitle="Clinical evaluation and regulatory pathway analysis"
                           />
-                          <FormattedContent content={currentMemo.clinicalAssessment} variant="default" />
+                          <ProfessionalFormattedContent content={currentMemo.clinicalAssessment} variant="default" className="bg-gray-800/30 p-4 rounded-md border border-gray-600" />
                         </div>
                       )}
 
@@ -464,7 +465,7 @@ export default function MemoGenerator() {
                             title="Intellectual Property Analysis" 
                             subtitle="Patent portfolio and IP protection strategy"
                           />
-                          <FormattedContent content={currentMemo.ipAnalysis} variant="default" />
+                          <ProfessionalFormattedContent content={currentMemo.ipAnalysis} variant="default" className="bg-gray-800/30 p-4 rounded-md border border-gray-600" />
                         </div>
                       )}
 

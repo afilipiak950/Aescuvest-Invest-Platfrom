@@ -522,6 +522,8 @@ export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema
 
 
 
+
+
 // Data Room Connections table
 export const dataRoomConnections = pgTable("data_room_connections", {
   id: serial("id").primaryKey(),
