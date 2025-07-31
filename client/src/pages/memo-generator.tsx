@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import PageHeader from '@/components/layout/page-header';
 import MemoSection from '@/components/memo-generator/memo-section';
 import MemoControls from '@/components/memo-generator/memo-controls';
@@ -274,7 +276,9 @@ export default function MemoGenerator() {
                       {currentMemo?.coverPage && (
                         <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg p-8">
                           <h3 className="text-2xl font-bold text-white mb-4">Investment Memorandum</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.coverPage}</div>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.coverPage}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
                       
@@ -285,7 +289,9 @@ export default function MemoGenerator() {
                             <TrendingUp className="h-5 w-5 mr-2 text-blue-400" />
                             Executive Summary
                           </h3>
-                          <div className="text-gray-300 leading-relaxed whitespace-pre-line">{currentMemo.executiveSummary}</div>
+                          <div className="text-gray-300 leading-relaxed prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.executiveSummary}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
@@ -313,11 +319,15 @@ export default function MemoGenerator() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Market Context</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.marketAnalysis.marketContext}</div>
+                              <div className="text-gray-300 text-sm prose prose-invert max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.marketAnalysis.marketContext}</ReactMarkdown>
+                              </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Market Timing</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.marketAnalysis.marketTiming}</div>
+                              <div className="text-gray-300 text-sm prose prose-invert max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.marketAnalysis.marketTiming}</ReactMarkdown>
+                              </div>
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">TAM/SAM/SOM</h4>
@@ -329,7 +339,9 @@ export default function MemoGenerator() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-200 mb-2">Competitive Landscape</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">{currentMemo.marketAnalysis.competitiveLandscape}</div>
+                              <div className="text-gray-300 text-sm prose prose-invert max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.marketAnalysis.competitiveLandscape}</ReactMarkdown>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -420,7 +432,9 @@ export default function MemoGenerator() {
                       {currentMemo?.commercialAnalysis && (
                         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Commercial Analysis</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.commercialAnalysis}</div>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.commercialAnalysis}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
@@ -428,7 +442,9 @@ export default function MemoGenerator() {
                       {currentMemo?.clinicalAssessment && (
                         <div className="bg-gradient-to-r from-red-500/10 to-pink-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Clinical Assessment</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.clinicalAssessment}</div>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.clinicalAssessment}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
@@ -662,7 +678,9 @@ export default function MemoGenerator() {
                       {currentMemo?.regulatoryAnalysis && (
                         <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Regulatory Analysis</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.regulatoryAnalysis}</div>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.regulatoryAnalysis}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
                     </TabsContent>
@@ -677,7 +695,9 @@ export default function MemoGenerator() {
                               <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-primary text-white mb-3">
                                 {currentMemo.recommendation.investment_recommendation}
                               </span>
-                              <div className="text-gray-300 whitespace-pre-line">{currentMemo.recommendation.rationale}</div>
+                              <div className="text-gray-300 prose prose-invert max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.recommendation.rationale}</ReactMarkdown>
+                              </div>
                             </div>
                             {currentMemo.recommendation.keyMilestones.length > 0 && (
                               <div>
@@ -704,7 +724,9 @@ export default function MemoGenerator() {
                       {currentMemo?.exitStrategy && (
                         <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Exit Strategy Analysis</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.exitStrategy}</div>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.exitStrategy}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
@@ -712,7 +734,9 @@ export default function MemoGenerator() {
                       {currentMemo?.appendices && (
                         <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-6">
                           <h3 className="text-xl font-bold text-white mb-4">Appendices</h3>
-                          <div className="text-gray-300 whitespace-pre-line">{currentMemo.appendices}</div>
+                          <div className="text-gray-300 prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.appendices}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
                     </TabsContent>
