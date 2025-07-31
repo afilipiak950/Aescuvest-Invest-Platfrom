@@ -36,17 +36,29 @@ export function FormattedContent({ content, className = '', variant = 'default' 
           return (
             <div key={index} className={index > 0 ? 'mt-4' : ''}>
               {items.map((item, itemIndex) => {
-                if (item.trim().startsWith('•')) {
+                const trimmedItem = item.trim();
+                
+                // Check if this is actually a bullet point (starts with •) 
+                // and not a subheading that happens to contain • or end with :
+                if (trimmedItem.startsWith('•') && !trimmedItem.match(/^[^:]+:\s*$/)) {
                   return (
                     <div key={itemIndex} className="flex items-start mb-2">
                       <span className="text-primary mt-1 mr-3 flex-shrink-0">•</span>
-                      <span className="text-gray-300">{item.replace(/^•\s*/, '').trim()}</span>
+                      <span className="text-gray-300">{trimmedItem.replace(/^•\s*/, '').trim()}</span>
                     </div>
                   );
+                } else if (trimmedItem.endsWith(':') && !trimmedItem.startsWith('•')) {
+                  // This is a subheading - render as bold heading
+                  return (
+                    <h4 key={itemIndex} className="font-semibold text-gray-200 mb-2 mt-4">
+                      {trimmedItem}
+                    </h4>
+                  );
                 } else {
+                  // Regular text content
                   return (
                     <div key={itemIndex} className="text-gray-300 mb-2">
-                      {item.trim()}
+                      {trimmedItem}
                     </div>
                   );
                 }
@@ -54,12 +66,22 @@ export function FormattedContent({ content, className = '', variant = 'default' 
             </div>
           );
         } else {
-          // Regular paragraph
-          return (
-            <p key={index} className={`text-gray-300 ${index > 0 ? 'mt-4' : ''}`}>
-              {paragraph.trim()}
-            </p>
-          );
+          // Check if this is a standalone subheading
+          const trimmedParagraph = paragraph.trim();
+          if (trimmedParagraph.endsWith(':') && trimmedParagraph.split('\n').length === 1) {
+            return (
+              <h4 key={index} className={`font-semibold text-gray-200 mb-2 ${index > 0 ? 'mt-4' : ''}`}>
+                {trimmedParagraph}
+              </h4>
+            );
+          } else {
+            // Regular paragraph
+            return (
+              <p key={index} className={`text-gray-300 ${index > 0 ? 'mt-4' : ''}`}>
+                {trimmedParagraph}
+              </p>
+            );
+          }
         }
       })}
     </div>
