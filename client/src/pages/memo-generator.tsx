@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import PageHeader from '@/components/layout/page-header';
 import MemoSection from '@/components/memo-generator/memo-section';
 import MemoControls from '@/components/memo-generator/memo-controls';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';

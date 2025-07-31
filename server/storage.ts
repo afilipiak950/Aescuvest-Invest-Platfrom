@@ -887,22 +887,18 @@ export class DatabaseStorage implements IStorage {
 
   async getMemoByDealId(dealId: number): Promise<InvestmentMemo | undefined> {
     const result = await db.select().from(investmentMemos)
-      .where(and(eq(investmentMemos.dealId, dealId), eq(investmentMemos.isActive, true)))
+      .where(eq(investmentMemos.dealId, dealId))
       .orderBy(desc(investmentMemos.createdAt));
     return result[0];
   }
 
   async createMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo> {
-    // First, deactivate any existing active memos for this deal
-    await db.update(investmentMemos)
-      .set({ isActive: false })
-      .where(and(eq(investmentMemos.dealId, memo.dealId), eq(investmentMemos.isActive, true)));
+    // Delete any existing memos for this deal to ensure only one active memo
+    await db.delete(investmentMemos)
+      .where(eq(investmentMemos.dealId, memo.dealId));
 
-    // Create new memo as active
-    const [newMemo] = await db.insert(investmentMemos).values({
-      ...memo,
-      isActive: true
-    }).returning();
+    // Create new memo
+    const [newMemo] = await db.insert(investmentMemos).values(memo).returning();
     
     console.log(`💾 Created new investment memo for deal ${memo.dealId}`);
     return newMemo;
