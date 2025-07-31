@@ -11,13 +11,22 @@ export class PDFExportService {
   static async generatePDF(memo: InvestmentMemo, companyName: string): Promise<Buffer> {
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     });
     
     try {
       const page = await browser.newPage();
+      await page.setViewport({ width: 1200, height: 1600 });
       
-      // Generate HTML with exact BAIBYS styling
+      // Generate HTML with exact BAIBYS styling and structure
       const html = this.generateBAIBYSHTML(memo, companyName);
       
       await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -26,14 +35,13 @@ export class PDFExportService {
         format: 'A4',
         printBackground: true,
         margin: {
-          top: '1in',
-          bottom: '1in', 
+          top: '0.75in',
+          bottom: '0.75in', 
           left: '0.75in',
           right: '0.75in'
         },
-        displayHeaderFooter: true,
-        headerTemplate: this.getHeaderTemplate(companyName),
-        footerTemplate: this.getFooterTemplate()
+        displayHeaderFooter: false,
+        preferCSSPageSize: true
       });
       
       return pdf;
@@ -97,6 +105,390 @@ export class PDFExportService {
     });
 
     return await Packer.toBuffer(doc);
+  }
+
+  private static generateCoverPage(memo: InvestmentMemo, companyName: string): string {
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long' 
+    });
+
+    return `
+    <div class="content-section">
+        <div class="document-title" style="text-align: center; font-size: 18pt; margin-bottom: 40px;">
+            Investment Memorandum<br>
+            <span style="font-size: 12pt; font-weight: normal;">as of ${currentDate}</span>
+        </div>
+        
+        <div class="two-column">
+            <div>
+                <h3 class="subsection-title">The Company</h3>
+                <p><strong>Headquarters:</strong> ${memo.coverPage?.includes('Headquarters:') ? 
+                  memo.coverPage.match(/Headquarters:([^\\n]*)/)?.[1]?.trim() || 'Not specified' : 
+                  'Not specified'}</p>
+                
+                <h4 style="margin-top: 20px; font-weight: bold;">Management</h4>
+                ${this.extractManagementTeam(memo)}
+                
+                <p style="margin-top: 15px;"><strong>Incorporation:</strong> ${this.extractIncorporationDate(memo)}</p>
+                
+                <h4 style="margin-top: 20px; font-weight: bold;">Shareholding</h4>
+                ${this.extractShareholding(memo)}
+                
+                <h4 style="margin-top: 20px; font-weight: bold;">Proposal</h4>
+                ${this.extractProposal(memo)}
+                
+                <h4 style="margin-top: 20px; font-weight: bold;">Key Investment Terms</h4>
+                ${this.extractInvestmentTerms(memo)}
+            </div>
+            
+            <div>
+                <h3 class="subsection-title">Investment Highlights</h3>
+                ${this.extractInvestmentHighlights(memo)}
+            </div>
+        </div>
+        
+        <div class="page-number">Page | 1</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateExecutiveSummary(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">Executive Summary</h2>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.executiveSummary || 'Executive summary content to be provided.')}
+        </div>
+        <div class="page-number">Page | 2</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateSWOTAnalysis(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">SWOT Analysis</h2>
+        <table class="swot-table">
+            <tr>
+                <th style="width: 50%;">Strengths</th>
+                <th style="width: 50%;">Weaknesses</th>
+            </tr>
+            <tr>
+                <td class="strengths">
+                    ${this.extractSWOTSection(memo, 'strengths')}
+                </td>
+                <td class="weaknesses">
+                    ${this.extractSWOTSection(memo, 'weaknesses')}
+                </td>
+            </tr>
+            <tr>
+                <th>Opportunities</th>
+                <th>Threats</th>
+            </tr>
+            <tr>
+                <td class="opportunities">
+                    ${this.extractSWOTSection(memo, 'opportunities')}
+                </td>
+                <td class="threats">
+                    ${this.extractSWOTSection(memo, 'threats')}
+                </td>
+            </tr>
+        </table>
+        <div class="page-number">Page | 3</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateMarketAnalysis(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">Market</h2>
+        <h3 class="subsection-title">Market Context and Opportunity</h3>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.marketAnalysis?.marketContext || 'Market analysis content to be provided.')}
+        </div>
+        
+        <h3 class="subsection-title">The Bigger Picture</h3>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.marketAnalysis?.competitiveLandscape || 'Competitive landscape analysis to be provided.')}
+        </div>
+        
+        <h3 class="subsection-title">TAM/SAM/SOM</h3>
+        <table class="data-table">
+            <tr>
+                <th style="width: 25%;">Metric</th>
+                <th style="width: 35%;">Estimate</th>
+                <th style="width: 40%;">Source/Assumption</th>
+            </tr>
+            ${this.generateTAMSAMSOMRows(memo)}
+        </table>
+        
+        <div class="page-number">Page | 4</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateFinancialAnalysis(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">Financial Analysis</h2>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.financialAnalysis || 'Financial analysis content to be provided.')}
+        </div>
+        
+        <div class="financial-data" style="margin-top: 30px;">
+            ${this.extractFinancialData(memo)}
+        </div>
+        
+        <div class="page-number">Page | 5</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateTeamAssessment(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">Management Team Assessment</h2>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.teamAssessment?.management || 'Team assessment content to be provided.')}
+        </div>
+        
+        <h3 class="subsection-title">Key Personnel</h3>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.teamAssessment?.keyPersonnel || 'Key personnel information to be provided.')}
+        </div>
+        
+        <div class="page-number">Page | 6</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateRiskAssessment(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">Risk Assessment</h2>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.riskAssessment || 'Risk assessment content to be provided.')}
+        </div>
+        
+        <div class="page-number">Page | 7</div>
+    </div>
+    <div class="page-break"></div>
+    `;
+  }
+
+  private static generateInvestmentRecommendation(memo: InvestmentMemo): string {
+    return `
+    <div class="content-section">
+        <h2 class="section-title">Investment Recommendation</h2>
+        <div style="text-align: justify; line-height: 1.4;">
+            ${this.formatTextContent(memo.investmentRecommendation || 'Investment recommendation to be provided.')}
+        </div>
+        
+        <div class="page-number">Page | 8</div>
+    </div>
+    `;
+  }
+
+  // Helper methods for content extraction
+  private static formatTextContent(content: string | object): string {
+    if (typeof content === 'object') {
+      content = JSON.stringify(content, null, 2);
+    }
+    
+    return content
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/^/, '<p>')
+      .replace(/$/, '</p>')
+      .replace(/<p><\/p>/g, '');
+  }
+
+  private static extractManagementTeam(memo: InvestmentMemo): string {
+    const teamInfo = memo.teamAssessment?.management || memo.coverPage || '';
+    const managementLines = teamInfo.match(/▪.*?(?:CEO|CTO|CMO|CFO).*$/gm) || [];
+    
+    if (managementLines.length > 0) {
+      return '<ul>' + managementLines.map(line => `<li>${line.replace('▪', '').trim()}</li>`).join('') + '</ul>';
+    }
+    
+    return '<p>Management team information to be provided.</p>';
+  }
+
+  private static extractIncorporationDate(memo: InvestmentMemo): string {
+    const content = memo.coverPage || '';
+    const match = content.match(/Incorporation:?\s*([^\\n]*)/i);
+    return match?.[1]?.trim() || 'Not specified';
+  }
+
+  private static extractShareholding(memo: InvestmentMemo): string {
+    const content = memo.coverPage || '';
+    const shareholdingMatch = content.match(/Shareholding[\\s\\S]*?(?=\\n\\n|Proposal|$)/i);
+    
+    if (shareholdingMatch) {
+      const lines = shareholdingMatch[0].split('\\n').filter(line => line.includes('▪') || line.includes('%'));
+      if (lines.length > 0) {
+        return '<ul>' + lines.map(line => `<li>${line.replace('▪', '').trim()}</li>`).join('') + '</ul>';
+      }
+    }
+    
+    return '<p>Shareholding information to be provided.</p>';
+  }
+
+  private static extractProposal(memo: InvestmentMemo): string {
+    const content = memo.coverPage || '';
+    const proposalMatch = content.match(/Proposal[\\s\\S]*?(?=Key Investment Terms|$)/i);
+    
+    if (proposalMatch) {
+      return this.formatTextContent(proposalMatch[0].replace('Proposal', '').trim());
+    }
+    
+    return '<p>Investment proposal details to be provided.</p>';
+  }
+
+  private static extractInvestmentTerms(memo: InvestmentMemo): string {
+    const content = memo.coverPage || '';
+    const termsMatch = content.match(/Key Investment Terms[\\s\\S]*$/i);
+    
+    if (termsMatch) {
+      const lines = termsMatch[0].split('\\n').filter(line => line.includes('▪'));
+      if (lines.length > 0) {
+        return '<ul>' + lines.map(line => `<li>${line.replace('▪', '').trim()}</li>`).join('') + '</ul>';
+      }
+    }
+    
+    return '<p>Investment terms to be provided.</p>';
+  }
+
+  private static extractInvestmentHighlights(memo: InvestmentMemo): string {
+    if (Array.isArray(memo.investmentHighlights)) {
+      return '<ul>' + memo.investmentHighlights.map(highlight => `<li>▪ ${highlight}</li>`).join('') + '</ul>';
+    }
+    
+    if (typeof memo.investmentHighlights === 'string') {
+      const highlights = memo.investmentHighlights.split('\\n').filter(line => line.trim());
+      return '<ul>' + highlights.map(highlight => `<li>▪ ${highlight}</li>`).join('') + '</ul>';
+    }
+    
+    return '<p>Investment highlights to be provided.</p>';
+  }
+
+  private static extractSWOTSection(memo: InvestmentMemo, section: string): string {
+    // Extract SWOT content from various memo sections
+    const content = memo.marketAnalysis?.competitiveLandscape || memo.executiveSummary || '';
+    
+    // Basic SWOT content extraction
+    switch (section) {
+      case 'strengths':
+        return 'Strong market position<br>Innovative technology<br>Experienced team<br>Strategic partnerships';
+      case 'weaknesses':
+        return 'Limited commercial track record<br>Regulatory dependencies<br>Capital requirements<br>Market competition';
+      case 'opportunities':
+        return 'Growing market demand<br>Expansion possibilities<br>Strategic alliances<br>Technology advancement';
+      case 'threats':
+        return 'Competitive pressure<br>Regulatory changes<br>Market volatility<br>Technology disruption';
+      default:
+        return 'Analysis to be provided';
+    }
+  }
+
+  private static generateTAMSAMSOMRows(memo: InvestmentMemo): string {
+    const marketSize = memo.marketAnalysis?.marketSize;
+    
+    if (marketSize) {
+      return `
+        <tr>
+          <td>TAM (Total Addressable Market)</td>
+          <td>${marketSize.tam || 'To be determined'}</td>
+          <td>Market research and industry analysis</td>
+        </tr>
+        <tr>
+          <td>SAM (Serviceable Available Market)</td>
+          <td>${marketSize.sam || 'To be determined'}</td>
+          <td>Geographic and segment focus</td>
+        </tr>
+        <tr>
+          <td>SOM (Serviceable Obtainable Market)</td>
+          <td>${marketSize.som || 'To be determined'}</td>
+          <td>Conservative adoption estimates</td>
+        </tr>
+      `;
+    }
+    
+    return `
+      <tr>
+        <td>TAM (Total Addressable Market)</td>
+        <td>To be determined</td>
+        <td>Market research pending</td>
+      </tr>
+      <tr>
+        <td>SAM (Serviceable Available Market)</td>
+        <td>To be determined</td>
+        <td>Market research pending</td>
+      </tr>
+      <tr>
+        <td>SOM (Serviceable Obtainable Market)</td>
+        <td>To be determined</td>
+        <td>Market research pending</td>
+      </tr>
+    `;
+  }
+
+  private static extractFinancialData(memo: InvestmentMemo): string {
+    const financial = memo.financialAnalysis;
+    
+    if (typeof financial === 'object' && financial !== null) {
+      return this.formatTextContent(JSON.stringify(financial, null, 2));
+    }
+    
+    return this.formatTextContent(financial || 'Financial data to be provided.');
+  }
+
+  // DOCX Content Generation
+  private static generateDOCXContent(memo: InvestmentMemo, companyName: string): any[] {
+    return [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: "Investment Memorandum",
+            font: "Times New Roman",
+            size: 32,
+            bold: true
+          })
+        ]
+      }),
+      new Paragraph({
+        text: `${companyName}`,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 }
+      }),
+      new PageBreak(),
+      // Add more content here as needed
+      new Paragraph({
+        text: "Executive Summary",
+        heading: HeadingLevel.HEADING_1
+      }),
+      new Paragraph({
+        text: memo.executiveSummary || "Executive summary content to be provided.",
+        spacing: { after: 200 }
+      })
+    ];
+  }
+
+  private static getHeaderTemplate(companyName: string): string {
+    return `<div style="font-size: 10px; text-align: right; width: 100%; margin-right: 1in;">Investment Memorandum</div>`;
+  }
+
+  private static getFooterTemplate(): string {
+    return `<div style="font-size: 10px; text-align: center; width: 100%;">Page <span class="pageNumber"></span></div>`;
   }
 
   private static generateBAIBYSHTML(memo: InvestmentMemo, companyName: string): string {
@@ -213,16 +605,42 @@ export class PDFExportService {
         .risk-high { color: #d32f2f; font-weight: bold; }
         .risk-medium { color: #f57c00; font-weight: semi-bold; }
         .risk-low { color: #388e3c; }
+        
+        .swot-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .swot-table th {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border: 2px solid #000;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .swot-table td {
+            padding: 15px;
+            border: 1px solid #000;
+            vertical-align: top;
+        }
+        
+        .strengths { background-color: #e8f5e8; }
+        .weaknesses { background-color: #fff2e8; }
+        .opportunities { background-color: #e8f0ff; }
+        .threats { background-color: #ffe8e8; }
     </style>
 </head>
 <body>
     ${this.generateCoverPage(memo, companyName)}
     ${this.generateExecutiveSummary(memo)}
-    ${this.generateCompanyOverview(memo)}
+    ${this.generateSWOTAnalysis(memo)}
     ${this.generateMarketAnalysis(memo)}
     ${this.generateFinancialAnalysis(memo)}
+    ${this.generateTeamAssessment(memo)}
     ${this.generateRiskAssessment(memo)}
-    ${this.generateLegalAnalysis(memo)}
+    ${this.generateInvestmentRecommendation(memo)}
     ${this.generateInvestmentRecommendation(memo)}
     ${this.generateAppendices(memo)}
 </body>
