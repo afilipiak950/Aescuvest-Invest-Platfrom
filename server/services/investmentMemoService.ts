@@ -774,14 +774,14 @@ Focus on extracting actual names, dates, addresses, and specific details mention
       // Add findings and recommendations
       if (analysis.findings && analysis.findings.length > 0) {
         comprehensiveAnalysis += `FINDINGS:\n`;
-        analysis.findings.forEach((finding, idx) => {
+        analysis.findings.forEach((finding: any, idx: number) => {
           comprehensiveAnalysis += `${idx + 1}. ${finding.content || finding}\n`;
         });
       }
       
       if (analysis.recommendations && analysis.recommendations.length > 0) {
         comprehensiveAnalysis += `RECOMMENDATIONS:\n`;
-        analysis.recommendations.forEach((rec, idx) => {
+        analysis.recommendations.forEach((rec: any, idx: number) => {
           comprehensiveAnalysis += `${idx + 1}. ${rec.content || rec.description || rec}\n`;
         });
       }
@@ -793,14 +793,14 @@ Focus on extracting actual names, dates, addresses, and specific details mention
     comprehensiveAnalysis += `\n=== DOCUMENT SUMMARIES ===\n`;
     data.documents.forEach((doc, index) => {
       const content = safeGetDocumentContent(doc);
-      const summary = content.summary || doc.summary || '';
-      const aiSummary = content.executiveSummary || (content.aiSummary && content.aiSummary.executiveSummary) || '';
+      const aiSummary = content.aiSummary?.executiveSummary || 
+                       (doc as any).aiSummary?.executiveSummary || 
+                       (doc as any).summary || '';
       
-      if (summary || aiSummary) {
+      if (aiSummary) {
         comprehensiveAnalysis += `
 DOCUMENT ${index + 1}: ${doc.name}
-TYPE: ${doc.type || doc.documentType || 'Unknown'}
-SUMMARY: ${summary}
+TYPE: ${doc.type || (doc as any).documentType || 'Unknown'}
 AI SUMMARY: ${aiSummary}
 ---
 `;
