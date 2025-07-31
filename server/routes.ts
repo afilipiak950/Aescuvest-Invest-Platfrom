@@ -4762,6 +4762,98 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Export investment memo as PDF
+  app.post('/api/deals/:dealId/export-pdf', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID provided' });
+      }
+
+      // Import services dynamically
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      const { PDFExportService } = await import('./services/pdfExportService');
+      
+      // Get the deal data
+      const deal = await storage.getDeal(dealId);
+      if (!deal) {
+        return res.status(404).json({ success: false, error: 'Deal not found' });
+      }
+
+      // Get existing memo or generate new one
+      let memo = await investmentMemoService.getMemoForDeal(dealId);
+      if (!memo) {
+        console.log('📝 No existing memo found, generating new one...');
+        memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      }
+
+      if (!memo) {
+        return res.status(500).json({ success: false, error: 'Failed to generate memo for export' });
+      }
+
+      // Generate PDF with BAIBYS structure
+      console.log('📄 Generating BAIBYS-style PDF export...');
+      const pdfBuffer = await PDFExportService.generatePDF(memo, deal.companyName);
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('❌ Error exporting PDF:', error);
+      res.status(500).json({ success: false, error: 'Failed to export investment memo as PDF' });
+    }
+  });
+
+  // Export investment memo as Word document
+  app.post('/api/deals/:dealId/export-docx', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID provided' });
+      }
+
+      // Import services dynamically
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      const { PDFExportService } = await import('./services/pdfExportService');
+      
+      // Get the deal data
+      const deal = await storage.getDeal(dealId);
+      if (!deal) {
+        return res.status(404).json({ success: false, error: 'Deal not found' });
+      }
+
+      // Get existing memo or generate new one
+      let memo = await investmentMemoService.getMemoForDeal(dealId);
+      if (!memo) {
+        console.log('📝 No existing memo found, generating new one...');
+        memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      }
+
+      if (!memo) {
+        return res.status(500).json({ success: false, error: 'Failed to generate memo for export' });
+      }
+
+      // Generate DOCX with BAIBYS structure
+      console.log('📄 Generating BAIBYS-style DOCX export...');
+      const docxBuffer = await PDFExportService.generateDOCX(memo, deal.companyName);
+
+      // Set response headers for DOCX download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.docx"`);
+      res.setHeader('Content-Length', docxBuffer.length);
+
+      res.send(docxBuffer);
+    } catch (error) {
+      console.error('❌ Error exporting DOCX:', error);
+      res.status(500).json({ success: false, error: 'Failed to export investment memo as Word document' });
+    }
+  });
+
   return httpServer;
 }
 
