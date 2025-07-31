@@ -20,9 +20,9 @@ export function cleanMarkdown(text: string | null | undefined): string {
     .replace(/[ \t]{2,}/g, ' ') // Multiple spaces/tabs to single space
     // Restore paragraph breaks
     .replace(/§PARAGRAPH§/g, '\n\n')
-    // Convert bullet points but preserve line structure
-    .replace(/^\s*[-*+]\s*/gm, '• ') // Convert bullet points
-    .replace(/^\s*\d+\.\s*/gm, '• ') // Convert numbered lists
+    // Convert bullet points but preserve line structure - BUT NOT subheadings with colons
+    .replace(/^\s*[-*+]\s*(?!.*:$)/gm, '• ') // Convert bullet points (but not lines ending with :)
+    .replace(/^\s*\d+\.\s*(?!.*:$)/gm, '• ') // Convert numbered lists (but not lines ending with :)
     // Final cleanup - limit excessive line breaks but preserve paragraphs
     .replace(/\n{3,}/g, '\n\n') // Limit to double line breaks
     .replace(/^\s+|\s+$/g, '') // Trim start and end
