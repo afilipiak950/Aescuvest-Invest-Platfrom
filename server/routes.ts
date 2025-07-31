@@ -38,7 +38,7 @@ import { websocketManager as wsManager } from './services/websocketManager';
 import { legalAnalysisService } from './legalAnalysisService';
 import { persistentJobManager } from './PersistentJobManager';
 import persistentAnalysisRoutes from './routes/persistentAnalysis';
-import { getDocumentContentSafely } from './utils/documentUtils';
+import { safeGetDocumentContent } from './utils/documentUtils';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -5718,7 +5718,7 @@ async function categorizeDocumentToAgents(document: any, agents: any): Promise<s
         messages: [{
           role: 'user',
           content: `Document: "${document.name}"
-Content preview: "${getDocumentContentSafely(document).substring(0, 2000) || 'No content available'}"
+Content preview: "${safeGetDocumentContent(document).text.substring(0, 2000) || 'No content available'}"
 
 Categorize this document to the most relevant specialized agents. For each agent, answer YES/NO:
 
@@ -5822,7 +5822,7 @@ function generateFallbackAnalysis(document: any, agent: any): any {
 
   const agentName = agent.name.toLowerCase();
   const keywords = agentKeywords[agentName] || [];
-  const docText = getDocumentContentSafely(document);
+  const docText = safeGetDocumentContent(document).text;
   const matches = keywords.filter((keyword: string) => 
     docText.toLowerCase().includes(keyword.toLowerCase())
   );
