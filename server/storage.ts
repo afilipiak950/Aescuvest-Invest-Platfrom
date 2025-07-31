@@ -18,7 +18,7 @@ import {
   researchJobs, ResearchJob, InsertResearchJob
 } from "@shared/schema";
 import { db, pool } from './db';
-import { eq, and, or, desc, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 // In-memory cache for better performance across queries
 const documentCache = new Map<number, { data: Document[], timestamp: number }>();
@@ -379,6 +379,73 @@ export class DatabaseStorage implements IStorage {
     console.log(`📄 Query completed: ${result.length} docs, ${summaryCount} with AI summaries`);
     
     return result;
+  }
+
+  // NEW: Get documents WITH complete OCR text for memo generation using raw SQL
+  async getDocumentsWithOCRForMemo(dealId: number): Promise<any[]> {
+    console.log(`🔍 Fetching ALL documents WITH complete OCR text for memo generation - deal ${dealId}`);
+    
+    const startTime = Date.now();
+    
+    try {
+      // Use raw SQL to ensure we get the OCR content properly
+      const query = `
+        SELECT id, deal_id, name, type, path, size, status, uploaded_at,
+               folder_path, is_folder, parent_id, category, document_type,
+               ai_summary, ai_summary_status, ai_summary_generated_at,
+               analyses, assigned_agents, assignment_reason, assignment_confidence,
+               manually_assigned, assigned_at, assigned_by,
+               ocr_text, summary, insights, risk_factors
+        FROM documents 
+        WHERE deal_id = $1 
+        ORDER BY name
+      `;
+      
+      const result = await db.execute(sql.raw(query, [dealId]));
+      const documents = result.rows as any[];
+      
+      console.log(`🔍 RAW SQL RESULT: ${documents.length} documents returned`);
+      console.log(`🔍 FIRST DOCUMENT FIELDS:`, documents[0] ? Object.keys(documents[0]) : 'No documents');
+      
+      const queryTime = Date.now() - startTime;
+      
+      // Debug OCR content with detailed field inspection
+      let ocrDocsCount = 0;
+      let totalOcrChars = 0;
+      
+      documents.forEach((doc, index) => {
+        console.log(`🔍 Document ${index + 1} OCR field check:`, {
+          name: doc.name,
+          hasOcrText: !!doc.ocr_text,
+          ocrLength: doc.ocr_text ? doc.ocr_text.length : 0,
+          ocrPreview: doc.ocr_text ? doc.ocr_text.substring(0, 100) + '...' : 'No OCR content'
+        });
+        
+        if (doc.ocr_text && doc.ocr_text.length > 100) {
+          ocrDocsCount++;
+          totalOcrChars += doc.ocr_text.length;
+          console.log(`📄 Document ${index + 1} (${doc.name}): ${doc.ocr_text.length.toLocaleString()} OCR characters`);
+        } else {
+          console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available`);
+        }
+      });
+      
+      console.log(`📄 MEMO RAW SQL QUERY: ${documents.length} docs, ${ocrDocsCount} with OCR, ${totalOcrChars.toLocaleString()} total OCR chars in ${queryTime}ms`);
+      
+      return documents;
+    } catch (error) {
+      console.error('Error with raw SQL query:', error);
+      
+      // Fallback to Drizzle query
+      const result = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.dealId, dealId))
+        .orderBy(documents.name);
+      
+      console.log(`📄 FALLBACK QUERY: ${result.length} documents`);
+      return result;
+    }
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {

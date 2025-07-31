@@ -1105,6 +1105,225 @@ Use professional VC language with specific metrics, market data, and growth proj
     console.log(`💾 Investment memo ready for deal ${dealId} - comprehensive 30-50 page memo generated`);
     // TODO: Implement memo storage in database
   }
+
+  /**
+   * NEW: Fetch deal data with COMPLETE OCR text for comprehensive memo generation
+   */
+  private async fetchComprehensiveDealDataWithFullOCR(dealId: number): Promise<ComprehensiveMemoData | null> {
+    try {
+      const [deal, documentsWithOCR, agentAnalyses, companyResearch, aiEvaluation] = await Promise.all([
+        storage.getDealById(dealId),
+        storage.getDocumentsWithOCRForMemo(dealId), // NEW: Use OCR-enabled function
+        storage.getAnalysesByDealId(dealId),
+        storage.getCompanyResearchByDealId(dealId),
+        storage.getAiEvaluationByDealId(dealId)
+      ]);
+
+      if (!deal) {
+        console.log(`❌ Deal ${dealId} not found`);
+        return null;
+      }
+
+      console.log(`✅ Fetched comprehensive data WITH OCR for ${deal.companyName}: ${documentsWithOCR.length} documents, ${agentAnalyses.length} analyses`);
+      
+      return {
+        dealId,
+        companyName: deal.companyName,
+        documents: documentsWithOCR,
+        agentAnalyses,
+        companyResearch,
+        aiEvaluation
+      };
+    } catch (error) {
+      console.error('Error fetching deal data with OCR:', error);
+      return null;
+    }
+  }
+
+  /**
+   * NEW: Intelligent OCR extraction system that processes EVERY character of OCR text
+   */
+  private async prepareIntelligentOCRExtractionContext(data: ComprehensiveMemoData): Promise<string> {
+    console.log(`🔍 MULTI-PASS company information extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+    
+    // PASS 1: Extract from agent analyses first (structured data)
+    console.log(`🔍 PASS 1: Extracting from ${data.agentAnalyses.length} agent analyses`);
+    let agentContext = '';
+    let totalAgentChars = 0;
+    
+    data.agentAnalyses.forEach((analysis, index) => {
+      const analysisContent = this.extractAnalysisContent(analysis);
+      if (analysisContent.length > 100) {
+        totalAgentChars += analysisContent.length;
+        agentContext += `\n=== ${analysis.agentType.toUpperCase()} AGENT ANALYSIS ===\n${analysisContent}\n`;
+      }
+    });
+    
+    console.log(`🔍 Extracting from agent analyses (${totalAgentChars.toLocaleString()} characters)`);
+
+    // PASS 2: Process ALL documents with OCR text in intelligent batches
+    console.log(`🔍 PASS 2: Processing ${data.documents.length} documents in 10 batches of 10`);
+    const documentsWithOCR = data.documents.filter(doc => {
+      const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
+      return ocrText && typeof ocrText === 'string' && ocrText.length > 100;
+    });
+    const totalBatches = Math.ceil(documentsWithOCR.length / 10);
+    console.log(`📄 Found ${documentsWithOCR.length} documents with substantial OCR content`);
+    
+    let allExtractions: string[] = [];
+    let totalOcrChars = 0;
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIndex = batchIndex * 10;
+      const endIndex = Math.min(startIndex + 10, documentsWithOCR.length);
+      const batch = documentsWithOCR.slice(startIndex, endIndex);
+      
+      console.log(`🔍 Processing batch ${batchIndex + 1}/${totalBatches}: documents ${startIndex + 1}-${endIndex}`);
+      
+      let batchOcrContent = '';
+      batch.forEach((doc) => {
+        // Handle both camelCase and snake_case field names
+        const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
+        if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
+          totalOcrChars += ocrText.length;
+          batchOcrContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
+          batchOcrContent += `OCR CONTENT (${ocrText.length} chars):\n${ocrText}\n`;
+          console.log(`📄 Document ${doc.name}: ${ocrText.length.toLocaleString()} OCR characters`);
+        }
+      });
+
+      // Extract specific company information from this batch
+      if (batchOcrContent.length > 500) {
+        try {
+          const extraction = await this.extractCompanyDetailsFromBatch(batchOcrContent, data.companyName);
+          if (extraction && extraction.length > 200) {
+            allExtractions.push(extraction);
+          }
+        } catch (error) {
+          console.warn(`Batch ${batchIndex + 1} extraction failed:`, error);
+        }
+      }
+    }
+
+    // PASS 3: Synthesize all extractions into comprehensive company profile
+    console.log(`🔍 PASS 3: Synthesizing ${allExtractions.length} extraction results`);
+    const synthesizedProfile = await this.synthesizeCompanyProfile(allExtractions, data.companyName);
+    console.log(`✅ Multi-pass extraction completed for ${data.companyName} IM`);
+
+    // Build final comprehensive context
+    const finalContext = `
+COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
+=========================================================
+TOTAL OCR PROCESSED: ${totalOcrChars.toLocaleString()} characters
+TOTAL DOCUMENTS: ${data.documents.length}
+TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
+EXTRACTION PASSES: 3 (Agent Analyses → Document Batches → Synthesis)
+=========================================================
+
+=== SYNTHESIZED COMPANY PROFILE ===
+${synthesizedProfile}
+
+=== AGENT ANALYSES SUMMARY ===
+${agentContext}
+
+=== EXTRACTED COMPANY INFORMATION ===
+${allExtractions.join('\n\n')}
+`;
+
+    return finalContext;
+  }
+
+  /**
+   * Extract specific company details from OCR batch using focused AI analysis
+   */
+  private async extractCompanyDetailsFromBatch(ocrContent: string, companyName: string): Promise<string> {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [{
+        role: "system",
+        content: `Extract specific company information from OCR text. Focus on:
+        - Company incorporation details (date, jurisdiction, registration numbers)
+        - Executive team (CEO, CTO, CFO names, backgrounds, previous companies)
+        - Headquarters and office locations (specific addresses)
+        - Shareholding structure and ownership details
+        - Board composition and advisory board members
+        - Financial information (funding rounds, valuations, revenue)
+        - Business partnerships and key customers
+        - Regulatory approvals or compliance details
+        
+        Return structured, specific information with exact details found in the documents.`
+      }, {
+        role: "user",
+        content: `Extract company details for ${companyName} from this OCR content:\n\n${ocrContent.substring(0, 120000)}`
+      }],
+      temperature: 0.3,
+      max_tokens: 4000
+    });
+    
+    return response.choices[0].message.content || '';
+  }
+
+  /**
+   * Synthesize all extracted information into comprehensive company profile
+   */
+  private async synthesizeCompanyProfile(extractions: string[], companyName: string): Promise<string> {
+    if (extractions.length === 0) return `No detailed company information extracted from documents for ${companyName}.`;
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [{
+        role: "system",
+        content: `Synthesize all extracted company information into a comprehensive profile. Include:
+        - Complete executive team with names and backgrounds
+        - Corporate structure and shareholding details
+        - Headquarters and operational locations
+        - Financial history and current status
+        - Key partnerships and customers
+        - Regulatory status and compliance
+        
+        Ensure all specific details (names, dates, addresses, numbers) are preserved accurately.`
+      }, {
+        role: "user",
+        content: `Synthesize comprehensive profile for ${companyName} from these extractions:\n\n${extractions.join('\n\n===\n\n')}`
+      }],
+      temperature: 0.2,
+      max_tokens: 6000
+    });
+    
+    return response.choices[0].message.content || '';
+  }
+
+  /**
+   * Extract meaningful content from agent analysis object
+   */
+  private extractAnalysisContent(analysis: any): string {
+    let content = '';
+    
+    // Extract findings
+    if (analysis.findings && Array.isArray(analysis.findings)) {
+      content += `FINDINGS:\n${analysis.findings.map((f: any) => `- ${f.content || f}`).join('\n')}\n\n`;
+    }
+    
+    // Extract recommendations
+    if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
+      content += `RECOMMENDATIONS:\n${analysis.recommendations.map((r: any) => `- ${r.description || r.title || r}`).join('\n')}\n\n`;
+    }
+    
+    // Extract specific agent answers
+    const answerKeys = ['legalAnswers', 'clinicalAnswers', 'commercialAnswers', 'ip_answers', 'hr_answers', 'financial_answers', 'research_answers'];
+    answerKeys.forEach(key => {
+      if (analysis[key] && typeof analysis[key] === 'object') {
+        content += `${key.toUpperCase()}:\n`;
+        Object.entries(analysis[key]).forEach(([questionKey, answer]: [string, any]) => {
+          if (answer && answer.answer) {
+            content += `Q: ${answer.question}\nA: ${answer.answer}\n\n`;
+          }
+        });
+      }
+    });
+    
+    return content;
+  }
 }
 
 export const investmentMemoService = new InvestmentMemoService();
