@@ -67,27 +67,49 @@ export default function AllDealsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Delete deal mutation
+  // Delete deal mutation with optimistic updates
   const deleteDealMutation = useMutation({
     mutationFn: async (dealId: number) => {
       return apiRequest(`/api/deals/${dealId}`, {
         method: 'DELETE',
       });
     },
-    onSuccess: (data, dealId) => {
-      // Invalidate and refetch deals
-      queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
-      toast({
-        title: "Deal deleted",
-        description: "The deal has been successfully deleted.",
-      });
+    onMutate: async (dealId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/deals'] });
+      
+      // Snapshot the previous value
+      const previousDeals = queryClient.getQueryData<Deal[]>(['/api/deals']);
+      
+      // Optimistically remove the deal from cache
+      queryClient.setQueryData<Deal[]>(['/api/deals'], (old) => 
+        old ? old.filter(deal => deal.id !== dealId) : []
+      );
+      
+      // Return a context object with the snapshotted value
+      return { previousDeals };
     },
-    onError: (error: any) => {
+    onError: (error: any, dealId, context) => {
+      // Rollback on error
+      if (context?.previousDeals) {
+        queryClient.setQueryData(['/api/deals'], context.previousDeals);
+      }
+      
       toast({
         title: "Error",
         description: error.message || "Failed to delete deal. Please try again.",
         variant: "destructive",
       });
+    },
+    onSuccess: (data, dealId) => {
+      toast({
+        title: "Deal deleted",
+        description: "The deal has been successfully deleted.",
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
     },
   });
 
