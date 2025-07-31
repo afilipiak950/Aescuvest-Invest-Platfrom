@@ -301,23 +301,27 @@ export default function MemoGenerator() {
                       {/* Investment Highlights */}
                       {Array.isArray(currentMemo?.investmentHighlights) && currentMemo.investmentHighlights.length > 0 && (
                         <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Investment Highlights</h3>
-                          <ul className="space-y-3">
+                          <SectionHeader 
+                            title="Investment Highlights" 
+                            subtitle="Key value propositions and investment attractiveness factors"
+                          />
+                          <div className="space-y-3">
                             {currentMemo.investmentHighlights.map((highlight: string, index: number) => (
-                              <li key={index} className="flex items-start text-gray-300">
-                                <span className="text-green-400 mr-3 mt-1">▪</span>
-                                {highlight}
-                              </li>
+                              <div key={index} className="flex items-start">
+                                <span className="text-green-400 mr-3 mt-1 flex-shrink-0">✓</span>
+                                <span className="text-gray-300 text-sm leading-relaxed">{highlight}</span>
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
                       {!Array.isArray(currentMemo?.investmentHighlights) && currentMemo?.investmentHighlights && (
                         <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Investment Highlights</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.investmentHighlights)}
-                          </div>
+                          <SectionHeader 
+                            title="Investment Highlights" 
+                            subtitle="Key value propositions and investment attractiveness factors"
+                          />
+                          <FormattedContent content={currentMemo.investmentHighlights} variant="default" />
                         </div>
                       )}
                     </TabsContent>
@@ -386,48 +390,46 @@ export default function MemoGenerator() {
                       {/* Team Assessment */}
                       {currentMemo?.teamAssessment && (
                         <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Management Team Assessment</h3>
-                          <div className="space-y-4">
+                          <SectionHeader 
+                            title="Management Team Assessment" 
+                            subtitle="Leadership team evaluation and key personnel analysis"
+                          />
+                          <div className="space-y-6">
                             <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Management</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatObjectContent(currentMemo.teamAssessment.management)}
-                              </div>
+                              <h4 className="font-semibold text-gray-200 mb-3">Management</h4>
+                              <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.management)} variant="small" />
                             </div>
                             {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
                               <div>
-                                <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
-                                <ul className="space-y-1">
+                                <h4 className="font-semibold text-gray-200 mb-3">Key Personnel</h4>
+                                <div className="space-y-2">
                                   {currentMemo.teamAssessment.keyPersonnel.map((person: any, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm">
-                                      {typeof person === 'string' ? person : 
-                                       typeof person === 'object' && person !== null ? 
-                                       `${person.name || ''} - ${person.role || ''} ${person.background ? `(${person.background})` : ''}`.trim() :
-                                       String(person)}
-                                    </li>
+                                    <div key={index} className="flex items-start">
+                                      <span className="text-primary mt-1 mr-3 flex-shrink-0">•</span>
+                                      <span className="text-gray-300 text-sm">
+                                        {typeof person === 'string' ? person : 
+                                         typeof person === 'object' && person !== null ? 
+                                         `${person.name || ''} - ${person.role || ''} ${person.background ? `(${person.background})` : ''}`.trim() :
+                                         String(person)}
+                                      </span>
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
                               </div>
                             )}
                             {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
                               <div>
-                                <h4 className="font-semibold text-gray-200 mb-2">Key Personnel</h4>
-                                <div className="text-gray-300 text-sm whitespace-pre-line">
-                                  {formatObjectContent(currentMemo.teamAssessment.keyPersonnel)}
-                                </div>
+                                <h4 className="font-semibold text-gray-200 mb-3">Key Personnel</h4>
+                                <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.keyPersonnel)} variant="small" />
                               </div>
                             )}
                             <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Advisors</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatObjectContent(currentMemo.teamAssessment.advisors)}
-                              </div>
+                              <h4 className="font-semibold text-gray-200 mb-3">Advisors</h4>
+                              <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.advisors)} variant="small" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-200 mb-2">Board Composition</h4>
-                              <div className="text-gray-300 text-sm whitespace-pre-line">
-                                {formatObjectContent(currentMemo.teamAssessment.boardComposition)}
-                              </div>
+                              <h4 className="font-semibold text-gray-200 mb-3">Board Composition</h4>
+                              <FormattedContent content={formatObjectContent(currentMemo.teamAssessment.boardComposition)} variant="small" />
                             </div>
                           </div>
                         </div>
@@ -436,10 +438,11 @@ export default function MemoGenerator() {
                       {/* Commercial Analysis */}
                       {currentMemo?.commercialAnalysis && (
                         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Commercial Analysis</h3>
-                          <div className="text-gray-300 prose prose-invert max-w-none whitespace-pre-line">
-                            {formatBusinessText(currentMemo.commercialAnalysis)}
-                          </div>
+                          <SectionHeader 
+                            title="Commercial Analysis" 
+                            subtitle="Commercial viability and market readiness assessment"
+                          />
+                          <FormattedContent content={currentMemo.commercialAnalysis} variant="default" />
                         </div>
                       )}
 
