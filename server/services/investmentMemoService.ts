@@ -264,8 +264,10 @@ class InvestmentMemoService {
     const documentOcrLengths: number[] = [];
     
     data.documents.forEach((doc, index) => {
-      if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
-        const ocrLength = doc.ocrText.length;
+      // Fix field mapping: database uses snake_case but code expects camelCase
+      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+      if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
+        const ocrLength = ocrText.length;
         documentOcrLengths.push(ocrLength);
         totalOcrLength += ocrLength;
         console.log(`📄 Document ${index + 1} (${doc.name}): ${ocrLength.toLocaleString()} characters of OCR text`);
@@ -291,15 +293,17 @@ TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
 
     // Second pass: Include COMPLETE OCR content from ALL documents
     data.documents.forEach((doc, index) => {
-      if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
+      // Fix field mapping: database uses snake_case but code expects camelCase
+      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+      if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
         context += `
 
 >>>>>>> DOCUMENT ${index + 1}: ${doc.name} <<<<<<<
-OCR LENGTH: ${doc.ocrText.length.toLocaleString()} characters
-FILE TYPE: ${doc.contentType || 'Unknown'}
+OCR LENGTH: ${ocrText.length.toLocaleString()} characters
+FILE TYPE: ${doc.contentType || doc.content_type || doc.type || 'Unknown'}
 
 COMPLETE OCR CONTENT:
-${doc.ocrText}
+${ocrText}
 
 `;
         
@@ -504,9 +508,11 @@ ${companyInfo}`
       
       let batchContent = '';
       batch.forEach((doc, index) => {
-        if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
+        // Fix field mapping: database uses snake_case but code expects camelCase
+        const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+        if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
           batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
-          batchContent += `OCR CONTENT (${doc.ocrText.length} chars):\n${doc.ocrText}\n`;
+          batchContent += `OCR CONTENT (${ocrText.length} chars):\n${ocrText}\n`;
           
           // Add AI summary if available
           if (doc.aiSummary) {
