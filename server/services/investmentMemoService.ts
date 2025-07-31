@@ -228,18 +228,46 @@ Findings: ${analysis.findings?.length || 0}
 Recommendations: ${analysis.recommendations?.length || 0}
 `;
 
-      // Add specific analysis content based on agent type
+      // Add specific analysis content based on agent type (safely parse JSON or objects)
       if (analysis.legalAnswers) {
-        context += `Legal Questions Analyzed: ${Object.keys(JSON.parse(analysis.legalAnswers || '{}')).length}\n`;
+        try {
+          const legalData = typeof analysis.legalAnswers === 'string' 
+            ? JSON.parse(analysis.legalAnswers) 
+            : analysis.legalAnswers;
+          context += `Legal Questions Analyzed: ${Object.keys(legalData || {}).length}\n`;
+        } catch (e) {
+          context += `Legal Questions Analyzed: Available but unparseable\n`;
+        }
       }
       if (analysis.clinicalAnswers) {
-        context += `Clinical Questions Analyzed: ${Object.keys(JSON.parse(analysis.clinicalAnswers || '{}')).length}\n`;
+        try {
+          const clinicalData = typeof analysis.clinicalAnswers === 'string' 
+            ? JSON.parse(analysis.clinicalAnswers) 
+            : analysis.clinicalAnswers;
+          context += `Clinical Questions Analyzed: ${Object.keys(clinicalData || {}).length}\n`;
+        } catch (e) {
+          context += `Clinical Questions Analyzed: Available but unparseable\n`;
+        }
       }
       if (analysis.commercialAnswers) {
-        context += `Commercial Questions Analyzed: ${Object.keys(JSON.parse(analysis.commercialAnswers || '{}')).length}\n`;
+        try {
+          const commercialData = typeof analysis.commercialAnswers === 'string' 
+            ? JSON.parse(analysis.commercialAnswers) 
+            : analysis.commercialAnswers;
+          context += `Commercial Questions Analyzed: ${Object.keys(commercialData || {}).length}\n`;
+        } catch (e) {
+          context += `Commercial Questions Analyzed: Available but unparseable\n`;
+        }
       }
       if (analysis.research_answers) {
-        context += `Research Questions Analyzed: ${Object.keys(JSON.parse(analysis.research_answers || '{}')).length}\n`;
+        try {
+          const researchData = typeof analysis.research_answers === 'string' 
+            ? JSON.parse(analysis.research_answers) 
+            : analysis.research_answers;
+          context += `Research Questions Analyzed: ${Object.keys(researchData || {}).length}\n`;
+        } catch (e) {
+          context += `Research Questions Analyzed: Available but unparseable\n`;
+        }
       }
     });
 

@@ -488,5 +488,122 @@ export function registerApiRoutes(app: Express) {
     }
   });
 
+  // Investment Memo Generator API
+  app.post('/api/v1/deals/:dealId/memo/generate', authenticateApiKey, async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const deal = await storage.getDeal(dealId);
+      
+      if (!deal) {
+        return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
+      }
+
+      // Import the service here to avoid circular dependencies
+      const { investmentMemoService } = await import('../services/investmentMemoService');
+      
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      
+      res.json(apiResponse.success(memo, 'Investment memo generated successfully'));
+    } catch (error) {
+      console.error('❌ API Error generating investment memo:', error);
+      res.status(500).json(apiResponse.error('Failed to generate investment memo'));
+    }
+  });
+
+  app.get('/api/v1/deals/:dealId/memo', optionalApiAuth, async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const deal = await storage.getDeal(dealId);
+      
+      if (!deal) {
+        return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
+      }
+
+      // TODO: Get stored memo from database
+      const memo = null; // await storage.getInvestmentMemo(dealId);
+      
+      res.json(apiResponse.success(memo, 'Investment memo retrieved successfully'));
+    } catch (error) {
+      console.error('❌ API Error getting investment memo:', error);
+      res.status(500).json(apiResponse.error('Failed to retrieve investment memo'));
+    }
+  });
+
+  // Also add the main route that frontend uses (without /v1 prefix)
+  app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      console.log(`🔄 Starting investment memo generation for deal ${dealId}`);
+      
+      if (isNaN(dealId)) {
+        console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid deal ID provided'
+        });
+      }
+      
+      // Import the service here to avoid circular dependencies
+      console.log(`📥 Importing investment memo service...`);
+      const { investmentMemoService } = await import('../services/investmentMemoService');
+      console.log(`✅ Service imported successfully`);
+      
+      if (!investmentMemoService) {
+        console.error(`❌ Investment memo service not found`);
+        return res.status(500).json({
+          success: false,
+          error: 'Investment memo service not available'
+        });
+      }
+      
+      console.log(`🚀 Calling generateComprehensiveMemo for deal ${dealId}`);
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      console.log(`✅ Memo generation completed for deal ${dealId}`);
+      
+      if (!memo) {
+        console.error(`❌ No memo returned for deal ${dealId}`);
+        return res.status(500).json({
+          success: false,
+          error: 'Memo generation returned no data'
+        });
+      }
+      
+      res.json({
+        success: true,
+        memo
+      });
+    } catch (error) {
+      console.error('❌ Investment memo generation error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        name: error instanceof Error ? error.name : 'Unknown error type'
+      });
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate investment memo'
+      });
+    }
+  });
+
+  app.get('/api/deals/:dealId/memo', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // TODO: Get stored memo from database
+      res.json({
+        success: true,
+        memo: null // No stored memos yet
+      });
+    } catch (error) {
+      console.error('❌ Get memo error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get memo'
+      });
+    }
+  });
+
   console.log('✅ API endpoints registered successfully');
 }
