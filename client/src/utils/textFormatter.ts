@@ -8,19 +8,26 @@ export function cleanMarkdown(text: string | null | undefined): string {
   }
 
   return text
-    // Remove excessive asterisks and hashtags
+    // Remove excessive asterisks and hashtags but preserve structure
     .replace(/\*{3,}/g, '') // Remove 3+ asterisks
     .replace(/#{3,}/g, '') // Remove 3+ hashtags
     .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
     .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
     .replace(/#{1,6}\s*/g, '') // Remove heading markers
-    // Clean up excessive whitespace
-    .replace(/\n{3,}/g, '\n\n') // Limit to double line breaks
-    .replace(/\s{3,}/g, ' ') // Limit to single spaces
-    // Remove remaining formatting artifacts
+    // Preserve paragraph structure - protect double newlines
+    .replace(/\n\s*\n/g, '§PARAGRAPH§') 
+    // Clean up excessive whitespace within lines
+    .replace(/[ \t]{2,}/g, ' ') // Multiple spaces/tabs to single space
+    // Restore paragraph breaks
+    .replace(/§PARAGRAPH§/g, '\n\n')
+    // Convert bullet points but preserve line structure
     .replace(/^\s*[-*+]\s*/gm, '• ') // Convert bullet points
     .replace(/^\s*\d+\.\s*/gm, '• ') // Convert numbered lists
-    .trim();
+    // Final cleanup - limit excessive line breaks but preserve paragraphs
+    .replace(/\n{3,}/g, '\n\n') // Limit to double line breaks
+    .replace(/^\s+|\s+$/g, '') // Trim start and end
+    .replace(/^[ \t]+/gm, '') // Remove indentation
+    .replace(/[ \t]+$/gm, ''); // Remove trailing spaces
 }
 
 export function formatBusinessText(text: string | null | undefined): string {

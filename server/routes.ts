@@ -4744,59 +4744,6 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Get comprehensive memo (the endpoint the frontend is looking for)
-  app.get("/api/deals/:dealId/comprehensive-memo", async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      console.log(`📋 Fetching comprehensive memo for deal ${dealId}`);
-      
-      if (isNaN(dealId)) {
-        console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
-        return res.status(400).json({
-          success: false,
-          error: "Invalid deal ID provided"
-        });
-      }
-      
-      // Import the service here to avoid circular dependencies
-      const { investmentMemoService } = await import("./services/investmentMemoService");
-      
-      if (!investmentMemoService) {
-        console.error(`❌ Investment memo service not found`);
-        return res.status(500).json({
-          success: false,
-          error: "Investment memo service not available"
-        });
-      }
-      
-      // Try to get existing memo first
-      let memo = await investmentMemoService.getMemoForDeal(dealId);
-      
-      // If no memo exists, generate a new one
-      if (!memo) {
-        console.log(`🚀 No existing memo found, generating comprehensive memo for deal ${dealId}`);
-        memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-      }
-      
-      if (!memo) {
-        console.error(`❌ No memo returned for deal ${dealId}`);
-        return res.status(404).json({
-          success: false,
-          error: "No memo available for this deal"
-        });
-      }
-      
-      console.log(`✅ Comprehensive memo fetched successfully for deal ${dealId}`);
-      res.json(memo);
-    } catch (error) {
-      console.error("❌ Comprehensive memo fetch error:", error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch comprehensive memo"
-      });
-    }
-  });
-
   // Get comprehensive memo (API endpoint frontend expects)
   app.get('/api/deals/:dealId/comprehensive-memo', async (req: Request, res: Response) => {
     try {
@@ -4810,12 +4757,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Import the service here to avoid circular dependencies
       const { investmentMemoService } = await import('./services/investmentMemoService');
       
-      // Try to get existing memo first, then generate if needed
-      let memo = await investmentMemoService.getMemoForDeal(dealId);
-      if (!memo) {
-        console.log(`🚀 Generating comprehensive memo for deal ${dealId}`);
-        memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-      }
+      // Generate comprehensive memo (no caching for now)
+      console.log(`🚀 Generating comprehensive memo for deal ${dealId}`);
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
       
       if (!memo) {
         return res.status(404).json({ error: 'No memo available for this deal' });
@@ -4861,17 +4805,14 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const { PDFExportService } = await import('./services/pdfExportService');
       
       // Get the deal data
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       if (!deal) {
         return res.status(404).json({ success: false, error: 'Deal not found' });
       }
 
-      // Get existing memo or generate new one
-      let memo = await investmentMemoService.getMemoForDeal(dealId);
-      if (!memo) {
-        console.log('📝 No existing memo found, generating new one...');
-        memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-      }
+      // Generate comprehensive memo for export
+      console.log('📝 Generating memo for PDF export...');
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
 
       if (!memo) {
         return res.status(500).json({ success: false, error: 'Failed to generate memo for export' });
@@ -4907,17 +4848,14 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const { PDFExportService } = await import('./services/pdfExportService');
       
       // Get the deal data
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       if (!deal) {
         return res.status(404).json({ success: false, error: 'Deal not found' });
       }
 
-      // Get existing memo or generate new one
-      let memo = await investmentMemoService.getMemoForDeal(dealId);
-      if (!memo) {
-        console.log('📝 No existing memo found, generating new one...');
-        memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-      }
+      // Generate comprehensive memo for export
+      console.log('📝 Generating memo for DOCX export...');
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
 
       if (!memo) {
         return res.status(500).json({ success: false, error: 'Failed to generate memo for export' });
