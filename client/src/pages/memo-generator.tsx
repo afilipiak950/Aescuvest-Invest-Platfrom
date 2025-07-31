@@ -6,7 +6,7 @@ import PageHeader from '@/components/layout/page-header';
 import MemoSection from '@/components/memo-generator/memo-section';
 import MemoControls from '@/components/memo-generator/memo-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
@@ -264,17 +264,7 @@ export default function MemoGenerator() {
                     </p>
                   </div>
                 ) : (
-                  <Tabs defaultValue="overview" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-6 bg-dark-lighter">
-                      <TabsTrigger value="overview">Overview</TabsTrigger>
-                      <TabsTrigger value="analysis">Analysis</TabsTrigger>
-                      <TabsTrigger value="financial">Financial</TabsTrigger>
-                      <TabsTrigger value="risks">Risks</TabsTrigger>
-                      <TabsTrigger value="legal">Legal</TabsTrigger>
-                      <TabsTrigger value="recommendation">Decision</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="overview" className="space-y-6">
+                  <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4 custom-scrollbar">{/* Single scrollable document layout */}
                       {/* Cover Page */}
                       {currentMemo?.coverPage && (
                         <Card className="border-slate-700 bg-slate-900/50">
@@ -369,9 +359,8 @@ export default function MemoGenerator() {
                           </CardContent>
                         </Card>
                       )}
-                    </TabsContent>
 
-                    <TabsContent value="analysis" className="space-y-6 min-h-[400px]">
+                    {/* Market Analysis Section */}
                       {/* Market Analysis */}
                       {currentMemo?.marketAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
@@ -701,23 +690,7 @@ export default function MemoGenerator() {
                         </Card>
                       )}
                       
-                      {/* Fallback content if no analysis sections exist */}
-                      {!currentMemo?.marketAnalysis && !currentMemo?.productAnalysis && !currentMemo?.businessModel && !currentMemo?.teamAssessment && !currentMemo?.commercialAnalysis && !currentMemo?.clinicalAssessment && !currentMemo?.ipAnalysis && !currentMemo?.researchInsights && (
-                        <Card className="border-slate-600 bg-slate-800/30">
-                          <CardContent className="pt-6">
-                            <div className="text-center py-12">
-                              <div className="w-16 h-16 bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
-                                <TrendingUp className="h-8 w-8 text-slate-400" />
-                              </div>
-                              <h3 className="text-xl font-semibold text-white mb-2">Analysis In Progress</h3>
-                              <p className="text-slate-400 max-w-md mx-auto">Detailed analysis sections will appear here once the investment memo is generated.</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="financial" className="space-y-6 min-h-[400px]">
+                    {/* Financial Analysis Section */}
                       {/* Financial Analysis */}
                       {currentMemo?.financialAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
@@ -828,23 +801,7 @@ export default function MemoGenerator() {
                         </Card>
                       )}
                       
-                      {/* Fallback content if no financial sections exist */}
-                      {!currentMemo?.financialAnalysis && !currentMemo?.investmentTerms && (
-                        <Card className="border-slate-600 bg-slate-800/30">
-                          <CardContent className="pt-6">
-                            <div className="text-center py-12">
-                              <div className="w-16 h-16 bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
-                                <TrendingUp className="h-8 w-8 text-slate-400" />
-                              </div>
-                              <h3 className="text-xl font-semibold text-white mb-2">Financial Analysis In Progress</h3>
-                              <p className="text-slate-400 max-w-md mx-auto">Financial analysis and investment terms will appear here once the investment memo is generated.</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="risks" className="space-y-8 min-h-[400px]">
+                    {/* Risk Assessment Section */}
                       {/* Risk Assessment */}
                       {currentMemo?.riskAssessment && (
                         <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-lg p-6">
@@ -1016,26 +973,56 @@ export default function MemoGenerator() {
                           <p className="text-gray-300">Risk assessment, mitigation strategies, and SWOT analysis will appear here once the investment memo is generated.</p>
                         </div>
                       )}
-                    </TabsContent>
 
-                    <TabsContent value="legal" className="space-y-8 min-h-[400px]">
-                      {/* Legal Assessment */}
+                    {/* Legal Assessment Section */}
                       {currentMemo?.legalAssessment && (
-                        <div className="bg-gradient-to-r from-slate-500/10 to-gray-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Legal Assessment" 
-                            subtitle="Legal structure, IP protection, and compliance evaluation"
-                          />
-                          <InfoGrid 
-                            items={[
-                              { label: "Corporate Structure", content: currentMemo.legalAssessment.corporateStructure },
-                              { label: "IP Protection", content: currentMemo.legalAssessment.ipProtection },
-                              { label: "Regulatory Compliance", content: currentMemo.legalAssessment.regulatoryCompliance },
-                              { label: "Contractual Obligations", content: currentMemo.legalAssessment.contractualObligations }
-                            ]}
-                            columns={2}
-                          />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-slate-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Legal Assessment</CardTitle>
+                                <p className="text-slate-400 text-sm">Legal structure, IP protection, and compliance evaluation</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Corporate Structure</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.legalAssessment.corporateStructure} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">IP Protection</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.legalAssessment.ipProtection} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Regulatory Compliance</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.legalAssessment.regulatoryCompliance} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Contractual Obligations</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.legalAssessment.contractualObligations} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Regulatory Analysis */}
@@ -1049,16 +1036,7 @@ export default function MemoGenerator() {
                         </div>
                       )}
                       
-                      {/* Fallback content if no legal sections exist */}
-                      {!currentMemo?.legalAssessment && !currentMemo?.regulatoryAnalysis && (
-                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">Legal Analysis In Progress</h3>
-                          <p className="text-gray-300">Legal assessment and regulatory analysis will appear here once the investment memo is generated.</p>
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="recommendation" className="space-y-8 min-h-[400px]">
+                    {/* Investment Recommendation Section */}
                       {/* Investment Recommendation */}
                       {currentMemo?.recommendation && (
                         <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
@@ -1122,15 +1100,81 @@ export default function MemoGenerator() {
                         </div>
                       )}
                       
-                      {/* Fallback content if no recommendation sections exist */}
-                      {!currentMemo?.recommendation && !currentMemo?.exitStrategy && !currentMemo?.appendices && (
-                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">Investment Decision In Progress</h3>
-                          <p className="text-gray-300">Investment recommendation, exit strategy, and appendices will appear here once the investment memo is generated.</p>
-                        </div>
+                      {/* Investment Recommendation */}
+                      {currentMemo?.recommendation && (
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Investment Recommendation</CardTitle>
+                                <p className="text-slate-400 text-sm">Final investment decision and strategic rationale</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-6">
+                              <div>
+                                <span className="inline-block px-4 py-2 rounded-full text-sm font-medium bg-primary text-white mb-4">
+                                  {currentMemo.recommendation.investment_recommendation}
+                                </span>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.recommendation.rationale} 
+                                  variant="default" 
+                                  className="text-slate-200 leading-relaxed"
+                                />
+                              </div>
+                              {currentMemo.recommendation.keyMilestones && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-3">Key Milestones</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={Array.isArray(currentMemo.recommendation.keyMilestones) 
+                                      ? currentMemo.recommendation.keyMilestones.join('\n• ') 
+                                      : currentMemo.recommendation.keyMilestones} 
+                                    variant="small" 
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
+                              {currentMemo.recommendation.exitStrategy && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-3">Exit Strategy</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.recommendation.exitStrategy} 
+                                    variant="small" 
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
-                    </TabsContent>
-                  </Tabs>
+
+                      {/* Appendices */}
+                      {currentMemo?.appendices && (
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-slate-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Appendices</CardTitle>
+                                <p className="text-slate-400 text-sm">Additional supporting documentation and data</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.appendices} 
+                                variant="default" 
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                  </div>
                 )}
               </CardContent>
             </Card>
