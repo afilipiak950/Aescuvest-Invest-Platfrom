@@ -15,9 +15,17 @@ export interface ComprehensiveMemoData {
 }
 
 export interface InvestmentMemoSections {
-  executiveSummary: string;
-  investmentHighlights: string[];
-  marketAnalysis: {
+  // COMPREHENSIVE 30-50 PAGE MEMO STRUCTURE MATCHING BAIBYS PDF
+  coverPage: string;                    // Professional cover page with company info, investment highlights
+  executiveSummary: string;             // Comprehensive executive summary (2-3 pages)
+  investmentHighlights: string[];       // Key investment highlights and value propositions
+  swotAnalysis: {                       // SWOT analysis in table format matching BAIBYS
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  marketAnalysis: {                     // Market analysis (5-8 pages)
     marketContext: string;
     marketSize: {
       tam: string;
@@ -27,62 +35,70 @@ export interface InvestmentMemoSections {
     competitiveLandscape: string;
     marketTiming: string;
   };
-  productAnalysis: {
+  tamSamSomAnalysis: string;           // Detailed TAM/SAM/SOM tables and analysis
+  competitiveAnalysis: string;          // Comprehensive competitive landscape (3-4 pages)
+  technologyAssessment: string;         // Technology assessment and differentiation (4-5 pages)  
+  productAnalysis: {                    // Product/solution analysis
     productOverview: string;
     technologyAdvantage: string;
     competitiveEdge: string;
     developmentStage: string;
   };
-  businessModel: {
+  businessModel: {                      // Business model and commercial strategy
     revenueModel: string;
     pricingStrategy: string;
     salesChannels: string;
     customerAcquisition: string;
   };
-  teamAssessment: {
+  commercialStrategy: string;           // Go-to-market and commercial strategy (3-4 pages)
+  teamAssessment: {                     // Management team assessment
     management: string;
     keyPersonnel: string[];
     advisors: string;
     boardComposition: string;
   };
-  financialAnalysis: {
+  managementAnalysis: string;           // Detailed management analysis and backgrounds (2-3 pages)
+  financialAnalysis: {                  // Financial analysis overview
     currentFinancials: string;
     projections: string;
     fundingHistory: string;
     useOfFunds: string;
   };
-  riskAssessment: {
+  financialProjections: string;         // Detailed financial projections and models (4-5 pages)
+  valuationAnalysis: string;            // Valuation analysis and methodologies (2-3 pages)
+  legalAssessment: {                    // Legal assessment overview
+    corporateStructure: string;
+    ipProtection: string;
+    regulatoryCompliance: string;
+    contractualObligations: string;
+  };
+  regulatoryAnalysis: string;           // Regulatory landscape and compliance (2-3 pages)
+  clinicalAssessment: string;           // Clinical development and regulatory pathway (3-4 pages)
+  ipAnalysis: string;                   // Intellectual property analysis (2-3 pages)
+  researchInsights: string;             // Research insights and technical differentiation (2-3 pages)
+  riskAssessment: {                     // Risk assessment overview
     technicalRisks: string[];
     marketRisks: string[];
     competitiveRisks: string[];
     regulatoryRisks: string[];
     managementRisks: string[];
   };
-  legalAssessment: {
-    corporateStructure: string;
-    ipProtection: string;
-    regulatoryCompliance: string;
-    contractualObligations: string;
-  };
-  swotAnalysis: {
-    strengths: string[];
-    weaknesses: string[];
-    opportunities: string[];
-    threats: string[];
-  };
-  investmentTerms: {
+  mitigationStrategies: string;         // Risk mitigation strategies (2-3 pages)
+  investmentTerms: {                    // Investment terms and structure
     valuation: string;
     fundingAmount: string;
     securities: string;
     boardRights: string;
     liquidationPreference: string;
   };
-  recommendation: {
+  exitStrategy: string;                 // Exit strategy analysis (2-3 pages)
+  recommendation: {                     // Investment recommendation and rationale (2-3 pages)
     investment_recommendation: string;
     rationale: string;
     keyMilestones: string[];
     exitStrategy: string;
   };
+  appendices: string;                   // Comprehensive appendices with supporting data (5-10 pages)
 }
 
 class InvestmentMemoService {
@@ -148,48 +164,93 @@ class InvestmentMemoService {
     // Prepare comprehensive context for AI
     const context = this.prepareAnalysisContext(data);
     
-    // Generate all sections with comprehensive AI analysis
+    // Generate ALL comprehensive sections matching BAIBYS PDF structure for 30-50 page memo
     const [
+      coverPage,
       executiveSummary,
       investmentHighlights,
+      swotAnalysis,
       marketAnalysis,
+      tamSamSomAnalysis,
+      competitiveAnalysis,
+      technologyAssessment,
       productAnalysis,
       businessModel,
+      commercialStrategy,
       teamAssessment,
+      managementAnalysis,
       financialAnalysis,
-      riskAssessment,
+      financialProjections,
+      valuationAnalysis,
       legalAssessment,
-      swotAnalysis,
+      regulatoryAnalysis,
+      clinicalAssessment,
+      ipAnalysis,
+      researchInsights,
+      riskAssessment,
+      mitigationStrategies,
       investmentTerms,
-      recommendation
+      exitStrategy,
+      recommendation,
+      appendices
     ] = await Promise.all([
+      this.generateCoverPage(data),
       this.generateExecutiveSummary(context),
       this.generateInvestmentHighlights(context),
+      this.generateSWOTAnalysis(context),
       this.generateMarketAnalysis(context),
+      this.generateTAMSAMSOMAnalysis(context),
+      this.generateCompetitiveAnalysis(context),
+      this.generateTechnologyAssessment(context),
       this.generateProductAnalysis(context),
       this.generateBusinessModel(context),
+      this.generateCommercialStrategy(context),
       this.generateTeamAssessment(context),
+      this.generateManagementAnalysis(context),
       this.generateFinancialAnalysis(context),
-      this.generateRiskAssessment(context),
+      this.generateFinancialProjections(context),
+      this.generateValuationAnalysis(context),
       this.generateLegalAssessment(context),
-      this.generateSWOTAnalysis(context),
+      this.generateRegulatoryAnalysis(context),
+      this.generateClinicalAssessment(context),
+      this.generateIPAnalysis(context),
+      this.generateResearchInsights(context),
+      this.generateRiskAssessment(context),
+      this.generateMitigationStrategies(context),
       this.generateInvestmentTerms(context),
-      this.generateRecommendation(context)
+      this.generateExitStrategy(context),
+      this.generateRecommendation(context),
+      this.generateAppendices(data)
     ]);
 
     return {
+      coverPage,
       executiveSummary,
       investmentHighlights,
+      swotAnalysis,
       marketAnalysis,
+      tamSamSomAnalysis,
+      competitiveAnalysis,
+      technologyAssessment,
       productAnalysis,
       businessModel,
+      commercialStrategy,
       teamAssessment,
+      managementAnalysis,
       financialAnalysis,
-      riskAssessment,
+      financialProjections,
+      valuationAnalysis,
       legalAssessment,
-      swotAnalysis,
+      regulatoryAnalysis,
+      clinicalAssessment,
+      ipAnalysis,
+      researchInsights,
+      riskAssessment,
+      mitigationStrategies,
       investmentTerms,
-      recommendation
+      exitStrategy,
+      recommendation,
+      appendices
     };
   }
 
@@ -208,10 +269,10 @@ Total Documents: ${data.documents.length}
     // Add document summaries
     data.documents.forEach((doc, index) => {
       const content = safeGetDocumentContent(doc);
-      if (content.aiSummary?.executiveSummary || doc.summary) {
+      if (content.summary || doc.summary) {
         context += `
 Document ${index + 1}: ${doc.name}
-Summary: ${content.aiSummary?.executiveSummary || doc.summary || 'No summary available'}
+Summary: ${content.summary || doc.summary || 'No summary available'}
 `;
       }
     });
@@ -581,6 +642,263 @@ Use professional VC language and be specific about business metrics, market size
       keyMilestones: result.keyMilestones || [],
       exitStrategy: result.exitStrategy || ''
     };
+  }
+
+  // ==================== COMPREHENSIVE 30-50 PAGE MEMO METHODS ====================
+
+  private async generateCoverPage(data: ComprehensiveMemoData): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate a professional investment memo cover page matching the BAIBYS format. Include company info, headquarters, management team, incorporation date, shareholding structure, investment proposal details, key investment terms, and investment highlights. Format as detailed HTML with professional styling.`
+      }, {
+        role: "user",
+        content: `Generate cover page for ${data.companyName} based on all available data: ${JSON.stringify(data).substring(0, 2000)}...`
+      }],
+      temperature: 0.6
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateTAMSAMSOMAnalysis(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive TAM/SAM/SOM analysis with detailed market sizing tables, metrics, estimates, sources, and assumptions. Include specific numbers, growth rates, and market penetration calculations. Format with tables and detailed explanations exactly like the BAIBYS PDF format.`
+      }, {
+        role: "user",
+        content: `Generate TAM/SAM/SOM analysis:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateCompetitiveAnalysis(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive competitive analysis including direct competitors, indirect competitors, competitive advantages, barriers to entry, market positioning, and competitive threats. Provide detailed analysis with specific companies and their positioning.`
+      }, {
+        role: "user",
+        content: `Analyze competition:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateTechnologyAssessment(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive technology assessment including technology overview, innovation advantages, technical differentiators, development roadmap, scalability analysis, and technical risks. Focus on deep technical analysis based on all available technical documentation.`
+      }, {
+        role: "user",
+        content: `Assess technology:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateCommercialStrategy(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive commercial strategy analysis including go-to-market strategy, sales channels, customer acquisition, pricing strategy, market entry plans, partnership strategy, and commercialization timeline.`
+      }, {
+        role: "user",
+        content: `Analyze commercial strategy:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateManagementAnalysis(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive management team analysis including leadership profiles, experience backgrounds, track records, key achievements, team strengths, organizational structure, advisory board, and management gaps.`
+      }, {
+        role: "user",
+        content: `Analyze management team:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateFinancialProjections(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive financial projections including revenue forecasts, cost structure analysis, profitability projections, cash flow analysis, funding requirements, burn rate analysis, and financial milestones. Include detailed 5-year projections with assumptions.`
+      }, {
+        role: "user",
+        content: `Generate financial projections:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateValuationAnalysis(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive valuation analysis including multiple valuation methodologies (DCF, comparable companies, precedent transactions), valuation ranges, key valuation drivers, valuation sensitivity analysis, and investment returns analysis.`
+      }, {
+        role: "user",
+        content: `Analyze valuation:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateRegulatoryAnalysis(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive regulatory analysis including regulatory landscape, approval requirements, regulatory pathways, compliance status, regulatory risks, regulatory timeline, and regulatory strategy. Be specific about regulatory bodies and requirements.`
+      }, {
+        role: "user",
+        content: `Analyze regulatory environment:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateClinicalAssessment(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive clinical assessment including clinical trial strategy, clinical endpoints, trial design, regulatory pathway, clinical risks, clinical timeline, and evidence requirements. Focus on clinical development plan and regulatory approval strategy.`
+      }, {
+        role: "user",
+        content: `Assess clinical strategy:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateIPAnalysis(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive intellectual property analysis including patent portfolio assessment, IP strategy, freedom to operate, IP risks, competitive IP landscape, IP valuation, and IP protection strategy. Include specific patent analysis from available documents.`
+      }, {
+        role: "user",
+        content: `Analyze IP portfolio:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateResearchInsights(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive research insights including scientific background, research methodology, research findings, publications, research partnerships, research roadmap, and competitive research landscape. Focus on technical and scientific differentiation.`
+      }, {
+        role: "user",
+        content: `Analyze research insights:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateMitigationStrategies(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive risk mitigation strategies for each identified risk category. Include specific mitigation plans, contingency strategies, monitoring mechanisms, and success metrics. Be detailed and actionable.`
+      }, {
+        role: "user",
+        content: `Generate risk mitigation strategies:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateExitStrategy(context: string): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `Generate comprehensive exit strategy analysis including potential acquirers, IPO potential, strategic alternatives, exit timing, valuation expectations, and exit value creation strategies. Include specific strategic buyers and rationale.`
+      }, {
+        role: "user",
+        content: `Analyze exit strategies:\n\n${context}`
+      }],
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || '';
+  }
+
+  private async generateAppendices(data: ComprehensiveMemoData): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system", 
+        content: `Generate comprehensive appendices including detailed financial models, market research citations, technical specifications, regulatory documentation references, patent listings, management bios, and supporting analysis. Format as organized sections.`
+      }, {
+        role: "user",
+        content: `Generate appendices for ${data.companyName} with ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`
+      }],
+      temperature: 0.6
+    });
+
+    return response.choices[0].message.content || '';
   }
 
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
