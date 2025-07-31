@@ -652,7 +652,7 @@ Use professional VC language and be specific about business metrics, market size
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate a professional investment memo cover page matching the BAIBYS format. Include company info, headquarters, management team, incorporation date, shareholding structure, investment proposal details, key investment terms, and investment highlights. Format as detailed HTML with professional styling.`
+        content: `Generate a professional investment memo cover page matching the BAIBYS format. Include company info, headquarters, management team, incorporation date, shareholding structure, investment proposal details, key investment terms, and investment highlights. Format as clean markdown with proper headers, bullet points, and professional structure. DO NOT use HTML - only markdown formatting.`
       }, {
         role: "user",
         content: `Generate cover page for ${data.companyName} based on all available data: ${JSON.stringify(data).substring(0, 2000)}...`
@@ -669,7 +669,7 @@ Use professional VC language and be specific about business metrics, market size
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate comprehensive TAM/SAM/SOM analysis with detailed market sizing tables, metrics, estimates, sources, and assumptions. Include specific numbers, growth rates, and market penetration calculations. Format with tables and detailed explanations exactly like the BAIBYS PDF format.`
+        content: `Generate comprehensive TAM/SAM/SOM analysis with detailed market sizing tables, metrics, estimates, sources, and assumptions. Include specific numbers, growth rates, and market penetration calculations. Format as clean markdown with tables, headers, and detailed explanations. DO NOT use HTML - only markdown formatting.`
       }, {
         role: "user",
         content: `Generate TAM/SAM/SOM analysis:\n\n${context}`
@@ -686,7 +686,7 @@ Use professional VC language and be specific about business metrics, market size
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate comprehensive competitive analysis including direct competitors, indirect competitors, competitive advantages, barriers to entry, market positioning, and competitive threats. Provide detailed analysis with specific companies and their positioning.`
+        content: `Generate comprehensive competitive analysis including direct competitors, indirect competitors, competitive advantages, barriers to entry, market positioning, and competitive threats. Provide detailed analysis with specific companies and their positioning. Format as clean markdown with headers, bullet points, and tables. DO NOT use HTML - only markdown formatting.`
       }, {
         role: "user",
         content: `Analyze competition:\n\n${context}`
@@ -890,7 +890,7 @@ Use professional VC language and be specific about business metrics, market size
       model: "gpt-4o",
       messages: [{
         role: "system", 
-        content: `Generate comprehensive appendices including detailed financial models, market research citations, technical specifications, regulatory documentation references, patent listings, management bios, and supporting analysis. Format as organized sections.`
+        content: `Generate comprehensive appendices including detailed financial models, market research citations, technical specifications, regulatory documentation references, patent listings, management bios, and supporting analysis. Format as clean markdown with headers, bullet points, and organized sections. DO NOT use HTML - only markdown formatting.`
       }, {
         role: "user",
         content: `Generate appendices for ${data.companyName} with ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`
