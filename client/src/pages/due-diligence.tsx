@@ -1102,8 +1102,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['clinical'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['clinical'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.currentStep}
                     onClinicalAnalysisStart={() => setClinicalAnalysisStarted(true)}
                   />
                 </TabsContent>
@@ -1116,8 +1116,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['legal'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['legal'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1129,8 +1129,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['commercial'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['commercial'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1142,8 +1142,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['hr'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['hr'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1155,8 +1155,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['financial'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['financial'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1168,8 +1168,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['ip'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['ip'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1181,8 +1181,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['research'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['research'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentStep}
                   />
                 </TabsContent>
                 
