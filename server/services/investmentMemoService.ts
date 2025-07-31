@@ -277,12 +277,11 @@ Total Agent Analyses: ${data.agentAnalyses.length}
     data.documents.forEach((doc, index) => {
       let documentContent = '';
       
-      // Extract OCR text (highest priority for specific details)
+      // Extract COMPLETE OCR text (highest priority for specific details)
       if (doc.ocrText && typeof doc.ocrText === 'string' && doc.ocrText.trim().length > 100) {
-        documentContent += `OCR CONTENT:\n${doc.ocrText.substring(0, 6000)}\n`;
-        if (doc.ocrText.length > 6000) {
-          documentContent += `[TRUNCATED - ORIGINAL: ${doc.ocrText.length} characters]\n`;
-        }
+        // Use FULL OCR text - no truncation for comprehensive data extraction
+        documentContent += `OCR CONTENT:\n${doc.ocrText}\n`;
+        console.log(`📄 Document ${index + 1} (${doc.name}): Using ${doc.ocrText.length} characters of OCR text`);
       }
       
       // Extract AI summary content
@@ -298,7 +297,7 @@ Total Agent Analyses: ${data.agentAnalyses.length}
             if (doc.aiSummary.strategicImplications) summaryText += doc.aiSummary.strategicImplications;
           }
           if (summaryText.trim().length > 50) {
-            documentContent += `\nAI SUMMARY:\n${summaryText.substring(0, 2000)}\n`;
+            documentContent += `\nAI SUMMARY:\n${summaryText}\n`;
           }
         } catch (e) {
           console.warn('Error extracting AI summary:', e);
@@ -480,9 +479,9 @@ CRITICAL: Extract only factual information explicitly mentioned in the documents
         role: "user",
         content: `Extract detailed company information for ${data.companyName} from this comprehensive analysis:
 
-${comprehensiveContent.substring(0, 25000)}...
+${comprehensiveContent.substring(0, 80000)}...
 
-Focus on finding specific executive names, corporate details, addresses, shareholding information, and governance structures mentioned in the documents and agent analyses.`
+Focus on finding specific executive names, corporate details, addresses, shareholding information, and governance structures mentioned in the documents and agent analyses. Look through ALL the OCR content for any mention of CEO names, addresses, incorporation details, shareholding percentages, board members, etc.`
       }],
       temperature: 0.1,
       max_tokens: 3000
@@ -509,7 +508,7 @@ Focus on finding specific executive names, corporate details, addresses, shareho
 Use professional VC language with specific metrics, market data, and growth projections from the analysis.`
       }, {
         role: "user",
-        content: `Generate executive summary based on this comprehensive analysis:\n\n${context.substring(0, 15000)}`
+        content: `Generate executive summary based on this comprehensive analysis:\n\n${context.substring(0, 50000)}`
       }],
       temperature: 0.7,
       max_tokens: 1500
@@ -526,7 +525,7 @@ Use professional VC language with specific metrics, market data, and growth proj
         content: `Generate 5-7 compelling investment highlights as bullet points. Each highlight should be a specific, data-backed reason to invest. Format as JSON array of strings.`
       }, {
         role: "user", 
-        content: `Identify key investment highlights:\n\n${context.substring(0, 10000)}`
+        content: `Identify key investment highlights:\n\n${context.substring(0, 30000)}`
       }],
       response_format: { type: "json_object" },
       temperature: 0.6
@@ -544,7 +543,7 @@ Use professional VC language with specific metrics, market data, and growth proj
         content: `Generate comprehensive SWOT analysis with specific, actionable points for each category. Format as JSON with arrays for strengths, weaknesses, opportunities, and threats.`
       }, {
         role: "user",
-        content: `Generate SWOT analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate SWOT analysis:\n\n${context.substring(0, 30000)}`
       }],
       response_format: { type: "json_object" },
       temperature: 0.7
@@ -567,7 +566,7 @@ Use professional VC language with specific metrics, market data, and growth proj
         content: `Generate comprehensive market analysis including market context, TAM/SAM/SOM sizing, competitive landscape, and market timing. Use specific market data and growth projections. Format as JSON.`
       }, {
         role: "user",
-        content: `Analyze market opportunity:\n\n${context.substring(0, 10000)}`
+        content: `Analyze market opportunity:\n\n${context.substring(0, 30000)}`
       }],
       response_format: { type: "json_object" },
       temperature: 0.7
