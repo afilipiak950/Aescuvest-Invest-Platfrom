@@ -920,8 +920,6 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Progress will be shown at the main page level, not here to avoid duplicates */}
-
         {/* Comprehensive Questions for Legal and Clinical Agents */}
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
