@@ -262,17 +262,28 @@ COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
 Company: ${data.companyName}
 Deal ID: ${data.dealId}
 
-=== DOCUMENT ANALYSIS ===
+=== COMPREHENSIVE DOCUMENT ANALYSIS ===
 Total Documents: ${data.documents.length}
+
+DETAILED DOCUMENT CONTENT FOR COMPANY INFORMATION EXTRACTION:
 `;
 
-    // Add document summaries
+    // Add comprehensive document content for better analysis
     data.documents.forEach((doc, index) => {
       const content = safeGetDocumentContent(doc);
-      if (content.summary || doc.summary) {
+      const summary = content.summary || doc.summary;
+      const extractedText = content.extractedText || doc.extractedText || '';
+      
+      if (summary || extractedText) {
         context += `
-Document ${index + 1}: ${doc.name}
-Summary: ${content.summary || doc.summary || 'No summary available'}
+
+========== DOCUMENT ${index + 1}: ${doc.name} ==========
+FILE TYPE: ${doc.contentType || 'Unknown'}
+AI SUMMARY: ${summary || 'No summary available'}
+
+EXTRACTED TEXT CONTENT (for specific details extraction):
+${extractedText.substring(0, 2000)}${extractedText.length > 2000 ? '... [TRUNCATED]' : ''}
+========================================
 `;
       }
     });
@@ -480,13 +491,32 @@ Use professional VC language and be specific about business metrics, market size
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Assess the management team, key personnel, advisors, and board composition. Focus on relevant experience, track record, and team completeness. Format as JSON.`
+        content: `Extract SPECIFIC management team details from the provided documents. Focus on finding exact names, titles, and backgrounds:
+
+REQUIRED EXTRACTIONS:
+- CEO: Full name, background, previous companies
+- CTO: Name, technical expertise, previous roles  
+- CFO: Name, financial background, experience
+- Founders: Names, roles, equity stakes
+- Key Personnel: Department heads, senior managers with names and roles
+- Advisory Board: Specific advisor names and their expertise
+- Board of Directors: Member names and their backgrounds
+
+Return as JSON with these fields:
+{
+  "management": "Detailed description with specific names and roles",
+  "keyPersonnel": ["Person 1: Role - Background", "Person 2: Role - Background"],
+  "advisors": "Specific advisor names and their expertise",
+  "boardComposition": "Board member names and their backgrounds"
+}
+
+Use ONLY information found in documents. If names/details not found, state "Not found in available documents".`
       }, {
         role: "user",
-        content: `Assess the team:\n\n${context}`
+        content: `Extract specific team information from documents:\n\n${context}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.2
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -648,19 +678,161 @@ Use professional VC language and be specific about business metrics, market size
 
   private async generateCoverPage(data: ComprehensiveMemoData): Promise<string> {
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    
+    // Extract comprehensive company information from all documents
+    const companyInfo = await this.extractCompanyInformation(data);
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate a professional investment memo cover page matching the BAIBYS format. Include company info, headquarters, management team, incorporation date, shareholding structure, investment proposal details, key investment terms, and investment highlights. Format as clean markdown with proper headers, bullet points, and professional structure. DO NOT use HTML - only markdown formatting.`
+        content: `Generate a professional investment memo cover page matching the BAIBYS format. Extract and include SPECIFIC company information from the provided documents:
+
+REQUIRED COMPANY DETAILS TO EXTRACT:
+- CEO full name and background
+- CTO, CFO, and key executive names and roles  
+- Exact headquarters address (city, country)
+- Incorporation date and jurisdiction
+- Detailed shareholding structure and ownership percentages
+- Board composition with specific names
+- Employee count and key departments
+- Office locations
+- Company registration details
+
+Format as clean markdown with proper headers, bullet points, and professional structure. DO NOT use HTML - only markdown formatting. Use ONLY information found in the actual documents - do not generate placeholder or generic information.`
       }, {
         role: "user",
-        content: `Generate cover page for ${data.companyName} based on all available data: ${JSON.stringify(data).substring(0, 2000)}...`
+        content: `Generate detailed cover page for ${data.companyName}. Extract specific company information from these ${data.documents.length} documents:
+
+${companyInfo}
+
+Focus on extracting actual names, dates, addresses, and specific details mentioned in the documents.`
       }],
-      temperature: 0.6
+      temperature: 0.3
     });
 
     return response.choices[0].message.content || '';
+  }
+
+  private async extractCompanyInformation(data: ComprehensiveMemoData): Promise<string> {
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    
+    let comprehensiveAnalysis = '';
+    
+    // First, extract from agent analyses (these contain detailed extracted information)
+    comprehensiveAnalysis += `\n=== DETAILED AGENT ANALYSES FOR COMPANY INFORMATION EXTRACTION ===\n`;
+    
+    data.agentAnalyses.forEach(analysis => {
+      comprehensiveAnalysis += `\n--- ${analysis.agentType.toUpperCase()} AGENT ANALYSIS ---\n`;
+      comprehensiveAnalysis += `Status: ${analysis.status}\n`;
+      
+      // Extract specific analysis content based on agent type
+      if (analysis.legalAnswers) {
+        try {
+          const legalData = typeof analysis.legalAnswers === 'string' 
+            ? JSON.parse(analysis.legalAnswers) 
+            : analysis.legalAnswers;
+          comprehensiveAnalysis += `LEGAL ANALYSIS:\n${JSON.stringify(legalData, null, 2).substring(0, 3000)}\n`;
+        } catch (e) {
+          comprehensiveAnalysis += `LEGAL ANALYSIS: ${analysis.legalAnswers.toString().substring(0, 2000)}\n`;
+        }
+      }
+      
+      if (analysis.commercialAnswers) {
+        try {
+          const commercialData = typeof analysis.commercialAnswers === 'string' 
+            ? JSON.parse(analysis.commercialAnswers) 
+            : analysis.commercialAnswers;
+          comprehensiveAnalysis += `COMMERCIAL ANALYSIS:\n${JSON.stringify(commercialData, null, 2).substring(0, 3000)}\n`;
+        } catch (e) {
+          comprehensiveAnalysis += `COMMERCIAL ANALYSIS: ${analysis.commercialAnswers.toString().substring(0, 2000)}\n`;
+        }
+      }
+      
+      if (analysis.research_answers) {
+        try {
+          const researchData = typeof analysis.research_answers === 'string' 
+            ? JSON.parse(analysis.research_answers) 
+            : analysis.research_answers;
+          comprehensiveAnalysis += `RESEARCH ANALYSIS:\n${JSON.stringify(researchData, null, 2).substring(0, 3000)}\n`;
+        } catch (e) {
+          comprehensiveAnalysis += `RESEARCH ANALYSIS: ${analysis.research_answers.toString().substring(0, 2000)}\n`;
+        }
+      }
+      
+      if (analysis.hr_answers) {
+        try {
+          const hrData = typeof analysis.hr_answers === 'string' 
+            ? JSON.parse(analysis.hr_answers) 
+            : analysis.hr_answers;
+          comprehensiveAnalysis += `HR ANALYSIS:\n${JSON.stringify(hrData, null, 2).substring(0, 3000)}\n`;
+        } catch (e) {
+          comprehensiveAnalysis += `HR ANALYSIS: ${analysis.hr_answers.toString().substring(0, 2000)}\n`;
+        }
+      }
+      
+      // Add findings and recommendations
+      if (analysis.findings && analysis.findings.length > 0) {
+        comprehensiveAnalysis += `FINDINGS:\n`;
+        analysis.findings.forEach((finding, idx) => {
+          comprehensiveAnalysis += `${idx + 1}. ${finding.content || finding}\n`;
+        });
+      }
+      
+      if (analysis.recommendations && analysis.recommendations.length > 0) {
+        comprehensiveAnalysis += `RECOMMENDATIONS:\n`;
+        analysis.recommendations.forEach((rec, idx) => {
+          comprehensiveAnalysis += `${idx + 1}. ${rec.content || rec.description || rec}\n`;
+        });
+      }
+      
+      comprehensiveAnalysis += `\n`;
+    });
+
+    // Add document summaries
+    comprehensiveAnalysis += `\n=== DOCUMENT SUMMARIES ===\n`;
+    data.documents.forEach((doc, index) => {
+      const content = safeGetDocumentContent(doc);
+      const summary = content.summary || doc.summary || '';
+      const aiSummary = content.executiveSummary || (content.aiSummary && content.aiSummary.executiveSummary) || '';
+      
+      if (summary || aiSummary) {
+        comprehensiveAnalysis += `
+DOCUMENT ${index + 1}: ${doc.name}
+TYPE: ${doc.type || doc.documentType || 'Unknown'}
+SUMMARY: ${summary}
+AI SUMMARY: ${aiSummary}
+---
+`;
+      }
+    });
+
+    // Use AI to extract specific company information from comprehensive analysis
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{
+        role: "system",
+        content: `You are a corporate information extraction expert. Extract SPECIFIC company details from the provided agent analyses and document summaries. Focus on finding:
+
+1. Executive Team: CEO, CTO, CFO, founders (exact names and titles from HR/Legal analysis)
+2. Corporate Details: headquarters address, incorporation date, registration number (from Legal analysis)
+3. Shareholding: ownership percentages, investor names, share classes (from Legal/Commercial analysis)
+4. Governance: board members, advisory board members with names (from Legal/HR analysis)
+5. Company Structure: subsidiaries, office locations, employee count (from Commercial/HR analysis)
+6. Financial Details: funding rounds, valuation, revenue figures (from Commercial analysis)
+7. Key Partnerships: major agreements, distribution deals (from Commercial analysis)
+
+Extract exact names, dates, addresses, and percentages where mentioned. If specific information is not found in the analyses, state "Not found in available analyses" for that category. Format as structured text with clear sections.`
+      }, {
+        role: "user",
+        content: `Extract detailed company information for ${data.companyName} from these comprehensive analyses:
+
+${comprehensiveAnalysis.substring(0, 15000)}...`
+      }],
+      temperature: 0.1
+    });
+
+    return response.choices[0].message.content || 'No company information could be extracted from the available analyses and documents.';
   }
 
   private async generateTAMSAMSOMAnalysis(context: string): Promise<string> {
@@ -737,12 +909,23 @@ Use professional VC language and be specific about business metrics, market size
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate comprehensive management team analysis including leadership profiles, experience backgrounds, track records, key achievements, team strengths, organizational structure, advisory board, and management gaps.`
+        content: `Generate comprehensive management team analysis including detailed leadership profiles with SPECIFIC names, exact experience backgrounds, track records, key achievements, team strengths, organizational structure, advisory board members, and management gaps. 
+
+EXTRACT SPECIFIC DETAILS FROM DOCUMENTS:
+- CEO: Full name, educational background, previous companies, years of experience
+- CTO: Technical background, patents, previous roles, expertise areas
+- CFO: Financial experience, previous companies, qualifications
+- Founders: Names, roles, founding story, equity distribution
+- Board Members: Names, backgrounds, board roles, expertise
+- Key Employees: Department heads, senior management, technical leads
+- Advisory Board: Specific advisors, their backgrounds, and value-add
+
+Use ONLY information found in the actual documents. If specific details are not found, clearly state what information is missing. Format as clean markdown with detailed profiles. DO NOT use HTML - only markdown formatting.`
       }, {
         role: "user",
-        content: `Analyze management team:\n\n${context}`
+        content: `Extract and analyze detailed management team information:\n\n${context}`
       }],
-      temperature: 0.7
+      temperature: 0.3
     });
 
     return response.choices[0].message.content || '';
