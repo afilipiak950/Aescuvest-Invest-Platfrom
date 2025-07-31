@@ -274,271 +274,573 @@ export default function MemoGenerator() {
                       <TabsTrigger value="recommendation">Decision</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="overview" className="space-y-8">
+                    <TabsContent value="overview" className="space-y-6">
                       {/* Cover Page */}
                       {currentMemo?.coverPage && (
-                        <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg p-8">
-                          <SectionHeader 
-                            title="Investment Memorandum" 
-                            subtitle="Professional investment opportunity presentation"
-                            className="mb-8"
-                          />
-                          <FormattedContent content={currentMemo.coverPage} variant="large" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-2xl text-white">Investment Memorandum</CardTitle>
+                                <p className="text-slate-400 text-sm">Professional investment opportunity presentation</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.coverPage} 
+                                variant="large"
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                       
                       {/* Executive Summary */}
                       {currentMemo?.executiveSummary && (
-                        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Executive Summary" 
-                            subtitle="Investment opportunity overview and key value proposition"
-                            icon={<TrendingUp className="h-5 w-5 text-blue-400" />}
-                          />
-                          <FormattedContent content={currentMemo.executiveSummary} variant="large" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <TrendingUp className="h-6 w-6 text-blue-400" />
+                              <div>
+                                <CardTitle className="text-xl text-white">Executive Summary</CardTitle>
+                                <p className="text-slate-400 text-sm">Investment opportunity overview and key value proposition</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.executiveSummary} 
+                                variant="large"
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Investment Highlights */}
                       {Array.isArray(currentMemo?.investmentHighlights) && currentMemo.investmentHighlights.length > 0 && (
-                        <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Investment Highlights" 
-                            subtitle="Key value propositions and investment attractiveness factors"
-                          />
-                          <div className="space-y-3">
-                            {currentMemo.investmentHighlights.map((highlight: string, index: number) => (
-                              <div key={index} className="flex items-start">
-                                <span className="text-green-400 mr-3 mt-1 flex-shrink-0">✓</span>
-                                <span className="text-gray-300 text-sm leading-relaxed">{highlight}</span>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-green-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Investment Highlights</CardTitle>
+                                <p className="text-slate-400 text-sm">Key value propositions and investment attractiveness factors</p>
                               </div>
-                            ))}
-                          </div>
-                        </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-3">
+                              {currentMemo.investmentHighlights.map((highlight: string, index: number) => (
+                                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                                  <span className="text-slate-200 leading-relaxed">{highlight}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                       {!Array.isArray(currentMemo?.investmentHighlights) && currentMemo?.investmentHighlights && (
-                        <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Investment Highlights" 
-                            subtitle="Key value propositions and investment attractiveness factors"
-                          />
-                          <FormattedContent content={currentMemo.investmentHighlights} variant="default" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-green-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Investment Highlights</CardTitle>
+                                <p className="text-slate-400 text-sm">Key value propositions and investment attractiveness factors</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.investmentHighlights} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                     </TabsContent>
 
-                    <TabsContent value="analysis" className="space-y-8 min-h-[400px]">
+                    <TabsContent value="analysis" className="space-y-6 min-h-[400px]">
                       {/* Market Analysis */}
                       {currentMemo?.marketAnalysis && (
-                        <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Market Analysis" 
-                            subtitle="Market size, timing, and competitive landscape assessment"
-                          />
-                          <ProfessionalInfoGrid 
-                            items={[
-                              { label: "Market Context", content: currentMemo.marketAnalysis.marketContext },
-                              { label: "Market Timing", content: currentMemo.marketAnalysis.marketTiming },
-                              { 
-                                label: "TAM/SAM/SOM", 
-                                content: `TAM: ${currentMemo.marketAnalysis.marketSize.tam}\nSAM: ${currentMemo.marketAnalysis.marketSize.sam}\nSOM: ${currentMemo.marketAnalysis.marketSize.som}`
-                              },
-                              { label: "Competitive Landscape", content: currentMemo.marketAnalysis.competitiveLandscape }
-                            ]}
-                            columns={2}
-                          />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-purple-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Market Analysis</CardTitle>
+                                <p className="text-slate-400 text-sm">Market size, timing, and competitive landscape assessment</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Market Context</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.marketAnalysis.marketContext} 
+                                    variant="small"
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Market Timing</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.marketAnalysis.marketTiming} 
+                                    variant="small"
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Market Size (TAM/SAM/SOM)</h4>
+                                  <div className="space-y-2 text-slate-300">
+                                    <div><span className="font-medium text-blue-400">TAM:</span> {currentMemo.marketAnalysis.marketSize.tam}</div>
+                                    <div><span className="font-medium text-green-400">SAM:</span> {currentMemo.marketAnalysis.marketSize.sam}</div>
+                                    <div><span className="font-medium text-yellow-400">SOM:</span> {currentMemo.marketAnalysis.marketSize.som}</div>
+                                  </div>
+                                </div>
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Competitive Landscape</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.marketAnalysis.competitiveLandscape} 
+                                    variant="small"
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Product Analysis */}
                       {currentMemo?.productAnalysis && (
-                        <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Product & Technology Analysis" 
-                            subtitle="Product overview and technological differentiation"
-                          />
-                          <ProfessionalInfoGrid 
-                            items={[
-                              { label: "Product Overview", content: currentMemo.productAnalysis.productOverview },
-                              { label: "Technology Advantage", content: currentMemo.productAnalysis.technologyAdvantage },
-                              { label: "Competitive Edge", content: currentMemo.productAnalysis.competitiveEdge },
-                              { label: "Development Stage", content: currentMemo.productAnalysis.developmentStage }
-                            ]}
-                            columns={2}
-                          />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-cyan-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Product & Technology Analysis</CardTitle>
+                                <p className="text-slate-400 text-sm">Product overview and technological differentiation</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Product Overview</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.productAnalysis.productOverview} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Technology Advantage</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.productAnalysis.technologyAdvantage} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Competitive Edge</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.productAnalysis.competitiveEdge} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Development Stage</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.productAnalysis.developmentStage} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Business Model */}
                       {currentMemo?.businessModel && (
-                        <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Business Model" 
-                            subtitle="Revenue strategy and customer acquisition approach"
-                          />
-                          <ProfessionalInfoGrid 
-                            items={[
-                              { label: "Revenue Model", content: currentMemo.businessModel.revenueModel },
-                              { label: "Pricing Strategy", content: currentMemo.businessModel.pricingStrategy },
-                              { label: "Sales Channels", content: currentMemo.businessModel.salesChannels },
-                              { label: "Customer Acquisition", content: currentMemo.businessModel.customerAcquisition }
-                            ]}
-                            columns={2}
-                          />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Business Model</CardTitle>
+                                <p className="text-slate-400 text-sm">Revenue strategy and customer acquisition approach</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Revenue Model</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.businessModel.revenueModel} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Pricing Strategy</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.businessModel.pricingStrategy} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Sales Channels</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.businessModel.salesChannels} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Customer Acquisition</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.businessModel.customerAcquisition} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Team Assessment */}
                       {currentMemo?.teamAssessment && (
-                        <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Management Team Assessment" 
-                            subtitle="Leadership team evaluation and key personnel analysis"
-                          />
-                          <div className="space-y-6">
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-3">Management</h4>
-                              <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.management)} variant="small" />
-                            </div>
-                            {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-violet-500 rounded-full"></div>
                               <div>
-                                <h4 className="font-semibold text-gray-200 mb-3">Key Personnel</h4>
-                                <div className="space-y-2">
-                                  {currentMemo.teamAssessment.keyPersonnel.map((person: any, index: number) => (
-                                    <div key={index} className="flex items-start">
-                                      <span className="text-primary mt-1 mr-3 flex-shrink-0">•</span>
-                                      <span className="text-gray-300 text-sm">
-                                        {typeof person === 'string' ? person : 
-                                         typeof person === 'object' && person !== null ? 
-                                         `${person.name || ''} - ${person.role || ''} ${person.background ? `(${person.background})` : ''}`.trim() :
-                                         String(person)}
-                                      </span>
-                                    </div>
-                                  ))}
+                                <CardTitle className="text-xl text-white">Management Team Assessment</CardTitle>
+                                <p className="text-slate-400 text-sm">Leadership team evaluation and key personnel analysis</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-6">
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-3">Management</h4>
+                                <ProfessionalFormattedContent 
+                                  content={formatObjectContent(currentMemo.teamAssessment.management)} 
+                                  variant="small" 
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              
+                              {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-3">Key Personnel</h4>
+                                  <div className="space-y-3">
+                                    {currentMemo.teamAssessment.keyPersonnel.map((person: any, index: number) => (
+                                      <div key={index} className="flex items-start gap-3 p-3 rounded-md bg-slate-700/50">
+                                        <div className="w-2 h-2 bg-violet-400 rounded-full mt-2 flex-shrink-0"></div>
+                                        <span className="text-slate-300">
+                                          {typeof person === 'string' ? person : 
+                                           typeof person === 'object' && person !== null ? 
+                                           `${person.name || ''} - ${person.role || ''} ${person.background ? `(${person.background})` : ''}`.trim() :
+                                           String(person)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-3">Key Personnel</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={formatObjectContent(currentMemo.teamAssessment.keyPersonnel)} 
+                                    variant="small" 
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">  
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-3">Advisors</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={formatObjectContent(currentMemo.teamAssessment.advisors)} 
+                                    variant="small" 
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-3">Board Composition</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={formatObjectContent(currentMemo.teamAssessment.boardComposition)} 
+                                    variant="small" 
+                                    className="text-slate-300"
+                                  />
                                 </div>
                               </div>
-                            )}
-                            {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
-                              <div>
-                                <h4 className="font-semibold text-gray-200 mb-3">Key Personnel</h4>
-                                <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.keyPersonnel)} variant="small" />
-                              </div>
-                            )}
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-3">Advisors</h4>
-                              <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.advisors)} variant="small" />
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-3">Board Composition</h4>
-                              <ProfessionalFormattedContent content={formatObjectContent(currentMemo.teamAssessment.boardComposition)} variant="small" />
-                            </div>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Commercial Analysis */}
                       {currentMemo?.commercialAnalysis && (
-                        <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Commercial Analysis" 
-                            subtitle="Commercial viability and market readiness assessment"
-                          />
-                          <ProfessionalFormattedContent content={currentMemo.commercialAnalysis} variant="default" className="bg-gray-800/30 p-4 rounded-md border border-gray-600" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-amber-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Commercial Analysis</CardTitle>
+                                <p className="text-slate-400 text-sm">Commercial viability and market readiness assessment</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.commercialAnalysis} 
+                                variant="default" 
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Clinical Assessment */}
                       {currentMemo?.clinicalAssessment && (
-                        <div className="bg-gradient-to-r from-red-500/10 to-pink-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Clinical Assessment" 
-                            subtitle="Clinical evaluation and regulatory pathway analysis"
-                          />
-                          <ProfessionalFormattedContent content={currentMemo.clinicalAssessment} variant="default" className="bg-gray-800/30 p-4 rounded-md border border-gray-600" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-red-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Clinical Assessment</CardTitle>
+                                <p className="text-slate-400 text-sm">Clinical evaluation and regulatory pathway analysis</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.clinicalAssessment} 
+                                variant="default" 
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* IP Analysis */}
                       {currentMemo?.ipAnalysis && (
-                        <div className="bg-gradient-to-r from-indigo-500/10 to-blue-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Intellectual Property Analysis" 
-                            subtitle="Patent portfolio and IP protection strategy"
-                          />
-                          <ProfessionalFormattedContent content={currentMemo.ipAnalysis} variant="default" className="bg-gray-800/30 p-4 rounded-md border border-gray-600" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Intellectual Property Analysis</CardTitle>
+                                <p className="text-slate-400 text-sm">Patent portfolio and IP protection strategy</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.ipAnalysis} 
+                                variant="default" 
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Research Insights */}
                       {currentMemo?.researchInsights && (
-                        <div className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Research Insights" 
-                            subtitle="Market research and competitive intelligence"
-                          />
-                          <FormattedContent content={currentMemo.researchInsights} variant="default" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-teal-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Research Insights</CardTitle>
+                                <p className="text-slate-400 text-sm">Market research and competitive intelligence</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.researchInsights} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                       
                       {/* Fallback content if no analysis sections exist */}
                       {!currentMemo?.marketAnalysis && !currentMemo?.productAnalysis && !currentMemo?.businessModel && !currentMemo?.teamAssessment && !currentMemo?.commercialAnalysis && !currentMemo?.clinicalAssessment && !currentMemo?.ipAnalysis && !currentMemo?.researchInsights && (
-                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">Analysis In Progress</h3>
-                          <p className="text-gray-300">Detailed analysis sections will appear here once the investment memo is generated.</p>
-                        </div>
+                        <Card className="border-slate-600 bg-slate-800/30">
+                          <CardContent className="pt-6">
+                            <div className="text-center py-12">
+                              <div className="w-16 h-16 bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+                                <TrendingUp className="h-8 w-8 text-slate-400" />
+                              </div>
+                              <h3 className="text-xl font-semibold text-white mb-2">Analysis In Progress</h3>
+                              <p className="text-slate-400 max-w-md mx-auto">Detailed analysis sections will appear here once the investment memo is generated.</p>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                     </TabsContent>
 
-                    <TabsContent value="financial" className="space-y-8 min-h-[400px]">
+                    <TabsContent value="financial" className="space-y-6 min-h-[400px]">
                       {/* Financial Analysis */}
                       {currentMemo?.financialAnalysis && (
-                        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Financial Analysis" 
-                            subtitle="Financial performance and projections overview"
-                          />
-                          <InfoGrid 
-                            items={[
-                              { label: "Current Financials", content: currentMemo.financialAnalysis.currentFinancials },
-                              { label: "Projections", content: currentMemo.financialAnalysis.projections },
-                              { label: "Funding History", content: currentMemo.financialAnalysis.fundingHistory },
-                              { label: "Use of Funds", content: currentMemo.financialAnalysis.useOfFunds }
-                            ]}
-                            columns={2}
-                          />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-green-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Financial Analysis</CardTitle>
+                                <p className="text-slate-400 text-sm">Financial performance and projections overview</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Current Financials</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.financialAnalysis.currentFinancials} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Projections</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.financialAnalysis.projections} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Funding History</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.financialAnalysis.fundingHistory} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Use of Funds</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.financialAnalysis.useOfFunds} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
 
                       {/* Investment Terms */}
                       {currentMemo?.investmentTerms && (
-                        <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Investment Terms" 
-                            subtitle="Deal structure, valuation, and investment terms"
-                          />
-                          <InfoGrid 
-                            items={[
-                              { label: "Valuation", content: formatObjectContent(currentMemo.investmentTerms.valuation) },
-                              { label: "Funding Amount", content: currentMemo.investmentTerms.fundingAmount },
-                              { label: "Securities", content: formatObjectContent(currentMemo.investmentTerms.securities) },
-                              { label: "Board Rights", content: formatObjectContent(currentMemo.investmentTerms.boardRights) },
-                              { 
-                                label: "Liquidation Preference", 
-                                content: currentMemo.investmentTerms.liquidationPreference,
-                                className: "md:col-span-2"
-                              }
-                            ]}
-                            columns={2}
-                          />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
+                              <div>
+                                <CardTitle className="text-xl text-white">Investment Terms</CardTitle>
+                                <p className="text-slate-400 text-sm">Deal structure, valuation, and investment terms</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Valuation</h4>
+                                <ProfessionalFormattedContent 
+                                  content={formatObjectContent(currentMemo.investmentTerms.valuation)} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Funding Amount</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.investmentTerms.fundingAmount} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Securities</h4>
+                                <ProfessionalFormattedContent 
+                                  content={formatObjectContent(currentMemo.investmentTerms.securities)} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Board Rights</h4>
+                                <ProfessionalFormattedContent 
+                                  content={formatObjectContent(currentMemo.investmentTerms.boardRights)} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                              <div className="md:col-span-2 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h4 className="font-semibold text-slate-200 mb-2">Liquidation Preference</h4>
+                                <ProfessionalFormattedContent 
+                                  content={currentMemo.investmentTerms.liquidationPreference} 
+                                  variant="small"
+                                  className="text-slate-300"
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                       
                       {/* Fallback content if no financial sections exist */}
                       {!currentMemo?.financialAnalysis && !currentMemo?.investmentTerms && (
-                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">Financial Analysis In Progress</h3>
-                          <p className="text-gray-300">Financial analysis and investment terms will appear here once the investment memo is generated.</p>
-                        </div>
+                        <Card className="border-slate-600 bg-slate-800/30">
+                          <CardContent className="pt-6">
+                            <div className="text-center py-12">
+                              <div className="w-16 h-16 bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+                                <TrendingUp className="h-8 w-8 text-slate-400" />
+                              </div>
+                              <h3 className="text-xl font-semibold text-white mb-2">Financial Analysis In Progress</h3>
+                              <p className="text-slate-400 max-w-md mx-auto">Financial analysis and investment terms will appear here once the investment memo is generated.</p>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                     </TabsContent>
 
