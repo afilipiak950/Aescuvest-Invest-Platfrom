@@ -1187,6 +1187,25 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
+  // AI Document Assignment mutation
+  const assignAgentsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/assign-agents`, {
+        method: 'POST',
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      console.log('🤖 AI document assignment completed:', data);
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      alert(`Successfully assigned agents to ${data.assignments?.length || 0} documents`);
+    },
+    onError: (error) => {
+      console.error('❌ AI document assignment failed:', error);
+      alert(`Failed to assign agents: ${error.message}`);
+    }
+  });
+
   // Track processing state to prevent duplicates
   const [processingComplete, setProcessingComplete] = useState(false);
   const [processingCooldown, setProcessingCooldown] = useState(false);
@@ -1604,6 +1623,29 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   }
                   return null;
                 })()}
+
+                {/* AI Agent Assignment Button */}
+                {documentsArray && documentsArray.length > 0 && (
+                  <Button
+                    onClick={() => assignAgentsMutation.mutate()}
+                    size="sm"
+                    variant="outline" 
+                    disabled={assignAgentsMutation.isPending}
+                    className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white"
+                  >
+                    {assignAgentsMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        Assigning...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4 mr-1" />
+                        AI Assign Agents
+                      </>
+                    )}
+                  </Button>
+                )}
                 
                 <Button
                   onClick={() => setShowAdditionalUpload(true)}
