@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import OpenAI from 'openai';
 import { storage } from '../storage';
+import { InsertInvestmentMemo } from '../../shared/schema';
 import { safeGetDocumentContent } from '../utils/documentUtils';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -1103,7 +1104,59 @@ Use professional VC language with specific metrics, market data, and growth proj
 
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
     console.log(`💾 Investment memo ready for deal ${dealId} - comprehensive 30-50 page memo generated`);
-    // TODO: Implement memo storage in database
+    
+    try {
+      // Get company name from deal
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        console.error(`Deal ${dealId} not found for memo storage`);
+        return;
+      }
+
+      // Prepare memo data for database storage
+      const memoData: InsertInvestmentMemo = {
+        dealId: dealId,
+        companyName: deal.companyName,
+        version: 1,
+        coverPage: memo.coverPage,
+        executiveSummary: memo.executiveSummary,
+        investmentHighlights: memo.investmentHighlights,
+        swotAnalysis: memo.swotAnalysis,
+        marketAnalysis: memo.marketAnalysis,
+        tamSamSomAnalysis: memo.tamSamSomAnalysis,
+        competitiveAnalysis: memo.competitiveAnalysis,
+        technologyAssessment: memo.technologyAssessment,
+        productAnalysis: memo.productAnalysis,
+        businessModel: memo.businessModel,
+        commercialStrategy: memo.commercialStrategy,
+        teamAssessment: memo.teamAssessment,
+        managementAnalysis: memo.managementAnalysis,
+        financialAnalysis: memo.financialAnalysis,
+        financialProjections: memo.financialProjections,
+        valuationAnalysis: memo.valuationAnalysis,
+        legalAssessment: memo.legalAssessment,
+        regulatoryAnalysis: memo.regulatoryAnalysis,
+        ipAnalysis: memo.ipAnalysis,
+        clinicalAssessment: memo.clinicalAssessment,
+        commercialAnalysis: memo.commercialAnalysis,
+        riskAssessment: memo.riskAssessment,
+        mitigationStrategies: memo.mitigationStrategies,
+        investmentTerms: memo.investmentTerms,
+        recommendation: memo.recommendation,
+        exitStrategy: memo.exitStrategy,
+        appendices: memo.appendices,
+        researchInsights: memo.researchInsights,
+        dataSourcesCount: 0 // Will be set by caller
+      };
+
+      // Delete old memos for this deal and create new one
+      await storage.deleteMemosByDealId(dealId);
+      await storage.createMemo(memoData);
+      console.log(`💾 Successfully persisted investment memo to database for deal ${dealId}`);
+    } catch (error) {
+      console.error('Error persisting memo to database:', error);
+      // Continue without failing - memo generation succeeded
+    }
   }
 
   /**
