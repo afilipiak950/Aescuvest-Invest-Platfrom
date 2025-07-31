@@ -3614,10 +3614,20 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       // Check for existing legal analysis jobs to prevent duplicates
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingLegalJob = existingJobs.find(job => 
-        (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_analysis')) && 
-        job.status === 'processing'
-      );
+      const existingLegalJob = existingJobs.find(job => {
+        if (!job || job.status !== 'processing') return false;
+        
+        // Check job type first
+        if (job.jobType === 'comprehensive_legal_analysis') return true;
+        
+        // Check jobId with proper null safety
+        if (job.jobId && typeof job.jobId === 'string' && job.jobId.includes('legal_analysis')) return true;
+        
+        // Check agentType as fallback
+        if (job.agentType === 'Legal') return true;
+        
+        return false;
+      });
       
       if (existingLegalJob) {
         console.log(`⚠️ Legal analysis already running for deal ${dealId} (Job: ${existingLegalJob.jobId})`);
