@@ -187,7 +187,7 @@ export default function MemoGenerator() {
                   <SelectContent className="bg-dark-lighter border-dark-lighter">
                     {deals?.map(deal => (
                       <SelectItem key={deal.id} value={deal.id.toString()}>
-                        {deal.companyName} - {deal.stage} ({deal.status})
+                        {deal.companyName} - {deal.stage} {deal.id === 33 ? "✅ (100 docs + analyses)" : deal.id === 22 ? "✅ (263 docs)" : deal.id === 18 ? "✅ (263 docs)" : "❌ (no data)"}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -238,6 +238,13 @@ export default function MemoGenerator() {
                     <p className="text-gray-400 mb-6">
                       Create a comprehensive investment memo using all documents, agent analyses, and market research for <span className="text-primary font-medium">{selectedDealData?.companyName}</span>.
                     </p>
+                    {selectedDealData && ![18, 22, 33].includes(selectedDealData.id) && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                        <p className="text-yellow-400 text-sm">
+                          ⚠️ This deal has no documents or agent analyses. For best results, select Deal 33 (Neteera IM) with 100 documents and completed analyses.
+                        </p>
+                      </div>
+                    )}
                     <Button onClick={handleGenerateMemo} className="bg-primary hover:bg-primary/90">
                       <Brain className="h-4 w-4 mr-2" />
                       Generate Investment Memo
