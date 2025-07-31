@@ -319,7 +319,7 @@ export default function MemoGenerator() {
                       )}
                     </TabsContent>
 
-                    <TabsContent value="analysis" className="space-y-8">
+                    <TabsContent value="analysis" className="space-y-8 min-h-[400px]">
                       {/* Market Analysis */}
                       {currentMemo?.marketAnalysis && (
                         <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-6">
@@ -506,9 +506,17 @@ export default function MemoGenerator() {
                           <div className="text-gray-300 whitespace-pre-line">{currentMemo.researchInsights}</div>
                         </div>
                       )}
+                      
+                      {/* Fallback content if no analysis sections exist */}
+                      {!currentMemo?.marketAnalysis && !currentMemo?.productAnalysis && !currentMemo?.businessModel && !currentMemo?.teamAssessment && !currentMemo?.commercialAnalysis && !currentMemo?.clinicalAssessment && !currentMemo?.ipAnalysis && !currentMemo?.researchInsights && (
+                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">Analysis In Progress</h3>
+                          <p className="text-gray-300">Detailed analysis sections will appear here once the investment memo is generated.</p>
+                        </div>
+                      )}
                     </TabsContent>
 
-                    <TabsContent value="financial" className="space-y-8">
+                    <TabsContent value="financial" className="space-y-8 min-h-[400px]">
                       {/* Financial Analysis */}
                       {currentMemo?.financialAnalysis && (
                         <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-6">
@@ -562,9 +570,17 @@ export default function MemoGenerator() {
                           </div>
                         </div>
                       )}
+                      
+                      {/* Fallback content if no financial sections exist */}
+                      {!currentMemo?.financialAnalysis && !currentMemo?.investmentTerms && (
+                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">Financial Analysis In Progress</h3>
+                          <p className="text-gray-300">Financial analysis and investment terms will appear here once the investment memo is generated.</p>
+                        </div>
+                      )}
                     </TabsContent>
 
-                    <TabsContent value="risks" className="space-y-8">
+                    <TabsContent value="risks" className="space-y-8 min-h-[400px]">
                       {/* Risk Assessment */}
                       {currentMemo?.riskAssessment && (
                         <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-lg p-6">
@@ -725,9 +741,17 @@ export default function MemoGenerator() {
                           </div>
                         </div>
                       )}
+                      
+                      {/* Fallback content if no risk sections exist */}
+                      {!currentMemo?.riskAssessment && !currentMemo?.mitigationStrategies && !currentMemo?.swotAnalysis && (
+                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">Risk Analysis In Progress</h3>
+                          <p className="text-gray-300">Risk assessment, mitigation strategies, and SWOT analysis will appear here once the investment memo is generated.</p>
+                        </div>
+                      )}
                     </TabsContent>
 
-                    <TabsContent value="legal" className="space-y-8">
+                    <TabsContent value="legal" className="space-y-8 min-h-[400px]">
                       {/* Legal Assessment */}
                       {currentMemo?.legalAssessment && (
                         <div className="bg-gradient-to-r from-slate-500/10 to-gray-500/10 rounded-lg p-6">
@@ -762,9 +786,17 @@ export default function MemoGenerator() {
                           </div>
                         </div>
                       )}
+                      
+                      {/* Fallback content if no legal sections exist */}
+                      {!currentMemo?.legalAssessment && !currentMemo?.regulatoryAnalysis && (
+                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">Legal Analysis In Progress</h3>
+                          <p className="text-gray-300">Legal assessment and regulatory analysis will appear here once the investment memo is generated.</p>
+                        </div>
+                      )}
                     </TabsContent>
 
-                    <TabsContent value="recommendation" className="space-y-8">
+                    <TabsContent value="recommendation" className="space-y-8 min-h-[400px]">
                       {/* Investment Recommendation */}
                       {currentMemo?.recommendation && (
                         <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
@@ -822,6 +854,14 @@ export default function MemoGenerator() {
                           <div className="text-gray-300 prose prose-invert max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMemo.appendices}</ReactMarkdown>
                           </div>
+                        </div>
+                      )}
+                      
+                      {/* Fallback content if no recommendation sections exist */}
+                      {!currentMemo?.recommendation && !currentMemo?.exitStrategy && !currentMemo?.appendices && (
+                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">Investment Decision In Progress</h3>
+                          <p className="text-gray-300">Investment recommendation, exit strategy, and appendices will appear here once the investment memo is generated.</p>
                         </div>
                       )}
                     </TabsContent>
