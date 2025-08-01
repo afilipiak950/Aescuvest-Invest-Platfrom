@@ -40,11 +40,11 @@ interface ProductAnalysisData {
 }
 
 interface BAIBYSMemoData {
-  coverPage: CoverPageData;
+  coverPage: CoverPageData | string;
   executiveSummary: string;
-  swotAnalysis: SWOTData;
-  marketAnalysis: MarketAnalysisData;
-  productAnalysis: ProductAnalysisData;
+  swotAnalysis: SWOTData | string;
+  marketAnalysis: MarketAnalysisData | string;
+  productAnalysis: ProductAnalysisData | string;
   businessModel: string;
   teamAssessment: string;
   financialAnalysis: string;
@@ -64,62 +64,22 @@ interface BAIBYSMemoDisplayProps {
 }
 
 export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
+  // Handle both string and object formats for backwards compatibility
+  const coverPageData = typeof memo.coverPage === 'string' ? null : memo.coverPage;
+  const swotData = typeof memo.swotAnalysis === 'string' ? null : memo.swotAnalysis;
+  const marketData = typeof memo.marketAnalysis === 'string' ? null : memo.marketAnalysis;
+  const productData = typeof memo.productAnalysis === 'string' ? null : memo.productAnalysis;
+
   return (
     <div className="space-y-8">
-      {/* Cover Page */}
+      {/* Cover Page - String format fallback */}
       <Card className="border-slate-700 bg-slate-900/50">
-        <CardHeader className="text-center pb-6">
-          <CardTitle className="text-3xl font-bold text-white mb-2">
-            Investment Memorandum
-          </CardTitle>
-          <p className="text-lg text-slate-300">{memo.coverPage.company}</p>
-          <p className="text-sm text-slate-400">Generated on {new Date().toLocaleDateString()}</p>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-white">Investment Memorandum</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-3">The Company</h3>
-              <div className="space-y-2 text-sm text-slate-300">
-                <p><strong>Headquarters:</strong> {memo.coverPage.headquarters}</p>
-                <div>
-                  <strong>Management:</strong>
-                  <ul className="mt-1 ml-4 list-disc space-y-1">
-                    {memo.coverPage.management.map((member, idx) => (
-                      <li key={idx}>{member}</li>
-                    ))}
-                  </ul>
-                </div>
-                <p><strong>Incorporation:</strong> {memo.coverPage.incorporation}</p>
-                <div>
-                  <strong>Shareholding:</strong>
-                  <ul className="mt-1 ml-4 list-disc space-y-1">
-                    {memo.coverPage.shareholding.map((holding, idx) => (
-                      <li key={idx}>{holding}</li>
-                    ))}
-                  </ul>
-                </div>
-                <p><strong>Proposal:</strong> {memo.coverPage.proposal}</p>
-                <div>
-                  <strong>Key Investment Terms:</strong>
-                  <ul className="mt-1 ml-4 list-disc space-y-1">
-                    {memo.coverPage.keyInvestmentTerms.map((term, idx) => (
-                      <li key={idx}>{term}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3">Investment Highlights</h3>
-            <div className="space-y-3">
-              {memo.coverPage.investmentHighlights.map((highlight, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-sm text-slate-300">{highlight}</p>
-                </div>
-              ))}
-            </div>
+        <CardContent>
+          <div className="text-slate-300 whitespace-pre-wrap text-sm font-mono">
+            {typeof memo.coverPage === 'string' ? memo.coverPage : 'Cover page content not available'}
           </div>
         </CardContent>
       </Card>
@@ -127,187 +87,220 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
       {/* Executive Summary */}
       <Card className="border-slate-700 bg-slate-900/50">
         <CardHeader>
-          <CardTitle className="text-xl text-white">Executive Summary</CardTitle>
+          <CardTitle className="text-xl font-bold text-white">Executive Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose prose-invert max-w-none">
-            <div className="text-slate-200 leading-relaxed whitespace-pre-wrap">
-              {memo.executiveSummary}
-            </div>
+          <div className="text-slate-300 whitespace-pre-wrap">
+            {memo.executiveSummary || 'Executive summary not available'}
           </div>
         </CardContent>
       </Card>
 
-      {/* SWOT Analysis */}
+      {/* SWOT Analysis - String format fallback */}
       <Card className="border-slate-700 bg-slate-900/50">
         <CardHeader>
-          <CardTitle className="text-xl text-white">SWOT Analysis</CardTitle>
+          <CardTitle className="text-xl font-bold text-white">SWOT Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h4 className="text-lg font-semibold text-green-400 mb-3">Strengths</h4>
-              <ul className="space-y-2">
-                {memo.swotAnalysis.strengths.map((strength, idx) => (
-                  <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
-                    <Badge variant="outline" className="text-green-400 border-green-400">+</Badge>
-                    {strength}
-                  </li>
-                ))}
-              </ul>
-              
-              <h4 className="text-lg font-semibold text-blue-400 mb-3 mt-6">Opportunities</h4>
-              <ul className="space-y-2">
-                {memo.swotAnalysis.opportunities.map((opportunity, idx) => (
-                  <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
-                    <Badge variant="outline" className="text-blue-400 border-blue-400">↗</Badge>
-                    {opportunity}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold text-yellow-400 mb-3">Weaknesses</h4>
-              <ul className="space-y-2">
-                {memo.swotAnalysis.weaknesses.map((weakness, idx) => (
-                  <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
-                    <Badge variant="outline" className="text-yellow-400 border-yellow-400">−</Badge>
-                    {weakness}
-                  </li>
-                ))}
-              </ul>
-              
-              <h4 className="text-lg font-semibold text-red-400 mb-3 mt-6">Threats</h4>
-              <ul className="space-y-2">
-                {memo.swotAnalysis.threats.map((threat, idx) => (
-                  <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
-                    <Badge variant="outline" className="text-red-400 border-red-400">⚠</Badge>
-                    {threat}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="text-slate-300 whitespace-pre-wrap">
+            {typeof memo.swotAnalysis === 'string' ? memo.swotAnalysis : 'SWOT analysis not available'}
           </div>
         </CardContent>
       </Card>
 
-      {/* Market Analysis */}
+      {/* Market Analysis - String format fallback */}
       <Card className="border-slate-700 bg-slate-900/50">
         <CardHeader>
-          <CardTitle className="text-xl text-white">Market Analysis</CardTitle>
+          <CardTitle className="text-xl font-bold text-white">Market Analysis</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Market Context</h4>
-            <div className="text-slate-300 text-sm whitespace-pre-wrap">
-              {memo.marketAnalysis.marketContext}
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">TAM / SAM / SOM</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-slate-800 p-4 rounded-lg">
-                <h5 className="font-semibold text-blue-400 mb-2">TAM</h5>
-                <p className="text-slate-300 text-sm">{memo.marketAnalysis.tamSamSom.tam}</p>
-              </div>
-              <div className="bg-slate-800 p-4 rounded-lg">
-                <h5 className="font-semibold text-green-400 mb-2">SAM</h5>
-                <p className="text-slate-300 text-sm">{memo.marketAnalysis.tamSamSom.sam}</p>
-              </div>
-              <div className="bg-slate-800 p-4 rounded-lg">
-                <h5 className="font-semibold text-purple-400 mb-2">SOM</h5>
-                <p className="text-slate-300 text-sm">{memo.marketAnalysis.tamSamSom.som}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Why Now?</h4>
-            <div className="text-slate-300 text-sm whitespace-pre-wrap">
-              {memo.marketAnalysis.whyNow}
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Pain Points</h4>
-            <div className="text-slate-300 text-sm whitespace-pre-wrap">
-              {memo.marketAnalysis.painPoints}
-            </div>
+        <CardContent>
+          <div className="text-slate-300 whitespace-pre-wrap">
+            {typeof memo.marketAnalysis === 'string' ? memo.marketAnalysis : 'Market analysis not available'}
           </div>
         </CardContent>
       </Card>
 
-      {/* Product Analysis */}
-      <Card className="border-slate-700 bg-slate-900/50">
-        <CardHeader>
-          <CardTitle className="text-xl text-white">Product Analysis</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Product Overview</h4>
-            <div className="text-slate-300 text-sm whitespace-pre-wrap">
-              {memo.productAnalysis.productOverview}
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Technical Specifications</h4>
-            <div className="text-slate-300 text-sm whitespace-pre-wrap">
-              {memo.productAnalysis.technicalSpecs}
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Unique Selling Points</h4>
-            <ul className="space-y-2">
-              {memo.productAnalysis.uniqueSellingPoints.map((point, idx) => (
-                <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                  {point}
-                </li>
-              ))}
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Competitive Advantages</h4>
-            <div className="text-slate-300 text-sm whitespace-pre-wrap">
-              {memo.productAnalysis.competitiveAdvantages}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Remaining Sections */}
-      {[
-        { title: 'Business Model', content: memo.businessModel },
-        { title: 'Team Assessment', content: memo.teamAssessment },
-        { title: 'Financial Analysis', content: memo.financialAnalysis },
-        { title: 'Commercial Strategy', content: memo.commercialStrategy },
-        { title: 'Clinical Assessment', content: memo.clinicalAssessment },
-        { title: 'IP Analysis', content: memo.ipAnalysis },
-        { title: 'Risk Assessment', content: memo.riskAssessment },
-        { title: 'Legal Assessment', content: memo.legalAssessment },
-        { title: 'Investment Terms', content: memo.investmentTerms },
-        { title: 'Exit Strategy', content: memo.exitStrategy },
-        { title: 'Recommendation', content: memo.recommendation },
-        { title: 'Appendices', content: memo.appendices }
-      ].map((section, idx) => (
-        <Card key={idx} className="border-slate-700 bg-slate-900/50">
+      {/* Product Analysis - String format fallback */}
+      {memo.productAnalysis && (
+        <Card className="border-slate-700 bg-slate-900/50">
           <CardHeader>
-            <CardTitle className="text-xl text-white">{section.title}</CardTitle>
+            <CardTitle className="text-xl font-bold text-white">Product Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-invert max-w-none">
-              <div className="text-slate-200 leading-relaxed whitespace-pre-wrap">
-                {section.content}
-              </div>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {typeof memo.productAnalysis === 'string' ? memo.productAnalysis : 'Product analysis not available'}
             </div>
           </CardContent>
         </Card>
-      ))}
+      )}
+
+      {/* Business Model */}
+      {memo.businessModel && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Business Model</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.businessModel}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Team Assessment */}
+      {memo.teamAssessment && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Team Assessment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.teamAssessment}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Financial Analysis */}
+      {memo.financialAnalysis && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Financial Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.financialAnalysis}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Commercial Strategy */}
+      {memo.commercialStrategy && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Commercial Strategy</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.commercialStrategy}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Clinical Assessment */}
+      {memo.clinicalAssessment && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Clinical Assessment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.clinicalAssessment}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* IP Analysis */}
+      {memo.ipAnalysis && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Intellectual Property Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.ipAnalysis}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Risk Assessment */}
+      {memo.riskAssessment && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Risk Assessment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.riskAssessment}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Legal Assessment */}
+      {memo.legalAssessment && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Legal Assessment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.legalAssessment}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Investment Terms */}
+      {memo.investmentTerms && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Investment Terms</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.investmentTerms}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Exit Strategy */}
+      {memo.exitStrategy && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Exit Strategy</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.exitStrategy}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Investment Recommendation */}
+      {memo.recommendation && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Investment Recommendation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.recommendation}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Appendices */}
+      {memo.appendices && (
+        <Card className="border-slate-700 bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">Appendices</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-slate-300 whitespace-pre-wrap">
+              {memo.appendices}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
