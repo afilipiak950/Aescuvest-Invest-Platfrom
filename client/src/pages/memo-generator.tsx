@@ -187,6 +187,20 @@ export default function MemoGenerator() {
   const currentMemo = existingMemo?.memo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
+  // Debug logging
+  console.log('🔍 Display Debug:', {
+    existingMemo: !!existingMemo,
+    existingMemoData: !!existingMemo?.memo,
+    generatedMemo: !!generatedMemo,
+    currentMemo: !!currentMemo,
+    currentMemoKeys: currentMemo ? Object.keys(currentMemo) : [],
+    isGenerating,
+    selectedDeal,
+    showReadyToGenerate: !currentMemo && !isGenerating,
+    showGenerating: isGenerating,
+    showMemoContent: !!currentMemo && !isGenerating
+  });
+  
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader 
