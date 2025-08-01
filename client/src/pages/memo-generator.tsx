@@ -528,39 +528,12 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Revenue Model</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.businessModel.revenueModel} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Pricing Strategy</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.businessModel.pricingStrategy} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Sales Channels</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.businessModel.salesChannels} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Customer Acquisition</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.businessModel.customerAcquisition} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={formatObjectContent(currentMemo.businessModel)} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                           </CardContent>
                         </Card>
@@ -752,39 +725,12 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Current Financials</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.financialAnalysis.currentFinancials} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Projections</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.financialAnalysis.projections} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Funding History</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.financialAnalysis.fundingHistory} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Use of Funds</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.financialAnalysis.useOfFunds} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={formatObjectContent(currentMemo.financialAnalysis)} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                           </CardContent>
                         </Card>
@@ -803,47 +749,12 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Valuation</h4>
-                                <ProfessionalFormattedContent 
-                                  content={formatObjectContent(currentMemo.investmentTerms.valuation)} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Funding Amount</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.investmentTerms.fundingAmount} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Securities</h4>
-                                <ProfessionalFormattedContent 
-                                  content={formatObjectContent(currentMemo.investmentTerms.securities)} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Board Rights</h4>
-                                <ProfessionalFormattedContent 
-                                  content={formatObjectContent(currentMemo.investmentTerms.boardRights)} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="md:col-span-2 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Liquidation Preference</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.investmentTerms.liquidationPreference} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={formatObjectContent(currentMemo.investmentTerms)} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                           </CardContent>
                         </Card>
@@ -1035,39 +946,12 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Corporate Structure</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.legalAssessment.corporateStructure} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">IP Protection</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.legalAssessment.ipProtection} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Regulatory Compliance</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.legalAssessment.regulatoryCompliance} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Contractual Obligations</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.legalAssessment.contractualObligations} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={formatObjectContent(currentMemo.legalAssessment)} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                           </CardContent>
                         </Card>
@@ -1094,10 +978,11 @@ export default function MemoGenerator() {
                           />
                           <div className="space-y-6">
                             <div>
-                              <span className="inline-block px-4 py-2 rounded-full text-sm font-medium bg-primary text-white mb-4">
-                                {currentMemo.recommendation.investment_recommendation}
-                              </span>
-                              <FormattedContent content={currentMemo.recommendation.rationale} variant="default" />
+                              <ProfessionalFormattedContent 
+                                content={formatObjectContent(currentMemo.recommendation)} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                             {(Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones.length > 0) && (
                               <div>
@@ -1133,7 +1018,11 @@ export default function MemoGenerator() {
                             title="Exit Strategy Analysis" 
                             subtitle="Potential exit opportunities and timeline"
                           />
-                          <FormattedContent content={currentMemo.exitStrategy} variant="default" />
+                          <ProfessionalFormattedContent 
+                            content={formatObjectContent(currentMemo.exitStrategy)} 
+                            variant="default"
+                            className="text-slate-200 leading-relaxed"
+                          />
                         </div>
                       )}
 
@@ -1144,7 +1033,11 @@ export default function MemoGenerator() {
                             title="Appendices" 
                             subtitle="Additional supporting documentation and data"
                           />
-                          <FormattedContent content={currentMemo.appendices} variant="default" />
+                          <ProfessionalFormattedContent 
+                            content={formatObjectContent(currentMemo.appendices)} 
+                            variant="default"
+                            className="text-slate-200 leading-relaxed"
+                          />
                         </div>
                       )}
                       
@@ -1161,39 +1054,12 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-6">
-                              <div>
-                                <span className="inline-block px-4 py-2 rounded-full text-sm font-medium bg-primary text-white mb-4">
-                                  {currentMemo.recommendation.investment_recommendation}
-                                </span>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.recommendation.rationale} 
-                                  variant="default" 
-                                  className="text-slate-200 leading-relaxed"
-                                />
-                              </div>
-                              {currentMemo.recommendation.keyMilestones && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-3">Key Milestones</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={Array.isArray(currentMemo.recommendation.keyMilestones) 
-                                      ? currentMemo.recommendation.keyMilestones.join('\n• ') 
-                                      : currentMemo.recommendation.keyMilestones} 
-                                    variant="small" 
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              )}
-                              {currentMemo.recommendation.exitStrategy && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-3">Exit Strategy</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.recommendation.exitStrategy} 
-                                    variant="small" 
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              )}
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={formatObjectContent(currentMemo.recommendation)} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                           </CardContent>
                         </Card>
