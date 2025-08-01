@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -103,6 +103,14 @@ export default function MemoGenerator() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Clear generated memo state when deal changes to ensure fresh loading from database
+  useEffect(() => {
+    if (selectedDeal) {
+      setGeneratedMemo(null); // Clear local state to force database fetch
+      console.log(`🔄 Deal changed to ${selectedDeal}, clearing local memo state`);
+    }
+  }, [selectedDeal]);
+  
   // Fetch real deals from API
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
     queryKey: ['/api/deals'],
@@ -112,8 +120,16 @@ export default function MemoGenerator() {
   // Fetch existing memo if available
   const { data: existingMemo, isLoading: isLoadingMemo } = useQuery({
     queryKey: ['/api/deals', selectedDeal, 'memo'],
+    queryFn: async () => {
+      if (!selectedDeal) return null;
+      console.log(`📋 Fetching memo for deal ${selectedDeal}`);
+      const response = await fetch(`/api/deals/${selectedDeal}/memo`);
+      const data = await response.json();
+      console.log(`📋 Memo fetch response:`, { success: data.success, hasMemo: !!data.memo });
+      return data;
+    },
     enabled: !!selectedDeal,
-    staleTime: 1000 * 60 * 60, // 1 hour cache to avoid re-fetching frequently
+    staleTime: 1000 * 60 * 5, // 5 minutes cache to ensure fresh data
   });
 
   // Memo generation mutation
