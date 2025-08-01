@@ -362,6 +362,34 @@ export default function MemoGenerator() {
                   <p className="text-sm text-gray-400">Sector: {selectedDealData.sector || 'Not specified'}</p>
                 </div>
               )}
+
+              {/* Generate/Regenerate Memo Button */}
+              {selectedDeal && (
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleGenerateMemo}
+                    disabled={isGenerating}
+                    className="w-full bg-primary hover:bg-primary/90 text-white"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="h-4 w-4 mr-2" />
+                        {currentMemo ? 'Regenerate Memo' : 'Generate Memo'}
+                      </>
+                    )}
+                  </Button>
+                  {currentMemo && (
+                    <p className="text-xs text-gray-400 text-center">
+                      This will create a new BAIBYS-quality memo
+                    </p>
+                  )}
+                </div>
+              )}
               
               {currentMemo && (
                 <div className="space-y-2">
