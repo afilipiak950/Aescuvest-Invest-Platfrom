@@ -241,88 +241,134 @@ export default function MemoGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="container mx-auto px-4 py-6">
       <PageHeader 
-        title="Investment Memo Generator"
-        subtitle="Generate comprehensive investment memorandums using AI-powered analysis"
+        title="Investment Memo Generator" 
+        description="Create comprehensive investment memos with AI assistance."
       />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-1">
-                <div className="w-full sm:w-64">
-                  <Select value={selectedDeal} onValueChange={setSelectedDeal}>
-                    <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
-                      <SelectValue placeholder="Select Deal" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-600">
-                      {deals.map((deal: any) => (
-                        <SelectItem key={deal.id} value={deal.id.toString()}>
-                          {deal.companyName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      <div className="mb-6">
+        <Card className="bg-dark-light border-dark-lighter">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex-1">
+                <label className="text-sm text-gray-400 mb-1 block">Select Deal</label>
+                <Select 
+                  value={selectedDeal} 
+                  onValueChange={setSelectedDeal}
+                >
+                  <SelectTrigger className="bg-dark border-dark-lighter text-white focus:ring-primary">
+                    <SelectValue placeholder="Select a deal to generate memo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-dark-lighter border-dark-lighter">
+                    {deals.map((deal: any) => (
+                      <SelectItem key={deal.id} value={deal.id.toString()}>
+                        {deal.companyName} - {deal.stage} {deal.id === 33 ? "✅ (100 docs + analyses)" : deal.id === 22 ? "✅ (263 docs)" : deal.id === 18 ? "✅ (263 docs)" : "❌ (no data)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              
-              {currentMemo && (
-                <div className="flex gap-2">
-                  <Button onClick={handleExportPDF} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export PDF
-                  </Button>
-                  <Button onClick={handleExportWord} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Word
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column - Memo Content */}
+        <div className="lg:col-span-2">
+          <Card className="bg-dark-light border-dark-lighter mb-6">
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Investment Memo</h2>
+                {currentMemo && (
+                  <div className="flex gap-2">
+                    <Button onClick={handleExportPDF} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export PDF
+                    </Button>
+                    <Button onClick={handleExportWord} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Word
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {!selectedDeal ? (
+                <div className="text-center py-12">
+                  <FileText className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-300 mb-2">Select a Deal</h3>
+                  <p className="text-gray-500">Choose a deal from the dropdown to generate a comprehensive investment memo.</p>
+                </div>
+              ) : !currentMemo && !isGenerating ? (
+                <div className="text-center py-12">
+                  <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white mb-2">Ready to Generate</h3>
+                  <p className="text-gray-400 mb-6">
+                    Create a comprehensive investment memo using all documents, agent analyses, and market research for <span className="text-primary font-medium">{selectedDealData?.companyName}</span>.
+                  </p>
+                  {selectedDealData && ![18, 22, 33].includes(selectedDealData.id) && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                      <p className="text-yellow-400 text-sm">
+                        ⚠️ This deal has no documents or agent analyses. For best results, select Deal 33 (Neteera IM) with 100 documents and completed analyses.
+                      </p>
+                    </div>
+                  )}
+                  <Button onClick={handleGenerateMemo} className="bg-primary hover:bg-primary/90">
+                    <Brain className="h-4 w-4 mr-2" />
+                    Generate Investment Memo
                   </Button>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {!selectedDeal ? (
-            <div className="text-center py-12">
-              <FileText className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-300 mb-2">Select a Deal</h3>
-              <p className="text-gray-500">Choose a deal from the dropdown to generate a comprehensive investment memo.</p>
-            </div>
-          ) : !currentMemo && !isGenerating ? (
-            <div className="text-center py-12">
-              <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">Ready to Generate</h3>
-              <p className="text-gray-400 mb-6">
-                Create a comprehensive investment memo using all documents, agent analyses, and market research for <span className="text-primary font-medium">{selectedDealData?.companyName}</span>.
-              </p>
-              {selectedDealData && ![18, 22, 33].includes(selectedDealData.id) && (
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
-                  <p className="text-yellow-400 text-sm">
-                    ⚠️ This deal has no documents or agent analyses. For best results, select Deal 33 (Neteera IM) with 100 documents and completed analyses.
+              ) : isGenerating ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-16 w-16 text-primary mx-auto mb-4 animate-spin" />
+                  <h3 className="text-lg font-medium text-white mb-2">Generating Professional Memo</h3>
+                  <p className="text-gray-400">
+                    Analyzing all documents and agent reports for {selectedDealData?.companyName}...
                   </p>
                 </div>
+              ) : (
+                <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4 custom-scrollbar">
+                  {currentMemo && Object.entries(currentMemo).map(([key, content]) => 
+                    renderMemoSection(key, content)
+                  )}
+                </div>
               )}
-              <Button onClick={handleGenerateMemo} className="bg-primary hover:bg-primary/90">
-                <Brain className="h-4 w-4 mr-2" />
-                Generate Investment Memo
-              </Button>
-            </div>
-          ) : isGenerating ? (
-            <div className="text-center py-12">
-              <Loader2 className="h-16 w-16 text-primary mx-auto mb-4 animate-spin" />
-              <h3 className="text-lg font-medium text-white mb-2">Generating Professional Memo</h3>
-              <p className="text-gray-400">
-                Analyzing all documents and agent reports for {selectedDealData?.companyName}...
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4">
-              {currentMemo && Object.entries(currentMemo).map(([key, content]) => 
-                renderMemoSection(key, content)
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Right Column - Controls and Info */}
+        <div className="lg:col-span-1">
+          <Card className="bg-dark-light border-dark-lighter sticky top-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Memo Controls</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedDealData && (
+                <div className="p-3 bg-dark rounded-lg border border-dark-lighter">
+                  <h4 className="font-medium text-white mb-2">{selectedDealData.companyName}</h4>
+                  <p className="text-sm text-gray-400 mb-1">Stage: {selectedDealData.stage}</p>
+                  <p className="text-sm text-gray-400">Sector: {selectedDealData.sector || 'Not specified'}</p>
+                </div>
               )}
-            </div>
-          )}
+              
+              {currentMemo && (
+                <div className="space-y-2">
+                  <h5 className="font-medium text-white">Export Options</h5>
+                  <Button onClick={handleExportPDF} variant="outline" className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button onClick={handleExportWord} variant="outline" className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Word
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
