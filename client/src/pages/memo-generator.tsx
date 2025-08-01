@@ -37,7 +37,7 @@ export default function MemoGenerator() {
     staleTime: 5 * 60 * 1000
   });
 
-  const selectedDealData = selectedDeal ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
+  const selectedDealData = selectedDeal ? (deals as any[]).find((d: any) => d.id.toString() === selectedDeal) : null;
 
   // Fetch existing memo when deal changes
   useEffect(() => {
@@ -262,7 +262,7 @@ export default function MemoGenerator() {
                     <SelectValue placeholder="Select a deal to generate memo" />
                   </SelectTrigger>
                   <SelectContent className="bg-dark-lighter border-dark-lighter">
-                    {deals.map((deal: any) => (
+                    {(deals as any[]).map((deal: any) => (
                       <SelectItem key={deal.id} value={deal.id.toString()}>
                         {deal.companyName} - {deal.stage} {deal.id === 33 ? "✅ (100 docs + analyses)" : deal.id === 22 ? "✅ (263 docs)" : deal.id === 18 ? "✅ (263 docs)" : "❌ (no data)"}
                       </SelectItem>
@@ -334,7 +334,7 @@ export default function MemoGenerator() {
                   {currentMemo && (
                     // Check if this is the new BAIBYS-structured memo
                     currentMemo.coverPage && typeof currentMemo.coverPage === 'object' ? (
-                      <BAIBYSMemoDisplay memo={currentMemo} />
+                      <BAIBYSMemoDisplay memo={currentMemo as any} />
                     ) : (
                       // Fallback to old rendering for backwards compatibility
                       Object.entries(currentMemo).map(([key, content]) => 
