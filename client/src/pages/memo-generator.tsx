@@ -15,6 +15,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
 import { FormattedContent, SectionHeader, InfoGrid } from '@/components/FormattedContent';
 import { ProfessionalFormattedContent, ProfessionalInfoGrid } from '@/components/ProfessionalFormattedContent';
+import BAIBYSMemoDisplay from '@/components/BAIBYSMemoDisplay';
 
 // Simplified memo interface that matches actual data structure
 interface InvestmentMemo {
@@ -330,8 +331,16 @@ export default function MemoGenerator() {
                 </div>
               ) : (
                 <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4 custom-scrollbar">
-                  {currentMemo && Object.entries(currentMemo).map(([key, content]) => 
-                    renderMemoSection(key, content)
+                  {currentMemo && (
+                    // Check if this is the new BAIBYS-structured memo
+                    currentMemo.coverPage && typeof currentMemo.coverPage === 'object' ? (
+                      <BAIBYSMemoDisplay memo={currentMemo} />
+                    ) : (
+                      // Fallback to old rendering for backwards compatibility
+                      Object.entries(currentMemo).map(([key, content]) => 
+                        renderMemoSection(key, content)
+                      )
+                    )
                   )}
                 </div>
               )}

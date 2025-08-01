@@ -4700,22 +4700,22 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the PROFESSIONAL service for BAIBYS-quality generation
-      console.log(`📥 Importing PROFESSIONAL memo service...`);
-      const { professionalMemoService } = await import('./services/professionalMemoService');
-      console.log(`✅ Professional service imported successfully`);
+      // Import the BAIBYS-style service for ultra high quality generation
+      console.log(`📥 Importing BAIBYS-style memo service...`);
+      const { baibysStyleMemoService } = await import('./services/baibysStyleMemoService');
+      console.log(`✅ BAIBYS-style service imported successfully`);
       
-      if (!professionalMemoService) {
-        console.error(`❌ Professional memo service not found`);
+      if (!baibysStyleMemoService) {
+        console.error(`❌ BAIBYS-style memo service not found`);
         return res.status(500).json({
           success: false,
-          error: 'Professional memo service not available'
+          error: 'BAIBYS-style memo service not available'
         });
       }
       
-      console.log(`🚀 Calling generateProfessionalMemo for deal ${dealId} - BAIBYS QUALITY`);
-      const memo = await professionalMemoService.generateProfessionalMemo(dealId);
-      console.log(`✅ Professional memo generation completed for deal ${dealId}`);
+      console.log(`🚀 Calling generateBAIBYSStyleMemo for deal ${dealId} - ULTRA HIGH QUALITY`);
+      const memo = await baibysStyleMemoService.generateBAIBYSStyleMemo(dealId);
+      console.log(`✅ BAIBYS-style memo generation completed for deal ${dealId}`);
       
       if (!memo) {
         console.error(`❌ No memo returned for deal ${dealId}`);
