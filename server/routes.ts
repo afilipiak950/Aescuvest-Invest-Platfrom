@@ -4686,11 +4686,11 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Investment Memo Generator Routes - PROFESSIONAL BAIBYS QUALITY
+  // Investment Memo Generator Routes
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      console.log(`🔄 Starting PROFESSIONAL investment memo generation for deal ${dealId}`);
+      console.log(`🔄 Starting investment memo generation for deal ${dealId}`);
       
       if (isNaN(dealId)) {
         console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
@@ -4700,22 +4700,22 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the BAIBYS-style service for ultra high quality generation
-      console.log(`📥 Importing BAIBYS-style memo service...`);
-      const { baibysStyleMemoService } = await import('./services/baibysStyleMemoService');
-      console.log(`✅ BAIBYS-style service imported successfully`);
+      // Import the service here to avoid circular dependencies
+      console.log(`📥 Importing investment memo service...`);
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      console.log(`✅ Service imported successfully`);
       
-      if (!baibysStyleMemoService) {
-        console.error(`❌ BAIBYS-style memo service not found`);
+      if (!investmentMemoService) {
+        console.error(`❌ Investment memo service not found`);
         return res.status(500).json({
           success: false,
-          error: 'BAIBYS-style memo service not available'
+          error: 'Investment memo service not available'
         });
       }
       
-      console.log(`🚀 Calling generateBAIBYSStyleMemo for deal ${dealId} - ULTRA HIGH QUALITY`);
-      const memo = await baibysStyleMemoService.generateBAIBYSStyleMemo(dealId);
-      console.log(`✅ BAIBYS-style memo generation completed for deal ${dealId}`);
+      console.log(`🚀 Calling generateComprehensiveMemo for deal ${dealId}`);
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      console.log(`✅ Memo generation completed for deal ${dealId}`);
       
       if (!memo) {
         console.error(`❌ No memo returned for deal ${dealId}`);
@@ -6744,7 +6744,64 @@ export async function registerAllRoutes(app: Express) {
   
   // Register persistent analysis routes
   app.use('/', persistentAnalysisRoutes);
-
+  
+  // Investment Memo Generator Routes
+  app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      console.log(`🔄 Starting investment memo generation for deal ${dealId}`);
+      
+      if (isNaN(dealId)) {
+        console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid deal ID provided'
+        });
+      }
+      
+      // Import the service here to avoid circular dependencies
+      console.log(`📥 Importing investment memo service...`);
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      console.log(`✅ Service imported successfully`);
+      
+      if (!investmentMemoService) {
+        console.error(`❌ Investment memo service not found`);
+        return res.status(500).json({
+          success: false,
+          error: 'Investment memo service not available'
+        });
+      }
+      
+      console.log(`🚀 Calling generateComprehensiveMemo for deal ${dealId}`);
+      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
+      console.log(`✅ Memo generation completed for deal ${dealId}`);
+      
+      if (!memo) {
+        console.error(`❌ No memo returned for deal ${dealId}`);
+        return res.status(500).json({
+          success: false,
+          error: 'Memo generation returned no data'
+        });
+      }
+      
+      res.json({
+        success: true,
+        memo
+      });
+    } catch (error) {
+      console.error('❌ Investment memo generation error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        name: error instanceof Error ? error.name : 'Unknown error type'
+      });
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate investment memo'
+      });
+    }
+  });
 
   app.get('/api/deals/:dealId/memo', async (req: Request, res: Response) => {
     try {
