@@ -45,18 +45,18 @@ interface BAIBYSMemoData {
   swotAnalysis: SWOTData | string;
   marketAnalysis: MarketAnalysisData | string;
   productAnalysis: ProductAnalysisData | string;
-  businessModel: string;
-  teamAssessment: string;
-  financialAnalysis: string;
-  commercialStrategy: string;
-  clinicalAssessment: string;
-  ipAnalysis: string;
-  riskAssessment: string;
-  legalAssessment: string;
-  investmentTerms: string;
-  exitStrategy: string;
-  recommendation: string;
-  appendices: string;
+  businessModel: any; // Can be string or object
+  teamAssessment: any; // Can be string or object
+  financialAnalysis: any; // Can be string or object
+  commercialStrategy: any; // Can be string or object
+  clinicalAssessment: any; // Can be string or object
+  ipAnalysis: any; // Can be string or object
+  riskAssessment: any; // Can be string or object
+  legalAssessment: any; // Can be string or object
+  investmentTerms: any; // Can be string or object
+  exitStrategy: any; // Can be string or object
+  recommendation: any; // Can be string or object
+  appendices: any; // Can be string or object
 }
 
 interface BAIBYSMemoDisplayProps {
@@ -64,6 +64,16 @@ interface BAIBYSMemoDisplayProps {
 }
 
 export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
+  // Helper function to safely render content (string or object)
+  const renderContent = (content: any): string => {
+    if (typeof content === 'string') {
+      return content;
+    } else if (content && typeof content === 'object') {
+      return JSON.stringify(content, null, 2);
+    }
+    return 'Content not available';
+  };
+
   // Handle both string and object formats for backwards compatibility
   const coverPageData = typeof memo.coverPage === 'string' ? null : memo.coverPage;
   const swotData = typeof memo.swotAnalysis === 'string' ? null : memo.swotAnalysis;
@@ -142,7 +152,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.businessModel}
+              {renderContent(memo.businessModel)}
             </div>
           </CardContent>
         </Card>
@@ -156,7 +166,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.teamAssessment}
+              {renderContent(memo.teamAssessment)}
             </div>
           </CardContent>
         </Card>
@@ -170,7 +180,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.financialAnalysis}
+              {renderContent(memo.financialAnalysis)}
             </div>
           </CardContent>
         </Card>
@@ -184,7 +194,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.commercialStrategy}
+              {renderContent(memo.commercialStrategy)}
             </div>
           </CardContent>
         </Card>
@@ -198,7 +208,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.clinicalAssessment}
+              {renderContent(memo.clinicalAssessment)}
             </div>
           </CardContent>
         </Card>
@@ -212,7 +222,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.ipAnalysis}
+              {renderContent(memo.ipAnalysis)}
             </div>
           </CardContent>
         </Card>
@@ -226,7 +236,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.riskAssessment}
+              {renderContent(memo.riskAssessment)}
             </div>
           </CardContent>
         </Card>
@@ -240,7 +250,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.legalAssessment}
+              {renderContent(memo.legalAssessment)}
             </div>
           </CardContent>
         </Card>
@@ -254,7 +264,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.investmentTerms}
+              {renderContent(memo.investmentTerms)}
             </div>
           </CardContent>
         </Card>
@@ -268,7 +278,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.exitStrategy}
+              {renderContent(memo.exitStrategy)}
             </div>
           </CardContent>
         </Card>
@@ -282,7 +292,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.recommendation}
+              {renderContent(memo.recommendation)}
             </div>
           </CardContent>
         </Card>
@@ -296,7 +306,7 @@ export default function BAIBYSMemoDisplay({ memo }: BAIBYSMemoDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-slate-300 whitespace-pre-wrap">
-              {memo.appendices}
+              {renderContent(memo.appendices)}
             </div>
           </CardContent>
         </Card>
