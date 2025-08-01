@@ -4890,27 +4890,214 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
       console.log('📄 Found existing memo, creating DOCX export...');
       
-      // Simple text-based export for now (can be enhanced later)
-      const memoData = existingMemo.memo as any;
-      let textContent = `INVESTMENT MEMORANDUM\n${deal.companyName}\n\n`;
+      // Import docx library dynamically
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
       
+      const memoData = existingMemo.memo as any;
+      
+      // Create Word document with proper structure
+      const children = [];
+      
+      // Title
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "INVESTMENT MEMORANDUM",
+              bold: true,
+              size: 32,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          heading: HeadingLevel.TITLE,
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: deal.companyName,
+              bold: true,
+              size: 28,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 },
+        })
+      );
+      
+      // Add sections
       if (memoData.executiveSummary) {
-        textContent += `EXECUTIVE SUMMARY\n${memoData.executiveSummary}\n\n`;
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "EXECUTIVE SUMMARY",
+                bold: true,
+                size: 24,
+              }),
+            ],
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: memoData.executiveSummary,
+                size: 22,
+              }),
+            ],
+            spacing: { after: 300 },
+          })
+        );
       }
       
       if (memoData.investmentHighlights) {
-        textContent += `INVESTMENT HIGHLIGHTS\n${JSON.stringify(memoData.investmentHighlights, null, 2)}\n\n`;  
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "INVESTMENT HIGHLIGHTS",
+                bold: true,
+                size: 24,
+              }),
+            ],
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+          })
+        );
+        
+        // Add highlights as bullet points
+        if (Array.isArray(memoData.investmentHighlights)) {
+          memoData.investmentHighlights.forEach((highlight: string) => {
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `• ${highlight}`,
+                    size: 22,
+                  }),
+                ],
+                spacing: { after: 100 },
+              })
+            );
+          });
+        } else if (typeof memoData.investmentHighlights === 'object') {
+          Object.entries(memoData.investmentHighlights).forEach(([key, value]) => {
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `• ${key}: ${value}`,
+                    size: 22,
+                  }),
+                ],
+                spacing: { after: 100 },
+              })
+            );
+          });
+        }
       }
       
-      if (memoData.marketAnalysis) {
-        textContent += `MARKET ANALYSIS\n${JSON.stringify(memoData.marketAnalysis, null, 2)}\n\n`;
-      }
+      // Add all major sections from the memo
+      const sectionOrder = [
+        { key: 'marketAnalysis', title: 'MARKET ANALYSIS' },
+        { key: 'tamSamSomAnalysis', title: 'TAM/SAM/SOM ANALYSIS' },
+        { key: 'competitiveAnalysis', title: 'COMPETITIVE ANALYSIS' },
+        { key: 'technologyAssessment', title: 'TECHNOLOGY ASSESSMENT' },
+        { key: 'productAnalysis', title: 'PRODUCT ANALYSIS' },
+        { key: 'businessModel', title: 'BUSINESS MODEL' },
+        { key: 'teamAssessment', title: 'TEAM ASSESSMENT' },
+        { key: 'financialAnalysis', title: 'FINANCIAL ANALYSIS' },
+        { key: 'financialProjections', title: 'FINANCIAL PROJECTIONS' },
+        { key: 'valuationAnalysis', title: 'VALUATION ANALYSIS' },
+        { key: 'legalAssessment', title: 'LEGAL ASSESSMENT' },
+        { key: 'riskAssessment', title: 'RISK ASSESSMENT' },
+        { key: 'investmentTerms', title: 'INVESTMENT TERMS' },
+        { key: 'exitStrategy', title: 'EXIT STRATEGY' },
+        { key: 'recommendation', title: 'RECOMMENDATION' }
+      ];
 
-      // Return as downloadable text file for now
-      res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.txt"`);
+      sectionOrder.forEach(section => {
+        if (memoData[section.key]) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: section.title,
+                  bold: true,
+                  size: 24,
+                }),
+              ],
+              heading: HeadingLevel.HEADING_1,
+              spacing: { before: 400, after: 200 },
+            })
+          );
+          
+          const sectionData = memoData[section.key];
+          if (typeof sectionData === 'string') {
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: sectionData,
+                    size: 22,
+                  }),
+                ],
+                spacing: { after: 300 },
+              })
+            );
+          } else if (typeof sectionData === 'object' && sectionData !== null) {
+            if (Array.isArray(sectionData)) {
+              sectionData.forEach((item: any) => {
+                children.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `• ${typeof item === 'string' ? item : JSON.stringify(item)}`,
+                        size: 22,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+              });
+            } else {
+              Object.entries(sectionData).forEach(([key, value]) => {
+                children.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`,
+                        size: 22,
+                      }),
+                    ],
+                    spacing: { after: 200 },
+                  })
+                );
+              });
+            }
+          }
+        }
+      });
       
-      res.send(textContent);
+      // Create the document
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: children,
+          },
+        ],
+      });
+      
+      // Generate the buffer
+      const buffer = await Packer.toBuffer(doc);
+      
+      // Set proper headers for Word document
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.docx"`);
+      res.setHeader('Content-Length', buffer.length);
+      
+      res.send(buffer);
     } catch (error) {
       console.error('❌ Error exporting DOCX:', error);
       res.status(500).json({ success: false, error: 'Failed to export investment memo as Word document' });
