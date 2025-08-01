@@ -187,17 +187,6 @@ export default function MemoGenerator() {
   const currentMemo = existingMemo?.memo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
-  // Debug logging to see what we're getting
-  console.log('🔍 Memo debug info:', {
-    selectedDeal,
-    existingMemo,
-    generatedMemo,
-    currentMemo,
-    hasExistingMemo: !!existingMemo,
-    hasGeneratedMemo: !!generatedMemo,
-    hasCurrentMemo: !!currentMemo
-  });
-  
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader 
