@@ -4838,30 +4838,185 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
       console.log('📄 Found existing memo, creating PDF export...');
       
-      // Simple text-based PDF export for now (can be enhanced later)
+      // Import PDF generation library dynamically
+      const { default: htmlPdf } = await import('html-pdf-node');
+      
       const memoData = existingMemo.memo as any;
-      let textContent = `INVESTMENT MEMORANDUM\n${deal.companyName}\n\n`;
       
+      // Generate HTML content for PDF conversion
+      let htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Investment Memorandum - ${deal.companyName}</title>
+          <style>
+            body {
+              font-family: 'Times New Roman', serif;
+              line-height: 1.6;
+              margin: 40px;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 40px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 10px;
+            }
+            .company-name {
+              font-size: 20px;
+              font-weight: bold;
+              color: #2c3e50;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: bold;
+              margin-top: 30px;
+              margin-bottom: 15px;
+              color: #2c3e50;
+              border-bottom: 2px solid #3498db;
+              padding-bottom: 5px;
+            }
+            .content {
+              margin-bottom: 20px;
+              text-align: justify;
+            }
+            .highlight {
+              background-color: #f8f9fa;
+              padding: 15px;
+              border-left: 4px solid #3498db;
+              margin: 15px 0;
+            }
+            ul {
+              margin-left: 20px;
+            }
+            li {
+              margin-bottom: 8px;
+            }
+            .page-break {
+              page-break-before: always;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">INVESTMENT MEMORANDUM</div>
+            <div class="company-name">${deal.companyName}</div>
+            <div style="margin-top: 10px; color: #666; font-size: 14px;">
+              Generated on ${new Date().toLocaleDateString()}
+            </div>
+          </div>
+      `;
+      
+      // Add Executive Summary
       if (memoData.executiveSummary) {
-        textContent += `EXECUTIVE SUMMARY\n${memoData.executiveSummary}\n\n`;
+        htmlContent += `
+          <div class="section-title">EXECUTIVE SUMMARY</div>
+          <div class="content">${memoData.executiveSummary.replace(/\n/g, '<br>')}</div>
+        `;
       }
       
+      // Add Investment Highlights
       if (memoData.investmentHighlights) {
-        textContent += `INVESTMENT HIGHLIGHTS\n${JSON.stringify(memoData.investmentHighlights, null, 2)}\n\n`;
+        htmlContent += `<div class="section-title">INVESTMENT HIGHLIGHTS</div>`;
+        if (Array.isArray(memoData.investmentHighlights)) {
+          htmlContent += '<ul>';
+          memoData.investmentHighlights.forEach((highlight: string) => {
+            htmlContent += `<li>${highlight}</li>`;
+          });
+          htmlContent += '</ul>';
+        } else if (typeof memoData.investmentHighlights === 'object') {
+          htmlContent += '<ul>';
+          Object.entries(memoData.investmentHighlights).forEach(([key, value]) => {
+            htmlContent += `<li><strong>${key}:</strong> ${value}</li>`;
+          });
+          htmlContent += '</ul>';
+        }
       }
       
-      if (memoData.marketAnalysis) {
-        textContent += `MARKET ANALYSIS\n${JSON.stringify(memoData.marketAnalysis, null, 2)}\n\n`;
-      }
+      // Add all major sections
+      const sectionOrder = [
+        { key: 'marketAnalysis', title: 'MARKET ANALYSIS' },
+        { key: 'tamSamSomAnalysis', title: 'TAM/SAM/SOM ANALYSIS' },
+        { key: 'competitiveAnalysis', title: 'COMPETITIVE ANALYSIS' },
+        { key: 'technologyAssessment', title: 'TECHNOLOGY ASSESSMENT' },
+        { key: 'productAnalysis', title: 'PRODUCT ANALYSIS' },
+        { key: 'businessModel', title: 'BUSINESS MODEL' },
+        { key: 'teamAssessment', title: 'TEAM ASSESSMENT' },
+        { key: 'financialAnalysis', title: 'FINANCIAL ANALYSIS' },
+        { key: 'financialProjections', title: 'FINANCIAL PROJECTIONS' },
+        { key: 'valuationAnalysis', title: 'VALUATION ANALYSIS' },
+        { key: 'legalAssessment', title: 'LEGAL ASSESSMENT' },
+        { key: 'regulatoryAnalysis', title: 'REGULATORY ANALYSIS' },
+        { key: 'riskAssessment', title: 'RISK ASSESSMENT' },
+        { key: 'investmentTerms', title: 'INVESTMENT TERMS' },
+        { key: 'exitStrategy', title: 'EXIT STRATEGY' },
+        { key: 'recommendation', title: 'RECOMMENDATION' }
+      ];
 
-      // Return as downloadable text file for now
-      res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.txt"`);
+      sectionOrder.forEach((section, index) => {
+        if (memoData[section.key]) {
+          if (index > 0 && index % 3 === 0) {
+            htmlContent += '<div class="page-break"></div>';
+          }
+          
+          htmlContent += `<div class="section-title">${section.title}</div>`;
+          
+          const sectionData = memoData[section.key];
+          if (typeof sectionData === 'string') {
+            htmlContent += `<div class="content">${sectionData.replace(/\n/g, '<br>')}</div>`;
+          } else if (typeof sectionData === 'object' && sectionData !== null) {
+            if (Array.isArray(sectionData)) {
+              htmlContent += '<ul>';
+              sectionData.forEach((item: any) => {
+                const itemText = typeof item === 'string' ? item : JSON.stringify(item);
+                htmlContent += `<li>${itemText}</li>`;
+              });
+              htmlContent += '</ul>';
+            } else {
+              htmlContent += '<div class="content">';
+              Object.entries(sectionData).forEach(([key, value]) => {
+                const valueText = typeof value === 'string' ? value : JSON.stringify(value);
+                htmlContent += `<p><strong>${key}:</strong> ${valueText}</p>`;
+              });
+              htmlContent += '</div>';
+            }
+          }
+        }
+      });
       
-      res.send(textContent);
+      htmlContent += '</body></html>';
+      
+      // PDF generation options
+      const options = {
+        format: 'A4',
+        border: {
+          top: '0.75in',
+          right: '0.75in',
+          bottom: '0.75in',
+          left: '0.75in'
+        },
+        type: 'pdf',
+        timeout: 30000
+      };
+      
+      const file = { content: htmlContent };
+      
+      // Generate PDF
+      const pdfBuffer = await htmlPdf.generatePdf(file, options);
+      
+      // Set proper headers for PDF
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      res.send(pdfBuffer);
     } catch (error) {
       console.error('❌ Error exporting PDF:', error);
-      res.status(500).json({ success: false, error: 'Failed to export investment memo' });
+      res.status(500).json({ success: false, error: 'Failed to export investment memo as PDF' });
     }
   });
 
