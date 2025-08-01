@@ -1113,40 +1113,14 @@ Use professional VC language with specific metrics, market data, and growth proj
         return;
       }
 
-      // Prepare memo data for database storage
+      // Prepare memo data for database storage using new comprehensive memo field
       const memoData: InsertInvestmentMemo = {
         dealId: dealId,
-        companyName: deal.companyName,
-        version: 1,
-        coverPage: memo.coverPage,
+        // Store the entire comprehensive memo in the memo field
+        memo: memo,
+        // Keep executive summary for backward compatibility
         executiveSummary: memo.executiveSummary,
-        investmentHighlights: memo.investmentHighlights,
-        swotAnalysis: memo.swotAnalysis,
-        marketAnalysis: memo.marketAnalysis,
-        tamSamSomAnalysis: memo.tamSamSomAnalysis,
-        competitiveAnalysis: memo.competitiveAnalysis,
-        technologyAssessment: memo.technologyAssessment,
-        productAnalysis: memo.productAnalysis,
-        businessModel: memo.businessModel,
-        commercialStrategy: memo.commercialStrategy,
-        teamAssessment: memo.teamAssessment,
-        managementAnalysis: memo.managementAnalysis,
-        financialAnalysis: memo.financialAnalysis,
-        financialProjections: memo.financialProjections,
-        valuationAnalysis: memo.valuationAnalysis,
-        legalAssessment: memo.legalAssessment,
-        regulatoryAnalysis: memo.regulatoryAnalysis,
-        ipAnalysis: memo.ipAnalysis,
-        clinicalAssessment: memo.clinicalAssessment,
-        commercialAnalysis: memo.commercialAnalysis,
-        riskAssessment: memo.riskAssessment,
-        mitigationStrategies: memo.mitigationStrategies,
-        investmentTerms: memo.investmentTerms,
-        recommendation: memo.recommendation,
-        exitStrategy: memo.exitStrategy,
-        appendices: memo.appendices,
-        researchInsights: memo.researchInsights,
-        dataSourcesCount: 0 // Will be set by caller
+        status: 'Generated'
       };
 
       // Delete old memos for this deal and create new one
