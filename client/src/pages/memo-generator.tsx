@@ -332,15 +332,7 @@ export default function MemoGenerator() {
               ) : (
                 <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4 custom-scrollbar">
                   {currentMemo && (
-                    // Check if this is the new BAIBYS-structured memo
-                    currentMemo.coverPage && typeof currentMemo.coverPage === 'object' ? (
-                      <BAIBYSMemoDisplay memo={currentMemo as any} />
-                    ) : (
-                      // Fallback to old rendering for backwards compatibility
-                      Object.entries(currentMemo).map(([key, content]) => 
-                        renderMemoSection(key, content)
-                      )
-                    )
+                    <BAIBYSMemoDisplay memo={currentMemo as any} />
                   )}
                 </div>
               )}
