@@ -138,10 +138,9 @@ export default function MemoGenerator() {
         title: "Investment Memo Generated",
         description: "Comprehensive memo created and saved. It will persist when you return.",
       });
-      // Invalidate memo query to refetch the newly saved memo from database
+      // Force immediate cache invalidation and refetch of the database memo
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      // Clear the temporary generated memo since it's now saved in database
-      setTimeout(() => setGeneratedMemo(null), 1000);
+      queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
