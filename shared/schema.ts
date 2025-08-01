@@ -313,6 +313,8 @@ export const investmentMemos = pgTable("investment_memos", {
     opportunities: string[];
     threats: string[];
   }>(),
+  // New comprehensive memo field for 30-50 page detailed memos
+  memo: json("memo"),
   status: text("status").notNull().default("Draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
