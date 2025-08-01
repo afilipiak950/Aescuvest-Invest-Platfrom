@@ -3,8 +3,9 @@ import { storage } from '../storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// BAIBYS-style memo structure matching the reference document exactly
+// BAIBYS-style memo structure matching the reference PDF exactly
 export interface BAIBYSMemoSections {
+  // Cover Page - Professional layout matching BAIBYS PDF
   coverPage: {
     company: string;
     headquarters: string;
@@ -15,42 +16,117 @@ export interface BAIBYSMemoSections {
     keyInvestmentTerms: string[];
     investmentHighlights: string[];
   };
+  
+  // Executive Summary - 2-3 page comprehensive overview
   executiveSummary: string;
+  
+  // SWOT Analysis - Professional 4-quadrant format
   swotAnalysis: {
     strengths: string[];
     weaknesses: string[];
     opportunities: string[];
     threats: string[];
   };
+  
+  // Market Analysis - Complete market landscape 
   marketAnalysis: {
     marketContext: string;
+    biggerPicture: string;
+    icsiDominance: string;
+    reimbursementLandscape: string;
     tamSamSom: {
       tam: string;
       sam: string;
       som: string;
+      tableData: {
+        metric: string;
+        estimate: string;
+        source: string;
+      }[];
     };
-    whyNow: string;
-    painPoints: string;
-    marketOpportunity: string;
   };
-  productAnalysis: {
-    productOverview: string;
-    technicalSpecs: string;
-    uniqueSellingPoints: string[];
-    competitiveAdvantages: string;
+  
+  // Competitive Analysis - Detailed competitive positioning
+  competitiveAnalysis: {
+    currentLandscape: string;
+    competitiveAdvantages: string[];
+    keyCompetitors: string;
+    differentiationFactors: string;
+    strategicPosition: string;
   };
-  businessModel: string;
-  teamAssessment: string;
-  financialAnalysis: string;
-  commercialStrategy: string;
-  clinicalAssessment: string;
-  ipAnalysis: string;
-  riskAssessment: string;
-  legalAssessment: string;
-  investmentTerms: string;
-  exitStrategy: string;
-  recommendation: string;
-  appendices: string;
+  
+  // Technology & Product - Technical deep dive
+  technologyAssessment: {
+    coreInnovation: string;
+    technicalSpecifications: string;
+    intellectualProperty: string;
+    developmentStatus: string;
+    regulatoryApprovals: string;
+  };
+  
+  // Business Model & Commercial Strategy
+  businessModel: {
+    revenueModel: string;
+    pricingStrategy: string;
+    salesChannels: string;
+    customerAcquisition: string;
+    scalabilityFactors: string;
+  };
+  
+  // Financial Analysis - Comprehensive financial assessment
+  financialAnalysis: {
+    financialPosition: string;
+    fundingHistory: string;
+    useOfFunds: string;
+    keyMetrics: string;
+    burnAnalysis: string;
+    projections: string;
+  };
+  
+  // Management & Team Assessment
+  teamAssessment: {
+    leadershipTeam: string;
+    advisoryBoard: string;
+    organizationalStructure: string;
+    keyPersonRisks: string;
+    teamScaling: string;
+  };
+  
+  // Risk Analysis - Comprehensive risk assessment  
+  riskAnalysis: {
+    technicalRisks: string;
+    marketRisks: string;
+    regulatoryRisks: string;
+    competitiveRisks: string;
+    operationalRisks: string;
+    mitigationStrategies: string;
+  };
+  
+  // Investment Terms & Structure
+  investmentTerms: {
+    dealStructure: string;
+    liquidationPreference: string;
+    boardRights: string;
+    protectiveProvisions: string;
+    antiDilution: string;
+  };
+  
+  // Investment Recommendation - Final analysis
+  recommendation: {
+    investmentRationale: string;
+    keySuccessFactors: string;
+    monitoringMetrics: string;
+    exitStrategy: string;
+    finalRecommendation: string;
+  };
+  
+  // Appendices - Supporting documentation
+  appendices: {
+    financialModels: string;
+    marketResearch: string;
+    technicalDocuments: string;
+    legalDocuments: string;
+  };
 }
 
 class BAIBYSStyleMemoService {
@@ -146,194 +222,385 @@ class BAIBYSStyleMemoService {
   }
 
   private async generateBAIBYSStructuredSections(data: any, context: string): Promise<BAIBYSMemoSections> {
-    console.log(`🎯 Generating BAIBYS-structured memo sections with GPT-4o`);
+    console.log(`🎯 Generating comprehensive BAIBYS-structured memo with all sections`);
 
-    // Generate cover page first
-    const coverPage = await this.generateCoverPage(data, context);
-    
-    // Generate executive summary
-    const executiveSummary = await this.generateExecutiveSummary(data, context);
-    
-    // Generate SWOT analysis 
-    const swotAnalysis = await this.generateSWOTAnalysis(data, context);
-    
-    // Generate market analysis with TAM/SAM/SOM structure
-    const marketAnalysis = await this.generateMarketAnalysis(data, context);
-    
-    // Generate product analysis
-    const productAnalysis = await this.generateProductAnalysis(data, context);
-    
-    // Generate remaining sections
-    const remainingSections = await this.generateRemainingSections(data, context);
+    // Generate all sections matching BAIBYS PDF structure exactly
+    const [
+      coverPage,
+      executiveSummary, 
+      swotAnalysis,
+      marketAnalysis,
+      competitiveAnalysis,
+      technologyAssessment,
+      businessModel,
+      financialAnalysis,
+      teamAssessment,
+      riskAnalysis,
+      investmentTerms,
+      recommendation,
+      appendices
+    ] = await Promise.all([
+      this.generateNewCoverPage(data, context),
+      this.generateNewExecutiveSummary(data, context),
+      this.generateNewSWOTAnalysis(data, context),
+      this.generateNewMarketAnalysis(data, context),
+      this.generateNewCompetitiveAnalysis(data, context),
+      this.generateNewTechnologyAssessment(data, context),
+      this.generateNewBusinessModel(data, context),
+      this.generateNewFinancialAnalysis(data, context),
+      this.generateNewTeamAssessment(data, context),
+      this.generateNewRiskAnalysis(data, context),
+      this.generateNewInvestmentTerms(data, context),
+      this.generateNewRecommendation(data, context),
+      this.generateNewAppendices(data, context)
+    ]);
 
     return {
       coverPage,
       executiveSummary,
       swotAnalysis,
       marketAnalysis,
-      productAnalysis,
-      ...remainingSections
+      competitiveAnalysis,
+      technologyAssessment,
+      businessModel,
+      financialAnalysis,
+      teamAssessment,
+      riskAnalysis,
+      investmentTerms,
+      recommendation,
+      appendices
     };
   }
 
-  private async generateCoverPage(data: any, context: string) {
-    const prompt = `Create a professional investment memo cover page for ${data.companyName} in the exact style of the BAIBYS reference document.
+  private async generateNewCoverPage(data: any, context: string) {
+    const prompt = `Create professional cover page for ${data.companyName} investment memo matching BAIBYS PDF format exactly.
 
-CONTEXT: ${context.substring(0, 4000)}
+CONTEXT: ${context.substring(0, 10000)}
 
-Generate a structured cover page with:
-1. Company headquarters location
-2. Management team (extract real names from documents if available)
-3. Incorporation date (estimate based on available data)
-4. Shareholding structure (create realistic structure based on stage)
-5. Investment proposal (Series A/B based on company stage)
-6. Key investment terms (realistic terms for this sector)
-7. Investment highlights (4-5 compelling points)
+Generate complete cover page with:
+- Company details and headquarters location
+- Management team from documents  
+- Incorporation details
+- Shareholding structure from financial documents
+- Investment proposal with specific amounts
+- Key investment terms (liquidation preference, board seats, etc.)
+- Investment highlights (4-5 compelling bullet points)
 
-Return as structured JSON with these exact keys: company, headquarters, management, incorporation, shareholding, proposal, keyInvestmentTerms, investmentHighlights`;
+Return JSON with coverPage structure using AUTHENTIC data from context only. Format response as JSON object.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.3
+      temperature: 0.2,
+      max_tokens: 2000
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.choices[0].message.content || '{}').coverPage;
   }
 
-  private async generateExecutiveSummary(data: any, context: string): Promise<string> {
-    const prompt = `Create a comprehensive executive summary for ${data.companyName} in the exact style of the BAIBYS reference document.
+  private async generateNewExecutiveSummary(data: any, context: string) {
+    const prompt = `Create comprehensive 2-3 page executive summary for ${data.companyName} matching BAIBYS professional format.
 
-CONTEXT: ${context.substring(0, 6000)}
+CONTEXT: ${context.substring(0, 15000)}
 
-Write a professional 2-3 paragraph executive summary covering:
-1. Company founding, mission, and leadership background
-2. Technology/product innovation and competitive differentiation  
-3. Market opportunity with specific market data and growth rates
-4. Strategic partnerships, customer validation, regulatory status
-5. Financial performance, projections, and funding history
-6. Investment thesis and expected returns
+Generate executive summary covering:
+- Company founding story and mission  
+- Technology innovation and differentiation
+- Market opportunity and addressable market
+- Business model and revenue streams
+- Key achievements and milestones
+- Team expertise and leadership
+- Financial position and funding
+- Investment opportunity and use of funds
 
-Use specific data from the context. Write in professional, confident tone matching BAIBYS quality.`;
+Use authentic data from documents and analyses. Professional VC language with specific details.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.2
+      temperature: 0.3,
+      max_tokens: 3000
     });
 
     return response.choices[0].message.content || '';
   }
 
-  private async generateSWOTAnalysis(data: any, context: string) {
-    const prompt = `Create a detailed SWOT analysis for ${data.companyName} in the exact format of the BAIBYS reference document.
+  private async generateNewSWOTAnalysis(data: any, context: string) {
+    const prompt = `Create detailed SWOT analysis for ${data.companyName} using BAIBYS 4-quadrant professional format.
 
-CONTEXT: ${context.substring(0, 5000)}
+CONTEXT: ${context.substring(0, 12000)}
 
-Generate a comprehensive SWOT analysis with:
-- Strengths: 4-6 key competitive advantages
-- Weaknesses: 3-4 areas needing improvement
-- Opportunities: 3-4 market opportunities
-- Threats: 2-3 key risks
+Generate comprehensive SWOT with specific arrays:
+- STRENGTHS: IP position, efficiency gains, first mover advantages, strategic partnerships
+- WEAKNESSES: Commercial profile gaps, infrastructure limitations, margin pressures, team gaps  
+- OPPORTUNITIES: Growing market, regulatory support, strategic leverage, geographic expansion
+- THREATS: Regulatory hurdles, market adoption risks, competitive threats, technology risks
 
-Each point should be specific, data-driven, and professionally written. Use authentic details from the context.
-
-Return as JSON with arrays for: strengths, weaknesses, opportunities, threats`;
+Return JSON with swotAnalysis structure - arrays of specific detailed points from authentic data. Format response as JSON object.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.3
+      temperature: 0.3,
+      max_tokens: 2500
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.choices[0].message.content || '{}').swotAnalysis;
   }
 
-  private async generateMarketAnalysis(data: any, context: string) {
-    const prompt = `Create a comprehensive market analysis for ${data.companyName} in the exact structure of the BAIBYS reference document.
+  private async generateNewMarketAnalysis(data: any, context: string) {
+    const prompt = `Create comprehensive market analysis for ${data.companyName} matching BAIBYS professional market section.
 
-CONTEXT: ${context.substring(0, 6000)}
+CONTEXT: ${context.substring(0, 12000)}
 
 Generate detailed market analysis with:
-1. Market Context and Opportunity (current market situation)
-2. TAM/SAM/SOM breakdown with specific numbers and sources
-3. "Why Now?" section explaining market timing
-4. Pain Points in current market/workflow
-5. Market opportunity with growth rates and drivers
+- Market context and current landscape
+- The bigger picture (global market trends)
+- ICSI dominance and automation opportunity
+- Reimbursement landscape by region  
+- TAM/SAM/SOM analysis with specific numbers, metrics, estimates, and sources in table format
 
-Include realistic market sizing with specific dollar amounts, growth rates (CAGR), and data sources. Write in professional, analytical tone.
-
-Return as JSON with keys: marketContext, tamSamSom (with tam/sam/som subkeys), whyNow, painPoints, marketOpportunity`;
+Include professional market data with authentic numbers from documents where available. Return as JSON with marketAnalysis structure.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.2
+      temperature: 0.3,
+      max_tokens: 2500
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.choices[0].message.content || '{}').marketAnalysis;
   }
 
-  private async generateProductAnalysis(data: any, context: string) {
-    const prompt = `Create a detailed product analysis for ${data.companyName} in the exact style of the BAIBYS reference document.
+  private async generateNewCompetitiveAnalysis(data: any, context: string) {
+    const prompt = `Create detailed competitive analysis for ${data.companyName} based on market research.
 
-CONTEXT: ${context.substring(0, 5000)}
+CONTEXT: ${context.substring(0, 10000)}
 
-Generate comprehensive product analysis with:
-1. Product Overview (what the product does)
-2. Technical Specifications (detailed technical details)
-3. Unique Selling Points (4-6 bullet points)
-4. Competitive Advantages (detailed analysis)
+Generate competitive analysis covering:
+- Current competitive landscape
+- Key competitive advantages
+- Major competitors and positioning
+- Differentiation factors  
+- Strategic competitive position
 
-Use specific technical details from the context. Write with technical depth matching BAIBYS quality.
-
-Return as JSON with keys: productOverview, technicalSpecs, uniqueSellingPoints (array), competitiveAdvantages`;
+Return JSON with competitiveAnalysis structure using specific competitor data. Format response as JSON object.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.3
+      temperature: 0.3,
+      max_tokens: 2000
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.choices[0].message.content || '{}').competitiveAnalysis;
   }
 
-  private async generateRemainingSections(data: any, context: string) {
-    const prompt = `Generate the remaining investment memo sections for ${data.companyName} matching BAIBYS professional quality.
+  private async generateNewTechnologyAssessment(data: any, context: string) {
+    const prompt = `Create comprehensive technology assessment for ${data.companyName} based on technical documents.
+
+CONTEXT: ${context.substring(0, 12000)}
+
+Generate technology assessment covering:
+- Core innovation and technical breakthrough
+- Technical specifications and capabilities
+- Intellectual property portfolio  
+- Development status and roadmap
+- Regulatory approvals and pathway
+
+Return JSON with technologyAssessment structure using authentic technical data. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').technologyAssessment;
+  }
+
+  private async generateNewBusinessModel(data: any, context: string) {
+    const prompt = `Create detailed business model analysis for ${data.companyName} based on commercial documents.
+
+CONTEXT: ${context.substring(0, 10000)}
+
+Generate business model covering:
+- Revenue model and pricing strategy
+- Sales channels and distribution
+- Customer acquisition strategy
+- Scalability factors
+- Commercial execution plan
+
+Return JSON with businessModel structure using authentic business data. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').businessModel;
+  }
+
+  private async generateNewFinancialAnalysis(data: any, context: string) {
+    const prompt = `Create comprehensive financial analysis for ${data.companyName} based on financial documents.
+
+CONTEXT: ${context.substring(0, 12000)}
+
+Generate financial analysis covering:
+- Current financial position
+- Funding history and investors
+- Use of funds and capital allocation
+- Key financial metrics and KPIs
+- Burn analysis and runway
+- Financial projections and growth
+
+Return JSON with financialAnalysis structure using authentic financial data. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').financialAnalysis;
+  }
+
+  private async generateNewTeamAssessment(data: any, context: string) {
+    const prompt = `Create detailed team assessment for ${data.companyName} based on HR documents and team information.
+
+CONTEXT: ${context.substring(0, 10000)}
+
+Generate team assessment covering:
+- Leadership team backgrounds and expertise
+- Advisory board and strategic advisors  
+- Organizational structure and capabilities
+- Key person risks and dependencies
+- Team scaling and hiring plans
+
+Return JSON with teamAssessment structure using authentic team data. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').teamAssessment;
+  }
+
+  private async generateNewRiskAnalysis(data: any, context: string) {
+    const prompt = `Create comprehensive risk analysis for ${data.companyName} based on all documents and analyses.
+
+CONTEXT: ${context.substring(0, 12000)}
+
+Generate risk analysis covering:
+- Technical and development risks
+- Market and competitive risks
+- Regulatory and compliance risks
+- Operational and execution risks
+- Risk mitigation strategies
+
+Return JSON with riskAnalysis structure using specific risks identified. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').riskAnalysis;
+  }
+
+  private async generateNewInvestmentTerms(data: any, context: string) {
+    const prompt = `Create detailed investment terms for ${data.companyName} based on legal and investment documents.
 
 CONTEXT: ${context.substring(0, 8000)}
 
-Generate detailed analysis for:
-1. Business Model (revenue streams, pricing, scalability)
-2. Team Assessment (management evaluation, key personnel)
-3. Financial Analysis (current financials, projections, funding history)
-4. Commercial Strategy (go-to-market, sales, partnerships)
-5. Clinical Assessment (regulatory status, trials, approvals)
-6. IP Analysis (patents, intellectual property)
-7. Risk Assessment (key risks and mitigation)
-8. Legal Assessment (legal structure, compliance)
-9. Investment Terms (proposed terms and structure)
-10. Exit Strategy (exit opportunities and timeline)
-11. Recommendation (investment recommendation and rationale)
-12. Appendices (supporting documents and data)
+Generate investment terms covering:
+- Deal structure and valuation
+- Liquidation preferences
+- Board rights and governance
+- Protective provisions
+- Anti-dilution protection
 
-Each section should be comprehensive and professional. Use authentic data from context.
-
-Return as JSON with these exact keys: businessModel, teamAssessment, financialAnalysis, commercialStrategy, clinicalAssessment, ipAnalysis, riskAssessment, legalAssessment, investmentTerms, exitStrategy, recommendation, appendices`;
+Return JSON with investmentTerms structure using authentic deal terms. Format response as JSON object.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.2
+      temperature: 0.3,
+      max_tokens: 1500
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.choices[0].message.content || '{}').investmentTerms;
   }
+
+  private async generateNewRecommendation(data: any, context: string) {
+    const prompt = `Create comprehensive investment recommendation for ${data.companyName} based on complete analysis.
+
+CONTEXT: ${context.substring(0, 10000)}
+
+Generate investment recommendation covering:
+- Investment rationale and thesis
+- Key success factors
+- Monitoring metrics and milestones
+- Exit strategy and potential
+- Final recommendation (PASS/INVESTIGATE/REJECT)
+
+Return JSON with recommendation structure with final investment decision. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').recommendation;
+  }
+
+  private async generateNewAppendices(data: any, context: string) {
+    const prompt = `Create comprehensive appendices for ${data.companyName} investment memo.
+
+CONTEXT: ${context.substring(0, 8000)}
+
+Generate appendices covering:
+- Financial models and projections
+- Market research and analysis  
+- Technical documentation
+- Legal documents and contracts
+
+Return JSON with appendices structure organizing supporting documentation. Format response as JSON object.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 1500
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}').appendices;
+  }
+
+
 
   private async storeMemo(dealId: number, memo: BAIBYSMemoSections): Promise<void> {
     console.log(`💾 Storing BAIBYS-quality investment memo for deal ${dealId}`);
