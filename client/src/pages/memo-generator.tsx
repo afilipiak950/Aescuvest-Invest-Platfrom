@@ -427,7 +427,7 @@ export default function MemoGenerator() {
                                 <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                                   <h4 className="font-semibold text-slate-200 mb-2">Market Context</h4>
                                   <ProfessionalFormattedContent 
-                                    content={currentMemo.marketAnalysis.marketContext} 
+                                    content={currentMemo.marketAnalysis.marketContext || formatObjectContent(currentMemo.marketAnalysis)} 
                                     variant="small"
                                     className="text-slate-300"
                                   />
@@ -435,7 +435,7 @@ export default function MemoGenerator() {
                                 <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                                   <h4 className="font-semibold text-slate-200 mb-2">Market Timing</h4>
                                   <ProfessionalFormattedContent 
-                                    content={currentMemo.marketAnalysis.marketTiming} 
+                                    content={currentMemo.marketAnalysis.marketTiming || 'Market timing analysis included in main analysis'} 
                                     variant="small"
                                     className="text-slate-300"
                                   />
@@ -445,15 +445,25 @@ export default function MemoGenerator() {
                                 <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                                   <h4 className="font-semibold text-slate-200 mb-2">Market Size (TAM/SAM/SOM)</h4>
                                   <div className="space-y-2 text-slate-300">
-                                    <div><span className="font-medium text-blue-400">TAM:</span> {currentMemo.marketAnalysis.marketSize.tam}</div>
-                                    <div><span className="font-medium text-green-400">SAM:</span> {currentMemo.marketAnalysis.marketSize.sam}</div>
-                                    <div><span className="font-medium text-yellow-400">SOM:</span> {currentMemo.marketAnalysis.marketSize.som}</div>
+                                    {currentMemo.marketAnalysis.marketSize ? (
+                                      <>
+                                        <div><span className="font-medium text-blue-400">TAM:</span> {currentMemo.marketAnalysis.marketSize.tam}</div>
+                                        <div><span className="font-medium text-green-400">SAM:</span> {currentMemo.marketAnalysis.marketSize.sam}</div>
+                                        <div><span className="font-medium text-yellow-400">SOM:</span> {currentMemo.marketAnalysis.marketSize.som}</div>
+                                      </>
+                                    ) : (
+                                      <ProfessionalFormattedContent 
+                                        content={formatObjectContent(currentMemo.marketAnalysis.tamSamSomAnalysis || 'Market size analysis not available')} 
+                                        variant="small"
+                                        className="text-slate-300"
+                                      />
+                                    )}
                                   </div>
                                 </div>
                                 <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                                   <h4 className="font-semibold text-slate-200 mb-2">Competitive Landscape</h4>
                                   <ProfessionalFormattedContent 
-                                    content={currentMemo.marketAnalysis.competitiveLandscape} 
+                                    content={currentMemo.marketAnalysis.competitiveLandscape || 'Competitive analysis included in main market analysis'} 
                                     variant="small"
                                     className="text-slate-300"
                                   />
@@ -481,35 +491,41 @@ export default function MemoGenerator() {
                               <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                                 <h4 className="font-semibold text-slate-200 mb-2">Product Overview</h4>
                                 <ProfessionalFormattedContent 
-                                  content={currentMemo.productAnalysis.productOverview} 
+                                  content={currentMemo.productAnalysis.productOverview || formatObjectContent(currentMemo.productAnalysis)} 
                                   variant="small"
                                   className="text-slate-300"
                                 />
                               </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Technology Advantage</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.productAnalysis.technologyAdvantage} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Competitive Edge</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.productAnalysis.competitiveEdge} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Development Stage</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.productAnalysis.developmentStage} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
+                              {currentMemo.productAnalysis.technologyAdvantage && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Technology Advantage</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.productAnalysis.technologyAdvantage} 
+                                    variant="small"
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
+                              {currentMemo.productAnalysis.competitiveEdge && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Competitive Edge</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.productAnalysis.competitiveEdge} 
+                                    variant="small"
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
+                              {currentMemo.productAnalysis.developmentStage && (
+                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                  <h4 className="font-semibold text-slate-200 mb-2">Development Stage</h4>
+                                  <ProfessionalFormattedContent 
+                                    content={currentMemo.productAnalysis.developmentStage} 
+                                    variant="small"
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
