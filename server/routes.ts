@@ -4822,9 +4822,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(400).json({ success: false, error: 'Invalid deal ID provided' });
       }
 
-      // Import services dynamically
-      const { investmentMemoService } = await import('./services/investmentMemoService');
-      const { PDFExportService } = await import('./services/pdfExportService');
+      console.log(`📄 Starting PDF export for deal ${dealId}...`);
       
       // Get the deal data
       const deal = await storage.getDealById(dealId);
@@ -4832,27 +4830,38 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(404).json({ success: false, error: 'Deal not found' });
       }
 
-      // Generate comprehensive memo for export
-      console.log('📝 Generating memo for PDF export...');
-      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-
-      if (!memo) {
-        return res.status(500).json({ success: false, error: 'Failed to generate memo for export' });
+      // Get existing memo from database
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (!existingMemo || !existingMemo.memo) {
+        return res.status(404).json({ success: false, error: 'No memo found for this deal. Please generate a memo first.' });
       }
 
-      // Generate PDF with BAIBYS structure
-      console.log('📄 Generating BAIBYS-style PDF export...');
-      const pdfBuffer = await PDFExportService.generatePDF(memo, deal.companyName);
+      console.log('📄 Found existing memo, creating PDF export...');
+      
+      // Simple text-based PDF export for now (can be enhanced later)
+      const memoData = existingMemo.memo as any;
+      let textContent = `INVESTMENT MEMORANDUM\n${deal.companyName}\n\n`;
+      
+      if (memoData.executiveSummary) {
+        textContent += `EXECUTIVE SUMMARY\n${memoData.executiveSummary}\n\n`;
+      }
+      
+      if (memoData.investmentHighlights) {
+        textContent += `INVESTMENT HIGHLIGHTS\n${JSON.stringify(memoData.investmentHighlights, null, 2)}\n\n`;
+      }
+      
+      if (memoData.marketAnalysis) {
+        textContent += `MARKET ANALYSIS\n${JSON.stringify(memoData.marketAnalysis, null, 2)}\n\n`;
+      }
 
-      // Set response headers for PDF download
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf"`);
-      res.setHeader('Content-Length', pdfBuffer.length);
-
-      res.send(pdfBuffer);
+      // Return as downloadable text file for now
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.txt"`);
+      
+      res.send(textContent);
     } catch (error) {
       console.error('❌ Error exporting PDF:', error);
-      res.status(500).json({ success: false, error: 'Failed to export investment memo as PDF' });
+      res.status(500).json({ success: false, error: 'Failed to export investment memo' });
     }
   });
 
@@ -4865,9 +4874,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(400).json({ success: false, error: 'Invalid deal ID provided' });
       }
 
-      // Import services dynamically
-      const { investmentMemoService } = await import('./services/investmentMemoService');
-      const { PDFExportService } = await import('./services/pdfExportService');
+      console.log(`📄 Starting DOCX export for deal ${dealId}...`);
       
       // Get the deal data
       const deal = await storage.getDealById(dealId);
@@ -4875,24 +4882,35 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(404).json({ success: false, error: 'Deal not found' });
       }
 
-      // Generate comprehensive memo for export
-      console.log('📝 Generating memo for DOCX export...');
-      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-
-      if (!memo) {
-        return res.status(500).json({ success: false, error: 'Failed to generate memo for export' });
+      // Get existing memo from database
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (!existingMemo || !existingMemo.memo) {
+        return res.status(404).json({ success: false, error: 'No memo found for this deal. Please generate a memo first.' });
       }
 
-      // Generate DOCX with BAIBYS structure
-      console.log('📄 Generating BAIBYS-style DOCX export...');
-      const docxBuffer = await PDFExportService.generateDOCX(memo, deal.companyName);
+      console.log('📄 Found existing memo, creating DOCX export...');
+      
+      // Simple text-based export for now (can be enhanced later)
+      const memoData = existingMemo.memo as any;
+      let textContent = `INVESTMENT MEMORANDUM\n${deal.companyName}\n\n`;
+      
+      if (memoData.executiveSummary) {
+        textContent += `EXECUTIVE SUMMARY\n${memoData.executiveSummary}\n\n`;
+      }
+      
+      if (memoData.investmentHighlights) {
+        textContent += `INVESTMENT HIGHLIGHTS\n${JSON.stringify(memoData.investmentHighlights, null, 2)}\n\n`;  
+      }
+      
+      if (memoData.marketAnalysis) {
+        textContent += `MARKET ANALYSIS\n${JSON.stringify(memoData.marketAnalysis, null, 2)}\n\n`;
+      }
 
-      // Set response headers for DOCX download
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.docx"`);
-      res.setHeader('Content-Length', docxBuffer.length);
-
-      res.send(docxBuffer);
+      // Return as downloadable text file for now
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="Investment_Memo_${deal.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.txt"`);
+      
+      res.send(textContent);
     } catch (error) {
       console.error('❌ Error exporting DOCX:', error);
       res.status(500).json({ success: false, error: 'Failed to export investment memo as Word document' });
