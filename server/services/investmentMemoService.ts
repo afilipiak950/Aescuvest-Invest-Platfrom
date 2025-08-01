@@ -388,7 +388,7 @@ ${summaryText}
       // Include ALL recommendations with complete content  
       if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
         context += `COMPLETE RECOMMENDATIONS (${analysis.recommendations.length}):\n`;
-        analysis.recommendations.forEach((rec, index) => {
+        analysis.recommendations.forEach((rec: any, index: number) => {
           const content = typeof rec === 'string' ? rec : (rec.content || rec.description || JSON.stringify(rec, null, 2));
           context += `RECOMMENDATION ${index + 1}: ${content}\n\n`;
         });
@@ -1143,7 +1143,7 @@ Use professional VC language with specific metrics, market data, and growth proj
         storage.getDocumentsWithOCRForMemo(dealId), // NEW: Use OCR-enabled function
         storage.getAnalysesByDealId(dealId),
         storage.getCompanyResearchByDealId(dealId),
-        storage.getAiEvaluationByDealId(dealId)
+        storage.getEvaluationResultsByDealId(dealId)
       ]);
 
       if (!deal) {
