@@ -4838,175 +4838,132 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
       console.log('📄 Found existing memo, creating PDF export...');
       
-      // Import PDF generation library dynamically
-      const { default: htmlPdf } = await import('html-pdf-node');
+      // Import jsPDF for PDF generation
+      const { jsPDF } = await import('jspdf');
       
       const memoData = existingMemo.memo as any;
       
-      // Generate HTML content for PDF conversion
-      let htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Investment Memorandum - ${deal.companyName}</title>
-          <style>
-            body {
-              font-family: 'Times New Roman', serif;
-              line-height: 1.6;
-              margin: 40px;
-              color: #333;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 40px;
-            }
-            .title {
-              font-size: 24px;
-              font-weight: bold;
-              margin-bottom: 10px;
-            }
-            .company-name {
-              font-size: 20px;
-              font-weight: bold;
-              color: #2c3e50;
-            }
-            .section-title {
-              font-size: 18px;
-              font-weight: bold;
-              margin-top: 30px;
-              margin-bottom: 15px;
-              color: #2c3e50;
-              border-bottom: 2px solid #3498db;
-              padding-bottom: 5px;
-            }
-            .content {
-              margin-bottom: 20px;
-              text-align: justify;
-            }
-            .highlight {
-              background-color: #f8f9fa;
-              padding: 15px;
-              border-left: 4px solid #3498db;
-              margin: 15px 0;
-            }
-            ul {
-              margin-left: 20px;
-            }
-            li {
-              margin-bottom: 8px;
-            }
-            .page-break {
-              page-break-before: always;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">INVESTMENT MEMORANDUM</div>
-            <div class="company-name">${deal.companyName}</div>
-            <div style="margin-top: 10px; color: #666; font-size: 14px;">
-              Generated on ${new Date().toLocaleDateString()}
-            </div>
-          </div>
-      `;
+      // Create PDF document
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Add title page
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('INVESTMENT MEMORANDUM', 105, 50, { align: 'center' });
+      
+      doc.setFontSize(16);
+      doc.text(deal.companyName, 105, 70, { align: 'center' });
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated on ${new Date().toLocaleDateString()}`, 105, 90, { align: 'center' });
+      
+      let yPosition = 120;
+      const pageHeight = 297; // A4 height in mm
+      const margin = 20;
+      const lineHeight = 6;
+      
+      // Helper function to add text with page breaks
+      const addSection = (title: string, content: string) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 40) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        
+        // Add section title
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, margin, yPosition);
+        yPosition += lineHeight * 2;
+        
+        // Add content with word wrapping
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        
+        // Clean and split content
+        const cleanContent = content.replace(/[#*\-]/g, '').replace(/\n\n+/g, '\n').trim();
+        const lines = doc.splitTextToSize(cleanContent, 170); // Width minus margins
+        
+        lines.forEach((line: string) => {
+          if (yPosition > pageHeight - 20) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+        
+        yPosition += lineHeight; // Extra space after section
+      };
       
       // Add Executive Summary
       if (memoData.executiveSummary) {
-        htmlContent += `
-          <div class="section-title">EXECUTIVE SUMMARY</div>
-          <div class="content">${memoData.executiveSummary.replace(/\n/g, '<br>')}</div>
-        `;
+        addSection('EXECUTIVE SUMMARY', memoData.executiveSummary);
       }
       
       // Add Investment Highlights
       if (memoData.investmentHighlights) {
-        htmlContent += `<div class="section-title">INVESTMENT HIGHLIGHTS</div>`;
+        let highlightsText = '';
         if (Array.isArray(memoData.investmentHighlights)) {
-          htmlContent += '<ul>';
-          memoData.investmentHighlights.forEach((highlight: string) => {
-            htmlContent += `<li>${highlight}</li>`;
-          });
-          htmlContent += '</ul>';
+          highlightsText = memoData.investmentHighlights.join('\n• ');
+          highlightsText = '• ' + highlightsText;
+        } else if (typeof memoData.investmentHighlights === 'string') {
+          highlightsText = memoData.investmentHighlights;
         } else if (typeof memoData.investmentHighlights === 'object') {
-          htmlContent += '<ul>';
-          Object.entries(memoData.investmentHighlights).forEach(([key, value]) => {
-            htmlContent += `<li><strong>${key}:</strong> ${value}</li>`;
-          });
-          htmlContent += '</ul>';
+          highlightsText = Object.entries(memoData.investmentHighlights)
+            .map(([key, value]) => `• ${key}: ${value}`)
+            .join('\n');
         }
+        addSection('INVESTMENT HIGHLIGHTS', highlightsText);
       }
       
-      // Add all major sections
+      // Add other major sections
       const sectionOrder = [
         { key: 'marketAnalysis', title: 'MARKET ANALYSIS' },
-        { key: 'tamSamSomAnalysis', title: 'TAM/SAM/SOM ANALYSIS' },
-        { key: 'competitiveAnalysis', title: 'COMPETITIVE ANALYSIS' },
-        { key: 'technologyAssessment', title: 'TECHNOLOGY ASSESSMENT' },
         { key: 'productAnalysis', title: 'PRODUCT ANALYSIS' },
         { key: 'businessModel', title: 'BUSINESS MODEL' },
         { key: 'teamAssessment', title: 'TEAM ASSESSMENT' },
         { key: 'financialAnalysis', title: 'FINANCIAL ANALYSIS' },
-        { key: 'financialProjections', title: 'FINANCIAL PROJECTIONS' },
-        { key: 'valuationAnalysis', title: 'VALUATION ANALYSIS' },
-        { key: 'legalAssessment', title: 'LEGAL ASSESSMENT' },
-        { key: 'regulatoryAnalysis', title: 'REGULATORY ANALYSIS' },
+        { key: 'commercialAnalysis', title: 'COMMERCIAL ANALYSIS' },
+        { key: 'clinicalAssessment', title: 'CLINICAL ASSESSMENT' },
+        { key: 'ipAnalysis', title: 'IP ANALYSIS' },
         { key: 'riskAssessment', title: 'RISK ASSESSMENT' },
+        { key: 'legalAssessment', title: 'LEGAL ASSESSMENT' },
         { key: 'investmentTerms', title: 'INVESTMENT TERMS' },
         { key: 'exitStrategy', title: 'EXIT STRATEGY' },
         { key: 'recommendation', title: 'RECOMMENDATION' }
       ];
 
-      sectionOrder.forEach((section, index) => {
+      sectionOrder.forEach((section) => {
         if (memoData[section.key]) {
-          if (index > 0 && index % 3 === 0) {
-            htmlContent += '<div class="page-break"></div>';
-          }
-          
-          htmlContent += `<div class="section-title">${section.title}</div>`;
-          
+          let sectionContent = '';
           const sectionData = memoData[section.key];
+          
           if (typeof sectionData === 'string') {
-            htmlContent += `<div class="content">${sectionData.replace(/\n/g, '<br>')}</div>`;
+            sectionContent = sectionData;
           } else if (typeof sectionData === 'object' && sectionData !== null) {
             if (Array.isArray(sectionData)) {
-              htmlContent += '<ul>';
-              sectionData.forEach((item: any) => {
-                const itemText = typeof item === 'string' ? item : JSON.stringify(item);
-                htmlContent += `<li>${itemText}</li>`;
-              });
-              htmlContent += '</ul>';
+              sectionContent = sectionData.map(item => 
+                typeof item === 'string' ? `• ${item}` : `• ${JSON.stringify(item)}`
+              ).join('\n');
             } else {
-              htmlContent += '<div class="content">';
-              Object.entries(sectionData).forEach(([key, value]) => {
-                const valueText = typeof value === 'string' ? value : JSON.stringify(value);
-                htmlContent += `<p><strong>${key}:</strong> ${valueText}</p>`;
-              });
-              htmlContent += '</div>';
+              sectionContent = Object.entries(sectionData)
+                .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
+                .join('\n\n');
             }
           }
+          
+          addSection(section.title, sectionContent);
         }
       });
       
-      htmlContent += '</body></html>';
-      
-      // PDF generation options
-      const options = {
-        format: 'A4',
-        border: {
-          top: '0.75in',
-          right: '0.75in',
-          bottom: '0.75in',
-          left: '0.75in'
-        },
-        type: 'pdf',
-        timeout: 30000
-      };
-      
-      const file = { content: htmlContent };
-      
-      // Generate PDF
-      const pdfBuffer = await htmlPdf.generatePdf(file, options);
+      // Generate PDF buffer
+      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
       
       // Set proper headers for PDF
       res.setHeader('Content-Type', 'application/pdf');
