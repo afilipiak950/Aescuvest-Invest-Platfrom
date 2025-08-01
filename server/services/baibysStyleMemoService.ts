@@ -341,18 +341,23 @@ Return as JSON with these exact keys: businessModel, teamAssessment, financialAn
     try {
       const existingMemo = await storage.getMemoByDealId(dealId);
       
+      // Store in proper schema format for compatibility
+      const memoData = {
+        dealId,
+        executiveSummary: memo.executiveSummary,
+        memo: memo, // Store full BAIBYS structure in memo JSON field
+        swot: memo.swotAnalysis,
+        status: 'Complete',
+        updatedAt: new Date()
+      };
+      
       if (existingMemo) {
-        await storage.updateMemo(existingMemo.id, {
-          ...memo,
-          updatedAt: new Date()
-        });
+        await storage.updateMemo(existingMemo.id, memoData);
         console.log(`✅ Updated existing investment memo for deal ${dealId}`);
       } else {
         const insertData = {
-          dealId,
-          ...memo,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          ...memoData,
+          createdAt: new Date()
         };
         await storage.createMemo(insertData);
         console.log(`💾 Created new investment memo for deal ${dealId}`);
