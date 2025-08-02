@@ -192,6 +192,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ✅ INVESTMENT MEMO GENERATION ROUTE - MISSING ROUTE THAT FRONTEND NEEDS!
+  app.post('/api/deals/:dealId/memo/generate', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { forceRegenerate } = req.body;
+      
+      console.log(`📝 Investment memo generation requested for deal ${dealId}, force regenerate: ${!!forceRegenerate}`);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      // Check if deal exists
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ success: false, error: 'Deal not found' });
+      }
+
+      // Check for existing background jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingMemoJob = existingJobs.find(job => 
+        job.jobType === 'investment_memo_generation' && job.status === 'processing'
+      );
+      
+      if (existingMemoJob && !forceRegenerate) {
+        console.log(`⚠️ Investment memo generation already running for deal ${dealId} (Job: ${existingMemoJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Investment memo generation already in progress`,
+          jobId: existingMemoJob.jobId,
+          isRunning: true
+        });
+      }
+
+      // Create background job for progress tracking
+      const jobId = `investment_memo_${dealId}_${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'investment_memo_generation',
+        dealId,
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        startedAt: new Date()
+      });
+
+      // Start investment memo generation as BACKGROUND JOB
+      console.log(`📝 Starting background investment memo generation for deal ${dealId} with job ${jobId}`);
+      
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      
+      // Process in background with proper error handling
+      investmentMemoService.generateComprehensiveMemo(dealId).then(async (memo) => {
+        console.log(`✅ Investment memo generation completed for deal ${dealId}`);
+        
+        // Mark job as completed
+        await storage.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+      }).catch(async (error) => {
+        console.error(`❌ Investment memo generation failed for deal ${dealId}:`, error);
+        
+        // Mark job as failed
+        await storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          progress: 0,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+          errorMessage: error.message
+        });
+      });
+
+      // Return immediately with job ID
+      res.json({
+        success: true,
+        message: 'Investment memo generation started',
+        jobId,
+        isRunning: true,
+        dealId
+      });
+
+    } catch (error) {
+      console.error(`❌ Error starting investment memo generation for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to start investment memo generation',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Attachment download endpoint
   app.get('/api/inbox/emails/:emailId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
     try {
