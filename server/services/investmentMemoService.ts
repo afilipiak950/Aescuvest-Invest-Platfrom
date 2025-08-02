@@ -612,7 +612,7 @@ ${content.substring(0, 120000)}`
   // ==================== MEMO SECTION GENERATORS ====================
 
   private async generateExecutiveSummary(context: string): Promise<string> {
-    return await openaiQuotaManager.makeRequest(
+    const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
@@ -657,6 +657,8 @@ Extract and verify all data from provided context - reject any fabricated inform
         fallbackContent: getMemoFallback('executiveSummary')
       }
     ) as Promise<string>;
+    
+    return response;
   }
 
   private async generateInvestmentHighlights(context: string): Promise<string[]> {
@@ -697,7 +699,7 @@ Format as JSON object with "highlights" array of detailed strings.`
       }
     ) as Promise<string>;
 
-    const result = JSON.parse(response);
+    const result = JSON.parse(await response);
     return result.highlights || [];
   }
 
@@ -749,7 +751,7 @@ Extract specific, actionable points with authentic data. Format as JSON with det
       }
     ) as Promise<string>;
 
-    const result = JSON.parse(response);
+    const result = JSON.parse(await response);
     return {
       strengths: result.strengths || [],
       weaknesses: result.weaknesses || [],
@@ -1081,13 +1083,24 @@ Format as JSON with detailed financial information only from authentic sources.`
       }
     ) as Promise<string>;
 
-    const result = JSON.parse(response);
-    return {
-      currentFinancials: result.currentFinancials || '',
-      projections: result.projections || '',
-      fundingHistory: result.fundingHistory || '',
-      useOfFunds: result.useOfFunds || ''
-    };
+    try {
+      const result = JSON.parse(await response);
+      console.log(`💰 Financial analysis generated: ${JSON.stringify(result).length} characters`);
+      return {
+        currentFinancials: result.currentFinancials || 'No current financials information available in provided documents',
+        projections: result.projections || 'No projections information available in provided documents',
+        fundingHistory: result.fundingHistory || 'No funding history information available in provided documents',
+        useOfFunds: result.useOfFunds || 'No use of funds information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing financial analysis JSON:', e);
+      return {
+        currentFinancials: 'Financial analysis is temporarily unavailable',
+        projections: 'Financial projections are temporarily unavailable',
+        fundingHistory: 'Funding history is temporarily unavailable',
+        useOfFunds: 'Use of funds information is temporarily unavailable'
+      };
+    }
   }
 
   private async generateLegalAssessment(context: string): Promise<InvestmentMemoSections['legalAssessment']> {
@@ -1310,11 +1323,14 @@ Format as JSON with detailed investment terms from authentic sources only.`
   }
 
   private async generateRecommendation(context: string): Promise<InvestmentMemoSections['recommendation']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate professional investment recommendation matching BAIBYS PDF format. Provide clear investment decision framework:
+    console.log(`📋 Generating investment recommendation from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate professional investment recommendation matching BAIBYS PDF format. Provide clear investment decision framework:
 
 **INVESTMENT RECOMMENDATION STRUCTURE:**
 1. **Investment Decision**: INVEST/PASS/INVESTIGATE with clear rationale
@@ -1338,21 +1354,34 @@ Format as JSON with detailed investment terms from authentic sources only.`
 - Use evidence-based rationale from comprehensive document analysis
 
 Format as JSON with detailed investment recommendation based on authentic analysis.`
-      }, {
-        role: "user",
-        content: `Generate authentic investment recommendation from BAIBYS context:\n\n${context.substring(0, 50000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.3
-    });
+        }, {
+          role: "user",
+          content: `Generate authentic investment recommendation from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Investment Recommendation Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify(getMemoFallback('recommendation'))
+      }
+    ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      investment_recommendation: result.investment_recommendation || '',
-      rationale: result.rationale || '',
-      keyMilestones: result.keyMilestones || [],
-      exitStrategy: result.exitStrategy || ''
-    };
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`📋 Investment recommendation generated: ${JSON.stringify(result).length} characters`);
+      return {
+        investment_recommendation: result.investment_recommendation || 'No investment recommendation available in provided documents',
+        rationale: result.rationale || 'No investment rationale available in provided documents',
+        keyMilestones: result.keyMilestones || [],
+        exitStrategy: result.exitStrategy || 'No exit strategy information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing investment recommendation JSON:', e);
+      const fallback = getMemoFallback('recommendation');
+      return fallback;
+    }
   }
 
   // String-based section generators for remaining sections
