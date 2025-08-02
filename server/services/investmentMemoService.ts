@@ -263,7 +263,7 @@ class InvestmentMemoService {
         console.log(`📄 Document ${index + 1} (${doc.name}): ${ocrLength.toLocaleString()} characters of OCR text`);
       } else {
         documentOcrLengths.push(0);
-        console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available`);
+        console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available - Field check: ocrText=${!!doc.ocrText}, ocr_text=${!!doc.ocr_text}, type=${typeof doc.ocrText}`);
       }
     });
     

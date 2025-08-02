@@ -169,6 +169,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Express route working!', timestamp: new Date().toISOString() });
   });
 
+  // 🔍 OCR EXTRACTION TEST ROUTE
+  app.post('/test-ocr-extraction/:dealId', async (req: Request, res: Response) => {
+    const dealId = parseInt(req.params.dealId);
+    console.log(`🔍 Testing OCR extraction for deal ${dealId}`);
+    
+    try {
+      const documentsWithOCR = await storage.getDocumentsWithOCRByDealId(dealId);
+      const ocrStats = {
+        totalDocs: documentsWithOCR.length,
+        docsWithOCR: documentsWithOCR.filter(doc => doc.ocrText && doc.ocrText.length > 100).length,
+        totalOcrChars: documentsWithOCR.reduce((sum, doc) => sum + (doc.ocrText?.length || 0), 0),
+        firstDocOcrLength: documentsWithOCR[0]?.ocrText?.length || 0,
+        hasOcrField: documentsWithOCR[0] ? 'ocrText' in documentsWithOCR[0] : false
+      };
+      
+      console.log(`🔍 OCR TEST RESULTS:`, ocrStats);
+      res.json({ success: true, ...ocrStats });
+    } catch (error) {
+      console.error('🔍 OCR test failed:', error);
+      res.json({ success: false, error: String(error) });
+    }
+  });
+
   // Attachment download endpoint
   app.get('/api/inbox/emails/:emailId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
     try {
