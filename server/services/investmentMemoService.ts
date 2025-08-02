@@ -149,8 +149,8 @@ class InvestmentMemoService {
   private async generateComprehensiveMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
     console.log(`🧠 Generating AI-powered memo sections for ${data.companyName}`);
 
-    // Prepare comprehensive context using INTELLIGENT OCR extraction system
-    const context = await this.prepareIntelligentOCRExtractionContext(data);
+    // Prepare comprehensive context using COMPLETE OCR extraction system
+    const context = await this.prepareComprehensiveAnalysisContext(data);
     
     // Generate ALL comprehensive sections matching BAIBYS PDF structure for 30-50 page memo
     const [
@@ -1765,7 +1765,7 @@ ${fullContext.substring(0, 45000)}`
     try {
       const [deal, documentsWithOCR, agentAnalyses, companyResearch, aiEvaluation] = await Promise.all([
         storage.getDealById(dealId),
-        storage.getDocumentsWithOCRForMemo(dealId), // NEW: Use OCR-enabled function
+        storage.getDocumentsWithOCRByDealId(dealId), // NEW: Use OCR-enabled function
         storage.getAnalysesByDealId(dealId),
         storage.getCompanyResearchByDealId(dealId),
         storage.getEvaluationResultsByDealId(dealId)
