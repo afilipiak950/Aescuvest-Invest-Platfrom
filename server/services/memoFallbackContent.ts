@@ -98,7 +98,14 @@ Please retry memo generation or check API quota status.`,
     "Strong intellectual property position and regulatory compliance",
     "Clear path to profitability with attractive unit economics",
     "Strategic partnerships and advisor network providing market access"
-  ]
+  ],
+
+  legalAssessment: {
+    corporateStructure: "Corporate structure information is temporarily unavailable. This section will analyze legal entity structure, jurisdictions, and subsidiary relationships.",
+    ipProtection: "IP protection information is temporarily unavailable. This section will assess patent portfolio, trademark registrations, and intellectual property strategy.",
+    regulatoryCompliance: "Regulatory compliance information is temporarily unavailable. This section will evaluate regulatory approvals, compliance status, and ongoing obligations.",
+    contractualObligations: "Contractual obligations information is temporarily unavailable. This section will review material contracts, partnership agreements, and liability exposures."
+  }
 };
 
 export const getMemoFallback = (sectionName: string, companyName?: string): any => {

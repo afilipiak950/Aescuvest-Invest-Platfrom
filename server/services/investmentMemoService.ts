@@ -958,26 +958,69 @@ Format as JSON with detailed financial information only from authentic sources.`
   }
 
   private async generateLegalAssessment(context: string): Promise<InvestmentMemoSections['legalAssessment']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Assess corporate structure, IP protection, regulatory compliance, and contractual obligations. Format as JSON.`
-      }, {
-        role: "user",
-        content: `Assess legal aspects:\n\n${context.substring(0, 8000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.7
-    });
+    console.log(`⚖️ Generating legal assessment from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate professional legal assessment matching BAIBYS reference PDF quality. Extract ONLY authentic legal information from the comprehensive analysis:
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      corporateStructure: result.corporateStructure || '',
-      ipProtection: result.ipProtection || '',
-      regulatoryCompliance: result.regulatoryCompliance || '',
-      contractualObligations: result.contractualObligations || ''
-    };
+**AUTHENTIC LEGAL DATA EXTRACTION:**
+1. **Corporate Structure**: Extract actual corporate entity details, jurisdictions, subsidiaries from documents
+2. **IP Protection**: Real patent numbers, trademark registrations, copyright protections, trade secrets
+3. **Regulatory Compliance**: Specific regulatory approvals, FDA status, CE marking, clinical trial permits
+4. **Contractual Obligations**: Key customer contracts, supplier agreements, partnership deals, employment contracts
+
+**REQUIRED LEGAL ANALYSIS STRUCTURE:**
+- Corporate Structure: Legal entities, jurisdictions, ownership structures, subsidiary relationships
+- IP Protection: Patent portfolio analysis, trademark registrations, IP strategy, licensing agreements
+- Regulatory Compliance: Regulatory pathway, approval status, compliance requirements, ongoing obligations
+- Contractual Obligations: Material contracts, partnership agreements, employment arrangements, liability exposures
+
+**EXTRACTION REQUIREMENTS:**
+- Use specific company names, patent numbers, regulatory approval dates from documents
+- Include actual contract terms, agreement values, partnership details
+- Reference real regulatory filings, approval statuses, compliance certifications
+- If information is not found in documents, state "Information not available in provided documents"
+- Never fabricate legal information - extract only from authentic document analysis
+
+Format as JSON with detailed legal information from authentic sources only.`
+        }, {
+          role: "user",
+          content: `Extract authentic legal assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 3000
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Legal Assessment Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', 'BAIBYS Fertility'))
+      }
+    ) as Promise<string>;
+
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`⚖️ Legal assessment generated: ${JSON.stringify(result).length} characters`);
+      return {
+        corporateStructure: result.corporateStructure || 'No corporate structure information available in provided documents',
+        ipProtection: result.ipProtection || 'No IP protection information available in provided documents',
+        regulatoryCompliance: result.regulatoryCompliance || 'No regulatory compliance information available in provided documents',
+        contractualObligations: result.contractualObligations || 'No contractual obligations information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing legal assessment JSON:', e);
+      const fallback = getMemoFallback('legalAssessment', 'BAIBYS Fertility');
+      return {
+        corporateStructure: fallback.corporateStructure,
+        ipProtection: fallback.ipProtection,
+        regulatoryCompliance: fallback.regulatoryCompliance,
+        contractualObligations: fallback.contractualObligations
+      };
+    }
   }
 
   private async generateRiskAssessment(context: string): Promise<InvestmentMemoSections['riskAssessment']> {
