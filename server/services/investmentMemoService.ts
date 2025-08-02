@@ -899,26 +899,64 @@ Format as JSON with detailed product information from authentic sources only.`
   }
 
   private async generateBusinessModel(context: string): Promise<InvestmentMemoSections['businessModel']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Analyze business model including revenue model, pricing, sales channels, and customer acquisition. Format as JSON.`
-      }, {
-        role: "user",
-        content: `Analyze business model:\n\n${context.substring(0, 8000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.7
-    });
+    console.log(`💼 Generating business model from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate comprehensive business model analysis matching BAIBYS PDF format. Extract ONLY authentic business information:
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      revenueModel: result.revenueModel || '',
-      pricingStrategy: result.pricingStrategy || '',
-      salesChannels: result.salesChannels || '',
-      customerAcquisition: result.customerAcquisition || ''
-    };
+**REVENUE MODEL ANALYSIS:**
+- Revenue Streams: Extract actual business model, pricing structure, revenue sources
+- Pricing Strategy: Real pricing models, payment structures, subscription tiers
+- Sales Channels: Current sales approach, distribution strategy, go-to-market
+- Customer Acquisition: Actual customer acquisition strategy, cost metrics, conversion
+
+**BUSINESS MODEL STRUCTURE:**
+1. **Revenue Model**: Detailed revenue streams, pricing strategy, business model type
+2. **Sales Channels**: Distribution channels, sales process, partnership approach
+3. **Pricing Strategy**: Pricing models, competitive pricing, value proposition
+4. **Customer Acquisition**: Customer acquisition cost, lifetime value, retention strategy
+
+**EXTRACTION REQUIREMENTS:**
+- Use specific business model details, actual pricing information
+- Include real customer acquisition costs, revenue projections
+- Reference actual sales channels, partnership agreements
+- If information is not found in documents, state "Information not available in provided documents"
+- Never fabricate business metrics - extract only from documents
+
+Format as JSON with detailed business model information from authentic sources only.`
+        }, {
+          role: "user",
+          content: `Extract authentic business model from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 3000
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Business Model Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify(getMemoFallback('businessModel'))
+      }
+    ) as Promise<string>;
+
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`💼 Business model generated: ${JSON.stringify(result).length} characters`);
+      return {
+        revenueModel: result.revenueModel || 'No revenue model information available in provided documents',
+        pricingStrategy: result.pricingStrategy || 'No pricing strategy information available in provided documents',
+        salesChannels: result.salesChannels || 'No sales channels information available in provided documents',
+        customerAcquisition: result.customerAcquisition || 'No customer acquisition information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing business model JSON:', e);
+      const fallback = getMemoFallback('businessModel');
+      return fallback;
+    }
   }
 
   private async generateTeamAssessment(context: string): Promise<InvestmentMemoSections['teamAssessment']> {
@@ -1119,9 +1157,12 @@ Format as JSON with detailed legal information from authentic sources only.`
   }
 
   private async generateRiskAssessment(context: string): Promise<InvestmentMemoSections['riskAssessment']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
+    console.log(`⚠️ Generating risk assessment from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
         role: "system",
         content: `Generate comprehensive investment risk assessment matching BAIBYS PDF format. Extract ONLY authentic risk factors:
 
@@ -1168,9 +1209,23 @@ Format as JSON with detailed risk arrays from authentic sources only.`
       }],
       response_format: { type: "json_object" },
       temperature: 0.3
-    });
+    }).then(response => response.choices[0].message.content || '{}'),
+    {
+      description: 'Risk Assessment Generation',
+      priority: 'high',
+      fallbackContent: JSON.stringify({
+        technicalRisks: ['Technical risk assessment is temporarily unavailable'],
+        marketRisks: ['Market risk assessment is temporarily unavailable'],
+        competitiveRisks: ['Competitive risk assessment is temporarily unavailable'],
+        regulatoryRisks: ['Regulatory risk assessment is temporarily unavailable'],
+        managementRisks: ['Management risk assessment is temporarily unavailable']
+      })
+    }
+  ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+  try {
+    const result = JSON.parse(response || '{}');
+    console.log(`⚠️ Risk assessment generated: ${JSON.stringify(result).length} characters`);
     return {
       technicalRisks: result.technicalRisks || [],
       marketRisks: result.marketRisks || [],
@@ -1178,6 +1233,16 @@ Format as JSON with detailed risk arrays from authentic sources only.`
       regulatoryRisks: result.regulatoryRisks || [],
       managementRisks: result.managementRisks || []
     };
+  } catch (e) {
+    console.error('❌ Error parsing risk assessment JSON:', e);
+    return {
+      technicalRisks: ['Technical risk assessment is temporarily unavailable'],
+      marketRisks: ['Market risk assessment is temporarily unavailable'],
+      competitiveRisks: ['Competitive risk assessment is temporarily unavailable'],
+      regulatoryRisks: ['Regulatory risk assessment is temporarily unavailable'],
+      managementRisks: ['Management risk assessment is temporarily unavailable']
+    };
+  }
   }
 
   private async generateInvestmentTerms(context: string): Promise<InvestmentMemoSections['investmentTerms']> {
@@ -1292,11 +1357,14 @@ Format as JSON with detailed investment recommendation based on authentic analys
 
   // String-based section generators for remaining sections
   private async generateTAMSAMSOMAnalysis(context: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive TAM/SAM/SOM analysis (4-5 pages) with detailed market sizing, methodology, data sources, and supporting calculations. Include:
+    console.log(`📊 Generating TAM/SAM/SOM analysis from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate comprehensive TAM/SAM/SOM analysis (4-5 pages) with detailed market sizing, methodology, data sources, and supporting calculations. Include:
 
 1. Total Addressable Market (TAM) - Global market size with specific numbers and growth rates
 2. Serviceable Addressable Market (SAM) - Reachable market segments with geographic and demographic breakdown
@@ -1315,8 +1383,15 @@ Extract specific market data from the analysis including market values, growth r
       }],
       temperature: 0.5,
       max_tokens: 3500
-    });
-    return response.choices[0].message.content || '';
+    }).then(response => response.choices[0].message.content || ''),
+    {
+      description: 'TAM/SAM/SOM Analysis Generation',
+      priority: 'high',
+      fallbackContent: 'TAM/SAM/SOM analysis is temporarily unavailable. This section will provide comprehensive market sizing and opportunity assessment.'
+    }
+  ) as Promise<string>;
+  
+  return response || 'TAM/SAM/SOM analysis is temporarily unavailable. This section will provide comprehensive market sizing and opportunity assessment.';
   }
 
   private async generateCompetitiveAnalysis(context: string): Promise<string> {
