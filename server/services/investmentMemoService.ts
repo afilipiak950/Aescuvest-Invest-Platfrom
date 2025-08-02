@@ -508,20 +508,23 @@ ${companyInfo}`
       
       let batchContent = '';
       batch.forEach((doc, index) => {
-        // Fix field mapping: database uses snake_case but code expects camelCase
-        const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
-        if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
+        // Use AI summary as primary content source (OCR text field not available)
+        if (doc.aiSummary) {
           batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
-          batchContent += `OCR CONTENT (${ocrText.length} chars):\n${ocrText}\n`;
-          
-          // Add AI summary if available
-          if (doc.aiSummary) {
-            try {
-              const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary, null, 2);
-              batchContent += `AI SUMMARY:\n${summary}\n`;
-            } catch (e) {
-              console.warn(`Error extracting AI summary for ${doc.name}:`, e);
+          try {
+            const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary, null, 2);
+            batchContent += `AI SUMMARY CONTENT (${summary.length} chars):\n${summary}\n`;
+            
+            // Add additional document metadata
+            if (doc.documentType) {
+              batchContent += `DOCUMENT TYPE: ${doc.documentType}\n`;
             }
+            if (doc.category) {
+              batchContent += `CATEGORY: ${doc.category}\n`;
+            }
+          } catch (e) {
+            console.warn(`Error extracting AI summary for ${doc.name}:`, e);
+            batchContent += `AI SUMMARY: ${String(doc.aiSummary)}\n`;
           }
           batchContent += `\n`;
         }
