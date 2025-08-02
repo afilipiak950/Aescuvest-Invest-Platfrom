@@ -158,14 +158,23 @@ export default function MemoGenerator() {
       });
       // Force immediate cache invalidation and refetch of the database memo
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      }, 1000); // Small delay to ensure database persistence
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
       
+      // Check if memo was actually generated but API timed out
+      setTimeout(() => {
+        console.log('🔄 Checking for saved memo after timeout...');
+        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      }, 2000);
+      
       // Handle specific error types
-      let title = "Generation Failed";
-      let description = "Failed to generate investment memo. Please try again.";
+      let title = "Generation Timeout";
+      let description = "Memo generation may have completed in the background. Check for saved memo in a moment.";
       
       if (error?.message?.includes('quota') || error?.message?.includes('429')) {
         title = "API Quota Exceeded";
