@@ -111,7 +111,7 @@ export default function MemoGenerator() {
     if (selectedDeal) {
       const loadSectionSources = async () => {
         try {
-          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis'];
+          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
           const sourcePromises = mainSections.map(async (sectionKey) => {
             try {
               const response = await fetch(`/api/deals/${selectedDeal}/memo/section-sources/${sectionKey}`);
@@ -641,11 +641,26 @@ export default function MemoGenerator() {
                       {currentMemo?.businessModel && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Business Model</CardTitle>
-                                <p className="text-slate-400 text-sm">Revenue strategy and customer acquisition approach</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Business Model</CardTitle>
+                                  <p className="text-slate-400 text-sm">Revenue strategy and customer acquisition approach</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.businessModel || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="businessModel"
+                                  sectionTitle="Business Model"
+                                  currentContent={typeof currentMemo.businessModel === 'object' ? JSON.stringify(currentMemo.businessModel, null, 2) : currentMemo.businessModel}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, businessModel: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>
@@ -1141,13 +1156,41 @@ export default function MemoGenerator() {
 
                       {/* Regulatory Analysis */}
                       {currentMemo?.regulatoryAnalysis && (
-                        <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Regulatory Analysis" 
-                            subtitle="Regulatory requirements and compliance pathway"
-                          />
-                          <FormattedContent content={currentMemo.regulatoryAnalysis} variant="default" />
-                        </div>
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Regulatory Analysis</CardTitle>
+                                  <p className="text-slate-400 text-sm">Regulatory requirements and compliance pathway</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.regulatoryAnalysis || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="regulatoryAnalysis"
+                                  sectionTitle="Regulatory Analysis"
+                                  currentContent={currentMemo.regulatoryAnalysis}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, regulatoryAnalysis: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.regulatoryAnalysis} 
+                                variant="default" 
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                       
                     {/* Investment Recommendation Section */}
