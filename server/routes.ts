@@ -4977,6 +4977,80 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Regenerate individual memo section with custom prompt
+  app.post('/api/deals/:dealId/memo/regenerate-section', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { sectionKey, customPrompt } = req.body;
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID' 
+        });
+      }
+      
+      if (!sectionKey || !customPrompt) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Section key and custom prompt are required' 
+        });
+      }
+      
+      console.log(`🔄 Regenerating section "${sectionKey}" for deal ${dealId} with custom prompt`);
+      
+      // Import the service here to avoid circular dependencies
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      const updatedContent = await investmentMemoService.regenerateSection(dealId, sectionKey, customPrompt);
+      
+      console.log(`✅ Section "${sectionKey}" regenerated for deal ${dealId}`);
+      
+      res.json({ 
+        success: true, 
+        content: updatedContent,
+        message: "Section regenerated successfully"
+      });
+    } catch (error) {
+      console.error('Section regeneration failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      });
+    }
+  });
+
+  // Get section source information
+  app.get('/api/deals/:dealId/memo/section-sources/:sectionKey', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { sectionKey } = req.params;
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID' 
+        });
+      }
+      
+      console.log(`📊 Fetching source information for section "${sectionKey}" in deal ${dealId}`);
+      
+      // Import the service here to avoid circular dependencies
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      const sources = await investmentMemoService.getSectionSources(dealId, sectionKey);
+      
+      res.json({ 
+        success: true, 
+        sources 
+      });
+    } catch (error) {
+      console.error('Failed to fetch section sources:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      });
+    }
+  });
+
   // Export investment memo as Word document
   app.post('/api/deals/:dealId/export-docx', async (req: Request, res: Response) => {
     try {
