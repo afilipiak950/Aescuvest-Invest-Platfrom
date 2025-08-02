@@ -141,6 +141,8 @@ export default function MemoGenerator() {
         method: 'POST',
       });
       
+      console.log('📝 Generate memo response:', { success: response.success, hasMemo: !!response.memo, error: response.error });
+      
       if (!response.success) {
         throw new Error(response.error || 'Failed to generate memo');
       }
@@ -148,11 +150,11 @@ export default function MemoGenerator() {
       return response.memo;
     },
     onSuccess: (memo: ComprehensiveMemo) => {
-      console.log('✅ Investment memo generated successfully');
+      console.log('✅ Investment memo generated successfully', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
       setGeneratedMemo(memo);
       toast({
         title: "Investment Memo Generated",
-        description: "Comprehensive memo created and saved. It will persist when you return.",
+        description: "Comprehensive memo created successfully. The memo content is now available.",
       });
       // Force immediate cache invalidation and refetch of the database memo
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });

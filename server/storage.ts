@@ -76,8 +76,7 @@ export interface IStorage {
   createMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo>;
   updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined>;
   deleteMemosByDealId(dealId: number): Promise<number>;
-  createInvestmentMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo>;
-  updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined>;
+
   
   // Investor methods
   getAllInvestors(): Promise<Investor[]>;
@@ -898,7 +897,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(investmentMemos.dealId, memo.dealId));
 
     // Create new memo
-    const [newMemo] = await db.insert(investmentMemos).values(memo).returning();
+    const [newMemo] = await db.insert(investmentMemos).values([memo]).returning();
     
     console.log(`💾 Created new investment memo for deal ${memo.dealId}`);
     return newMemo;
