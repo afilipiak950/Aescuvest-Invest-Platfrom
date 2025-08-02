@@ -105,6 +105,21 @@ Please retry memo generation or check API quota status.`,
     ipProtection: "IP protection information is temporarily unavailable. This section will assess patent portfolio, trademark registrations, and intellectual property strategy.",
     regulatoryCompliance: "Regulatory compliance information is temporarily unavailable. This section will evaluate regulatory approvals, compliance status, and ongoing obligations.",
     contractualObligations: "Contractual obligations information is temporarily unavailable. This section will review material contracts, partnership agreements, and liability exposures."
+  },
+
+  businessModel: {
+    revenueModel: "Revenue model information is temporarily unavailable. This section will analyze revenue streams, pricing strategy, and business model sustainability.",
+    salesChannels: "Sales channels information is temporarily unavailable. This section will evaluate go-to-market strategy and distribution channels.",
+    pricingStrategy: "Pricing strategy information is temporarily unavailable. This section will assess pricing models and competitive positioning.",
+    customerAcquisition: "Customer acquisition information is temporarily unavailable. This section will analyze customer acquisition strategy and retention."
+  },
+
+  investmentTerms: {
+    valuation: "Valuation information is temporarily unavailable. This section will analyze pre-money valuation and pricing rationale.",
+    fundingAmount: "Funding amount information is temporarily unavailable. This section will detail the investment size and capital requirements.",
+    securities: "Securities information is temporarily unavailable. This section will outline security types and investor rights.",
+    liquidationPreference: "Liquidation preference information is temporarily unavailable. This section will detail liquidation preferences and distribution terms.",
+    boardRights: "Board rights information is temporarily unavailable. This section will outline board composition and governance rights."
   }
 };
 
