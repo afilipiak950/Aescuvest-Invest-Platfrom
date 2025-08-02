@@ -646,7 +646,7 @@ ${content.substring(0, 120000)}`
 Extract and verify all data from provided context - reject any fabricated information.`
         }, {
           role: "user",
-          content: `Generate executive summary using ONLY authentic data from this comprehensive BAIBYS analysis (extract real names, numbers, dates):\n\n${context.substring(0, 80000)}`
+          content: `Generate executive summary using ONLY authentic data from this comprehensive BAIBYS analysis (extract real names, numbers, dates):\n\n${this.extractRelevantContext(context, ['company', 'BAIBYS', 'executive', 'overview', 'summary', 'business', 'investment', 'technology', 'market', 'financial', 'clinical'], 90000)}`
         }],
         temperature: 0.2,
         max_tokens: 4000
@@ -687,7 +687,7 @@ Extract and verify all data from provided context - reject any fabricated inform
 Format as JSON object with "highlights" array of detailed strings.`
         }, {
           role: "user", 
-          content: `Extract authentic investment highlights from BAIBYS context:\n\n${context.substring(0, 40000)}`
+          content: `Extract authentic investment highlights from BAIBYS context:\n\n${this.extractRelevantContext(context, ['investment', 'highlights', 'opportunity', 'value', 'proposition', 'advantage', 'strength', 'differentiator', 'competitive'], 70000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.3
@@ -739,7 +739,7 @@ Format as JSON object with "highlights" array of detailed strings.`
 Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
         }, {
           role: "user",
-          content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${context.substring(0, 40000)}`
+          content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${this.extractRelevantContext(context, ['strength', 'weakness', 'opportunity', 'threat', 'SWOT', 'competitive', 'advantage', 'challenge', 'risk'], 65000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.4
@@ -794,7 +794,7 @@ Extract specific, actionable points with authentic data. Format as JSON with det
 Format as JSON with authentic data only - never fabricate market numbers.`
         }, {
           role: "user",
-          content: `Extract authentic market analysis data from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Extract authentic market analysis data from BAIBYS context:\n\n${this.extractRelevantContext(context, ['market', 'competitive', 'industry', 'customer', 'segment', 'TAM', 'SAM', 'SOM', 'opportunity', 'growth', 'trends', 'size', 'share', 'landscape', 'positioning', 'competition', 'target'], 80000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -862,7 +862,7 @@ Format as JSON with authentic data only - never fabricate market numbers.`
 Format as JSON with detailed product information from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic product analysis from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Extract authentic product analysis from BAIBYS context:\n\n${this.extractRelevantContext(context, ['product', 'technology', 'device', 'system', 'platform', 'development', 'feature', 'specification', 'technical', 'innovation', 'design', 'architecture', 'functionality'], 80000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -942,7 +942,7 @@ Format as JSON with detailed business model extracted from commercial analyses a
           role: "user",
           content: `Extract BAIBYS business model from this comprehensive analysis. Focus on COMMERCIAL ANALYSIS sections and financial documents:
 
-${context.substring(0, 80000)}`
+${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strategy', 'monetization', 'customer', 'acquisition', 'pricing', 'commercial'], 70000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1011,7 +1011,7 @@ Look specifically for:
 Format as JSON with detailed team assessment extracted from HR, legal, and corporate documents.`
         }, {
           role: "user",
-          content: `Extract authentic team assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Extract authentic team assessment from BAIBYS context:\n\n${this.extractRelevantContext(context, ['management', 'team', 'CEO', 'CTO', 'executive', 'board', 'advisor', 'employee', 'personnel', 'leadership', 'founder', 'director', 'officer'], 75000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1244,7 +1244,7 @@ Format as JSON with detailed legal information from authentic sources only.`
 Format as JSON with detailed risk arrays from authentic sources only.`
       }, {
         role: "user",
-        content: `Extract authentic risk assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        content: `Extract authentic risk assessment from BAIBYS context:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
       }],
       response_format: { type: "json_object" },
       temperature: 0.3
@@ -1318,7 +1318,7 @@ Format as JSON with detailed risk arrays from authentic sources only.`
 Format as JSON with detailed investment terms from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic investment terms from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Extract authentic investment terms from BAIBYS context:\n\n${this.extractRelevantContext(context, ['investment', 'valuation', 'terms', 'equity', 'funding', 'round', 'Series', 'share', 'price', 'rights', 'liquidation', 'anti-dilution'], 60000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1382,7 +1382,7 @@ Format as JSON with detailed investment terms from authentic sources only.`
 Format as JSON with detailed investment recommendation based on authentic analysis.`
         }, {
           role: "user",
-          content: `Generate authentic investment recommendation from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Generate authentic investment recommendation from BAIBYS context:\n\n${this.extractRelevantContext(context, ['recommendation', 'investment', 'decision', 'conclusion', 'evaluation', 'assessment', 'rating', 'thesis'], 65000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.3
@@ -1434,7 +1434,7 @@ Format as JSON with detailed investment recommendation based on authentic analys
 Extract specific market data from the analysis including market values, growth rates, customer numbers, pricing data, and competitive positioning. Use tables and structured presentation.`
       }, {
         role: "user",
-        content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${context.substring(0, 30000)}`
+        content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${this.extractRelevantContext(context, ['TAM', 'SAM', 'SOM', 'market', 'size', 'addressable', 'obtainable', 'serviceable', 'total'], 60000)}`
       }],
       temperature: 0.5,
       max_tokens: 3500
@@ -1470,7 +1470,7 @@ Extract specific market data from the analysis including market values, growth r
 Extract specific competitor information including company names, funding rounds, market positions, technology features, pricing models, and strategic partnerships. Present in structured format with competitive comparison tables.`
       }, {
         role: "user",
-        content: `Generate comprehensive competitive analysis:\n\n${context.substring(0, 30000)}`
+        content: `Generate comprehensive competitive analysis:\n\n${this.extractRelevantContext(context, ['competitive', 'competitor', 'competition', 'landscape', 'positioning', 'advantage', 'differentiation'], 60000)}`
       }],
       temperature: 0.5,
       max_tokens: 3500
@@ -1486,7 +1486,7 @@ Extract specific competitor information including company names, funding rounds,
         content: `Assess technology stack, innovation, IP protection, technical risks, and development roadmap.`
       }, {
         role: "user",
-        content: `Generate technology assessment:\n\n${context.substring(0, 10000)}`
+        content: `Generate technology assessment:\n\n${this.extractRelevantContext(context, ['technology', 'technical', 'innovation', 'platform', 'system', 'architecture', 'algorithm'], 50000)}`
       }],
       temperature: 0.7
     });
@@ -1501,7 +1501,7 @@ Extract specific competitor information including company names, funding rounds,
         content: `Analyze go-to-market strategy, sales approach, customer acquisition, and partnerships.`
       }, {
         role: "user",
-        content: `Generate commercial strategy:\n\n${context.substring(0, 10000)}`
+        content: `Generate commercial strategy:\n\n${this.extractRelevantContext(context, ['commercial', 'strategy', 'sales', 'marketing', 'distribution', 'channel', 'partnership'], 55000)}`
       }],
       temperature: 0.7
     });
@@ -1529,7 +1529,7 @@ Extract specific competitor information including company names, funding rounds,
 Extract specific details including executive names, previous companies, educational backgrounds, years of experience, notable achievements, and board composition from the comprehensive analysis.`
       }, {
         role: "user",
-        content: `Generate comprehensive management analysis:\n\n${context.substring(0, 30000)}`
+        content: `Generate comprehensive management analysis:\n\n${this.extractRelevantContext(context, ['management', 'executive', 'leadership', 'CEO', 'founder', 'team', 'governance'], 65000)}`
       }],
       temperature: 0.3,
       max_tokens: 3000
@@ -1558,7 +1558,7 @@ Extract specific details including executive names, previous companies, educatio
 Extract specific financial data from documents including historical financials, revenue run rates, cost structures, funding history, and growth metrics. Present in table format with detailed assumptions.`
       }, {
         role: "user",
-        content: `Generate comprehensive financial projections:\n\n${context.substring(0, 30000)}`
+        content: `Generate comprehensive financial projections:\n\n${this.extractRelevantContext(context, ['financial', 'projection', 'forecast', 'revenue', 'growth', 'expense', 'budget', 'cash'], 70000)}`
       }],
       temperature: 0.4,
       max_tokens: 3500
@@ -1574,7 +1574,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Analyze valuation using multiple methodologies including DCF, comparable companies, and precedent transactions.`
       }, {
         role: "user",
-        content: `Generate valuation analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate valuation analysis:\n\n${this.extractRelevantContext(context, ['valuation', 'value', 'price', 'multiple', 'DCF', 'comparable', 'worth'], 50000)}`
       }],
       temperature: 0.7
     });
@@ -1589,7 +1589,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Analyze regulatory environment, compliance requirements, and pathway to market approval.`
       }, {
         role: "user",
-        content: `Generate regulatory analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate regulatory analysis:\n\n${this.extractRelevantContext(context, ['regulatory', 'regulation', 'FDA', 'CE', 'approval', 'compliance', 'pathway'], 50000)}`
       }],
       temperature: 0.7
     });
@@ -1604,7 +1604,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate comprehensive clinical assessment (3-4 pages) analyzing clinical development plan, trial design, regulatory pathway, clinical risks, and timeline to market. Include specific clinical data, endpoints, patient populations, and regulatory milestones with detailed analysis.`
       }, {
         role: "user",
-        content: `Generate comprehensive clinical assessment:\n\n${context.substring(0, 25000)}`
+        content: `Generate comprehensive clinical assessment:\n\n${this.extractRelevantContext(context, ['clinical', 'trial', 'study', 'medical', 'patient', 'efficacy', 'safety', 'outcome'], 65000)}`
       }],
       temperature: 0.7,
       max_tokens: 3000
@@ -1620,7 +1620,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Analyze intellectual property portfolio, patent landscape, and IP protection strategy.`
       }, {
         role: "user",
-        content: `Generate IP analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate IP analysis:\n\n${this.extractRelevantContext(context, ['patent', 'IP', 'intellectual', 'property', 'trademark', 'copyright', 'protection'], 45000)}`
       }],
       temperature: 0.7
     });
@@ -1635,7 +1635,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Provide research insights including scientific foundation, technical innovation, and research differentiation.`
       }, {
         role: "user",
-        content: `Generate research insights:\n\n${context.substring(0, 10000)}`
+        content: `Generate research insights:\n\n${this.extractRelevantContext(context, ['research', 'insight', 'analysis', 'finding', 'data', 'study', 'intelligence'], 55000)}`
       }],
       temperature: 0.7
     });
@@ -1650,7 +1650,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Develop comprehensive risk mitigation strategies with specific action plans and contingencies.`
       }, {
         role: "user",
-        content: `Generate risk mitigation strategies:\n\n${context.substring(0, 10000)}`
+        content: `Generate risk mitigation strategies:\n\n${this.extractRelevantContext(context, ['mitigation', 'strategy', 'solution', 'plan', 'approach', 'counter', 'address'], 45000)}`
       }],
       temperature: 0.7
     });
@@ -1665,7 +1665,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Analyze potential exit strategies including IPO readiness, strategic acquisition targets, and exit timing.`
       }, {
         role: "user",
-        content: `Generate exit strategy:\n\n${context.substring(0, 10000)}`
+        content: `Generate exit strategy:\n\n${this.extractRelevantContext(context, ['exit', 'strategy', 'acquisition', 'IPO', 'sale', 'buyout', 'liquidity'], 40000)}`
       }],
       temperature: 0.7
     });
