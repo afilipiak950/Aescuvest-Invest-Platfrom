@@ -108,11 +108,11 @@ class InvestmentMemoService {
     console.log(`🔍 Starting comprehensive investment memo generation for deal ${dealId}`);
     
     try {
-      // 1. Gather all data for the deal
-      const memoData = await this.gatherComprehensiveData(dealId);
+      // 1. Gather all data with COMPLETE OCR extraction
+      const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
-      // 2. Generate each section using AI
-      const memo = await this.generateMemoSections(memoData);
+      // 2. Generate each section using comprehensive AI analysis
+      const memo = await this.generateComprehensiveMemoSections(memoData);
       
       // 3. Store the generated memo
       await this.storeMemo(dealId, memo);
@@ -126,7 +126,7 @@ class InvestmentMemoService {
     }
   }
 
-  private async gatherComprehensiveData(dealId: number): Promise<ComprehensiveMemoData> {
+  private async gatherComprehensiveDataWithFullOCR(dealId: number): Promise<ComprehensiveMemoData> {
     console.log(`📊 Gathering comprehensive data for deal ${dealId}`);
     
     // Get deal information
@@ -135,29 +135,16 @@ class InvestmentMemoService {
       throw new Error(`Deal ${dealId} not found`);
     }
 
-    // Get all documents with AI summaries and OCR content
-    const documents = await storage.getDocumentsWithOCRForMemo(dealId);
-    console.log(`📄 Found ${documents.length} documents with OCR content for deal ${dealId}`);
+    // Use the new OCR-enabled data fetching method 
+    const data = await this.fetchComprehensiveDealDataWithFullOCR(dealId);
+    if (!data) {
+      throw new Error(`Failed to fetch data for deal ${dealId}`);
+    }
+    return data;
 
-    // Get all agent analyses 
-    const agentAnalyses = await storage.getAnalysesByDealId(dealId);
-    console.log(`🤖 Found ${agentAnalyses.length} agent analyses for deal ${dealId}`);
-
-    // Get company research and AI evaluation (if available)
-    const companyResearch = null; // TODO: implement
-    const aiEvaluation = null; // TODO: implement
-
-    return {
-      dealId,
-      companyName: deal.companyName,
-      documents,
-      agentAnalyses,
-      companyResearch,
-      aiEvaluation
-    };
   }
 
-  private async generateMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
+  private async generateComprehensiveMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
     console.log(`🧠 Generating AI-powered memo sections for ${data.companyName}`);
 
     // Prepare comprehensive context for AI using ALL documents and analyses
@@ -379,7 +366,7 @@ ${summaryText}
       // Include ALL findings with complete content
       if (analysis.findings && Array.isArray(analysis.findings)) {
         context += `COMPLETE FINDINGS (${analysis.findings.length}):\n`;
-        analysis.findings.forEach((finding, index) => {
+        analysis.findings.forEach((finding: any, index: number) => {
           const content = typeof finding === 'string' ? finding : (finding.content || JSON.stringify(finding, null, 2));
           context += `FINDING ${index + 1}: ${content}\n\n`;
         });
@@ -614,21 +601,24 @@ ${content.substring(0, 120000)}`
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system", 
-        content: `Generate a comprehensive 3-4 paragraph executive summary for a venture capital investment memo. Include:
+        content: `Generate a comprehensive 3-4 page executive summary for a venture capital investment memo. This must be DETAILED and SUBSTANTIVE like the BAIBYS reference memo. Include:
         
-1. Company overview and core value proposition
-2. Market opportunity size and growth potential
-3. Competitive advantages and key differentiators  
-4. Investment thesis and expected returns
-5. Management team strength and execution capability
+1. Company overview with specific details on founding, location, technology, and team
+2. Market opportunity sizing with TAM/SAM/SOM and specific growth metrics
+3. Competitive advantages with technology differentiation and IP protection
+4. Business model with revenue streams, pricing, and go-to-market strategy
+5. Investment thesis with specific funding amount, valuation, and use of funds
+6. Management team assessment with founder backgrounds and key personnel
+7. Risk assessment and mitigation strategies
+8. Expected returns and exit strategy
 
-Use professional VC language with specific metrics, market data, and growth projections from the analysis.`
+Extract and include SPECIFIC data points: founding dates, executive names, funding amounts, market sizes, revenue projections, partnership details, regulatory status, and competitive positioning. Use professional VC language with concrete metrics throughout.`
       }, {
         role: "user",
-        content: `Generate executive summary based on this comprehensive analysis:\n\n${context.substring(0, 50000)}`
+        content: `Generate comprehensive executive summary based on this complete analysis:\n\n${context.substring(0, 80000)}`
       }],
-      temperature: 0.7,
-      max_tokens: 1500
+      temperature: 0.4,
+      max_tokens: 4000
     });
 
     return response.choices[0].message.content || '';
@@ -897,12 +887,25 @@ Use professional VC language with specific metrics, market data, and growth proj
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate detailed TAM/SAM/SOM analysis with market sizing, methodology, and supporting data.`
+        content: `Generate comprehensive TAM/SAM/SOM analysis (4-5 pages) with detailed market sizing, methodology, data sources, and supporting calculations. Include:
+
+1. Total Addressable Market (TAM) - Global market size with specific numbers and growth rates
+2. Serviceable Addressable Market (SAM) - Reachable market segments with geographic and demographic breakdown
+3. Serviceable Obtainable Market (SOM) - Realistic market capture with competitive analysis
+4. Market sizing methodology with data sources and calculation steps
+5. Market growth drivers and trends with specific projections
+6. Geographic market analysis with regional breakdowns
+7. Customer segmentation with market size per segment
+8. Competitive market share analysis
+9. Market timing and opportunity assessment
+
+Extract specific market data from the analysis including market values, growth rates, customer numbers, pricing data, and competitive positioning. Use tables and structured presentation.`
       }, {
         role: "user",
-        content: `Generate TAM/SAM/SOM analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${context.substring(0, 30000)}`
       }],
-      temperature: 0.7
+      temperature: 0.5,
+      max_tokens: 3500
     });
     return response.choices[0].message.content || '';
   }
@@ -912,12 +915,26 @@ Use professional VC language with specific metrics, market data, and growth proj
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Analyze competitive landscape including competitors, advantages, market positioning, and differentiation.`
+        content: `Generate comprehensive competitive analysis (3-4 pages) covering the complete competitive landscape. Include:
+
+1. Direct competitors with company profiles, funding, market position, and technology comparison
+2. Indirect competitors and alternative solutions
+3. Competitive positioning matrix with key differentiators
+4. Technology comparison and competitive advantages
+5. Market share analysis and competitive dynamics
+6. Pricing comparison and value proposition analysis
+7. Competitive strengths and weaknesses assessment
+8. Competitive threats and opportunities
+9. Barriers to entry and competitive moats
+10. First-mover advantages and competitive timing
+
+Extract specific competitor information including company names, funding rounds, market positions, technology features, pricing models, and strategic partnerships. Present in structured format with competitive comparison tables.`
       }, {
         role: "user",
-        content: `Generate competitive analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate comprehensive competitive analysis:\n\n${context.substring(0, 30000)}`
       }],
-      temperature: 0.7
+      temperature: 0.5,
+      max_tokens: 3500
     });
     return response.choices[0].message.content || '';
   }
@@ -957,12 +974,26 @@ Use professional VC language with specific metrics, market data, and growth proj
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Analyze management team backgrounds, experience, track record, and organizational capabilities with specific names.`
+        content: `Generate comprehensive management analysis (2-3 pages) with detailed assessment of leadership team. Include:
+
+1. CEO/Founder profiles with specific names, backgrounds, education, and track record
+2. Key executive assessment (CTO, CFO, COO) with experience and expertise
+3. Board of directors composition with member backgrounds and qualifications
+4. Advisory board and strategic advisors with their contributions
+5. Organizational structure and key department heads
+6. Management team depth and succession planning
+7. Track record of execution and previous company experience
+8. Leadership strengths and areas for improvement
+9. Cultural and operational capabilities
+10. Management compensation and equity alignment
+
+Extract specific details including executive names, previous companies, educational backgrounds, years of experience, notable achievements, and board composition from the comprehensive analysis.`
       }, {
         role: "user",
-        content: `Generate management analysis:\n\n${context.substring(0, 10000)}`
+        content: `Generate comprehensive management analysis:\n\n${context.substring(0, 30000)}`
       }],
-      temperature: 0.3
+      temperature: 0.3,
+      max_tokens: 3000
     });
     return response.choices[0].message.content || '';
   }
@@ -972,12 +1003,26 @@ Use professional VC language with specific metrics, market data, and growth proj
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate detailed financial projections including revenue models, cost structure, and growth assumptions.`
+        content: `Generate comprehensive financial projections (4-5 pages) with detailed financial modeling and forecasts. Include:
+
+1. Revenue projections with detailed breakdown by product/service lines
+2. Cost structure analysis including COGS, operating expenses, and scaling factors
+3. Growth assumptions and underlying drivers with market-based validation
+4. Profit and loss projections for 5 years with quarterly detail for first 2 years
+5. Cash flow analysis and working capital requirements
+6. Unit economics and key financial metrics (CAC, LTV, gross margins)
+7. Scenario analysis (optimistic, base case, pessimistic)
+8. Break-even analysis and path to profitability
+9. Funding requirements and use of proceeds
+10. Key financial ratios and benchmarking against industry standards
+
+Extract specific financial data from documents including historical financials, revenue run rates, cost structures, funding history, and growth metrics. Present in table format with detailed assumptions.`
       }, {
         role: "user",
-        content: `Generate financial projections:\n\n${context.substring(0, 10000)}`
+        content: `Generate comprehensive financial projections:\n\n${context.substring(0, 30000)}`
       }],
-      temperature: 0.7
+      temperature: 0.4,
+      max_tokens: 3500
     });
     return response.choices[0].message.content || '';
   }
@@ -1017,12 +1062,13 @@ Use professional VC language with specific metrics, market data, and growth proj
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Assess clinical development plan, trial design, regulatory pathway, and clinical risks.`
+        content: `Generate comprehensive clinical assessment (3-4 pages) analyzing clinical development plan, trial design, regulatory pathway, clinical risks, and timeline to market. Include specific clinical data, endpoints, patient populations, and regulatory milestones with detailed analysis.`
       }, {
         role: "user",
-        content: `Generate clinical assessment:\n\n${context.substring(0, 10000)}`
+        content: `Generate comprehensive clinical assessment:\n\n${context.substring(0, 25000)}`
       }],
-      temperature: 0.7
+      temperature: 0.7,
+      max_tokens: 3000
     });
     return response.choices[0].message.content || '';
   }
