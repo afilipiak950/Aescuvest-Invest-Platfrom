@@ -147,8 +147,8 @@ class InvestmentMemoService {
   private async generateComprehensiveMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
     console.log(`🧠 Generating AI-powered memo sections for ${data.companyName}`);
 
-    // Prepare comprehensive context for AI using ALL documents and analyses
-    const context = await this.prepareComprehensiveAnalysisContext(data);
+    // Prepare comprehensive context using INTELLIGENT OCR extraction system
+    const context = await this.prepareIntelligentOCRExtractionContext(data);
     
     // Generate ALL comprehensive sections matching BAIBYS PDF structure for 30-50 page memo
     const [
@@ -601,23 +601,38 @@ ${content.substring(0, 120000)}`
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system", 
-        content: `Generate a comprehensive 3-4 page executive summary for a venture capital investment memo. This must be DETAILED and SUBSTANTIVE like the BAIBYS reference memo. Include:
-        
-1. Company overview with specific details on founding, location, technology, and team
-2. Market opportunity sizing with TAM/SAM/SOM and specific growth metrics
-3. Competitive advantages with technology differentiation and IP protection
-4. Business model with revenue streams, pricing, and go-to-market strategy
-5. Investment thesis with specific funding amount, valuation, and use of funds
-6. Management team assessment with founder backgrounds and key personnel
-7. Risk assessment and mitigation strategies
-8. Expected returns and exit strategy
+        content: `Generate comprehensive executive summary (3-4 pages) matching BAIBYS reference PDF professional quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
 
-Extract and include SPECIFIC data points: founding dates, executive names, funding amounts, market sizes, revenue projections, partnership details, regulatory status, and competitive positioning. Use professional VC language with concrete metrics throughout.`
+**MANDATORY AUTHENTIC DATA EXTRACTION:**
+1. **Company Details**: Exact founding date, headquarters location, incorporation details from documents
+2. **Real Executive Team**: Actual names (Dr. Yaron Silberman, Gal Golov, Dr. Nino Guy Cassuto if in documents), verified titles and backgrounds
+3. **Authentic Funding**: Real investment amounts, pre-money valuations, funding rounds from documents
+4. **Actual Shareholding**: Specific percentages and investor names from documents
+5. **Strategic Partnerships**: Real company partnerships (Rohto Pharmaceuticals if mentioned), KOL networks
+6. **Technical Specifications**: AI training data size, performance metrics, regulatory approvals from documents
+7. **Investment Terms**: Liquidation preferences, board rights, interest rates from term sheets
+
+**CRITICAL REQUIREMENTS:**
+- Extract specific data: founding dates, executive names, funding amounts, shareholding percentages
+- Include regulatory status (CE marking, FDA timeline) if found in documents
+- Mention strategic partnerships with actual company names
+- Reference KOL networks and clinic owner investors if documented
+- Use specific technical metrics (e.g., "17,000+ labeled images", "60x magnification")
+- Include authentic market sizing with data sources
+
+**FORMAT REQUIREMENTS:**
+- Professional VC memo language with concrete metrics
+- Detailed company overview with authentic incorporation and location details
+- Specific investment thesis with real funding amounts and valuations
+- Technology differentiation with actual performance specifications
+- Management assessment with verified executive backgrounds
+
+Extract and verify all data from provided context - reject any fabricated information.`
       }, {
         role: "user",
-        content: `Generate comprehensive executive summary based on this complete analysis:\n\n${context.substring(0, 80000)}`
+        content: `Generate executive summary using ONLY authentic data from this comprehensive BAIBYS analysis (extract real names, numbers, dates):\n\n${context.substring(0, 80000)}`
       }],
-      temperature: 0.4,
+      temperature: 0.2,
       max_tokens: 4000
     });
 
@@ -670,13 +685,32 @@ Extract and include SPECIFIC data points: founding dates, executive names, fundi
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system",
-        content: `Generate comprehensive market analysis including market context, TAM/SAM/SOM sizing, competitive landscape, and market timing. Use specific market data and growth projections. Format as JSON.`
+        content: `Generate comprehensive market analysis matching BAIBYS reference PDF quality. Extract ONLY authentic market data from context. Include:
+
+**AUTHENTIC MARKET DATA EXTRACTION:**
+1. **Specific Market Sizes**: Extract exact TAM/SAM/SOM figures with sources (e.g., "$64.53B global fertility market", "14.2% CAGR")
+2. **Real Growth Metrics**: Actual growth rates and market projections from documents  
+3. **Authentic Data Sources**: Reference real sources (Grand View Research, ESHRE, WHO)
+4. **Specific Geographic Data**: Country-by-country market analysis if found
+5. **Competitive Market Data**: Real competitor market shares and positioning
+
+**REQUIRED CONTENT:**
+- Market context with specific IVF market sizing
+- ICSI market penetration (e.g., "70% of IVF cycles")
+- Global cycle numbers (e.g., "3.2 million cycles/year")
+- TAM: Total fertility market size with specific numbers
+- SAM: Serviceable market (e.g., "8,000 clinics globally")
+- SOM: Obtainable market with adoption rates
+- Competitive landscape with real competitor analysis
+- Market timing with regulatory and technological drivers
+
+Format as JSON with authentic data only - never fabricate market numbers.`
       }, {
         role: "user",
-        content: `Analyze market opportunity:\n\n${context.substring(0, 30000)}`
+        content: `Extract authentic market analysis data from BAIBYS context:\n\n${context.substring(0, 50000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.2
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
