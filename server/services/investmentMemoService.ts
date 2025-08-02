@@ -1050,6 +1050,14 @@ Format as JSON with detailed team assessment extracted from HR, legal, and corpo
   }
 
   private async generateFinancialAnalysis(context: string): Promise<InvestmentMemoSections['financialAnalysis']> {
+    console.log(`💰 Generating financial analysis from ${context.length.toLocaleString()} characters of context`);
+    
+    // Enhanced financial context extraction to find financial content across ALL 12.3M characters
+    const financialKeywords = ['financial', 'revenue', 'funding', 'investment', 'valuation', 'cost', 'margin', 'profit', 'EBITDA', 'cash flow', 'P&L', 'income', 'expense', 'budget', 'forecast', 'projection', 'Sanmina', 'distributor', 'partnership revenue', 'growth rate', 'KPI', 'ARR', 'MRR'];
+    const financialContext = this.extractRelevantContext(context, financialKeywords, 90000);
+    
+    console.log(`💰 Enhanced financial context extraction: ${financialContext.length.toLocaleString()} characters focused on financial content`);
+    
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o",
@@ -1078,7 +1086,7 @@ Extract specific numbers, dates, and financial terms from documents. Never fabri
 Format as JSON with detailed financial information only from authentic sources.`
         }, {
           role: "user",
-          content: `Extract authentic financial analysis from BAIBYS context:\n\n${context.substring(0, 60000)}`
+          content: `Extract authentic financial analysis from BAIBYS context:\n\n${financialContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2
@@ -1118,6 +1126,12 @@ Format as JSON with detailed financial information only from authentic sources.`
   private async generateLegalAssessment(context: string): Promise<InvestmentMemoSections['legalAssessment']> {
     console.log(`⚖️ Generating legal assessment from ${context.length.toLocaleString()} characters of context`);
     
+    // Enhanced legal context extraction to find legal content across ALL 12.3M characters
+    const legalKeywords = ['legal', 'contract', 'agreement', 'IP', 'patent', 'license', 'regulatory', 'compliance', 'litigation', 'intellectual property', 'corporation', 'board', 'shareholder', 'employment', 'AOA', 'articles', 'incorporation', 'trademark', 'copyright', 'FDA', 'CE marking', 'regulatory approval'];
+    const legalContext = this.extractRelevantContext(context, legalKeywords, 80000);
+    
+    console.log(`⚖️ Enhanced legal context extraction: ${legalContext.length.toLocaleString()} characters focused on legal content`);
+    
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -1147,7 +1161,7 @@ Format as JSON with detailed financial information only from authentic sources.`
 Format as JSON with detailed legal information from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic legal assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Extract authentic legal assessment from BAIBYS context:\n\n${legalContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1725,6 +1739,36 @@ ${fullContext.substring(0, 45000)}`
     });
     
     return response.choices[0].message.content || '';
+  }
+
+  // Enhanced context extraction method to find relevant content across ALL 12.3M OCR characters
+  private extractRelevantContext(fullContext: string, keywords: string[], maxLength: number): string {
+    const sections: string[] = [];
+    const lowerContext = fullContext.toLowerCase();
+    const lowerKeywords = keywords.map(k => k.toLowerCase());
+    
+    // Split context into chunks for processing
+    const chunkSize = 10000;
+    for (let i = 0; i < fullContext.length; i += chunkSize) {
+      const chunk = fullContext.substring(i, i + chunkSize);
+      const lowerChunk = chunk.toLowerCase();
+      
+      // Check if chunk contains any keywords
+      const hasKeywords = lowerKeywords.some(keyword => lowerChunk.includes(keyword));
+      
+      if (hasKeywords) {
+        // Expand context around keyword matches
+        const start = Math.max(0, i - 500);
+        const end = Math.min(fullContext.length, i + chunkSize + 500);
+        sections.push(fullContext.substring(start, end));
+      }
+    }
+    
+    // Join and trim to max length
+    const relevantContext = sections.join('\n\n').substring(0, maxLength);
+    console.log(`📊 Context extraction: Found ${sections.length} relevant sections, total ${relevantContext.length} characters`);
+    
+    return relevantContext;
   }
 
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
