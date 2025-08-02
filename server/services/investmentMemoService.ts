@@ -3,6 +3,8 @@ import OpenAI from 'openai';
 import { storage } from '../storage';
 import { InsertInvestmentMemo } from '../../shared/schema';
 import { safeGetDocumentContent } from '../utils/documentUtils';
+import { openaiQuotaManager } from './openaiQuotaManager';
+import { getMemoFallback } from './memoFallbackContent';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -398,11 +400,12 @@ ${summaryText}
     // Extract comprehensive company information from ALL sources
     const companyInfo = await this.extractComprehensiveCompanyInformation(data);
     
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
+    return await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
 
 LEFT COLUMN - "The Company":
 - Headquarters: [Extract exact address from documents]
@@ -427,19 +430,23 @@ CRITICAL REQUIREMENTS:
 6. Include investment-specific language (liquidation preferences, board rights, etc.)
 
 Format as professional markdown with clear headers and bullet points.`
-      }, {
-        role: "user",
-        content: `Generate comprehensive cover page for ${data.companyName} investment memo.
+        }, {
+          role: "user",
+          content: `Generate comprehensive cover page for ${data.companyName} investment memo.
 
 Use this extracted company information:
 
 ${companyInfo}`
-      }],
-      temperature: 0.2,
-      max_tokens: 2500
-    });
-
-    return response.choices[0].message.content || '';
+        }],
+        temperature: 0.2,
+        max_tokens: 2500
+      }).then(response => response.choices[0].message.content || ''),
+      {
+        description: 'Cover Page Generation',
+        priority: 'high',
+        fallbackContent: getMemoFallback('coverPage', data.companyName)
+      }
+    ) as Promise<string>;
   }
 
   private async extractComprehensiveCompanyInformation(data: ComprehensiveMemoData): Promise<string> {
@@ -602,11 +609,12 @@ ${content.substring(0, 120000)}`
   // ==================== MEMO SECTION GENERATORS ====================
 
   private async generateExecutiveSummary(context: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system", 
-        content: `Generate comprehensive executive summary (3-4 pages) matching BAIBYS reference PDF professional quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
+    return await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system", 
+          content: `Generate comprehensive executive summary (3-4 pages) matching BAIBYS reference PDF professional quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
 
 **MANDATORY AUTHENTIC DATA EXTRACTION:**
 1. **Company Details**: Exact founding date, headquarters location, incorporation details from documents
@@ -633,23 +641,28 @@ ${content.substring(0, 120000)}`
 - Management assessment with verified executive backgrounds
 
 Extract and verify all data from provided context - reject any fabricated information.`
-      }, {
-        role: "user",
-        content: `Generate executive summary using ONLY authentic data from this comprehensive BAIBYS analysis (extract real names, numbers, dates):\n\n${context.substring(0, 80000)}`
-      }],
-      temperature: 0.2,
-      max_tokens: 4000
-    });
-
-    return response.choices[0].message.content || '';
+        }, {
+          role: "user",
+          content: `Generate executive summary using ONLY authentic data from this comprehensive BAIBYS analysis (extract real names, numbers, dates):\n\n${context.substring(0, 80000)}`
+        }],
+        temperature: 0.2,
+        max_tokens: 4000
+      }).then(response => response.choices[0].message.content || ''),
+      {
+        description: 'Executive Summary Generation',
+        priority: 'high',
+        fallbackContent: getMemoFallback('executiveSummary')
+      }
+    ) as Promise<string>;
   }
 
   private async generateInvestmentHighlights(context: string): Promise<string[]> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `Extract 4-6 specific investment highlights matching BAIBYS PDF format. Each highlight must be authentic and specific:
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Extract 4-6 specific investment highlights matching BAIBYS PDF format. Each highlight must be authentic and specific:
 
 **REQUIRED INVESTMENT HIGHLIGHTS STRUCTURE:**
 1. **Innovative Technology**: Quantified performance metrics, AI capabilities, automation benefits
@@ -667,24 +680,31 @@ Extract and verify all data from provided context - reject any fabricated inform
 - Match professional VC language with concrete benefits
 
 Format as JSON object with "highlights" array of detailed strings.`
-      }, {
-        role: "user", 
-        content: `Extract authentic investment highlights from BAIBYS context:\n\n${context.substring(0, 40000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.3
-    });
+        }, {
+          role: "user", 
+          content: `Extract authentic investment highlights from BAIBYS context:\n\n${context.substring(0, 40000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      }).then(response => response.choices[0].message.content || '{"highlights": []}'),
+      {
+        description: 'Investment Highlights Extraction',
+        priority: 'high',
+        fallbackContent: JSON.stringify({ highlights: getMemoFallback('investmentHighlights') })
+      }
+    ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{"highlights": []}');
+    const result = JSON.parse(response);
     return result.highlights || [];
   }
 
   private async generateSWOTAnalysis(context: string): Promise<InvestmentMemoSections['swotAnalysis']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `Generate professional SWOT analysis matching BAIBYS PDF format with specific, investment-relevant points:
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate professional SWOT analysis matching BAIBYS PDF format with specific, investment-relevant points:
 
 **STRENGTHS** - Extract authentic competitive advantages:
 - IP position (specific patents, AI training data size)
@@ -712,15 +732,21 @@ Format as JSON object with "highlights" array of detailed strings.`
 - Technical or operational risks
 
 Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
-      }, {
-        role: "user",
-        content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${context.substring(0, 40000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.4
-    });
+        }, {
+          role: "user",
+          content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${context.substring(0, 40000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.4
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'SWOT Analysis Generation',
+        priority: 'medium',
+        fallbackContent: JSON.stringify(getMemoFallback('swotAnalysis'))
+      }
+    ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const result = JSON.parse(response);
     return {
       strengths: result.strengths || [],
       weaknesses: result.weaknesses || [],
@@ -874,11 +900,12 @@ Format as JSON with detailed team information from authentic sources only.`
   }
 
   private async generateFinancialAnalysis(context: string): Promise<InvestmentMemoSections['financialAnalysis']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive financial analysis matching BAIBYS reference PDF quality. Extract ONLY authentic financial data:
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{
+          role: "system",
+          content: `Generate comprehensive financial analysis matching BAIBYS reference PDF quality. Extract ONLY authentic financial data:
 
 **AUTHENTIC FINANCIAL DATA EXTRACTION:**
 1. **Current Financials**: Extract actual revenue figures, burn rate, cash position from documents
@@ -899,15 +926,26 @@ Format as JSON with detailed team information from authentic sources only.`
 Extract specific numbers, dates, and financial terms from documents. Never fabricate financial data.
 
 Format as JSON with detailed financial information only from authentic sources.`
-      }, {
-        role: "user",
-        content: `Extract authentic financial analysis from BAIBYS context:\n\n${context.substring(0, 60000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.2
-    });
+        }, {
+          role: "user",
+          content: `Extract authentic financial analysis from BAIBYS context:\n\n${context.substring(0, 60000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Financial Analysis Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify({
+          currentFinancials: getMemoFallback('financialAnalysis'),
+          projections: getMemoFallback('financialProjections'),
+          fundingHistory: getMemoFallback('fundingHistory'),
+          useOfFunds: getMemoFallback('useOfFunds')
+        })
+      }
+    ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const result = JSON.parse(response);
     return {
       currentFinancials: result.currentFinancials || '',
       projections: result.projections || '',
