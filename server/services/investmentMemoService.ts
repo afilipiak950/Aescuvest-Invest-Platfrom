@@ -1663,6 +1663,147 @@ ${allExtractions.join('\n\n')}
     
     return content;
   }
+
+  // Regenerate a specific section with custom prompt
+  async regenerateSection(dealId: number, sectionKey: string, customPrompt: string): Promise<string> {
+    console.log(`🔄 Regenerating section "${sectionKey}" for deal ${dealId} with custom prompt`);
+    
+    try {
+      // Get all available data for the deal
+      const { ocrText, aiSummaries, agentAnalyses } = await this.getAllDealData(dealId);
+      
+      // Build comprehensive context for AI
+      const contextData = {
+        ocrDocuments: ocrText.slice(0, 50), // Limit for performance
+        aiSummaries: aiSummaries.slice(0, 20),
+        agentAnalyses: agentAnalyses
+      };
+      
+      // Create enhanced prompt with custom instructions
+      const enhancedPrompt = `
+You are regenerating the "${sectionKey}" section of an investment memorandum with custom enhancement instructions.
+
+CUSTOM ENHANCEMENT INSTRUCTIONS:
+${customPrompt}
+
+AVAILABLE DATA:
+- OCR Text from ${contextData.ocrDocuments.length} documents
+- AI Summaries from ${contextData.aiSummaries.length} processed documents  
+- Agent Analyses: ${contextData.agentAnalyses.map(a => a.agentType).join(', ')}
+
+SECTION REQUIREMENTS:
+- Create professional VC-quality content for the ${sectionKey} section
+- Follow the custom enhancement instructions above
+- Use authentic data from the provided sources
+- Format for executive-level audience
+- Include specific metrics and details where available
+
+Generate only the content for this specific section based on your custom enhancement instructions:`;
+
+      const messages = [
+        {
+          role: "system",
+          content: enhancedPrompt
+        },
+        {
+          role: "user", 
+          content: JSON.stringify(contextData, null, 2)
+        }
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages,
+        temperature: 0.7,
+        max_tokens: 4000
+      });
+
+      const regeneratedContent = response.choices[0].message.content || `Enhanced ${sectionKey} content not available`;
+      
+      // Update the memo in database
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (existingMemo) {
+        const updatedMemo = { ...existingMemo.memo };
+        updatedMemo[sectionKey] = regeneratedContent;
+        
+        await storage.updateMemo(existingMemo.id, { memo: updatedMemo });
+        console.log(`✅ Updated section "${sectionKey}" in database for deal ${dealId}`);
+      }
+      
+      return regeneratedContent;
+      
+    } catch (error) {
+      console.error(`❌ Failed to regenerate section "${sectionKey}":`, error);
+      throw new Error(`Failed to regenerate ${sectionKey}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Get source information for a specific section
+  async getSectionSources(dealId: number, sectionKey: string): Promise<{
+    ocrDocuments: string[];
+    aiSummaries: string[];
+    agentAnalyses: string[];
+  }> {
+    console.log(`📊 Getting source information for section "${sectionKey}" in deal ${dealId}`);
+    
+    try {
+      // Get all available data sources
+      const { ocrText, aiSummaries, agentAnalyses } = await this.getAllDealData(dealId);
+      
+      // Return source information
+      return {
+        ocrDocuments: ocrText.map(doc => doc.name).slice(0, 20), // Limit for performance
+        aiSummaries: aiSummaries.map(doc => doc.name).slice(0, 10),
+        agentAnalyses: agentAnalyses.map(analysis => `${analysis.agentType} Agent`)
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to get section sources:`, error);
+      return {
+        ocrDocuments: [],
+        aiSummaries: [],
+        agentAnalyses: []
+      };
+    }
+  }
+
+  // Helper function to get all deal data intelligently
+  private async getAllDealData(dealId: number): Promise<{
+    ocrText: Array<{ name: string; content: string }>;
+    aiSummaries: Array<{ name: string; content: string }>;
+    agentAnalyses: Array<{ agentType: string; findings: any; recommendations: any }>;
+  }> {
+    console.log(`📊 Gathering all intelligent data for deal ${dealId}`);
+    
+    // Get all documents with OCR text
+    const documentsWithOCR = await storage.getDocumentsWithOCRForMemo(dealId);
+    
+    // Get all AI summaries
+    const documentsWithSummaries = documentsWithOCR.filter(doc => doc.aiSummary);
+    
+    // Get all agent analyses
+    const agentAnalyses = await storage.getAnalysesByDealId(dealId);
+    
+    console.log(`📊 Data gathered: ${documentsWithOCR.length} OCR docs, ${documentsWithSummaries.length} AI summaries, ${agentAnalyses.length} agent analyses`);
+    
+    return {
+      ocrText: documentsWithOCR.map(doc => ({
+        name: doc.name,
+        content: doc.ocrText || ''
+      })).filter(doc => doc.content.length > 100),
+      
+      aiSummaries: documentsWithSummaries.map(doc => ({
+        name: doc.name,
+        content: doc.aiSummary || ''
+      })),
+      
+      agentAnalyses: agentAnalyses.map(analysis => ({
+        agentType: analysis.agentType,
+        findings: analysis.findings,
+        recommendations: analysis.recommendations
+      }))
+    };
+  }
 }
 
 export const investmentMemoService = new InvestmentMemoService();
