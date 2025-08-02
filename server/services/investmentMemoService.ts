@@ -393,7 +393,7 @@ ${summaryText}
   // ==================== COVER PAGE WITH COMPREHENSIVE COMPANY DETAILS ====================
 
   private async generateCoverPage(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`📋 Generating comprehensive cover page with detailed company information`);
+    console.log(`📋 Generating professional VC cover page matching BAIBYS reference structure`);
     
     // Extract comprehensive company information from ALL sources
     const companyInfo = await this.extractComprehensiveCompanyInformation(data);
@@ -402,26 +402,31 @@ ${summaryText}
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system",
-        content: `Generate a professional investment memo cover page matching the BAIBYS format. Extract and include SPECIFIC company information from the provided comprehensive analysis:
+        content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
 
-REQUIRED COMPANY DETAILS TO EXTRACT:
-- CEO full name, background, and experience
-- CTO, CFO, founders, and key executive names with roles  
-- Exact headquarters address (street, city, country)
-- Incorporation date, jurisdiction, and registration details
-- Detailed shareholding structure with owner names and percentages
-- Board composition with specific member names and backgrounds
-- Employee count, department structure, and office locations
-- Company registration number and corporate structure
-- Major partnerships, investors, and funding history
+LEFT COLUMN - "The Company":
+- Headquarters: [Extract exact address from documents]
+- Management: [Extract CEO, CTO, CFO names and titles from documents]
+- Incorporation: [Extract incorporation date from documents]
+- Shareholding: [Extract ownership percentages and investor names from documents]
+- Proposal: [Extract funding details, round size, valuation from documents]
+- Key Investment Terms: [Extract liquidation preferences, board seats, rights from documents]
 
-FORMAT REQUIREMENTS:
-- Use clean markdown formatting ONLY (no HTML)
-- Include professional headers and structure
-- Use bullet points and tables for clarity
-- Extract ONLY information found in actual documents
-- If information is not found, state "Not available in documents"
-- Focus on specific names, dates, addresses, and percentages`
+RIGHT COLUMN - "Investment Highlights":
+- 4-6 bullet points with specific value propositions
+- Use exact technology specifications, market data, partnership details from documents
+- Include regulatory approvals, competitive advantages, strategic partnerships
+- Focus on quantifiable benefits and differentiation
+
+CRITICAL REQUIREMENTS:
+1. Extract ONLY authentic data from the comprehensive analysis provided
+2. Use specific names, numbers, percentages, dates, and addresses found in documents
+3. If data is not available, write "Information not available in provided documents"
+4. Match the professional formatting and structure of the BAIBYS reference
+5. Use bullet points and clean structure exactly as shown in BAIBYS PDF
+6. Include investment-specific language (liquidation preferences, board rights, etc.)
+
+Format as professional markdown with clear headers and bullet points.`
       }, {
         role: "user",
         content: `Generate comprehensive cover page for ${data.companyName} investment memo.
@@ -644,13 +649,30 @@ Extract and verify all data from provided context - reject any fabricated inform
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system",
-        content: `Generate 5-7 compelling investment highlights as bullet points. Each highlight should be a specific, data-backed reason to invest. Format as JSON array of strings.`
+        content: `Extract 4-6 specific investment highlights matching BAIBYS PDF format. Each highlight must be authentic and specific:
+
+**REQUIRED INVESTMENT HIGHLIGHTS STRUCTURE:**
+1. **Innovative Technology**: Quantified performance metrics, AI capabilities, automation benefits
+2. **Market Potential**: Growth rates, market size, demand drivers with specific numbers
+3. **Strategic Partnerships**: Real partnerships, KOL networks, distribution agreements
+4. **Competitive Edge**: Unique differentiators, regulatory approvals, first-mover advantages
+5. **Regulatory Approvals**: CE marking, FDA timeline, compliance status
+6. **Financial Benefits**: Revenue potential, efficiency gains, cost savings
+
+**EXTRACTION REQUIREMENTS:**
+- Use ONLY authentic data from comprehensive analysis
+- Include specific numbers, percentages, performance metrics
+- Reference real partnerships, regulatory status, technical specifications
+- Focus on quantified investment attractiveness
+- Match professional VC language with concrete benefits
+
+Format as JSON object with "highlights" array of detailed strings.`
       }, {
         role: "user", 
-        content: `Identify key investment highlights:\n\n${context.substring(0, 30000)}`
+        content: `Extract authentic investment highlights from BAIBYS context:\n\n${context.substring(0, 40000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.6
+      temperature: 0.3
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{"highlights": []}');
@@ -662,13 +684,40 @@ Extract and verify all data from provided context - reject any fabricated inform
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{
         role: "system",
-        content: `Generate comprehensive SWOT analysis with specific, actionable points for each category. Format as JSON with arrays for strengths, weaknesses, opportunities, and threats.`
+        content: `Generate professional SWOT analysis matching BAIBYS PDF format with specific, investment-relevant points:
+
+**STRENGTHS** - Extract authentic competitive advantages:
+- IP position (specific patents, AI training data size)
+- Technical capabilities (performance metrics, automation benefits)
+- Strategic relationships (real partnerships, KOL networks)
+- Regulatory status (CE marking, FDA pathway)
+- Team expertise (verified backgrounds and experience)
+
+**WEAKNESSES** - Identify genuine investment risks:
+- Commercial infrastructure gaps
+- Resource constraints and funding needs
+- Market readiness challenges
+- Operational or technical limitations
+
+**OPPORTUNITIES** - Assess market and strategic potential:
+- Market growth drivers with specific data
+- Regulatory environment changes
+- Strategic partnership potential
+- Geographic expansion opportunities
+
+**THREATS** - Evaluate investment risks:
+- Regulatory hurdles and timeline risks
+- Market adoption challenges
+- Competitive threats and barriers
+- Technical or operational risks
+
+Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
       }, {
         role: "user",
-        content: `Generate SWOT analysis:\n\n${context.substring(0, 30000)}`
+        content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${context.substring(0, 40000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.4
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -780,13 +829,39 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Assess management team, key personnel, advisors, and board composition with specific names and backgrounds. Format as JSON.`
+        content: `Generate professional management assessment matching BAIBYS PDF format. Extract ONLY authentic team information:
+
+**EXECUTIVE TEAM ASSESSMENT:**
+- CEO: Extract actual name, background, previous experience, educational credentials
+- CTO/Technical Leaders: Real names, technical expertise, previous roles, achievements
+- CFO/Business Leaders: Financial background, previous companies, relevant experience
+- Founders: Founding story, backgrounds, equity positions, roles and responsibilities
+
+**KEY PERSONNEL ANALYSIS:**
+- Scientific Advisory Board: Extract actual names, titles, institutional affiliations
+- Clinical Advisors: Real KOL names, specializations, clinical experience
+- Board of Directors: Actual member names, backgrounds, governance experience
+- Key Employees: Technical team composition, experience levels, retention
+
+**TEAM STRENGTH ASSESSMENT:**
+- Domain Expertise: Relevant industry experience and technical capabilities
+- Track Record: Previous successes, exits, relevant accomplishments
+- Team Completeness: Key roles filled, gaps and hiring plans
+- Advisory Quality: Strategic value of advisors and board members
+
+**EXTRACTION REQUIREMENTS:**
+- Use specific names, titles, previous companies, educational backgrounds
+- Include years of experience, specific achievements, domain expertise
+- Reference actual advisory relationships and board positions
+- Never fabricate names or backgrounds - extract only from documents
+
+Format as JSON with detailed team information from authentic sources only.`
       }, {
         role: "user",
-        content: `Assess team:\n\n${context.substring(0, 8000)}`
+        content: `Extract authentic team assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.3
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -803,13 +878,33 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Analyze current financials, projections, funding history, and use of funds. Format as JSON.`
+        content: `Generate comprehensive financial analysis matching BAIBYS reference PDF quality. Extract ONLY authentic financial data:
+
+**AUTHENTIC FINANCIAL DATA EXTRACTION:**
+1. **Current Financials**: Extract actual revenue figures, burn rate, cash position from documents
+2. **Financial Projections**: Real projections with specific years and amounts (e.g., "$2.5M ARR by 2026")
+3. **Funding History**: Previous rounds, investors, valuations, dilution from term sheets
+4. **Use of Funds**: Detailed capital allocation breakdown from pitch decks
+5. **Unit Economics**: CAC, LTV, payback periods, gross margins from actual data
+6. **Investment Terms**: Valuation, liquidation preferences, board rights
+
+**REQUIRED ANALYSIS STRUCTURE:**
+- Current Financial Status: Revenue, burn rate, cash runway, financial milestones
+- Financial Projections: 3-5 year forecasts with milestone assumptions
+- Funding History: Previous rounds with amounts, valuations, key investors
+- Use of Funds: Detailed breakdown of proposed capital allocation
+- Key Financial Metrics: Growth rates, unit economics, financial ratios
+- Investment Terms: Pre/post-money valuation, liquidation preferences
+
+Extract specific numbers, dates, and financial terms from documents. Never fabricate financial data.
+
+Format as JSON with detailed financial information only from authentic sources.`
       }, {
         role: "user",
-        content: `Analyze financials:\n\n${context.substring(0, 8000)}`
+        content: `Extract authentic financial analysis from BAIBYS context:\n\n${context.substring(0, 60000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.2
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -849,13 +944,51 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Identify and categorize risks across technical, market, competitive, regulatory, and management areas. Format as JSON with arrays for each risk category.`
+        content: `Generate comprehensive investment risk assessment matching BAIBYS PDF format. Extract ONLY authentic risk factors:
+
+**TECHNICAL RISKS** - Extract actual technology challenges:
+- AI/ML model performance and validation risks
+- Regulatory approval pathways and clinical validation
+- Technical scalability and infrastructure requirements
+- IP protection and patent landscape risks
+
+**MARKET RISKS** - Assess real market adoption challenges:
+- Market readiness and adoption timeline risks
+- Customer acquisition and sales cycle challenges
+- Competitive landscape and differentiation sustainability
+- Economic sensitivity and market timing risks
+
+**REGULATORY RISKS** - Extract specific regulatory challenges:
+- FDA approval pathway and clinical trial risks
+- CE marking requirements and regulatory compliance
+- Reimbursement and healthcare adoption barriers
+- International regulatory and commercialization risks
+
+**COMMERCIAL RISKS** - Assess business execution challenges:
+- Sales and marketing execution risks
+- Partnership and distribution channel risks
+- Manufacturing and operational scalability
+- Customer concentration and retention risks
+
+**FINANCIAL RISKS** - Extract funding and financial risks:
+- Cash runway and funding requirements
+- Revenue ramp and financial projection risks
+- Unit economics and profitability pathway
+- Market conditions and funding environment
+
+**EXTRACTION REQUIREMENTS:**
+- Use specific risk factors mentioned in documents
+- Include regulatory timelines, technical challenges, market barriers
+- Reference competitive threats and commercial obstacles
+- Never fabricate risks - extract only documented concerns
+
+Format as JSON with detailed risk arrays from authentic sources only.`
       }, {
         role: "user",
-        content: `Assess risks:\n\n${context.substring(0, 8000)}`
+        content: `Extract authentic risk assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.3
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -873,13 +1006,35 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Propose investment terms including valuation, funding amount, securities, board rights, and liquidation preferences. Format as JSON.`
+        content: `Generate professional investment terms matching BAIBYS PDF format. Extract ONLY authentic investment terms from documents:
+
+**INVESTMENT TERMS EXTRACTION:**
+1. **Valuation**: Extract pre-money/post-money valuations from term sheets
+2. **Funding Amount**: Specific funding round size and use of proceeds
+3. **Securities**: Type of securities offered (Series A, convertible notes, etc.)
+4. **Board Rights**: Board composition, investor representation, voting rights
+5. **Liquidation Preferences**: Preference multiples, participation rights, anti-dilution
+
+**TERM SHEET ANALYSIS:**
+- Pre-Money Valuation: Extract actual valuation from term sheets
+- Funding Round: Specific amount being raised and series designation
+- Investment Structure: Security type, conversion terms, interest rates
+- Governance Terms: Board seats, consent rights, protective provisions
+- Economic Terms: Liquidation preferences, participation rights, anti-dilution
+
+**EXTRACTION REQUIREMENTS:**
+- Use specific valuations, amounts, percentages from term sheets
+- Include actual board composition and voting structures
+- Reference real liquidation preferences and participation rights
+- Never fabricate investment terms - extract only from documents
+
+Format as JSON with detailed investment terms from authentic sources only.`
       }, {
         role: "user",
-        content: `Propose investment terms:\n\n${context.substring(0, 8000)}`
+        content: `Extract authentic investment terms from BAIBYS context:\n\n${context.substring(0, 50000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.7
+      temperature: 0.2
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -897,13 +1052,36 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Provide clear investment recommendation (INVEST/PASS/INVESTIGATE) with detailed rationale, key milestones, and exit strategy. Format as JSON.`
+        content: `Generate professional investment recommendation matching BAIBYS PDF format. Provide clear investment decision framework:
+
+**INVESTMENT RECOMMENDATION STRUCTURE:**
+1. **Investment Decision**: INVEST/PASS/INVESTIGATE with clear rationale
+2. **Investment Thesis**: Core value creation hypothesis with supporting evidence
+3. **Key Milestones**: Specific operational, technical, and commercial milestones
+4. **Exit Strategy**: Expected exit timeline, exit multiples, strategic acquirers
+5. **Risk Mitigation**: Key risk factors and mitigation strategies
+6. **Investment Rationale**: Detailed justification based on authentic analysis
+
+**DECISION FRAMEWORK:**
+- Investment Attractiveness: Technology differentiation, market opportunity, team quality
+- Risk Assessment: Technical, market, regulatory, and execution risks
+- Value Creation Potential: Revenue scaling, market expansion, strategic value
+- Exit Potential: Strategic acquirers, IPO potential, market positioning
+- Key Success Factors: Critical milestones and operational achievements
+
+**EXTRACTION REQUIREMENTS:**
+- Base recommendation on authentic analysis and data extraction
+- Include specific milestones with timelines and success metrics
+- Reference real market opportunities and competitive positioning
+- Use evidence-based rationale from comprehensive document analysis
+
+Format as JSON with detailed investment recommendation based on authentic analysis.`
       }, {
         role: "user",
-        content: `Provide investment recommendation:\n\n${context.substring(0, 8000)}`
+        content: `Generate authentic investment recommendation from BAIBYS context:\n\n${context.substring(0, 50000)}`
       }],
       response_format: { type: "json_object" },
-      temperature: 0.6
+      temperature: 0.3
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
