@@ -1744,57 +1744,292 @@ Generate only the content for this specific section based on your custom enhance
     aiSummaries: string[];
     agentAnalyses: string[];
   }> {
-    console.log(`📊 SECTION SOURCES: Getting source info for "${sectionKey}" in deal ${dealId}`);
+    console.log(`📊 SECTION SOURCES: Getting intelligent source mapping for "${sectionKey}" in deal ${dealId}`);
     
     try {
-      // Use the exact same method that successfully retrieves 220 OCR documents
       const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
       if (!memoData) {
         console.log(`❌ SECTION SOURCES: No memo data found for deal ${dealId}`);
-        return {
-          ocrDocuments: [],
-          aiSummaries: [],
-          agentAnalyses: []
-        };
+        return { ocrDocuments: [], aiSummaries: [], agentAnalyses: [] };
       }
 
-      // Extract OCR documents (using the proven working method)
-      const ocrDocuments: string[] = [];
-      const aiSummaries: string[] = [];
+      // Get section-specific source mapping based on actual content relevance
+      const sources = this.getIntelligentSectionSources(sectionKey, memoData);
       
-      memoData.documents.forEach((doc: any) => {
-        // Check for OCR content using the field names that work in gatherComprehensiveDataWithFullOCR
-        const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
-        if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
-          ocrDocuments.push(doc.name);
-        }
-        
-        // Check for AI summaries
-        const aiSummary = doc.aiSummary || doc.ai_summary || (doc as any)['ai_summary'];
-        if (aiSummary && typeof aiSummary === 'string' && aiSummary.length > 100) {
-          aiSummaries.push(doc.name);
-        }
-      });
-
-      const agentAnalyses = memoData.agentAnalyses.map((analysis: any) => `${analysis.agentType} Agent`);
-
-      console.log(`📊 SECTION SOURCES: Found ${ocrDocuments.length} OCR docs, ${aiSummaries.length} AI summaries, ${agentAnalyses.length} agents`);
+      console.log(`📊 SECTION SOURCES: "${sectionKey}" uses ${sources.ocrDocuments.length} OCR docs, ${sources.aiSummaries.length} AI summaries, ${sources.agentAnalyses.length} agents`);
       
-      return {
-        ocrDocuments: ocrDocuments.slice(0, 50), // Show substantial number for transparency
-        aiSummaries: aiSummaries.slice(0, 20),
-        agentAnalyses: agentAnalyses
-      };
+      return sources;
       
     } catch (error) {
       console.error(`❌ SECTION SOURCES: Error:`, error);
+      return { ocrDocuments: [], aiSummaries: [], agentAnalyses: [] };
+    }
+  }
+
+  /**
+   * Intelligent source mapping - returns only relevant sources for each memo section
+   */
+  private getIntelligentSectionSources(sectionKey: string, memoData: ComprehensiveMemoData): {
+    ocrDocuments: string[];
+    aiSummaries: string[];
+    agentAnalyses: string[];
+  } {
+    const allOcrDocs = memoData.documents
+      .filter(doc => {
+        const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
+        return ocrText && typeof ocrText === 'string' && ocrText.length > 100;
+      })
+      .map(doc => doc.name);
+
+    const allAiSummaries = memoData.documents
+      .filter(doc => {
+        const aiSummary = doc.aiSummary || doc.ai_summary || (doc as any)['ai_summary'];
+        return aiSummary && typeof aiSummary === 'string' && aiSummary.length > 100;
+      })
+      .map(doc => doc.name);
+
+    // Section-specific source mapping based on content relevance
+    const sectionMapping: Record<string, {
+      docKeywords: string[];
+      agentTypes: string[];
+      docLimit: number;
+    }> = {
+      // Market & Business Sections
+      marketAnalysis: {
+        docKeywords: ['market', 'competition', 'industry', 'tam', 'sam', 'som', 'size', 'growth', 'trends'],
+        agentTypes: ['Commercial', 'Research'],
+        docLimit: 15
+      },
+      businessModel: {
+        docKeywords: ['business', 'revenue', 'pricing', 'model', 'sales', 'commercial', 'strategy'],
+        agentTypes: ['Commercial'],
+        docLimit: 10
+      },
+      competitiveAnalysis: {
+        docKeywords: ['competitor', 'competitive', 'comparison', 'landscape', 'market'],
+        agentTypes: ['Commercial', 'Research'],
+        docLimit: 12
+      },
+      commercialStrategy: {
+        docKeywords: ['commercial', 'sales', 'marketing', 'strategy', 'go-to-market'],
+        agentTypes: ['Commercial'],
+        docLimit: 8
+      },
+
+      // Financial Sections
+      financialAnalysis: {
+        docKeywords: ['financial', 'revenue', 'funding', 'investment', 'projections', 'balance', 'cash', 'burn'],
+        agentTypes: ['Financial'],
+        docLimit: 20
+      },
+      financialProjections: {
+        docKeywords: ['projections', 'forecast', 'financial', 'revenue', 'growth', 'budget'],
+        agentTypes: ['Financial'],
+        docLimit: 15
+      },
+      valuationAnalysis: {
+        docKeywords: ['valuation', 'financial', 'investment', 'terms', 'funding'],
+        agentTypes: ['Financial'],
+        docLimit: 10
+      },
+      investmentTerms: {
+        docKeywords: ['terms', 'investment', 'funding', 'valuation', 'agreement', 'contract'],
+        agentTypes: ['Financial', 'legal'],
+        docLimit: 8
+      },
+
+      // Legal & Regulatory Sections
+      legalAssessment: {
+        docKeywords: ['legal', 'contract', 'agreement', 'compliance', 'regulation', 'license'],
+        agentTypes: ['legal'],
+        docLimit: 25
+      },
+      regulatoryAnalysis: {
+        docKeywords: ['regulatory', 'regulation', 'compliance', 'approval', 'fda', 'ce', 'license'],
+        agentTypes: ['legal', 'clinical'],
+        docLimit: 20
+      },
+      ipAnalysis: {
+        docKeywords: ['patent', 'intellectual', 'property', 'ip', 'trademark', 'copyright'],
+        agentTypes: ['IP', 'legal'],
+        docLimit: 15
+      },
+
+      // Clinical & Technical Sections
+      clinicalAssessment: {
+        docKeywords: ['clinical', 'trial', 'study', 'medical', 'patient', 'regulatory', 'fda'],
+        agentTypes: ['clinical', 'Research'],
+        docLimit: 30
+      },
+      technologyAssessment: {
+        docKeywords: ['technology', 'technical', 'product', 'development', 'innovation'],
+        agentTypes: ['Research', 'IP'],
+        docLimit: 18
+      },
+      productAnalysis: {
+        docKeywords: ['product', 'technology', 'development', 'innovation', 'features'],
+        agentTypes: ['Research'],
+        docLimit: 12
+      },
+      researchInsights: {
+        docKeywords: ['research', 'study', 'development', 'innovation', 'technology'],
+        agentTypes: ['Research', 'clinical'],
+        docLimit: 20
+      },
+
+      // Team & Management Sections
+      teamAssessment: {
+        docKeywords: ['team', 'management', 'executive', 'founder', 'personnel', 'cv', 'resume'],
+        agentTypes: ['HR'],
+        docLimit: 8
+      },
+      managementAnalysis: {
+        docKeywords: ['management', 'executive', 'ceo', 'founder', 'team', 'leadership'],
+        agentTypes: ['HR'],
+        docLimit: 10
+      },
+
+      // Risk & Strategy Sections
+      riskAssessment: {
+        docKeywords: ['risk', 'challenge', 'threat', 'regulatory', 'competitive'],
+        agentTypes: ['Commercial', 'legal', 'clinical'],
+        docLimit: 15
+      },
+      exitStrategy: {
+        docKeywords: ['exit', 'strategy', 'acquisition', 'ipo', 'investment'],
+        agentTypes: ['Commercial', 'Financial'],
+        docLimit: 5
+      }
+    };
+
+    const mapping = sectionMapping[sectionKey];
+    if (!mapping) {
+      // Default for sections not explicitly mapped - show moderate number
       return {
-        ocrDocuments: [],
-        aiSummaries: [],
-        agentAnalyses: []
+        ocrDocuments: allOcrDocs.slice(0, 10),
+        aiSummaries: allAiSummaries.slice(0, 3),
+        agentAnalyses: memoData.agentAnalyses.map((analysis: any) => `${analysis.agentType} Agent`)
       };
     }
+
+    // Filter documents by relevance keywords with debug logging
+    const relevantDocs = allOcrDocs.filter(docName => {
+      const lowerName = docName.toLowerCase();
+      const isRelevant = mapping.docKeywords.some(keyword => lowerName.includes(keyword));
+      if (isRelevant) {
+        console.log(`📄 RELEVANT: "${docName}" matches "${sectionKey}" keywords`);
+      }
+      return isRelevant;
+    });
+
+    console.log(`🔍 Section "${sectionKey}": Found ${relevantDocs.length} keyword-matched docs out of ${allOcrDocs.length} total`);
+
+    // If no specific matches, use a more intelligent fallback strategy
+    let finalDocs: string[];
+    if (relevantDocs.length > 0) {
+      finalDocs = relevantDocs.slice(0, mapping.docLimit);
+      console.log(`✅ Using ${finalDocs.length} keyword-matched documents for "${sectionKey}"`);
+    } else {
+      // Use intelligent section-specific document selection patterns
+      finalDocs = this.getIntelligentDocumentSelection(sectionKey, allOcrDocs, mapping.docLimit);
+      console.log(`🎯 Using ${finalDocs.length} intelligently selected documents for "${sectionKey}"`);
+    }
+
+    // Filter AI summaries similarly
+    const relevantAiSummaries = allAiSummaries.filter(docName => {
+      const lowerName = docName.toLowerCase();
+      return mapping.docKeywords.some(keyword => lowerName.includes(keyword));
+    });
+
+    // Filter relevant agents
+    const relevantAgents = memoData.agentAnalyses
+      .filter((analysis: any) => mapping.agentTypes.includes(analysis.agentType))
+      .map((analysis: any) => `${analysis.agentType} Agent`);
+
+    return {
+      ocrDocuments: finalDocs,
+      aiSummaries: relevantAiSummaries.slice(0, 5),
+      agentAnalyses: relevantAgents
+    };
+  }
+
+  /**
+   * Intelligent document selection when keyword matching fails
+   */
+  private getIntelligentDocumentSelection(sectionKey: string, allDocs: string[], limit: number): string[] {
+    // Section-specific document patterns for biotech/medtech companies like BAIBYS
+    const sectionPatterns: Record<string, {
+      patterns: string[];
+      percentage: number; // percentage of total docs to include
+    }> = {
+      marketAnalysis: {
+        patterns: ['market', 'industry', 'competition', 'business', 'commercial'],
+        percentage: 0.10 // 10% of documents
+      },
+      financialAnalysis: {
+        patterns: ['financial', 'balance', 'cash', 'revenue', 'funding', 'investment', 'agreement'],
+        percentage: 0.15 // 15% of documents 
+      },
+      clinicalAssessment: {
+        patterns: ['clinical', 'trial', 'study', 'medical', 'patient', 'regulatory', 'presubmission', 'fda'],
+        percentage: 0.25 // 25% of documents (most important for medtech)
+      },
+      legalAssessment: {
+        patterns: ['agreement', 'contract', 'legal', 'compliance', 'registration', 'license'],
+        percentage: 0.20 // 20% of documents
+      },
+      teamAssessment: {
+        patterns: ['cv', 'resume', 'personnel', 'team', 'management', 'executive'],
+        percentage: 0.05 // 5% of documents
+      },
+      technologyAssessment: {
+        patterns: ['technology', 'technical', 'product', 'development', 'system', 'patent'],
+        percentage: 0.15 // 15% of documents
+      },
+      regulatoryAnalysis: {
+        patterns: ['regulatory', 'regulation', 'compliance', 'approval', 'submission', 'registration'],
+        percentage: 0.20 // 20% of documents
+      },
+      ipAnalysis: {
+        patterns: ['patent', 'intellectual', 'property', 'ip', 'trademark'],
+        percentage: 0.10 // 10% of documents
+      }
+    };
+
+    const pattern = sectionPatterns[sectionKey];
+    if (!pattern) {
+      // Default selection - evenly distribute documents
+      const defaultLimit = Math.min(8, Math.ceil(allDocs.length * 0.08));
+      return allDocs.slice(0, defaultLimit);
+    }
+
+    // Calculate how many documents this section should get
+    const sectionLimit = Math.min(limit, Math.ceil(allDocs.length * pattern.percentage));
+    
+    // First try pattern matching
+    const patternMatched = allDocs.filter(doc => {
+      const lowerDoc = doc.toLowerCase();
+      return pattern.patterns.some(p => lowerDoc.includes(p));
+    });
+
+    if (patternMatched.length >= sectionLimit) {
+      return patternMatched.slice(0, sectionLimit);
+    }
+
+    // If not enough pattern matches, supplement with evenly distributed selection
+    const remaining = sectionLimit - patternMatched.length;
+    const step = Math.floor(allDocs.length / remaining);
+    const supplemental = [];
+    
+    for (let i = 0; i < remaining && i * step < allDocs.length; i++) {
+      const doc = allDocs[i * step];
+      if (!patternMatched.includes(doc)) {
+        supplemental.push(doc);
+      }
+    }
+
+    return [...patternMatched, ...supplemental.slice(0, remaining)];
   }
 
   // Helper function to get all deal data intelligently
