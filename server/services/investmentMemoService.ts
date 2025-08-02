@@ -1168,17 +1168,71 @@ Extract specific financial data from documents including historical financials, 
   }
 
   private async generateAppendices(data: ComprehensiveMemoData): Promise<string> {
+    console.log(`📋 Generating comprehensive appendices from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+    
+    // Extract actual document data for appendices
+    const documentIndex = data.documents.map(doc => ({
+      name: doc.name,
+      type: doc.type || 'Unknown',
+      size: doc.size || 0,
+      uploadDate: doc.uploadedAt,
+      hasOCR: !!(doc.ocrText || doc.ocr_text),
+      ocrLength: (doc.ocrText || doc.ocr_text || '').length
+    }));
+
+    // Prepare comprehensive context including ALL available data
+    const fullContext = await this.prepareIntelligentOCRExtractionContext(data);
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate comprehensive appendices including supporting data, financial models, market research, and technical specifications.`
+        content: `Generate comprehensive BAIBYS-quality appendices with AUTHENTIC extracted data from documents. Include:
+
+**APPENDIX A: DOCUMENT INDEX AND SUMMARY**
+- Complete listing of all ${data.documents.length} documents with names, types, dates, and relevance
+- Document categorization (financial, legal, technical, clinical, regulatory)
+- Key document summary with extracted insights
+
+**APPENDIX B: FINANCIAL MODELS AND DATA** 
+- Extract actual financial data from documents (revenue figures, funding amounts, projections)
+- Authentic financial metrics and KPIs found in documents
+- Historical financial performance data
+- Use of funds breakdowns from pitch decks/financial documents
+
+**APPENDIX C: TECHNICAL SPECIFICATIONS**
+- Extract technical details from product documentation
+- Clinical trial data and regulatory filings
+- Patent information and IP portfolio details
+- Technical architecture and development roadmap
+
+**APPENDIX D: MARKET DATA AND RESEARCH**
+- Extract market sizing data from research documents
+- Competitive analysis data from documents
+- Customer validation and market traction metrics
+- Industry reports and market studies referenced
+
+**APPENDIX E: MANAGEMENT AND CORPORATE STRUCTURE**
+- Extract executive biographies and team information
+- Board composition and advisory structure
+- Shareholding structure and cap table details
+- Corporate governance documents
+
+**EXTRACT ONLY AUTHENTIC DATA - Never fabricate. Use specific names, numbers, dates, and details found in the documents. If no data found, state "Not available in provided documents".**`
       }, {
         role: "user",
-        content: `Generate appendices for comprehensive investment memo with ${data.documents.length} documents and ${data.agentAnalyses.length} analyses.`
+        content: `Generate comprehensive appendices using authentic data extracted from BAIBYS documents:
+
+DOCUMENT INDEX:
+${documentIndex.map(doc => `- ${doc.name} (${doc.type}, ${(doc.size/1024).toFixed(1)}KB, OCR: ${doc.ocrLength} chars)`).join('\n')}
+
+COMPREHENSIVE ANALYSIS CONTEXT:
+${fullContext.substring(0, 45000)}`
       }],
-      temperature: 0.7
+      temperature: 0.2,
+      max_tokens: 4000
     });
+    
     return response.choices[0].message.content || '';
   }
 
