@@ -595,11 +595,26 @@ export default function MemoGenerator() {
                       {currentMemo?.productAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-cyan-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Product & Technology Analysis</CardTitle>
-                                <p className="text-slate-400 text-sm">Product overview and technological differentiation</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-cyan-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Product & Technology Analysis</CardTitle>
+                                  <p className="text-slate-400 text-sm">Product overview and technological differentiation</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.productAnalysis || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="productAnalysis"
+                                  sectionTitle="Product Analysis"
+                                  currentContent={typeof currentMemo.productAnalysis === 'object' ? JSON.stringify(currentMemo.productAnalysis, null, 2) : currentMemo.productAnalysis}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, productAnalysis: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>
@@ -691,11 +706,26 @@ export default function MemoGenerator() {
                       {currentMemo?.teamAssessment && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-violet-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Management Team Assessment</CardTitle>
-                                <p className="text-slate-400 text-sm">Leadership team evaluation and key personnel analysis</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-violet-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Management Team Assessment</CardTitle>
+                                  <p className="text-slate-400 text-sm">Leadership team evaluation and key personnel analysis</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.teamAssessment || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="teamAssessment"
+                                  sectionTitle="Team Assessment"
+                                  currentContent={typeof currentMemo.teamAssessment === 'object' ? JSON.stringify(currentMemo.teamAssessment, null, 2) : currentMemo.teamAssessment}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, teamAssessment: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>
@@ -767,11 +797,26 @@ export default function MemoGenerator() {
                       {currentMemo?.commercialAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-amber-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Commercial Analysis</CardTitle>
-                                <p className="text-slate-400 text-sm">Commercial viability and market readiness assessment</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-amber-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Commercial Analysis</CardTitle>
+                                  <p className="text-slate-400 text-sm">Commercial viability and market readiness assessment</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.commercialStrategy || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="commercialStrategy"
+                                  sectionTitle="Commercial Analysis"
+                                  currentContent={currentMemo.commercialAnalysis}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, commercialAnalysis: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>
@@ -933,11 +978,26 @@ export default function MemoGenerator() {
                       {currentMemo?.investmentTerms && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Investment Terms</CardTitle>
-                                <p className="text-slate-400 text-sm">Deal structure, valuation, and investment terms</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Investment Terms</CardTitle>
+                                  <p className="text-slate-400 text-sm">Deal structure, valuation, and investment terms</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.investmentTerms || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="investmentTerms"
+                                  sectionTitle="Investment Terms"
+                                  currentContent={typeof currentMemo.investmentTerms === 'object' ? JSON.stringify(currentMemo.investmentTerms, null, 2) : currentMemo.investmentTerms}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, investmentTerms: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>
