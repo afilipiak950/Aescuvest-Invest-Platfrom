@@ -106,17 +106,27 @@ export default function MemoGenerator() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load section sources when deal is selected
+  // Load section sources when deal is selected (with cache busting)
   useEffect(() => {
     if (selectedDeal) {
       const loadSectionSources = async () => {
         try {
+          console.log(`🔄 Loading section sources for deal ${selectedDeal}`);
           const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
           const sourcePromises = mainSections.map(async (sectionKey) => {
             try {
-              const response = await fetch(`/api/deals/${selectedDeal}/memo/section-sources/${sectionKey}`);
+              // Add cache busting parameter to ensure fresh data
+              const timestamp = Date.now();
+              const response = await fetch(`/api/deals/${selectedDeal}/memo/section-sources/${sectionKey}?t=${timestamp}`, {
+                cache: 'no-cache',
+                headers: {
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache'
+                }
+              });
               if (response.ok) {
                 const data = await response.json();
+                console.log(`📊 Section "${sectionKey}": ${data.sources?.ocrDocuments?.length || 0} OCR docs, ${data.sources?.agentAnalyses?.length || 0} agents`);
                 return [sectionKey, data.sources];
               }
             } catch (error) {
@@ -128,6 +138,7 @@ export default function MemoGenerator() {
           const results = await Promise.all(sourcePromises);
           const sourcesMap = Object.fromEntries(results);
           setSectionSources(sourcesMap);
+          console.log(`✅ Loaded section sources for ${mainSections.length} sections`);
         } catch (error) {
           console.error('Failed to load section sources:', error);
         }
