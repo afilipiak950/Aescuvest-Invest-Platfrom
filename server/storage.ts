@@ -313,18 +313,46 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]> {
-    console.log(`📄 DB: Fetching documents with OCR for deal ${dealId}...`);
+    console.log(`📄 DB: Fetching documents with FULL OCR text for deal ${dealId}...`);
     const startTime = Date.now();
     
-    // Get all documents with OCR text for analysis
+    // Get ALL documents including OCR text for investment memo generation
     const result = await db
-      .select()
+      .select({
+        id: documents.id,
+        dealId: documents.dealId,
+        name: documents.name,
+        type: documents.type,
+        path: documents.path,
+        size: documents.size,
+        status: documents.status,
+        ocrText: documents.ocrText, // INCLUDE OCR TEXT - Critical for investment memo generation
+        uploadedAt: documents.uploadedAt,
+        folderPath: documents.folderPath,
+        isFolder: documents.isFolder,
+        parentId: documents.parentId,
+        category: documents.category,
+        documentType: documents.documentType,
+        aiSummaryStatus: documents.aiSummaryStatus,
+        aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
+        aiSummary: documents.aiSummary,
+        analyses: documents.analyses,
+        assignedAgents: documents.assignedAgents,
+        assignmentReason: documents.assignmentReason,
+        assignmentConfidence: documents.assignmentConfidence,
+        manuallyAssigned: documents.manuallyAssigned,
+        assignedAt: documents.assignedAt
+      })
       .from(documents)
       .where(eq(documents.dealId, dealId))
       .orderBy(documents.name);
     
     const queryTime = Date.now() - startTime;
+    const docsWithOcr = result.filter(doc => doc.ocrText && doc.ocrText.length > 100).length;
+    const totalOcrLength = result.reduce((sum, doc) => sum + (doc.ocrText?.length || 0), 0);
+    
     console.log(`📄 DB: OCR query completed in ${queryTime}ms, found ${result.length} documents`);
+    console.log(`📄 DB: ${docsWithOcr} documents have OCR text with ${totalOcrLength.toLocaleString()} total characters`);
     
     return result;
   }
