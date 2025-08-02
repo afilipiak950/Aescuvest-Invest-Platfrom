@@ -759,11 +759,14 @@ Extract specific, actionable points with authentic data. Format as JSON with det
   }
 
   private async generateMarketAnalysis(context: string): Promise<InvestmentMemoSections['marketAnalysis']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive market analysis matching BAIBYS reference PDF quality. Extract ONLY authentic market data from context. Include:
+    console.log(`📊 Generating market analysis from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate comprehensive market analysis matching BAIBYS reference PDF quality. Extract ONLY authentic market data from context. Include:
 
 **AUTHENTIC MARKET DATA EXTRACTION:**
 1. **Specific Market Sizes**: Extract exact TAM/SAM/SOM figures with sources (e.g., "$64.53B global fertility market", "14.2% CAGR")
@@ -782,52 +785,117 @@ Extract specific, actionable points with authentic data. Format as JSON with det
 - Competitive landscape with real competitor analysis
 - Market timing with regulatory and technological drivers
 
-Format as JSON with authentic data only - never fabricate market numbers.`
-      }, {
-        role: "user",
-        content: `Extract authentic market analysis data from BAIBYS context:\n\n${context.substring(0, 50000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.2
-    });
+**EXTRACTION REQUIREMENTS:**
+- If information is not found in documents, state "Information not available in provided documents"
+- Never fabricate market numbers - extract only from authentic document analysis
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      marketContext: result.marketContext || '',
-      marketSize: {
-        tam: result.marketSize?.tam || '',
-        sam: result.marketSize?.sam || '',
-        som: result.marketSize?.som || ''
-      },
-      competitiveLandscape: result.competitiveLandscape || '',
-      marketTiming: result.marketTiming || ''
-    };
+Format as JSON with authentic data only - never fabricate market numbers.`
+        }, {
+          role: "user",
+          content: `Extract authentic market analysis data from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 3000
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Market Analysis Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify(getMemoFallback('marketAnalysis'))
+      }
+    ) as Promise<string>;
+
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`📊 Market analysis generated: ${JSON.stringify(result).length} characters`);
+      return {
+        marketContext: result.marketContext || 'No market context information available in provided documents',
+        marketSize: {
+          tam: result.marketSize?.tam || 'No TAM data available in provided documents',
+          sam: result.marketSize?.sam || 'No SAM data available in provided documents',
+          som: result.marketSize?.som || 'No SOM data available in provided documents'
+        },
+        competitiveLandscape: result.competitiveLandscape || 'No competitive landscape information available in provided documents',
+        marketTiming: result.marketTiming || 'No market timing information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing market analysis JSON:', e);
+      const fallback = getMemoFallback('marketAnalysis');
+      return fallback;
+    }
   }
 
   // Additional section generators follow the same pattern...
   // (Continuing with abbreviated versions for space)
 
   private async generateProductAnalysis(context: string): Promise<InvestmentMemoSections['productAnalysis']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Analyze product/technology including overview, advantages, competitive edge, and development stage. Format as JSON.`
-      }, {
-        role: "user",
-        content: `Analyze product:\n\n${context.substring(0, 8000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.7
-    });
+    console.log(`🔬 Generating product analysis from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate comprehensive product analysis matching BAIBYS reference PDF quality. Extract ONLY authentic product information:
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      productOverview: result.productOverview || '',
-      technologyAdvantage: result.technologyAdvantage || '',
-      competitiveEdge: result.competitiveEdge || '',
-      developmentStage: result.developmentStage || ''
-    };
+**AUTHENTIC PRODUCT DATA EXTRACTION:**
+1. **Product Overview**: Extract actual product description, BAIBYS System specifications, AI capabilities
+2. **Technology Advantage**: Real technical differentiation, AI algorithms, machine learning capabilities
+3. **Competitive Edge**: Specific advantages over existing solutions, clinical validation data
+4. **Development Stage**: Current development status, regulatory approvals, clinical trials
+
+**REQUIRED ANALYSIS STRUCTURE:**
+- Product Overview: Detailed description of BAIBYS System, AI-powered features, clinical applications
+- Technology Advantage: Technical differentiation, AI/ML capabilities, clinical validation
+- Competitive Edge: Specific advantages, competitive positioning, differentiation factors
+- Development Stage: Current status, regulatory pathway, clinical milestones
+
+**EXTRACTION REQUIREMENTS:**
+- Use specific product names, technical specifications, clinical data from documents
+- Include actual performance metrics, accuracy rates, clinical outcomes
+- Reference real regulatory approvals, clinical trial results, technical validations
+- If information is not found in documents, state "Information not available in provided documents"
+- Never fabricate technical specifications - extract only from authentic document analysis
+
+Format as JSON with detailed product information from authentic sources only.`
+        }, {
+          role: "user",
+          content: `Extract authentic product analysis from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 3000
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Product Analysis Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify({
+          productOverview: 'Product overview information is temporarily unavailable. This section will analyze the BAIBYS System technology platform and clinical applications.',
+          technologyAdvantage: 'Technology advantage information is temporarily unavailable. This section will assess AI capabilities and technical differentiation.',
+          competitiveEdge: 'Competitive edge information is temporarily unavailable. This section will evaluate competitive positioning and advantages.',
+          developmentStage: 'Development stage information is temporarily unavailable. This section will review current status and regulatory pathway.'
+        })
+      }
+    ) as Promise<string>;
+
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`🔬 Product analysis generated: ${JSON.stringify(result).length} characters`);
+      return {
+        productOverview: result.productOverview || 'No product overview information available in provided documents',
+        technologyAdvantage: result.technologyAdvantage || 'No technology advantage information available in provided documents',
+        competitiveEdge: result.competitiveEdge || 'No competitive edge information available in provided documents',
+        developmentStage: result.developmentStage || 'No development stage information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing product analysis JSON:', e);
+      return {
+        productOverview: 'Product overview information is temporarily unavailable. This section will analyze the BAIBYS System technology platform and clinical applications.',
+        technologyAdvantage: 'Technology advantage information is temporarily unavailable. This section will assess AI capabilities and technical differentiation.',
+        competitiveEdge: 'Competitive edge information is temporarily unavailable. This section will evaluate competitive positioning and advantages.',
+        developmentStage: 'Development stage information is temporarily unavailable. This section will review current status and regulatory pathway.'
+      };
+    }
   }
 
   private async generateBusinessModel(context: string): Promise<InvestmentMemoSections['businessModel']> {
@@ -854,11 +922,14 @@ Format as JSON with authentic data only - never fabricate market numbers.`
   }
 
   private async generateTeamAssessment(context: string): Promise<InvestmentMemoSections['teamAssessment']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate professional management assessment matching BAIBYS PDF format. Extract ONLY authentic team information:
+    console.log(`👥 Generating team assessment from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate professional management assessment matching BAIBYS PDF format. Extract ONLY authentic team information:
 
 **EXECUTIVE TEAM ASSESSMENT:**
 - CEO: Extract actual name, background, previous experience, educational credentials
@@ -882,24 +953,48 @@ Format as JSON with authentic data only - never fabricate market numbers.`
 - Use specific names, titles, previous companies, educational backgrounds
 - Include years of experience, specific achievements, domain expertise
 - Reference actual advisory relationships and board positions
+- If information is not found in documents, state "Information not available in provided documents"
 - Never fabricate names or backgrounds - extract only from documents
 
 Format as JSON with detailed team information from authentic sources only.`
-      }, {
-        role: "user",
-        content: `Extract authentic team assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.3
-    });
+        }, {
+          role: "user",
+          content: `Extract authentic team assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 3000
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Team Assessment Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify({
+          management: 'Management information is temporarily unavailable. This section will analyze executive team composition and leadership capabilities.',
+          keyPersonnel: [],
+          advisors: 'Advisory information is temporarily unavailable. This section will assess scientific and clinical advisory board.',
+          boardComposition: 'Board composition information is temporarily unavailable. This section will evaluate board structure and governance.'
+        })
+      }
+    ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      management: result.management || '',
-      keyPersonnel: result.keyPersonnel || [],
-      advisors: result.advisors || '',
-      boardComposition: result.boardComposition || ''
-    };
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`👥 Team assessment generated: ${JSON.stringify(result).length} characters`);
+      return {
+        management: result.management || 'No management information available in provided documents',
+        keyPersonnel: result.keyPersonnel || [],
+        advisors: result.advisors || 'No advisor information available in provided documents',
+        boardComposition: result.boardComposition || 'No board composition information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing team assessment JSON:', e);
+      return {
+        management: 'Management information is temporarily unavailable. This section will analyze executive team composition and leadership capabilities.',
+        keyPersonnel: [],
+        advisors: 'Advisory information is temporarily unavailable. This section will assess scientific and clinical advisory board.',
+        boardComposition: 'Board composition information is temporarily unavailable. This section will evaluate board structure and governance.'
+      };
+    }
   }
 
   private async generateFinancialAnalysis(context: string): Promise<InvestmentMemoSections['financialAnalysis']> {
@@ -1086,11 +1181,14 @@ Format as JSON with detailed risk arrays from authentic sources only.`
   }
 
   private async generateInvestmentTerms(context: string): Promise<InvestmentMemoSections['investmentTerms']> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate professional investment terms matching BAIBYS PDF format. Extract ONLY authentic investment terms from documents:
+    console.log(`💰 Generating investment terms from ${context.length.toLocaleString()} characters of context`);
+    
+    const response = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `Generate professional investment terms matching BAIBYS PDF format. Extract ONLY authentic investment terms from documents:
 
 **INVESTMENT TERMS EXTRACTION:**
 1. **Valuation**: Extract pre-money/post-money valuations from term sheets
@@ -1110,25 +1208,40 @@ Format as JSON with detailed risk arrays from authentic sources only.`
 - Use specific valuations, amounts, percentages from term sheets
 - Include actual board composition and voting structures
 - Reference real liquidation preferences and participation rights
+- If information is not found in documents, state "Information not available in provided documents"
 - Never fabricate investment terms - extract only from documents
 
 Format as JSON with detailed investment terms from authentic sources only.`
-      }, {
-        role: "user",
-        content: `Extract authentic investment terms from BAIBYS context:\n\n${context.substring(0, 50000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.2
-    });
+        }, {
+          role: "user",
+          content: `Extract authentic investment terms from BAIBYS context:\n\n${context.substring(0, 50000)}`
+        }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 3000
+      }).then(response => response.choices[0].message.content || '{}'),
+      {
+        description: 'Investment Terms Generation',
+        priority: 'high',
+        fallbackContent: JSON.stringify(getMemoFallback('investmentTerms'))
+      }
+    ) as Promise<string>;
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      valuation: result.valuation || '',
-      fundingAmount: result.fundingAmount || '',
-      securities: result.securities || '',
-      boardRights: result.boardRights || '',
-      liquidationPreference: result.liquidationPreference || ''
-    };
+    try {
+      const result = JSON.parse(response || '{}');
+      console.log(`💰 Investment terms generated: ${JSON.stringify(result).length} characters`);
+      return {
+        valuation: result.valuation || 'No valuation information available in provided documents',
+        fundingAmount: result.fundingAmount || 'No funding amount information available in provided documents',
+        securities: result.securities || 'No securities information available in provided documents',
+        boardRights: result.boardRights || 'No board rights information available in provided documents',
+        liquidationPreference: result.liquidationPreference || 'No liquidation preference information available in provided documents'
+      };
+    } catch (e) {
+      console.error('❌ Error parsing investment terms JSON:', e);
+      const fallback = getMemoFallback('investmentTerms');
+      return fallback;
+    }
   }
 
   private async generateRecommendation(context: string): Promise<InvestmentMemoSections['recommendation']> {
