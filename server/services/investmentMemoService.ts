@@ -1785,9 +1785,48 @@ Generate only the content for this specific section based on your custom enhance
     const allAiSummaries = memoData.documents
       .filter(doc => {
         const aiSummary = doc.aiSummary || doc.ai_summary || (doc as any)['ai_summary'];
-        return aiSummary && typeof aiSummary === 'string' && aiSummary.length > 100;
+        let hasValidSummary = false;
+        
+        if (aiSummary) {
+          // Handle both string and object cases
+          if (typeof aiSummary === 'string' && aiSummary.length > 100) {
+            hasValidSummary = true;
+            console.log(`🧠 SECTION SOURCE AI SUMMARY: "${doc.name}" has ${aiSummary.length} character string summary`);
+          } else if (typeof aiSummary === 'object' && JSON.stringify(aiSummary).length > 100) {
+            hasValidSummary = true;
+            console.log(`🧠 SECTION SOURCE AI SUMMARY: "${doc.name}" has ${JSON.stringify(aiSummary).length} character JSON summary`);
+          }
+        }
+        
+        return hasValidSummary;
       })
       .map(doc => doc.name);
+    
+    console.log(`🔍 SECTION AI SUMMARIES FILTER: Found ${allAiSummaries.length} AI summaries out of ${memoData.documents.length} total docs`);
+    
+    // Debug first few documents to understand field structure
+    if (memoData.documents.length > 0) {
+      const firstDoc = memoData.documents[0];
+      console.log(`🔍 FIRST DOC FIELDS:`, Object.keys(firstDoc));
+      const firstAiField = firstDoc.ai_summary || firstDoc.aiSummary;
+      const firstAiSize = firstAiField ? (typeof firstAiField === 'string' ? firstAiField.length : JSON.stringify(firstAiField).length) : 0;
+      console.log(`🔍 AI FIELDS: aiSummary=${!!firstDoc.aiSummary}, ai_summary=${!!firstDoc.ai_summary}, type=${typeof firstAiField}, size=${firstAiSize}`);
+      
+      // Check for any docs with AI summaries
+      let docsWithAI = 0;
+      for (let i = 0; i < Math.min(5, memoData.documents.length); i++) {
+        const doc = memoData.documents[i];
+        const aiField = doc.ai_summary || doc.aiSummary;
+        if (aiField) {
+          docsWithAI++;
+          const size = typeof aiField === 'string' ? aiField.length : JSON.stringify(aiField).length;
+          console.log(`🧠 DOC ${i}: "${doc.name}" has AI summary: ${size} chars (${typeof aiField})`);
+        } else {
+          console.log(`❌ DOC ${i}: "${doc.name}" has NO AI summary field`);
+        }
+      }
+      console.log(`🔍 AI SUMMARY CHECK: Found ${docsWithAI} docs with AI summaries in first 5`);
+    }
 
     // Section-specific source mapping based on content relevance
     const sectionMapping: Record<string, {
@@ -1936,11 +1975,24 @@ Generate only the content for this specific section based on your custom enhance
       console.log(`🎯 Using ${finalDocs.length} intelligently selected documents for "${sectionKey}"`);
     }
 
-    // Filter AI summaries similarly
-    const relevantAiSummaries = allAiSummaries.filter(docName => {
+    // Filter AI summaries - use broader strategy since AI summaries contain rich content even if filename doesn't match keywords
+    let relevantAiSummaries: string[];
+    
+    // First try keyword matching
+    const keywordMatchedSummaries = allAiSummaries.filter(docName => {
       const lowerName = docName.toLowerCase();
       return mapping.docKeywords.some(keyword => lowerName.includes(keyword));
     });
+    
+    if (keywordMatchedSummaries.length > 0) {
+      relevantAiSummaries = keywordMatchedSummaries;
+      console.log(`🧠 AI SUMMARIES: Found ${keywordMatchedSummaries.length} keyword-matched AI summaries for "${sectionKey}"`);
+    } else {
+      // Use all available AI summaries with intelligent proportional allocation
+      const proportionalLimit = Math.min(Math.ceil(allAiSummaries.length * 0.3), 8); // Use up to 30% or max 8
+      relevantAiSummaries = allAiSummaries.slice(0, proportionalLimit);
+      console.log(`🧠 AI SUMMARIES: Using ${relevantAiSummaries.length} proportional AI summaries for "${sectionKey}" (out of ${allAiSummaries.length} total)`);
+    }
 
     // Filter relevant agents
     const relevantAgents = memoData.agentAnalyses
@@ -2043,13 +2095,27 @@ Generate only the content for this specific section based on your custom enhance
     // Get all documents with OCR text
     const documentsWithOCR = await storage.getDocumentsWithOCRForMemo(dealId);
     
-    // Get all AI summaries
-    const documentsWithSummaries = documentsWithOCR.filter(doc => doc.aiSummary);
+    // Get all AI summaries - check multiple field variations
+    const documentsWithSummaries = documentsWithOCR.filter(doc => {
+      const aiSummary = doc.aiSummary || doc.ai_summary || (doc as any)['ai_summary'];
+      const hasValidSummary = aiSummary && typeof aiSummary === 'string' && aiSummary.length > 100;
+      if (hasValidSummary) {
+        console.log(`🧠 AI SUMMARY FOUND: "${doc.name}" has ${aiSummary.length} character AI summary`);
+      }
+      return hasValidSummary;
+    });
     
     // Get all agent analyses
     const agentAnalyses = await storage.getAnalysesByDealId(dealId);
     
     console.log(`📊 Data gathered: ${documentsWithOCR.length} OCR docs, ${documentsWithSummaries.length} AI summaries, ${agentAnalyses.length} agent analyses`);
+    
+    // Debug: Check what fields exist in first few documents
+    if (documentsWithOCR.length > 0) {
+      const firstDoc = documentsWithOCR[0];
+      console.log(`🔍 DEBUG: First document fields:`, Object.keys(firstDoc));
+      console.log(`🔍 DEBUG: AI summary field check - aiSummary: ${!!firstDoc.aiSummary}, ai_summary: ${!!firstDoc.ai_summary}, length: ${firstDoc.ai_summary?.length || 0}`);
+    }
     
     return {
       ocrText: documentsWithOCR.map(doc => ({
@@ -2059,7 +2125,7 @@ Generate only the content for this specific section based on your custom enhance
       
       aiSummaries: documentsWithSummaries.map(doc => ({
         name: doc.name,
-        content: doc.aiSummary || ''
+        content: doc.aiSummary || doc.ai_summary || (doc as any)['ai_summary'] || ''
       })),
       
       agentAnalyses: agentAnalyses.map(analysis => ({
