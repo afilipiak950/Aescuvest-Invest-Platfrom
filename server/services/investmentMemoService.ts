@@ -1744,21 +1744,51 @@ Generate only the content for this specific section based on your custom enhance
     aiSummaries: string[];
     agentAnalyses: string[];
   }> {
-    console.log(`📊 Getting source information for section "${sectionKey}" in deal ${dealId}`);
+    console.log(`📊 SECTION SOURCES: Getting source info for "${sectionKey}" in deal ${dealId}`);
     
     try {
-      // Get all available data sources
-      const { ocrText, aiSummaries, agentAnalyses } = await this.getAllDealData(dealId);
+      // Use the exact same method that successfully retrieves 220 OCR documents
+      const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
-      // Return source information
+      if (!memoData) {
+        console.log(`❌ SECTION SOURCES: No memo data found for deal ${dealId}`);
+        return {
+          ocrDocuments: [],
+          aiSummaries: [],
+          agentAnalyses: []
+        };
+      }
+
+      // Extract OCR documents (using the proven working method)
+      const ocrDocuments: string[] = [];
+      const aiSummaries: string[] = [];
+      
+      memoData.documents.forEach((doc: any) => {
+        // Check for OCR content using the field names that work in gatherComprehensiveDataWithFullOCR
+        const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
+        if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
+          ocrDocuments.push(doc.name);
+        }
+        
+        // Check for AI summaries
+        const aiSummary = doc.aiSummary || doc.ai_summary || (doc as any)['ai_summary'];
+        if (aiSummary && typeof aiSummary === 'string' && aiSummary.length > 100) {
+          aiSummaries.push(doc.name);
+        }
+      });
+
+      const agentAnalyses = memoData.agentAnalyses.map((analysis: any) => `${analysis.agentType} Agent`);
+
+      console.log(`📊 SECTION SOURCES: Found ${ocrDocuments.length} OCR docs, ${aiSummaries.length} AI summaries, ${agentAnalyses.length} agents`);
+      
       return {
-        ocrDocuments: ocrText.map(doc => doc.name).slice(0, 20), // Limit for performance
-        aiSummaries: aiSummaries.map(doc => doc.name).slice(0, 10),
-        agentAnalyses: agentAnalyses.map(analysis => `${analysis.agentType} Agent`)
+        ocrDocuments: ocrDocuments.slice(0, 50), // Show substantial number for transparency
+        aiSummaries: aiSummaries.slice(0, 20),
+        agentAnalyses: agentAnalyses
       };
       
     } catch (error) {
-      console.error(`❌ Failed to get section sources:`, error);
+      console.error(`❌ SECTION SOURCES: Error:`, error);
       return {
         ocrDocuments: [],
         aiSummaries: [],
