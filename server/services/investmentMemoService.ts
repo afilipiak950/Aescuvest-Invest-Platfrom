@@ -908,31 +908,41 @@ Format as JSON with detailed product information from authentic sources only.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate comprehensive business model analysis matching BAIBYS PDF format. Extract ONLY authentic business information:
+          content: `You are analyzing comprehensive business model information for BAIBYS Fertility. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
 
-**REVENUE MODEL ANALYSIS:**
-- Revenue Streams: Extract actual business model, pricing structure, revenue sources
-- Pricing Strategy: Real pricing models, payment structures, subscription tiers
-- Sales Channels: Current sales approach, distribution strategy, go-to-market
-- Customer Acquisition: Actual customer acquisition strategy, cost metrics, conversion
+**CRITICAL SEARCH TARGETS:**
+Look specifically for:
+- Revenue growth rates (e.g., "15% projected annual revenue growth")
+- Partnership agreements with distributors/manufacturers (e.g., Sanmina partnerships)
+- Customer acquisition metrics and strategies
+- Sales performance indicators and market share data
+- Pricing structures from contracts and agreements
+- Distribution channels and go-to-market strategies
 
-**BUSINESS MODEL STRUCTURE:**
-1. **Revenue Model**: Detailed revenue streams, pricing strategy, business model type
-2. **Sales Channels**: Distribution channels, sales process, partnership approach
-3. **Pricing Strategy**: Pricing models, competitive pricing, value proposition
-4. **Customer Acquisition**: Customer acquisition cost, lifetime value, retention strategy
+**EXTRACTION STRATEGY:**
+1. **Revenue Model**: Extract actual revenue projections, growth rates, business model type from commercial analyses
+2. **Sales Channels**: Find partnership agreements, distributor relationships, international market expansion
+3. **Pricing Strategy**: Look for contract pricing, payment terms, subscription models in legal documents
+4. **Customer Acquisition**: Extract customer satisfaction rates, acquisition strategies, retention metrics
 
-**EXTRACTION REQUIREMENTS:**
-- Use specific business model details, actual pricing information
-- Include real customer acquisition costs, revenue projections
-- Reference actual sales channels, partnership agreements
-- If information is not found in documents, state "Information not available in provided documents"
-- Never fabricate business metrics - extract only from documents
+**DOCUMENT ANALYSIS FOCUS:**
+- Search "COMMERCIAL ANALYSIS" sections for sales performance metrics
+- Look for financial reports with revenue projections and growth data
+- Find partnership agreements (LOA, distributor contracts) for sales channel information
+- Extract customer acquisition data from commercial performance reports
 
-Format as JSON with detailed business model information from authentic sources only.`
+**OUTPUT REQUIREMENTS:**
+- Use specific numbers and percentages found in analyses (e.g., "15% annual growth")
+- Reference actual partnership companies and agreements
+- Include real commercial metrics from agent analyses
+- If no specific information found, state "No [specific metric] information available in provided documents"
+
+Format as JSON with detailed business model extracted from commercial analyses and financial documents.`
         }, {
           role: "user",
-          content: `Extract authentic business model from BAIBYS context:\n\n${context.substring(0, 50000)}`
+          content: `Extract BAIBYS business model from this comprehensive analysis. Focus on COMMERCIAL ANALYSIS sections and financial documents:
+
+${context.substring(0, 80000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -969,34 +979,36 @@ Format as JSON with detailed business model information from authentic sources o
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional management assessment matching BAIBYS PDF format. Extract ONLY authentic team information:
+          content: `You are analyzing BAIBYS Fertility management team information. Extract AUTHENTIC executive and personnel details from HR analyses, legal documents, and corporate filings.
 
-**EXECUTIVE TEAM ASSESSMENT:**
-- CEO: Extract actual name, background, previous experience, educational credentials
-- CTO/Technical Leaders: Real names, technical expertise, previous roles, achievements
-- CFO/Business Leaders: Financial background, previous companies, relevant experience
-- Founders: Founding story, backgrounds, equity positions, roles and responsibilities
+**CRITICAL SEARCH TARGETS:**
+Look specifically for:
+- Executive names: Dr. Yaron Silberman (CEO), Gal Golov, Dr. Nino Guy Cassuto
+- Employment contracts and executive compensation documents
+- Board member names and backgrounds in governance documents
+- Scientific advisory board members in clinical/research documents
+- Key personnel roles and responsibilities in organizational charts
 
-**KEY PERSONNEL ANALYSIS:**
-- Scientific Advisory Board: Extract actual names, titles, institutional affiliations
-- Clinical Advisors: Real KOL names, specializations, clinical experience
-- Board of Directors: Actual member names, backgrounds, governance experience
-- Key Employees: Technical team composition, experience levels, retention
+**EXTRACTION STRATEGY:**
+1. **Management**: Search for CEO, CTO, CFO names and backgrounds in HR documents and legal filings
+2. **Key Personnel**: Find employee contracts, organizational charts, team structure documents
+3. **Advisors**: Look for advisory board agreements, KOL relationships, scientific collaborations
+4. **Board Composition**: Extract board member names from corporate filings and governance documents
 
-**TEAM STRENGTH ASSESSMENT:**
-- Domain Expertise: Relevant industry experience and technical capabilities
-- Track Record: Previous successes, exits, relevant accomplishments
-- Team Completeness: Key roles filled, gaps and hiring plans
-- Advisory Quality: Strategic value of advisors and board members
+**DOCUMENT ANALYSIS FOCUS:**
+- Search employment contracts for executive roles and compensation
+- Look for corporate registration documents with director names
+- Find advisory agreements and consulting contracts
+- Extract team information from HR documents and organizational charts
+- Check legal documents for board composition and governance structure
 
-**EXTRACTION REQUIREMENTS:**
-- Use specific names, titles, previous companies, educational backgrounds
-- Include years of experience, specific achievements, domain expertise
-- Reference actual advisory relationships and board positions
-- If information is not found in documents, state "Information not available in provided documents"
-- Never fabricate names or backgrounds - extract only from documents
+**SPECIFIC DATA TO EXTRACT:**
+- Full executive names with titles and background experience
+- Advisory board members with their institutional affiliations
+- Board of directors composition and governance roles
+- Key technical team members and their expertise areas
 
-Format as JSON with detailed team information from authentic sources only.`
+Format as JSON with detailed team assessment extracted from HR, legal, and corporate documents.`
         }, {
           role: "user",
           content: `Extract authentic team assessment from BAIBYS context:\n\n${context.substring(0, 50000)}`
