@@ -528,12 +528,18 @@ export class EnhancedPdfExportService {
     return text
       // Remove markdown formatting but preserve structure indicators
       .replace(/#{1,6}\s*/g, '') // Remove markdown headers
+      .replace(/\*{4,}([^*]*)\*{2,}:\*{0,2}\s*/g, '$1: ') // Remove ****text:**** patterns
+      .replace(/\*{4,}([^*]*?):\*{2}\s*/g, '$1: ') // Remove ****text:** patterns  
+      .replace(/\*{4,}([^*]*)\*{4,}/g, '$1') // Remove ****text**** patterns
       .replace(/\*{3}([^*]+)\*{3}/g, '$1') // Remove triple asterisks (bold+italic)
       .replace(/\*{2}([^*]+)\*{2}/g, '$1') // Remove double asterisks (bold)
       .replace(/\*{1}([^*]+)\*{1}/g, '$1') // Remove single asterisks (italic)
+      .replace(/\*{2,}/g, '') // Remove any remaining multiple asterisks
+      .replace(/_{4,}([^_]*?):{1,2}\s*/g, '$1: ') // Remove ____text:__ patterns
       .replace(/_{3}([^_]+)_{3}/g, '$1') // Remove triple underscores
       .replace(/_{2}([^_]+)_{2}/g, '$1') // Remove double underscores (bold)
       .replace(/_{1}([^_]+)_{1}/g, '$1') // Remove single underscores (italic)
+      .replace(/_{2,}/g, '') // Remove any remaining multiple underscores
       .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // Remove code formatting
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links, keep text
       .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Remove markdown images, keep alt text
@@ -565,8 +571,20 @@ export class EnhancedPdfExportService {
     
     const result: Array<{type: string, content: string}> = [];
     
+    // First, aggressively clean all asterisk and underscore patterns
+    let cleanedText = text
+      .replace(/\*{4,}([^*]*?)\*{2,}:\*{0,2}/g, '$1:') // ****text:**** -> text:
+      .replace(/\*{4,}([^*]*?):\*{2}/g, '$1:') // ****text:** -> text:
+      .replace(/\*{4,}([^*]*?)\*{4,}/g, '$1') // ****text**** -> text
+      .replace(/\*{2,}([^*]*?)\*{2,}:\*{0,2}/g, '$1:') // **text:** -> text:
+      .replace(/\*{2,}([^*]*?)\*{2,}/g, '$1') // **text** -> text
+      .replace(/\*{2,}/g, '') // Remove standalone asterisks
+      .replace(/_{4,}([^_]*?)_{2,}:\*{0,2}/g, '$1:') // ____text__: -> text:
+      .replace(/_{2,}([^_]*?)_{2,}/g, '$1') // __text__ -> text
+      .replace(/_{2,}/g, ''); // Remove standalone underscores
+    
     // Split text into lines first, then process for better structure detection
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const lines = cleanedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
     if (lines.length === 0) return [];
     
@@ -605,12 +623,14 @@ export class EnhancedPdfExportService {
           result.push({ type: 'bullet', content: this.cleanText(bulletContent) });
         }
       }
-      // Enhanced heading detection
+      // Enhanced heading detection - including cleaned asterisk patterns
       else if (
         (line.match(/^[A-Z][A-Z\s\-:]+$/) && line.length < 80) || // ALL CAPS headings
         (line.match(/^\d+\.\s*[A-Z]/) && line.length < 100) || // Numbered sections
-        (line.endsWith(':') && line.length < 100 && !line.includes(',')) || // Colon endings
-        (line.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) && line.length < 80 && !line.includes(',')) // Title Case
+        (line.endsWith(':') && line.length < 100 && !line.includes(',') && !line.includes('.')) || // Colon endings
+        (line.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) && line.length < 80 && !line.includes(',')) || // Title Case
+        (line.match(/^\*{4,}.*?:/) || line.match(/^.*?:\*{2,}/)) || // Asterisk patterns like ****text:** or text:**
+        (line.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+:$/) && line.length < 100) // Clean title case with colon
       ) {
         // Save any accumulated paragraph first
         if (currentParagraph.trim()) {
