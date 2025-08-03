@@ -28,13 +28,52 @@ export class EnhancedPdfExportService {
     };
 
     const fonts = {
-      title: 22, // Larger, more impactful
-      sectionHeader: 16, // Clear hierarchy
-      heading: 14, // Professional size
-      subheading: 12, // Supporting content
-      body: 10, // Readable body text
-      caption: 9, // Fine details
-      small: 8 // Legal/footer text
+      title: 20, // Main document titles
+      sectionHeader: 14, // Section headers
+      heading: 12, // Subsection headings  
+      subheading: 11, // Supporting headings
+      body: 10, // Standard body text
+      tableHeader: 10, // Table headers
+      tableBody: 9, // Table content
+      caption: 9, // Captions and notes
+      small: 8 // Footer and legal text
+    };
+
+    // Typography helper functions for consistent formatting
+    const setTitleStyle = () => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fonts.title);
+      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    };
+
+    const setSectionHeaderStyle = () => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fonts.sectionHeader);
+      doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
+    };
+
+    const setBodyTextStyle = () => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(fonts.body);
+      doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+    };
+
+    const setTableHeaderStyle = () => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fonts.tableHeader);
+      doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
+    };
+
+    const setTableBodyStyle = () => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(fonts.tableBody);
+      doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+    };
+
+    const setSmallTextStyle = () => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(fonts.small);
+      doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
     };
 
     let yPosition = 30; // Account for header space
@@ -65,15 +104,14 @@ export class EnhancedPdfExportService {
       doc.setLineWidth(0.8);
       doc.line(margin, 15, pageWidth - margin, 15);
       
-      // Company name in header
-      doc.setFontSize(fonts.small);
-      doc.setFont('helvetica', 'bold');
+      // Company name in header with consistent styling
+      setSmallTextStyle();
+      doc.setFont('helvetica', 'bold'); // Override for company name
       doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       doc.text('AESCUVEST INVESTMENT INTELLIGENCE', margin, headerY);
       
-      // Document type
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
+      // Document type with consistent styling
+      setSmallTextStyle();
       doc.text('Investment Memorandum', pageWidth - margin, headerY, { align: 'right' });
     };
 
@@ -89,14 +127,12 @@ export class EnhancedPdfExportService {
       doc.setLineWidth(0.8);
       doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
       
-      // Page number with premium styling
-      doc.setFontSize(fonts.small);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
+      // Page number with consistent styling
+      setSmallTextStyle();
       const pageNum = doc.getNumberOfPages();
       doc.text(`Page ${pageNum}`, pageWidth - margin, footerY, { align: 'right' });
       
-      // Confidentiality notice
+      // Confidentiality notice with consistent styling
       doc.text('CONFIDENTIAL & PROPRIETARY', margin, footerY);
     };
 
@@ -117,23 +153,31 @@ export class EnhancedPdfExportService {
       }
     };
 
-    const addTitle = (text: string, fontSize: number = fonts.title, color: number[] = colors.primary) => {
+    const addTitle = (text: string, isMainTitle: boolean = true) => {
       checkPageBreak(25);
+      
+      // Set consistent title typography
+      if (isMainTitle) {
+        setTitleStyle();
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(fonts.heading);
+        doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      }
+      
+      const currentFontSize = isMainTitle ? fonts.title : fonts.heading;
       
       // Ultra-premium title with background and accents
       doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
-      doc.rect(margin - 5, yPosition - 8, contentWidth + 10, fontSize + 8, 'F');
+      doc.rect(margin - 5, yPosition - 8, contentWidth + 10, currentFontSize + 8, 'F');
       
       // Golden accent borders
       doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       doc.setLineWidth(1);
       doc.line(margin - 5, yPosition - 8, margin + contentWidth + 5, yPosition - 8);
-      doc.line(margin - 5, yPosition + fontSize, margin + contentWidth + 5, yPosition + fontSize);
+      doc.line(margin - 5, yPosition + currentFontSize, margin + contentWidth + 5, yPosition + currentFontSize);
       
-      // Enhanced typography
-      doc.setFontSize(fontSize);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(color[0], color[1], color[2]);
+      // Title text with consistent styling
       doc.text(text, margin, yPosition);
       
       // Decorative diamond accent
@@ -142,7 +186,7 @@ export class EnhancedPdfExportService {
       const diamondY = yPosition - 2;
       doc.circle(diamondX, diamondY, 2, 'F');
       
-      yPosition += fontSize * 0.8 + 10;
+      yPosition += currentFontSize * 0.8 + 10;
     };
 
     const addTable = (tableData: string[][], hasHeader: boolean = true) => {
@@ -228,13 +272,9 @@ export class EnhancedPdfExportService {
             let cellText = (cell || '').toString().trim();
             
             if (isHeaderRow) {
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(fonts.body + 2);
-              doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
+              setTableHeaderStyle();
             } else {
-              doc.setFont('helvetica', 'normal');
-              doc.setFontSize(fonts.body);
-              doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+              setTableBodyStyle();
             }
             
             // Enhanced number and currency detection with premium styling
@@ -303,12 +343,11 @@ export class EnhancedPdfExportService {
       yPosition = currentY + 18; // Enhanced spacing after table
     };
 
-    const addText = (text: string, fontSize: number = fonts.body, isIndented: boolean = false) => {
+    const addText = (text: string, isIndented: boolean = false) => {
       if (!text || text.trim() === '') return;
       
-      doc.setFontSize(fontSize);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+      // Consistent body text styling
+      setBodyTextStyle();
       
       const x = isIndented ? margin + 10 : margin;
       const maxWidth = contentWidth - (isIndented ? 10 : 0);
@@ -450,10 +489,8 @@ export class EnhancedPdfExportService {
       doc.line(margin, yPosition - 5, margin + contentWidth, yPosition - 5);
       doc.line(margin, yPosition + 7, margin + contentWidth, yPosition + 7);
       
-      // Section number and title
-      doc.setFontSize(fonts.sectionHeader);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
+      // Consistent section header typography
+      setSectionHeaderStyle();
       doc.text(title.toUpperCase(), margin + 8, yPosition + 2);
       
       // Decorative section icon (geometric shape)
@@ -506,7 +543,7 @@ export class EnhancedPdfExportService {
     
     // Ultra-premium table of contents
     startNewSection(true); // Force new page for TOC
-    addTitle('TABLE OF CONTENTS', fonts.title);
+    addTitle('TABLE OF CONTENTS', true);
     yPosition += 8;
     
     const sections = this.getSectionList();
@@ -545,7 +582,8 @@ export class EnhancedPdfExportService {
       doc.setFillColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       doc.rect(pageNumX - 3, yPosition - 4, 12, 8, 'F');
       
-      doc.setFont('helvetica', 'bold');
+      setBodyTextStyle();
+      doc.setFont('helvetica', 'bold'); // Override for page numbers
       doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
       doc.text(`${index + 3}`, pageNumX, yPosition, { align: 'center' });
       
@@ -557,14 +595,14 @@ export class EnhancedPdfExportService {
     
     // Executive Summary with enhanced formatting
     if (memo.executiveSummary) {
-      addTitle('EXECUTIVE SUMMARY', fonts.title);
+      addTitle('EXECUTIVE SUMMARY', true);
       addText(memo.executiveSummary);
       startNewSection(true); // Force new page after executive summary
     }
 
     // Ultra-premium Investment Highlights section
     if (memo.investmentHighlights) {
-      addTitle('INVESTMENT HIGHLIGHTS', fonts.title);
+      addTitle('INVESTMENT HIGHLIGHTS', true);
       yPosition += 5;
       
       if (Array.isArray(memo.investmentHighlights)) {
@@ -585,15 +623,13 @@ export class EnhancedPdfExportService {
           doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
           doc.circle(margin + 5, yPosition - 1, 3, 'F');
           
-          doc.setFontSize(fonts.small);
-          doc.setFont('helvetica', 'bold');
+          setSmallTextStyle();
+          doc.setFont('helvetica', 'bold'); // Override for bullet numbers
           doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
           doc.text(`${index + 1}`, margin + 5, yPosition, { align: 'center' });
           
-          // Highlight content with premium typography
-          doc.setFontSize(fonts.body);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+          // Highlight content with consistent typography
+          setBodyTextStyle();
           
           const cleanHighlight = this.processTextContent(highlight)[0]?.content || highlight;
           const highlightLines = doc.splitTextToSize(cleanHighlight, contentWidth - 25);
@@ -652,18 +688,16 @@ export class EnhancedPdfExportService {
           if (typeof content === 'string' && content.includes('|')) {
             const tableData = this.parseTableData(content);
             if (tableData.length > 1) {
-              // Add a subtitle for the table
+              // Add a subtitle for the table with consistent styling
               checkPageBreak(8);
               doc.setFont('helvetica', 'bold');
-              doc.setFontSize(fonts.body + 1);
+              doc.setFontSize(fonts.subheading);
               doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
               doc.text('Financial Data Summary', margin + 5, yPosition);
               yPosition += 12;
               
-              // Reset formatting
-              doc.setFont('helvetica', 'normal');
-              doc.setFontSize(fonts.body);
-              doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+              // Reset to consistent body text formatting
+              setBodyTextStyle();
               
               // Render the table
               addTable(tableData, true);
@@ -741,10 +775,8 @@ export class EnhancedPdfExportService {
     doc.line(210 - margin, 297 - margin - 15, 210 - margin, 297 - margin);
     doc.line(210 - margin - 15, 297 - margin, 210 - margin, 297 - margin);
 
-    // Professional metadata section
-    doc.setFontSize(fonts.body);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
+    // Professional metadata section with consistent typography
+    setBodyTextStyle();
     
     const currentDate = new Date().toLocaleDateString('en-US', { 
       year: 'numeric', 
@@ -752,13 +784,13 @@ export class EnhancedPdfExportService {
       day: 'numeric'
     });
     
-    // Date with elegant formatting
-    doc.setFont('helvetica', 'bold');
+    // Date with elegant formatting using consistent typography
+    doc.setFont('helvetica', 'bold'); // Override for label
     doc.text('PREPARED:', 105, 180, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
+    setBodyTextStyle();
     doc.text(currentDate, 105, 190, { align: 'center' });
 
-    // Confidentiality notice with premium styling
+    // Confidentiality notice with premium styling and consistent typography
     doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
     doc.rect(30, 200, 150, 25, 'F');
     doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
@@ -768,11 +800,11 @@ export class EnhancedPdfExportService {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.text('CONFIDENTIAL & PROPRIETARY', 105, 210, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(fonts.small);
+    
+    setSmallTextStyle();
     doc.text('This document contains confidential and proprietary information', 105, 218, { align: 'center' });
 
-    // Ultra-professional footer with branding
+    // Ultra-professional footer with branding and consistent typography
     doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
     doc.rect(0, 260, 210, 37, 'F');
     doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
@@ -783,12 +815,11 @@ export class EnhancedPdfExportService {
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.text('PREPARED BY', 105, 272, { align: 'center' });
     
-    doc.setFontSize(fonts.body);
+    setBodyTextStyle();
     doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     doc.text('Aescuvest Investment Intelligence Platform', 105, 282, { align: 'center' });
     
-    doc.setFontSize(fonts.small);
-    doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
+    setSmallTextStyle();
     doc.text('Advanced AI-Powered Investment Analysis & Due Diligence', 105, 290, { align: 'center' });
   }
 
