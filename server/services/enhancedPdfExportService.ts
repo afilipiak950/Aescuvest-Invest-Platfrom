@@ -46,7 +46,7 @@ export class EnhancedPdfExportService {
     // Helper functions with ultra-premium page styling
     const addPage = () => {
       doc.addPage();
-      yPosition = margin;
+      yPosition = margin + 20; // Start content below header with proper spacing
       
       // Add premium header to each page
       addPageHeader();
@@ -101,9 +101,15 @@ export class EnhancedPdfExportService {
     };
 
     const checkPageBreak = (spaceNeeded: number = 15) => {
-      if (yPosition + spaceNeeded > pageHeight - 25) { // Account for footer space
+      if (yPosition + spaceNeeded > pageHeight - 35) { // Account for footer space
         addPage();
       }
+    };
+
+    const startNewSection = () => {
+      // Always start major sections on a new page with proper spacing
+      addPage();
+      yPosition += 10; // Additional spacing at start of sections
     };
 
     const addTitle = (text: string, fontSize: number = fonts.title, color: number[] = colors.primary) => {
@@ -401,8 +407,6 @@ export class EnhancedPdfExportService {
     const addSection = (title: string, content: any) => {
       if (!content) return;
       
-      checkPageBreak(35);
-      
       // Ultra-premium section header with gradient effect
       doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       doc.rect(margin, yPosition - 5, contentWidth, 12, 'F');
@@ -468,7 +472,7 @@ export class EnhancedPdfExportService {
     this.generateCoverPage(doc, memo, companyName, colors, fonts, margin, contentWidth);
     
     // Ultra-premium table of contents
-    addPage();
+    startNewSection();
     addTitle('TABLE OF CONTENTS', fonts.title);
     yPosition += 8;
     
@@ -515,14 +519,14 @@ export class EnhancedPdfExportService {
       yPosition += 8;
     });
 
-    // Generate memo sections
-    addPage();
+    // Generate memo sections with proper page breaks
+    startNewSection();
     
     // Executive Summary with enhanced formatting
     if (memo.executiveSummary) {
       addTitle('EXECUTIVE SUMMARY', fonts.title);
       addText(memo.executiveSummary);
-      addPage();
+      startNewSection();
     }
 
     // Ultra-premium Investment Highlights section
@@ -570,7 +574,7 @@ export class EnhancedPdfExportService {
       } else {
         addText(memo.investmentHighlights);
       }
-      addPage();
+      startNewSection();
     }
 
     // Main sections
@@ -601,6 +605,9 @@ export class EnhancedPdfExportService {
     sectionMappings.forEach((section) => {
       const content = (memo as any)[section.key];
       if (content) {
+        // Start each major section on a new page with proper spacing
+        startNewSection();
+        
         // Special handling for financial sections
         if (section.key === 'financialProjections' || section.key === 'financialAnalysis') {
           addSection(section.title, content);
