@@ -316,15 +316,9 @@ export class EnhancedPdfExportService {
             doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
             doc.setLineWidth(borderWidth);
             
-            // Vertical borders between columns (except last)
-            if (colIndex < colWidths.length - 1) {
-              doc.line(currentX + cellWidth, currentY, currentX + cellWidth, currentY + currentRowHeight);
-            }
+            // Clean table design without intrusive lines
             
-            // Horizontal borders between rows
-            if (rowIndex < tableData.length - 1) {
-              doc.line(currentX, currentY + currentRowHeight, currentX + cellWidth, currentY + currentRowHeight);
-            }
+            // Remove horizontal lines that interfere with text readability
             
             currentX += cellWidth;
           }
@@ -333,16 +327,10 @@ export class EnhancedPdfExportService {
         currentY += currentRowHeight;
       });
       
-      // Perfect outer table border with premium finish
-      doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.setLineWidth(2);
+      // Clean table finish without interfering borders
       const finalTableHeight = currentY - startY;
-      doc.rect(margin + 4, startY, availableWidth, finalTableHeight);
       
-      // Golden accent bottom border for luxury finish
-      doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.setLineWidth(2.5);
-      doc.line(margin + 4, currentY, margin + 4 + availableWidth, currentY);
+      // Remove problematic accent lines that interfere with text
       
       yPosition = currentY + 18; // Enhanced spacing after table
     };
@@ -399,7 +387,7 @@ export class EnhancedPdfExportService {
           doc.setFont('helvetica', 'bold');
           doc.text('★', x, yPosition);
           
-          // Render content in emphasized style
+          // Render content in emphasized style with consistent typography
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(fonts.body);
           doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
@@ -422,13 +410,11 @@ export class EnhancedPdfExportService {
         } else if (paragraph.type === 'heading') {
           checkPageBreak(12);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(fonts.subheading);
+          doc.setFontSize(fonts.heading);
           doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
           doc.text(paragraph.content, x, yPosition);
-          yPosition += fonts.subheading * 0.5 + 8; // Increased heading spacing
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(fonts.body);
-          doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+          yPosition += fonts.heading * 0.5 + 8; // Increased heading spacing
+          setBodyTextStyle(); // Reset to consistent body text
         } else if (paragraph.type === 'keyvalue') {
           checkPageBreak(8);
           
@@ -437,7 +423,7 @@ export class EnhancedPdfExportService {
           if (kvMatch) {
             const [, key, value] = kvMatch;
             
-            // Render key in bold
+            // Render key in bold using consistent styling
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(fonts.body);
             doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
