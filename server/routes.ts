@@ -4955,134 +4955,14 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(404).json({ success: false, error: 'No memo found for this deal. Please generate a memo first.' });
       }
 
-      console.log('📄 Found existing memo, creating PDF export...');
-      
-      // Import jsPDF for PDF generation
-      const { jsPDF } = await import('jspdf');
+      console.log('📄 Found existing memo, creating enhanced professional PDF export...');
       
       const memoData = existingMemo.memo as any;
       
-      // Create PDF document
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      // Add title page
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text('INVESTMENT MEMORANDUM', 105, 50, { align: 'center' });
-      
-      doc.setFontSize(16);
-      doc.text(deal.companyName, 105, 70, { align: 'center' });
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Generated on ${new Date().toLocaleDateString()}`, 105, 90, { align: 'center' });
-      
-      let yPosition = 120;
-      const pageHeight = 297; // A4 height in mm
-      const margin = 20;
-      const lineHeight = 6;
-      
-      // Helper function to add text with page breaks
-      const addSection = (title: string, content: string) => {
-        // Check if we need a new page
-        if (yPosition > pageHeight - 40) {
-          doc.addPage();
-          yPosition = margin;
-        }
-        
-        // Add section title
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(title, margin, yPosition);
-        yPosition += lineHeight * 2;
-        
-        // Add content with word wrapping
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        
-        // Clean and split content
-        const cleanContent = content.replace(/[#*\-]/g, '').replace(/\n\n+/g, '\n').trim();
-        const lines = doc.splitTextToSize(cleanContent, 170); // Width minus margins
-        
-        lines.forEach((line: string) => {
-          if (yPosition > pageHeight - 20) {
-            doc.addPage();
-            yPosition = margin;
-          }
-          doc.text(line, margin, yPosition);
-          yPosition += lineHeight;
-        });
-        
-        yPosition += lineHeight; // Extra space after section
-      };
-      
-      // Add Executive Summary
-      if (memoData.executiveSummary) {
-        addSection('EXECUTIVE SUMMARY', memoData.executiveSummary);
-      }
-      
-      // Add Investment Highlights
-      if (memoData.investmentHighlights) {
-        let highlightsText = '';
-        if (Array.isArray(memoData.investmentHighlights)) {
-          highlightsText = memoData.investmentHighlights.join('\n• ');
-          highlightsText = '• ' + highlightsText;
-        } else if (typeof memoData.investmentHighlights === 'string') {
-          highlightsText = memoData.investmentHighlights;
-        } else if (typeof memoData.investmentHighlights === 'object') {
-          highlightsText = Object.entries(memoData.investmentHighlights)
-            .map(([key, value]) => `• ${key}: ${value}`)
-            .join('\n');
-        }
-        addSection('INVESTMENT HIGHLIGHTS', highlightsText);
-      }
-      
-      // Add other major sections
-      const sectionOrder = [
-        { key: 'marketAnalysis', title: 'MARKET ANALYSIS' },
-        { key: 'productAnalysis', title: 'PRODUCT ANALYSIS' },
-        { key: 'businessModel', title: 'BUSINESS MODEL' },
-        { key: 'teamAssessment', title: 'TEAM ASSESSMENT' },
-        { key: 'financialAnalysis', title: 'FINANCIAL ANALYSIS' },
-        { key: 'commercialAnalysis', title: 'COMMERCIAL ANALYSIS' },
-        { key: 'clinicalAssessment', title: 'CLINICAL ASSESSMENT' },
-        { key: 'ipAnalysis', title: 'IP ANALYSIS' },
-        { key: 'riskAssessment', title: 'RISK ASSESSMENT' },
-        { key: 'legalAssessment', title: 'LEGAL ASSESSMENT' },
-        { key: 'investmentTerms', title: 'INVESTMENT TERMS' },
-        { key: 'exitStrategy', title: 'EXIT STRATEGY' },
-        { key: 'recommendation', title: 'RECOMMENDATION' }
-      ];
-
-      sectionOrder.forEach((section) => {
-        if (memoData[section.key]) {
-          let sectionContent = '';
-          const sectionData = memoData[section.key];
-          
-          if (typeof sectionData === 'string') {
-            sectionContent = sectionData;
-          } else if (typeof sectionData === 'object' && sectionData !== null) {
-            if (Array.isArray(sectionData)) {
-              sectionContent = sectionData.map(item => 
-                typeof item === 'string' ? `• ${item}` : `• ${JSON.stringify(item)}`
-              ).join('\n');
-            } else {
-              sectionContent = Object.entries(sectionData)
-                .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
-                .join('\n\n');
-            }
-          }
-          
-          addSection(section.title, sectionContent);
-        }
-      });
-      
-      // Generate PDF buffer
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      // Use enhanced jsPDF service for professional formatting
+      const { EnhancedPdfExportService } = await import('./services/enhancedPdfExportService');
+      const pdfBuffer = await EnhancedPdfExportService.generatePDF(memoData, deal.companyName);
+      console.log('✅ Generated professional PDF with enhanced formatting');
       
       // Set proper headers for PDF
       res.setHeader('Content-Type', 'application/pdf');
