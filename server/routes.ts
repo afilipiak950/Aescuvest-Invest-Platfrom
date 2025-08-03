@@ -4959,7 +4959,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       const memoData = existingMemo.memo as any;
       
-      // Use enhanced jsPDF service for professional formatting
+      // Use enhanced jsPDF service for professional formatting  
       const { EnhancedPdfExportService } = await import('./services/enhancedPdfExportService');
       const pdfBuffer = await EnhancedPdfExportService.generatePDF(memoData, deal.companyName);
       console.log('✅ Generated professional PDF with enhanced formatting');
