@@ -196,6 +196,34 @@ export class EnhancedPdfExportService {
             }
           });
           yPosition += fontSize * 0.5 + 4; // Increased bullet spacing
+        } else if (paragraph.type === 'highlight') {
+          checkPageBreak();
+          
+          // Render highlight with special formatting (green bullet, bold text)
+          doc.setTextColor(34, 139, 34); // Forest green for highlight bullet
+          doc.setFont('helvetica', 'bold');
+          doc.text('★', x, yPosition);
+          
+          // Render content in emphasized style
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(fontSize);
+          doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+          
+          const highlightLines = doc.splitTextToSize(paragraph.content, maxWidth - 10);
+          highlightLines.forEach((line: string, lineIndex: number) => {
+            if (lineIndex === 0) {
+              doc.text(line, x + 10, yPosition);
+            } else {
+              yPosition += fontSize * 0.5 + 3;
+              checkPageBreak();
+              doc.text(line, x + 10, yPosition);
+            }
+          });
+          
+          // Reset formatting
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+          yPosition += fontSize * 0.5 + 6; // Extra spacing for highlights
         } else if (paragraph.type === 'heading') {
           checkPageBreak(12);
           doc.setFont('helvetica', 'bold');
@@ -206,6 +234,51 @@ export class EnhancedPdfExportService {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(fontSize);
           doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+        } else if (paragraph.type === 'keyvalue') {
+          checkPageBreak(8);
+          
+          // Split the key-value content
+          const kvMatch = paragraph.content.match(/\*\*(.*?)\*\*:\s*(.*)/);
+          if (kvMatch) {
+            const [, key, value] = kvMatch;
+            
+            // Render key in bold
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(fontSize);
+            doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+            doc.text(`${key}:`, x, yPosition);
+            
+            // Calculate key width for value positioning
+            const keyWidth = doc.getTextWidth(`${key}: `);
+            
+            // Render value in normal font
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+            
+            const valueMaxWidth = maxWidth - keyWidth - 5;
+            const valueLines = doc.splitTextToSize(value, valueMaxWidth);
+            
+            valueLines.forEach((valueLine: string, lineIndex: number) => {
+              if (lineIndex === 0) {
+                doc.text(valueLine, x + keyWidth, yPosition);
+              } else {
+                yPosition += fontSize * 0.5 + 3;
+                checkPageBreak();
+                doc.text(valueLine, x + keyWidth, yPosition);
+              }
+            });
+            
+            yPosition += fontSize * 0.5 + 6; // Extra spacing after key-value pairs
+          } else {
+            // Fallback to regular text if parsing fails
+            const lines = doc.splitTextToSize(paragraph.content, maxWidth);
+            lines.forEach((line: string) => {
+              checkPageBreak();
+              doc.text(line, x, yPosition);
+              yPosition += fontSize * 0.5 + 3;
+            });
+            yPosition += 4;
+          }
         }
       });
       
@@ -453,23 +526,23 @@ export class EnhancedPdfExportService {
   private static cleanText(text: string): string {
     if (!text) return '';
     return text
-      // Remove all markdown formatting
+      // Remove markdown formatting but preserve structure indicators
       .replace(/#{1,6}\s*/g, '') // Remove markdown headers
-      .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1') // Remove bold/italic asterisks
-      .replace(/_{1,3}([^_]+)_{1,3}/g, '$1') // Remove bold/italic underscores
-      .replace(/\*{2,}/g, '') // Remove standalone asterisks
-      .replace(/#{2,}/g, '') // Remove standalone hashes
+      .replace(/\*{3}([^*]+)\*{3}/g, '$1') // Remove triple asterisks (bold+italic)
+      .replace(/\*{2}([^*]+)\*{2}/g, '$1') // Remove double asterisks (bold)
+      .replace(/\*{1}([^*]+)\*{1}/g, '$1') // Remove single asterisks (italic)
+      .replace(/_{3}([^_]+)_{3}/g, '$1') // Remove triple underscores
+      .replace(/_{2}([^_]+)_{2}/g, '$1') // Remove double underscores (bold)
+      .replace(/_{1}([^_]+)_{1}/g, '$1') // Remove single underscores (italic)
       .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // Remove code formatting
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links, keep text
       .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Remove markdown images, keep alt text
       .replace(/>\s*/g, '') // Remove blockquote markers
-      .replace(/^\s*[-*+]\s+/gm, '') // Remove list markers at line start
-      .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
-      // Clean up whitespace and line breaks
+      // Clean up excessive whitespace but preserve line structure
       .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce triple+ line breaks to double
-      .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
-      .replace(/\n\s+/g, '\n') // Remove leading spaces after line breaks
-      .replace(/\s+\n/g, '\n') // Remove trailing spaces before line breaks
+      .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs to single spaces
+      .replace(/\n[ \t]+/g, '\n') // Remove leading spaces/tabs after line breaks
+      .replace(/[ \t]+\n/g, '\n') // Remove trailing spaces/tabs before line breaks
       .trim();
   }
 
@@ -490,88 +563,117 @@ export class EnhancedPdfExportService {
   private static processTextContent(text: string): Array<{type: string, content: string}> {
     if (!text) return [];
     
-    // First, thoroughly clean the text of all markdown artifacts
-    const cleanedText = this.cleanText(text);
-    if (!cleanedText) return [];
-    
     const result: Array<{type: string, content: string}> = [];
     
-    // Split text into logical paragraphs and process each
-    const paragraphs = cleanedText.split(/\n\s*\n/).filter(p => p.trim());
+    // Split text into lines first, then process for better structure detection
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
-    paragraphs.forEach(paragraph => {
-      const trimmed = paragraph.trim();
-      
-      if (!trimmed) return;
-      
-      // Check for different content types after cleaning
-      if (trimmed.match(/^[•\-\*]\s/) || trimmed.match(/^\s*•\s/)) {
-        // Bullet point
-        const content = trimmed.replace(/^[•\-\*]\s+/, '').replace(/^\s*•\s+/, '').trim();
-        if (content) {
-          result.push({ type: 'bullet', content });
-        }
-      } else if (trimmed.match(/^\d+\.\s/)) {
-        // Numbered list item - treat as bullet
-        const content = trimmed.replace(/^\d+\.\s+/, '').trim();
-        if (content) {
-          result.push({ type: 'bullet', content });
-        }
-      } else if (trimmed.match(/^[A-Z][A-Z\s]+:?\s*$/) && trimmed.length < 100) {
-        // Heading (all caps, short length)
-        const content = trimmed.replace(/:+$/, '').trim();
-        if (content) {
-          result.push({ type: 'heading', content });
-        }
-      } else if (trimmed.includes('\n•') || trimmed.includes('\n-') || trimmed.includes('\n*')) {
-        // Paragraph with embedded bullet points - split them
-        const lines = trimmed.split('\n');
-        let currentParagraph = '';
+    if (lines.length === 0) return [];
+    
+    let currentParagraph = '';
+    
+    lines.forEach((line, index) => {
+      // Enhanced bullet point detection with more patterns
+      if (line.match(/^[\-\*•]\s+/) || 
+          line.match(/^\d+\.\s+/) || 
+          line.match(/^[a-zA-Z]\.\s+/) || 
+          line.match(/^[ivxIVX]+\.\s+/) ||
+          line.match(/^○\s+/) ||
+          line.match(/^→\s+/) ||
+          line.match(/^▪\s+/) ||
+          line.match(/^‣\s+/) ||
+          line.match(/^•\s+/)) {
         
-        lines.forEach(line => {
-          const cleanLine = line.trim();
-          if (cleanLine.match(/^[•\-\*]\s/) || cleanLine.match(/^\s*•\s/)) {
-            // Save any accumulated paragraph
-            if (currentParagraph.trim()) {
-              result.push({ type: 'paragraph', content: this.cleanText(currentParagraph) });
-              currentParagraph = '';
-            }
-            // Add bullet point
-            const content = cleanLine.replace(/^[•\-\*]\s+/, '').replace(/^\s*•\s+/, '').trim();
-            if (content) {
-              result.push({ type: 'bullet', content });
-            }
-          } else if (cleanLine) {
-            currentParagraph += (currentParagraph ? ' ' : '') + cleanLine;
-          }
-        });
-        
-        // Add any remaining paragraph content
+        // Save any accumulated paragraph first
         if (currentParagraph.trim()) {
           result.push({ type: 'paragraph', content: this.cleanText(currentParagraph) });
+          currentParagraph = '';
         }
-      } else {
-        // Regular paragraph - ensure it's properly cleaned and formatted
-        let cleanContent = trimmed
-          .replace(/\s+/g, ' ') // Normalize whitespace
-          .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Ensure proper sentence spacing
-          .replace(/\s([,.!?;:])/g, '$1') // Fix spacing before punctuation
+        
+        // Extract bullet content with comprehensive pattern matching
+        let bulletContent = line
+          .replace(/^[\-\*•○→▪‣]\s+/, '')
+          .replace(/^\d+\.\s+/, '')
+          .replace(/^[a-zA-Z]\.\s+/, '')
+          .replace(/^[ivxIVX]+\.\s+/, '')
           .trim();
           
-        // Better financial text formatting
-        cleanContent = cleanContent
-          .replace(/\$(\d+),?(\d+)/g, '$$$1,$2') // Ensure currency formatting
-          .replace(/(\d+)%/g, '$1%') // Ensure percentage formatting
-          .replace(/(\d+)\s+million/gi, '$1 million') // Standardize million formatting
-          .replace(/(\d+)\s+billion/gi, '$1 billion') // Standardize billion formatting
-          .replace(/\s+([,.])/g, '$1') // Fix spacing before punctuation
-          .replace(/([,.!?])\s*([A-Z])/g, '$1 $2'); // Proper sentence spacing
+        // Special handling for key highlights (often start with action words or key phrases)
+        if (bulletContent.match(/^(Key|Strong|Significant|Major|Critical|Important|Notable|Excellent|Outstanding|Proven)/i)) {
+          result.push({ type: 'highlight', content: this.cleanText(bulletContent) });
+        } else if (bulletContent) {
+          result.push({ type: 'bullet', content: this.cleanText(bulletContent) });
+        }
+      }
+      // Enhanced heading detection
+      else if (
+        (line.match(/^[A-Z][A-Z\s\-:]+$/) && line.length < 80) || // ALL CAPS headings
+        (line.match(/^\d+\.\s*[A-Z]/) && line.length < 100) || // Numbered sections
+        (line.endsWith(':') && line.length < 100 && !line.includes(',')) || // Colon endings
+        (line.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) && line.length < 80 && !line.includes(',')) // Title Case
+      ) {
+        // Save any accumulated paragraph first
+        if (currentParagraph.trim()) {
+          result.push({ type: 'paragraph', content: this.cleanText(currentParagraph) });
+          currentParagraph = '';
+        }
+        
+        const headingContent = line.replace(/:+$/, '').trim();
+        if (headingContent) {
+          result.push({ type: 'heading', content: headingContent });
+        }
+      }
+      // Key-value pairs (common in investment memos)
+      else if (line.includes(':') && line.split(':').length === 2 && line.length < 150) {
+        // Save any accumulated paragraph first
+        if (currentParagraph.trim()) {
+          result.push({ type: 'paragraph', content: this.cleanText(currentParagraph) });
+          currentParagraph = '';
+        }
+        
+        const [key, value] = line.split(':').map(part => part.trim());
+        if (key && value) {
+          result.push({ type: 'keyvalue', content: `**${key}:** ${value}` });
+        }
+      }
+      // Regular text - accumulate into paragraphs
+      else {
+        if (currentParagraph) {
+          currentParagraph += ' ' + line;
+        } else {
+          currentParagraph = line;
+        }
+        
+        // Check if this might be end of paragraph (next line is different type or end of text)
+        const nextLine = lines[index + 1];
+        if (!nextLine || 
+            nextLine.match(/^[\-\*•]\s+/) || 
+            nextLine.match(/^\d+\.\s+/) ||
+            nextLine.match(/^[A-Z][A-Z\s\-:]+$/) ||
+            nextLine === '' ||
+            nextLine.includes(':')) {
           
-        if (cleanContent && cleanContent.length > 0) {
-          result.push({ type: 'paragraph', content: cleanContent });
+          if (currentParagraph.trim()) {
+            const cleanContent = this.cleanText(currentParagraph)
+              .replace(/\$(\d+),?(\d+)/g, '$$$1,$2') // Currency formatting
+              .replace(/(\d+)%/g, '$1%') // Percentage formatting
+              .replace(/(\d+)\s+million/gi, '$1 million') // Million formatting
+              .replace(/(\d+)\s+billion/gi, '$1 billion'); // Billion formatting
+              
+            result.push({ type: 'paragraph', content: cleanContent });
+          }
+          currentParagraph = '';
         }
       }
     });
+    
+    // Add any remaining paragraph
+    if (currentParagraph.trim()) {
+      const cleanContent = this.cleanText(currentParagraph);
+      if (cleanContent) {
+        result.push({ type: 'paragraph', content: cleanContent });
+      }
+    }
     
     return result;
   }
