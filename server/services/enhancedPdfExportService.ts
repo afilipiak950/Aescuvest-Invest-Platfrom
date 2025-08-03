@@ -148,66 +148,85 @@ export class EnhancedPdfExportService {
     const addTable = (tableData: string[][], hasHeader: boolean = true) => {
       if (!tableData || tableData.length === 0) return;
       
-      const cellPadding = 5;
-      const rowHeight = 14;
-      const headerHeight = 18;
+      // Ultra-premium table specifications with perfect measurements
+      const cellPadding = 8;
+      const rowHeight = 18;
+      const headerHeight = 22;
+      const borderWidth = 0.8;
       
-      // Calculate column widths based on content
+      // Calculate optimal column widths with intelligent distribution
       const colCount = Math.max(...tableData.map(row => row.length));
       const colWidths = new Array(colCount).fill(0);
+      const minColWidth = 80;
+      const maxColWidth = 200;
       
-      // Find maximum width for each column
+      // Find maximum width for each column with smart sizing
       tableData.forEach(row => {
         row.forEach((cell, colIndex) => {
-          const cellWidth = doc.getTextWidth(cell || '') + (cellPadding * 2);
+          const cellText = (cell || '').toString();
+          const cellWidth = Math.min(maxColWidth, Math.max(minColWidth, doc.getTextWidth(cellText) + (cellPadding * 2) + 10));
           colWidths[colIndex] = Math.max(colWidths[colIndex] || 0, cellWidth);
         });
       });
       
-      // Ensure columns fit within page width
+      // Ensure columns fit within page width with proportional scaling
       const totalWidth = colWidths.reduce((sum, width) => sum + width, 0);
-      if (totalWidth > contentWidth) {
-        const scaleFactor = contentWidth / totalWidth;
+      const availableWidth = contentWidth - 4; // Account for outer borders
+      
+      if (totalWidth > availableWidth) {
+        const scaleFactor = availableWidth / totalWidth;
         colWidths.forEach((width, index) => {
-          colWidths[index] = width * scaleFactor;
+          colWidths[index] = Math.max(minColWidth, width * scaleFactor);
+        });
+      } else if (totalWidth < availableWidth) {
+        // Distribute extra space proportionally
+        const extraSpace = availableWidth - totalWidth;
+        const spacePerCol = extraSpace / colCount;
+        colWidths.forEach((width, index) => {
+          colWidths[index] = width + spacePerCol;
         });
       }
       
-      let currentX = margin;
-      let currentY = yPosition;
+      // Ensure proper page space for table
+      const totalTableHeight = (hasHeader ? headerHeight : 0) + (tableData.length - (hasHeader ? 1 : 0)) * rowHeight + 20;
+      checkPageBreak(totalTableHeight);
       
+      const startY = yPosition;
+      let currentY = startY;
+      
+      // Draw ultra-premium table with perfect borders
       tableData.forEach((row, rowIndex) => {
-        checkPageBreak(rowIndex === 0 && hasHeader ? headerHeight : rowHeight);
+        let currentX = margin + 2; // Account for outer border
+        const isHeaderRow = rowIndex === 0 && hasHeader;
+        const currentRowHeight = isHeaderRow ? headerHeight : rowHeight;
         
-        currentX = margin;
-        currentY = yPosition;
-        
-        // Ultra-premium row styling
-        if (rowIndex === 0 && hasHeader) {
-          // Premium header with gradient effect
+        // Ultra-premium row backgrounds with sophisticated styling
+        if (isHeaderRow) {
+          // Premium navy header with subtle gradient effect
           doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          doc.rect(margin, currentY - 10, contentWidth, headerHeight, 'F');
+          doc.rect(currentX, currentY, availableWidth, currentRowHeight, 'F');
           
-          // Golden accent line
+          // Golden accent top border for premium look
           doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-          doc.setLineWidth(1);
-          doc.line(margin, currentY - 10, margin + contentWidth, currentY - 10);
+          doc.setLineWidth(2.5);
+          doc.line(currentX, currentY, currentX + availableWidth, currentY);
         } else if (rowIndex % 2 === 1) {
-          // Sophisticated alternating colors
-          doc.setFillColor(colors.tableStripe[0], colors.tableStripe[1], colors.tableStripe[2]);
-          doc.rect(margin, currentY - 8, contentWidth, rowHeight, 'F');
-        } else {
-          doc.setFillColor(colors.white[0], colors.white[1], colors.white[2]);
-          doc.rect(margin, currentY - 8, contentWidth, rowHeight, 'F');
+          // Sophisticated alternating stripe
+          doc.setFillColor(250, 251, 252); // Ultra-light premium gray
+          doc.rect(currentX, currentY, availableWidth, currentRowHeight, 'F');
         }
         
-        // Draw cells
+        // Draw individual cells with perfect typography
         row.forEach((cell, colIndex) => {
           if (colIndex < colWidths.length) {
-            // Ultra-premium text styling
-            if (rowIndex === 0 && hasHeader) {
+            const cellWidth = colWidths[colIndex];
+            
+            // Ultra-premium typography settings
+            let cellText = (cell || '').toString().trim();
+            
+            if (isHeaderRow) {
               doc.setFont('helvetica', 'bold');
-              doc.setFontSize(fonts.body + 1);
+              doc.setFontSize(fonts.body + 2);
               doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
             } else {
               doc.setFont('helvetica', 'normal');
@@ -215,64 +234,70 @@ export class EnhancedPdfExportService {
               doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
             }
             
-            // Premium cell borders with sophisticated styling
-            doc.setLineWidth(0.3);
-            doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
-            doc.rect(currentX, currentY - (rowIndex === 0 && hasHeader ? 10 : 8), colWidths[colIndex], rowIndex === 0 && hasHeader ? headerHeight : rowHeight);
+            // Enhanced number and currency detection with premium styling
+            const isNumeric = !isHeaderRow && (
+              cellText.match(/^\$?[\d,]+\.?\d*$/) || 
+              cellText.match(/^\$[\d,]+$/) || 
+              cellText.match(/^[\d,]+%$/) || 
+              cellText.match(/^[\d,.-]+$/)
+            );
             
-            // Vertical separators between columns
-            if (colIndex < colWidths.length - 1) {
-              doc.setLineWidth(0.2);
-              doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
-              doc.line(currentX + colWidths[colIndex], currentY - (rowIndex === 0 && hasHeader ? 10 : 8), 
-                       currentX + colWidths[colIndex], currentY + (rowIndex === 0 && hasHeader ? headerHeight - 10 : rowHeight - 8));
+            if (isNumeric) {
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(colors.highlight[0], colors.highlight[1], colors.highlight[2]);
             }
             
-            // Add cell text with proper truncation and number formatting
-            let cellText = (cell || '').toString();
+            // Smart text placement with proper truncation
+            const maxCellWidth = cellWidth - (cellPadding * 2);
+            const truncatedText = doc.splitTextToSize(cellText, maxCellWidth)[0] || '';
             
-            // Enhanced formatting for numbers and currency with premium styling
-            if (cellText.match(/^\$?[\d,]+\.?\d*$/) || cellText.match(/^\$[\d,]+$/) || cellText.match(/^[\d,]+%$/) || cellText.match(/^[\d,.-]+$/)) {
-              // Premium numeric formatting with highlight color
-              if (rowIndex > 0 || !hasHeader) {
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(colors.highlight[0], colors.highlight[1], colors.highlight[2]);
-              }
-              
-              const maxCellWidth = colWidths[colIndex] - (cellPadding * 2);
-              const truncatedText = doc.splitTextToSize(cellText, maxCellWidth)[0] || '';
+            // Vertical centering calculation
+            const textY = currentY + (currentRowHeight / 2) + 3;
+            
+            if (isNumeric) {
+              // Right-align numbers for professional financial presentation
               const textWidth = doc.getTextWidth(truncatedText);
-              doc.text(truncatedText, currentX + colWidths[colIndex] - cellPadding - textWidth, 
-                      currentY + (rowIndex === 0 && hasHeader ? 2 : 0));
-              
-              // Reset font for other cells
-              if (rowIndex > 0 || !hasHeader) {
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
-              }
+              doc.text(truncatedText, currentX + cellWidth - cellPadding - textWidth, textY);
             } else {
-              // Left-align text with premium spacing
-              const maxCellWidth = colWidths[colIndex] - (cellPadding * 2);
-              const truncatedText = doc.splitTextToSize(cellText, maxCellWidth)[0] || '';
-              doc.text(truncatedText, currentX + cellPadding, currentY + (rowIndex === 0 && hasHeader ? 2 : 0), { 
+              // Left-align text with perfect spacing
+              doc.text(truncatedText, currentX + cellPadding, textY, { 
                 maxWidth: maxCellWidth 
               });
             }
             
-            currentX += colWidths[colIndex];
+            // Perfect cell borders with enterprise styling
+            doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+            doc.setLineWidth(borderWidth);
+            
+            // Vertical borders between columns (except last)
+            if (colIndex < colWidths.length - 1) {
+              doc.line(currentX + cellWidth, currentY, currentX + cellWidth, currentY + currentRowHeight);
+            }
+            
+            // Horizontal borders between rows
+            if (rowIndex < tableData.length - 1) {
+              doc.line(currentX, currentY + currentRowHeight, currentX + cellWidth, currentY + currentRowHeight);
+            }
+            
+            currentX += cellWidth;
           }
         });
         
-        yPosition += rowIndex === 0 && hasHeader ? headerHeight : rowHeight;
+        currentY += currentRowHeight;
       });
       
-      // Premium table border with enterprise finish
+      // Perfect outer table border with premium finish
       doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.setLineWidth(1.2);
-      const tableHeight = tableData.length * (hasHeader ? (headerHeight + ((tableData.length - 1) * rowHeight)) : (tableData.length * rowHeight));
-      doc.rect(margin, yPosition - tableHeight, contentWidth, tableHeight);
+      doc.setLineWidth(2);
+      const finalTableHeight = currentY - startY;
+      doc.rect(margin + 2, startY, availableWidth, finalTableHeight);
       
-      yPosition += 12; // Enhanced spacing after table
+      // Golden accent bottom border for luxury finish
+      doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
+      doc.setLineWidth(2.5);
+      doc.line(margin + 2, currentY, margin + 2 + availableWidth, currentY);
+      
+      yPosition = currentY + 18; // Enhanced spacing after table
     };
 
     const addText = (text: string, fontSize: number = fonts.body, isIndented: boolean = false) => {
