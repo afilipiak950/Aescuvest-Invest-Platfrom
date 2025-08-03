@@ -540,7 +540,7 @@ export function registerApiRoutes(app: Express) {
 
       // Import services dynamically
       const { investmentMemoService } = await import('../services/investmentMemoService');
-      const { PDFExportService } = await import('../services/pdfExportService');
+      const { ModernPdfExportService } = await import('../services/modernPdfExportService');
       
       // Get the deal data
       const deal = await storage.getDeal(dealId);
@@ -559,9 +559,9 @@ export function registerApiRoutes(app: Express) {
         return res.status(500).json(apiResponse.error('Failed to generate memo for export'));
       }
 
-      // Generate PDF with BAIBYS structure
-      console.log('📄 Generating BAIBYS-style PDF export...');
-      const pdfBuffer = await PDFExportService.generatePDF(memo, deal.companyName);
+      // Generate PDF with modern professional design matching BAIBYS reference
+      console.log('📄 Generating modern professional PDF export...');
+      const pdfBuffer = await ModernPdfExportService.generatePDF(memo, deal.companyName);
 
       // Set response headers for PDF download
       res.setHeader('Content-Type', 'application/pdf');
