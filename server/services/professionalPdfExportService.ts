@@ -62,7 +62,7 @@ export class ProfessionalPdfExportService {
     // Enhanced text rendering with professional formatting
     const addFormattedText = (text: string, style: any = {}) => {
       const {
-        fontSize = fonts.body,
+        fonts.body = fonts.body,
         fontWeight = 'normal',
         color = colors.text,
         alignment = 'left',
@@ -73,7 +73,7 @@ export class ProfessionalPdfExportService {
 
       if (!text || text.trim() === '') return;
 
-      doc.setFontSize(fontSize);
+      doc.setFontSize(fonts.body);
       doc.setFont('helvetica', fontWeight);
       doc.setTextColor(color[0], color[1], color[2]);
 
@@ -82,7 +82,7 @@ export class ProfessionalPdfExportService {
       const maxWidth = contentWidth - indent;
       
       const lines = doc.splitTextToSize(cleanText, maxWidth);
-      const actualLineHeight = fontSize * lineHeight;
+      const actualLineHeight = fonts.body * lineHeight;
       
       lines.forEach((line: string, index: number) => {
         checkPageBreak(actualLineHeight);
@@ -118,11 +118,11 @@ export class ProfessionalPdfExportService {
         yPosition += 5;
       }
       
-      const fontSize = level === 1 ? fonts.heading : fonts.subheading;
+      const fonts.body = level === 1 ? fonts.heading : fonts.subheading;
       const color = level === 1 ? colors.primary : colors.secondary;
       
       addFormattedText(title.toUpperCase(), {
-        fontSize,
+        fonts.body,
         fontWeight: 'bold',
         color,
         marginBottom: level === 1 ? 16 : 12
@@ -134,7 +134,7 @@ export class ProfessionalPdfExportService {
       if (!Array.isArray(items) || items.length === 0) return;
       
       const bulletStyle = {
-        fontSize: fonts.body,
+        fonts.body: fonts.body,
         color: colors.text,
         indent: 20,
         bulletIndent: 30,
@@ -147,7 +147,7 @@ export class ProfessionalPdfExportService {
         checkPageBreak(30);
         
         // Bullet symbol
-        doc.setFontSize(bulletStyle.fontSize);
+        doc.setFontSize(bulletStyle.fonts.body);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
         doc.text('•', margin + bulletStyle.indent, yPosition);
@@ -160,13 +160,13 @@ export class ProfessionalPdfExportService {
         
         bulletLines.forEach((line: string, lineIndex: number) => {
           if (lineIndex > 0) {
-            yPosition += bulletStyle.fontSize * 1.4;
+            yPosition += bulletStyle.fonts.body * 1.4;
             checkPageBreak(20);
           }
           doc.text(line, margin + bulletStyle.bulletIndent, yPosition);
         });
         
-        yPosition += bulletStyle.fontSize * 1.4 + (index < items.length - 1 ? 8 : 12);
+        yPosition += bulletStyle.fonts.body * 1.4 + (index < items.length - 1 ? 8 : 12);
       });
     };
 
@@ -176,7 +176,7 @@ export class ProfessionalPdfExportService {
       
       if (title) {
         addFormattedText(title, {
-          fontSize: fonts.subheading,
+          fonts.body: fonts.subheading,
           fontWeight: 'bold',
           color: colors.secondary,
           marginBottom: 12
@@ -428,7 +428,7 @@ export class ProfessionalPdfExportService {
             addFormattedText(value, { lineHeight: 1.5, marginBottom: 16 });
           } else if (typeof value === 'object') {
             addFormattedText(JSON.stringify(value, null, 2), { 
-              fontSize: 10, 
+              fonts.body: 10, 
               fontWeight: 'normal',
               lineHeight: 1.3 
             });
