@@ -56,6 +56,101 @@ export class EnhancedPdfExportService {
       yPosition += fontSize * 0.5 + 5;
     };
 
+    const addTable = (tableData: string[][], hasHeader: boolean = true) => {
+      if (!tableData || tableData.length === 0) return;
+      
+      const cellPadding = 3;
+      const rowHeight = 12;
+      const headerHeight = 15;
+      
+      // Calculate column widths based on content
+      const colCount = Math.max(...tableData.map(row => row.length));
+      const colWidths = new Array(colCount).fill(0);
+      
+      // Find maximum width for each column
+      tableData.forEach(row => {
+        row.forEach((cell, colIndex) => {
+          const cellWidth = doc.getTextWidth(cell || '') + (cellPadding * 2);
+          colWidths[colIndex] = Math.max(colWidths[colIndex] || 0, cellWidth);
+        });
+      });
+      
+      // Ensure columns fit within page width
+      const totalWidth = colWidths.reduce((sum, width) => sum + width, 0);
+      if (totalWidth > contentWidth) {
+        const scaleFactor = contentWidth / totalWidth;
+        colWidths.forEach((width, index) => {
+          colWidths[index] = width * scaleFactor;
+        });
+      }
+      
+      let currentX = margin;
+      let currentY = yPosition;
+      
+      tableData.forEach((row, rowIndex) => {
+        checkPageBreak(rowIndex === 0 && hasHeader ? headerHeight : rowHeight);
+        
+        currentX = margin;
+        currentY = yPosition;
+        
+        // Draw row background for header
+        if (rowIndex === 0 && hasHeader) {
+          doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+          doc.rect(margin, currentY - 8, contentWidth, headerHeight, 'F');
+        } else if (rowIndex % 2 === 0) {
+          // Alternate row colors
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, currentY - 8, contentWidth, rowHeight, 'F');
+        }
+        
+        // Draw cells
+        row.forEach((cell, colIndex) => {
+          if (colIndex < colWidths.length) {
+            // Set text style
+            if (rowIndex === 0 && hasHeader) {
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(fonts.body);
+              doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
+            } else {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(fonts.small);
+              doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+            }
+            
+            // Draw cell borders
+            doc.setLineWidth(0.1);
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(currentX, currentY - 8, colWidths[colIndex], rowIndex === 0 && hasHeader ? headerHeight : rowHeight);
+            
+            // Add cell text with proper truncation and number formatting
+            let cellText = (cell || '').toString();
+            
+            // Format numbers and currency values
+            if (cellText.match(/^\$?[\d,]+\.?\d*$/) || cellText.match(/^\$[\d,]+$/)) {
+              // Right-align numbers and currency
+              const maxCellWidth = colWidths[colIndex] - (cellPadding * 2);
+              const truncatedText = doc.splitTextToSize(cellText, maxCellWidth)[0] || '';
+              const textWidth = doc.getTextWidth(truncatedText);
+              doc.text(truncatedText, currentX + colWidths[colIndex] - cellPadding - textWidth, currentY);
+            } else {
+              // Left-align text
+              const maxCellWidth = colWidths[colIndex] - (cellPadding * 2);
+              const truncatedText = doc.splitTextToSize(cellText, maxCellWidth)[0] || '';
+              doc.text(truncatedText, currentX + cellPadding, currentY, { 
+                maxWidth: maxCellWidth 
+              });
+            }
+            
+            currentX += colWidths[colIndex];
+          }
+        });
+        
+        yPosition += rowIndex === 0 && hasHeader ? headerHeight : rowHeight;
+      });
+      
+      yPosition += 8; // Extra spacing after table
+    };
+
     const addText = (text: string, fontSize: number = fonts.body, isIndented: boolean = false) => {
       if (!text || text.trim() === '') return;
       
@@ -65,6 +160,15 @@ export class EnhancedPdfExportService {
       
       const x = isIndented ? margin + 10 : margin;
       const maxWidth = contentWidth - (isIndented ? 10 : 0);
+      
+      // Check if this looks like table data (contains pipe separators)
+      if (text.includes('|') && text.split('|').length > 3) {
+        const tableData = this.parseTableData(text);
+        if (tableData.length > 0) {
+          addTable(tableData, true);
+          return;
+        }
+      }
       
       // Enhanced text processing with better paragraph handling
       const processedText = this.processTextContent(text);
@@ -237,7 +341,34 @@ export class EnhancedPdfExportService {
     sectionMappings.forEach((section) => {
       const content = (memo as any)[section.key];
       if (content) {
-        addSection(section.title, content);
+        // Special handling for financial sections
+        if (section.key === 'financialProjections' || section.key === 'financialAnalysis') {
+          addSection(section.title, content);
+          
+          // Try to extract and format any embedded table data specifically
+          if (typeof content === 'string' && content.includes('|')) {
+            const tableData = this.parseTableData(content);
+            if (tableData.length > 1) {
+              // Add a subtitle for the table
+              checkPageBreak(8);
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(fonts.body + 1);
+              doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+              doc.text('Financial Data Summary', margin + 5, yPosition);
+              yPosition += 12;
+              
+              // Reset formatting
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(fonts.body);
+              doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+              
+              // Render the table
+              addTable(tableData, true);
+            }
+          }
+        } else {
+          addSection(section.title, content);
+        }
       }
     });
 
@@ -421,11 +552,20 @@ export class EnhancedPdfExportService {
         }
       } else {
         // Regular paragraph - ensure it's properly cleaned and formatted
-        const cleanContent = trimmed
+        let cleanContent = trimmed
           .replace(/\s+/g, ' ') // Normalize whitespace
           .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Ensure proper sentence spacing
           .replace(/\s([,.!?;:])/g, '$1') // Fix spacing before punctuation
           .trim();
+          
+        // Better financial text formatting
+        cleanContent = cleanContent
+          .replace(/\$(\d+),?(\d+)/g, '$$$1,$2') // Ensure currency formatting
+          .replace(/(\d+)%/g, '$1%') // Ensure percentage formatting
+          .replace(/(\d+)\s+million/gi, '$1 million') // Standardize million formatting
+          .replace(/(\d+)\s+billion/gi, '$1 billion') // Standardize billion formatting
+          .replace(/\s+([,.])/g, '$1') // Fix spacing before punctuation
+          .replace(/([,.!?])\s*([A-Z])/g, '$1 $2'); // Proper sentence spacing
           
         if (cleanContent && cleanContent.length > 0) {
           result.push({ type: 'paragraph', content: cleanContent });
@@ -434,5 +574,42 @@ export class EnhancedPdfExportService {
     });
     
     return result;
+  }
+
+  private static parseTableData(text: string): string[][] {
+    if (!text || !text.includes('|')) return [];
+    
+    // Split by lines and filter out empty lines
+    const lines = text.split('\n').filter(line => line.trim() && line.includes('|'));
+    
+    if (lines.length === 0) return [];
+    
+    const tableData: string[][] = [];
+    
+    lines.forEach(line => {
+      // Clean and split by pipe separator
+      const cells = line.split('|')
+        .map(cell => cell.trim())
+        .filter((cell, index, array) => {
+          // Remove empty cells at beginning and end (common in markdown tables)
+          return !(cell === '' && (index === 0 || index === array.length - 1));
+        })
+        .filter(cell => {
+          // Remove separator lines (like |----|-----|)
+          return !cell.match(/^[-\s]*$/);
+        });
+      
+      if (cells.length > 0) {
+        tableData.push(cells);
+      }
+    });
+    
+    // Clean up table data further
+    const cleanedTable = tableData.filter(row => {
+      // Remove rows that are all dashes/separators
+      return !row.every(cell => cell.match(/^[-\s]*$/));
+    });
+    
+    return cleanedTable;
   }
 }
