@@ -272,9 +272,13 @@ export class EnhancedPdfExportService {
             let cellText = (cell || '').toString().trim();
             
             if (isHeaderRow) {
-              setTableHeaderStyle();
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(fonts.tableHeader);
+              doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
             } else {
-              setTableBodyStyle();
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(fonts.tableBody);
+              doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
             }
             
             // Enhanced number and currency detection with premium styling
@@ -370,7 +374,7 @@ export class EnhancedPdfExportService {
           lines.forEach((line: string) => {
             checkPageBreak();
             doc.text(line, x, yPosition);
-            yPosition += fontSize * 0.5 + 3; // Increased line spacing
+            yPosition += fonts.body * 0.5 + 3; // Increased line spacing
           });
           yPosition += 6; // Increased paragraph spacing
         } else if (paragraph.type === 'bullet') {
@@ -381,12 +385,12 @@ export class EnhancedPdfExportService {
             if (lineIndex === 0) {
               doc.text(line, x + 10, yPosition);
             } else {
-              yPosition += fontSize * 0.5 + 3; // Increased line spacing
+              yPosition += fonts.body * 0.5 + 3; // Increased line spacing
               checkPageBreak();
               doc.text(line, x + 10, yPosition);
             }
           });
-          yPosition += fontSize * 0.5 + 4; // Increased bullet spacing
+          yPosition += fonts.body * 0.5 + 4; // Increased bullet spacing
         } else if (paragraph.type === 'highlight') {
           checkPageBreak();
           
@@ -397,7 +401,7 @@ export class EnhancedPdfExportService {
           
           // Render content in emphasized style
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(fontSize);
+          doc.setFontSize(fonts.body);
           doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
           
           const highlightLines = doc.splitTextToSize(paragraph.content, maxWidth - 10);
@@ -405,7 +409,7 @@ export class EnhancedPdfExportService {
             if (lineIndex === 0) {
               doc.text(line, x + 10, yPosition);
             } else {
-              yPosition += fontSize * 0.5 + 3;
+              yPosition += fonts.body * 0.5 + 3;
               checkPageBreak();
               doc.text(line, x + 10, yPosition);
             }
@@ -414,16 +418,16 @@ export class EnhancedPdfExportService {
           // Reset formatting
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
-          yPosition += fontSize * 0.5 + 6; // Extra spacing for highlights
+          yPosition += fonts.body * 0.5 + 6; // Extra spacing for highlights
         } else if (paragraph.type === 'heading') {
           checkPageBreak(12);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(fontSize + 2);
+          doc.setFontSize(fonts.subheading);
           doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
           doc.text(paragraph.content, x, yPosition);
-          yPosition += (fontSize + 2) * 0.5 + 8; // Increased heading spacing
+          yPosition += fonts.subheading * 0.5 + 8; // Increased heading spacing
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(fontSize);
+          doc.setFontSize(fonts.body);
           doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
         } else if (paragraph.type === 'keyvalue') {
           checkPageBreak(8);
@@ -435,7 +439,7 @@ export class EnhancedPdfExportService {
             
             // Render key in bold
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(fontSize);
+            doc.setFontSize(fonts.body);
             doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
             doc.text(`${key}:`, x, yPosition);
             
@@ -453,20 +457,20 @@ export class EnhancedPdfExportService {
               if (lineIndex === 0) {
                 doc.text(valueLine, x + keyWidth, yPosition);
               } else {
-                yPosition += fontSize * 0.5 + 3;
+                yPosition += fonts.body * 0.5 + 3;
                 checkPageBreak();
                 doc.text(valueLine, x + keyWidth, yPosition);
               }
             });
             
-            yPosition += fontSize * 0.5 + 6; // Extra spacing after key-value pairs
+            yPosition += fonts.body * 0.5 + 6; // Extra spacing after key-value pairs
           } else {
             // Fallback to regular text if parsing fails
             const lines = doc.splitTextToSize(paragraph.content, maxWidth);
             lines.forEach((line: string) => {
               checkPageBreak();
               doc.text(line, x, yPosition);
-              yPosition += fontSize * 0.5 + 3;
+              yPosition += fonts.body * 0.5 + 3;
             });
             yPosition += 4;
           }
@@ -582,8 +586,8 @@ export class EnhancedPdfExportService {
       doc.setFillColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       doc.rect(pageNumX - 3, yPosition - 4, 12, 8, 'F');
       
-      setBodyTextStyle();
-      doc.setFont('helvetica', 'bold'); // Override for page numbers
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fonts.body);
       doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
       doc.text(`${index + 3}`, pageNumX, yPosition, { align: 'center' });
       
@@ -697,7 +701,9 @@ export class EnhancedPdfExportService {
               yPosition += 12;
               
               // Reset to consistent body text formatting
-              setBodyTextStyle();
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(fonts.body);
+              doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
               
               // Render the table
               addTable(tableData, true);
@@ -776,7 +782,9 @@ export class EnhancedPdfExportService {
     doc.line(210 - margin - 15, 297 - margin, 210 - margin, 297 - margin);
 
     // Professional metadata section with consistent typography
-    setBodyTextStyle();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fonts.body);
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
     
     const currentDate = new Date().toLocaleDateString('en-US', { 
       year: 'numeric', 
@@ -787,7 +795,9 @@ export class EnhancedPdfExportService {
     // Date with elegant formatting using consistent typography
     doc.setFont('helvetica', 'bold'); // Override for label
     doc.text('PREPARED:', 105, 180, { align: 'center' });
-    setBodyTextStyle();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fonts.body);
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
     doc.text(currentDate, 105, 190, { align: 'center' });
 
     // Confidentiality notice with premium styling and consistent typography
@@ -801,7 +811,9 @@ export class EnhancedPdfExportService {
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.text('CONFIDENTIAL & PROPRIETARY', 105, 210, { align: 'center' });
     
-    setSmallTextStyle();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fonts.small);
+    doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
     doc.text('This document contains confidential and proprietary information', 105, 218, { align: 'center' });
 
     // Ultra-professional footer with branding and consistent typography
@@ -815,11 +827,14 @@ export class EnhancedPdfExportService {
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.text('PREPARED BY', 105, 272, { align: 'center' });
     
-    setBodyTextStyle();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fonts.body);
     doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     doc.text('Aescuvest Investment Intelligence Platform', 105, 282, { align: 'center' });
     
-    setSmallTextStyle();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fonts.small);
+    doc.setTextColor(colors.lightText[0], colors.lightText[1], colors.lightText[2]);
     doc.text('Advanced AI-Powered Investment Analysis & Due Diligence', 105, 290, { align: 'center' });
   }
 
