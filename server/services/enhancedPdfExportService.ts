@@ -106,10 +106,15 @@ export class EnhancedPdfExportService {
       }
     };
 
-    const startNewSection = () => {
-      // Always start major sections on a new page with proper spacing
-      addPage();
-      yPosition += 10; // Additional spacing at start of sections
+    const startNewSection = (forceNewPage: boolean = false) => {
+      // Only start new page if forced or if we need significant space
+      if (forceNewPage || yPosition > pageHeight - 80) {
+        addPage();
+        yPosition += 10; // Additional spacing at start of sections
+      } else {
+        // Just add some spacing between sections on same page
+        yPosition += 15;
+      }
     };
 
     const addTitle = (text: string, fontSize: number = fonts.title, color: number[] = colors.primary) => {
@@ -472,7 +477,7 @@ export class EnhancedPdfExportService {
     this.generateCoverPage(doc, memo, companyName, colors, fonts, margin, contentWidth);
     
     // Ultra-premium table of contents
-    startNewSection();
+    startNewSection(true); // Force new page for TOC
     addTitle('TABLE OF CONTENTS', fonts.title);
     yPosition += 8;
     
@@ -519,14 +524,14 @@ export class EnhancedPdfExportService {
       yPosition += 8;
     });
 
-    // Generate memo sections with proper page breaks
-    startNewSection();
+    // Generate memo sections with strategic page breaks
+    startNewSection(true); // Force new page for first section
     
     // Executive Summary with enhanced formatting
     if (memo.executiveSummary) {
       addTitle('EXECUTIVE SUMMARY', fonts.title);
       addText(memo.executiveSummary);
-      startNewSection();
+      startNewSection(true); // Force new page after executive summary
     }
 
     // Ultra-premium Investment Highlights section
@@ -574,7 +579,7 @@ export class EnhancedPdfExportService {
       } else {
         addText(memo.investmentHighlights);
       }
-      startNewSection();
+      startNewSection(true); // Force new page after investment highlights
     }
 
     // Main sections
@@ -605,8 +610,11 @@ export class EnhancedPdfExportService {
     sectionMappings.forEach((section) => {
       const content = (memo as any)[section.key];
       if (content) {
-        // Start each major section on a new page with proper spacing
-        startNewSection();
+        // Only force new pages for major sections
+        const majorSections = ['marketAnalysis', 'financialAnalysis', 'clinicalAssessment', 
+                              'riskAssessment', 'competitiveAnalysis', 'recommendation'];
+        const forceNewPage = majorSections.includes(section.key);
+        startNewSection(forceNewPage);
         
         // Special handling for financial sections
         if (section.key === 'financialProjections' || section.key === 'financialAnalysis') {
