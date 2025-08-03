@@ -591,6 +591,12 @@ export class EnhancedPdfExportService {
       .replace(/^"/gm, '') // Remove quotes at line start
       .replace(/"$/gm, '') // Remove quotes at line end
       .replace(/",$/gm, '') // Remove trailing quote-comma
+      // Clean up JSON-like formatting
+      .replace(/^\s*\{\s*$/gm, '') // Remove standalone opening braces
+      .replace(/^\s*\}\s*$/gm, '') // Remove standalone closing braces
+      .replace(/"\s*:\s*"/g, ': ') // "key": "value" -> key: value
+      .replace(/^[\s]*"([^"]+)"\s*:\s*/gm, '**$1:** ') // "key": -> **key:**
+      .replace(/^[\s]*([a-zA-Z]+)"\s*:\s*/gm, '**$1:** ') // key": -> **key:**
     
     // Split text into lines first, then process for better structure detection
     const lines = cleanedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
@@ -600,6 +606,11 @@ export class EnhancedPdfExportService {
     let currentParagraph = '';
     
     lines.forEach((line, index) => {
+      // Skip empty JSON artifacts
+      if (line.match(/^\s*[\{\}]\s*$/) || line.trim() === '') {
+        return;
+      }
+      
       // Enhanced bullet point detection with more patterns
       if (line.match(/^[\-\*•]\s+/) || 
           line.match(/^\d+\.\s+/) || 
@@ -612,7 +623,9 @@ export class EnhancedPdfExportService {
           line.match(/^•\s+/) ||
           line.match(/^[\s]*"[^"]*"[,\s]*$/) || // Quoted list items: "text",
           line.match(/^\s*•\s*/) || // Clean bullet points from preprocessing
-          line.match(/^\s*[A-Z][^"]*"[,\s]*$/) // Items that start with capital and end with quote-comma
+          line.match(/^\s*[A-Z][^"]*"[,\s]*$/) || // Items that start with capital and end with quote-comma
+          line.match(/^\s*"[a-zA-Z]+"\s*:\s*/) || // JSON key patterns: "key":
+          line.match(/^\s*[a-zA-Z]+"\s*:\s*/) // Partial JSON key patterns: key":
           ) {
         
         // Save any accumulated paragraph first
@@ -630,6 +643,8 @@ export class EnhancedPdfExportService {
           .replace(/^[\s]*"/, '') // Remove leading quotes
           .replace(/"[,\s]*$/, '') // Remove trailing quotes and commas
           .replace(/^\s*•\s*/, '') // Remove bullet symbols from preprocessing
+          .replace(/^[\s]*"([^"]+)"\s*:\s*(.*)/, '**$1:** $2') // "key": value -> **key:** value
+          .replace(/^[\s]*([a-zA-Z]+)"\s*:\s*(.*)/, '**$1:** $2') // key": value -> **key:** value
           .trim();
           
         // Special handling for key highlights (often start with action words or key phrases)
