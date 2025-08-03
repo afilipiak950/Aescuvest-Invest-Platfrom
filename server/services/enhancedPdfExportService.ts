@@ -169,21 +169,24 @@ export class EnhancedPdfExportService {
         });
       });
       
-      // Ensure columns fit within page width with proportional scaling
+      // Ensure columns fit within page width with strict boundary enforcement
+      const availableWidth = contentWidth - 8; // Account for margins and borders
       const totalWidth = colWidths.reduce((sum, width) => sum + width, 0);
-      const availableWidth = contentWidth - 4; // Account for outer borders
       
-      if (totalWidth > availableWidth) {
+      // Always scale to fit exactly within available width
+      if (totalWidth !== availableWidth) {
         const scaleFactor = availableWidth / totalWidth;
         colWidths.forEach((width, index) => {
-          colWidths[index] = Math.max(minColWidth, width * scaleFactor);
+          colWidths[index] = Math.max(40, width * scaleFactor); // Minimum 40px per column
         });
-      } else if (totalWidth < availableWidth) {
-        // Distribute extra space proportionally
-        const extraSpace = availableWidth - totalWidth;
-        const spacePerCol = extraSpace / colCount;
+      }
+      
+      // Final verification - ensure total doesn't exceed bounds
+      const finalTotal = colWidths.reduce((sum, width) => sum + width, 0);
+      if (finalTotal > availableWidth) {
+        const adjustment = (finalTotal - availableWidth) / colCount;
         colWidths.forEach((width, index) => {
-          colWidths[index] = width + spacePerCol;
+          colWidths[index] = Math.max(40, width - adjustment);
         });
       }
       
@@ -196,7 +199,7 @@ export class EnhancedPdfExportService {
       
       // Draw ultra-premium table with perfect borders
       tableData.forEach((row, rowIndex) => {
-        let currentX = margin + 2; // Account for outer border
+        let currentX = margin + 4; // Account for outer border and margins
         const isHeaderRow = rowIndex === 0 && hasHeader;
         const currentRowHeight = isHeaderRow ? headerHeight : rowHeight;
         
@@ -290,12 +293,12 @@ export class EnhancedPdfExportService {
       doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       doc.setLineWidth(2);
       const finalTableHeight = currentY - startY;
-      doc.rect(margin + 2, startY, availableWidth, finalTableHeight);
+      doc.rect(margin + 4, startY, availableWidth, finalTableHeight);
       
       // Golden accent bottom border for luxury finish
       doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       doc.setLineWidth(2.5);
-      doc.line(margin + 2, currentY, margin + 2 + availableWidth, currentY);
+      doc.line(margin + 4, currentY, margin + 4 + availableWidth, currentY);
       
       yPosition = currentY + 18; // Enhanced spacing after table
     };
