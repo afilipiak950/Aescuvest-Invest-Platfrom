@@ -99,10 +99,7 @@ export class EnhancedPdfExportService {
       doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
       doc.rect(0, 0, pageWidth, 15, 'F');
       
-      // Accent line
-      doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.setLineWidth(0.8);
-      doc.line(margin, 15, pageWidth - margin, 15);
+      // Clean header without interfering lines
       
       // Company name in header with consistent styling
       setSmallTextStyle();
@@ -122,10 +119,7 @@ export class EnhancedPdfExportService {
       doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
       doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
       
-      // Accent line
-      doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.setLineWidth(0.8);
-      doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+      // Clean footer without interfering lines
       
       // Page number with consistent styling
       setSmallTextStyle();
@@ -174,8 +168,6 @@ export class EnhancedPdfExportService {
       // Golden accent borders
       doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       doc.setLineWidth(1);
-      doc.line(margin - 5, yPosition - 8, margin + contentWidth + 5, yPosition - 8);
-      doc.line(margin - 5, yPosition + currentFontSize, margin + contentWidth + 5, yPosition + currentFontSize);
       
       // Title text with consistent styling
       doc.text(text, margin, yPosition);
@@ -256,7 +248,6 @@ export class EnhancedPdfExportService {
           // Golden accent top border for premium look
           doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
           doc.setLineWidth(2.5);
-          doc.line(currentX, currentY, currentX + availableWidth, currentY);
         } else if (rowIndex % 2 === 1) {
           // Sophisticated alternating stripe
           doc.setFillColor(250, 251, 252); // Ultra-light premium gray
@@ -476,8 +467,6 @@ export class EnhancedPdfExportService {
       // Golden accent border
       doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       doc.setLineWidth(0.8);
-      doc.line(margin, yPosition - 5, margin + contentWidth, yPosition - 5);
-      doc.line(margin, yPosition + 7, margin + contentWidth, yPosition + 7);
       
       // Consistent section header typography
       setSectionHeaderStyle();
@@ -606,8 +595,6 @@ export class EnhancedPdfExportService {
           // Accent border
           doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
           doc.setLineWidth(0.5);
-          doc.line(margin - 2, yPosition - 8, margin + contentWidth + 2, yPosition - 8);
-          doc.line(margin - 2, yPosition + 8, margin + contentWidth + 2, yPosition + 8);
           
           // Premium bullet with numbering
           doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
@@ -749,23 +736,14 @@ export class EnhancedPdfExportService {
     // Sophisticated decorative elements
     doc.setLineWidth(1);
     doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-    doc.line(60, 160, 150, 160);
     
     // Decorative corner elements
     doc.setLineWidth(0.5);
     doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
     // Top left corner
-    doc.line(margin, margin, margin + 15, margin);
-    doc.line(margin, margin, margin, margin + 15);
     // Top right corner  
-    doc.line(210 - margin - 15, margin, 210 - margin, margin);
-    doc.line(210 - margin, margin, 210 - margin, margin + 15);
     // Bottom left corner
-    doc.line(margin, 297 - margin - 15, margin, 297 - margin);
-    doc.line(margin, 297 - margin, margin + 15, 297 - margin);
     // Bottom right corner
-    doc.line(210 - margin, 297 - margin - 15, 210 - margin, 297 - margin);
-    doc.line(210 - margin - 15, 297 - margin, 210 - margin, 297 - margin);
 
     // Professional metadata section with consistent typography
     doc.setFont('helvetica', 'normal');
@@ -806,7 +784,6 @@ export class EnhancedPdfExportService {
     doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
     doc.rect(0, 260, 210, 37, 'F');
     doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-    doc.line(0, 260, 210, 260);
     
     doc.setFontSize(fonts.caption);
     doc.setFont('helvetica', 'bold');
