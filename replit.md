@@ -34,7 +34,7 @@ Preferred communication style: Simple, everyday language.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering for reliable display.
 - **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) triggered automatically after company research.
 - **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with bulletproof fallback system ensuring ZERO "No information available" responses across all 26 memo sections using 263-document dataset.
-- **Ultra-Premium PDF Export**: Enterprise-grade typography system with consistent font sizing (title 20pt, section headers 14pt, body text 10pt), professional formatting, and clean design without interfering visual elements.
+- **Ultra-Premium PDF Export**: Enterprise-grade typography system with consistent font sizing (title 20pt, section headers 14pt, body text 10pt), professional formatting, and completely clean design with zero interfering lines or visual artifacts for maximum readability.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy (agent analyses, document batches, synthesis) for comprehensive data extraction.
 
 ### Data Flow
