@@ -571,7 +571,7 @@ export class EnhancedPdfExportService {
     
     const result: Array<{type: string, content: string}> = [];
     
-    // First, aggressively clean all asterisk and underscore patterns
+    // First, aggressively clean all formatting patterns
     let cleanedText = text
       .replace(/\*{4,}([^*]*?)\*{2,}:\*{0,2}/g, '$1:') // ****text:**** -> text:
       .replace(/\*{4,}([^*]*?):\*{2}/g, '$1:') // ****text:** -> text:
@@ -581,7 +581,16 @@ export class EnhancedPdfExportService {
       .replace(/\*{2,}/g, '') // Remove standalone asterisks
       .replace(/_{4,}([^_]*?)_{2,}:\*{0,2}/g, '$1:') // ____text__: -> text:
       .replace(/_{2,}([^_]*?)_{2,}/g, '$1') // __text__ -> text
-      .replace(/_{2,}/g, ''); // Remove standalone underscores
+      .replace(/_{2,}/g, '') // Remove standalone underscores
+      // Clean up list formatting patterns
+      .replace(/\[\s*"/g, '\n• ') // [" -> bullet point
+      .replace(/",\s*"/g, '\n• ') // ", " -> new bullet point  
+      .replace(/"\s*\]/g, '') // "] -> remove
+      .replace(/^\s*\[\s*/gm, '') // Remove opening brackets at line start
+      .replace(/\s*\]\s*$/gm, '') // Remove closing brackets at line end
+      .replace(/^"/gm, '') // Remove quotes at line start
+      .replace(/"$/gm, '') // Remove quotes at line end
+      .replace(/",$/gm, '') // Remove trailing quote-comma
     
     // Split text into lines first, then process for better structure detection
     const lines = cleanedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
@@ -600,7 +609,11 @@ export class EnhancedPdfExportService {
           line.match(/^→\s+/) ||
           line.match(/^▪\s+/) ||
           line.match(/^‣\s+/) ||
-          line.match(/^•\s+/)) {
+          line.match(/^•\s+/) ||
+          line.match(/^[\s]*"[^"]*"[,\s]*$/) || // Quoted list items: "text",
+          line.match(/^\s*•\s*/) || // Clean bullet points from preprocessing
+          line.match(/^\s*[A-Z][^"]*"[,\s]*$/) // Items that start with capital and end with quote-comma
+          ) {
         
         // Save any accumulated paragraph first
         if (currentParagraph.trim()) {
@@ -614,6 +627,9 @@ export class EnhancedPdfExportService {
           .replace(/^\d+\.\s+/, '')
           .replace(/^[a-zA-Z]\.\s+/, '')
           .replace(/^[ivxIVX]+\.\s+/, '')
+          .replace(/^[\s]*"/, '') // Remove leading quotes
+          .replace(/"[,\s]*$/, '') // Remove trailing quotes and commas
+          .replace(/^\s*•\s*/, '') // Remove bullet symbols from preprocessing
           .trim();
           
         // Special handling for key highlights (often start with action words or key phrases)
