@@ -75,30 +75,30 @@ export class EnhancedPdfExportService {
           lines.forEach((line: string) => {
             checkPageBreak();
             doc.text(line, x, yPosition);
-            yPosition += fontSize * 0.4 + 2;
+            yPosition += fontSize * 0.5 + 3; // Increased line spacing
           });
-          yPosition += 4; // Paragraph spacing
+          yPosition += 6; // Increased paragraph spacing
         } else if (paragraph.type === 'bullet') {
           checkPageBreak();
           doc.text('•', x, yPosition);
-          const bulletLines = doc.splitTextToSize(paragraph.content, maxWidth - 8);
+          const bulletLines = doc.splitTextToSize(paragraph.content, maxWidth - 10);
           bulletLines.forEach((line: string, lineIndex: number) => {
             if (lineIndex === 0) {
-              doc.text(line, x + 8, yPosition);
+              doc.text(line, x + 10, yPosition);
             } else {
+              yPosition += fontSize * 0.5 + 3; // Increased line spacing
               checkPageBreak();
-              yPosition += fontSize * 0.4 + 2;
-              doc.text(line, x + 8, yPosition);
+              doc.text(line, x + 10, yPosition);
             }
           });
-          yPosition += fontSize * 0.4 + 3;
+          yPosition += fontSize * 0.5 + 4; // Increased bullet spacing
         } else if (paragraph.type === 'heading') {
-          checkPageBreak(8);
+          checkPageBreak(12);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(fontSize + 1);
+          doc.setFontSize(fontSize + 2);
           doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
           doc.text(paragraph.content, x, yPosition);
-          yPosition += (fontSize + 1) * 0.4 + 5;
+          yPosition += (fontSize + 2) * 0.5 + 8; // Increased heading spacing
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(fontSize);
           doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
@@ -322,9 +322,23 @@ export class EnhancedPdfExportService {
   private static cleanText(text: string): string {
     if (!text) return '';
     return text
-      .replace(/[#*\-_]/g, '') // Remove markdown formatting
-      .replace(/\n\s*\n/g, '\n') // Remove excessive line breaks
-      .replace(/\s+/g, ' ') // Normalize whitespace
+      // Remove all markdown formatting
+      .replace(/#{1,6}\s*/g, '') // Remove markdown headers
+      .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1') // Remove bold/italic asterisks
+      .replace(/_{1,3}([^_]+)_{1,3}/g, '$1') // Remove bold/italic underscores
+      .replace(/\*{2,}/g, '') // Remove standalone asterisks
+      .replace(/#{2,}/g, '') // Remove standalone hashes
+      .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // Remove code formatting
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links, keep text
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Remove markdown images, keep alt text
+      .replace(/>\s*/g, '') // Remove blockquote markers
+      .replace(/^\s*[-*+]\s+/gm, '') // Remove list markers at line start
+      .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
+      // Clean up whitespace and line breaks
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce triple+ line breaks to double
+      .replace(/\s+/g, ' ') // Normalize all whitespace to single spaces
+      .replace(/\n\s+/g, '\n') // Remove leading spaces after line breaks
+      .replace(/\s+\n/g, '\n') // Remove trailing spaces before line breaks
       .trim();
   }
 
@@ -345,62 +359,77 @@ export class EnhancedPdfExportService {
   private static processTextContent(text: string): Array<{type: string, content: string}> {
     if (!text) return [];
     
+    // First, thoroughly clean the text of all markdown artifacts
+    const cleanedText = this.cleanText(text);
+    if (!cleanedText) return [];
+    
     const result: Array<{type: string, content: string}> = [];
     
     // Split text into logical paragraphs and process each
-    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+    const paragraphs = cleanedText.split(/\n\s*\n/).filter(p => p.trim());
     
     paragraphs.forEach(paragraph => {
       const trimmed = paragraph.trim();
       
       if (!trimmed) return;
       
-      // Check for different content types
-      if (trimmed.match(/^[•\-\*]\s/)) {
+      // Check for different content types after cleaning
+      if (trimmed.match(/^[•\-\*]\s/) || trimmed.match(/^\s*•\s/)) {
         // Bullet point
-        const content = trimmed.replace(/^[•\-\*]\s+/, '').trim();
-        result.push({ type: 'bullet', content });
+        const content = trimmed.replace(/^[•\-\*]\s+/, '').replace(/^\s*•\s+/, '').trim();
+        if (content) {
+          result.push({ type: 'bullet', content });
+        }
       } else if (trimmed.match(/^\d+\.\s/)) {
         // Numbered list item - treat as bullet
         const content = trimmed.replace(/^\d+\.\s+/, '').trim();
-        result.push({ type: 'bullet', content });
-      } else if (trimmed.match(/^[A-Z][A-Z\s]+:$/) || trimmed.match(/^#+\s/)) {
-        // Heading (all caps with colon or markdown heading)
-        const content = trimmed.replace(/^#+\s+/, '').replace(/:$/, '').trim();
-        result.push({ type: 'heading', content });
-      } else if (trimmed.includes('\n- ') || trimmed.includes('\n• ')) {
+        if (content) {
+          result.push({ type: 'bullet', content });
+        }
+      } else if (trimmed.match(/^[A-Z][A-Z\s]+:?\s*$/) && trimmed.length < 100) {
+        // Heading (all caps, short length)
+        const content = trimmed.replace(/:+$/, '').trim();
+        if (content) {
+          result.push({ type: 'heading', content });
+        }
+      } else if (trimmed.includes('\n•') || trimmed.includes('\n-') || trimmed.includes('\n*')) {
         // Paragraph with embedded bullet points - split them
         const lines = trimmed.split('\n');
         let currentParagraph = '';
         
         lines.forEach(line => {
-          if (line.trim().match(/^[•\-\*]\s/)) {
+          const cleanLine = line.trim();
+          if (cleanLine.match(/^[•\-\*]\s/) || cleanLine.match(/^\s*•\s/)) {
             // Save any accumulated paragraph
             if (currentParagraph.trim()) {
-              result.push({ type: 'paragraph', content: currentParagraph.trim() });
+              result.push({ type: 'paragraph', content: this.cleanText(currentParagraph) });
               currentParagraph = '';
             }
             // Add bullet point
-            const content = line.trim().replace(/^[•\-\*]\s+/, '');
-            result.push({ type: 'bullet', content });
-          } else {
-            currentParagraph += (currentParagraph ? ' ' : '') + line.trim();
+            const content = cleanLine.replace(/^[•\-\*]\s+/, '').replace(/^\s*•\s+/, '').trim();
+            if (content) {
+              result.push({ type: 'bullet', content });
+            }
+          } else if (cleanLine) {
+            currentParagraph += (currentParagraph ? ' ' : '') + cleanLine;
           }
         });
         
         // Add any remaining paragraph content
         if (currentParagraph.trim()) {
-          result.push({ type: 'paragraph', content: currentParagraph.trim() });
+          result.push({ type: 'paragraph', content: this.cleanText(currentParagraph) });
         }
       } else {
-        // Regular paragraph
-        // Clean up the text and format it properly
+        // Regular paragraph - ensure it's properly cleaned and formatted
         const cleanContent = trimmed
           .replace(/\s+/g, ' ') // Normalize whitespace
           .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Ensure proper sentence spacing
+          .replace(/\s([,.!?;:])/g, '$1') // Fix spacing before punctuation
           .trim();
           
-        result.push({ type: 'paragraph', content: cleanContent });
+        if (cleanContent && cleanContent.length > 0) {
+          result.push({ type: 'paragraph', content: cleanContent });
+        }
       }
     });
     
