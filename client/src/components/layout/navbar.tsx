@@ -21,10 +21,11 @@ export default function Navbar() {
           {!isExpanded && (
             <div className="flex items-center gap-3">
               <img 
-                src="/assets/aescuvest-logo.png" 
+                src="/assets/aescuvest-icon.png" 
                 alt="Aescuvest Logo" 
-                className="h-8 w-auto"
+                className="h-8 w-8"
               />
+              <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
             </div>
           )}
         </div>
