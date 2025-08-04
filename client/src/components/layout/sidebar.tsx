@@ -3,8 +3,7 @@ import { cn } from '@/lib/utils';
 import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/contexts/SidebarContext';
-import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png";
-import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
+// Logos removed during deployment optimization - using text-based branding
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -32,31 +31,14 @@ export default function Sidebar() {
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
-              <img 
-                src={aescuvestLogoFull} 
-                alt="Aescuvest" 
-                className="h-8 w-auto object-contain"
-                onError={(e) => {
-                  console.error('Logo failed to load:', aescuvestLogoFull);
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+              <div className="h-8 w-8 rounded bg-primary/20 flex items-center justify-center">
+                <span className="text-sm font-bold text-primary">A</span>
+              </div>
               <span className="text-xl font-bold text-primary">Aescuvest</span>
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
-              <img 
-                src={aescuvestLogo} 
-                alt="Aescuvest" 
-                className="h-8 w-8 object-contain"
-                onError={(e) => {
-                  console.error('Logo failed to load:', aescuvestLogo);
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'block';
-                }}
-              />
-              <span className="text-primary font-bold text-lg hidden">A</span>
+            <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
+              <span className="text-lg font-bold text-primary">A</span>
             </div>
           )}
         </div>

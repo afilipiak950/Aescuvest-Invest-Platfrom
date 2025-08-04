@@ -69,6 +69,9 @@ documentation/
 .gitattributes
 .github/
 
+# Large Git rewrite artifacts (critical - can be several GB)
+.git-rewrite/**/*
+
 # Temporary files
 tmp/
 temp/
@@ -135,3 +138,23 @@ node_modules/**/*.md
 node_modules/**/*.txt
 node_modules/**/LICENSE*
 node_modules/**/CHANGELOG*
+
+# Chromium and browser binaries (critical - hundreds of MB)
+node_modules/**/puppeteer/.local-chromium/
+node_modules/**/.local-chromium/
+node_modules/**/chromium/
+node_modules/**/chrome-linux/
+node_modules/**/chrome-mac/
+node_modules/**/chrome-win/
+**/chrome
+**/chromium
+**/.local-chromium/**/*
+
+# PDF processing binaries and large dependencies
+node_modules/**/pdfjs-dist/build/
+node_modules/**/sharp/vendor/
+node_modules/**/node-gyp-build/prebuilds/
+node_modules/**/*.node
+node_modules/**/*.dylib
+node_modules/**/*.so
+node_modules/**/*.dll
