@@ -27,18 +27,18 @@ export default function Sidebar() {
       isExpanded ? "w-64" : "w-16"
     )}>
       {/* Header with logo and toggle */}
-      <div className="p-3 border-b border-dark-border">
+      <div className="p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded bg-primary-custom/20 flex items-center justify-center">
-                <span className="text-sm font-bold text-primary-custom">A</span>
+              <div className="h-9 w-9 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                <span className="text-base font-bold text-green-400">A</span>
               </div>
-              <span className="text-xl font-bold text-primary-custom">Aescuvest</span>
+              <span className="text-xl font-bold text-green-400 tracking-wide">AESCUVEST</span>
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-lg bg-primary-custom/20 flex items-center justify-center">
-              <span className="text-lg font-bold text-primary-custom">A</span>
+            <div className="h-10 w-10 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30 mx-auto">
+              <span className="text-lg font-bold text-green-400">A</span>
             </div>
           )}
         </div>
