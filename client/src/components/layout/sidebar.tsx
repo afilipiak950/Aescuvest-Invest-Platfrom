@@ -34,7 +34,7 @@ export default function Sidebar() {
               <img 
                 src="/assets/aescuvest-icon.png" 
                 alt="Aescuvest Logo" 
-                className="h-9 w-9"
+                className="h-6 w-6"
               />
               <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
             </div>
