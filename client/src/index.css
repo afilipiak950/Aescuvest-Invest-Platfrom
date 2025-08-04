@@ -1,31 +1,6 @@
-@import "tailwindcss";
-
-@theme {
-  --color-background: #090921;
-  --color-foreground: #ffffff;
-  --color-muted: #1e1e40;
-  --color-muted-foreground: #94a3b8;
-  --color-primary: #38D39F;
-  --color-primary-foreground: #090921;
-  --color-secondary: #1e293b;
-  --color-secondary-foreground: #ffffff;
-  --color-accent: #38D39F;
-  --color-accent-foreground: #090921;
-  --color-border: #1e1e40;
-  --color-input: #1e1e40;
-  --color-ring: #38D39F;
-  --color-card: #090921;
-  --color-card-foreground: #ffffff;
-  --color-sidebar: #050533;
-  --color-sidebar-foreground: #ffffff;
-  --color-sidebar-primary: #38D39F;
-  --color-sidebar-primary-foreground: #090921;
-  --color-sidebar-accent: #1e1e40;
-  --color-sidebar-accent-foreground: #ffffff;
-  --color-sidebar-border: #1e1e40;
-  --color-sidebar-ring: #38D39F;
-  --radius: 0.5rem;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Custom scrollbar styles for document layout */
 .custom-scrollbar::-webkit-scrollbar {
@@ -52,30 +27,74 @@
   scrollbar-color: #475569 #1e293b;
 }
 
-/* Legacy color variables for backward compatibility */
-
-/* Base styles */
-* {
-  box-sizing: border-box;
-  border-style: solid;
+:root {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 142 100% 50%;
+  --primary-foreground: 240 10% 3.9%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 142 70% 50%;
+  --accent-foreground: 240 10% 3.9%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 142 100% 50%;
+  
+  --chart-1: 142 100% 50%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 271 91% 65%;
+  --chart-4: 338 85% 60%;
+  --chart-5: 48 96% 53%;
+  
+  --sidebar-background: 225 28% 8%;
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-primary: 142 100% 50%;
+  --sidebar-primary-foreground: 240 10% 3.9%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 226 15% 15%;
+  --sidebar-ring: 142 100% 50%;
+  
+  --radius: 0.5rem;
 }
 
-body {
-  background-color: #090921;
-  color: #ffffff;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  font-feature-settings: "rlig" 1, "calt" 1;
-  margin: 0;
-  padding: 0;
+.light {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 142 60% 40%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 142 60% 40%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 142 60% 40%;
 }
 
-html, body {
-  height: 100%;
-}
-
-#root {
-  height: 100%;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
 /* Email content styling - using semantic color variables instead of gray-* */

@@ -1,5 +1,4 @@
-import type { Config } from "tailwindcss";
-
+/** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
@@ -61,6 +60,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Custom dark theme colors
+        dark: "#090921",
+        "dark-light": "#10102d",
+        "dark-lighter": "#161638",
+        "dark-border": "#1e1e40",
+        "primary-custom": "#38D39F",
+        navy: "#050533",
       },
       keyframes: {
         "accordion-down": {
@@ -87,4 +93,4 @@ export default {
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
-} satisfies Config;
+}
