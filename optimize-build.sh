@@ -12,12 +12,15 @@ else
     echo "✅ Uploads directory created"
 fi
 
-# Remove attached_assets for deployment (they're development assets)
-echo "🧹 Removing attached_assets for deployment..."
+# Clean attached_assets but keep essential logos
+echo "🧹 Cleaning attached_assets (keeping essential logos)..."
 if [ -d "attached_assets" ]; then
-    du -sh attached_assets/ || echo "Cannot calculate size"
-    rm -rf attached_assets/
-    echo "✅ Attached assets removed (saves ~112MB)"
+    ORIGINAL_SIZE=$(du -sh attached_assets/ | cut -f1)
+    # Keep only the essential logo files
+    find attached_assets/ -type f ! -name "65693c5a89e524678d52208a_Aescuvest Logo 1.png" ! -name "65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png" -delete 2>/dev/null || true
+    find attached_assets/ -type d -empty -delete 2>/dev/null || true
+    NEW_SIZE=$(du -sh attached_assets/ | cut -f1 2>/dev/null || echo "0")
+    echo "✅ Attached assets optimized (was $ORIGINAL_SIZE, now $NEW_SIZE)"
 fi
 
 # Clean node_modules cache (avoiding Replit system files)
