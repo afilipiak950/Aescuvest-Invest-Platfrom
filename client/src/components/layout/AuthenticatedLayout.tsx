@@ -10,11 +10,11 @@ interface AuthenticatedLayoutProps {
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   return (
     <SidebarProvider>
-      <div className="flex h-screen overflow-hidden bg-dark text-white">
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
         <Sidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <Navbar />
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto bg-background">
             {children}
           </main>
         </div>
