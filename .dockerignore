@@ -64,6 +64,7 @@ documentation/
 
 # Git and version control
 .git/
+.git-rewrite/
 .gitignore
 .gitattributes
 .github/
@@ -72,6 +73,49 @@ documentation/
 tmp/
 temp/
 .tmp/
+
+# Additional optimization exclusions
+**/.cache/
+**/cache/
+**/*.cache
+npm-shrinkwrap.json
+yarn.lock
+pnpm-lock.yaml
+
+# Heavy OCR text data and processing files
+**/ocr-data/
+**/text-extraction/
+**/large-datasets/
+scripts/data/
+
+# Browserlist data
+.browserslistrc
+
+# Additional development artifacts
+.env.example
+.env.sample
+.env.template
+docker-compose.yml
+docker-compose.yaml
+Dockerfile.dev
+**/migrations/
+**/__pycache__/
+**/*.pyc
+
+# Large media directories
+**/videos/
+**/audio/
+**/media/
+**/assets/videos/
+**/assets/audio/
+
+# Additional config and documentation
+.gitignore
+.gitattributes
+.gitmodules
+.editorconfig
+.browserslistrc
+*.config.backup
 .temp/
 
 # OS generated files

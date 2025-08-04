@@ -17,6 +17,11 @@ else
     rm -rf .cache
 fi
 
+# Additional deployment optimizations
+echo "⚡ Additional deployment optimizations..."
+# Clean npm cache
+npm cache clean --force 2>/dev/null || true
+
 # Clean upload directories for deployment
 echo "📁 Preparing deployment directories..."
 find uploads -type f -delete 2>/dev/null || true
