@@ -64,7 +64,7 @@ function AppContent() {
       <TooltipProvider>
         {isAuthPage ? (
           // Login/Register pages - full screen without nav/sidebar
-          <div className="h-screen bg-background text-foreground">
+          <div className="h-screen bg-dark text-white">
             <Switch>
               <Route path="/login" component={Login} />
               <Route path="/register" component={Register} />

@@ -310,7 +310,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-6 bg-dark text-white min-h-screen">
       <PageHeader 
         title="Dashboard" 
         description={`Welcome back, ${userName}. You have ${pendingTasks} pending tasks.`}
