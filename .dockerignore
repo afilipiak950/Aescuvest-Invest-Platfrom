@@ -9,7 +9,9 @@ build/
 # Upload directories (runtime directories will be recreated)
 uploads/*
 !uploads/.gitkeep
-attached_assets/
+attached_assets/*
+!attached_assets/65693c5a89e524678d52208a_Aescuvest\ Logo\ 1.png
+!attached_assets/65693c5a89e524678d52208a_Aescuvest\ Logo\ 1\ \(1\).png
 
 # Development and testing files
 *.log

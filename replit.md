@@ -44,7 +44,14 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
 - **Production**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
 - **Configuration**: Environment variables, modular service architecture.
-- **Size Optimization**: Comprehensive .dockerignore, build cleanup scripts, node_modules optimization, upload directory management for sub-8GB deployment compliance.
+- **Size Optimization**: 
+  - Enhanced .dockerignore excluding large files, caches, docs, tests, and media
+  - attached_assets/ removal (112MB saved) with runtime directory recreation
+  - Node modules optimization removing documentation, tests, examples, source maps
+  - Production build pipeline with minification, tree-shaking, console stripping
+  - Automated cleanup scripts (optimize-build.sh, build-production.sh)
+  - Upload directory management ensuring sub-8GB deployment compliance
+  - Development dependency pruning for production builds
 
 ## External Dependencies
 
