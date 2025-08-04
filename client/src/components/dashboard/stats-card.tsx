@@ -55,8 +55,8 @@ export default function StatsCard({
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-300">{title}</h3>
-          <div className="bg-primary-custom/20 p-2 rounded-lg">
-            <Icon className="h-5 w-5 text-primary-custom" />
+          <div className="bg-green-500/20 p-2 rounded-lg">
+            <Icon className="h-5 w-5 text-green-500" />
           </div>
         </div>
         
@@ -70,7 +70,7 @@ export default function StatsCard({
             <p className="text-3xl font-bold text-white mb-1">{value}</p>
             {change && (
               <div className="flex items-center text-sm">
-                <span className="text-primary-custom mr-1">{change}</span>
+                <span className="text-green-500 mr-1">{change}</span>
                 {changeText && <span className="text-gray-400">{changeText}</span>}
               </div>
             )}

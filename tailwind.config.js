@@ -65,7 +65,7 @@ export default {
         "dark-light": "#10102d",
         "dark-lighter": "#161638",
         "dark-border": "#1e1e40",
-        "primary-custom": "#38D39F",
+        "primary-custom": "#00CC00",
         navy: "#050533",
       },
       keyframes: {

@@ -20,10 +20,10 @@ export default function Navbar() {
         <div className="flex items-center">
           {!isExpanded && (
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
-                <span className="text-sm font-bold text-green-400">A</span>
+              <div className="h-8 w-8 rounded-lg bg-green-600/20 flex items-center justify-center border border-green-600/30">
+                <span className="text-sm font-bold text-green-500">A</span>
               </div>
-              <span className="text-xl font-bold text-green-400 tracking-wide">AESCUVEST</span>
+              <span className="text-xl font-bold text-green-500 tracking-wide">AESCUVEST</span>
             </div>
           )}
         </div>
@@ -32,7 +32,7 @@ export default function Navbar() {
           {user ? (
             <Button 
               variant="outline" 
-              className="border-primary-custom text-primary-custom hover:bg-primary-custom hover:text-dark transition duration-300 rounded-full"
+              className="border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition duration-300 rounded-full"
               onClick={handleLogout}
             >
               LOG OUT
@@ -40,7 +40,7 @@ export default function Navbar() {
           ) : (
             <Button 
               variant="outline" 
-              className="border-primary-custom text-primary-custom hover:bg-primary-custom hover:text-dark transition duration-300 rounded-full"
+              className="border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition duration-300 rounded-full"
               onClick={() => setLocation('/login')}
             >
               LOG IN
