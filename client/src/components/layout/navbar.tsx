@@ -15,11 +15,11 @@ export default function Navbar() {
   };
   
   return (
-    <nav className="sticky top-0 z-50 bg-background border-b border-border">
+    <nav className="sticky top-0 z-50 border-b" style={{ backgroundColor: '#090921', borderColor: '#1e1e40' }}>
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           {!isExpanded && (
-            <div className="text-xl font-bold text-foreground">
+            <div className="text-xl font-bold" style={{ color: '#ffffff' }}>
               AESCUVEST
             </div>
           )}
@@ -29,7 +29,12 @@ export default function Navbar() {
           {user ? (
             <Button 
               variant="outline" 
-              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground transition duration-300 rounded-full"
+              className="transition duration-300 rounded-full"
+              style={{ 
+                borderColor: '#38D39F', 
+                color: '#38D39F',
+                backgroundColor: 'transparent'
+              }}
               onClick={handleLogout}
             >
               LOG OUT
@@ -37,7 +42,12 @@ export default function Navbar() {
           ) : (
             <Button 
               variant="outline" 
-              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground transition duration-300 rounded-full"
+              className="transition duration-300 rounded-full"
+              style={{ 
+                borderColor: '#38D39F', 
+                color: '#38D39F',
+                backgroundColor: 'transparent'
+              }}
               onClick={() => setLocation('/login')}
             >
               LOG IN
