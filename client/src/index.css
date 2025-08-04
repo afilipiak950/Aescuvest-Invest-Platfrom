@@ -48,7 +48,7 @@
   --input: 217 32% 17%;
   --ring: 120 100% 40%;
   
-  --chart-1: 142 100% 50%;
+  --chart-1: 120 100% 40%;
   --chart-2: 217 91% 60%;
   --chart-3: 271 91% 65%;
   --chart-4: 338 85% 60%;
@@ -56,12 +56,12 @@
   
   --sidebar-background: 225 28% 8%;
   --sidebar-foreground: 0 0% 98%;
-  --sidebar-primary: 142 100% 50%;
-  --sidebar-primary-foreground: 240 10% 3.9%;
-  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-primary: 120 100% 40%;
+  --sidebar-primary-foreground: 220 28% 8%;
+  --sidebar-accent: 217 32% 17%;
   --sidebar-accent-foreground: 0 0% 98%;
   --sidebar-border: 226 15% 15%;
-  --sidebar-ring: 142 100% 50%;
+  --sidebar-ring: 120 100% 40%;
   
   --radius: 0.5rem;
 }
@@ -73,19 +73,19 @@
   --card-foreground: 240 10% 3.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
-  --primary: 142 60% 40%;
+  --primary: 120 100% 40%;
   --primary-foreground: 0 0% 98%;
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 5.9% 10%;
   --muted: 240 4.8% 95.9%;
   --muted-foreground: 240 3.8% 46.1%;
-  --accent: 142 60% 40%;
+  --accent: 120 100% 40%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
   --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
-  --ring: 142 60% 40%;
+  --ring: 120 100% 40%;
 }
 
 @layer base {
@@ -247,11 +247,11 @@
 }
 
 .text-primary-custom {
-  color: #38D39F;
+  color: #00CC00;
 }
 
 .bg-primary-custom {
-  background-color: #38D39F;
+  background-color: #00CC00;
 }
 
 .hover\:bg-primary-hover:hover {

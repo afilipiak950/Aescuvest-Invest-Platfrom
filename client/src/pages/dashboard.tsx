@@ -369,13 +369,13 @@ export default function Dashboard() {
               <input 
                 type="text" 
                 placeholder="Search deals..." 
-                className="bg-dark-lighter text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 w-full md:w-64"
+                className="bg-dark-lighter text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 w-full md:w-64"
               />
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <select className="bg-dark-lighter text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 appearance-none">
+            <select className="bg-dark-lighter text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none">
               <option>All Deals</option>
               <option>HealthTech</option>
               <option>MedTech</option>
@@ -393,7 +393,7 @@ export default function Dashboard() {
         <Card className="bg-dark-light border-dark-lighter">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xl font-semibold text-white">Upcoming Reminders</CardTitle>
-            <Link href="/workflow" className="text-green-500 text-sm hover:text-green-500/80 transition duration-300">
+            <Link href="/workflow" className="text-primary text-sm hover:text-primary/80 transition duration-300">
               View All
             </Link>
           </CardHeader>
@@ -406,7 +406,7 @@ export default function Dashboard() {
         <Card className="bg-dark-light border-dark-lighter">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xl font-semibold text-white">Latest AI Activity</CardTitle>
-            <Link href="/due-diligence" className="text-green-500 text-sm hover:text-green-500/80 transition duration-300">
+            <Link href="/due-diligence" className="text-primary text-sm hover:text-primary/80 transition duration-300">
               View All
             </Link>
           </CardHeader>
