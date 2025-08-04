@@ -19,8 +19,11 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           {!isExpanded && (
-            <div className="text-xl font-bold text-white">
-              AESCUVEST
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded bg-primary-custom/20 flex items-center justify-center">
+                <span className="text-sm font-bold text-primary-custom">A</span>
+              </div>
+              <span className="text-xl font-bold text-primary-custom">AESCUVEST</span>
             </div>
           )}
         </div>
