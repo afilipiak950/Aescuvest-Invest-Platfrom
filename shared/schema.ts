@@ -723,7 +723,6 @@ export const userActivities = pgTable("user_activities", {
     [key: string]: any;
   }>(),
   ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -735,19 +734,17 @@ export const insertUserActivitySchema = createInsertSchema(userActivities).omit(
 export type UserActivity = typeof userActivities.$inferSelect;
 export type InsertUserActivity = z.infer<typeof insertUserActivitySchema>;
 
-// User Statistics view for profile page
+// User Stats table for performance tracking
 export const userStats = pgTable("user_stats", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  dealsReviewed: integer("deals_reviewed").default(0),
-  memosGenerated: integer("memos_generated").default(0),
-  matchesCreated: integer("matches_created").default(0),
-  documentsUploaded: integer("documents_uploaded").default(0),
-  analysesRun: integer("analyses_run").default(0),
-  workflowsCreated: integer("workflows_created").default(0),
-  reportsExported: integer("reports_exported").default(0),
-  loginCount: integer("login_count").default(0),
-  lastLoginAt: timestamp("last_login_at"),
+  dealsViewed: integer("deals_viewed").notNull().default(0),
+  memosGenerated: integer("memos_generated").notNull().default(0),
+  documentsUploaded: integer("documents_uploaded").notNull().default(0),
+  analysesRun: integer("analyses_run").notNull().default(0),
+  matchesCreated: integer("matches_created").notNull().default(0),
+  loginCount: integer("login_count").notNull().default(0),
+  lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -761,66 +758,22 @@ export const insertUserStatsSchema = createInsertSchema(userStats).omit({
 export type UserStats = typeof userStats.$inferSelect;
 export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
 
-// Investors table
+// Investors table (legacy table kept for compatibility)
 export const investors = pgTable("investors", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  firmName: text("firm_name"),
-  location: text("location").notNull(),
-  website: text("website"),
+  firm: text("firm"),
   email: text("email"),
-  linkedinUrl: text("linkedin_url"),
-  contactPerson: text("contact_person"),
-  contactTitle: text("contact_title"),
-  contactEmail: text("contact_email"),
-  focus: text("focus").array().notNull().default([]), // Investment focus areas
-  stages: text("stages").array().notNull().default([]), // Investment stages
-  sectors: text("sectors").array().notNull().default([]), // Preferred sectors
-  checkSizeMin: integer("check_size_min"), // Minimum check size in EUR
-  checkSizeMax: integer("check_size_max"), // Maximum check size in EUR
-  geography: text("geography").array().notNull().default([]), // Geographic preferences
-  portfolio: text("portfolio").array().notNull().default([]), // Portfolio companies
-  fundSize: bigint("fund_size", { mode: "number" }), // Fund size in EUR
-  fundVintage: integer("fund_vintage"), // Fund vintage year
-  // AI-powered insights
-  investmentThesis: text("investment_thesis"),
-  keyMetrics: json("key_metrics").$type<{
-    dealCount?: number;
-    averageCheck?: number;
-    successRate?: number;
-    exitCount?: number;
-    roi?: number;
-  }>().default({}),
-  // Matching preferences
-  preferredDealTypes: text("preferred_deal_types").array().notNull().default([]),
-  investmentCriteria: json("investment_criteria").$type<{
-    minRevenue?: number;
-    minGrowthRate?: number;
-    teamSize?: number;
-    marketSize?: number;
-    technologyReadiness?: number;
-    regulatoryClarity?: boolean;
-  }>().default({}),
-  // Activity tracking
-  lastActivity: timestamp("last_activity"),
-  responseRate: integer("response_rate").default(0), // % response rate
-  averageResponseTime: integer("average_response_time"), // in hours
-  // Status and verification
-  verified: boolean("verified").default(false),
-  active: boolean("active").default(true),
-  tier: text("tier").default("standard"), // 'premium', 'standard', 'basic'
-  // Affinity CRM integration
-  affinityId: text("affinity_id"), // Affinity person/company ID
-  affinityType: text("affinity_type"), // 'person' or 'organization'
-  affinityData: json("affinity_data").$type<{
-    listEntries?: any[];
-    fieldValues?: Record<string, any>;
-    interactionDates?: any;
-    lastSyncAt?: string;
-  }>().default({}),
-  lastSyncAt: timestamp("last_sync_at"),
-  syncStatus: text("sync_status").default("pending"), // 'pending', 'synced', 'error'
-  syncErrors: text("sync_errors").array().default([]),
+  phone: text("phone"),
+  focus: text("focus"),
+  checkSize: text("check_size"),
+  location: text("location"),
+  website: text("website"),
+  linkedin: text("linkedin"),
+  twitter: text("twitter"),
+  bio: text("bio"),
+  preferences: json("preferences"),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
