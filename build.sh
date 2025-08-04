@@ -5,17 +5,17 @@ echo "🚀 Starting production build with deployment optimizations..."
 # Set production environment
 export NODE_ENV=production
 
-# Run cleanup script to reduce deployment size
+# Run deployment optimizations
 echo "🧹 Running deployment cleanup..."
-if [ -f "scripts/cleanup-build.sh" ]; then
-    bash scripts/cleanup-build.sh
-else
-    echo "⚠️  Cleanup script not found, proceeding with basic cleanup..."
-    rm -rf dist
-    rm -rf node_modules/.cache
-    rm -rf .vite
-    rm -rf .cache
+if [ -f "scripts/optimize-node-modules.sh" ]; then
+    bash scripts/optimize-node-modules.sh
 fi
+
+# Basic cleanup
+rm -rf dist 2>/dev/null || true
+rm -rf build 2>/dev/null || true
+rm -rf node_modules/.cache 2>/dev/null || true
+rm -rf .vite 2>/dev/null || true
 
 # Additional deployment optimizations
 echo "⚡ Additional deployment optimizations..."
