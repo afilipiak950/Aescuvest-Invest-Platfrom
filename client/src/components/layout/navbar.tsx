@@ -15,11 +15,11 @@ export default function Navbar() {
   };
   
   return (
-    <nav className="sticky top-0 z-50 bg-dark border-b border-dark-lighter">
+    <nav className="sticky top-0 z-50 bg-background border-b border-border">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           {!isExpanded && (
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-bold text-foreground">
               AESCUVEST
             </div>
           )}
@@ -29,7 +29,7 @@ export default function Navbar() {
           {user ? (
             <Button 
               variant="outline" 
-              className="border-primary text-primary hover:bg-primary hover:text-dark transition duration-300 rounded-full"
+              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground transition duration-300 rounded-full"
               onClick={handleLogout}
             >
               LOG OUT
@@ -37,7 +37,7 @@ export default function Navbar() {
           ) : (
             <Button 
               variant="outline" 
-              className="border-primary text-primary hover:bg-primary hover:text-dark transition duration-300 rounded-full"
+              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground transition duration-300 rounded-full"
               onClick={() => setLocation('/login')}
             >
               LOG IN

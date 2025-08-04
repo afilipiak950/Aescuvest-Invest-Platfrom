@@ -23,11 +23,11 @@ export default function Sidebar() {
 
   return (
     <div className={cn(
-      "hidden lg:flex flex-col bg-sidebar bg-dark-light border-r border-dark-lighter transition-all duration-300 ease-in-out",
+      "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
       isExpanded ? "w-64" : "w-16"
     )}>
       {/* Header with logo and toggle */}
-      <div className="p-3 border-b border-dark-lighter">
+      <div className="p-3 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
@@ -56,8 +56,8 @@ export default function Sidebar() {
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
               location === item.href 
-                ? "text-primary bg-primary/10"
-                : "text-gray-400 hover:text-white hover:bg-dark-lighter",
+                ? "text-sidebar-primary bg-sidebar-primary/10"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent",
               !isExpanded && "justify-center w-10 h-10 mx-auto"
             )}
             title={!isExpanded ? item.label : undefined}
@@ -80,8 +80,8 @@ export default function Sidebar() {
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
             location === "/settings" 
-              ? "text-primary bg-primary/10"
-              : "text-gray-400 hover:text-white hover:bg-dark-lighter",
+              ? "text-sidebar-primary bg-sidebar-primary/10"
+              : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}
           title={!isExpanded ? "Settings" : undefined}
@@ -99,7 +99,7 @@ export default function Sidebar() {
           onClick={toggleSidebar}
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
-            "text-gray-400 hover:text-white hover:bg-dark-lighter",
+            "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}
           title={!isExpanded ? (isExpanded ? "Einklappen" : "Ausklappen") : undefined}
@@ -114,8 +114,8 @@ export default function Sidebar() {
           href="/profile"
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
-            "bg-gradient-to-br from-primary/80 to-primary text-dark font-medium hover:scale-105",
-            location === "/profile" && "ring-2 ring-primary ring-offset-2 ring-offset-dark",
+            "bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-medium hover:scale-105",
+            location === "/profile" && "ring-2 ring-primary ring-offset-2 ring-offset-background",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}
           title={!isExpanded ? "Profile" : undefined}
