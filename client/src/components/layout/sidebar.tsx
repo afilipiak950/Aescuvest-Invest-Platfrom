@@ -31,14 +31,14 @@ export default function Sidebar() {
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-green-600/20 flex items-center justify-center border border-green-600/30">
-                <span className="text-base font-bold text-green-500">A</span>
+              <div className="h-9 w-9 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
+                <span className="text-base font-bold text-primary">A</span>
               </div>
-              <span className="text-xl font-bold text-green-500 tracking-wide">AESCUVEST</span>
+              <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-lg bg-green-600/20 flex items-center justify-center border border-green-600/30 mx-auto">
-              <span className="text-lg font-bold text-green-500">A</span>
+            <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 mx-auto">
+              <span className="text-lg font-bold text-primary">A</span>
             </div>
           )}
         </div>
@@ -56,7 +56,7 @@ export default function Sidebar() {
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
               location === item.href 
-                ? "text-green-500 bg-green-500/10"
+                ? "text-primary bg-primary/10"
                 : "text-gray-400 hover:text-white hover:bg-dark-lighter",
               !isExpanded && "justify-center w-10 h-10 mx-auto"
             )}
@@ -80,7 +80,7 @@ export default function Sidebar() {
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
             location === "/settings" 
-              ? "text-green-500 bg-green-500/10"
+              ? "text-primary bg-primary/10"
               : "text-gray-400 hover:text-white hover:bg-dark-lighter",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}
@@ -114,8 +114,8 @@ export default function Sidebar() {
           href="/profile"
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
-            "bg-gradient-to-br from-green-500/80 to-green-500 text-black font-medium hover:scale-105",
-            location === "/profile" && "ring-2 ring-green-500 ring-offset-2 ring-offset-dark",
+            "bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-medium hover:scale-105",
+            location === "/profile" && "ring-2 ring-primary ring-offset-2 ring-offset-dark",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}
           title={!isExpanded ? "Profile" : undefined}
