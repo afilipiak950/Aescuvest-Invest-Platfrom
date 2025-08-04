@@ -91,7 +91,7 @@
 /* Set all elements to have border-box */
 @layer base {
   * {
-    @apply border-border;
+    @apply border-solid;
   }
 
   body {
