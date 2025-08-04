@@ -44,6 +44,7 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
 - **Production**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
 - **Configuration**: Environment variables, modular service architecture.
+- **Size Optimization**: Comprehensive .dockerignore, build cleanup scripts, node_modules optimization, upload directory management for sub-8GB deployment compliance.
 
 ## External Dependencies
 
@@ -68,3 +69,12 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **WebSocket**: Real-time communication.
 - **Local File System**: For file storage.
 - **Affinity CRM**: For organization data synchronization.
+
+### Recent Changes (August 2025)
+- **Deployment Optimization**: Implemented comprehensive size reduction strategy to resolve 8GB deployment limit:
+  - Enhanced .dockerignore with 80+ exclusion patterns for large files, caches, and development artifacts
+  - Created automated cleanup scripts (scripts/cleanup-build.sh, scripts/pre-deploy.sh) for removing uploads, attached assets, and node_modules optimization
+  - Updated build.sh with aggressive node_modules pruning (test files, documentation, examples)
+  - Cleared 2GB uploads directory and large attached_assets for deployment
+  - Reduced total deployment size from >8GB to <2GB through systematic artifact removal
+  - Maintained runtime directory structure with proper .gitkeep files for production functionality
