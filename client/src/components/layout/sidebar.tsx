@@ -39,11 +39,11 @@ export default function Sidebar() {
               <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
             </div>
           ) : (
-            <div className="h-10 w-10 flex items-center justify-center mx-auto">
+            <div className="flex items-center justify-center mx-auto">
               <img 
-                src="/assets/aescuvest-icon.png" 
+                src="/assets/aescuvest-full-logo-collapsed.png" 
                 alt="Aescuvest Logo" 
-                className="h-8 w-8"
+                className="h-6 w-auto"
               />
             </div>
           )}
