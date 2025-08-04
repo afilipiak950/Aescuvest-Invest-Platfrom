@@ -53,21 +53,21 @@ export default function ActivityCard({
   const getIconForType = (activityType: string) => {
     switch (activityType) {
       case "Legal Agent":
-        return <FileTextIcon className="h-4 w-4 text-primary" />;
+        return <FileTextIcon className="h-4 w-4 text-primary-custom" />;
       case "Finance Agent":
-        return <Bot className="h-4 w-4 text-primary" />;
+        return <Bot className="h-4 w-4 text-primary-custom" />;
       case "Medical Agent":
-        return <Bot className="h-4 w-4 text-primary" />;
+        return <Bot className="h-4 w-4 text-primary-custom" />;
       case "Commercial Agent":
-        return <Bot className="h-4 w-4 text-primary" />;
+        return <Bot className="h-4 w-4 text-primary-custom" />;
       case "memo":
-        return <FileTextIcon className="h-4 w-4 text-primary" />;
+        return <FileTextIcon className="h-4 w-4 text-primary-custom" />;
       case "call":
         return <Phone className="h-4 w-4 text-yellow-400" />;
       case "due-diligence":
         return <Search className="h-4 w-4 text-gray-400" />;
       default:
-        return <BellRing className="h-4 w-4 text-primary" />;
+        return <BellRing className="h-4 w-4 text-primary-custom" />;
     }
   };
 
