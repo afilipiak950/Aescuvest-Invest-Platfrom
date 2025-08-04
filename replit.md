@@ -44,6 +44,12 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
 - **Production**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
 - **Configuration**: Environment variables, modular service architecture.
+- **Build System**: 
+  - **Build Script**: `./build` - Executable shell script for Replit deployment
+  - **Frontend Build**: Vite from `client/` directory to `dist/public/`
+  - **Backend Build**: esbuild bundling `server/index.ts` to `dist/index.js`
+  - **Dependencies**: tsx, esbuild, @vitejs/plugin-react, autoprefixer, @tailwindcss/postcss
+  - **Configuration**: Client-specific tsconfig.json and vite.config.ts with proper path aliases
 - **Size Optimization**: 
   - Enhanced .dockerignore excluding large files, caches, docs, tests, and media
   - attached_assets/ removal (112MB saved) with runtime directory recreation
