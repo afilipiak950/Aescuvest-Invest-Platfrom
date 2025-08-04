@@ -32,17 +32,18 @@ export default function Sidebar() {
           {isExpanded ? (
             <div className="flex items-center gap-3">
               <img 
-                src="/assets/aescuvest-logo.png" 
+                src="/assets/aescuvest-icon.png" 
                 alt="Aescuvest Logo" 
-                className="h-9 w-auto"
+                className="h-9 w-9"
               />
+              <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
             </div>
           ) : (
             <div className="h-10 w-10 flex items-center justify-center mx-auto">
               <img 
-                src="/assets/aescuvest-logo.png" 
+                src="/assets/aescuvest-icon.png" 
                 alt="Aescuvest Logo" 
-                className="h-8 w-auto"
+                className="h-8 w-8"
               />
             </div>
           )}
