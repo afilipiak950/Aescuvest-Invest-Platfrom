@@ -52,7 +52,21 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
 
         // Fetch PDF as ArrayBuffer
         const response = await fetch(`/api/documents/${documentId}/download`);
-        if (!response.ok) throw new Error('Failed to fetch PDF');
+        
+        if (!response.ok) {
+          let errorMessage = 'Failed to fetch PDF';
+          try {
+            const errorData = await response.json();
+            if (errorData.message === 'Document file not available') {
+              errorMessage = `Document "${documentName}" is not available. The file may have been removed during system maintenance. Please re-upload if needed.`;
+            } else {
+              errorMessage = errorData.message || errorMessage;
+            }
+          } catch {
+            // If can't parse error response, use default
+          }
+          throw new Error(errorMessage);
+        }
         
         const arrayBuffer = await response.arrayBuffer();
         const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -64,7 +78,8 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
         
       } catch (err) {
         console.error('PDF loading error:', err);
-        setError('Failed to load PDF. Please try downloading or opening in new tab.');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load PDF. Please try downloading or opening in new tab.';
+        setError(errorMessage);
         setIsLoading(false);
       }
     };
