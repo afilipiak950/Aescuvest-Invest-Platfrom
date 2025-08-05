@@ -16,7 +16,8 @@ import {
   TrashIcon,
   PlusIcon,
   XIcon,
-  Brain
+  Brain,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -924,6 +925,7 @@ const FolderTree: React.FC<{
                   {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                   {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                   {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                  <AlertCircle className="w-3 h-3 text-amber-500" title="File not available - removed during maintenance" />
                   <EyeIcon className="w-3 h-3 text-gray-500" />
                   <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                 </div>
@@ -1533,6 +1535,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                     {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                     {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                    <AlertCircle className="w-3 h-3 text-amber-500" title="File not available - removed during maintenance" />
                     <EyeIcon className="w-3 h-3 text-gray-500" />
                     <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                   </div>
@@ -1545,6 +1548,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
       {/* Data Room Explorer Section */}
       <div className="bg-dark-lighter rounded-lg flex-1 flex flex-col">
+        {/* Document Availability Notice */}
+        <div className="p-3 bg-amber-900/20 border-b border-amber-500/30">
+          <div className="flex items-center">
+            <AlertCircle className="w-4 h-4 text-amber-400 mr-2 flex-shrink-0" />
+            <div className="text-sm text-amber-200">
+              <strong>Document Files Notice:</strong> Some document files may be temporarily unavailable due to recent system maintenance. 
+              Document metadata and AI summaries remain intact. Files can be re-uploaded if needed.
+            </div>
+          </div>
+        </div>
+        
         <div className="p-4 border-b border-dark">
           <div className="flex items-center justify-between">
             <div>
@@ -1832,6 +1846,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                       {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                       {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                       {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                      <AlertCircle className="w-3 h-3 text-amber-500" title="File not available - removed during maintenance" />
                       <EyeIcon className="w-3 h-3 text-gray-500" />
                       <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                     </div>

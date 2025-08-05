@@ -1958,7 +1958,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if file exists
       if (!fs.existsSync(document.path)) {
         console.log(`❌ File not found on server: ${document.path}`);
-        return res.status(404).json({ message: 'File not found on server' });
+        return res.status(404).json({ 
+          message: 'Document file not available', 
+          details: 'This document appears to have been removed during system maintenance. Please re-upload the file if needed.',
+          documentName: document.name,
+          documentId: documentId
+        });
       }
 
       const ext = path.extname(document.name).toLowerCase();
