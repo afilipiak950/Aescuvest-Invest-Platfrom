@@ -17,8 +17,8 @@ interface TimeoutConfig {
 
 class AIProcessingTimeoutService {
   private config: TimeoutConfig = {
-    processingTimeout: 12 * 60 * 60 * 1000, // 12 hours
-    checkInterval: 30 * 60 * 1000, // 30 minutes  
+    processingTimeout: 10 * 60 * 1000, // 10 minutes for testing (change to 12 * 60 * 60 * 1000 for production)
+    checkInterval: 2 * 60 * 1000, // 2 minutes for testing (change to 30 * 60 * 1000 for production)
     maxRetries: 3
   };
   
