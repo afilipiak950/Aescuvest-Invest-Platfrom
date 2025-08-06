@@ -172,40 +172,20 @@ function getAnalysisServiceForAgent(agentType: string): any {
       return comprehensiveCommercialAnalysisService;
       
     case 'hr':
-      // HR analysis service (to be implemented)
-      return createGenericAnalysisService('HR', [
-        'Analyzing employment contracts',
-        'Reviewing compensation structures',
-        'Assessing organizational hierarchy',
-        'Evaluating HR policies'
-      ]);
+      const { comprehensiveHrAnalysisService } = require('../comprehensiveHrAnalysisService');
+      return comprehensiveHrAnalysisService;
       
     case 'financial':
-      // Financial analysis service (to be implemented)  
-      return createGenericAnalysisService('Financial', [
-        'Analyzing financial statements',
-        'Reviewing revenue models',
-        'Assessing financial projections',
-        'Evaluating accounting practices'
-      ]);
+      const { comprehensiveFinancialAnalysisService } = require('../comprehensiveFinancialAnalysisService');
+      return comprehensiveFinancialAnalysisService;
       
     case 'ip':
-      // IP analysis service (to be implemented)
-      return createGenericAnalysisService('IP', [
-        'Analyzing patent portfolios',
-        'Reviewing IP assignments',
-        'Assessing trademark protections',
-        'Evaluating technology licensing'
-      ]);
+      const { comprehensiveIpAnalysisService } = require('../comprehensiveIpAnalysisService');
+      return comprehensiveIpAnalysisService;
       
     case 'research':
-      // Research analysis service (to be implemented)
-      return createGenericAnalysisService('Research', [
-        'Conducting market research',
-        'Analyzing technical whitepapers',
-        'Reviewing research reports',
-        'Assessing technology trends'
-      ]);
+      const { comprehensiveResearchAnalysisService } = require('../comprehensiveResearchAnalysisService');
+      return comprehensiveResearchAnalysisService;
       
     default:
       return createGenericAnalysisService(agentType, [
