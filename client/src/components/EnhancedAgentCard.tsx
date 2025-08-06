@@ -1669,7 +1669,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
             <h4 className="font-medium text-white text-left">{category}</h4>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -1681,7 +1681,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
 
           {expandedCategories.has(category) && (
             <div className="p-4 space-y-4">
-              {questions.map((question) => {
+              {questions && Array.isArray(questions) && questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
                 const hasAnswer = answer !== null;
                 
