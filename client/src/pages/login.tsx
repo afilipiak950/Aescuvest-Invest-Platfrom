@@ -64,40 +64,54 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-dark">
+    <div className="flex h-screen w-full bg-dark overflow-hidden">
       <div className="w-full h-full flex">
-        {/* Left side - Hero content */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-          {/* Background pattern overlay */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent"></div>
+        {/* Left side - Enhanced Hero content */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          {/* Subtle background pattern */}
+          <div className="absolute inset-0">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent"></div>
+            <div className="absolute top-0 left-0 w-full h-full opacity-5">
+              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-blue-400/10 rounded-full blur-2xl"></div>
+            </div>
           </div>
           
-          <div className="relative z-10 flex flex-col justify-start p-12 w-full">
-            {/* Header with logo */}
-            <div className="mb-12">
-              <h1 className="text-2xl font-bold text-white tracking-wider">AESCUVEST</h1>
-              <p className="text-primary text-sm font-medium mt-1">AI-Powered Investment Platform</p>
-              <p className="text-gray-400 text-sm mt-2 max-w-sm">
-                Transforming investment workflows with artificial intelligence
-              </p>
+          <div className="relative z-10 flex flex-col justify-between p-16 w-full h-full">
+            {/* Top section with branding */}
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <h1 className="text-3xl font-bold text-white tracking-wider leading-tight">AESCUVEST</h1>
+                <div className="space-y-2">
+                  <p className="text-primary text-base font-medium">AI-Powered Investment Platform</p>
+                  <p className="text-gray-300 text-base leading-relaxed max-w-md">
+                    Transforming investment workflows with artificial intelligence
+                  </p>
+                </div>
+              </div>
             </div>
             
-            {/* Tagline */}
-            <div className="mt-8">
-              <p className="text-gray-300 text-lg font-semibold tracking-wide">
+            {/* Bottom tagline */}
+            <div className="pb-8">
+              <p className="text-gray-300 text-xl font-bold tracking-widest">
                 VISION. VENTURE. VALUE.
               </p>
             </div>
           </div>
         </div>
         
-        {/* Right side - Login form */}
-        <div className="w-full lg:w-1/2 flex items-start justify-start p-12 bg-dark">
-          <div className="w-full max-w-sm">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-3">Sign In</h2>
-              <p className="text-gray-400 text-sm">Access your investment dashboard</p>
+        {/* Right side - Enhanced Login form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-900 relative">
+          {/* Subtle background elements */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute top-1/4 -right-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-1/3 -left-32 w-48 h-48 bg-blue-400/5 rounded-full blur-2xl"></div>
+          </div>
+          
+          <div className="relative z-10 w-full max-w-md p-8">
+            <div className="mb-10">
+              <h2 className="text-3xl font-bold text-white mb-4">Sign In</h2>
+              <p className="text-gray-400 text-base">Access your investment dashboard</p>
             </div>
             
             {error && (
@@ -107,7 +121,7 @@ export default function LoginPage() {
             )}
             
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="email"
@@ -116,7 +130,7 @@ export default function LoginPage() {
                       <FormControl>
                         <Input 
                           placeholder="Username or Email" 
-                          className="w-full py-3 px-3 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 text-sm focus:border-primary focus:outline-none" 
+                          className="w-full py-4 px-4 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-gray-400 text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 backdrop-blur-sm" 
                           {...field} 
                         />
                       </FormControl>
@@ -134,7 +148,7 @@ export default function LoginPage() {
                         <Input 
                           type="password" 
                           placeholder="Password" 
-                          className="w-full py-3 px-3 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 text-sm focus:border-primary focus:outline-none" 
+                          className="w-full py-4 px-4 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-gray-400 text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 backdrop-blur-sm" 
                           {...field} 
                         />
                       </FormControl>
@@ -147,17 +161,17 @@ export default function LoginPage() {
                   control={form.control}
                   name="stayLoggedIn"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0 py-2">
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 py-3">
                       <FormControl>
                         <input
                           type="checkbox"
                           checked={field.value}
                           onChange={field.onChange}
-                          className="h-4 w-4 text-primary bg-gray-800 border-gray-600 rounded focus:ring-primary focus:ring-1"
+                          className="h-5 w-5 text-primary bg-slate-800 border-slate-600 rounded focus:ring-primary focus:ring-2 focus:ring-offset-0 cursor-pointer"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <label className="text-sm text-gray-300 cursor-pointer">
+                        <label className="text-base text-gray-300 cursor-pointer">
                           Angemeldet bleiben (90 Tage)
                         </label>
                       </div>
@@ -167,12 +181,12 @@ export default function LoginPage() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full py-3 bg-primary hover:bg-primary/90 text-dark font-medium text-sm rounded"
+                  className="w-full py-4 bg-primary hover:bg-primary/90 hover:scale-[1.02] text-black font-semibold text-base rounded-lg transition-all duration-200 shadow-lg hover:shadow-primary/25"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
                       Signing In...
                     </>
                   ) : (
@@ -182,11 +196,11 @@ export default function LoginPage() {
               </form>
             </Form>
             
-            <div className="mt-6 text-left text-sm text-gray-400">
+            <div className="mt-8 text-center text-base text-gray-400">
               Don't have an account?{" "}
               <a
                 href="/register"
-                className="text-primary hover:underline font-medium"
+                className="text-primary hover:text-primary/80 hover:underline font-medium transition-colors duration-200"
                 onClick={(e) => {
                   e.preventDefault();
                   window.location.href = '/register';
