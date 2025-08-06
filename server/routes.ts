@@ -4602,34 +4602,23 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import and start the comprehensive financial analysis service
-      const { comprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
+      // Import the comprehensive financial analysis service
+      const { startComprehensiveAnalysis } = await import('./comprehensiveFinancialAnalysisService');
       
-      // Create background job
-      const jobId = `financial_analysis_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_financial_analysis',
-        agentType: 'Financial',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Starting financial analysis...'
-      });
-      
-      // Start comprehensive financial analysis in background
-      comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
-        console.error(`❌ Background financial analysis failed for deal ${dealId}:`, error);
-        storage.updateBackgroundJob(jobId, {
-          status: 'failed',
-          error: error.message
-        });
-      });
+      // Run comprehensive financial analysis in background with progress tracking
+      (async () => {
+        try {
+          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
+          await startComprehensiveAnalysis(dealId);
+          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
+        }
+      })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive financial analysis started - processing 6 financial categories across all assigned documents',
-        jobId
+        message: 'Comprehensive financial analysis started - processing 6 financial categories across all assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
@@ -4740,56 +4729,23 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import and start the comprehensive IP analysis service
-      const { comprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
+      // Import the comprehensive IP analysis service
+      const { startComprehensiveAnalysis } = await import('./comprehensiveIpAnalysisService');
       
-      // Create background job
-      const jobId = `ip_analysis_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_ip_analysis',
-        agentType: 'IP',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Starting IP analysis...'
-      });
-      
-      // Start comprehensive IP analysis in background with enhanced error handling
-      comprehensiveIpAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId)
-        .then(result => {
-          console.log(`✅ IP analysis completed successfully for deal ${dealId}`);
-          // Ensure job is marked as completed even if service didn't do it
-          return storage.updateBackgroundJob(jobId, {
-            status: 'completed',
-            progress: 100,
-            currentStep: 'Analysis completed',
-            completedAt: new Date()
-          }).then(() => {
-            console.log(`✅ Route-level: Background job ${jobId} marked as completed`);
-          }).catch(error => {
-            console.error(`❌ Route-level: Failed to mark job ${jobId} as completed:`, error);
-          });
-        })
-        .catch(error => {
-          console.error(`❌ Background IP analysis failed for deal ${dealId}:`, error);
-          return storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            progress: 0,
-            currentStep: 'Analysis failed',
-            error: error.message,
-            failedAt: new Date()
-          }).then(() => {
-            console.log(`❌ Route-level: Background job ${jobId} marked as failed`);
-          }).catch(jobError => {
-            console.error(`❌ Route-level: Failed to mark job ${jobId} as failed:`, jobError);
-          });
-        });
+      // Run comprehensive IP analysis in background with progress tracking
+      (async () => {
+        try {
+          console.log(`🔬 Starting comprehensive IP analysis background process for deal ${dealId}`);
+          await startComprehensiveAnalysis(dealId);
+          console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive IP analysis for deal ${dealId}:`, error);
+        }
+      })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive IP analysis started - processing 12 IP categories across all assigned documents',
-        jobId
+        message: 'Comprehensive IP analysis started - processing 12 IP categories across all assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive IP analysis for deal ${req.params.dealId}:`, error);
