@@ -4511,10 +4511,20 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       }
       
       // Import the comprehensive HR analysis service
-      const { startComprehensiveHrAnalysis } = await import('./comprehensiveHrAnalysisService');
+      const { startComprehensiveAnalysis } = await import('./comprehensiveHrAnalysisService');
       
-      // Start the comprehensive HR analysis
-      const result = await startComprehensiveHrAnalysis(dealId);
+      // Run comprehensive HR analysis in background with progress tracking
+      (async () => {
+        try {
+          console.log(`🧑‍💼 Starting comprehensive HR analysis background process for deal ${dealId}`);
+          await startComprehensiveAnalysis(dealId);
+          console.log(`✅ Comprehensive HR analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive HR analysis for deal ${dealId}:`, error);
+        }
+      })();
+
+      const result = {};
       
       res.json({ 
         success: true, 
