@@ -284,23 +284,10 @@ function DueDiligenceContent() {
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
-  // Calculate document assignments for each agent type
+  // Calculate document assignments for each agent type with comprehensive safety
   const agentDocuments = useMemo(() => {
-    if (!documents || !Array.isArray(documents)) {
-      console.log('📊 Missing documents data for agent assignments');
-      return {
-        clinical: [],
-        legal: [],
-        commercial: [],
-        hr: [],
-        financial: [],
-        ip: [],
-        research: [],
-        unassigned: []
-      };
-    }
-
-    const assignments = {
+    // Always return a safe default structure
+    const safeDefault = {
       clinical: [],
       legal: [],
       commercial: [],
@@ -311,33 +298,65 @@ function DueDiligenceContent() {
       unassigned: []
     };
 
-    documents.forEach((doc: any) => {
-      if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || doc.assignedAgents.length === 0) {
-        assignments.unassigned.push(doc);
-      } else {
-        // Document can be assigned to multiple agents
-        doc.assignedAgents.forEach((agent: string) => {
-          const agentKey = agent.toLowerCase();
-          if (agentKey in assignments) {
-            assignments[agentKey].push(doc);
-          }
-        });
-      }
-    });
-    
-    console.log('📊 Agent document assignments:', {
-      clinical: assignments?.clinical?.length || 0,
-      legal: assignments?.legal?.length || 0,
-      commercial: assignments?.commercial?.length || 0,
-      hr: assignments?.hr?.length || 0,
-      financial: assignments?.financial?.length || 0,
-      ip: assignments?.ip?.length || 0,
-      research: assignments?.research?.length || 0,
-      unassigned: assignments?.unassigned?.length || 0,
-      total: documents?.length || 0
-    });
-    
-    return assignments;
+    // Early exit with safe default if no documents
+    if (!documents || !Array.isArray(documents) || documents.length === 0) {
+      console.log('📊 Missing or empty documents data for agent assignments');
+      return safeDefault;
+    }
+
+    try {
+      const assignments = {
+        clinical: [] as any[],
+        legal: [] as any[],
+        commercial: [] as any[],
+        hr: [] as any[],
+        financial: [] as any[],
+        ip: [] as any[],
+        research: [] as any[],
+        unassigned: [] as any[]
+      };
+
+      documents.forEach((doc: any) => {
+        if (!doc || typeof doc !== 'object') {
+          assignments.unassigned.push(doc);
+          return;
+        }
+
+        if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || doc.assignedAgents.length === 0) {
+          assignments.unassigned.push(doc);
+        } else {
+          // Document can be assigned to multiple agents
+          doc.assignedAgents.forEach((agent: string) => {
+            try {
+              const agentKey = String(agent || '').toLowerCase();
+              if (agentKey && agentKey in assignments) {
+                assignments[agentKey as keyof typeof assignments].push(doc);
+              }
+            } catch (agentError) {
+              console.warn('Error processing agent assignment:', agentError);
+              assignments.unassigned.push(doc);
+            }
+          });
+        }
+      });
+      
+      console.log('📊 Agent document assignments:', {
+        clinical: assignments.clinical?.length || 0,
+        legal: assignments.legal?.length || 0,
+        commercial: assignments.commercial?.length || 0,
+        hr: assignments.hr?.length || 0,
+        financial: assignments.financial?.length || 0,
+        ip: assignments.ip?.length || 0,
+        research: assignments.research?.length || 0,
+        unassigned: assignments.unassigned?.length || 0,
+        total: documents?.length || 0
+      });
+      
+      return assignments;
+    } catch (error) {
+      console.error('Error calculating agent documents:', error);
+      return safeDefault;
+    }
   }, [documents]);
 
   // Extract individual agent document arrays for easy access with null safety
@@ -458,7 +477,7 @@ function DueDiligenceContent() {
         }
       });
       
-      console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints.length} analyses started/running`);
+      console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints?.length || 0} analyses started/running`);
       
       // Return successful results (don't fail if some are already running)
       return results.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
@@ -503,7 +522,7 @@ function DueDiligenceContent() {
           const response = await fetch(`/api/analyses/${selectedDeal}`);
           const data = await response.json();
           
-          if (Array.isArray(data) && data.length >= 7) {
+          if (Array.isArray(data) && (data?.length || 0) >= 7) {
             const allCompleted = data.every((analysis: any) => 
               analysis.status === 'Completed' || analysis.status === 'completed'
             );
@@ -611,7 +630,20 @@ function DueDiligenceContent() {
     }
   };
 
+  // Early loading guard to prevent undefined property access errors
+  if (isLoadingDocuments || isLoadingDeals || !agentDocuments) {
     return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="text-center mt-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-gray-200 mb-4">Loading Analysis</h2>
+          <p className="text-gray-400">Preparing document analysis data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
       <div className="container mx-auto px-4 py-6">
         <PageHeader 
           title="Due Diligence Analysis" 
@@ -959,13 +991,13 @@ function DueDiligenceContent() {
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-blue-400">
-                    {Array.isArray(analyses) ? analyses.filter((a: any) => a.status === 'Completed' || a.status === 'completed').length : 0}
+                    {Array.isArray(analyses) ? (analyses.filter((a: any) => a.status === 'Completed' || a.status === 'completed')?.length || 0) : 0}
                   </div>
                   <div className="text-sm text-gray-400">Completed Analyses</div>
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-yellow-400">
-                    {jobProgress?.jobs ? jobProgress.jobs.filter((job: any) => job.status === 'processing').length : 0}
+                    {jobProgress?.jobs ? (jobProgress.jobs.filter((job: any) => job.status === 'processing')?.length || 0) : 0}
                   </div>
                   <div className="text-sm text-gray-400">Running Analyses</div>
                 </div>
@@ -981,12 +1013,12 @@ function DueDiligenceContent() {
           </Card>
           
           {/* Main Progress Bar - Restored */}
-          {jobProgress && jobProgress.jobs && jobProgress.jobs.length > 0 && (
+          {jobProgress && jobProgress.jobs && (jobProgress.jobs?.length || 0) > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Analysis Progress</CardTitle>
                 <CardDescription>
-                  {jobProgress.jobs.length} analysis{jobProgress.jobs.length > 1 ? 'es' : ''} running
+                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1374,6 +1406,7 @@ function DueDiligenceContent() {
         )}
       </div>
     );
+
 }
 
 export default function DueDiligence() {
