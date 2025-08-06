@@ -26,7 +26,6 @@ import { Deal, AgentAnalysis, Document } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 function DueDiligenceContent() {
-    try {
     const [location] = useLocation();
     const params = useParams();
     const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
@@ -1345,17 +1344,6 @@ function DueDiligenceContent() {
         )}
       </div>
     );
-    } catch (error) {
-        console.error('Error in DueDiligenceContent:', error);
-        return (
-            <Card className="bg-dark-light border-dark-lighter">
-                <CardContent className="py-12 text-center">
-                    <h3 className="text-xl font-semibold mb-2">An error occurred</h3>
-                    <p className="text-gray-400 mb-4">Please refresh the page or try again.</p>
-                </CardContent>
-            </Card>
-        );
-    }
 }
 
 export default function DueDiligence() {
