@@ -1846,7 +1846,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
