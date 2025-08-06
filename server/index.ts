@@ -8,6 +8,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
+import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 
 const app = express();
 
@@ -258,5 +259,9 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port} with extended timeouts for large uploads`);
+    
+    // Start AI Processing Timeout Service
+    console.log('🚀 Starting AI Processing Timeout Service...');
+    aiProcessingTimeoutService.start();
   });
 })();
