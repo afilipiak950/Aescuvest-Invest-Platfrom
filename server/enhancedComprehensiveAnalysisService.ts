@@ -70,7 +70,10 @@ export class EnhancedComprehensiveAnalysisService {
       console.log(`📄 Found ${assignedDocuments.length} documents assigned to ${this.agentType}`);
 
       if (assignedDocuments.length === 0) {
-        throw new Error(`No documents assigned to ${this.agentType} agent`);
+        console.log(`⚠️ No documents assigned to ${this.agentType} agent - completing with empty results`);
+        await this.storeEmptyResults(dealId, jobId);
+        await this.updateProgress(jobId, 100, 'Analysis completed - no documents to analyze', 'completed');
+        return;
       }
 
       // Step 2: Analyze each question across ALL assigned documents
@@ -406,9 +409,52 @@ Provide a thorough analysis with specific source attribution.`;
     };
 
     // Store in agent_analyses table using storage service
-    await storage.storeAgentAnalysis(dealId, this.agentType.toLowerCase(), analysisData);
+    await storage.createAgentAnalysis({
+      dealId,
+      agentType: this.agentType.toLowerCase(),
+      analysisData: JSON.stringify(analysisData),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     console.log(`💾 Stored enhanced ${this.agentType} analysis results for deal ${dealId}`);
+  }
+
+  /**
+   * Store empty results when no documents are available
+   */
+  private async storeEmptyResults(dealId: number, jobId: string): Promise<void> {
+    const emptyAnalysisData = {
+      agentType: this.agentType.toLowerCase(),
+      questions: {},
+      insights: {
+        overallConfidence: 0,
+        totalQuestions: this.questions.length,
+        questionsWithEvidence: 0,
+        keyInsights: [],
+        criticalRecommendations: [`No documents available for ${this.agentType} analysis`],
+        informationGaps: [`${this.agentType} analysis requires document upload`]
+      },
+      metadata: {
+        documentsAnalyzed: 0,
+        questionsAnswered: 0,
+        totalEvidence: 0,
+        analysisDate: new Date().toISOString(),
+        analysisVersion: 'enhanced_v2',
+        reason: 'no_documents'
+      }
+    };
+
+    // Store empty results in agent_analyses table
+    await storage.createAgentAnalysis({
+      dealId,
+      agentType: this.agentType.toLowerCase(),
+      analysisData: JSON.stringify(emptyAnalysisData),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    console.log(`💾 Stored empty ${this.agentType} analysis results for deal ${dealId} (no documents)`);
   }
 
   /**
@@ -425,5 +471,86 @@ Provide a thorough analysis with specific source attribution.`;
       currentStep,
       status
     });
+  }
+}
+
+/**
+ * Main export function to start enhanced comprehensive analysis
+ */
+export async function startEnhancedComprehensiveAnalysis(dealId: number, agentType: string): Promise<void> {
+  console.log(`🚀 Starting enhanced comprehensive analysis for ${agentType} agent on deal ${dealId}`);
+  
+  // Get questions for the specific agent type
+  const questions = await getAgentQuestions(agentType);
+  
+  // Create and run the enhanced analysis service
+  const analysisService = new EnhancedComprehensiveAnalysisService(agentType, questions);
+  await analysisService.runEnhancedAnalysis(dealId);
+}
+
+/**
+ * Get questions for specific agent type
+ */
+async function getAgentQuestions(agentType: string): Promise<any[]> {
+  // Generate questions based on agent type
+  switch (agentType.toLowerCase()) {
+    case 'clinical':
+      return [
+        { id: 'cli_1', question: 'What clinical evidence supports the efficacy of this intervention?', category: 'Evidence' },
+        { id: 'cli_2', question: 'What are the regulatory pathways and requirements?', category: 'Regulatory' },
+        { id: 'cli_3', question: 'What safety concerns or adverse events are documented?', category: 'Safety' },
+        { id: 'cli_4', question: 'What is the clinical trial design and methodology?', category: 'Design' },
+        { id: 'cli_5', question: 'What are the competitive clinical advantages?', category: 'Competitive' }
+      ];
+    case 'legal':
+      return [
+        { id: 'leg_1', question: 'What legal risks and liabilities are present?', category: 'Risk' },
+        { id: 'leg_2', question: 'What is the corporate structure and governance?', category: 'Structure' },
+        { id: 'leg_3', question: 'What contracts and agreements are in place?', category: 'Contracts' },
+        { id: 'leg_4', question: 'What intellectual property protections exist?', category: 'IP' },
+        { id: 'leg_5', question: 'What regulatory compliance issues are present?', category: 'Compliance' }
+      ];
+    case 'commercial':
+      return [
+        { id: 'com_1', question: 'What is the market size and opportunity?', category: 'Market' },
+        { id: 'com_2', question: 'What is the competitive landscape and positioning?', category: 'Competition' },
+        { id: 'com_3', question: 'What is the go-to-market strategy?', category: 'Strategy' },
+        { id: 'com_4', question: 'What are the revenue model and pricing strategy?', category: 'Revenue' },
+        { id: 'com_5', question: 'What are the customer acquisition and retention metrics?', category: 'Customers' }
+      ];
+    case 'hr':
+      return [
+        { id: 'hr_1', question: 'What is the quality and experience of the management team?', category: 'Leadership' },
+        { id: 'hr_2', question: 'What key employee retention risks exist?', category: 'Retention' },
+        { id: 'hr_3', question: 'What compensation and equity structures are in place?', category: 'Compensation' },
+        { id: 'hr_4', question: 'What organizational culture and values are present?', category: 'Culture' },
+        { id: 'hr_5', question: 'What hiring plans and talent acquisition strategies exist?', category: 'Talent' }
+      ];
+    case 'financial':
+      return [
+        { id: 'fin_1', question: 'What is the financial performance and projections?', category: 'Performance' },
+        { id: 'fin_2', question: 'What are the burn rate and cash runway?', category: 'Cash' },
+        { id: 'fin_3', question: 'What are the unit economics and scalability?', category: 'Economics' },
+        { id: 'fin_4', question: 'What debt obligations and financial commitments exist?', category: 'Obligations' },
+        { id: 'fin_5', question: 'What are the funding history and investor relations?', category: 'Funding' }
+      ];
+    case 'ip':
+      return [
+        { id: 'ip_1', question: 'What patents and patent applications exist?', category: 'Patents' },
+        { id: 'ip_2', question: 'What IP ownership and assignment clarity exists?', category: 'Ownership' },
+        { id: 'ip_3', question: 'What freedom to operate analysis has been conducted?', category: 'Freedom' },
+        { id: 'ip_4', question: 'What licensing agreements and IP partnerships exist?', category: 'Licensing' },
+        { id: 'ip_5', question: 'What IP litigation risks and disputes are present?', category: 'Litigation' }
+      ];
+    case 'research':
+      return [
+        { id: 'res_1', question: 'What research methodology and scientific approach is used?', category: 'Methodology' },
+        { id: 'res_2', question: 'What peer-reviewed publications and citations exist?', category: 'Publications' },
+        { id: 'res_3', question: 'What research partnerships and collaborations are present?', category: 'Partnerships' },
+        { id: 'res_4', question: 'What data quality and validation has been performed?', category: 'Data' },
+        { id: 'res_5', question: 'What research competitive advantages exist?', category: 'Advantages' }
+      ];
+    default:
+      throw new Error(`Unknown agent type: ${agentType}`);
   }
 }
