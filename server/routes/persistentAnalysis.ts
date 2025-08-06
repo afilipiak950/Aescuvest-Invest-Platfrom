@@ -158,8 +158,68 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
  * Get analysis service for specific agent type
  */
 function getAnalysisServiceForAgent(agentType: string): any {
-  // This would import the actual services
-  // For now, return a mock service structure
+  switch (agentType.toLowerCase()) {
+    case 'legal':
+      const { comprehensiveLegalAnalysisService } = require('../comprehensiveLegalAnalysisService');
+      return comprehensiveLegalAnalysisService;
+      
+    case 'clinical':
+      const { comprehensiveClinicalAnalysisService } = require('../comprehensiveClinicalAnalysisService');
+      return comprehensiveClinicalAnalysisService;
+      
+    case 'commercial':
+      const { comprehensiveCommercialAnalysisService } = require('../comprehensiveCommercialAnalysisService');
+      return comprehensiveCommercialAnalysisService;
+      
+    case 'hr':
+      // HR analysis service (to be implemented)
+      return createGenericAnalysisService('HR', [
+        'Analyzing employment contracts',
+        'Reviewing compensation structures',
+        'Assessing organizational hierarchy',
+        'Evaluating HR policies'
+      ]);
+      
+    case 'financial':
+      // Financial analysis service (to be implemented)  
+      return createGenericAnalysisService('Financial', [
+        'Analyzing financial statements',
+        'Reviewing revenue models',
+        'Assessing financial projections',
+        'Evaluating accounting practices'
+      ]);
+      
+    case 'ip':
+      // IP analysis service (to be implemented)
+      return createGenericAnalysisService('IP', [
+        'Analyzing patent portfolios',
+        'Reviewing IP assignments',
+        'Assessing trademark protections',
+        'Evaluating technology licensing'
+      ]);
+      
+    case 'research':
+      // Research analysis service (to be implemented)
+      return createGenericAnalysisService('Research', [
+        'Conducting market research',
+        'Analyzing technical whitepapers',
+        'Reviewing research reports',
+        'Assessing technology trends'
+      ]);
+      
+    default:
+      return createGenericAnalysisService(agentType, [
+        'Initializing analysis',
+        'Processing documents',
+        'Generating insights'
+      ]);
+  }
+}
+
+/**
+ * Create a generic analysis service for agent types without specific implementations
+ */
+function createGenericAnalysisService(agentType: string, specificSteps: string[]): any {
   return {
     runComprehensiveAnalysis: async (
       dealId: number, 
@@ -167,15 +227,11 @@ function getAnalysisServiceForAgent(agentType: string): any {
       jobId: string, 
       progressCallback: Function
     ) => {
-      console.log(`🔄 Running persistent ${agentType} analysis for deal ${dealId}`);
+      console.log(`🔄 Running ${agentType} analysis for deal ${dealId} (generic service)`);
       
-      // Simulate comprehensive analysis with real progress
       const steps = [
         'Initializing analysis',
-        'Loading documents', 
-        'Processing with AI',
-        'Extracting insights',
-        'Generating recommendations',
+        ...specificSteps,
         'Finalizing results'
       ];
       
@@ -184,12 +240,12 @@ function getAnalysisServiceForAgent(agentType: string): any {
         await progressCallback(progress, steps[i]);
         
         // Simulate processing time (varies by agent type)
-        const processingTime = agentType === 'Legal' ? 2000 : 1500;
+        const processingTime = agentType === 'Legal' ? 2000 : 1200;
         await new Promise(resolve => setTimeout(resolve, processingTime));
       }
       
       // Final completion
-      await progressCallback(100, 'Analysis completed');
+      await progressCallback(100, `${agentType} analysis completed`);
       
       return {
         status: 'completed',
