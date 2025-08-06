@@ -1775,7 +1775,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -2127,10 +2127,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    💡 Clinical Recommendations ({answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0})
+                                    💡 Clinical Recommendations ({answer.recommendations && Array.isArray(answer.recommendations) ? answer.recommendations.length : 0})
                                   </h5>
                                   <ul className="space-y-1">
                                     {answer.recommendations.map((rec, index) => (
@@ -2416,7 +2416,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4104,7 +4104,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4613,7 +4613,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4911,7 +4911,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -5297,7 +5297,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       ))}
 
       {/* Additional Recommendations Section */}
-      {recommendations && recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
+      {recommendations && Array.isArray(recommendations) && recommendations.length > 0 && (
         <div className="border border-dark-lighter rounded-lg overflow-hidden">
           <div className="p-4 bg-dark-light">
             <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations && Array.isArray(recommendations) ? recommendations.length : 0})</h4>
