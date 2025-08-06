@@ -115,12 +115,14 @@ export default function LoginPage() {
             
             {/* Logo Section */}
             <div className="mb-12">
-              {/* Custom Logo Design */}
+              {/* Aescuvest Logo */}
               <div className="relative mb-6 group">
-                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-green-400 rounded-2xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-2xl">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="white" className="animate-pulse">
-                    <path d="M12,2C13.65,2 15,3.35 15,5C15,6.65 13.65,8 12,8C10.35,8 9,6.65 9,5C9,3.35 10.35,2 12,2M21,9V7L15,1L13,3L15,5V7H17V9H21M9,7V5L11,3L9,1L3,7V9H7V7H9M12,9C14.76,9 17,11.24 17,14C17,16.76 14.76,19 12,19C9.24,19 7,16.76 7,14C7,11.24 9.24,9 12,9M12,11A3,3 0 0,0 9,14A3,3 0 0,0 12,17A3,3 0 0,0 15,14A3,3 0 0,0 12,11M12,20C13.1,20 14,20.9 14,22C14,23.1 13.1,24 12,24C10.9,24 10,23.1 10,22C10,20.9 10.9,20 12,20Z"/>
-                  </svg>
+                <div className="w-20 h-20 mx-auto bg-white rounded-2xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-2xl p-2">
+                  <img 
+                    src="/attached_assets/65693c5a89e524678d52208a_Aescuvest Logo 1_1754315977838.png" 
+                    alt="Aescuvest Logo" 
+                    className="w-16 h-16 object-contain"
+                  />
                 </div>
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-400 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-300"></div>
               </div>
