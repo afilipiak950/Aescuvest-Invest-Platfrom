@@ -1723,10 +1723,10 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -1734,7 +1734,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -1775,7 +1775,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -1800,7 +1800,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -1811,7 +1811,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
@@ -2127,10 +2127,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    💡 Clinical Recommendations ({answer.recommendations.length})
+                                    💡 Clinical Recommendations ({answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0})
                                   </h5>
                                   <ul className="space-y-1">
                                     {answer.recommendations.map((rec, index) => (
@@ -2364,10 +2364,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -2375,7 +2375,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -2416,7 +2416,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -2441,7 +2441,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -2452,7 +2452,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
@@ -4052,10 +4052,10 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4063,7 +4063,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4104,7 +4104,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4129,7 +4129,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4140,7 +4140,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
@@ -4561,10 +4561,10 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4572,7 +4572,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4613,7 +4613,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4638,7 +4638,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4649,7 +4649,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
@@ -4859,10 +4859,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4870,7 +4870,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4911,7 +4911,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4936,7 +4936,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4947,7 +4947,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
@@ -5215,7 +5215,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${source}`}
                                           >
-                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                                            📄 {source && source.length > 25 ? `${source.substring(0, 25)}...` : source}
                                           </button>
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
@@ -5297,10 +5297,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       ))}
 
       {/* Additional Recommendations Section */}
-      {recommendations && recommendations.length > 0 && (
+      {recommendations && recommendations && Array.isArray(recommendations) ? recommendations.length : 0 > 0 && (
         <div className="border border-dark-lighter rounded-lg overflow-hidden">
           <div className="p-4 bg-dark-light">
-            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations.length})</h4>
+            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations && Array.isArray(recommendations) ? recommendations.length : 0})</h4>
           </div>
           <div className="border-t border-dark-lighter p-4">
             <div className="space-y-3">
