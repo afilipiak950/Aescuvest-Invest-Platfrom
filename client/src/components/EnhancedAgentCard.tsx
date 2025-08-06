@@ -2059,7 +2059,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             <h4 className="font-medium text-white text-left">{category}</h4>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -2071,7 +2071,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
 
           {expandedCategories.has(category) && (
             <div className="p-4 space-y-4">
-              {questions.map((question) => {
+              {questions && Array.isArray(questions) && questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
                 const hasAnswer = answer !== null;
                 
@@ -2323,7 +2323,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -2335,7 +2335,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -4011,7 +4011,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -4023,7 +4023,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -4519,7 +4519,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -4531,7 +4531,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -5150,7 +5150,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -5162,7 +5162,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
