@@ -1041,36 +1041,82 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <Button 
-                  onClick={() => {
-                    try {
-                      handleRunAllAnalyses();
-                    } catch (buttonError) {
-                      console.error('❌ Button click error:', buttonError);
-                      toast({
-                        title: "Button Error",
-                        description: "Failed to handle button click. Please refresh the page.",
-                        variant: "destructive",
-                        duration: 5000,
-                      });
-                    }
-                  }}
-                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
-                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
-                  size="sm"
-                >
-                  {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Running All Analyses
-                    </>
-                  ) : (
-                    <>
-                      <Bot className="h-4 w-4 mr-2" />
-                      Reset & Run All Analyses
-                    </>
-                  )}
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        console.log('🛑 Stopping all background jobs for deal', selectedDeal);
+                        
+                        const response = await fetch(`/api/deals/${selectedDeal}/stop-analyses`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json'
+                          }
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                          toast({
+                            title: "Jobs Stopped",
+                            description: `Stopped ${result.stoppedCount} running analyses`,
+                            duration: 3000,
+                          });
+                          
+                          // Refresh job progress
+                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+                        } else {
+                          throw new Error(result.error || 'Failed to stop jobs');
+                        }
+                      } catch (error) {
+                        console.error('❌ Error stopping jobs:', error);
+                        toast({
+                          title: "Stop Failed",
+                          description: "Failed to stop background jobs. Please try again.",
+                          variant: "destructive",
+                          duration: 5000,
+                        });
+                      }
+                    }}
+                    variant="outline"
+                    className="bg-red-600/10 hover:bg-red-600/20 border-red-600/30 text-red-400 hover:text-red-300"
+                    size="sm"
+                    disabled={!jobProgress?.jobs?.some(job => job.status === 'processing')}
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Stop All Jobs
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      try {
+                        handleRunAllAnalyses();
+                      } catch (buttonError) {
+                        console.error('❌ Button click error:', buttonError);
+                        toast({
+                          title: "Button Error",
+                          description: "Failed to handle button click. Please refresh the page.",
+                          variant: "destructive",
+                          duration: 5000,
+                        });
+                      }
+                    }}
+                    disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
+                    className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
+                    size="sm"
+                  >
+                    {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Running All Analyses
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 mr-2" />
+                        Reset & Run All Analyses
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
