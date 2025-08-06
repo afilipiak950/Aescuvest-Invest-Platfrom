@@ -1597,7 +1597,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                         </span>
                         {completionPercentage > 85 && (
                           <span className="text-xs text-yellow-300 ml-2">
-                            (Auto-timeout: 12h)
+                            (Auto-timeout: 10m)
                           </span>
                         )}
                       </div>
