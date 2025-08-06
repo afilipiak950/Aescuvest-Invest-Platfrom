@@ -16,7 +16,8 @@ import {
   TrashIcon,
   PlusIcon,
   XIcon,
-  Brain
+  Brain,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -924,7 +925,7 @@ const FolderTree: React.FC<{
                   {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                   {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                   {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
-                  <AlertCircle className="w-3 h-3 text-amber-500" title="File not available - removed during maintenance" />
+                  <AlertCircle className="w-3 h-3 text-amber-500" />
                   <EyeIcon className="w-3 h-3 text-gray-500" />
                   <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                 </div>
@@ -1538,7 +1539,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                     {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                     {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
-                    <AlertCircle className="w-3 h-3 text-amber-500" title="File not available - removed during maintenance" />
+                    <AlertCircle className="w-3 h-3 text-amber-500" />
                     <EyeIcon className="w-3 h-3 text-gray-500" />
                     <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                   </div>
@@ -1854,7 +1855,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                       {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                       {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                       {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
-                      <AlertCircle className="w-3 h-3 text-amber-500" title="File not available - removed during maintenance" />
+                      <AlertCircle className="w-3 h-3 text-amber-500" />
                       <EyeIcon className="w-3 h-3 text-gray-500" />
                       <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                     </div>
