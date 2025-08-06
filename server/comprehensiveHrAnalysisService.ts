@@ -210,6 +210,7 @@ export async function startComprehensiveAnalysis(dealId: number) {
   const job = {
     jobId,
     dealId,
+    jobType: 'comprehensive_hr_analysis',
     agentType: 'HR' as const,
     status: 'processing' as const,
     progress: 0,

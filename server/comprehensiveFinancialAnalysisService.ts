@@ -197,3 +197,45 @@ class ComprehensiveFinancialAnalysisService {
 }
 
 export const comprehensiveFinancialAnalysisService = new ComprehensiveFinancialAnalysisService();
+
+// Simple wrapper function that matches the pattern used by other analysis services
+export async function startComprehensiveAnalysis(dealId: number) {
+  const jobId = `financial_analysis_${dealId}_${Date.now()}`;
+  
+  // Create background job
+  const job = {
+    jobId,
+    dealId,
+    jobType: 'comprehensive_financial_analysis',
+    agentType: 'Financial' as const,
+    status: 'processing' as const,
+    progress: 0,
+    startTime: new Date(),
+    metadata: {
+      agentType: 'Financial',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString()
+    }
+  };
+
+  await storage.createBackgroundJob(job);
+
+  // Progress callback function
+  const progressCallback = async (progress: number, step: string) => {
+    try {
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        currentStep: step,
+        metadata: {
+          ...job.metadata,
+          lastUpdate: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error(`Error updating Financial job progress:`, error);
+    }
+  };
+
+  // Run the analysis
+  return await comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId, progressCallback);
+}
