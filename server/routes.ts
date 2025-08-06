@@ -4182,45 +4182,50 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const dealId = parseInt(req.params.dealId);
       const agentType = req.params.agentType.toLowerCase();
       
-      // For HR agent, use comprehensive HR analysis results
+      // For HR agent, get analysis from database
       if (agentType === 'hr') {
-        const { getComprehensiveHrAnalysisResults } = await import('./comprehensiveHrAnalysisService');
-        const hrResults = await getComprehensiveHrAnalysisResults(dealId);
-        
-        if (hrResults.success && hrResults.hrAnswers) {
-          // Transform comprehensive HR results to match the expected format
-          const hrAnswers = hrResults.hrAnswers || {};
-          const findings = hrResults.findings || [];
-          const recommendations = hrResults.recommendations || [];
+        try {
+          const analysis = await storage.getAgentAnalysis(dealId, 'HR');
           
-          // Count answered questions
-          const answeredQuestions = Object.keys(hrAnswers).length;
-          const totalQuestions = 24; // HR has 24 questions
-          
-          const analysis = {
-            status: answeredQuestions > 0 ? 'Completed' : 'Failed',
-            progress: Math.round((answeredQuestions / totalQuestions) * 100),
-            findings,
-            recommendations,
-            hrAnswers,
-            questionsAnswered: answeredQuestions,
-            totalQuestions,
-            completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
-          };
-          
-          console.log(`✅ Found comprehensive HR analysis for deal ${dealId}: ${answeredQuestions} questions answered, ${findings.length} findings, ${recommendations.length} recommendations`);
-          
-          return res.json({
-            success: true,
-            analysis
-          });
-        } else {
-          // Fallback to regular agent analysis if no comprehensive results
-          const analysis = await storage.getAgentAnalysis(dealId, agentType);
-          return res.json({ 
-            success: true, 
-            analysis: analysis || null
-          });
+          if (analysis && analysis.hr_answers) {
+            const hrAnswers = analysis.hr_answers;
+            const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+            const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+            
+            const answeredQuestions = Object.keys(hrAnswers).length;
+            const totalQuestions = 8;
+            
+            console.log(`✅ Found HR analysis for deal ${dealId}:`, {
+              id: analysis.id,
+              agentType: analysis.agentType,
+              status: analysis.status,
+              findingsLength: JSON.stringify(findings).length,
+              recommendationsLength: JSON.stringify(recommendations).length,
+              totalRecordsFound: 1
+            });
+            
+            return res.json({
+              success: true,
+              analysis: {
+                ...analysis,
+                hrAnswers,
+                findings,
+                recommendations,
+                questionsAnswered: answeredQuestions,
+                totalQuestions,
+                completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+              }
+            });
+          } else {
+            console.log(`❌ No HR analysis found for deal ${dealId}`);
+            return res.json({
+              success: true,
+              analysis: null
+            });
+          }
+        } catch (error) {
+          console.error(`Error getting HR analysis:`, error);
+          return res.status(500).json({ success: false, error: 'Failed to get HR analysis results' });
         }
       }
 
@@ -4267,6 +4272,132 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
       
+      // For IP agent, get analysis with IP answers
+      if (agentType === 'ip') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'IP');
+        
+        if (analysis && analysis.ip_answers) {
+          const ipAnswers = analysis.ip_answers;
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+          
+          const answeredQuestions = Object.keys(ipAnswers).length;
+          const totalQuestions = 8;
+          
+          console.log(`✅ Found IP analysis for deal ${dealId}:`, {
+            id: analysis.id,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            findingsLength: JSON.stringify(findings).length,
+            recommendationsLength: JSON.stringify(recommendations).length,
+            totalRecordsFound: 1
+          });
+          
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              ipAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No IP analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+
+      // For Research agent, get analysis with research answers
+      if (agentType === 'research') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'Research');
+        
+        if (analysis && analysis.research_answers) {
+          const researchAnswers = analysis.research_answers;
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+          
+          const answeredQuestions = Object.keys(researchAnswers).length;
+          const totalQuestions = 8;
+          
+          console.log(`✅ Found research analysis for deal ${dealId}:`, {
+            id: analysis.id,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            findingsLength: JSON.stringify(findings).length,
+            recommendationsLength: JSON.stringify(recommendations).length,
+            totalRecordsFound: 1
+          });
+          
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              researchAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No research analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+      
+      // For Commercial agent, get analysis with commercial answers  
+      if (agentType === 'commercial') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'Commercial');
+        
+        if (analysis && analysis.commercial_answers) {
+          const commercialAnswers = analysis.commercial_answers;
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+          
+          const answeredQuestions = Object.keys(commercialAnswers).length;
+          const totalQuestions = 8;
+          
+          console.log(`✅ Found commercial analysis for deal ${dealId}:`, {
+            id: analysis.id,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            findingsLength: JSON.stringify(findings).length,
+            recommendationsLength: JSON.stringify(recommendations).length,
+            totalRecordsFound: 1
+          });
+          
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              commercialAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No commercial analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+
       // For other agent types, use regular agent analysis
       const analysis = await storage.getAgentAnalysis(dealId, agentType);
       
