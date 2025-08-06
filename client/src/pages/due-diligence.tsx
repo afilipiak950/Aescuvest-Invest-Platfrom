@@ -387,15 +387,46 @@ function DueDiligenceContent() {
         `/api/deals/${selectedDeal}/research-analysis/comprehensive`
       ];
 
-      const promises = comprehensiveEndpoints.map(endpoint => {
+      const promises = comprehensiveEndpoints.map(async (endpoint) => {
         console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
-        return apiRequest(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        try {
+          const response = await apiRequest(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          // Handle "already running" responses as successes
+          if (response && (response.alreadyRunning || response.success === false)) {
+            console.log(`✅ Analysis already running for ${endpoint}:`, response.message);
+            return { success: true, alreadyRunning: true, endpoint, message: response.message };
+          }
+          
+          return response;
+        } catch (error) {
+          console.error(`❌ Error starting analysis for ${endpoint}:`, error);
+          // Don't throw - let individual failures not break the whole process
+          return { success: false, endpoint, error: (error as any)?.message || 'Unknown error' };
+        }
       });
       
-      return Promise.all(promises);
+      const results = await Promise.allSettled(promises);
+      
+      // Log results and count successes
+      let successCount = 0;
+      results.forEach((result, index) => {
+        const endpoint = comprehensiveEndpoints[index];
+        if (result.status === 'fulfilled' && (result.value.success || result.value.alreadyRunning)) {
+          successCount++;
+          console.log(`✅ ${endpoint}: Success`);
+        } else {
+          console.log(`❌ ${endpoint}: Failed`);
+        }
+      });
+      
+      console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints.length} analyses started/running`);
+      
+      // Return successful results (don't fail if some are already running)
+      return results.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
       
       } catch (mutationError) {
         console.error('❌ Critical error in mutation function:', mutationError);
