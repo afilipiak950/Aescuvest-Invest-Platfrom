@@ -64,34 +64,40 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-dark p-0">
+    <div className="flex h-screen w-full bg-dark">
       <div className="w-full h-full flex">
-        {/* Left side - Hero image/content */}
-        <div className="hidden lg:flex lg:w-1/2 bg-navy relative overflow-hidden">
-          <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-16 z-10">
-            <div className="mb-8">
-              <div className="h-16 flex items-center justify-center mx-auto mb-6">
-                <h1 className="text-3xl font-bold text-white">AESCUVEST</h1>
-              </div>
-            </div>
-            <h1 className="text-5xl font-bold text-white leading-tight mb-6">
-              AI-Powered<br />Investment<br />Platform
-            </h1>
-            <p className="text-gray-300 text-lg max-w-md">
-              Transforming investment workflows with artificial intelligence
-            </p>
+        {/* Left side - Hero content */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+          {/* Background pattern overlay */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent"></div>
           </div>
-          <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-white/50 text-sm z-10">
-            VISION. VENTURE. VALUE.
+          
+          <div className="relative z-10 flex flex-col justify-start p-12 w-full">
+            {/* Header with logo */}
+            <div className="mb-12">
+              <h1 className="text-2xl font-bold text-white tracking-wider">AESCUVEST</h1>
+              <p className="text-primary text-sm font-medium mt-1">AI-Powered Investment Platform</p>
+              <p className="text-gray-400 text-sm mt-2 max-w-sm">
+                Transforming investment workflows with artificial intelligence
+              </p>
+            </div>
+            
+            {/* Tagline */}
+            <div className="mt-8">
+              <p className="text-gray-300 text-lg font-semibold tracking-wide">
+                VISION. VENTURE. VALUE.
+              </p>
+            </div>
           </div>
         </div>
         
         {/* Right side - Login form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-          <div className="w-full max-w-md">
+        <div className="w-full lg:w-1/2 flex items-start justify-start p-12 bg-dark">
+          <div className="w-full max-w-sm">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Sign In</h2>
-              <p className="text-gray-400">Access your investment dashboard</p>
+              <h2 className="text-2xl font-bold text-white mb-3">Sign In</h2>
+              <p className="text-gray-400 text-sm">Access your investment dashboard</p>
             </div>
             
             {error && (
@@ -101,22 +107,19 @@ export default function LoginPage() {
             )}
             
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-500" />
-                        <FormControl>
-                          <Input 
-                            placeholder="Username or Email" 
-                            className="pl-10 py-6 bg-gray-900/50 border-gray-800 focus:border-primary" 
-                            {...field} 
-                          />
-                        </FormControl>
-                      </div>
+                      <FormControl>
+                        <Input 
+                          placeholder="Username or Email" 
+                          className="w-full py-3 px-3 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 text-sm focus:border-primary focus:outline-none" 
+                          {...field} 
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -127,17 +130,14 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-500" />
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Password" 
-                            className="pl-10 py-6 bg-gray-900/50 border-gray-800 focus:border-primary" 
-                            {...field} 
-                          />
-                        </FormControl>
-                      </div>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="Password" 
+                          className="w-full py-3 px-3 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 text-sm focus:border-primary focus:outline-none" 
+                          {...field} 
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -147,17 +147,17 @@ export default function LoginPage() {
                   control={form.control}
                   name="stayLoggedIn"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                    <FormItem className="flex flex-row items-center space-x-2 space-y-0 py-2">
                       <FormControl>
                         <input
                           type="checkbox"
                           checked={field.value}
                           onChange={field.onChange}
-                          className="h-4 w-4 text-primary bg-gray-900 border-gray-600 rounded focus:ring-primary focus:ring-2"
+                          className="h-4 w-4 text-primary bg-gray-800 border-gray-600 rounded focus:ring-primary focus:ring-1"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <label className="text-sm font-medium text-gray-300">
+                        <label className="text-sm text-gray-300 cursor-pointer">
                           Angemeldet bleiben (90 Tage)
                         </label>
                       </div>
@@ -167,12 +167,12 @@ export default function LoginPage() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full py-6 bg-primary hover:bg-primary/90 text-dark font-bold text-lg"
+                  className="w-full py-3 bg-primary hover:bg-primary/90 text-dark font-medium text-sm rounded"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Signing In...
                     </>
                   ) : (
@@ -182,11 +182,11 @@ export default function LoginPage() {
               </form>
             </Form>
             
-            <div className="mt-8 text-center text-sm text-gray-400">
+            <div className="mt-6 text-left text-sm text-gray-400">
               Don't have an account?{" "}
               <a
                 href="/register"
-                className="text-primary hover:underline"
+                className="text-primary hover:underline font-medium"
                 onClick={(e) => {
                   e.preventDefault();
                   window.location.href = '/register';
