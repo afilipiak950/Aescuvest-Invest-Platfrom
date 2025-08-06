@@ -914,6 +914,42 @@ function DueDiligenceContent() {
             </CardContent>
           </Card>
 
+          {/* Deal Statistics Card */}
+          <Card className="bg-dark-light border-dark-lighter mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">Deal Analysis Overview</CardTitle>
+              <CardDescription>
+                Real-time statistics for {currentDeal.companyName}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
+                  <div className="text-2xl font-bold text-primary">{documents?.length || 0}</div>
+                  <div className="text-sm text-gray-400">Total Documents</div>
+                </div>
+                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
+                  <div className="text-2xl font-bold text-blue-400">
+                    {Array.isArray(analyses) ? analyses.filter((a: any) => a.status === 'Completed' || a.status === 'completed').length : 0}
+                  </div>
+                  <div className="text-sm text-gray-400">Completed Analyses</div>
+                </div>
+                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
+                  <div className="text-2xl font-bold text-yellow-400">
+                    {jobProgress?.jobs ? jobProgress.jobs.filter((job: any) => job.status === 'processing').length : 0}
+                  </div>
+                  <div className="text-sm text-gray-400">Running Analyses</div>
+                </div>
+                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
+                  <div className="text-2xl font-bold text-green-400">
+                    {unassignedDocs.length === 0 && documents?.length > 0 ? '100%' : 
+                     documents?.length > 0 ? `${Math.round((documents.length - unassignedDocs.length) / documents.length * 100)}%` : '0%'}
+                  </div>
+                  <div className="text-sm text-gray-400">Assignment Rate</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
           {/* Main Progress Bar - Restored */}
           {jobProgress && jobProgress.jobs && jobProgress.jobs.length > 0 && (
@@ -957,8 +993,12 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="text-xl font-bold">Documents</CardTitle>
-                  <CardDescription>Uploaded documents for analysis</CardDescription>
+                  <CardTitle className="text-xl font-bold">
+                    Documents ({documents?.length || 0})
+                  </CardTitle>
+                  <CardDescription>
+                    {documents?.length === 0 ? 'No documents uploaded yet' : `${documents.length} documents available for analysis`}
+                  </CardDescription>
                 </div>
                 <div className="flex space-x-2">
                   <Button variant="outline" className="bg-dark-lighter hover:bg-dark border-dark-lighter">
@@ -1128,43 +1168,43 @@ function DueDiligenceContent() {
                     value="clinical"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Clinical
+                    Clinical ({clinicalDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="legal"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Legal
+                    Legal ({legalDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="commercial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Commercial
+                    Commercial ({commercialDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="hr"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    HR
+                    HR ({hrDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="financial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Financial
+                    Financial ({financialDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="ip"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    IP
+                    IP ({ipDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="research"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Research
+                    Research ({researchDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="unassigned"
