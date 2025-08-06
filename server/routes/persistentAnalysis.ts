@@ -155,6 +155,139 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
 });
 
 /**
+ * Stop ALL jobs for a deal immediately
+ */
+router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
+    
+    // Get all jobs for this deal
+    const allJobs = await storage.getBackgroundJobs(dealId);
+    let stoppedCount = 0;
+    
+    for (const job of allJobs) {
+      try {
+        const stopped = await persistentJobManager.stopJob(job.jobId);
+        if (stopped) {
+          stoppedCount++;
+          console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
+        }
+      } catch (error) {
+        console.error(`❌ Error stopping job ${job.jobId}:`, error);
+      }
+    }
+    
+    // Also clear any stuck jobs
+    const clearedCount = await persistentJobManager.clearStuckJobs(dealId);
+    
+    console.log(`✅ Stopped ${stoppedCount} jobs and cleared ${clearedCount} stuck jobs for deal ${dealId}`);
+    
+    res.json({
+      success: true,
+      message: `Stopped ${stoppedCount} jobs and cleared ${clearedCount} stuck jobs`,
+      stoppedCount,
+      clearedCount
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error stopping all jobs for deal ${req.params.dealId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop all jobs'
+    });
+  }
+});
+
+/**
+ * Start all 7 specialized agents with correct analysis techniques
+ */
+router.post('/api/deals/:dealId/start-all-specialized-agents', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    console.log(`🚀 STARTING ALL 7 SPECIALIZED AGENTS for deal ${dealId}`);
+    
+    const agentTypes = ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'];
+    const startedJobs: string[] = [];
+    
+    for (const agentType of agentTypes) {
+      try {
+        const jobId = `${agentType}_analysis_${dealId}_${Date.now()}`;
+        console.log(`🚀 Starting ${agentType} agent with specialized analysis technique`);
+        
+        // Get the specialized analysis service
+        const analysisService = getAnalysisServiceForAgent(agentType);
+        
+        // Start the background job with proper service
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: `comprehensive_${agentType}_analysis`,
+          dealId,
+          agentType: agentType.charAt(0).toUpperCase() + agentType.slice(1),
+          status: 'processing',
+          progress: 0,
+          currentStep: `Initializing ${agentType} analysis with specialized technique`,
+          totalDocuments: 0,
+          processedDocuments: 0
+        });
+        
+        // Start the analysis in background
+        setImmediate(async () => {
+          try {
+            const progressCallback = async (progress: number, step: string) => {
+              await storage.updateBackgroundJob(jobId, {
+                progress,
+                currentStep: step,
+                updatedAt: new Date()
+              });
+            };
+            
+            await analysisService.runComprehensiveAnalysis(dealId, storage, jobId, progressCallback);
+            
+            await storage.updateBackgroundJob(jobId, {
+              status: 'completed',
+              progress: 100,
+              completedAt: new Date(),
+              currentStep: `${agentType} analysis completed with specialized technique`
+            });
+            
+          } catch (error) {
+            console.error(`❌ Error in ${agentType} analysis:`, error);
+            await storage.updateBackgroundJob(jobId, {
+              status: 'failed',
+              error: error instanceof Error ? error.message : 'Unknown error',
+              currentStep: `${agentType} analysis failed`
+            });
+          }
+        });
+        
+        startedJobs.push(`${agentType} (${jobId})`);
+        
+      } catch (error) {
+        console.error(`❌ Error starting ${agentType} agent:`, error);
+      }
+    }
+    
+    console.log(`✅ Started ${startedJobs.length}/7 specialized agents for deal ${dealId}`);
+    
+    res.json({
+      success: true,
+      message: `Started ${startedJobs.length}/7 specialized agents`,
+      startedJobs
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error starting specialized agents for deal ${req.params.dealId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start specialized agents'
+    });
+  }
+});
+
+/**
  * Get analysis service for specific agent type
  */
 function getAnalysisServiceForAgent(agentType: string): any {
