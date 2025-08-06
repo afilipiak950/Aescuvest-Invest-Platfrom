@@ -1584,13 +1584,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       return {
         answer: answer.answer || '',
         confidence: answer.confidence || 0,
-        sources: Array.isArray(answer.sources) ? answer.sources : (answer.sources ? [answer.sources] : []),
-        quotes: Array.isArray(answer.quotes) ? answer.quotes : [],
-        keyFindings: Array.isArray(answer.keyFindings) ? answer.keyFindings : [],
+        sources: answer.sources && Array.isArray(answer.sources) ? answer.sources : (answer.sources ? [answer.sources] : []),
+        quotes: answer.quotes && Array.isArray(answer.quotes) ? answer.quotes : [],
+        keyFindings: answer.keyFindings && Array.isArray(answer.keyFindings) ? answer.keyFindings : [],
         evidenceSummary: answer.evidenceSummary || '',
         legalAssessment: answer.legalAssessment || '',
-        recommendations: Array.isArray(answer.recommendations) ? answer.recommendations : [],
-        detailedEvidence: Array.isArray(answer.detailedEvidence) ? answer.detailedEvidence : []
+        recommendations: answer.recommendations && Array.isArray(answer.recommendations) ? answer.recommendations : [],
+        detailedEvidence: answer.detailedEvidence && Array.isArray(answer.detailedEvidence) ? answer.detailedEvidence : []
       };
     }
     
@@ -1695,7 +1695,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {question.subQuestions && (
+                          {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
                               {question.subQuestions.map((subQ, index) => (
                                 <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
@@ -1720,7 +1720,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     📖 Document Quotes ({answer.quotes.length})
@@ -1760,7 +1760,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-blue-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -1775,7 +1775,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -1794,7 +1794,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
@@ -1814,7 +1814,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2085,7 +2085,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {question.subQuestions && (
+                          {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
                               {question.subQuestions.map((subQ, index) => (
                                 <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
@@ -2110,7 +2110,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-gradient-to-r from-green-400/10 to-blue-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">
                                     🔬 Key Clinical Findings ({answer.keyFindings.length})
@@ -2127,7 +2127,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     💡 Clinical Recommendations ({answer.recommendations.length})
@@ -2148,7 +2148,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2361,7 +2361,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     📖 Document Quotes ({answer.quotes.length})
@@ -2401,7 +2401,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-cyan-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -2416,7 +2416,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -2435,7 +2435,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
@@ -2455,7 +2455,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                     {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -4049,7 +4049,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     📖 Document Quotes ({answer.quotes.length})
@@ -4089,7 +4089,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4104,7 +4104,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4123,7 +4123,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
@@ -4143,7 +4143,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                     {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -4558,7 +4558,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     📖 Document Quotes ({answer.quotes.length})
@@ -4598,7 +4598,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4613,7 +4613,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4632,7 +4632,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
@@ -4652,7 +4652,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                     {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -4856,7 +4856,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     📖 Document Quotes ({answer.quotes.length})
@@ -4896,7 +4896,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-orange-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4911,7 +4911,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4930,7 +4930,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
@@ -4950,7 +4950,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                     {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -5201,7 +5201,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Document Quotes */}
-                              {answer.sources && answer.sources.length > 0 && (
+                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
                                     📖 Document Quotes ({answer.sources.length})
@@ -5273,7 +5273,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
                                   Confidence: {answer.confidence}%
                                 </Badge>
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge variant="outline" className="text-yellow-400 border-yellow-400">
                                     {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
