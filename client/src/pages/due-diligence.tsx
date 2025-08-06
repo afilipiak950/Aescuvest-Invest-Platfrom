@@ -284,41 +284,71 @@ function DueDiligenceContent() {
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
-  // Calculate unassigned documents using intelligent assignment system
-  const unassignedDocs = useMemo(() => {
+  // Calculate document assignments for each agent type
+  const agentDocuments = useMemo(() => {
     if (!documents || !Array.isArray(documents)) {
-      console.log('📊 Missing documents data for unassigned calculation');
-      return [];
+      console.log('📊 Missing documents data for agent assignments');
+      return {
+        clinical: [],
+        legal: [],
+        commercial: [],
+        hr: [],
+        financial: [],
+        ip: [],
+        research: [],
+        unassigned: []
+      };
     }
 
-    // Filter documents that have no assignedAgents field or empty assignedAgents array
-    const unassigned = documents.filter((doc: any) => 
-      !doc.assignedAgents || 
-      !Array.isArray(doc.assignedAgents) || 
-      doc.assignedAgents.length === 0
-    );
-    
-    console.log('📊 Intelligent assignment status:', {
-      totalDocuments: documents.length,
-      unassignedCount: unassigned.length,
-      assignedCount: documents.length - unassigned.length,
-      assignmentRate: `${Math.round(((documents.length - unassigned.length) / documents.length) * 100)}%`
+    const assignments = {
+      clinical: [],
+      legal: [],
+      commercial: [],
+      hr: [],
+      financial: [],
+      ip: [],
+      research: [],
+      unassigned: []
+    };
+
+    documents.forEach((doc: any) => {
+      if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || doc.assignedAgents.length === 0) {
+        assignments.unassigned.push(doc);
+      } else {
+        // Document can be assigned to multiple agents
+        doc.assignedAgents.forEach((agent: string) => {
+          const agentKey = agent.toLowerCase();
+          if (agentKey in assignments) {
+            assignments[agentKey].push(doc);
+          }
+        });
+      }
     });
     
-    // Debug: Show sample assignments
-    const sampleAssigned = documents.filter(doc => 
-      doc.assignedAgents && Array.isArray(doc.assignedAgents) && doc.assignedAgents.length > 0
-    ).slice(0, 3);
+    console.log('📊 Agent document assignments:', {
+      clinical: assignments.clinical.length,
+      legal: assignments.legal.length,
+      commercial: assignments.commercial.length,
+      hr: assignments.hr.length,
+      financial: assignments.financial.length,
+      ip: assignments.ip.length,
+      research: assignments.research.length,
+      unassigned: assignments.unassigned.length,
+      total: documents.length
+    });
     
-    if (sampleAssigned.length > 0) {
-      console.log('📋 Sample intelligent assignments:');
-      sampleAssigned.forEach((doc: any) => {
-        console.log(`  "${doc.name}": ${doc.assignedAgents.join(', ')}`);
-      });
-    }
-    
-    return unassigned;
+    return assignments;
   }, [documents]);
+
+  // Extract individual agent document arrays for easy access
+  const clinicalDocs = agentDocuments.clinical;
+  const legalDocs = agentDocuments.legal;
+  const commercialDocs = agentDocuments.commercial;
+  const hrDocs = agentDocuments.hr;
+  const financialDocs = agentDocuments.financial;
+  const ipDocs = agentDocuments.ip;
+  const researchDocs = agentDocuments.research;
+  const unassignedDocs = agentDocuments.unassigned;
   
   const handleFileUpload = async () => {
     setShowUploadField(!showUploadField);
