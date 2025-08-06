@@ -1047,7 +1047,7 @@ function DueDiligenceContent() {
                       try {
                         console.log('🛑 Stopping all background jobs for deal', selectedDeal);
                         
-                        const response = await fetch(`/api/deals/${selectedDeal}/stop-analyses`, {
+                        const response = await fetch(`/api/deals/${selectedDeal}/stop-all-jobs`, {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json'

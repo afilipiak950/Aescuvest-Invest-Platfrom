@@ -164,16 +164,14 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
     console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
     
     // Get all jobs for this deal
-    const allJobs = await storage.getBackgroundJobs(dealId);
+    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
     let stoppedCount = 0;
     
     for (const job of allJobs) {
       try {
-        const stopped = await persistentJobManager.stopJob(job.jobId);
-        if (stopped) {
-          stoppedCount++;
-          console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
-        }
+        await persistentJobManager.stopJob(job.jobId);
+        stoppedCount++;
+        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
       } catch (error) {
         console.error(`❌ Error stopping job ${job.jobId}:`, error);
       }
