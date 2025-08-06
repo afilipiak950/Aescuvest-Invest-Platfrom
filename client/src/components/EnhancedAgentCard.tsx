@@ -2180,7 +2180,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -2480,7 +2480,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -4168,7 +4168,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -4677,7 +4677,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -4975,7 +4975,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -5204,7 +5204,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.sources.length})
+                                    📖 Document Quotes ({answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0})
                                   </h5>
                                   <div className="space-y-2">
                                     {answer.sources.map((source: string, index: number) => (
@@ -5275,7 +5275,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 </Badge>
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
