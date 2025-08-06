@@ -1582,15 +1582,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
       console.log(`🔍 Has detailedEvidence:`, !!answer.detailedEvidence);
       return {
-        answer: answer.answer,
-        confidence: answer.confidence,
-        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
-        quotes: answer.quotes || [],
-        keyFindings: answer.keyFindings || [],
+        answer: answer.answer || '',
+        confidence: answer.confidence || 0,
+        sources: Array.isArray(answer.sources) ? answer.sources : (answer.sources ? [answer.sources] : []),
+        quotes: Array.isArray(answer.quotes) ? answer.quotes : [],
+        keyFindings: Array.isArray(answer.keyFindings) ? answer.keyFindings : [],
         evidenceSummary: answer.evidenceSummary || '',
         legalAssessment: answer.legalAssessment || '',
-        recommendations: answer.recommendations || [],
-        detailedEvidence: answer.detailedEvidence || []
+        recommendations: Array.isArray(answer.recommendations) ? answer.recommendations : [],
+        detailedEvidence: Array.isArray(answer.detailedEvidence) ? answer.detailedEvidence : []
       };
     }
     
