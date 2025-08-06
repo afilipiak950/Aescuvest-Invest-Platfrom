@@ -1208,6 +1208,24 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
+  // Force complete AI processing mutation
+  const forceCompleteProcessingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/force-complete-processing`, {
+        method: 'POST',
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      console.log('✅ AI processing force completed:', data);
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+    },
+    onError: (error) => {
+      console.error('❌ Failed to force complete processing:', error);
+    }
+  });
+
   // Track processing state to prevent duplicates
   const [processingComplete, setProcessingComplete] = useState(false);
   const [processingCooldown, setProcessingCooldown] = useState(false);
@@ -1272,6 +1290,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       newSelection.delete(fileId);
     }
     setSelectedFiles(newSelection);
+  };
+
+  // Handler for force completing AI processing
+  const handleForceCompleteProcessing = async () => {
+    console.log(`🔧 Force completing AI processing for deal ${dealId}`);
+    forceCompleteProcessingMutation.mutate();
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -1587,11 +1611,26 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   
                   if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0)) {
                     return (
-                      <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
-                        <span className="text-sm text-blue-300 font-medium">
-                          AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
-                        </span>
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
+                          <span className="text-sm text-blue-300 font-medium">
+                            AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
+                          </span>
+                        </div>
+                        {/* Force Complete Button for stuck processing */}
+                        {completionPercentage > 85 && (
+                          <Button
+                            onClick={() => handleForceCompleteProcessing()}
+                            size="sm"
+                            variant="outline"
+                            className="border-orange-600 text-orange-300 hover:bg-orange-600 hover:text-white"
+                            title="Force complete processing if stuck"
+                          >
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            Complete
+                          </Button>
+                        )}
                       </div>
                     );
                   } else if (docsWithSummaries === totalDocs) {

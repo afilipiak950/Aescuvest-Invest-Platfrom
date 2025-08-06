@@ -39,6 +39,7 @@ import { persistentJobManager } from './services/persistentJobManager';
 import persistentAnalysisRoutes from './routes/persistentAnalysis';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
+import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -3729,6 +3730,49 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     } catch (error) {
       console.error('Error stopping background job:', error);
       res.status(500).json({ success: false, error: 'Failed to stop job' });
+    }
+  });
+
+  // AI Processing Timeout Management Endpoints
+  app.get('/api/ai-processing/timeout-stats', async (req: Request, res: Response) => {
+    try {
+      const stats = await aiProcessingTimeoutService.getTimeoutStats();
+      res.json({
+        success: true,
+        ...stats
+      });
+    } catch (error) {
+      console.error('Error getting timeout stats:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to get timeout statistics' 
+      });
+    }
+  });
+
+  // Force complete AI processing for a deal
+  app.post('/api/deals/:dealId/force-complete-processing', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      console.log(`🔧 Force completing AI processing for deal ${dealId}`);
+      
+      await aiProcessingTimeoutService.forceCompleteProcessing(dealId, 'Manual force completion');
+      
+      res.json({
+        success: true,
+        message: `AI processing force completed for deal ${dealId}`
+      });
+      
+    } catch (error) {
+      console.error('Error force completing processing:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to force complete processing' 
+      });
     }
   });
 
