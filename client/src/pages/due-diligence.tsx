@@ -278,7 +278,7 @@ function DueDiligenceContent() {
     selectedDeal,
     isLoadingAnalyses,
     analysesData: analyses,
-    analysesLength: (analyses && Array.isArray(analyses)) ? analyses.length : 'not array',
+    analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
     agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
   });
 
@@ -299,7 +299,7 @@ function DueDiligenceContent() {
     };
 
     // Early exit with safe default if no documents
-    if (!documents || !Array.isArray(documents) || documents.length === 0) {
+    if (!documents || !Array.isArray(documents) || (documents?.length || 0) === 0) {
       console.log('📊 Missing or empty documents data for agent assignments');
       return safeDefault;
     }
@@ -322,7 +322,7 @@ function DueDiligenceContent() {
           return;
         }
 
-        if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || doc.assignedAgents.length === 0) {
+        if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || (doc.assignedAgents?.length || 0) === 0) {
           assignments.unassigned.push(doc);
         } else {
           // Document can be assigned to multiple agents
