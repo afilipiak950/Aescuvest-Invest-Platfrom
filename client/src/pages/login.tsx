@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Loader2, Lock, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-// Logo removed during deployment optimization - using text-based branding
+// Aescuvest logo now available at /aescuvest-logo.png
 
 const loginSchema = z.object({
   email: z
@@ -119,7 +119,7 @@ export default function LoginPage() {
               <div className="relative mb-6 group">
                 <div className="w-20 h-20 mx-auto bg-white rounded-2xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-2xl p-2">
                   <img 
-                    src="/attached_assets/65693c5a89e524678d52208a_Aescuvest Logo 1_1754315977838.png" 
+                    src="/aescuvest-logo.png" 
                     alt="Aescuvest Logo" 
                     className="w-16 h-16 object-contain"
                   />
