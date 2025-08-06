@@ -1387,8 +1387,11 @@ export class DatabaseStorage implements IStorage {
   async saveAgentAnalysis(dealId: number, agentType: string, analysisData: any): Promise<any> {
     try {
       // Store agent analysis in the agentAnalyses table
+      // Ensure agentType is properly formatted
+      const formattedAgentType = agentType ? agentType.charAt(0).toUpperCase() + agentType.slice(1) : 'Unknown';
+      
       const existing = await db.select().from(agentAnalyses)
-        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))));
+        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, formattedAgentType)));
       
       if (existing.length > 0) {
         // Prepare update object with common fields

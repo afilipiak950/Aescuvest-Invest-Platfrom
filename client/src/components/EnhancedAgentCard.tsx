@@ -3065,7 +3065,10 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-purple-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace('(10 documents)', `(~${Math.ceil(340/34)} documents)`) :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -3203,7 +3206,10 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-orange-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace('(10 documents)', `(~4 documents)`) :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -3289,7 +3295,10 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-emerald-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace('(10 documents)', `(${Math.ceil(46/parseInt(currentStep.split('/')[1] || '11'))} documents)`) :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -3425,7 +3434,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-pink-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace('(10 documents)', `(~${Math.ceil(320/32)} documents)`) :
+              currentStep
+            }
           </div>
         </div>
       </div>
