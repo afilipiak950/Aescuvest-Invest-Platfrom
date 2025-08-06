@@ -4035,40 +4035,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive clinical analysis service
-      const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Create background job for progress tracking
-      const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
-      
-      try {
-        await storage.createBackgroundJob({
-          jobId,
-          jobType: 'comprehensive_clinical_analysis',
-          dealId,
-          agentType: 'Clinical',
-          status: 'processing',
-          progress: 0,
-          totalDocuments: 0,
-          processedDocuments: 0,
-          startedAt: new Date()
-        });
-      } catch (error) {
-        console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-        return res.status(500).json({ 
-          success: false, 
-          error: `Failed to initialize comprehensive clinical analysis: ${error.message}` 
-        });
-      }
-
-      // Run comprehensive clinical analysis in background with progress tracking
+      // Run ENHANCED comprehensive clinical analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔧 Starting comprehensive clinical analysis background process for deal ${dealId}`);
-          await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId);
-          console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED clinical analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Clinical');
+          console.log(`✅ Enhanced clinical analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced clinical analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
@@ -4420,17 +4397,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // REMOVED: Check for existing jobs - this was blocking the cleanup from running
       // The service will handle cleanup internally
       
-      // Import the comprehensive commercial analysis service
-      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Run comprehensive commercial analysis in background with progress tracking
+      // Run ENHANCED comprehensive commercial analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
-          await comprehensiveCommercialAnalysisService.startComprehensiveAnalysis(dealId);
-          console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
+          console.log(`🏢 Starting ENHANCED commercial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Commercial');
+          console.log(`✅ Enhanced commercial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced commercial analysis for deal ${dealId}:`, error);
         }
       })();
       
@@ -4509,17 +4486,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive HR analysis service
-      const { startComprehensiveAnalysis } = await import('./comprehensiveHrAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Run comprehensive HR analysis in background with progress tracking
+      // Run ENHANCED comprehensive HR analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🧑‍💼 Starting comprehensive HR analysis background process for deal ${dealId}`);
-          await startComprehensiveAnalysis(dealId);
-          console.log(`✅ Comprehensive HR analysis completed for deal ${dealId}`);
+          console.log(`🧑‍💼 Starting ENHANCED HR analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'HR');
+          console.log(`✅ Enhanced HR analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive HR analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced HR analysis for deal ${dealId}:`, error);
         }
       })();
 
@@ -4601,17 +4578,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive financial analysis service
-      const { startComprehensiveAnalysis } = await import('./comprehensiveFinancialAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Run comprehensive financial analysis in background with progress tracking
+      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
-          await startComprehensiveAnalysis(dealId);
-          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
+          console.log(`💰 Starting ENHANCED financial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
+          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
         }
       })();
       
@@ -4728,17 +4705,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive IP analysis service
-      const { startComprehensiveAnalysis } = await import('./comprehensiveIpAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Run comprehensive IP analysis in background with progress tracking
+      // Run ENHANCED comprehensive IP analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔬 Starting comprehensive IP analysis background process for deal ${dealId}`);
-          await startComprehensiveAnalysis(dealId);
-          console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED IP analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'IP');
+          console.log(`✅ Enhanced IP analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive IP analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced IP analysis for deal ${dealId}:`, error);
         }
       })();
       
@@ -4863,27 +4840,19 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Create background job for progress tracking
-      const jobId = `research_analysis_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_research_analysis',
-        dealId,
-        agentType: 'Research',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 0,
-        processedDocuments: 0,
-        startedAt: new Date()
-      });
-
-      // Import and start the comprehensive research analysis service
-      const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Start comprehensive research analysis in background with storage and jobId
-      comprehensiveResearchAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
-        console.error(`❌ Background research analysis failed for deal ${dealId}:`, error);
-      });
+      // Run ENHANCED comprehensive research analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Research');
+          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
+        }
+      })();
       
       res.json({ 
         success: true, 
