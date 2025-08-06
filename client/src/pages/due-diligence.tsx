@@ -340,15 +340,15 @@ function DueDiligenceContent() {
     return assignments;
   }, [documents]);
 
-  // Extract individual agent document arrays for easy access
-  const clinicalDocs = agentDocuments.clinical;
-  const legalDocs = agentDocuments.legal;
-  const commercialDocs = agentDocuments.commercial;
-  const hrDocs = agentDocuments.hr;
-  const financialDocs = agentDocuments.financial;
-  const ipDocs = agentDocuments.ip;
-  const researchDocs = agentDocuments.research;
-  const unassignedDocs = agentDocuments.unassigned;
+  // Extract individual agent document arrays for easy access with null safety
+  const clinicalDocs = agentDocuments?.clinical || [];
+  const legalDocs = agentDocuments?.legal || [];
+  const commercialDocs = agentDocuments?.commercial || [];
+  const hrDocs = agentDocuments?.hr || [];
+  const financialDocs = agentDocuments?.financial || [];
+  const ipDocs = agentDocuments?.ip || [];
+  const researchDocs = agentDocuments?.research || [];
+  const unassignedDocs = agentDocuments?.unassigned || [];
   
   const handleFileUpload = async () => {
     setShowUploadField(!showUploadField);
@@ -1197,49 +1197,49 @@ function DueDiligenceContent() {
                     value="clinical"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Clinical ({clinicalDocs.length})
+                    Clinical ({clinicalDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="legal"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Legal ({legalDocs.length})
+                    Legal ({legalDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="commercial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Commercial ({commercialDocs.length})
+                    Commercial ({commercialDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="hr"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    HR ({hrDocs.length})
+                    HR ({hrDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="financial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Financial ({financialDocs.length})
+                    Financial ({financialDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="ip"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    IP ({ipDocs.length})
+                    IP ({ipDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="research"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Research ({researchDocs.length})
+                    Research ({researchDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="unassigned"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Unassigned ({unassignedDocs.length})
+                    Unassigned ({unassignedDocs?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger
                     value="ai-agents"
