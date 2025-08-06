@@ -3922,25 +3922,24 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive legal analysis service
-      const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
-      const legalService = new ComprehensiveLegalAnalysisService();
+      // Import the ENHANCED legal analysis service
+      const { startEnhancedLegalAnalysis } = await import('./enhancedLegalAnalysisService');
       
-      // Run comprehensive legal analysis in background with progress tracking
+      // Run ENHANCED legal analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔧 Starting comprehensive legal analysis background process for deal ${dealId}`);
-          const result = await legalService.runComprehensiveAnalysis(dealId, storage);
-          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}:`, result);
+          console.log(`🔬 Starting ENHANCED legal analysis background process for deal ${dealId}`);
+          await startEnhancedLegalAnalysis(dealId);
+          console.log(`✅ Enhanced legal analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced legal analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive legal analysis started - processing 15 legal questions across all assigned documents'
+        message: 'ENHANCED legal analysis started - deep evidence-based processing with comprehensive source attribution across ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
