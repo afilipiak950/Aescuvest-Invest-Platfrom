@@ -326,15 +326,15 @@ function DueDiligenceContent() {
     });
     
     console.log('📊 Agent document assignments:', {
-      clinical: assignments.clinical.length,
-      legal: assignments.legal.length,
-      commercial: assignments.commercial.length,
-      hr: assignments.hr.length,
-      financial: assignments.financial.length,
-      ip: assignments.ip.length,
-      research: assignments.research.length,
-      unassigned: assignments.unassigned.length,
-      total: documents.length
+      clinical: assignments?.clinical?.length || 0,
+      legal: assignments?.legal?.length || 0,
+      commercial: assignments?.commercial?.length || 0,
+      hr: assignments?.hr?.length || 0,
+      financial: assignments?.financial?.length || 0,
+      ip: assignments?.ip?.length || 0,
+      research: assignments?.research?.length || 0,
+      unassigned: assignments?.unassigned?.length || 0,
+      total: documents?.length || 0
     });
     
     return assignments;
@@ -948,7 +948,7 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">Deal Analysis Overview</CardTitle>
               <CardDescription>
-                Real-time statistics for {currentDeal.companyName}
+                Real-time statistics for {currentDeal?.companyName || 'Selected Deal'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -971,8 +971,8 @@ function DueDiligenceContent() {
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-green-400">
-                    {unassignedDocs.length === 0 && documents?.length > 0 ? '100%' : 
-                     documents?.length > 0 ? `${Math.round((documents.length - unassignedDocs.length) / documents.length * 100)}%` : '0%'}
+                    {(unassignedDocs?.length || 0) === 0 && (documents?.length || 0) > 0 ? '100%' : 
+                     (documents?.length || 0) > 0 ? `${Math.round(((documents?.length || 0) - (unassignedDocs?.length || 0)) / (documents?.length || 1) * 100)}%` : '0%'}
                   </div>
                   <div className="text-sm text-gray-400">Assignment Rate</div>
                 </div>
