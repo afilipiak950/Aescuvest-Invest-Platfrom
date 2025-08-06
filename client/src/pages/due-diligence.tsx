@@ -902,7 +902,25 @@ function DueDiligenceContent() {
                       <Progress value={job.progress} className="h-2" />
                       {job.currentStep && (
                         <p className="text-xs text-gray-500">
-                          {job.currentStep}
+                          {job.currentStep && job.currentStep.includes('batch') ? 
+                            (() => {
+                              const agentType = job.agentType?.toLowerCase();
+                              if (agentType === 'financial') {
+                                return job.currentStep.replace('(10 documents)', '(~4 documents)');
+                              } else if (agentType === 'commercial') {
+                                return job.currentStep.replace('(10 documents)', '(~10 documents)');
+                              } else if (agentType === 'ip') {
+                                return job.currentStep.replace('(10 documents)', '(~10 documents)');
+                              } else if (agentType === 'hr') {
+                                return job.currentStep.replace('(10 documents)', '(~4 documents)');
+                              } else if (agentType === 'legal') {
+                                return job.currentStep.replace('(10 documents)', '(~20 documents)');
+                              } else {
+                                return job.currentStep.replace('(10 documents)', '(~8 documents)');
+                              }
+                            })() :
+                            job.currentStep
+                          }
                         </p>
                       )}
                     </div>
