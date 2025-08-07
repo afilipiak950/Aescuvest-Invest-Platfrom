@@ -2275,28 +2275,42 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
-  const getAnswerForQuestion = (questionId: string) => {
+  const getAnswerForQuestion = (questionId: string, questionText: string) => {
     // Try comprehensive results first - check snake_case field name from API
     if (comprehensiveResults?.analysis?.research_answers) {
-      const answer = comprehensiveResults.analysis.research_answers[questionId];
+      // First try by question text (exact match)
+      const answer = comprehensiveResults.analysis.research_answers[questionText];
       if (answer) return answer;
+      
+      // Fallback to question ID
+      const answerById = comprehensiveResults.analysis.research_answers[questionId];
+      if (answerById) return answerById;
     }
     
     // Fallback to camelCase if available
     if (comprehensiveResults?.analysis?.researchAnswers) {
-      const answer = comprehensiveResults.analysis.researchAnswers[questionId];
+      const answer = comprehensiveResults.analysis.researchAnswers[questionText];
       if (answer) return answer;
+      
+      const answerById = comprehensiveResults.analysis.researchAnswers[questionId];
+      if (answerById) return answerById;
     }
     
     // Fallback to regular analysis results if comprehensive is empty
     if (analysisData?.research_answers) {
-      const answer = analysisData.research_answers[questionId];
+      const answer = analysisData.research_answers[questionText];
       if (answer) return answer;
+      
+      const answerById = analysisData.research_answers[questionId];
+      if (answerById) return answerById;
     }
     
     if (analysisData?.researchAnswers) {
-      const answer = analysisData.researchAnswers[questionId];
+      const answer = analysisData.researchAnswers[questionText];
       if (answer) return answer;
+      
+      const answerById = analysisData.researchAnswers[questionId];
+      if (answerById) return answerById;
     }
     
     return null;
@@ -2336,7 +2350,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
               {questions && Array.isArray(questions) && questions.map(question => {
-                const answer = getAnswerForQuestion(question.id);
+                const answer = getAnswerForQuestion(question.id, question.question);
 
                 return (
                   <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
