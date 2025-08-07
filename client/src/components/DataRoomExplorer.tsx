@@ -1206,25 +1206,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
-  // Auto force complete when processing is stuck above 90% for more than 30 seconds
-  React.useEffect(() => {
-    if (documentsArray && Array.isArray(documentsArray)) {
-      const analyzedDocs = documentsArray.filter((doc: any) => doc.status === 'Analyzed');
-      const totalDocs = analyzedDocs.length;
-      const docsWithSummaries = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
-      const completionPercentage = totalDocs > 0 ? Math.round((docsWithSummaries / totalDocs) * 100) : 0;
-      
-      // Auto force complete if stuck at high percentage
-      if (completionPercentage >= 90 && completionPercentage < 100) {
-        const timer = setTimeout(() => {
-          console.log(`🔧 Auto force completing at ${completionPercentage}% (${docsWithSummaries}/${totalDocs})`);
-          forceCompleteProcessingMutation.mutate();
-        }, 30000); // Wait 30 seconds
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [documentsArray, forceCompleteProcessingMutation]);
+
 
   // AI Document Assignment mutation
   const assignAgentsMutation = useMutation({
@@ -1392,6 +1374,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     });
   };
 
+  const documentsArray = documents as Document[] | undefined;
+
   if (isLoading) {
     return (
       <div className="bg-dark-lighter rounded-lg">
@@ -1415,14 +1399,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       </div>
     );
   }
+  
+  // Note: Auto force complete functionality temporarily disabled due to component lifecycle issues
+  // The AI processing timeout service handles stuck processing automatically
 
-  const documentsArray = documents as Document[] | undefined;
   console.log('📊 DataRoomExplorer debug:', { 
     dealId,
-    documents: Array.isArray(documentsArray) ? documentsArray.length : 'undefined', 
+    documents: Array.isArray(documents) ? documents.length : 'undefined', 
     isLoading, 
-    isArray: Array.isArray(documentsArray),
-    firstDoc: Array.isArray(documentsArray) && documentsArray.length > 0 ? documentsArray[0]?.name : 'none',
+    isArray: Array.isArray(documents),
+    firstDoc: Array.isArray(documents) && documents.length > 0 ? documents[0]?.name : 'none',
     queryKey: `/api/deals/${dealId}/documents`
   });
   
@@ -1431,13 +1417,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   }
   
   // Check if we have only email attachments but no regular documents
-  const hasOnlyEmailAttachments = documentsArray && Array.isArray(documentsArray) && documentsArray.length > 0 && 
-    documentsArray.every(doc => doc.folderPath?.includes('email-attachments'));
+  const hasOnlyEmailAttachments = documents && Array.isArray(documents) && documents.length > 0 && 
+    documents.every(doc => doc.folderPath?.includes('email-attachments'));
 
-  if ((!documentsArray || !Array.isArray(documentsArray) || documentsArray.length === 0) && !hasOnlyEmailAttachments) {
+  if ((!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments) {
     console.log('📊 DataRoomExplorer: No documents condition met', { 
-      documents: Array.isArray(documentsArray) ? documentsArray.length : 'not array', 
-      isArray: Array.isArray(documentsArray) 
+      documents: Array.isArray(documents) ? documents.length : 'not array', 
+      isArray: Array.isArray(documents) 
     });
     return (
       <div className="bg-dark-lighter rounded-lg">
@@ -1538,7 +1524,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  const { folderTree, emailAttachments } = buildFolderTree(documentsArray || []);
+  const { folderTree, emailAttachments } = buildFolderTree(documents || []);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -1604,16 +1590,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
-              <p className="text-sm text-gray-400 mt-1">{(documentsArray?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
+              <p className="text-sm text-gray-400 mt-1">{(documents?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
             </div>
           
           <div className="flex items-center space-x-2">
             {!isSelectionMode ? (
               <>
                 {/* Smart AI Summary Status Indicator */}
-                {documentsArray && Array.isArray(documentsArray) && (() => {
+                {documents && Array.isArray(documents) && (() => {
                   // Only count documents that have been analyzed and can have AI summaries
-                  const analyzedDocs = documentsArray.filter((doc: any) => 
+                  const analyzedDocs = documents.filter((doc: any) => 
                     doc.status === 'Analyzed'
                   );
                   
@@ -1692,7 +1678,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 })()}
 
                 {/* AI Agent Assignment Button */}
-                {documentsArray && documentsArray.length > 0 && (
+                {documents && Array.isArray(documents) && documents.length > 0 && (
                   <Button
                     onClick={() => assignAgentsMutation.mutate()}
                     size="sm"
@@ -1737,7 +1723,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    checked={selectedFiles.size === (documentsArray?.length || 0) && (documentsArray?.length || 0) > 0}
+                    checked={selectedFiles.size === (documents?.length || 0) && (documents?.length || 0) > 0}
                     onCheckedChange={handleSelectAll}
                   />
                   <span className="text-sm text-gray-300">Select All</span>
