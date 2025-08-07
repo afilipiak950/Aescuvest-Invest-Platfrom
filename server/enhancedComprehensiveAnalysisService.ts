@@ -593,11 +593,28 @@ async function getAgentQuestions(agentType: string): Promise<any[]> {
       ];
     case 'research':
       return [
-        { id: 'res_1', question: 'What research methodology and scientific approach is used?', category: 'Methodology' },
-        { id: 'res_2', question: 'What peer-reviewed publications and citations exist?', category: 'Publications' },
-        { id: 'res_3', question: 'What research partnerships and collaborations are present?', category: 'Partnerships' },
-        { id: 'res_4', question: 'What data quality and validation has been performed?', category: 'Data' },
-        { id: 'res_5', question: 'What research competitive advantages exist?', category: 'Advantages' }
+        // Technical Methodology
+        { id: 'res_1', question: 'What research methodology and scientific approach is used?', category: 'Technical Methodology' },
+        { id: 'res_4', question: 'What data quality and validation has been performed?', category: 'Technical Methodology' },
+        
+        // Academic Publications  
+        { id: 'res_2', question: 'What peer-reviewed publications and citations exist?', category: 'Academic Publications' },
+        { id: 'res_3', question: 'What research partnerships and collaborations are present?', category: 'Academic Publications' },
+        { id: 'res_6', question: 'Are there citations in high-impact journals (Nature, Science, Cell)?', category: 'Academic Publications' },
+        { id: 'res_7', question: 'What is the h-index and citation count of key publications?', category: 'Academic Publications' },
+        { id: 'res_8', question: 'Are there collaborations with leading academic institutions?', category: 'Academic Publications' },
+        
+        // Technical Innovation
+        { id: 'res_5', question: 'What research competitive advantages exist?', category: 'Technical Innovation' },
+        
+        // Market Research
+        { id: 'res_9', question: 'What is the total addressable market (TAM) size?', category: 'Market Research' },
+        { id: 'res_10', question: 'Who are the main competitors and what is their market share?', category: 'Market Research' },
+        { id: 'res_11', question: 'What are the market growth projections and key drivers?', category: 'Market Research' },
+        
+        // Patent Landscape
+        { id: 'res_12', question: 'What is the freedom-to-operate (FTO) analysis result?', category: 'Patent Landscape' },
+        { id: 'res_13', question: 'Are there any patent disputes or prior art challenges?', category: 'Patent Landscape' }
       ];
     default:
       throw new Error(`Unknown agent type: ${agentType}`);
