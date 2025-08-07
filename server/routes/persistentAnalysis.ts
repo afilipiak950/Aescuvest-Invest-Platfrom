@@ -155,6 +155,77 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
 });
 
 /**
+ * Delete ALL background job records for a deal (comprehensive cleanup)
+ */
+router.delete('/api/background-jobs/deal/:dealId', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid deal ID'
+      });
+    }
+    
+    console.log(`🗑️ Deleting ALL background job records for deal ${dealId}`);
+    
+    // Use the existing storage method that properly deletes all background jobs for a deal
+    const deletedCount = await storage.deleteBackgroundJobsByDealId(dealId);
+    
+    console.log(`✅ Deleted ${deletedCount} background job records for deal ${dealId}`);
+    
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} background job records`,
+      deletedCount
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error deleting background job records for deal ${req.params.dealId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete background job records'
+    });
+  }
+});
+
+// Clean up background job records for a deal to prevent duplicate key errors
+router.post('/api/deals/:dealId/cleanup-background-jobs', async (req: Request, res: Response) => {
+  try {
+    console.log(`🧹 CLEANUP ENDPOINT HIT - Deal ID: ${req.params.dealId}`);
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid deal ID'
+      });
+    }
+    
+    console.log(`🧹 Cleaning up background job records for deal ${dealId}`);
+    
+    // Clean up any existing background job records for this deal
+    const cleanupResult = await storage.cleanupBackgroundJobsForDeal(dealId);
+    console.log(`✅ Cleanup completed:`, cleanupResult);
+    
+    res.json({
+      success: true,
+      message: `Cleaned up background job records for deal ${dealId}`,
+      cleanedCount: cleanupResult.cleanedCount
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error cleaning up background job records for deal ${req.params.dealId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cleanup background job records'
+    });
+  }
+});
+
+/**
  * Stop ALL jobs for a deal immediately
  */
 router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
