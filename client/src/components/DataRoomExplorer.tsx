@@ -1189,6 +1189,23 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
+  // Force complete AI processing mutation for stuck jobs
+  const forceCompleteProcessingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/deals/${dealId}/force-complete-processing`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      refetch();
+    },
+    onError: (error) => {
+      console.error('Force complete processing failed:', error);
+    }
+  });
+
   // AI Document Assignment mutation
   const assignAgentsMutation = useMutation({
     mutationFn: async () => {
@@ -1595,15 +1612,38 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   
                   if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0)) {
                     return (
-                      <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
-                        <span className="text-sm text-blue-300 font-medium">
-                          AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
-                        </span>
-                        {completionPercentage > 85 && (
-                          <span className="text-xs text-yellow-300 ml-2">
-                            (Auto-timeout: 12h)
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
+                          <span className="text-sm text-blue-300 font-medium">
+                            AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
                           </span>
+                          {completionPercentage > 85 && (
+                            <span className="text-xs text-yellow-300 ml-2">
+                              (Auto-timeout: 30min)
+                            </span>
+                          )}
+                        </div>
+                        {completionPercentage > 80 && (
+                          <Button
+                            onClick={() => forceCompleteProcessingMutation.mutate()}
+                            size="sm"
+                            variant="outline"
+                            disabled={forceCompleteProcessingMutation.isPending}
+                            className="border-red-600 text-red-300 hover:bg-red-700 hover:text-white"
+                          >
+                            {forceCompleteProcessingMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                                Completing...
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangleIcon className="w-4 h-4 mr-1" />
+                                Force Complete
+                              </>
+                            )}
+                          </Button>
                         )}
                       </div>
                     );
