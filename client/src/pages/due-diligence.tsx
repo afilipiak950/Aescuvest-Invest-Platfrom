@@ -1261,7 +1261,17 @@ function DueDiligenceContent() {
                     value="clinical"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Clinical ({clinicalDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Clinical ({clinicalDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="legal"
@@ -1299,25 +1309,65 @@ function DueDiligenceContent() {
                     value="hr"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    HR ({hrDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>HR ({hrDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="financial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Financial ({financialDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Financial ({financialDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="ip"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    IP ({ipDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>IP ({ipDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="research"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Research ({researchDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Research ({researchDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="unassigned"
