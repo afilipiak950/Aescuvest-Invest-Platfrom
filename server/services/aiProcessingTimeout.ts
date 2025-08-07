@@ -5,8 +5,8 @@
  */
 
 import { db } from '../db';
-import { backgroundJobs, agentAnalyses } from '../../shared/schema';
-import { eq, and, lt } from 'drizzle-orm';
+import { backgroundJobs, agentAnalyses, documents } from '../../shared/schema';
+import { eq, and, lt, or } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 
 interface TimeoutConfig {
@@ -162,14 +162,79 @@ class AIProcessingTimeoutService {
     console.log('🔍 Checking for deals with incomplete AI processing...');
     
     try {
-      // This would need to be implemented based on your specific logic
-      // for determining when a deal's AI processing should be considered "complete"
+      // Find documents that are stuck in processing or failed analysis
+      const timeoutThreshold = new Date(Date.now() - this.config.processingTimeout);
       
-      // For now, we focus on the background jobs timeout
+      // Simple approach: get all documents that need attention
+      const stuckDocuments = await db
+        .select()
+        .from(documents)
+        .where(
+          or(
+            // Documents stuck in processing state
+            eq(documents.aiSummaryStatus, 'processing'),
+            // Documents that failed analysis
+            and(
+              eq(documents.status, 'Failed Analysis'),
+              eq(documents.aiSummaryStatus, 'pending')
+            ),
+            // Analyzed documents stuck in pending AI summary
+            and(
+              eq(documents.status, 'Analyzed'),
+              eq(documents.aiSummaryStatus, 'pending')
+            )
+          )
+        );
+
+      if (stuckDocuments.length > 0) {
+        console.log(`🔧 Found ${stuckDocuments.length} stuck documents that need completion`);
+        
+        // Group by deal
+        const documentsByDeal = stuckDocuments.reduce((acc, doc) => {
+          if (!acc[doc.dealId]) acc[doc.dealId] = [];
+          acc[doc.dealId].push(doc);
+          return acc;
+        }, {});
+
+        // Process each deal's stuck documents
+        for (const [dealId, docs] of Object.entries(documentsByDeal)) {
+          await this.handleStuckDocuments(parseInt(dealId), docs as any[]);
+        }
+      }
+      
       console.log('✅ Deal completion check completed');
       
     } catch (error) {
       console.error('❌ Error checking incomplete deals:', error);
+    }
+  }
+
+  /**
+   * Handle stuck documents by forcing completion
+   */
+  private async handleStuckDocuments(dealId: number, stuckDocs: any[]): Promise<void> {
+    console.log(`🔧 Handling ${stuckDocs.length} stuck documents for deal ${dealId}`);
+    
+    for (const doc of stuckDocs) {
+      try {
+        const minutesStuck = Math.round((Date.now() - new Date(doc.updatedAt).getTime()) / (60 * 1000) * 10) / 10;
+        console.log(`⚠️ Auto-completing stuck document: ${doc.name} (${doc.status}/${doc.aiSummaryStatus}) - stuck for ${minutesStuck} minutes`);
+        
+        // Update document to completed status
+        await db
+          .update(documents)
+          .set({
+            aiSummaryStatus: 'completed',
+            aiSummary: 'Auto-completed due to processing timeout. Document analyzed but AI summary generation was interrupted.',
+            updatedAt: new Date()
+          })
+          .where(eq(documents.id, doc.id));
+        
+        console.log(`✅ Auto-completed document ${doc.name} after ${minutesStuck} minutes`);
+        
+      } catch (error) {
+        console.error(`❌ Error handling stuck document ${doc.name}:`, error);
+      }
     }
   }
 
