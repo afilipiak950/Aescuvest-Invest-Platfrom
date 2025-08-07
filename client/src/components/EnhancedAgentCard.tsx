@@ -1344,75 +1344,24 @@ interface ResearchQuestion {
 }
 
 const RESEARCH_QUESTIONS: ResearchQuestion[] = [
-  // Market Research Reports
+  // Market Research - matching database keys res_9, res_10, res_11
   {
-    id: 'market_1',
-    category: 'Market Research Reports',
-    question: 'Are TAM/SAM/SOM defined with assumptions?',
-    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
+    id: 'res_9',
+    category: 'Market Research',
+    question: 'What is the total addressable market (TAM) size?',
+    subQuestions: ['Total Addressable Market', 'Market size estimates', 'Growth projections']
   },
   {
-    id: 'market_2',
-    category: 'Market Research Reports',
-    question: 'What competitive landscape analysis is provided?',
-    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
+    id: 'res_10',
+    category: 'Market Research',
+    question: 'Who are the main competitors and what is their market share?',
+    subQuestions: ['Direct competitors', 'Indirect competitors', 'Market share analysis']
   },
   {
-    id: 'market_3',
-    category: 'Market Research Reports',
-    question: 'Are market growth projections validated?',
-    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
-  },
-  // Technical Whitepapers
-  {
-    id: 'technical_1',
-    category: 'Technical Whitepapers',
-    question: 'What technical approach/architecture is described?',
-    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
-  },
-  {
-    id: 'technical_2',
-    category: 'Technical Whitepapers',
-    question: 'Are technical risks and mitigation strategies outlined?',
-    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
-  },
-  {
-    id: 'technical_3',
-    category: 'Technical Whitepapers',
-    question: 'What scalability and performance benchmarks are provided?',
-    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
-  },
-  // Academic Publications
-  {
-    id: 'academic_1',
-    category: 'Academic Publications',
-    question: 'What peer-reviewed research supports the technology?',
-    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
-  },
-  {
-    id: 'academic_2',
-    category: 'Academic Publications',
-    question: 'Are there collaborations with research institutions?',
-    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
-  },
-  {
-    id: 'academic_3',
-    category: 'Academic Publications',
-    question: 'What scientific evidence validates the approach?',
-    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
-  },
-  // Patent Landscape
-  {
-    id: 'patent_1',
-    category: 'Patent Landscape',
-    question: 'What patent portfolio exists and what gaps are identified?',
-    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
-  },
-  {
-    id: 'patent_2',
-    category: 'Patent Landscape',
-    question: 'Are there freedom-to-operate risks?',
-    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
+    id: 'res_11',
+    category: 'Market Research',
+    question: 'What are the market growth projections and key drivers?',
+    subQuestions: ['Growth rates', 'Market trends', 'Key growth drivers']
   }
 ];
 
