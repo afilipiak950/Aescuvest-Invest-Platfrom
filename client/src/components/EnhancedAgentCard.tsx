@@ -2245,28 +2245,14 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Research questions structure matching the EXACT backend responses
+  // Research questions structure - ONLY show questions that have actual answers
   const RESEARCH_QUESTIONS = [
-    // These match the EXACT questions from the backend API
-    { id: "res_1", question: "What research methodology and scientific approach is used?", category: "Technical Whitepapers" },
-    { id: "res_2", question: "What peer-reviewed publications and citations exist?", category: "Technical Whitepapers" },
+    // These match the EXACT questions from the backend API that have answers
+    { id: "res_1", question: "What research methodology and scientific approach is used?", category: "Technical Methodology" },
+    { id: "res_2", question: "What peer-reviewed publications and citations exist?", category: "Academic Publications" },
     { id: "res_3", question: "What research partnerships and collaborations are present?", category: "Academic Publications" },
-    { id: "res_4", question: "What data quality and validation has been performed?", category: "Technical Innovation" },
-    { id: "res_5", question: "What research competitive advantages exist?", category: "Technical Innovation" },
-    
-    // 2. Market Research Reports - 3 questions
-    { id: "market_1", question: "What is the total addressable market (TAM) size?", category: "Market Research Reports" },
-    { id: "market_2", question: "Who are the main competitors and what is their market share?", category: "Market Research Reports" },
-    { id: "market_3", question: "What are the market growth projections and key drivers?", category: "Market Research Reports" },
-    
-    // 3. Academic Publications - 3 questions
-    { id: "academic_1", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
-    { id: "academic_2", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
-    { id: "academic_3", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
-    
-    // 4. Patent Landscape - 2 questions
-    { id: "patents_1", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
-    { id: "patents_2", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
+    { id: "res_4", question: "What data quality and validation has been performed?", category: "Technical Methodology" },
+    { id: "res_5", question: "What research competitive advantages exist?", category: "Technical Innovation" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
