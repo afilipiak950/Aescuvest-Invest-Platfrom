@@ -1206,6 +1206,26 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
+  // Auto force complete when processing is stuck above 90% for more than 30 seconds
+  React.useEffect(() => {
+    if (documentsArray && Array.isArray(documentsArray)) {
+      const analyzedDocs = documentsArray.filter((doc: any) => doc.status === 'Analyzed');
+      const totalDocs = analyzedDocs.length;
+      const docsWithSummaries = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
+      const completionPercentage = totalDocs > 0 ? Math.round((docsWithSummaries / totalDocs) * 100) : 0;
+      
+      // Auto force complete if stuck at high percentage
+      if (completionPercentage >= 90 && completionPercentage < 100) {
+        const timer = setTimeout(() => {
+          console.log(`🔧 Auto force completing at ${completionPercentage}% (${docsWithSummaries}/${totalDocs})`);
+          forceCompleteProcessingMutation.mutate();
+        }, 30000); // Wait 30 seconds
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [documentsArray, forceCompleteProcessingMutation]);
+
   // AI Document Assignment mutation
   const assignAgentsMutation = useMutation({
     mutationFn: async () => {
@@ -1620,31 +1640,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                           </span>
                           {completionPercentage > 85 && (
                             <span className="text-xs text-yellow-300 ml-2">
-                              (Auto-timeout: 30min)
+                              (Auto-timeout: 5min)
                             </span>
                           )}
                         </div>
-                        {completionPercentage > 80 && (
-                          <Button
-                            onClick={() => forceCompleteProcessingMutation.mutate()}
-                            size="sm"
-                            variant="outline"
-                            disabled={forceCompleteProcessingMutation.isPending}
-                            className="border-red-600 text-red-300 hover:bg-red-700 hover:text-white"
-                          >
-                            {forceCompleteProcessingMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                                Completing...
-                              </>
-                            ) : (
-                              <>
-                                <AlertTriangleIcon className="w-4 h-4 mr-1" />
-                                Force Complete
-                              </>
-                            )}
-                          </Button>
-                        )}
+
                       </div>
                     );
                   } else if (docsWithSummaries === totalDocs) {

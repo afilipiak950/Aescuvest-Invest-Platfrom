@@ -84,6 +84,13 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Affinity CRM**: For organization data synchronization.
 
 ### Recent Changes (August 2025)
+- **AI Processing Timeout Fixes**: Resolved critical stuck processing issue with comprehensive timeout management:
+  - Reduced processing timeout from 12 hours to 5 minutes for immediate completion
+  - Enhanced monitoring intervals from 30 minutes to 1 minute for faster detection
+  - Added automatic force completion for jobs stuck above 90% completion
+  - Removed manual force complete button and implemented automatic resolution
+  - Created immediate stuck job detection API and comprehensive force completion functionality
+
 - **Deployment Optimization**: Implemented comprehensive size reduction strategy to resolve 8GB deployment limit:
   - Enhanced .dockerignore with 80+ exclusion patterns for large files, caches, and development artifacts
   - Created automated cleanup scripts (scripts/cleanup-build.sh, scripts/pre-deploy.sh) for removing uploads, attached assets, and node_modules optimization
