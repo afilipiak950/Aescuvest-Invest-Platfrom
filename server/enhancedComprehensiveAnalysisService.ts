@@ -421,16 +421,52 @@ Provide a thorough analysis with specific source attribution.`;
       }
     };
 
-    // Store in agent_analyses table using storage service
-    await storage.createAgentAnalysis({
-      dealId,
-      agentType: this.agentType.toLowerCase(),
-      analysisData: JSON.stringify(analysisData),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    console.log(`💾 Stored enhanced ${this.agentType} analysis results for deal ${dealId}`);
+    // Find existing agent analysis record to update
+    const existingAnalysis = await storage.getAgentAnalysis(dealId, this.agentType.toLowerCase());
+    
+    if (existingAnalysis) {
+      // Update existing record with research answers
+      const updateData: any = {
+        status: 'Completed',
+        updatedAt: new Date()
+      };
+      
+      // Set the correct answers field based on agent type
+      if (this.agentType.toLowerCase() === 'research') {
+        updateData.research_answers = JSON.stringify(answers);
+      } else if (this.agentType.toLowerCase() === 'clinical') {
+        updateData.clinicalAnswers = JSON.stringify(answers);
+      } else if (this.agentType.toLowerCase() === 'legal') {
+        updateData.legalAnswers = JSON.stringify(answers);
+      } else if (this.agentType.toLowerCase() === 'commercial') {
+        updateData.commercialAnswers = JSON.stringify(answers);
+      } else if (this.agentType.toLowerCase() === 'financial') {
+        updateData.financial_answers = JSON.stringify(answers);
+      } else if (this.agentType.toLowerCase() === 'hr') {
+        updateData.hr_answers = JSON.stringify(answers);
+      } else if (this.agentType.toLowerCase() === 'ip') {
+        updateData.ip_answers = JSON.stringify(answers);
+      }
+      
+      // Get the ID from existing analysis record
+      const analysisRecord = await storage.getAgentAnalysisByDealAndType(dealId, this.agentType.toLowerCase());
+      if (analysisRecord && analysisRecord.id) {
+        await storage.updateAgentAnalysis(analysisRecord.id, updateData);
+        console.log(`💾 Updated enhanced ${this.agentType} analysis results for deal ${dealId} (ID: ${analysisRecord.id})`);
+      } else {
+        console.error(`❌ Could not find analysis ID for deal ${dealId}, agent ${this.agentType}`);
+      }
+    } else {
+      // Create new record if none exists
+      await storage.createAgentAnalysis({
+        dealId,
+        agentType: this.agentType.toLowerCase(),
+        analysisData: JSON.stringify(analysisData),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      console.log(`💾 Created new enhanced ${this.agentType} analysis results for deal ${dealId}`);
+    }
   }
 
   /**
