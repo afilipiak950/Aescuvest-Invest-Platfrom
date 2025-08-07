@@ -3776,6 +3776,37 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Trigger immediate timeout check for stuck processing
+  app.post('/api/ai-processing/check-stuck-now', async (req: Request, res: Response) => {
+    try {
+      console.log(`🔍 Manual trigger for stuck processing check`);
+      
+      // Get current timeout stats before check
+      const statsBefore = await aiProcessingTimeoutService.getTimeoutStats();
+      
+      // Force an immediate timeout check
+      await aiProcessingTimeoutService.checkForStuckProcessing();
+      
+      // Get stats after check  
+      const statsAfter = await aiProcessingTimeoutService.getTimeoutStats();
+      
+      res.json({
+        success: true,
+        message: 'Stuck processing check completed',
+        before: statsBefore,
+        after: statsAfter,
+        actionsTaken: statsBefore.currentlyStuck > statsAfter.currentlyStuck
+      });
+      
+    } catch (error) {
+      console.error('Error checking stuck processing:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to check stuck processing' 
+      });
+    }
+  });
+
   // Mount background job routes
   app.use('/', backgroundJobsRouter);
 
