@@ -1221,8 +1221,8 @@ function DueDiligenceContent() {
               </div>
             </CardHeader>
             
-            {/* Show Running Analysis Progress */}
-            {(jobProgress?.jobs && jobProgress.jobs.length > 0) && (
+            {/* Show Running Analysis Progress - HIDDEN per user request */}
+            {false && (jobProgress?.jobs && jobProgress.jobs.length > 0) && (
               <div className="mx-6 mb-4 p-4 bg-dark-light border border-primary/30 rounded-lg">
                 <h4 className="text-sm font-medium text-primary mb-3">Currently Running Analyses</h4>
                 <div className="space-y-3">
