@@ -2543,7 +2543,10 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      const researchJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Research' || job.agentType === 'research' || 
+        (job.jobId && job.jobId.includes('research-analysis'))
+      );
       if (researchJob && researchJob.status === 'processing') {
         setProgress(researchJob.progress || 0);
         setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
@@ -2611,7 +2614,10 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   // Check if research analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs)) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      const researchJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Research' || job.agentType === 'research' || 
+        (job.jobId && job.jobId.includes('research-analysis'))
+      );
       return !!researchJob && researchJob.status === 'processing';
     }
     return false;
@@ -2766,7 +2772,10 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   // Check if clinical analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+      const clinicalJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Clinical' || job.agentType === 'clinical' || 
+        (job.jobId && job.jobId.includes('clinical-analysis'))
+      );
       return !!clinicalJob && clinicalJob.status === 'processing';
     }
     return false;
@@ -2930,7 +2939,10 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   // Check if legal analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+      const legalJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Legal' || job.agentType === 'legal' || 
+        (job.jobId && job.jobId.includes('legal-analysis'))
+      );
       return !!legalJob && legalJob.status === 'processing';
     }
     return false;
@@ -3085,7 +3097,10 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+      const commercialJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Commercial' || job.agentType === 'commercial' || 
+        (job.jobId && job.jobId.includes('commercial-analysis'))
+      );
       if (commercialJob && commercialJob.status === 'processing') {
         setProgress(commercialJob.progress || 0);
         setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
@@ -3175,7 +3190,10 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+      const clinicalJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Clinical' || job.agentType === 'clinical' || 
+        (job.jobId && job.jobId.includes('clinical-analysis'))
+      );
       if (clinicalJob && clinicalJob.status === 'processing') {
         setProgress(clinicalJob.progress || 0);
         setCurrentStep(clinicalJob.currentDocument || clinicalJob.currentStep || 'Processing clinical analysis...');
@@ -3244,7 +3262,10 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
+      const hrJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'HR' || job.agentType === 'hr' || 
+        (job.jobId && job.jobId.includes('hr-analysis'))
+      );
       if (hrJob && hrJob.status === 'processing') {
         setProgress(hrJob.progress || 0);
         setCurrentStep(hrJob.currentDocument || hrJob.currentStep || 'Processing HR analysis...');
@@ -3445,7 +3466,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
 
     // Then check for regular IP jobs
     if (jobProgress?.jobs) {
-      const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
+      const ipJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'IP' || job.agentType === 'ip' || 
+        (job.jobId && job.jobId.includes('ip-analysis'))
+      );
       if (ipJob && ipJob.status === 'processing') {
         // Check if this is a new job or continuing existing one
         if (lastJobId && lastJobId !== ipJob.jobId) {
@@ -3498,7 +3522,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   }, [jobProgress, ipProgress, lastJobId, dealId]);
 
   // Extra safety check - if no IP jobs exist at all, never show progress
-  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
+  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => 
+    (job.agentType === 'IP' || job.agentType === 'ip' || (job.jobId && job.jobId.includes('ip-analysis'))) && 
+    job.status === 'processing'
+  ) || ipProgress?.isRunning;
   
   if (!isVisible || !hasActiveIpJob) return null;
 
@@ -3544,7 +3571,10 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+      const legalJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Legal' || job.agentType === 'legal' || 
+        (job.jobId && job.jobId.includes('legal-analysis'))
+      );
       if (legalJob && legalJob.status === 'processing') {
         setProgress(legalJob.progress || 0);
         setCurrentStep(legalJob.currentDocument || legalJob.currentStep || 'Processing legal analysis...');
@@ -3612,7 +3642,10 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   // Check if commercial analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+      const commercialJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'Commercial' || job.agentType === 'commercial' || 
+        (job.jobId && job.jobId.includes('commercial-analysis'))
+      );
       return !!commercialJob && commercialJob.status === 'processing';
     }
     return false;
@@ -3748,7 +3781,10 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   // Check if HR analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
+      const hrJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'HR' || job.agentType === 'hr' || 
+        (job.jobId && job.jobId.includes('hr-analysis'))
+      );
       return !!hrJob && hrJob.status === 'processing';
     }
     return false;
