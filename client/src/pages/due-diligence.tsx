@@ -1220,6 +1220,38 @@ function DueDiligenceContent() {
                 </div>
               </div>
             </CardHeader>
+            
+            {/* Show Running Analysis Progress */}
+            {(jobProgress?.jobs && jobProgress.jobs.length > 0) && (
+              <div className="mx-6 mb-4 p-4 bg-dark-light border border-primary/30 rounded-lg">
+                <h4 className="text-sm font-medium text-primary mb-3">Currently Running Analyses</h4>
+                <div className="space-y-3">
+                  {jobProgress.jobs.map((job) => (
+                    <div key={job.jobId} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                            <span className="text-sm font-medium text-white">
+                              {job.agentType || 'Analysis'} - {job.progress || 0}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-400 truncate">
+                          {job.currentStep || 'Processing...'}
+                        </div>
+                        <div className="w-full bg-dark-lighter rounded-full h-1.5 mt-2">
+                          <div 
+                            className="bg-primary h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${job.progress || 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <CardContent>
 
               
@@ -1235,13 +1267,33 @@ function DueDiligenceContent() {
                     value="legal"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Legal ({legalDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Legal ({legalDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="commercial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Commercial ({commercialDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Commercial ({commercialDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="hr"
