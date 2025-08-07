@@ -1048,7 +1048,7 @@ export default function EnhancedAgentCard({
                             <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-green-400 border-green-400">
-                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                                Confidence: {Math.min(100, Math.max(0, Math.round(finding.confidence || 80)))}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {finding.type || finding.category || 'analysis'}
@@ -1076,7 +1076,7 @@ export default function EnhancedAgentCard({
                             <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                                Confidence: {Math.min(100, Math.max(0, Math.round(finding.confidence || 80)))}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {finding.type || finding.category || 'analysis'}
@@ -1104,7 +1104,7 @@ export default function EnhancedAgentCard({
                             <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-red-400 border-red-400">
-                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                                Confidence: {Math.min(100, Math.max(0, Math.round(finding.confidence || 80)))}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {finding.type || finding.category || 'analysis'}
@@ -2445,7 +2445,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.min(100, Math.max(0, Math.round(answer.confidence || 0)))}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
