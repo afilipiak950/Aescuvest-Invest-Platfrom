@@ -51,13 +51,26 @@ export class EnhancedComprehensiveAnalysisService {
   async runEnhancedAnalysis(dealId: number): Promise<void> {
     console.log(`🔬 Starting enhanced ${this.agentType} analysis for deal ${dealId}`);
     
-    // Create background job for tracking
-    const jobId = `enhanced_${this.agentType.toLowerCase()}_analysis_${dealId}_${Date.now()}`;
+    // Create background job for tracking using unified pattern
+    const jobId = `${this.agentType.toLowerCase()}-analysis-${dealId}`;
+    
+    // Check for existing jobs to prevent duplicates
+    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const existingJob = existingJobs.find(job => 
+      job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
+      (job.status === 'processing' || job.status === 'pending')
+    );
+    
+    if (existingJob) {
+      console.log(`🔄 Found existing ${this.agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
+      throw new Error(`${this.agentType} analysis already running for deal ${dealId}`);
+    }
+    
     await storage.createBackgroundJob({
       jobId,
       dealId,
-      jobType: `enhanced_${this.agentType.toLowerCase()}_analysis`,
-      agentType: this.agentType,
+      jobType: 'agent_analysis',
+      agentType: this.agentType.toLowerCase(),
       status: 'processing',
       progress: 5,
       currentStep: `Starting enhanced ${this.agentType} analysis`
