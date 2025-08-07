@@ -2326,6 +2326,9 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         <ComprehensiveResearchAnalysisButton dealId={dealId} />
       </div>
 
+      {/* Research Analysis Progress */}
+      <ResearchAnalysisProgress dealId={dealId} />
+
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
           <div 
@@ -2521,6 +2524,75 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         title={selectedQuoteData.title}
         documents={documents}
       />
+    </div>
+  );
+}
+
+// Research Analysis Progress Display Component
+function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (jobProgress?.jobs) {
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      if (researchJob && researchJob.status === 'processing') {
+        setProgress(researchJob.progress || 0);
+        setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
+        setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (researchJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${researchJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-cyan-400/10 border border-cyan-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-cyan-400">Research Analysis in Progress</span>
+            <span className="text-sm text-cyan-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-cyan-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-cyan-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-cyan-300/80 truncate">
+            {currentStep}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3450,75 +3522,6 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
               currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
               currentStep
             }
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Research Analysis Progress Display Component
-function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
-
-  const { data: jobProgress } = useQuery({
-    queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
-  });
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    if (jobProgress?.jobs) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
-      if (researchJob && researchJob.status === 'processing') {
-        setProgress(researchJob.progress || 0);
-        setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
-        setIsVisible(true);
-        
-        // Handle jobs stuck at 100%
-        if (researchJob.progress >= 100) {
-          setCurrentStep('Analysis completed - finalizing results...');
-          timeoutId = setTimeout(() => {
-            setIsVisible(false);
-            fetch(`/api/background-jobs/${researchJob.jobId}/stop`, {
-              method: 'POST'
-            }).catch(console.error);
-          }, 2000);
-        }
-      } else {
-        setIsVisible(false);
-      }
-    } else {
-      setIsVisible(false);
-    }
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [jobProgress]);
-
-  if (!isVisible) return null;
-
-  return (
-    <div className="mb-4 p-4 bg-cyan-400/10 border border-cyan-400/20 rounded-lg">
-      <div className="flex items-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-cyan-400">Research Analysis in Progress</span>
-            <span className="text-sm text-cyan-300">{Math.round(progress)}%</span>
-          </div>
-          <div className="w-full bg-cyan-400/20 rounded-full h-2 mb-2">
-            <div 
-              className="bg-cyan-400 h-2 rounded-full transition-all duration-500" 
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          </div>
-          <div className="text-xs text-cyan-300/80 truncate">
-            {currentStep}
           </div>
         </div>
       </div>
