@@ -2320,7 +2320,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Research Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
+            Analyze {assignedDocuments} research documents across 5 categories with 13 detailed questions
           </p>
         </div>
         <ComprehensiveResearchAnalysisButton dealId={dealId} />
