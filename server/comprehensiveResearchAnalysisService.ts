@@ -14,19 +14,19 @@ export const comprehensiveResearchAnalysisService = {
     
     try {
       // Step 1: Initialize market research
-      await progressCallback(10, 'Initializing market research database');
+      await progressCallback(1, 'Initializing market research database');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Step 2: Competitive landscape analysis  
-      await progressCallback(25, 'Analyzing competitive landscape and market position');
+      await progressCallback(20, 'Analyzing competitive landscape and market position');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Step 3: Industry trends and growth projections
-      await progressCallback(45, 'Gathering industry trends and growth projections');
+      await progressCallback(40, 'Gathering industry trends and growth projections');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Step 4: Market size and addressable market calculations
-      await progressCallback(65, 'Calculating total addressable market (TAM) and market opportunities');
+      await progressCallback(60, 'Calculating total addressable market (TAM) and market opportunities');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Step 5: Customer validation and market feedback
@@ -34,7 +34,7 @@ export const comprehensiveResearchAnalysisService = {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Step 6: Final research synthesis
-      await progressCallback(95, 'Synthesizing research findings and generating insights');
+      await progressCallback(99, 'Synthesizing research findings and generating insights');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Store comprehensive analysis results
