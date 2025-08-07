@@ -72,13 +72,13 @@ export class EnhancedComprehensiveAnalysisService {
       jobType: 'agent_analysis',
       agentType: this.agentType.toLowerCase(),
       status: 'processing',
-      progress: 5,
+      progress: 1,
       currentStep: `Starting enhanced ${this.agentType} analysis`
     });
 
     try {
       // Step 1: Get all assigned documents
-      await this.updateProgress(jobId, 10, 'Finding assigned documents');
+      await this.updateProgress(jobId, 2, 'Finding assigned documents');
       const assignedDocuments = await this.getAssignedDocuments(dealId);
       console.log(`📄 Found ${assignedDocuments.length} documents assigned to ${this.agentType}`);
 
@@ -95,7 +95,8 @@ export class EnhancedComprehensiveAnalysisService {
       
       for (let i = 0; i < totalQuestions; i++) {
         const question = this.questions[i];
-        const progressPercent = Math.floor(10 + ((i / totalQuestions) * 70));
+        // Progress from 3% to 85% in 1% increments across all questions
+        const progressPercent = Math.floor(3 + ((i / totalQuestions) * 82));
         
         await this.updateProgress(jobId, progressPercent, `Analyzing: ${question.question}`);
         console.log(`🔍 Question ${i + 1}/${totalQuestions}: ${question.question}`);
@@ -117,11 +118,11 @@ export class EnhancedComprehensiveAnalysisService {
       }
 
       // Step 3: Generate cross-analysis insights
-      await this.updateProgress(jobId, 85, 'Generating comprehensive insights');
+      await this.updateProgress(jobId, 86, 'Generating comprehensive insights');
       const insights = await this.generateCrossAnalysisInsights(comprehensiveAnswers);
 
       // Step 4: Store enhanced results
-      await this.updateProgress(jobId, 95, 'Storing enhanced analysis results');
+      await this.updateProgress(jobId, 99, 'Storing enhanced analysis results');
       await this.storeEnhancedResults(dealId, comprehensiveAnswers, insights, assignedDocuments);
 
       // Complete
