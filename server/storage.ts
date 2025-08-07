@@ -1239,6 +1239,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async cleanupBackgroundJobsForDeal(dealId: number): Promise<{ cleanedCount: number }> {
+    try {
+      // Clean up all background job records for this deal to prevent duplicate key errors
+      const result = await db.delete(backgroundJobs).where(eq(backgroundJobs.dealId, dealId));
+      const cleanedCount = result.rowCount || 0;
+      console.log(`🧹 Cleaned up ${cleanedCount} background job records for deal ${dealId}`);
+      return { cleanedCount };
+    } catch (error) {
+      console.error(`Error cleaning up background jobs for deal ${dealId}:`, error);
+      return { cleanedCount: 0 };
+    }
+  }
+
 
 
   async getDataRoomConnectionByDealId(dealId: number): Promise<any | undefined> {

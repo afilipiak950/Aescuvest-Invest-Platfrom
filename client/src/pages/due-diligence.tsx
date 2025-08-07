@@ -405,7 +405,7 @@ function DueDiligenceContent() {
         });
         console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
         
-        // Also clear any stuck background jobs
+        // Also clear any stuck background jobs AND duplicate job IDs
         try {
           await apiRequest(`/api/background-jobs/clear-stuck`, {
             method: 'POST',
@@ -415,6 +415,17 @@ function DueDiligenceContent() {
           console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
         } catch (clearError) {
           console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
+        }
+        
+        // Enhanced cleanup: Delete ALL background job records for this deal to prevent duplicates
+        try {
+          await apiRequest(`/api/background-jobs/deal/${selectedDeal}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log(`✅ Deleted all background job records for deal ${selectedDeal}`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ Failed to delete background job records:`, cleanupError);
         }
         
         // Wait for cleanup to complete
