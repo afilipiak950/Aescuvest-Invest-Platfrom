@@ -5709,8 +5709,21 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
 
     console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent`);
 
-    // Create initial job progress entry for real-time tracking
-    const trackingJobId = `${agentType}_${dealId}`;
+    // Create initial job progress entry for real-time tracking using unified pattern
+    const trackingJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+    
+    // Check if a job already exists to prevent duplicates
+    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const existingJob = existingJobs.find(job => 
+      job.agentType.toLowerCase() === agentType.toLowerCase() && 
+      (job.status === 'processing' || job.status === 'pending')
+    );
+    
+    if (existingJob) {
+      console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
+      throw new Error(`${agentType} analysis already running for deal ${dealId}`);
+    }
+    
     try {
       console.log(`🚀 Creating background job ${trackingJobId} for ${agentType} agent...`);
       const createdJob = await storage.createBackgroundJob({
