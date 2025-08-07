@@ -2326,8 +2326,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         <ComprehensiveResearchAnalysisButton dealId={dealId} />
       </div>
 
-      {/* Research Analysis Progress */}
-      <ResearchAnalysisProgress dealId={dealId} />
+      {/* Research Analysis Progress - Hidden to prevent duplication with main progress bar */}
+      {/* <ResearchAnalysisProgress dealId={dealId} /> */}
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
