@@ -2245,12 +2245,14 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Research questions structure matching the backend service
+  // Research questions structure matching the ACTUAL backend responses (res_1, res_2, etc.)
   const RESEARCH_QUESTIONS = [
-    // 1. Technical Whitepapers - 3 questions
-    { id: "whitepapers_1", question: "What are the core technical innovations described?", category: "Technical Whitepapers" },
-    { id: "whitepapers_2", question: "Are there peer-reviewed publications supporting the technology?", category: "Technical Whitepapers" },
-    { id: "whitepapers_3", question: "What validation studies or proof-of-concept results are presented?", category: "Technical Whitepapers" },
+    // Questions that match the actual backend answer keys
+    { id: "res_1", question: "What peer-reviewed publications and citations exist?", category: "Technical Whitepapers" },
+    { id: "res_2", question: "What research methodology and scientific approach is used?", category: "Technical Whitepapers" },
+    { id: "res_3", question: "What validation studies or proof-of-concept results are presented?", category: "Technical Whitepapers" },
+    { id: "res_4", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
+    { id: "res_5", question: "What are the core technical innovations described?", category: "Technical Innovation" },
     
     // 2. Market Research Reports - 3 questions
     { id: "market_1", question: "What is the total addressable market (TAM) size?", category: "Market Research Reports" },
