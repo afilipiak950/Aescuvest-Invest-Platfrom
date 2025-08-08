@@ -71,23 +71,25 @@ export default function DueDiligence() {
     mutationFn: async () => {
       if (!selectedDeal) throw new Error('No deal selected');
       
-      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-      const results = await Promise.all(
-        agentTypes.map(agentType =>
-          apiRequest(`/api/deals/${selectedDeal}/agents/${agentType}/analyze`, {
-            method: 'POST',
-          })
-        )
-      );
-      return results;
+      console.log('🚀 Starting all 7 agent analyses for deal:', selectedDeal);
+      
+      // Use the correct API endpoint that starts all 7 agents
+      const response = await apiRequest(`/api/deals/${selectedDeal}/start-all-analyses`, {
+        method: 'POST',
+      });
+      
+      console.log('✅ All analyses started:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('🎉 All analyses successfully started:', data);
       // Invalidate agent analyses to refetch latest data
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       setIsRunningAllAnalyses(false);
     },
     onError: (error) => {
-      console.error('Error running all analyses:', error);
+      console.error('❌ Error running all analyses:', error);
       setIsRunningAllAnalyses(false);
     },
   });
