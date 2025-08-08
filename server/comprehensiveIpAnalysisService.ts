@@ -325,7 +325,7 @@ class ComprehensiveIpAnalysisService {
       const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
       await this.setProgress(dealId, {
         progress: batchProgress,
-        currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
+        currentStep: `checking ${batchIndex * batchSize}/${documents.length} - batch ${batchIndex + 1}/${totalBatches} - processing ${batch.length} documents`
       });
       
       // Process documents in parallel within batch
