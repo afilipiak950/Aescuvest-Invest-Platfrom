@@ -106,7 +106,28 @@ export default function EnhancedAgentCard({
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
-  // Use comprehensive analysis data if this is an HR, IP, Research, or Clinical agent and we have the data
+  // Fetch comprehensive Legal analysis data directly for Legal agents
+  const { data: legalAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/legal/results`],
+    enabled: agentType.toLowerCase() === 'legal',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Fetch comprehensive Commercial analysis data directly for Commercial agents
+  const { data: commercialAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
+    enabled: agentType.toLowerCase() === 'commercial',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Fetch comprehensive Financial analysis data directly for Financial agents
+  const { data: financialAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
+    enabled: agentType.toLowerCase() === 'financial',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, Legal, Commercial, or Financial agent and we have the data
   const actualAnalysisData = (() => {
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
@@ -119,6 +140,15 @@ export default function EnhancedAgentCard({
     }
     if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
       return clinicalAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'legal' && legalAnalysisData && typeof legalAnalysisData === 'object' && 'analysis' in legalAnalysisData) {
+      return legalAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'commercial' && commercialAnalysisData && typeof commercialAnalysisData === 'object' && 'analysis' in commercialAnalysisData) {
+      return commercialAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
+      return financialAnalysisData.analysis;
     }
     return analysis || {};
   })();
@@ -924,7 +954,7 @@ export default function EnhancedAgentCard({
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
             dealId={dealId}
-            analysisData={analysisData} 
+            analysisData={actualAnalysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
@@ -937,7 +967,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'clinical' ? (
           <ClinicalQuestionsSection 
             dealId={dealId}
-            analysisData={analysisData} 
+            analysisData={actualAnalysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
@@ -951,7 +981,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'commercial' ? (
           <CommercialQuestionsSection 
             dealId={dealId}
-            analysisData={analysisData} 
+            analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
@@ -963,7 +993,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'hr' ? (
           <HrQuestionsSection 
             dealId={dealId}
-            analysisData={analysisData} 
+            analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
@@ -975,7 +1005,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'financial' ? (
           <FinancialQuestionsSection 
             dealId={dealId}
-            analysisData={analysisData} 
+            analysisData={actualAnalysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
