@@ -6705,12 +6705,29 @@ async function assignDocumentToAgentsAutomatically(documentId: number, document:
       agentAssignments.push('IP');
     }
     
-    // Research Agent - Research, development, technical content
+    // Research Agent - Research, development, technical content (enhanced criteria)
     if (
       summaryText.includes('research') || summaryText.includes('development') || summaryText.includes('r&d') ||
       summaryText.includes('innovation') || summaryText.includes('technology') || summaryText.includes('study') ||
       summaryText.includes('technical') || summaryText.includes('whitepaper') || summaryText.includes('academic') ||
-      docName.includes('research') || docName.includes('whitepaper') || docName.includes('technical')
+      summaryText.includes('scientific') || summaryText.includes('methodology') || summaryText.includes('analysis') ||
+      summaryText.includes('findings') || summaryText.includes('data') || summaryText.includes('algorithm') ||
+      summaryText.includes('experiment') || summaryText.includes('validation') || summaryText.includes('testing') ||
+      summaryText.includes('performance') || summaryText.includes('benchmark') || summaryText.includes('evaluation') ||
+      summaryText.includes('publication') || summaryText.includes('journal') || summaryText.includes('paper') ||
+      summaryText.includes('citation') || summaryText.includes('peer review') || summaryText.includes('conference') ||
+      summaryText.includes('collaboration') || summaryText.includes('university') || summaryText.includes('institute') ||
+      summaryText.includes('lab') || summaryText.includes('laboratory') || summaryText.includes('protocol') ||
+      summaryText.includes('dataset') || summaryText.includes('model') || summaryText.includes('simulation') ||
+      summaryText.includes('classification') || summaryText.includes('detection') || summaryText.includes('accuracy') ||
+      summaryText.includes('precision') || summaryText.includes('sensitivity') || summaryText.includes('specificity') ||
+      docName.includes('research') || docName.includes('whitepaper') || docName.includes('technical') ||
+      docName.includes('study') || docName.includes('analysis') || docName.includes('report') ||
+      docName.includes('data') || docName.includes('test') || docName.includes('evaluation') ||
+      docName.includes('performance') || docName.includes('algorithm') || docName.includes('model') ||
+      docName.includes('validation') || docName.includes('benchmark') || docName.includes('experiment') ||
+      docName.includes('case') || docName.includes('publication') || docName.includes('paper') ||
+      docName.includes('journal') || docName.includes('academic') || docName.includes('scientific')
     ) {
       agentAssignments.push('Research');
     }

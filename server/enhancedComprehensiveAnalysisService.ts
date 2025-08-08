@@ -303,8 +303,7 @@ Be thorough - extract ALL relevant information, not just the most obvious points
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2000,
-        timeout: 25000 // 25 second timeout
+        max_tokens: 2000
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -402,8 +401,7 @@ Provide a thorough analysis with specific source attribution.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 3000,
-        timeout: 25000 // 25 second timeout
+        max_tokens: 3000
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -522,9 +520,7 @@ Provide a thorough analysis with specific source attribution.`;
       await storage.createAgentAnalysis({
         dealId,
         agentType: this.agentType.toLowerCase(),
-        status: 'Completed',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        status: 'Completed'
       });
       console.log(`💾 Created new enhanced ${this.agentType} analysis results for deal ${dealId}`);
     }
@@ -559,9 +555,7 @@ Provide a thorough analysis with specific source attribution.`;
     await storage.createAgentAnalysis({
       dealId,
       agentType: this.agentType.toLowerCase(),
-      status: 'Completed',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      status: 'Completed'
     });
 
     console.log(`💾 Stored empty ${this.agentType} analysis results for deal ${dealId} (no documents)`);
