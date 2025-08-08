@@ -198,7 +198,7 @@ export class ComprehensiveClinicalAnalysisService {
           clinicalAnswers[question.id] = {
             question: question.question,
             category: question.category,
-            answer: `Error processing this question: ${questionError.message}`,
+            answer: `Error processing this question: ${(questionError as Error).message}`,
             confidence: 0,
             sources: [],
             evidence: [],
@@ -685,7 +685,7 @@ Respond in JSON format:
     
     await db
       .insert(agentAnalyses)
-      .values(analysisData);
+      .values([analysisData]);
     
     console.log(`📊 Created fresh comprehensive clinical analysis for deal ${dealId} with ${Object.keys(clinicalAnswers).length} questions answered`);
   }

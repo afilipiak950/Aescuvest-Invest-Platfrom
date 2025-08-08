@@ -1743,7 +1743,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
@@ -2097,7 +2097,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
@@ -4661,7 +4661,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
@@ -4959,7 +4959,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
