@@ -62,11 +62,15 @@ export default {
         },
         // Custom dark theme colors
         dark: "#090921",
-        "dark-light": "#10102d",
+        "dark-light": "#10102d", 
         "dark-lighter": "#161638",
         "dark-border": "#1e1e40",
         "primary-custom": "#00CC00",
         navy: "#050533",
+      },
+      // Add missing border utilities
+      borderColor: {
+        'hal': 'var(--border)',
       },
       keyframes: {
         "accordion-down": {

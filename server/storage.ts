@@ -1189,19 +1189,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateDealAiScore(dealId: number, score: number): Promise<void> {
-    try {
-      await db
-        .update(deals)
-        .set({ 
-          aiScore: score.toString(),
-          updatedAt: new Date()
-        })
-        .where(eq(deals.id, dealId));
-    } catch (error) {
-      console.error('Error updating deal AI score:', error);
-    }
-  }
+
 
   async getEvaluationCriteriaById(id: number): Promise<any | undefined> {
     return undefined;
@@ -1211,34 +1199,13 @@ export class DatabaseStorage implements IStorage {
     return criteria;
   }
 
-  async updateEvaluationCriteria(id: number, data: any): Promise<any | undefined> {
-    return undefined;
-  }
+
 
   async getAllEvaluationResults(): Promise<any[]> {
     return [];
   }
 
-  async getEvaluationResultsByDealId(dealId: number): Promise<any[]> {
-    try {
-      const startTime = Date.now();
-      
-      const results = await db
-        .select()
-        .from(evaluationResults)
-        .where(eq(evaluationResults.dealId, dealId))
-        .orderBy(desc(evaluationResults.createdAt))
-        .limit(100); // Limit for performance
-      
-      const queryTime = Date.now() - startTime;
-      console.log(`📊 Fetched ${results.length} evaluation results for deal ${dealId} in ${queryTime}ms`);
-      
-      return results;
-    } catch (error) {
-      console.error('Error fetching evaluation results:', error);
-      return [];
-    }
-  }
+  // Duplicate method removed - original implementation at line 1148
 
   async deleteEvaluationResultsByDealId(dealId: number): Promise<number> {
     try {
@@ -1877,46 +1844,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async completeBackgroundJob(jobId: string, results: any): Promise<void> {
-    try {
-      await db.update(backgroundJobs)
-        .set({
-          status: 'completed',
-          progress: 100,
-          result: results,
-          completedAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-      console.log(`✅ Marked background job ${jobId} as completed`);
-    } catch (error) {
-      console.error(`Error completing background job ${jobId}:`, error);
-      throw error;
-    }
-  }
 
-  async failBackgroundJob(jobId: string, errorMessage: string): Promise<void> {
-    try {
-      await db.update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: errorMessage,
-          completedAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-      console.log(`❌ Marked background job ${jobId} as failed`);
-    } catch (error) {
-      console.error(`Error failing background job ${jobId}:`, error);
-      throw error;
-    }
-  }
 
-  async deleteBackgroundJobsByDealId(dealId: number): Promise<number> {
-    // Clean up any agent analyses for this deal
-    const result = await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
-    return result.rowCount || 0;
-  }
+
+
+
 
   async updateStuckBackgroundJobs(dealId: number): Promise<number> {
     try {
