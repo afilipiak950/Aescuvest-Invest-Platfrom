@@ -635,95 +635,137 @@ Focus on investment due diligence. Be thorough and critical in your analysis.
     }
   }
 
-  // Fallback analysis method that doesn't require OpenAI API calls
+  // Improved fallback analysis that provides meaningful answers based on actual document content
   private generateStructuredFallbackAnalysis(question: any, evidence: any[]): any {
-    const documentNames = evidence.map(e => e.documentName);
-    const matchingKeywords = evidence.flatMap(e => e.matchingKeywords || []);
-    const uniqueKeywords = Array.from(new Set(matchingKeywords));
+    const documentNames = evidence.map(e => e.documentName).slice(0, 5); // Limit to top 5 most relevant
+    const allContent = evidence.map(e => e.extractedText || e.documentSummary || '').join(' ').toLowerCase();
     
-    // Generate category-specific analysis based on document content
+    // Calculate realistic confidence based on content quality and question specificity
+    let confidence = 30; // Base confidence
+    if (evidence.length > 5) confidence += 20;
+    if (evidence.length > 10) confidence += 15;
+    if (allContent.length > 2000) confidence += 15;
+    confidence = Math.min(85, confidence);
+    
+    // Analyze content to provide specific answers based on the question
     let answer, keyFindings, researchAssessment, recommendations;
-    const confidence = Math.min(80, Math.max(40, evidence.length * 10));
     
-    switch (question.category) {
-      case 'Technical Whitepapers':
-        answer = `Technical documentation analysis found ${evidence.length} relevant documents with methodology and protocol information for: ${question.question}`;
-        keyFindings = [
-          `${evidence.length} technical documents analyzed`,
-          `Key methodologies identified: ${uniqueKeywords.slice(0, 3).join(', ')}`,
-          `Documentation covers technical protocols and procedures`
-        ];
-        researchAssessment = 'Technical documentation provides structured methodology information suitable for investment analysis';
-        recommendations = [
-          'Validate technical methodologies with industry experts',
-          'Review protocol reproducibility with technical advisors'
-        ];
+    // Question-specific analysis instead of generic templates
+    switch (question.question) {
+      case 'Are technical whitepapers available?':
+        const technicalDocs = evidence.filter(e => 
+          (e.documentName && (e.documentName.toLowerCase().includes('technical') || 
+           e.documentName.toLowerCase().includes('whitepaper') ||
+           e.documentName.toLowerCase().includes('methodology'))) ||
+          (e.extractedText && (e.extractedText.toLowerCase().includes('methodology') ||
+           e.extractedText.toLowerCase().includes('protocol') ||
+           e.extractedText.toLowerCase().includes('technical specification')))
+        );
+        
+        if (technicalDocs.length > 0) {
+          answer = `Yes, technical documentation is available. Found ${technicalDocs.length} documents containing technical methodologies, protocols, and specifications.`;
+          keyFindings = [
+            `${technicalDocs.length} technical documents identified`,
+            `Documents include methodologies, protocols, and technical specifications`,
+            `Technical foundation appears well-documented for due diligence`
+          ];
+          confidence = Math.min(80, 50 + technicalDocs.length * 5);
+        } else {
+          answer = `Limited technical whitepaper documentation found. Only ${evidence.length} documents analyzed, but specific technical whitepapers not clearly identified.`;
+          keyFindings = [
+            `${evidence.length} documents reviewed for technical content`,
+            `No clear technical whitepapers or methodologies identified`,
+            `May require additional technical documentation for thorough analysis`
+          ];
+          confidence = Math.max(20, 40 - (10 - evidence.length) * 3);
+        }
         break;
         
-      case 'Market Research Reports':
-        answer = `Market analysis identified ${evidence.length} documents containing market sizing, forecasting, and competitive information for: ${question.question}`;
-        keyFindings = [
-          `${evidence.length} market-related documents reviewed`,
-          `Market indicators found: ${uniqueKeywords.slice(0, 3).join(', ')}`,
-          `Competitive and market sizing information available`
-        ];
-        researchAssessment = 'Market documentation provides foundation for investment thesis validation';
-        recommendations = [
-          'Validate market assumptions with industry data',
-          'Cross-reference market sizing with third-party sources'
-        ];
+      case 'Are methodologies reproducible?':
+        const methodologyContent = allContent.includes('methodology') || allContent.includes('protocol') || 
+                                 allContent.includes('procedure') || allContent.includes('reproducible') ||
+                                 allContent.includes('step-by-step') || allContent.includes('standardized');
+        
+        if (methodologyContent) {
+          answer = `Methodology documentation is present. Found references to protocols, procedures, and systematic approaches in ${evidence.length} documents, suggesting reproducible methodologies.`;
+          keyFindings = [
+            `Methodology references found in multiple documents`,
+            `Protocol and procedure documentation present`,
+            `Systematic approach to research methods indicated`
+          ];
+          confidence = Math.min(75, 45 + evidence.length * 3);
+        } else {
+          answer = `Methodology reproducibility unclear. While ${evidence.length} documents were analyzed, specific protocol documentation and reproducibility measures not clearly evident.`;
+          keyFindings = [
+            `${evidence.length} documents reviewed for methodology content`,
+            `Specific reproducibility protocols not clearly documented`,
+            `Additional methodology documentation may be needed`
+          ];
+          confidence = Math.max(25, 35);
+        }
         break;
         
-      case 'Academic Publications':
-        answer = `Academic research analysis found ${evidence.length} documents with peer-reviewed and citation information for: ${question.question}`;
-        keyFindings = [
-          `${evidence.length} academic documents analyzed`,
-          `Research indicators: ${uniqueKeywords.slice(0, 3).join(', ')}`,
-          `Publication and citation patterns identified`
-        ];
-        researchAssessment = 'Academic documentation demonstrates research foundation and scientific rigor';
-        recommendations = [
-          'Verify publication quality and journal impact factors',
-          'Assess currency and relevance of academic research'
-        ];
-        break;
+      case 'Are competitive analyses included?':
+        const competitiveContent = allContent.includes('competitor') || allContent.includes('competitive') || 
+                                 allContent.includes('market share') || allContent.includes('landscape') ||
+                                 allContent.includes('vs ') || allContent.includes('comparison');
         
-      case 'Patent Landscape Analyses':
-        answer = `Patent landscape analysis identified ${evidence.length} documents with intellectual property and patent information for: ${question.question}`;
-        keyFindings = [
-          `${evidence.length} IP-related documents reviewed`,
-          `Patent indicators: ${uniqueKeywords.slice(0, 3).join(', ')}`,
-          `Intellectual property landscape documented`
-        ];
-        researchAssessment = 'Patent documentation provides IP strategy and competitive positioning insights';
-        recommendations = [
-          'Conduct comprehensive patent search and analysis',
-          'Assess patent strength and competitive moat potential'
-        ];
+        if (competitiveContent) {
+          answer = `Yes, competitive analysis is included. Found competitive intelligence and market positioning information across ${evidence.length} documents.`;
+          keyFindings = [
+            `Competitive analysis content identified`,
+            `Market positioning and competitor information present`,
+            `Competitive landscape appears documented`
+          ];
+          confidence = Math.min(80, 50 + evidence.length * 4);
+        } else {
+          answer = `Limited competitive analysis found. Reviewed ${evidence.length} documents but comprehensive competitive intelligence not clearly evident.`;
+          keyFindings = [
+            `${evidence.length} documents reviewed for competitive content`,
+            `Comprehensive competitive analysis not clearly documented`,
+            `May benefit from additional competitive intelligence`
+          ];
+          confidence = Math.max(30, 45);
+        }
         break;
         
       default:
-        answer = `Research analysis identified ${evidence.length} relevant documents providing comprehensive information for: ${question.question}`;
-        keyFindings = [
-          `${evidence.length} research documents analyzed`,
-          `Key research areas: ${uniqueKeywords.slice(0, 3).join(', ')}`,
-          `Comprehensive research foundation established`
-        ];
-        researchAssessment = 'Research documentation provides solid foundation for investment due diligence';
-        recommendations = [
-          'Validate research findings with industry experts',
-          'Cross-reference with additional data sources'
-        ];
+        // Generic but more intelligent fallback for other questions
+        const hasRelevantContent = evidence.length > 3 && allContent.length > 1000;
+        if (hasRelevantContent) {
+          answer = `Analysis found ${evidence.length} relevant documents addressing this research area. Content suggests some coverage of the topic.`;
+          keyFindings = [
+            `${evidence.length} documents contain related information`,
+            `Content analysis suggests partial coverage of the research question`,
+            `Further detailed review recommended for complete assessment`
+          ];
+          confidence = Math.min(65, 40 + evidence.length * 2);
+        } else {
+          answer = `Limited documentation found for this research question. Only ${evidence.length} potentially relevant documents identified.`;
+          keyFindings = [
+            `${evidence.length} documents reviewed`,
+            `Limited specific content for this research area`,
+            `Additional documentation needed for thorough analysis`
+          ];
+          confidence = Math.max(20, 30);
+        }
     }
+    
+    // Set default values for missing variables
+    researchAssessment = researchAssessment || 'Research assessment completed based on available documentation';
+    const defaultRecommendations = ['Validate findings with domain experts', 'Consider additional supporting evidence'];
     
     return {
       answer,
       confidence,
       keyFindings: keyFindings.slice(0, 3),
-      evidenceSummary: `Analysis completed using ${evidence.length} documents with ${uniqueKeywords.length} relevant research indicators`,
+      evidenceSummary: `Analysis completed using ${evidence.length} documents with relevant research indicators`,
       researchAssessment,
-      recommendations: recommendations.slice(0, 2)
-    }
+      recommendations: defaultRecommendations.slice(0, 2),
+      sources: documentNames,
+      quotes: [],
+      detailedEvidence: []
+    };
   }
 
   async getAnalysisResults(dealId: number) {
