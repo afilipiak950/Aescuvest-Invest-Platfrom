@@ -418,7 +418,7 @@ class ComprehensiveFinancialAnalysisService {
       
       await this.setProgress(dealId, {
         progress: questionProgress,
-        currentStep: `Analyzing: ${question.category}`,
+        currentStep: `checking ${i}/${evidenceMap.size} - question ${i + 1}/${questionCount} - ${question.question}`,
         currentQuestion: question.question
       });
       
@@ -581,7 +581,7 @@ class ComprehensiveFinancialAnalysisService {
       };
 
       // Store in agent_analyses table
-      const result = await storage.saveAgentAnalysis(analysisData);
+      const result = await storage.saveAgentAnalysis(dealId, 'Financial', analysisData);
       console.log(`✅ Financial analysis results stored for deal ${dealId}`);
       
       return result;

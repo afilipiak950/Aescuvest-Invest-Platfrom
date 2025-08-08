@@ -184,7 +184,7 @@ export class ComprehensiveResearchAnalysisService {
           
           await this.setProgress(dealId, {
             progress: progressPercent,
-            currentStep: `Processing: ${question.question}`,
+            currentStep: `checking ${i}/${researchDocs.length} - question ${i + 1}/${RESEARCH_QUESTIONS.length} - ${question.question}`,
             message: `Analyzing question ${i + 1}/${RESEARCH_QUESTIONS.length}`,
             processedDocuments: i + 1
           }, storage, analysisJobId);
@@ -194,7 +194,7 @@ export class ComprehensiveResearchAnalysisService {
             progress: progressPercent,
             processedDocuments: i + 1,
             currentDocument: question.question,
-            currentStep: `Processing: ${question.question}`
+            currentStep: `checking ${i}/${researchDocs.length} - question ${i + 1}/${RESEARCH_QUESTIONS.length} - ${question.question}`
           });
           
           // Extract evidence from ALL research documents for this specific question using comprehensive batch processing
@@ -614,7 +614,7 @@ Focus on investment due diligence. Be thorough and critical in your analysis.
         max_tokens: 1000
       });
 
-      const analysis = JSON.parse(response.choices[0].message.content);
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
       return {
         answer: analysis.answer || `Analysis completed for: ${question.question}`,
@@ -637,7 +637,7 @@ Focus on investment due diligence. Be thorough and critical in your analysis.
   private generateStructuredFallbackAnalysis(question: any, evidence: any[]): any {
     const documentNames = evidence.map(e => e.documentName);
     const matchingKeywords = evidence.flatMap(e => e.matchingKeywords || []);
-    const uniqueKeywords = [...new Set(matchingKeywords)];
+    const uniqueKeywords = Array.from(new Set(matchingKeywords));
     
     // Generate category-specific analysis based on document content
     let answer, keyFindings, researchAssessment, recommendations;
