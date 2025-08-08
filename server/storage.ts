@@ -1189,7 +1189,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-
+  async updateDealAiScore(dealId: number, score: number): Promise<void> {
+    try {
+      await db
+        .update(deals)
+        .set({ 
+          aiScore: score.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(deals.id, dealId));
+    } catch (error) {
+      console.error('Error updating deal AI score:', error);
+    }
+  }
 
   async getEvaluationCriteriaById(id: number): Promise<any | undefined> {
     return undefined;
@@ -1199,13 +1211,34 @@ export class DatabaseStorage implements IStorage {
     return criteria;
   }
 
-
+  async updateEvaluationCriteria(id: number, data: any): Promise<any | undefined> {
+    return undefined;
+  }
 
   async getAllEvaluationResults(): Promise<any[]> {
     return [];
   }
 
-
+  async getEvaluationResultsByDealId(dealId: number): Promise<any[]> {
+    try {
+      const startTime = Date.now();
+      
+      const results = await db
+        .select()
+        .from(evaluationResults)
+        .where(eq(evaluationResults.dealId, dealId))
+        .orderBy(desc(evaluationResults.createdAt))
+        .limit(100); // Limit for performance
+      
+      const queryTime = Date.now() - startTime;
+      console.log(`📊 Fetched ${results.length} evaluation results for deal ${dealId} in ${queryTime}ms`);
+      
+      return results;
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+      return [];
+    }
+  }
 
   async deleteEvaluationResultsByDealId(dealId: number): Promise<number> {
     try {
@@ -1236,19 +1269,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error deleting background jobs for deal ${dealId}:`, error);
       return 0;
-    }
-  }
-
-  async cleanupBackgroundJobsForDeal(dealId: number): Promise<{ cleanedCount: number }> {
-    try {
-      // Clean up all background job records for this deal to prevent duplicate key errors
-      const result = await db.delete(backgroundJobs).where(eq(backgroundJobs.dealId, dealId));
-      const cleanedCount = result.rowCount || 0;
-      console.log(`🧹 Cleaned up ${cleanedCount} background job records for deal ${dealId}`);
-      return { cleanedCount };
-    } catch (error) {
-      console.error(`Error cleaning up background jobs for deal ${dealId}:`, error);
-      return { cleanedCount: 0 };
     }
   }
 
@@ -1367,11 +1387,8 @@ export class DatabaseStorage implements IStorage {
   async saveAgentAnalysis(dealId: number, agentType: string, analysisData: any): Promise<any> {
     try {
       // Store agent analysis in the agentAnalyses table
-      // Ensure agentType is properly formatted
-      const formattedAgentType = agentType ? agentType.charAt(0).toUpperCase() + agentType.slice(1) : 'Unknown';
-      
       const existing = await db.select().from(agentAnalyses)
-        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, formattedAgentType)));
+        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))));
       
       if (existing.length > 0) {
         // Prepare update object with common fields
@@ -1860,11 +1877,46 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async completeBackgroundJob(jobId: string, results: any): Promise<void> {
+    try {
+      await db.update(backgroundJobs)
+        .set({
+          status: 'completed',
+          progress: 100,
+          result: results,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      console.log(`✅ Marked background job ${jobId} as completed`);
+    } catch (error) {
+      console.error(`Error completing background job ${jobId}:`, error);
+      throw error;
+    }
+  }
 
+  async failBackgroundJob(jobId: string, errorMessage: string): Promise<void> {
+    try {
+      await db.update(backgroundJobs)
+        .set({
+          status: 'failed',
+          error: errorMessage,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      console.log(`❌ Marked background job ${jobId} as failed`);
+    } catch (error) {
+      console.error(`Error failing background job ${jobId}:`, error);
+      throw error;
+    }
+  }
 
-
-
-
+  async deleteBackgroundJobsByDealId(dealId: number): Promise<number> {
+    // Clean up any agent analyses for this deal
+    const result = await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
+    return result.rowCount || 0;
+  }
 
   async updateStuckBackgroundJobs(dealId: number): Promise<number> {
     try {

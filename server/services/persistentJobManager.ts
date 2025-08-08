@@ -20,19 +20,7 @@ export class PersistentJobManager {
       throw new Error('Legal agents use comprehensive analysis only. Use /api/deals/:dealId/legal-analysis/comprehensive instead.');
     }
 
-    const jobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
-    
-    // Check for existing jobs to prevent duplicates
-    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-    const existingJob = existingJobs.find(job => 
-      job.agentType.toLowerCase() === agentType.toLowerCase() && 
-      (job.status === 'processing' || job.status === 'pending')
-    );
-    
-    if (existingJob) {
-      console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
-      throw new Error(`${agentType} analysis already running for deal ${dealId}`);
-    }
+    const jobId = `${agentType}-analysis-${dealId}`;
     
     try {
       // Create persistent job in database
@@ -40,7 +28,7 @@ export class PersistentJobManager {
         jobId,
         jobType: 'agent_analysis',
         dealId,
-        agentType: agentType.toLowerCase(),
+        agentType,
         status: 'processing',
         progress: 0,
         totalDocuments,

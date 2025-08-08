@@ -456,9 +456,8 @@ export default function EnhancedAgentCard({
   });
 
   const handleRunMistralAnalysis = () => {
-    console.log('🚫 Individual agent analysis disabled. Please use the unified analysis system.');
-    // setIsRunningAnalysis(true);
-    // runMistralAnalysisMutation.mutate();
+    setIsRunningAnalysis(true);
+    runMistralAnalysisMutation.mutate();
   };
 
   // Check if analysis is currently processing by looking at status and recent activity
@@ -843,8 +842,7 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Progress Bars - Show for all active background jobs regardless of how they were started */}
-        {console.log(`🎯 Rendering ${agentType} agent card - Agent type match:`, agentType.toLowerCase())}
+        {/* Progress Bars - Show individual progress for each agent */}
         {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
@@ -1050,7 +1048,7 @@ export default function EnhancedAgentCard({
                             <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-green-400 border-green-400">
-                                Confidence: {Math.min(100, Math.max(0, Math.round(finding.confidence || 80)))}%
+                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {finding.type || finding.category || 'analysis'}
@@ -1078,7 +1076,7 @@ export default function EnhancedAgentCard({
                             <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                Confidence: {Math.min(100, Math.max(0, Math.round(finding.confidence || 80)))}%
+                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {finding.type || finding.category || 'analysis'}
@@ -1106,7 +1104,7 @@ export default function EnhancedAgentCard({
                             <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-red-400 border-red-400">
-                                Confidence: {Math.min(100, Math.max(0, Math.round(finding.confidence || 80)))}%
+                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {finding.type || finding.category || 'analysis'}
@@ -1346,24 +1344,75 @@ interface ResearchQuestion {
 }
 
 const RESEARCH_QUESTIONS: ResearchQuestion[] = [
-  // Market Research - matching database keys res_9, res_10, res_11
+  // Market Research Reports
   {
-    id: 'res_9',
-    category: 'Market Research',
-    question: 'What is the total addressable market (TAM) size?',
-    subQuestions: ['Total Addressable Market', 'Market size estimates', 'Growth projections']
+    id: 'market_1',
+    category: 'Market Research Reports',
+    question: 'Are TAM/SAM/SOM defined with assumptions?',
+    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
   },
   {
-    id: 'res_10',
-    category: 'Market Research',
-    question: 'Who are the main competitors and what is their market share?',
-    subQuestions: ['Direct competitors', 'Indirect competitors', 'Market share analysis']
+    id: 'market_2',
+    category: 'Market Research Reports',
+    question: 'What competitive landscape analysis is provided?',
+    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
   },
   {
-    id: 'res_11',
-    category: 'Market Research',
-    question: 'What are the market growth projections and key drivers?',
-    subQuestions: ['Growth rates', 'Market trends', 'Key growth drivers']
+    id: 'market_3',
+    category: 'Market Research Reports',
+    question: 'Are market growth projections validated?',
+    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
+  },
+  // Technical Whitepapers
+  {
+    id: 'technical_1',
+    category: 'Technical Whitepapers',
+    question: 'What technical approach/architecture is described?',
+    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
+  },
+  {
+    id: 'technical_2',
+    category: 'Technical Whitepapers',
+    question: 'Are technical risks and mitigation strategies outlined?',
+    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
+  },
+  {
+    id: 'technical_3',
+    category: 'Technical Whitepapers',
+    question: 'What scalability and performance benchmarks are provided?',
+    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
+  },
+  // Academic Publications
+  {
+    id: 'academic_1',
+    category: 'Academic Publications',
+    question: 'What peer-reviewed research supports the technology?',
+    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
+  },
+  {
+    id: 'academic_2',
+    category: 'Academic Publications',
+    question: 'Are there collaborations with research institutions?',
+    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
+  },
+  {
+    id: 'academic_3',
+    category: 'Academic Publications',
+    question: 'What scientific evidence validates the approach?',
+    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
+  },
+  // Patent Landscape
+  {
+    id: 'patent_1',
+    category: 'Patent Landscape',
+    question: 'What patent portfolio exists and what gaps are identified?',
+    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
+  },
+  {
+    id: 'patent_2',
+    category: 'Patent Landscape',
+    question: 'Are there freedom-to-operate risks?',
+    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
   }
 ];
 
@@ -1533,15 +1582,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
       console.log(`🔍 Has detailedEvidence:`, !!answer.detailedEvidence);
       return {
-        answer: answer.answer || '',
-        confidence: answer.confidence || 0,
-        sources: answer.sources && Array.isArray(answer.sources) ? answer.sources : (answer.sources ? [answer.sources] : []),
-        quotes: answer.quotes && Array.isArray(answer.quotes) ? answer.quotes : [],
-        keyFindings: answer.keyFindings && Array.isArray(answer.keyFindings) ? answer.keyFindings : [],
+        answer: answer.answer,
+        confidence: answer.confidence,
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
+        quotes: answer.quotes || [],
+        keyFindings: answer.keyFindings || [],
         evidenceSummary: answer.evidenceSummary || '',
         legalAssessment: answer.legalAssessment || '',
-        recommendations: answer.recommendations && Array.isArray(answer.recommendations) ? answer.recommendations : [],
-        detailedEvidence: answer.detailedEvidence && Array.isArray(answer.detailedEvidence) ? answer.detailedEvidence : []
+        recommendations: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || []
       };
     }
     
@@ -1620,7 +1669,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
             <h4 className="font-medium text-white text-left">{category}</h4>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                {questions && Array.isArray(questions) ? questions.length : 0} questions
+                {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -1632,7 +1681,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
 
           {expandedCategories.has(category) && (
             <div className="p-4 space-y-4">
-              {questions && Array.isArray(questions) && questions.map((question) => {
+              {questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
                 const hasAnswer = answer !== null;
                 
@@ -1646,7 +1695,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {question.subQuestions && Array.isArray(question.subQuestions) && (
+                          {question.subQuestions && (
                             <div className="mt-2 space-y-1">
                               {question.subQuestions.map((subQ, index) => (
                                 <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
@@ -1671,13 +1720,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                              {answer.quotes && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                    📖 Document Quotes ({answer.quotes.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                    {answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -1685,7 +1734,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -1711,7 +1760,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-blue-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -1726,7 +1775,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -1743,15 +1792,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -1762,10 +1811,10 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -1797,7 +1846,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -2010,7 +2059,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             <h4 className="font-medium text-white text-left">{category}</h4>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                {questions && Array.isArray(questions) ? questions.length : 0} questions
+                {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -2022,7 +2071,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
 
           {expandedCategories.has(category) && (
             <div className="p-4 space-y-4">
-              {questions && Array.isArray(questions) && questions.map((question) => {
+              {questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
                 const hasAnswer = answer !== null;
                 
@@ -2036,7 +2085,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {question.subQuestions && Array.isArray(question.subQuestions) && (
+                          {question.subQuestions && (
                             <div className="mt-2 space-y-1">
                               {question.subQuestions.map((subQ, index) => (
                                 <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
@@ -2061,7 +2110,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
                                 <div className="bg-gradient-to-r from-green-400/10 to-blue-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">
                                     🔬 Key Clinical Findings ({answer.keyFindings.length})
@@ -2078,10 +2127,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    💡 Clinical Recommendations ({answer.recommendations && Array.isArray(answer.recommendations) ? answer.recommendations.length : 0})
+                                    💡 Clinical Recommendations ({answer.recommendations.length})
                                   </h5>
                                   <ul className="space-y-1">
                                     {answer.recommendations.map((rec, index) => (
@@ -2097,9 +2146,9 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2131,7 +2180,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -2196,24 +2245,26 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Complete Research questions structure - ALL questions that should be answered
+  // Research questions structure matching the backend service
   const RESEARCH_QUESTIONS = [
-    // Current questions with answers (res_1 to res_5)
-    { id: "res_1", question: "What research methodology and scientific approach is used?", category: "Technical Methodology" },
-    { id: "res_2", question: "What peer-reviewed publications and citations exist?", category: "Academic Publications" },
-    { id: "res_3", question: "What research partnerships and collaborations are present?", category: "Academic Publications" },
-    { id: "res_4", question: "What data quality and validation has been performed?", category: "Technical Methodology" },
-    { id: "res_5", question: "What research competitive advantages exist?", category: "Technical Innovation" },
+    // 1. Technical Whitepapers - 3 questions
+    { id: "whitepapers_1", question: "What are the core technical innovations described?", category: "Technical Whitepapers" },
+    { id: "whitepapers_2", question: "Are there peer-reviewed publications supporting the technology?", category: "Technical Whitepapers" },
+    { id: "whitepapers_3", question: "What validation studies or proof-of-concept results are presented?", category: "Technical Whitepapers" },
     
-    // Additional research questions that should be analyzed
-    { id: "res_6", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
-    { id: "res_7", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
-    { id: "res_8", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
-    { id: "res_9", question: "What is the total addressable market (TAM) size?", category: "Market Research" },
-    { id: "res_10", question: "Who are the main competitors and what is their market share?", category: "Market Research" },
-    { id: "res_11", question: "What are the market growth projections and key drivers?", category: "Market Research" },
-    { id: "res_12", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
-    { id: "res_13", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
+    // 2. Market Research Reports - 3 questions
+    { id: "market_1", question: "What is the total addressable market (TAM) size?", category: "Market Research Reports" },
+    { id: "market_2", question: "Who are the main competitors and what is their market share?", category: "Market Research Reports" },
+    { id: "market_3", question: "What are the market growth projections and key drivers?", category: "Market Research Reports" },
+    
+    // 3. Academic Publications - 3 questions
+    { id: "academic_1", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
+    { id: "academic_2", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
+    { id: "academic_3", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
+    
+    // 4. Patent Landscape - 2 questions
+    { id: "patents_1", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
+    { id: "patents_2", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
@@ -2224,42 +2275,28 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
-  const getAnswerForQuestion = (questionId: string, questionText: string) => {
+  const getAnswerForQuestion = (questionId: string) => {
     // Try comprehensive results first - check snake_case field name from API
     if (comprehensiveResults?.analysis?.research_answers) {
-      // First try by question text (exact match)
-      const answer = comprehensiveResults.analysis.research_answers[questionText];
+      const answer = comprehensiveResults.analysis.research_answers[questionId];
       if (answer) return answer;
-      
-      // Fallback to question ID
-      const answerById = comprehensiveResults.analysis.research_answers[questionId];
-      if (answerById) return answerById;
     }
     
     // Fallback to camelCase if available
     if (comprehensiveResults?.analysis?.researchAnswers) {
-      const answer = comprehensiveResults.analysis.researchAnswers[questionText];
+      const answer = comprehensiveResults.analysis.researchAnswers[questionId];
       if (answer) return answer;
-      
-      const answerById = comprehensiveResults.analysis.researchAnswers[questionId];
-      if (answerById) return answerById;
     }
     
     // Fallback to regular analysis results if comprehensive is empty
     if (analysisData?.research_answers) {
-      const answer = analysisData.research_answers[questionText];
+      const answer = analysisData.research_answers[questionId];
       if (answer) return answer;
-      
-      const answerById = analysisData.research_answers[questionId];
-      if (answerById) return answerById;
     }
     
     if (analysisData?.researchAnswers) {
-      const answer = analysisData.researchAnswers[questionText];
+      const answer = analysisData.researchAnswers[questionId];
       if (answer) return answer;
-      
-      const answerById = analysisData.researchAnswers[questionId];
-      if (answerById) return answerById;
     }
     
     return null;
@@ -2271,14 +2308,11 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Research Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} research documents across 5 categories with 13 detailed questions
+            Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
           </p>
         </div>
         <ComprehensiveResearchAnalysisButton dealId={dealId} />
       </div>
-
-      {/* Research Analysis Progress - Hidden to prevent duplication with main progress bar */}
-      {/* <ResearchAnalysisProgress dealId={dealId} /> */}
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
@@ -2289,7 +2323,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions && Array.isArray(questions) ? questions.length : 0} questions
+                {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -2301,8 +2335,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions && Array.isArray(questions) && questions.map(question => {
-                const answer = getAnswerForQuestion(question.id, question.question);
+              {questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
 
                 return (
                   <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
@@ -2327,13 +2361,13 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                              {answer.quotes && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                    📖 Document Quotes ({answer.quotes.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                    {answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -2341,7 +2375,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -2367,7 +2401,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-cyan-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -2382,7 +2416,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -2399,15 +2433,15 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {Math.min(100, Math.max(0, Math.round(answer.confidence || 0)))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -2418,10 +2452,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2446,7 +2480,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -2479,84 +2513,6 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   );
 }
 
-// Research Analysis Progress Display Component
-function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
-
-  const { data: jobProgress } = useQuery({
-    queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
-  });
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    console.log('🔬 Research Progress - Job data:', jobProgress);
-    
-    if (jobProgress?.jobs) {
-      const researchJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Research' || job.agentType === 'research' || 
-        (job.jobId && job.jobId.includes('research-analysis'))
-      );
-      console.log('🔬 Found research job:', researchJob);
-      
-      if (researchJob && researchJob.status === 'processing' && researchJob.progress > 0) {
-        setProgress(researchJob.progress || 0);
-        setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
-        setIsVisible(true);
-        console.log('✅ Research progress bar visible:', researchJob.progress + '%');
-        
-        // Handle jobs stuck at 100%
-        if (researchJob.progress >= 100) {
-          setCurrentStep('Analysis completed - finalizing results...');
-          timeoutId = setTimeout(() => {
-            setIsVisible(false);
-            fetch(`/api/background-jobs/${researchJob.jobId}/stop`, {
-              method: 'POST'
-            }).catch(console.error);
-          }, 2000);
-        }
-      } else {
-        setIsVisible(false);
-        console.log('❌ Research progress bar hidden - Job status:', researchJob?.status, 'Progress:', researchJob?.progress);
-      }
-    } else {
-      setIsVisible(false);
-      console.log('❌ Research progress bar hidden - No jobs data');
-    }
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [jobProgress]);
-
-  if (!isVisible) return null;
-
-  return (
-    <div className="mb-4 p-4 bg-cyan-400/10 border border-cyan-400/20 rounded-lg">
-      <div className="flex items-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-cyan-400">Research Analysis in Progress</span>
-            <span className="text-sm text-cyan-300">{Math.round(progress)}%</span>
-          </div>
-          <div className="w-full bg-cyan-400/20 rounded-full h-2 mb-2">
-            <div 
-              className="bg-cyan-400 h-2 rounded-full transition-all duration-500" 
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          </div>
-          <div className="text-xs text-cyan-300/80 truncate">
-            {currentStep}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Comprehensive Research Analysis Button Component
 function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -2571,10 +2527,7 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   // Check if research analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs)) {
-      const researchJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Research' || job.agentType === 'research' || 
-        (job.jobId && job.jobId.includes('research-analysis'))
-      );
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
       return !!researchJob && researchJob.status === 'processing';
     }
     return false;
@@ -2729,23 +2682,11 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   // Check if clinical analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const clinicalJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Clinical' || job.agentType === 'clinical' || 
-        (job.jobId && job.jobId.includes('clinical-analysis'))
-      );
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
       return !!clinicalJob && clinicalJob.status === 'processing';
     }
     return false;
   })();
-
-  // Check if comprehensive clinical analysis is complete
-  const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
-    refetchInterval: 2000,
-  });
-
-  const isAnalysisComplete = comprehensiveResults?.analysis?.clinicalAnswers && 
-    Object.keys(comprehensiveResults.analysis.clinicalAnswers).length >= 11;
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -2873,19 +2814,14 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending || (isAlreadyRunning && !isAnalysisComplete)}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
-      className={isAnalysisComplete ? "bg-green-600 hover:bg-green-700 text-white border-green-500" : "bg-green-600 hover:bg-green-700 text-white border-green-500"}
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
     >
-      {(isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning) && !isAnalysisComplete ? (
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           {isAlreadyRunning ? 'Clinical Analysis Running...' : isRunning ? 'Clinical Analysis Running...' : 'Starting Analysis...'}
-        </>
-      ) : isAnalysisComplete ? (
-        <>
-          <CheckCircle className="h-4 w-4 mr-2" />
-          Analysis Complete
         </>
       ) : (
         <>
@@ -2910,10 +2846,7 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   // Check if legal analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const legalJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Legal' || job.agentType === 'legal' || 
-        (job.jobId && job.jobId.includes('legal-analysis'))
-      );
+      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
       return !!legalJob && legalJob.status === 'processing';
     }
     return false;
@@ -3033,16 +2966,22 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
 
   return (
     <Button
-      onClick={() => {
-        console.log('🚫 Individual agent analysis disabled. Please use the unified analysis system.');
-      }}
-      disabled={true}
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
-      className="bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed"
-      title="Individual agent analysis disabled. Use the unified analysis system instead."
+      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
     >
-      <AlertTriangle className="h-4 w-4 mr-2" />
-      Disabled - Use Unified Analysis
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Legal Analysis Running...' : isRunning ? 'Legal Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run AI Analysis
+        </>
+      )}
     </Button>
   );
 }
@@ -3060,20 +2999,13 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    console.log('🏪 Commercial Progress - Job data:', jobProgress);
     
     if (jobProgress?.jobs) {
-      const commercialJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Commercial' || job.agentType === 'commercial' || 
-        (job.jobId && job.jobId.includes('commercial-analysis'))
-      );
-      console.log('🏪 Found commercial job:', commercialJob);
-      
-      if (commercialJob && commercialJob.status === 'processing' && commercialJob.progress > 0) {
+      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+      if (commercialJob && commercialJob.status === 'processing') {
         setProgress(commercialJob.progress || 0);
         setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
         setIsVisible(true);
-        console.log('✅ Commercial progress bar visible:', commercialJob.progress + '%');
         
         // Handle stuck jobs - check if job hasn't updated in 5+ minutes
         const jobCreated = new Date(commercialJob.metadata?.startTime || commercialJob.createdAt);
@@ -3105,11 +3037,9 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
-        console.log('❌ Commercial progress bar hidden - Job status:', commercialJob?.status, 'Progress:', commercialJob?.progress);
       }
     } else {
       setIsVisible(false);
-      console.log('❌ Commercial progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3117,7 +3047,6 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
     };
   }, [jobProgress]);
 
-  console.log('🏪 Commercial Progress - isVisible:', isVisible, 'progress:', progress);
   if (!isVisible) return null;
 
   return (
@@ -3136,10 +3065,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-purple-300/80 truncate">
-            {currentStep && currentStep.includes('batch') ? 
-              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-              currentStep
-            }
+            {currentStep}
           </div>
         </div>
       </div>
@@ -3160,20 +3086,13 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    console.log('🧬 Clinical Progress - Job data:', jobProgress);
     
     if (jobProgress?.jobs) {
-      const clinicalJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Clinical' || job.agentType === 'clinical' || 
-        (job.jobId && job.jobId.includes('clinical-analysis'))
-      );
-      console.log('🧬 Found clinical job:', clinicalJob);
-      
-      if (clinicalJob && clinicalJob.status === 'processing' && clinicalJob.progress > 0) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+      if (clinicalJob && clinicalJob.status === 'processing') {
         setProgress(clinicalJob.progress || 0);
         setCurrentStep(clinicalJob.currentDocument || clinicalJob.currentStep || 'Processing clinical analysis...');
         setIsVisible(true);
-        console.log('✅ Clinical progress bar visible:', clinicalJob.progress + '%');
         
         // Handle jobs stuck at 100%
         if (clinicalJob.progress >= 100) {
@@ -3187,11 +3106,9 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
-        console.log('❌ Clinical progress bar hidden - Job status:', clinicalJob?.status, 'Progress:', clinicalJob?.progress);
       }
     } else {
       setIsVisible(false);
-      console.log('❌ Clinical progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3199,7 +3116,6 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     };
   }, [jobProgress]);
 
-  console.log('🧬 Clinical Progress - isVisible:', isVisible, 'progress:', progress);
   if (!isVisible) return null;
 
   return (
@@ -3241,10 +3157,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const hrJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'HR' || job.agentType === 'hr' || 
-        (job.jobId && job.jobId.includes('hr-analysis'))
-      );
+      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
       if (hrJob && hrJob.status === 'processing') {
         setProgress(hrJob.progress || 0);
         setCurrentStep(hrJob.currentDocument || hrJob.currentStep || 'Processing HR analysis...');
@@ -3290,10 +3203,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-orange-300/80 truncate">
-            {currentStep && currentStep.includes('batch') ? 
-              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-              currentStep
-            }
+            {currentStep}
           </div>
         </div>
       </div>
@@ -3332,9 +3242,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     // Then check for regular financial jobs
     if (jobProgress?.jobs) {
       const financialJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Financial' || job.agentType === 'financial' || 
-        job.jobType === 'comprehensive_financial_analysis' ||
-        (job.jobId && job.jobId.includes('financial-analysis'))
+        job.agentType === 'Financial' || job.jobType === 'comprehensive_financial_analysis'
       );
       if (financialJob && financialJob.status === 'processing') {
         setProgress(financialJob.progress || 0);
@@ -3381,10 +3289,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-emerald-300/80 truncate">
-            {currentStep && currentStep.includes('batch') ? 
-              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-              currentStep
-            }
+            {currentStep}
           </div>
         </div>
       </div>
@@ -3447,10 +3352,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
 
     // Then check for regular IP jobs
     if (jobProgress?.jobs) {
-      const ipJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'IP' || job.agentType === 'ip' || 
-        (job.jobId && job.jobId.includes('ip-analysis'))
-      );
+      const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
       if (ipJob && ipJob.status === 'processing') {
         // Check if this is a new job or continuing existing one
         if (lastJobId && lastJobId !== ipJob.jobId) {
@@ -3503,10 +3405,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   }, [jobProgress, ipProgress, lastJobId, dealId]);
 
   // Extra safety check - if no IP jobs exist at all, never show progress
-  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => 
-    (job.agentType === 'IP' || job.agentType === 'ip' || (job.jobId && job.jobId.includes('ip-analysis'))) && 
-    job.status === 'processing'
-  ) || ipProgress?.isRunning;
+  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
   
   if (!isVisible || !hasActiveIpJob) return null;
 
@@ -3526,10 +3425,76 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-pink-300/80 truncate">
-            {currentStep && currentStep.includes('batch') ? 
-              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-              currentStep
-            }
+            {currentStep}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Research Analysis Progress Display Component
+function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (jobProgress?.jobs) {
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      if (researchJob && researchJob.status === 'processing') {
+        setProgress(researchJob.progress || 0);
+        setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
+        setIsVisible(true);
+        
+        // Handle jobs stuck at 100%
+        if (researchJob.progress >= 100) {
+          setCurrentStep('Analysis completed - finalizing results...');
+          timeoutId = setTimeout(() => {
+            setIsVisible(false);
+            fetch(`/api/background-jobs/${researchJob.jobId}/stop`, {
+              method: 'POST'
+            }).catch(console.error);
+          }, 2000);
+        }
+      } else {
+        setIsVisible(false);
+      }
+    } else {
+      setIsVisible(false);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [jobProgress]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mb-4 p-4 bg-cyan-400/10 border border-cyan-400/20 rounded-lg">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-cyan-400">Research Analysis in Progress</span>
+            <span className="text-sm text-cyan-300">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-cyan-400/20 rounded-full h-2 mb-2">
+            <div 
+              className="bg-cyan-400 h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-cyan-300/80 truncate">
+            {currentStep}
           </div>
         </div>
       </div>
@@ -3550,24 +3515,13 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    console.log('🔍 Legal Progress - Job data:', jobProgress);
-    console.log('🔍 Legal Progress - Jobs array:', jobProgress?.jobs);
-    console.log('🔍 Legal Progress - Jobs length:', jobProgress?.jobs?.length);
     
     if (jobProgress?.jobs) {
-      console.log('🔍 Legal Progress - Looking for legal job in:', jobProgress.jobs.map((j: any) => ({ agentType: j.agentType, jobId: j.jobId, progress: j.progress, status: j.status })));
-      
-      const legalJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Legal' || job.agentType === 'legal' || 
-        (job.jobId && job.jobId.includes('legal-analysis'))
-      );
-      console.log('⚖️ Found legal job:', legalJob);
-      
-      if (legalJob && legalJob.status === 'processing' && legalJob.progress > 0) {
+      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+      if (legalJob && legalJob.status === 'processing') {
         setProgress(legalJob.progress || 0);
         setCurrentStep(legalJob.currentDocument || legalJob.currentStep || 'Processing legal analysis...');
         setIsVisible(true);
-        console.log('✅ Legal progress bar visible:', legalJob.progress + '%');
         
         // Handle jobs stuck at 100%
         if (legalJob.progress >= 100) {
@@ -3581,12 +3535,9 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
-        console.log('❌ Legal progress bar hidden - Job status:', legalJob?.status, 'Progress:', legalJob?.progress);
-        console.log('❌ Legal job details:', legalJob ? { agentType: legalJob.agentType, status: legalJob.status, progress: legalJob.progress, jobId: legalJob.jobId } : 'No legal job found');
       }
     } else {
       setIsVisible(false);
-      console.log('❌ Legal progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3594,7 +3545,6 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
     };
   }, [jobProgress]);
 
-  console.log('🔍 Legal Progress - isVisible:', isVisible, 'progress:', progress);
   if (!isVisible) return null;
 
   return (
@@ -3635,10 +3585,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   // Check if commercial analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const commercialJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Commercial' || job.agentType === 'commercial' || 
-        (job.jobId && job.jobId.includes('commercial-analysis'))
-      );
+      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
       return !!commercialJob && commercialJob.status === 'processing';
     }
     return false;
@@ -3774,10 +3721,7 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   // Check if HR analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const hrJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'HR' || job.agentType === 'hr' || 
-        (job.jobId && job.jobId.includes('hr-analysis'))
-      );
+      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
       return !!hrJob && hrJob.status === 'processing';
     }
     return false;
@@ -4055,7 +3999,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions && Array.isArray(questions) ? questions.length : 0} questions
+                {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -4067,7 +4011,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions && Array.isArray(questions) && questions.map(question => {
+              {questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -4093,13 +4037,13 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                              {answer.quotes && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                    📖 Document Quotes ({answer.quotes.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                    {answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4107,7 +4051,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4133,7 +4077,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4148,7 +4092,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4167,13 +4111,13 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4184,10 +4128,10 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -4212,7 +4156,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -4372,8 +4316,7 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
 
   const isAlreadyRunning = (progressData as any)?.isRunning || 
     (jobProgress as any)?.jobs?.some((job: any) => 
-      (job.jobType === 'comprehensive_ip_analysis' || job.agentType === 'ip' || job.agentType === 'IP') && 
-      job.status === 'processing'
+      job.jobType === 'comprehensive_ip_analysis' && job.status === 'processing'
     );
 
   const queryClient = useQueryClient();
@@ -4564,7 +4507,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions && Array.isArray(questions) ? questions.length : 0} questions
+                {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -4576,7 +4519,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions && Array.isArray(questions) && questions.map(question => {
+              {questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -4603,13 +4546,13 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                              {answer.quotes && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                    📖 Document Quotes ({answer.quotes.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                    {answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4617,7 +4560,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4643,7 +4586,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4658,7 +4601,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4675,15 +4618,15 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4694,10 +4637,10 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -4722,7 +4665,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -4901,13 +4844,13 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                              {answer.quotes && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                    📖 Document Quotes ({answer.quotes.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                    {answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4915,7 +4858,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4941,7 +4884,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-orange-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4956,7 +4899,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                              {answer.recommendations && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4973,15 +4916,15 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  Confidence: {Math.round(((answer.confidence || 0) >= 1 ? (answer.confidence || 0) : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4992,10 +4935,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -5020,7 +4963,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -5195,7 +5138,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions && Array.isArray(questions) ? questions.length : 0} questions
+                {questions.length} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -5207,7 +5150,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions && Array.isArray(questions) && questions.map(question => {
+              {questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -5246,10 +5189,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Document Quotes */}
-                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                              {answer.sources && answer.sources.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0})
+                                    📖 Document Quotes ({answer.sources.length})
                                   </h5>
                                   <div className="space-y-2">
                                     {answer.sources.map((source: string, index: number) => (
@@ -5260,7 +5203,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${source}`}
                                           >
-                                            📄 {source && source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
                                           </button>
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
@@ -5318,9 +5261,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
                                   Confidence: {answer.confidence}%
                                 </Badge>
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {answer.sources && answer.sources.length > 0 && (
                                   <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
@@ -5342,10 +5285,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       ))}
 
       {/* Additional Recommendations Section */}
-      {recommendations && Array.isArray(recommendations) && recommendations.length > 0 && (
+      {recommendations && recommendations.length > 0 && (
         <div className="border border-dark-lighter rounded-lg overflow-hidden">
           <div className="p-4 bg-dark-light">
-            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations && Array.isArray(recommendations) ? recommendations.length : 0})</h4>
+            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations.length})</h4>
           </div>
           <div className="border-t border-dark-lighter p-4">
             <div className="space-y-3">

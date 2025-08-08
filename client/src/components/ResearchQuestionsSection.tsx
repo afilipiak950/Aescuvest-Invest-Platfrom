@@ -75,8 +75,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   React.useEffect(() => {
     try {
       if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray((jobProgress as any).jobs)) {
-        const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research' || job.agentType === 'research' || 
-          (job.jobId && job.jobId.includes('research-analysis')));
+        const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research');
         
         // Only show progress bar if research job is actively processing and has meaningful progress
         if (researchJob && researchJob.status === 'processing' && researchJob.progress > 0) {
@@ -209,12 +208,26 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     }
   };
 
-  // Research questions by category - Updated to match database keys
+  // Research questions by category
   const RESEARCH_QUESTIONS = [
-    // Market Research - matching database keys res_9, res_10, res_11
-    { id: "res_9", question: "What is the total addressable market (TAM) size?", category: "Market Research" },
-    { id: "res_10", question: "Who are the main competitors and what is their market share?", category: "Market Research" },
-    { id: "res_11", question: "What are the market growth projections and key drivers?", category: "Market Research" }
+    // Technical Whitepapers - 3 questions
+    { id: "technical_1", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
+    { id: "technical_2", question: "Are KPIs / benchmarks clearly described?", category: "Technical Whitepapers" },
+    { id: "technical_3", question: "Are claims cited and supported by peer-reviewed literature?", category: "Technical Whitepapers" },
+    
+    // Market Research Reports - 3 questions
+    { id: "market_1", question: "Are TAM/SAM/SOM defined with assumptions?", category: "Market Research Reports" },
+    { id: "market_2", question: "Are sources cited (Gartner, Statista, CB Insights)?", category: "Market Research Reports" },
+    { id: "market_3", question: "Are forecasts based on bottom-up or top-down logic?", category: "Market Research Reports" },
+    
+    // Academic Publications - 3 questions
+    { id: "academic_1", question: "Are papers peer-reviewed?", category: "Academic Publications" },
+    { id: "academic_2", question: "Are citations in PubMed, arXiv, Nature, etc.?", category: "Academic Publications" },
+    { id: "academic_3", question: "Is the publication recent and still relevant?", category: "Academic Publications" },
+    
+    // Patent Landscape Analyses - 2 questions
+    { id: "patent_1", question: "Are citations and forward references analyzed?", category: "Patent Landscape Analyses" },
+    { id: "patent_2", question: "Is competitive IP density mapped?", category: "Patent Landscape Analyses" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {

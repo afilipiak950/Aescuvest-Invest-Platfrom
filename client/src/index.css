@@ -66,50 +66,6 @@
   --radius: 0.5rem;
 }
 
-/* Custom animations for login screen */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes fade-in-up {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes count-up {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.1);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.8s ease-out forwards;
-}
-
-.animate-count-up {
-  animation: count-up 1.2s ease-out forwards;
-}
-
 .light {
   --background: 0 0% 100%;
   --foreground: 240 10% 3.9%;
@@ -134,11 +90,10 @@
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    @apply border-border;
   }
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    @apply bg-background text-foreground;
   }
 }
 
@@ -257,17 +212,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background-color: hsl(var(--muted));
+  @apply bg-muted;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--secondary));
+  @apply bg-secondary;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--primary) / 0.5);
+  @apply bg-primary/50;
 }
 
 /* Custom utility classes */
@@ -309,9 +264,5 @@
 
 /* For the avatar initials */
 .avatar-initials {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 500;
-  color: hsl(var(--background));
+  @apply flex items-center justify-center font-medium text-background;
 }

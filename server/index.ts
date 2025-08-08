@@ -9,7 +9,6 @@ import { setupVite, serveStatic, log } from "./vite";
 import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
-import { jobRecoveryService } from "./services/jobRecoveryService";
 
 const app = express();
 
@@ -264,9 +263,5 @@ app.use((req, res, next) => {
     // Start AI Processing Timeout Service
     console.log('🚀 Starting AI Processing Timeout Service...');
     aiProcessingTimeoutService.start();
-    
-    // Start job recovery service for stuck job monitoring
-    console.log('🔄 Starting Job Recovery Service...');
-    jobRecoveryService.start();
   });
 })();

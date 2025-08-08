@@ -7,7 +7,6 @@ import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
-import { UnifiedAnalysisProgress } from '@/components/UnifiedAnalysisProgress';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
@@ -21,12 +20,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square, Play } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 function DueDiligenceContent() {
+    try {
     const [location] = useLocation();
     const params = useParams();
     const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
@@ -279,130 +279,140 @@ function DueDiligenceContent() {
     selectedDeal,
     isLoadingAnalyses,
     analysesData: analyses,
-    analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
+    analysesLength: (analyses && Array.isArray(analyses)) ? analyses.length : 'not array',
     agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
   });
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
-  // Calculate document assignments for each agent type with comprehensive safety
-  const agentDocuments = useMemo(() => {
-    // Always return a safe default structure
-    const safeDefault = {
-      clinical: [],
-      legal: [],
-      commercial: [],
-      hr: [],
-      financial: [],
-      ip: [],
-      research: [],
-      unassigned: []
-    };
-
-    // Early exit with safe default if no documents
-    if (!documents || !Array.isArray(documents) || (documents?.length || 0) === 0) {
-      console.log('📊 Missing or empty documents data for agent assignments');
-      return safeDefault;
+  // Calculate unassigned documents using intelligent assignment system
+  const unassignedDocs = useMemo(() => {
+    if (!documents || !Array.isArray(documents)) {
+      console.log('📊 Missing documents data for unassigned calculation');
+      return [];
     }
 
-    try {
-      const assignments = {
-        clinical: [] as any[],
-        legal: [] as any[],
-        commercial: [] as any[],
-        hr: [] as any[],
-        financial: [] as any[],
-        ip: [] as any[],
-        research: [] as any[],
-        unassigned: [] as any[]
-      };
-
-      documents.forEach((doc: any) => {
-        if (!doc || typeof doc !== 'object') {
-          assignments.unassigned.push(doc);
-          return;
-        }
-
-        if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || (doc.assignedAgents?.length || 0) === 0) {
-          assignments.unassigned.push(doc);
-        } else {
-          // Document can be assigned to multiple agents
-          doc.assignedAgents.forEach((agent: string) => {
-            try {
-              const agentKey = String(agent || '').toLowerCase();
-              if (agentKey && agentKey in assignments) {
-                assignments[agentKey as keyof typeof assignments].push(doc);
-              }
-            } catch (agentError) {
-              console.warn('Error processing agent assignment:', agentError);
-              assignments.unassigned.push(doc);
-            }
-          });
-        }
+    // Filter documents that have no assignedAgents field or empty assignedAgents array
+    const unassigned = documents.filter((doc: any) => 
+      !doc.assignedAgents || 
+      !Array.isArray(doc.assignedAgents) || 
+      doc.assignedAgents.length === 0
+    );
+    
+    console.log('📊 Intelligent assignment status:', {
+      totalDocuments: documents.length,
+      unassignedCount: unassigned.length,
+      assignedCount: documents.length - unassigned.length,
+      assignmentRate: `${Math.round(((documents.length - unassigned.length) / documents.length) * 100)}%`
+    });
+    
+    // Debug: Show sample assignments
+    const sampleAssigned = documents.filter(doc => 
+      doc.assignedAgents && Array.isArray(doc.assignedAgents) && doc.assignedAgents.length > 0
+    ).slice(0, 3);
+    
+    if (sampleAssigned.length > 0) {
+      console.log('📋 Sample intelligent assignments:');
+      sampleAssigned.forEach((doc: any) => {
+        console.log(`  "${doc.name}": ${doc.assignedAgents.join(', ')}`);
       });
-      
-      console.log('📊 Agent document assignments:', {
-        clinical: assignments.clinical?.length || 0,
-        legal: assignments.legal?.length || 0,
-        commercial: assignments.commercial?.length || 0,
-        hr: assignments.hr?.length || 0,
-        financial: assignments.financial?.length || 0,
-        ip: assignments.ip?.length || 0,
-        research: assignments.research?.length || 0,
-        unassigned: assignments.unassigned?.length || 0,
-        total: documents?.length || 0
-      });
-      
-      return assignments;
-    } catch (error) {
-      console.error('Error calculating agent documents:', error);
-      return safeDefault;
     }
+    
+    return unassigned;
   }, [documents]);
-
-  // Extract individual agent document arrays for easy access with null safety
-  const clinicalDocs = agentDocuments?.clinical || [];
-  const legalDocs = agentDocuments?.legal || [];
-  const commercialDocs = agentDocuments?.commercial || [];
-  const hrDocs = agentDocuments?.hr || [];
-  const financialDocs = agentDocuments?.financial || [];
-  const ipDocs = agentDocuments?.ip || [];
-  const researchDocs = agentDocuments?.research || [];
-  const unassignedDocs = agentDocuments?.unassigned || [];
   
   const handleFileUpload = async () => {
     setShowUploadField(!showUploadField);
   };
 
-  // NEW: Unified analysis system using simplified endpoints
+  // Mutation for running all agent analyses (manual trigger)
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      console.log('🚀 Starting unified analysis for all 7 agents...');
+      try {
+        console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
+        
+        // Validate selectedDeal is available in mutation context
+        if (!selectedDeal) {
+          throw new Error('No deal selected for analysis');
+        }
+        
+        // Step 1: Stop all running analyses first 
+        console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
+        try {
+          await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
+        } catch (stopError) {
+          console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
+        }
       
-      // Use the simplified unified analysis endpoint
-      const response = await apiRequest(`/api/deals/${selectedDeal}/simple-unified-analysis`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ forceRefresh: true })
-      });
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to start unified analysis');
+      // Step 2: Delete all existing analyses 
+      console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
+      try {
+        await apiRequest(`/api/analyses/${selectedDeal}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
+        
+        // Also clear any stuck background jobs
+        try {
+          await apiRequest(`/api/background-jobs/clear-stuck`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
+          });
+          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
+        } catch (clearError) {
+          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
+        }
+        
+        // Wait for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (deleteError) {
+        console.error(`❌ Failed to delete existing analyses:`, deleteError);
+        // Continue anyway - the analyses will be overwritten
       }
       
-      return response;
+      // Step 3: Run all comprehensive analyses in parallel
+      const comprehensiveEndpoints = [
+        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
+      ];
+
+      const promises = comprehensiveEndpoints.map(endpoint => {
+        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
+        return apiRequest(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      });
+      
+      return Promise.all(promises);
+      
+      } catch (mutationError) {
+        console.error('❌ Critical error in mutation function:', mutationError);
+        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
+      }
     },
     onSuccess: (results) => {
-      console.log(`✅ Unified analysis started successfully:`, results);
+      console.log(`✅ All comprehensive analyses started successfully:`, results);
       
       // Show immediate feedback
       toast({
-        title: "Unified Analysis Started",
-        description: "All 7 AI agents are now running unified document analysis...",
+        title: "Comprehensive Analyses Started",
+        description: "All 7 AI agents are now running comprehensive document analysis...",
         duration: 5000,
       });
       
-      // Invalidate all queries to refresh UI
+      // Invalidate all comprehensive analysis results queries to refresh UI
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       
       // Invalidate comprehensive analysis endpoints
@@ -421,41 +431,47 @@ function DueDiligenceContent() {
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       
-      // Monitor unified analysis progress
+      // Set up completion monitoring
       const checkCompletion = setInterval(async () => {
         try {
-          const response = await fetch(`/api/deals/${selectedDeal}/simple-unified-analysis/status`);
-          const statusData = await response.json();
+          const response = await fetch(`/api/analyses/${selectedDeal}`);
+          const data = await response.json();
           
-          if (statusData.success && statusData.status === 'completed') {
-            console.log(`🎉 Unified analysis completed! Refreshing data...`);
-            setIsRunningAllAnalyses(false);
-            clearInterval(checkCompletion);
+          if (Array.isArray(data) && data.length >= 7) {
+            const allCompleted = data.every((analysis: any) => 
+              analysis.status === 'Completed' || analysis.status === 'completed'
+            );
             
-            // Refresh all relevant queries
-            queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-            queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-            agentTypes.forEach(agentType => {
-              queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
-            });
-            
-            // Show completion notification
-            toast({
-              title: "Unified Analysis Complete",
-              description: "All 7 agent analyses completed successfully!",
-              duration: 5000,
-            });
+            if (allCompleted) {
+              console.log(`🎉 All comprehensive analyses completed! Refreshing data...`);
+              setIsRunningAllAnalyses(false);
+              clearInterval(checkCompletion);
+              
+              // Refresh all relevant queries
+              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+              agentTypes.forEach(agentType => {
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+              });
+              
+              // Show completion notification
+              toast({
+                title: "Comprehensive Analyses Complete",
+                description: "All 7 agent comprehensive analyses completed successfully!",
+                duration: 5000,
+              });
+            }
           }
         } catch (error) {
-          console.error('Error checking unified analysis completion:', error);
+          console.error('Error checking analysis completion:', error);
         }
       }, 3000); // Check every 3 seconds
       
-      // Cleanup after 10 minutes max
+      // Cleanup after 15 minutes max
       setTimeout(() => {
         setIsRunningAllAnalyses(false);
         clearInterval(checkCompletion);
-      }, 600000);
+      }, 900000);
     },
     onError: (error) => {
       console.error(`❌ Failed to start all analyses:`, error);
@@ -529,27 +545,14 @@ function DueDiligenceContent() {
     }
   };
 
-  // Early loading guard to prevent undefined property access errors
-  if (isLoadingDocuments || isLoadingDeals || !agentDocuments) {
     return (
       <div className="container mx-auto px-4 py-6">
-        <div className="text-center mt-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-200 mb-4">Loading Analysis</h2>
-          <p className="text-gray-400">Preparing document analysis data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-6">
-      <PageHeader 
-        title="Due Diligence Analysis" 
-        description="Analyze company documents and generate insights with AI agents."
-      />
-      
-      {/* Deal Selection */}
+        <PageHeader 
+          title="Due Diligence Analysis" 
+          description="Analyze company documents and generate insights with AI agents."
+        />
+        
+        {/* Deal Selection */}
       <Card className="bg-dark-light border-dark-lighter mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4">
@@ -874,50 +877,14 @@ function DueDiligenceContent() {
             </CardContent>
           </Card>
 
-          {/* Deal Statistics Card */}
-          <Card className="bg-dark-light border-dark-lighter mb-6">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">Deal Analysis Overview</CardTitle>
-              <CardDescription>
-                Real-time statistics for {currentDeal?.companyName || 'Selected Deal'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-primary">{documents?.length || 0}</div>
-                  <div className="text-sm text-gray-400">Total Documents</div>
-                </div>
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-blue-400">
-                    {Array.isArray(analyses) ? (analyses.filter((a: any) => a.status === 'Completed' || a.status === 'completed')?.length || 0) : 0}
-                  </div>
-                  <div className="text-sm text-gray-400">Completed Analyses</div>
-                </div>
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-yellow-400">
-                    {jobProgress?.jobs ? (jobProgress.jobs.filter((job: any) => job.status === 'processing')?.length || 0) : 0}
-                  </div>
-                  <div className="text-sm text-gray-400">Running Analyses</div>
-                </div>
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-green-400">
-                    {(unassignedDocs?.length || 0) === 0 && (documents?.length || 0) > 0 ? '100%' : 
-                     (documents?.length || 0) > 0 ? `${Math.round(((documents?.length || 0) - (unassignedDocs?.length || 0)) / (documents?.length || 1) * 100)}%` : '0%'}
-                  </div>
-                  <div className="text-sm text-gray-400">Assignment Rate</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
           
           {/* Main Progress Bar - Restored */}
-          {jobProgress && jobProgress.jobs && (jobProgress.jobs?.length || 0) > 0 && (
+          {jobProgress && jobProgress.jobs && jobProgress.jobs.length > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Analysis Progress</CardTitle>
                 <CardDescription>
-                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
+                  {jobProgress.jobs.length} analysis{jobProgress.jobs.length > 1 ? 'es' : ''} running
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -935,10 +902,7 @@ function DueDiligenceContent() {
                       <Progress value={job.progress} className="h-2" />
                       {job.currentStep && (
                         <p className="text-xs text-gray-500">
-                          {job.currentStep && job.currentStep.includes('batch') ? 
-                            job.currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-                            job.currentStep
-                          }
+                          {job.currentStep}
                         </p>
                       )}
                     </div>
@@ -953,12 +917,8 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="text-xl font-bold">
-                    Documents ({documents?.length || 0})
-                  </CardTitle>
-                  <CardDescription>
-                    {documents?.length === 0 ? 'No documents uploaded yet' : `${documents.length} documents available for analysis`}
-                  </CardDescription>
+                  <CardTitle className="text-xl font-bold">Documents</CardTitle>
+                  <CardDescription>Uploaded documents for analysis</CardDescription>
                 </div>
                 <div className="flex space-x-2">
                   <Button variant="outline" className="bg-dark-lighter hover:bg-dark border-dark-lighter">
@@ -1041,104 +1001,38 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <div className="flex space-x-2">
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        console.log('🛑 Stopping all background jobs for deal', selectedDeal);
-                        
-                        const response = await fetch(`/api/deals/${selectedDeal}/stop-all-jobs`, {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json'
-                          }
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                          toast({
-                            title: "Jobs Stopped",
-                            description: `Stopped ${result.stoppedCount} running analyses`,
-                            duration: 3000,
-                          });
-                          
-                          // Refresh job progress
-                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-                        } else {
-                          throw new Error(result.error || 'Failed to stop jobs');
-                        }
-                      } catch (error) {
-                        console.error('❌ Error stopping jobs:', error || 'Unknown error');
-                        toast({
-                          title: "Stop Failed",
-                          description: "Failed to stop background jobs. Please try again.",
-                          variant: "destructive",
-                          duration: 5000,
-                        });
-                      }
-                    }}
-                    variant="outline"
-                    className="bg-red-600/10 hover:bg-red-600/20 border-red-600/30 text-red-400 hover:text-red-300"
-                    size="sm"
-                    disabled={!jobProgress?.jobs?.some(job => job.status === 'processing')}
-                  >
-                    <Square className="h-4 w-4 mr-2" />
-                    Stop All Jobs
-                  </Button>
-                  <Button 
-                    onClick={handleRunAllAnalyses}
-                    disabled={isRunningAllAnalyses}
-                    className="bg-primary hover:bg-primary/80 text-white pt-[19px] pb-[19px]"
-                    size="sm"
-                  >
-                    {isRunningAllAnalyses ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                        Running Analysis...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-2" />
-                        Start All Analyses
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => {
+                    try {
+                      handleRunAllAnalyses();
+                    } catch (buttonError) {
+                      console.error('❌ Button click error:', buttonError);
+                      toast({
+                        title: "Button Error",
+                        description: "Failed to handle button click. Please refresh the page.",
+                        variant: "destructive",
+                        duration: 5000,
+                      });
+                    }
+                  }}
+                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
+                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
+                  size="sm"
+                >
+                  {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Running All Analyses
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4 mr-2" />
+                      Reset & Run All Analyses
+                    </>
+                  )}
+                </Button>
               </div>
             </CardHeader>
-            
-            {/* Show Running Analysis Progress - HIDDEN per user request */}
-            {false && (jobProgress?.jobs && jobProgress.jobs.length > 0) && (
-              <div className="mx-6 mb-4 p-4 bg-dark-light border border-primary/30 rounded-lg">
-                <h4 className="text-sm font-medium text-primary mb-3">Currently Running Analyses</h4>
-                <div className="space-y-3">
-                  {jobProgress.jobs.map((job) => (
-                    <div key={job.jobId} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                            <span className="text-sm font-medium text-white">
-                              {job.agentType || 'Analysis'} - {job.progress || 0}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-400 truncate">
-                          {job.currentStep || 'Processing...'}
-                        </div>
-                        <div className="w-full bg-dark-lighter rounded-full h-1.5 mt-2">
-                          <div 
-                            className="bg-primary h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${job.progress || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             <CardContent>
 
               
@@ -1148,119 +1042,49 @@ function DueDiligenceContent() {
                     value="clinical"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Clinical ({clinicalDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical', 'clinical-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical', 'clinical-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Clinical
                   </TabsTrigger>
                   <TabsTrigger
                     value="legal"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Legal ({legalDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Legal', 'legal', 'legal-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Legal', 'legal', 'legal-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Legal
                   </TabsTrigger>
                   <TabsTrigger
                     value="commercial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Commercial ({commercialDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial', 'commercial-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial', 'commercial-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Commercial
                   </TabsTrigger>
                   <TabsTrigger
                     value="hr"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>HR ({hrDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['HR', 'hr', 'hr-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['HR', 'hr', 'hr-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    HR
                   </TabsTrigger>
                   <TabsTrigger
                     value="financial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Financial ({financialDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Financial', 'financial', 'financial-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Financial', 'financial', 'financial-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Financial
                   </TabsTrigger>
                   <TabsTrigger
                     value="ip"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>IP ({ipDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['IP', 'ip', 'ip-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['IP', 'ip', 'ip-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    IP
                   </TabsTrigger>
                   <TabsTrigger
                     value="research"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Research ({researchDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Research', 'research', 'research-analysis'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Research', 'research', 'research-analysis'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Research
                   </TabsTrigger>
                   <TabsTrigger
                     value="unassigned"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Unassigned ({unassignedDocs?.length || 0})
+                    Unassigned ({unassignedDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="ai-agents"
@@ -1278,8 +1102,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical', 'clinical-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical', 'clinical-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.currentStep}
                     onClinicalAnalysisStart={() => setClinicalAnalysisStarted(true)}
                   />
                 </TabsContent>
@@ -1292,8 +1116,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Legal', 'legal', 'legal-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Legal', 'legal', 'legal-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1305,8 +1129,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial', 'commercial-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial', 'commercial-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1318,8 +1142,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['HR', 'hr', 'hr-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['HR', 'hr', 'hr-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1331,8 +1155,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Financial', 'financial', 'financial-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Financial', 'financial', 'financial-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1344,8 +1168,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['IP', 'ip', 'ip-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['IP', 'ip', 'ip-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1357,8 +1181,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research', 'research-analysis'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research', 'research-analysis'])?.currentStep}
+                    currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1375,9 +1199,6 @@ function DueDiligenceContent() {
                 </TabsContent>
                 
                 <TabsContent value="ai-agents">
-                  {/* Unified Analysis Progress - ONE progress bar for ALL documents across ALL agents */}
-                  <UnifiedAnalysisProgress dealId={parseInt(selectedDeal)} />
-                  
                   <div className="pt-4">
                     <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
                   </div>
@@ -1395,10 +1216,20 @@ function DueDiligenceContent() {
             <p className="text-gray-400 mb-4">Please select a deal to view its due diligence analysis.</p>
           </CardContent>
         </Card>
-      )}
-    </div>
-  );
-
+        )}
+      </div>
+    );
+    } catch (error) {
+        console.error('Error in DueDiligenceContent:', error);
+        return (
+            <Card className="bg-dark-light border-dark-lighter">
+                <CardContent className="py-12 text-center">
+                    <h3 className="text-xl font-semibold mb-2">An error occurred</h3>
+                    <p className="text-gray-400 mb-4">Please refresh the page or try again.</p>
+                </CardContent>
+            </Card>
+        );
+    }
 }
 
 export default function DueDiligence() {
