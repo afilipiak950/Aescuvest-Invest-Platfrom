@@ -1181,7 +1181,7 @@ function DueDiligenceContent() {
                           throw new Error(result.error || 'Failed to stop jobs');
                         }
                       } catch (error) {
-                        console.error('❌ Error stopping jobs:', error);
+                        console.error('❌ Error stopping jobs:', error || 'Unknown error');
                         toast({
                           title: "Stop Failed",
                           description: "Failed to stop background jobs. Please try again.",
