@@ -6,7 +6,7 @@ import { apiRequest } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
-import StartAllAnalysesButton from '@/components/StartAllAnalysesButton';
+import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
@@ -101,7 +101,7 @@ function DueDiligenceContent() {
       console.log(`✅ Received ${data?.length || 0} documents for deal ${selectedDeal}`);
       return data;
     }
-  });
+    });
 
     // Fetch job progress data for real-time updates
     const { data: jobProgress } = useQuery({
@@ -115,7 +115,7 @@ function DueDiligenceContent() {
       console.log(`📊 Job progress data:`, data);
       return data;
     }
-  });
+    });
 
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
     const legalProgress = useMemo(() => {
@@ -169,11 +169,12 @@ function DueDiligenceContent() {
     },
     onSuccess: () => {
       // Refresh background jobs data
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
     },
     onError: (error) => {
       console.error('❌ Error stopping job:', error);
     }
-  });
+    });
 
     const handleStopJob = (jobId: string, agentType: string) => {
       console.log(`🛑 Stopping ${agentType} analysis job: ${jobId}`);
@@ -250,6 +251,7 @@ function DueDiligenceContent() {
       });
 
       // Refresh analyses data
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       
       console.log('🎉 Automated comprehensive analysis completed');
     } catch (error) {
@@ -323,8 +325,225 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Removed manual analysis trigger - system now operates automatically
+  // Mutation for running all agent analyses (manual trigger)
+  const runAllAnalysesMutation = useMutation({
+    mutationFn: async () => {
+      try {
+        console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
+        
+        // Validate selectedDeal is available in mutation context
+        if (!selectedDeal) {
+          throw new Error('No deal selected for analysis');
+        }
+        
+        // Step 1: Stop all running analyses first 
+        console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
+        try {
+          await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
+        } catch (stopError) {
+          console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
+        }
+      
+      // Step 2: Delete all existing analyses 
+      console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
+      try {
+        await apiRequest(`/api/analyses/${selectedDeal}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
+        
+        // Also clear any stuck background jobs
+        try {
+          await apiRequest(`/api/background-jobs/clear-stuck`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
+          });
+          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
+        } catch (clearError) {
+          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
+        }
+        
+        // Wait for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (deleteError) {
+        console.error(`❌ Failed to delete existing analyses:`, deleteError);
+        // Continue anyway - the analyses will be overwritten
+      }
+      
+      // Step 3: Run all comprehensive analyses in parallel
+      const comprehensiveEndpoints = [
+        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
+      ];
 
+      const promises = comprehensiveEndpoints.map(endpoint => {
+        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
+        return apiRequest(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      });
+      
+      return Promise.all(promises);
+      
+      } catch (mutationError) {
+        console.error('❌ Critical error in mutation function:', mutationError);
+        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
+      }
+    },
+    onSuccess: (results) => {
+      console.log(`✅ All comprehensive analyses started successfully:`, results);
+      
+      // Show immediate feedback
+      toast({
+        title: "Comprehensive Analyses Started",
+        description: "All 7 AI agents are now running comprehensive document analysis...",
+        duration: 5000,
+      });
+      
+      // Invalidate all comprehensive analysis results queries to refresh UI
+      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      
+      // Invalidate comprehensive analysis endpoints
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
+      
+      // Also invalidate regular agent endpoints for backwards compatibility
+      agentTypes.forEach(agentType => {
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+      
+      // Set up completion monitoring
+      const checkCompletion = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/analyses/${selectedDeal}`);
+          const data = await response.json();
+          
+          if (Array.isArray(data) && data.length >= 7) {
+            const allCompleted = data.every((analysis: any) => 
+              analysis.status === 'Completed' || analysis.status === 'completed'
+            );
+            
+            if (allCompleted) {
+              console.log(`🎉 All comprehensive analyses completed! Refreshing data...`);
+              setIsRunningAllAnalyses(false);
+              clearInterval(checkCompletion);
+              
+              // Refresh all relevant queries
+              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+              agentTypes.forEach(agentType => {
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+              });
+              
+              // Show completion notification
+              toast({
+                title: "Comprehensive Analyses Complete",
+                description: "All 7 agent comprehensive analyses completed successfully!",
+                duration: 5000,
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking analysis completion:', error);
+        }
+      }, 3000); // Check every 3 seconds
+      
+      // Cleanup after 15 minutes max
+      setTimeout(() => {
+        setIsRunningAllAnalyses(false);
+        clearInterval(checkCompletion);
+      }, 900000);
+    },
+    onError: (error) => {
+      console.error(`❌ Failed to start all analyses:`, error);
+      setIsRunningAllAnalyses(false);
+      
+      // Show user-friendly error message
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to start analyses. This may be due to API quota limits. Please try again later.",
+        variant: "destructive",
+        duration: 5000,
+      });
+      
+      // Clear any loading states
+      queryClient.setQueryData([`/api/background-jobs/${selectedDeal}`], { jobs: [] });
+    }
+  });
+
+  const handleRunAllAnalyses = () => {
+    try {
+      console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
+      
+      // Validate selectedDeal exists
+      if (!selectedDeal) {
+        console.error('❌ No deal selected');
+        toast({
+          title: "No Deal Selected",
+          description: "Please select a deal before running analyses.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+      
+      setIsRunningAllAnalyses(true);
+      
+      // Immediately show loading feedback
+      toast({
+        title: "Resetting Analyses",
+        description: "Stopping all running analyses and starting fresh...",
+        duration: 2000,
+      });
+      
+      // Skip query invalidation to prevent crashes - let mutation handle cache updates
+      console.log('📋 Skipping immediate query invalidation to prevent component crashes');
+      
+      // Start mutation immediately to prevent state conflicts
+      try {
+        runAllAnalysesMutation.mutate();
+      } catch (mutationError) {
+        console.error('❌ Error starting mutation:', mutationError);
+        setIsRunningAllAnalyses(false);
+        toast({
+          title: "Mutation Error",
+          description: "Failed to start analysis mutation. Please try again.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Critical error in handleRunAllAnalyses:', error);
+      setIsRunningAllAnalyses(false);
+      
+      toast({
+        title: "Critical Error",
+        description: `Failed to start analyses: ${(error as any)?.message || 'Unknown error'}. Please refresh the page and try again.`,
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+  };
 
     return (
       <div className="container mx-auto px-4 py-6">
@@ -769,6 +988,8 @@ function DueDiligenceContent() {
                   dealId={parseInt(selectedDeal!)} 
                   onUploadComplete={() => {
                     // Refresh documents and keep data room visible
+                    queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
                   }}
                 />
               )}
@@ -780,43 +1001,36 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <div className="flex items-center gap-4">
-                  {documents && documents.length > 0 && (
-                    <Button
-                      onClick={async () => {
-                        try {
-                          setIsRunningAllAnalyses(true);
-                          const response = await fetch('/api/start-all-ai-analyses', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
-                          });
-                          
-                          if (response.ok) {
-                            console.log('✅ Started all AI analyses');
-                          } else {
-                            console.error('❌ Failed to start analyses');
-                            setIsRunningAllAnalyses(false);
-                          }
-                        } catch (error) {
-                          console.error('❌ Error starting analyses:', error);
-                          setIsRunningAllAnalyses(false);
-                        }
-                      }}
-                      disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress.jobs.length > 0)}
-                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0"
-                    >
-                      {(jobProgress?.jobs && jobProgress.jobs.length > 0) ? (
-                        <>🔄 {jobProgress.jobs.length} Agents Running</>
-                      ) : (
-                        <>🚀 Start All 7 AI Agents</>
-                      )}
-                    </Button>
+                <Button 
+                  onClick={() => {
+                    try {
+                      handleRunAllAnalyses();
+                    } catch (buttonError) {
+                      console.error('❌ Button click error:', buttonError);
+                      toast({
+                        title: "Button Error",
+                        description: "Failed to handle button click. Please refresh the page.",
+                        variant: "destructive",
+                        duration: 5000,
+                      });
+                    }
+                  }}
+                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
+                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
+                  size="sm"
+                >
+                  {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Running All Analyses
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4 mr-2" />
+                      Reset & Run All Analyses
+                    </>
                   )}
-                  <div className="text-sm text-gray-400">
-                    {documents?.length || 0} documents ready
-                  </div>
-                </div>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -978,55 +1192,15 @@ function DueDiligenceContent() {
                     documents={unassignedDocs}
                     onAssignDocument={(docId: number, agentType: string) => {
                       // Invalidate queries to refresh UI after assignment
+                      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
+                      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
                     }}
                   />
                 </TabsContent>
                 
                 <TabsContent value="ai-agents">
                   <div className="pt-4">
-                    <Card className="bg-dark-light border-dark-lighter">
-                      <CardContent className="pt-6">
-                        <h3 className="text-lg font-semibold mb-4">🤖 AI Agent Analysis Control</h3>
-                        <p className="text-gray-400 mb-4">
-                          Start comprehensive AI analysis across all 7 specialized agents: Legal, Clinical, Commercial, HR, Financial, IP, and Research.
-                        </p>
-                        
-                        <div className="space-y-4">
-                          <StartAllAnalysesButton 
-                            dealId={parseInt(selectedDeal)}
-                            documents={documents}
-                            isRunning={isRunningAllAnalyses}
-                            onStart={() => setIsRunningAllAnalyses(true)}
-                            onComplete={() => setIsRunningAllAnalyses(false)}
-                            activeJobs={jobProgress?.jobs || []}
-                          />
-                          
-                          {jobProgress?.jobs && jobProgress.jobs.length > 0 && (
-                            <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                              <p className="text-blue-400 text-sm mb-2">
-                                🔄 Active AI Processing ({jobProgress.jobs.length} agents running)
-                              </p>
-                              <div className="space-y-1">
-                                {jobProgress.jobs.map((job: any) => (
-                                  <div key={job.jobId} className="flex justify-between text-xs">
-                                    <span className="text-gray-300">{job.agentType}</span>
-                                    <span className="text-green-400">{job.progress}%</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
-                            <p className="text-green-400 text-sm">
-                              ✅ Real-time progress tracking in agent tabs<br/>
-                              ✅ 12-hour timeout protection for stuck jobs<br/>
-                              ✅ Persistent processing survives page reloads
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
                   </div>
                 </TabsContent>
               </Tabs>
