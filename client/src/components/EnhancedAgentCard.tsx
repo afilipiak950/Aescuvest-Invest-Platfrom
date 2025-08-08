@@ -4363,7 +4363,8 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
 
   const isAlreadyRunning = (progressData as any)?.isRunning || 
     (jobProgress as any)?.jobs?.some((job: any) => 
-      job.jobType === 'comprehensive_ip_analysis' && job.status === 'processing'
+      (job.jobType === 'comprehensive_ip_analysis' || job.agentType === 'ip' || job.agentType === 'IP') && 
+      job.status === 'processing'
     );
 
   const queryClient = useQueryClient();
