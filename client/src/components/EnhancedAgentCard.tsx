@@ -3542,8 +3542,12 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     console.log('🔍 Legal Progress - Job data:', jobProgress);
+    console.log('🔍 Legal Progress - Jobs array:', jobProgress?.jobs);
+    console.log('🔍 Legal Progress - Jobs length:', jobProgress?.jobs?.length);
     
     if (jobProgress?.jobs) {
+      console.log('🔍 Legal Progress - Looking for legal job in:', jobProgress.jobs.map((j: any) => ({ agentType: j.agentType, jobId: j.jobId, progress: j.progress, status: j.status })));
+      
       const legalJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'Legal' || job.agentType === 'legal' || 
         (job.jobId && job.jobId.includes('legal-analysis'))
@@ -3569,6 +3573,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
       } else {
         setIsVisible(false);
         console.log('❌ Legal progress bar hidden - Job status:', legalJob?.status, 'Progress:', legalJob?.progress);
+        console.log('❌ Legal job details:', legalJob ? { agentType: legalJob.agentType, status: legalJob.status, progress: legalJob.progress, jobId: legalJob.jobId } : 'No legal job found');
       }
     } else {
       setIsVisible(false);
