@@ -2614,10 +2614,8 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual research analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('🔬 Starting comprehensive research analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('🔬 Starting comprehensive research analysis for deal', dealId);
     
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
@@ -2775,10 +2773,8 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual clinical analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('🧬 Starting comprehensive clinical analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('🧬 Starting comprehensive clinical analysis for deal', dealId);
     
     // Call the callback to trigger client-side progress state
     if (onAnalysisStart) {
@@ -2941,10 +2937,8 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual legal analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('🚀 Starting comprehensive legal analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('🚀 Starting comprehensive legal analysis for deal', dealId);
     
     try {
       // Trigger custom event to show progress bar immediately
@@ -3669,10 +3663,8 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual commercial analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('Starting comprehensive commercial analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('Starting comprehensive commercial analysis for deal', dealId);
     
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
@@ -3810,10 +3802,8 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual HR analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('Starting comprehensive HR analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('Starting comprehensive HR analysis for deal', dealId);
     
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
@@ -4284,10 +4274,8 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual financial analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('Starting comprehensive financial analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('Starting comprehensive financial analysis for deal', dealId);
     
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
@@ -4398,10 +4386,8 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚫 Individual IP analysis disabled. Please use the unified analysis system.');
-    return;
-    // setIsRunning(true);
-    // console.log('Starting comprehensive IP analysis for deal', dealId);
+    setIsRunning(true);
+    console.log('Starting comprehensive IP analysis for deal', dealId);
     
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
