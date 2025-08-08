@@ -842,14 +842,14 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Progress Bars - Show individual progress only when manually started, not from "Run All" */}
-        {agentType.toLowerCase() === 'legal' && !isRunningAllAnalyses && <LegalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'commercial' && !isRunningAllAnalyses && <CommercialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'hr' && !isRunningAllAnalyses && <HrAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'clinical' && !isRunningAllAnalyses && <ClinicalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'financial' && !isRunningAllAnalyses && <FinancialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'ip' && !isRunningAllAnalyses && <IpAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'research' && !isRunningAllAnalyses && <ResearchAnalysisProgress dealId={dealId} />}
+        {/* Progress Bars - Show for all active background jobs regardless of how they were started */}
+        {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'clinical' && <ClinicalAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'financial' && <FinancialAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'ip' && <IpAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'research' && <ResearchAnalysisProgress dealId={dealId} />}
         
         {/* KPI Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
