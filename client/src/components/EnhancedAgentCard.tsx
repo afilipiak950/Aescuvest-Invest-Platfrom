@@ -3323,7 +3323,9 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     // Then check for regular financial jobs
     if (jobProgress?.jobs) {
       const financialJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Financial' || job.jobType === 'comprehensive_financial_analysis'
+        job.agentType === 'Financial' || job.agentType === 'financial' || 
+        job.jobType === 'comprehensive_financial_analysis' ||
+        (job.jobId && job.jobId.includes('financial-analysis'))
       );
       if (financialJob && financialJob.status === 'processing') {
         setProgress(financialJob.progress || 0);

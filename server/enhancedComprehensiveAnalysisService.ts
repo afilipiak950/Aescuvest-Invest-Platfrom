@@ -51,19 +51,34 @@ export class EnhancedComprehensiveAnalysisService {
   async runEnhancedAnalysis(dealId: number): Promise<void> {
     console.log(`🔬 Starting enhanced ${this.agentType} analysis for deal ${dealId}`);
     
-    // Create background job for tracking using unified pattern
-    const jobId = `${this.agentType.toLowerCase()}-analysis-${dealId}`;
+    // Create background job for tracking using unified pattern with timestamp for uniqueness
+    const timestamp = Date.now();
+    const jobId = `${this.agentType.toLowerCase()}-analysis-${dealId}-${timestamp}`;
     
-    // Check for existing jobs to prevent duplicates
+    // Check for existing ACTIVE jobs to prevent duplicates
     const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-    const existingJob = existingJobs.find(job => 
+    const activeJob = existingJobs.find(job => 
       job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
       (job.status === 'processing' || job.status === 'pending')
     );
     
-    if (existingJob) {
-      console.log(`🔄 Found existing ${this.agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
+    if (activeJob) {
+      console.log(`🔄 Found existing active ${this.agentType} analysis job: ${activeJob.jobId}, skipping duplicate creation`);
       throw new Error(`${this.agentType} analysis already running for deal ${dealId}`);
+    }
+    
+    // Clear any completed jobs for this agent to allow fresh restart
+    const completedJob = existingJobs.find(job => 
+      job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
+      (job.status === 'completed' || job.status === 'failed')
+    );
+    
+    if (completedJob) {
+      console.log(`🧹 Clearing previous ${this.agentType} analysis job: ${completedJob.jobId} (status: ${completedJob.status})`);
+      await storage.updateBackgroundJob(completedJob.jobId, {
+        status: 'cancelled',
+        updatedAt: new Date()
+      });
     }
     
     await storage.createBackgroundJob({

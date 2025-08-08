@@ -75,7 +75,8 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   React.useEffect(() => {
     try {
       if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray((jobProgress as any).jobs)) {
-        const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research');
+        const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'Research' || job.agentType === 'research' || 
+          (job.jobId && job.jobId.includes('research-analysis')));
         
         // Only show progress bar if research job is actively processing and has meaningful progress
         if (researchJob && researchJob.status === 'processing' && researchJob.progress > 0) {
