@@ -34,25 +34,31 @@ export function UnifiedAnalysisProgress({ dealId }: UnifiedAnalysisProgressProps
 
   useEffect(() => {
     // Check for unified analysis first (priority)
-    if (unifiedProgress?.isRunning) {
-      setProgress(unifiedProgress.progress || 0);
-      setCurrentStep(unifiedProgress.currentStep || 'Processing documents...');
-      setProcessedDocs(unifiedProgress.processedDocuments || 0);
-      setTotalDocs(unifiedProgress.totalDocuments || 0);
-      setIsVisible(true);
-      return;
+    if (unifiedProgress && typeof unifiedProgress === 'object' && 'isRunning' in unifiedProgress) {
+      const progressData = unifiedProgress as any;
+      if (progressData.isRunning) {
+        setProgress(progressData.progress || 0);
+        setCurrentStep(progressData.currentStep || 'Processing documents...');
+        setProcessedDocs(progressData.processedDocuments || 0);
+        setTotalDocs(progressData.totalDocuments || 0);
+        setIsVisible(true);
+        return;
+      }
     }
 
     // If unified analysis is not running, check for any individual agent jobs
-    if (jobProgress?.jobs?.length > 0) {
-      const runningJob = jobProgress.jobs.find((job: any) => job.status === 'processing');
-      if (runningJob) {
-        setProgress(runningJob.progress || 0);
-        setCurrentStep(runningJob.currentStep || 'Processing analysis...');
-        setProcessedDocs(runningJob.processedDocuments || 0);
-        setTotalDocs(runningJob.totalDocuments || 0);
-        setIsVisible(true);
-        return;
+    if (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress) {
+      const progressData = jobProgress as any;
+      if (progressData.jobs?.length > 0) {
+        const runningJob = progressData.jobs.find((job: any) => job.status === 'processing');
+        if (runningJob) {
+          setProgress(runningJob.progress || 0);
+          setCurrentStep(runningJob.currentStep || 'Processing analysis...');
+          setProcessedDocs(runningJob.processedDocuments || 0);
+          setTotalDocs(runningJob.totalDocuments || 0);
+          setIsVisible(true);
+          return;
+        }
       }
     }
 
