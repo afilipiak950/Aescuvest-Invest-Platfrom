@@ -2738,6 +2738,15 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
     return false;
   })();
 
+  // Check if comprehensive clinical analysis is complete
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
+  const isAnalysisComplete = comprehensiveResults?.analysis?.clinicalAnswers && 
+    Object.keys(comprehensiveResults.analysis.clinicalAnswers).length >= 11;
+
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive`, {
@@ -2864,14 +2873,19 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || (isAlreadyRunning && !isAnalysisComplete)}
       size="sm"
-      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+      className={isAnalysisComplete ? "bg-green-600 hover:bg-green-700 text-white border-green-500" : "bg-green-600 hover:bg-green-700 text-white border-green-500"}
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+      {(isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning) && !isAnalysisComplete ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           {isAlreadyRunning ? 'Clinical Analysis Running...' : isRunning ? 'Clinical Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : isAnalysisComplete ? (
+        <>
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Analysis Complete
         </>
       ) : (
         <>
