@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -374,24 +374,35 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // DEPRECATED: Old fragmented analysis system - replaced with unified analysis
-  // This mutation is disabled to prevent fragmented job creation
+  // NEW: Unified analysis system using simplified endpoints
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      console.log('🚫 DEPRECATED: This fragmented analysis system is disabled. Use the unified analysis instead.');
-      throw new Error('This analysis method is deprecated. Use the unified analysis system instead.');
+      console.log('🚀 Starting unified analysis for all 7 agents...');
+      
+      // Use the simplified unified analysis endpoint
+      const response = await apiRequest(`/api/deals/${selectedDeal}/simple-unified-analysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceRefresh: true })
+      });
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to start unified analysis');
+      }
+      
+      return response;
     },
     onSuccess: (results) => {
-      console.log(`✅ All comprehensive analyses started successfully:`, results);
+      console.log(`✅ Unified analysis started successfully:`, results);
       
       // Show immediate feedback
       toast({
-        title: "Comprehensive Analyses Started",
-        description: "All 7 AI agents are now running comprehensive document analysis...",
+        title: "Unified Analysis Started",
+        description: "All 7 AI agents are now running unified document analysis...",
         duration: 5000,
       });
       
-      // Invalidate all comprehensive analysis results queries to refresh UI
+      // Invalidate all queries to refresh UI
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       
       // Invalidate comprehensive analysis endpoints
@@ -410,47 +421,41 @@ function DueDiligenceContent() {
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       
-      // Set up completion monitoring
+      // Monitor unified analysis progress
       const checkCompletion = setInterval(async () => {
         try {
-          const response = await fetch(`/api/analyses/${selectedDeal}`);
-          const data = await response.json();
+          const response = await fetch(`/api/deals/${selectedDeal}/simple-unified-analysis/status`);
+          const statusData = await response.json();
           
-          if (Array.isArray(data) && (data?.length || 0) >= 7) {
-            const allCompleted = data.every((analysis: any) => 
-              analysis.status === 'Completed' || analysis.status === 'completed'
-            );
+          if (statusData.success && statusData.status === 'completed') {
+            console.log(`🎉 Unified analysis completed! Refreshing data...`);
+            setIsRunningAllAnalyses(false);
+            clearInterval(checkCompletion);
             
-            if (allCompleted) {
-              console.log(`🎉 All comprehensive analyses completed! Refreshing data...`);
-              setIsRunningAllAnalyses(false);
-              clearInterval(checkCompletion);
-              
-              // Refresh all relevant queries
-              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-              agentTypes.forEach(agentType => {
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
-              });
-              
-              // Show completion notification
-              toast({
-                title: "Comprehensive Analyses Complete",
-                description: "All 7 agent comprehensive analyses completed successfully!",
-                duration: 5000,
-              });
-            }
+            // Refresh all relevant queries
+            queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+            agentTypes.forEach(agentType => {
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+            });
+            
+            // Show completion notification
+            toast({
+              title: "Unified Analysis Complete",
+              description: "All 7 agent analyses completed successfully!",
+              duration: 5000,
+            });
           }
         } catch (error) {
-          console.error('Error checking analysis completion:', error);
+          console.error('Error checking unified analysis completion:', error);
         }
       }, 3000); // Check every 3 seconds
       
-      // Cleanup after 15 minutes max
+      // Cleanup after 10 minutes max
       setTimeout(() => {
         setIsRunningAllAnalyses(false);
         clearInterval(checkCompletion);
-      }, 900000);
+      }, 600000);
     },
     onError: (error) => {
       console.error(`❌ Failed to start all analyses:`, error);
@@ -1082,20 +1087,22 @@ function DueDiligenceContent() {
                     Stop All Jobs
                   </Button>
                   <Button 
-                    onClick={() => {
-                      toast({
-                        title: "Feature Disabled",
-                        description: "This fragmented analysis system is deprecated. Please use the blue 'Unified Analysis' card instead for ALL agents in one process.",
-                        variant: "destructive",
-                        duration: 8000,
-                      });
-                    }}
-                    disabled={true}
-                    className="bg-gray-600/50 hover:bg-gray-600/50 pt-[19px] pb-[19px] cursor-not-allowed opacity-50"
+                    onClick={handleRunAllAnalyses}
+                    disabled={isRunningAllAnalyses}
+                    className="bg-primary hover:bg-primary/80 text-white pt-[19px] pb-[19px]"
                     size="sm"
                   >
-                    <Bot className="h-4 w-4 mr-2" />
-                    ⚠️ DEPRECATED - Use Unified Analysis Instead
+                    {isRunningAllAnalyses ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                        Running Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Start All Analyses
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
