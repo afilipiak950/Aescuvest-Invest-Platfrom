@@ -2245,26 +2245,20 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Research questions structure matching the backend service
+  // Research questions structure matching the database storage - UPDATED to use correct IDs
   const RESEARCH_QUESTIONS = [
-    // 1. Technical Whitepapers - 3 questions
-    { id: "whitepapers_1", question: "What are the core technical innovations described?", category: "Technical Whitepapers" },
-    { id: "whitepapers_2", question: "Are there peer-reviewed publications supporting the technology?", category: "Technical Whitepapers" },
-    { id: "whitepapers_3", question: "What validation studies or proof-of-concept results are presented?", category: "Technical Whitepapers" },
-    
-    // 2. Market Research Reports - 3 questions
-    { id: "market_1", question: "What is the total addressable market (TAM) size?", category: "Market Research Reports" },
-    { id: "market_2", question: "Who are the main competitors and what is their market share?", category: "Market Research Reports" },
-    { id: "market_3", question: "What are the market growth projections and key drivers?", category: "Market Research Reports" },
-    
-    // 3. Academic Publications - 3 questions
-    { id: "academic_1", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
-    { id: "academic_2", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
-    { id: "academic_3", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
-    
-    // 4. Patent Landscape - 2 questions
-    { id: "patents_1", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
-    { id: "patents_2", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
+    // Research questions 1-11 matching the database structure exactly
+    { id: "research_1", question: "Are technical whitepapers available?", category: "Technical Whitepapers" },
+    { id: "research_2", question: "Are competitive analyses included?", category: "Market Research Reports" },
+    { id: "research_3", question: "Is market sizing data provided?", category: "Market Research Reports" },
+    { id: "research_4", question: "Are customer validation studies included?", category: "Customer Validation" },
+    { id: "research_5", question: "Are third-party reports referenced?", category: "Third-party Reports" },
+    { id: "research_6", question: "Are regulatory considerations addressed?", category: "Regulatory Analysis" },
+    { id: "research_7", question: "Are academic publications cited?", category: "Academic Publications" },
+    { id: "research_8", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
+    { id: "research_9", question: "Are citations and forward references analyzed?", category: "Academic Publications" },
+    { id: "research_10", question: "Are patent landscape analyses provided?", category: "Patent Landscape" },
+    { id: "research_11", question: "Is competitive IP density mapped?", category: "Patent Landscape" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {

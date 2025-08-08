@@ -208,26 +208,20 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     }
   };
 
-  // Research questions by category
+  // Research questions by category - UPDATED IDs to match database storage
   const RESEARCH_QUESTIONS = [
-    // Technical Whitepapers - 3 questions
-    { id: "technical_1", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
-    { id: "technical_2", question: "Are KPIs / benchmarks clearly described?", category: "Technical Whitepapers" },
-    { id: "technical_3", question: "Are claims cited and supported by peer-reviewed literature?", category: "Technical Whitepapers" },
-    
-    // Market Research Reports - 3 questions
-    { id: "market_1", question: "Are TAM/SAM/SOM defined with assumptions?", category: "Market Research Reports" },
-    { id: "market_2", question: "Are sources cited (Gartner, Statista, CB Insights)?", category: "Market Research Reports" },
-    { id: "market_3", question: "Are forecasts based on bottom-up or top-down logic?", category: "Market Research Reports" },
-    
-    // Academic Publications - 3 questions
-    { id: "academic_1", question: "Are papers peer-reviewed?", category: "Academic Publications" },
-    { id: "academic_2", question: "Are citations in PubMed, arXiv, Nature, etc.?", category: "Academic Publications" },
-    { id: "academic_3", question: "Is the publication recent and still relevant?", category: "Academic Publications" },
-    
-    // Patent Landscape Analyses - 2 questions
-    { id: "patent_1", question: "Are citations and forward references analyzed?", category: "Patent Landscape Analyses" },
-    { id: "patent_2", question: "Is competitive IP density mapped?", category: "Patent Landscape Analyses" }
+    // Research questions 1-11 matching the database structure
+    { id: "research_1", question: "Are technical whitepapers available?", category: "Technical Whitepapers" },
+    { id: "research_2", question: "Are competitive analyses included?", category: "Market Research Reports" },
+    { id: "research_3", question: "Is market sizing data provided?", category: "Market Research Reports" },
+    { id: "research_4", question: "Are customer validation studies included?", category: "Customer Validation" },
+    { id: "research_5", question: "Are third-party reports referenced?", category: "Third-party Reports" },
+    { id: "research_6", question: "Are regulatory considerations addressed?", category: "Regulatory Analysis" },
+    { id: "research_7", question: "Are academic publications cited?", category: "Academic Publications" },
+    { id: "research_8", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
+    { id: "research_9", question: "Are citations and forward references analyzed?", category: "Academic Publications" },
+    { id: "research_10", question: "Are patent landscape analyses provided?", category: "Patent Landscape" },
+    { id: "research_11", question: "Is competitive IP density mapped?", category: "Patent Landscape" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
