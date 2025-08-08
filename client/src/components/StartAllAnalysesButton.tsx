@@ -121,24 +121,25 @@ export default function StartAllAnalysesButton({
   const isLoading = startAllAnalyses.isPending || stopAllAnalyses.isPending || isStarting;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Main Action Button */}
       <div className="flex gap-3">
         {!hasActiveJobs ? (
           <Button
             onClick={handleStartAnalyses}
             disabled={isLoading || !documents?.length}
-            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg border-0 h-12 text-lg font-semibold"
             size="lg"
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Starting Analysis...
+                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                Initializing AI Agents...
               </>
             ) : (
               <>
-                <Play className="mr-2 h-4 w-4" />
-                Start All AI Analyses (7 Agents)
+                <Play className="mr-3 h-5 w-5" />
+                🚀 Launch All 7 AI Agents
               </>
             )}
           </Button>
@@ -146,35 +147,64 @@ export default function StartAllAnalysesButton({
           <Button
             onClick={handleStopAnalyses}
             disabled={isLoading}
-            variant="destructive"
-            className="flex-1"
+            className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg border-0 h-12 text-lg font-semibold"
             size="lg"
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Stopping...
+                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                Stopping All Agents...
               </>
             ) : (
               <>
-                <StopCircle className="mr-2 h-4 w-4" />
-                Stop All Analyses
+                <StopCircle className="mr-3 h-5 w-5" />
+                🛑 Stop All Analyses
               </>
             )}
           </Button>
         )}
       </div>
 
+      {/* Agent List */}
+      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+        <h4 className="text-sm font-medium text-gray-300 mb-3">AI Agent Pipeline:</h4>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agent) => (
+            <div key={agent} className="flex items-center gap-2 py-1">
+              <div className={`w-2 h-2 rounded-full ${
+                hasActiveJobs && activeJobs.some((job: any) => 
+                  job.agentType === agent || job.agentType === agent.toLowerCase()
+                ) ? 'bg-green-400 animate-pulse' : 'bg-gray-500'
+              }`} />
+              <span className="text-gray-300">{agent} Agent</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Status Messages */}
       {!documents?.length && (
-        <p className="text-sm text-gray-400 text-center">
-          Upload documents first to enable AI analysis
-        </p>
+        <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
+          <p className="text-sm text-yellow-400 text-center">
+            📄 Upload documents first to enable AI analysis
+          </p>
+        </div>
       )}
       
       {documents?.length > 0 && !hasActiveJobs && (
-        <p className="text-sm text-gray-300 text-center">
-          Ready to analyze {documents.length} documents with 7 AI agents
-        </p>
+        <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3">
+          <p className="text-sm text-blue-400 text-center">
+            ✅ Ready to analyze {documents.length} documents across all 7 specialized AI agents
+          </p>
+        </div>
+      )}
+
+      {hasActiveJobs && (
+        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3">
+          <p className="text-sm text-green-400 text-center">
+            🔄 {activeJobs.length} AI agent{activeJobs.length > 1 ? 's' : ''} currently processing documents
+          </p>
+        </div>
       )}
     </div>
   );
