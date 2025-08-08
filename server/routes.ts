@@ -4800,15 +4800,11 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       // Check for active comprehensive IP analysis job
       const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
-      console.log(`🔍 Debug: Found ${activeJobs.length} jobs for deal ${dealId}:`, activeJobs.map(j => ({ jobId: j.jobId, type: j.jobType, agent: j.agentType, status: j.status })));
-      
       const comprehensiveJob = activeJobs.find(job => 
         (job.jobType === 'comprehensive_ip_analysis' || job.jobType === 'agent_analysis') &&
         (job.agentType === 'ip' || job.agentType === 'IP') &&
         job.status === 'processing'
       );
-      
-      console.log(`🔍 Debug: Found IP job:`, comprehensiveJob ? { jobId: comprehensiveJob.jobId, type: comprehensiveJob.jobType, agent: comprehensiveJob.agentType, status: comprehensiveJob.status, progress: comprehensiveJob.progress } : 'None');
       
       if (comprehensiveJob) {
         res.json({
