@@ -100,7 +100,7 @@ export class PDFExportService {
             ]
           }
         },
-        children: this.generateDOCXContentInternal(memo, companyName)
+        children: this.generateDOCXContent(memo, companyName)
       }]
     });
 
@@ -452,7 +452,7 @@ export class PDFExportService {
   }
 
   // DOCX Content Generation
-  private static generateDOCXContentInternal(memo: InvestmentMemo, companyName: string): any[] {
+  private static generateDOCXContent(memo: InvestmentMemo, companyName: string): any[] {
     return [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -633,7 +633,7 @@ export class PDFExportService {
     </style>
 </head>
 <body>
-    ${this.generateCoverPageHTML(memo, companyName)}
+    ${this.generateCoverPage(memo, companyName)}
     ${this.generateExecutiveSummary(memo)}
     ${this.generateSWOTAnalysis(memo)}
     ${this.generateMarketAnalysis(memo)}
@@ -1004,7 +1004,29 @@ export class PDFExportService {
     </div>`;
   }
 
-
+  private static generateDOCXContent(memo: InvestmentMemo, companyName: string): any[] {
+    // Generate DOCX content similar to HTML but using DOCX structures
+    const content = [];
+    
+    // Cover page
+    content.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: `INVESTMENT MEMORANDUM: ${companyName.toUpperCase()}`,
+            font: "Times New Roman",
+            size: 28,
+            bold: true
+          })
+        ]
+      }),
+      new Paragraph({ children: [new TextRun({ text: "" })] }), // Empty line
+      new PageBreak()
+    );
+    
+    return content;
+  }
 
   private static getHeaderTemplate(companyName: string): string {
     return `
