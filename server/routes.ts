@@ -40,6 +40,7 @@ import persistentAnalysisRoutes from './routes/persistentAnalysis';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
+import jobRecoveryRoutes from './routes/jobRecovery';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -7124,6 +7125,9 @@ export async function registerAllRoutes(app: Express) {
     }
   });
   
+  // Mount job recovery routes
+  app.use(jobRecoveryRoutes);
+
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
   try {
