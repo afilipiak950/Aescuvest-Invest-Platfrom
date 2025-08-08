@@ -109,8 +109,30 @@ export function UnifiedAnalysisProgress({ dealId }: UnifiedAnalysisProgressProps
     }
   });
 
-  const handleStartAnalysis = () => {
+  const handleStartAnalysis = async () => {
     console.log(`🚀 Starting unified analysis for all 65 documents across all agent types for deal ${dealId}`);
+    
+    // First, force stop all fragmented jobs
+    try {
+      console.log(`🛑 Stopping all fragmented jobs for deal ${dealId}`);
+      await apiRequest(`/api/deals/${dealId}/force-stop-all-jobs`, {
+        method: 'POST'
+      });
+      console.log(`✅ Successfully stopped all fragmented jobs`);
+      
+      // Wait a moment for cleanup
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Invalidate job progress queries to refresh UI
+      queryClient.invalidateQueries({
+        queryKey: [`/api/background-jobs/${dealId}`]
+      });
+      
+    } catch (error) {
+      console.error('⚠️ Failed to stop fragmented jobs (continuing anyway):', error);
+    }
+    
+    // Now start the unified analysis
     startUnifiedAnalysis.mutate();
   };
 
@@ -126,10 +148,10 @@ export function UnifiedAnalysisProgress({ dealId }: UnifiedAnalysisProgressProps
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white mb-1">
-              Comprehensive Document Analysis
+              🚀 NEW: Unified Document Analysis
             </h3>
             <p className="text-sm text-gray-300">
-              Analyze all 65 documents across ALL agent categories (Clinical, Legal, Commercial, HR, Financial, IP, Research) with one unified process
+              <strong>ONE progress bar for ALL 65 documents</strong> across Clinical, Legal, Commercial, HR, Financial, IP & Research agents. <span className="text-green-400">No more restarting jobs!</span>
             </p>
           </div>
           <Button
