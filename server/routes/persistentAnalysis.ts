@@ -240,16 +240,39 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
     
     for (const job of allJobs) {
       try {
-        await persistentJobManager.stopJob(job.jobId);
-        stoppedCount++;
-        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
+        // Check if job is still running
+        if (job.status === 'processing' || job.status === 'pending') {
+          // Try persistent job manager first
+          try {
+            await persistentJobManager.stopJob(job.jobId);
+            stoppedCount++;
+            console.log(`🛑 Stopped job via persistentJobManager: ${job.jobId} (${job.agentType})`);
+          } catch (managerError) {
+            console.warn(`⚠️ persistentJobManager failed for ${job.jobId}, using direct database update:`, managerError);
+            
+            // Fallback to direct database update
+            await storage.updateBackgroundJob(job.jobId, {
+              status: 'cancelled',
+              currentStep: 'Cancelled by user',
+              completedAt: new Date(),
+              updatedAt: new Date()
+            });
+            stoppedCount++;
+            console.log(`🛑 Stopped job via database: ${job.jobId} (${job.agentType})`);
+          }
+        }
       } catch (error) {
         console.error(`❌ Error stopping job ${job.jobId}:`, error);
       }
     }
     
-    // Also clear any stuck jobs
-    const clearedCount = await persistentJobManager.clearStuckJobs(dealId);
+    // Also clear any stuck jobs (with error handling)
+    let clearedCount = 0;
+    try {
+      clearedCount = await persistentJobManager.clearStuckJobs(dealId);
+    } catch (clearError) {
+      console.warn(`⚠️ clearStuckJobs failed, continuing:`, clearError);
+    }
     
     console.log(`✅ Stopped ${stoppedCount} jobs and cleared ${clearedCount} stuck jobs for deal ${dealId}`);
     
