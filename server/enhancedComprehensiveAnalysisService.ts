@@ -58,7 +58,7 @@ export class EnhancedComprehensiveAnalysisService {
     // Check for existing ACTIVE jobs to prevent duplicates
     const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
     const activeJob = existingJobs.find(job => 
-      job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
+      job.agentType && job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
       (job.status === 'processing' || job.status === 'pending')
     );
     
@@ -69,7 +69,7 @@ export class EnhancedComprehensiveAnalysisService {
     
     // Clear any completed jobs for this agent to allow fresh restart
     const completedJob = existingJobs.find(job => 
-      job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
+      job.agentType && job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
       (job.status === 'completed' || job.status === 'failed')
     );
     
@@ -110,36 +110,51 @@ export class EnhancedComprehensiveAnalysisService {
       
       for (let i = 0; i < totalQuestions; i++) {
         const question = this.questions[i];
-        // Progress from 3% to 85% in 1% increments across all questions
+        // Progress from 3% to 85% across all questions
         const progressPercent = Math.floor(3 + ((i / totalQuestions) * 82));
         
         await this.updateProgress(jobId, progressPercent, `Analyzing: ${question.question}`);
         console.log(`🔍 Question ${i + 1}/${totalQuestions}: ${question.question}`);
 
-        // Extract evidence from ALL assigned documents for this specific question
-        const documentEvidence = await this.extractComprehensiveEvidence(
-          assignedDocuments, 
-          question
-        );
+        try {
+          // Extract evidence from ALL assigned documents for this specific question
+          const documentEvidence = await this.extractComprehensiveEvidence(
+            assignedDocuments, 
+            question
+          );
 
-        // Compile comprehensive answer using cross-document analysis
-        const answer = await this.compileEnhancedAnswer(question, documentEvidence);
-        comprehensiveAnswers[question.id] = answer;
+          // Compile comprehensive answer using cross-document analysis
+          const answer = await this.compileEnhancedAnswer(question, documentEvidence);
+          comprehensiveAnswers[question.id] = answer;
 
-        console.log(`✅ Completed question ${i + 1}/${totalQuestions} with ${documentEvidence.length} evidence pieces`);
+          console.log(`✅ Completed question ${i + 1}/${totalQuestions} with ${documentEvidence.length} evidence pieces`);
+        } catch (error) {
+          console.error(`❌ Error processing question ${i + 1}: ${error}`);
+          // Continue with empty answer instead of getting stuck
+          comprehensiveAnswers[question.id] = {
+            question: question.question,
+            category: question.category,
+            answer: 'Analysis temporarily unavailable due to processing error.',
+            confidence: 10,
+            sources: [],
+            evidence: [],
+            keyFindings: [],
+            recommendations: [],
+            gaps: [`Processing error for: ${question.question}`],
+            crossReferences: []
+          };
+        }
         
-        // Longer delay to make progress visible to users
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Small delay to allow progress updates to be visible (reduced from 3000ms)
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Step 3: Generate cross-analysis insights
       await this.updateProgress(jobId, 86, 'Generating comprehensive insights');
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Show progress step
       const insights = await this.generateCrossAnalysisInsights(comprehensiveAnswers);
 
       // Step 4: Store enhanced results
-      await this.updateProgress(jobId, 99, 'Storing enhanced analysis results');
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Show progress step
+      await this.updateProgress(jobId, 95, 'Storing enhanced analysis results');
       await this.storeEnhancedResults(dealId, comprehensiveAnswers, insights, assignedDocuments);
 
       // Complete
@@ -194,13 +209,20 @@ export class EnhancedComprehensiveAnalysisService {
       const batch = documents.slice(i, i + batchSize);
       console.log(`🔎 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)}`);
       
-      const batchPromises = batch.map(doc => this.extractEvidenceFromDocument(doc, question));
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Filter valid evidence
-      const validEvidence = batchResults.filter((ev): ev is DocumentEvidence => 
-        ev !== null && ev.relevantQuotes.length > 0
+      // Process each document with timeout and error handling
+      const batchPromises = batch.map(doc => 
+        this.extractEvidenceFromDocumentWithTimeout(doc, question, 30000) // 30 second timeout
       );
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Filter valid evidence from settled promises
+      const validEvidence = batchResults
+        .filter((result): result is PromiseFulfilledResult<DocumentEvidence> => 
+          result.status === 'fulfilled' && 
+          result.value !== null && 
+          result.value.relevantQuotes.length > 0
+        )
+        .map(result => result.value);
       evidence.push(...validEvidence);
       
       console.log(`✅ Batch completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
@@ -208,6 +230,25 @@ export class EnhancedComprehensiveAnalysisService {
 
     console.log(`📋 Total evidence pieces extracted: ${evidence.length} from ${documents.length} documents`);
     return evidence;
+  }
+
+  /**
+   * Extract evidence from document with timeout protection
+   */
+  private async extractEvidenceFromDocumentWithTimeout(
+    document: any, 
+    question: any, 
+    timeoutMs: number = 30000
+  ): Promise<DocumentEvidence | null> {
+    return Promise.race([
+      this.extractEvidenceFromDocument(document, question),
+      new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+      )
+    ]).catch(error => {
+      console.warn(`⚠️ Evidence extraction failed for ${document.name}: ${error.message}`);
+      return null;
+    });
   }
 
   /**
@@ -262,7 +303,8 @@ Be thorough - extract ALL relevant information, not just the most obvious points
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2000
+        max_tokens: 2000,
+        timeout: 25000 // 25 second timeout
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -360,7 +402,8 @@ Provide a thorough analysis with specific source attribution.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 3000
+        max_tokens: 3000,
+        timeout: 25000 // 25 second timeout
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -475,11 +518,11 @@ Provide a thorough analysis with specific source attribution.`;
         console.error(`❌ Could not find analysis ID for deal ${dealId}, agent ${this.agentType}`);
       }
     } else {
-      // Create new record if none exists
+      // Create new record if none exists  
       await storage.createAgentAnalysis({
         dealId,
         agentType: this.agentType.toLowerCase(),
-        analysisData: JSON.stringify(analysisData),
+        status: 'Completed',
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -516,7 +559,7 @@ Provide a thorough analysis with specific source attribution.`;
     await storage.createAgentAnalysis({
       dealId,
       agentType: this.agentType.toLowerCase(),
-      analysisData: JSON.stringify(emptyAnalysisData),
+      status: 'Completed',
       createdAt: new Date(),
       updatedAt: new Date()
     });
