@@ -6,7 +6,7 @@ import { apiRequest } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
-// Removed DueDiligenceAgents - now using automatic system
+import StartAllAnalysesButton from '@/components/StartAllAnalysesButton';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
@@ -952,18 +952,44 @@ function DueDiligenceContent() {
                   <div className="pt-4">
                     <Card className="bg-dark-light border-dark-lighter">
                       <CardContent className="pt-6">
-                        <h3 className="text-lg font-semibold mb-4">🤖 Automatic AI Processing Enabled</h3>
+                        <h3 className="text-lg font-semibold mb-4">🤖 AI Agent Analysis Control</h3>
                         <p className="text-gray-400 mb-4">
-                          All AI agents now operate automatically in the background. When documents are uploaded, 
-                          the 7 specialized agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) 
-                          begin processing immediately without manual intervention.
+                          Start comprehensive AI analysis across all 7 specialized agents: Legal, Clinical, Commercial, HR, Financial, IP, and Research.
                         </p>
-                        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
-                          <p className="text-green-400 text-sm">
-                            ✅ No manual buttons required - system operates automatically<br/>
-                            ✅ Real-time progress tracking in agent tabs<br/>
-                            ✅ 12-hour timeout protection for stuck jobs
-                          </p>
+                        
+                        <div className="space-y-4">
+                          <StartAllAnalysesButton 
+                            dealId={parseInt(selectedDeal)}
+                            documents={documents}
+                            isRunning={isRunningAllAnalyses}
+                            onStart={() => setIsRunningAllAnalyses(true)}
+                            onComplete={() => setIsRunningAllAnalyses(false)}
+                            activeJobs={jobProgress?.jobs || []}
+                          />
+                          
+                          {jobProgress?.jobs && jobProgress.jobs.length > 0 && (
+                            <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
+                              <p className="text-blue-400 text-sm mb-2">
+                                🔄 Active AI Processing ({jobProgress.jobs.length} agents running)
+                              </p>
+                              <div className="space-y-1">
+                                {jobProgress.jobs.map((job: any) => (
+                                  <div key={job.jobId} className="flex justify-between text-xs">
+                                    <span className="text-gray-300">{job.agentType}</span>
+                                    <span className="text-green-400">{job.progress}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
+                            <p className="text-green-400 text-sm">
+                              ✅ Real-time progress tracking in agent tabs<br/>
+                              ✅ 12-hour timeout protection for stuck jobs<br/>
+                              ✅ Persistent processing survives page reloads
+                            </p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
