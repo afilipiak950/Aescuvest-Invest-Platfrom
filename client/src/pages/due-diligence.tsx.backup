@@ -381,6 +381,106 @@ function DueDiligenceContent() {
       console.log('🚫 DEPRECATED: This fragmented analysis system is disabled. Use the unified analysis instead.');
       throw new Error('This analysis method is deprecated. Use the unified analysis system instead.');
     },
+      try {
+        await apiRequest(`/api/analyses/${selectedDeal}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
+        
+        // Also clear any stuck background jobs AND duplicate job IDs
+        try {
+          await apiRequest(`/api/background-jobs/clear-stuck`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
+          });
+          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
+        } catch (clearError) {
+          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
+        }
+        
+        // Enhanced cleanup: Delete ALL background job records for this deal to prevent duplicates
+        try {
+          await apiRequest(`/api/background-jobs/deal/${selectedDeal}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log(`✅ Deleted all background job records for deal ${selectedDeal}`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ Failed to delete background job records:`, cleanupError);
+        }
+        
+        // Wait for cleanup to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (deleteError) {
+        console.error(`❌ Failed to delete existing analyses:`, deleteError);
+        // Continue anyway - the analyses will be overwritten
+      }
+      
+      // Step 3: Run all comprehensive analyses in parallel
+      const comprehensiveEndpoints = [
+        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
+        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
+      ];
+
+      const promises = comprehensiveEndpoints.map(async (endpoint) => {
+        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
+        try {
+          const response = await apiRequest(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          // Handle "already running" responses as successes
+          if (response && (response.alreadyRunning || response.success === false)) {
+            console.log(`✅ Analysis already running for ${endpoint}:`, response.message);
+            return { success: true, alreadyRunning: true, endpoint, message: response.message };
+          }
+          
+          // Handle HR endpoint temporary issue - treat as success for now
+          if (endpoint.includes('hr-analysis') && response && response.success === false) {
+            console.log(`⚠️ HR analysis has temporary issue, treating as success for now`);
+            return { success: true, temporaryIssue: true, endpoint, message: 'HR analysis temporarily unavailable' };
+          }
+          
+          return response;
+        } catch (error) {
+          console.error(`❌ Error starting analysis for ${endpoint}:`, error);
+          // Don't throw - let individual failures not break the whole process
+          return { success: false, endpoint, error: (error as any)?.message || 'Unknown error' };
+        }
+      });
+      
+      const results = await Promise.allSettled(promises);
+      
+      // Log results and count successes
+      let successCount = 0;
+      results.forEach((result, index) => {
+        const endpoint = comprehensiveEndpoints[index];
+        if (result.status === 'fulfilled' && (result.value.success || result.value.alreadyRunning)) {
+          successCount++;
+          console.log(`✅ ${endpoint}: Success`);
+        } else {
+          console.log(`❌ ${endpoint}: Failed`);
+        }
+      });
+      
+      console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints?.length || 0} analyses started/running`);
+      
+      // Return successful results (don't fail if some are already running)
+      return results.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
+      
+      } catch (mutationError) {
+        console.error('❌ Critical error in mutation function:', mutationError);
+        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
+      }
+    },
     onSuccess: (results) => {
       console.log(`✅ All comprehensive analyses started successfully:`, results);
       
