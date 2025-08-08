@@ -283,11 +283,11 @@ export class ComprehensiveResearchAnalysisService {
       console.log(`🔬 DEBUG: researchAnswers JSON length:`, JSON.stringify(researchAnswers).length);
       
       // Check if analysis already exists
-      const existingAnalysis = await storageService.getAgentAnalysisByDealAndType(dealId, 'Research');
+      const existingAnalysis = await storage.getAgentAnalysisByDealAndType(dealId, 'Research');
       
       if (existingAnalysis) {
         // Update existing analysis
-        await storageService.updateAgentAnalysis(existingAnalysis.id, {
+        await storage.updateAgentAnalysis(existingAnalysis.id, {
           status: 'Completed',
           findings: analysisResults.findings,
           recommendations: analysisResults.recommendations,
@@ -295,9 +295,11 @@ export class ComprehensiveResearchAnalysisService {
           completedAt: analysisResults.completedAt,
           metadata: analysisResults.metadata
         });
+        console.log(`🔬 Updated existing research analysis for deal ${dealId}`);
       } else {
         // Create new analysis
-        await storageService.createAgentAnalysis(analysisResults);
+        await storage.saveAgentAnalysis(dealId, 'Research', analysisResults);
+        console.log(`🔬 Created new research analysis for deal ${dealId}`);
       }
       console.log(`🔬 Research analysis completed for deal ${dealId} with ${Object.keys(researchAnswers).length} questions analyzed`);
 
@@ -306,7 +308,7 @@ export class ComprehensiveResearchAnalysisService {
       console.error(`🔬 Error details:`, error?.message || error);
       console.error(`🔬 Error stack:`, error?.stack);
       
-      await storageService.updateBackgroundJob(analysisJobId, {
+      await storage.updateBackgroundJob(analysisJobId, {
         status: 'failed',
         error: error?.message || 'Unknown error'
       });
@@ -315,7 +317,7 @@ export class ComprehensiveResearchAnalysisService {
         isRunning: false,
         progress: 0,
         message: `Analysis failed: ${error?.message || 'Unknown error'}`
-      }, storageService, analysisJobId);
+      }, storage, analysisJobId);
       
       throw error;
     }
