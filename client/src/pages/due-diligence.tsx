@@ -6,6 +6,7 @@ import { apiRequest } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
+import ResearchAgentCard from '@/components/ResearchAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
@@ -28,7 +29,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 function DueDiligenceContent() {
     const [location] = useLocation();
     const params = useParams();
-    const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
+    const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '33'); // Default to deal 33
     const [activeAgent, setActiveAgent] = useState<string>('legal');
     const [isUploading, setIsUploading] = useState(false);
     const [showUploadField, setShowUploadField] = useState(false);
@@ -1474,13 +1475,9 @@ function DueDiligenceContent() {
                 </TabsContent>
                 
                 <TabsContent value="research">
-                  <EnhancedAgentCard 
+                  <ResearchAgentCard 
                     dealId={parseInt(selectedDeal)}
-                    agentType="Research"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Research' || a.agentType.toLowerCase() === 'research') : undefined}
-                    isLoading={isLoadingAnalyses}
                     documents={documents}
-                    isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research', 'research-analysis'])?.progress || 0}
                     currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research', 'research-analysis'])?.currentStep}
                   />
