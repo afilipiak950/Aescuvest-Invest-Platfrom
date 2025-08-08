@@ -1822,7 +1822,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
@@ -2176,7 +2176,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.sources && answer.sources.length > 0 && (
                                   <Badge 
@@ -2457,7 +2457,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
@@ -3676,7 +3676,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
@@ -3974,7 +3974,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
                                 </Badge>
                                 {answer.quotes && answer.quotes.length > 0 && (
                                   <Badge 
@@ -4184,7 +4184,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
           </p>
         </div>
-        <ComprehensiveIPAnalysisButton dealId={dealId} />
+        <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
+          <Play className="h-4 w-4 mr-2" />
+          Start Analysis
+        </Button>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
