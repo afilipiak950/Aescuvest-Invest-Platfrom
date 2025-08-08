@@ -39,6 +39,7 @@ interface ComprehensiveAnswer {
 export class EnhancedComprehensiveAnalysisService {
   private agentType: string;
   private questions: any[];
+  private jobId: string = '';
 
   constructor(agentType: string, questions: any[]) {
     this.agentType = agentType;
@@ -53,7 +54,7 @@ export class EnhancedComprehensiveAnalysisService {
     
     // Create background job for tracking using unified pattern with timestamp for uniqueness
     const timestamp = Date.now();
-    const jobId = `${this.agentType.toLowerCase()}-analysis-${dealId}-${timestamp}`;
+    this.jobId = `${this.agentType.toLowerCase()}-analysis-${dealId}-${timestamp}`;
     
     // Check for existing ACTIVE jobs to prevent duplicates
     const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
@@ -82,7 +83,7 @@ export class EnhancedComprehensiveAnalysisService {
     }
     
     await storage.createBackgroundJob({
-      jobId,
+      jobId: this.jobId,
       dealId,
       jobType: 'agent_analysis',
       agentType: this.agentType.toLowerCase(),
@@ -93,14 +94,14 @@ export class EnhancedComprehensiveAnalysisService {
 
     try {
       // Step 1: Get all assigned documents
-      await this.updateProgress(jobId, 2, 'Finding assigned documents');
+      await this.updateProgress(2, 'Finding assigned documents');
       const assignedDocuments = await this.getAssignedDocuments(dealId);
       console.log(`📄 Found ${assignedDocuments.length} documents assigned to ${this.agentType}`);
 
       if (assignedDocuments.length === 0) {
         console.log(`⚠️ No documents assigned to ${this.agentType} agent - completing with empty results`);
-        await this.storeEmptyResults(dealId, jobId);
-        await this.updateProgress(jobId, 100, 'Analysis completed - no documents to analyze', 'completed');
+        await this.storeEmptyResults(dealId);
+        await this.updateProgress(100, 'Analysis completed - no documents to analyze', 'completed');
         return;
       }
 
@@ -113,7 +114,7 @@ export class EnhancedComprehensiveAnalysisService {
         // Progress from 3% to 85% across all questions
         const progressPercent = Math.floor(3 + ((i / totalQuestions) * 82));
         
-        await this.updateProgress(jobId, progressPercent, `Analyzing: ${question.question}`);
+        await this.updateProgress(progressPercent, `Analyzing: ${question.question}`);
         console.log(`🔍 Question ${i + 1}/${totalQuestions}: ${question.question}`);
 
         try {
@@ -150,21 +151,21 @@ export class EnhancedComprehensiveAnalysisService {
       }
 
       // Step 3: Generate cross-analysis insights
-      await this.updateProgress(jobId, 86, 'Generating comprehensive insights');
+      await this.updateProgress(86, 'Generating comprehensive insights');
       const insights = await this.generateCrossAnalysisInsights(comprehensiveAnswers);
 
       // Step 4: Store enhanced results
-      await this.updateProgress(jobId, 95, 'Storing enhanced analysis results');
+      await this.updateProgress(95, 'Storing enhanced analysis results');
       await this.storeEnhancedResults(dealId, comprehensiveAnswers, insights, assignedDocuments);
 
       // Complete
-      await this.updateProgress(jobId, 100, 'Enhanced analysis completed', 'completed');
+      await this.updateProgress(100, 'Enhanced analysis completed', 'completed');
       console.log(`✅ Enhanced ${this.agentType} analysis completed for deal ${dealId}`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`❌ Error in enhanced ${this.agentType} analysis:`, error);
-      await storage.updateBackgroundJob(jobId, {
+      await storage.updateBackgroundJob(this.jobId, {
         status: 'failed',
         error: errorMessage
       });
@@ -203,15 +204,22 @@ export class EnhancedComprehensiveAnalysisService {
     console.log(`🔎 Extracting evidence for: ${question.question}`);
     const evidence: DocumentEvidence[] = [];
     
-    // Process documents in batches to manage API rate limits
-    const batchSize = 5;
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      console.log(`🔎 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)}`);
+    // Process documents in batches to manage API rate limits and prevent timeouts
+    const batchSize = 3; // Reduced batch size for faster processing
+    const maxDocuments = Math.min(documents.length, 50); // Limit to 50 documents for research analysis to prevent timeout
+    const documentsToProcess = documents.slice(0, maxDocuments);
+    
+    for (let i = 0; i < documentsToProcess.length; i += batchSize) {
+      const batch = documentsToProcess.slice(i, i + batchSize);
+      console.log(`🔎 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documentsToProcess.length / batchSize)} (${i + 1}-${Math.min(i + batchSize, documentsToProcess.length)} of ${documentsToProcess.length})`);
+      
+      // Update progress during processing
+      const progress = Math.round(((i + batchSize) / documentsToProcess.length) * 85); // Leave 15% for synthesis
+      await this.updateProgress(progress, `Processing batch ${Math.floor(i / batchSize) + 1}`, 'processing');
       
       // Process each document with timeout and error handling
       const batchPromises = batch.map(doc => 
-        this.extractEvidenceFromDocumentWithTimeout(doc, question, 30000) // 30 second timeout
+        this.extractEvidenceFromDocumentWithTimeout(doc, question, 10000) // 10 second timeout
       );
       const batchResults = await Promise.allSettled(batchPromises);
       
@@ -226,6 +234,11 @@ export class EnhancedComprehensiveAnalysisService {
       evidence.push(...validEvidence);
       
       console.log(`✅ Batch completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      
+      // Add small delay between batches to prevent rate limiting
+      if (i + batchSize < documentsToProcess.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
     console.log(`📋 Total evidence pieces extracted: ${evidence.length} from ${documents.length} documents`);
@@ -238,7 +251,7 @@ export class EnhancedComprehensiveAnalysisService {
   private async extractEvidenceFromDocumentWithTimeout(
     document: any, 
     question: any, 
-    timeoutMs: number = 30000
+    timeoutMs: number = 10000
   ): Promise<DocumentEvidence | null> {
     return Promise.race([
       this.extractEvidenceFromDocument(document, question),
@@ -529,7 +542,7 @@ Provide a thorough analysis with specific source attribution.`;
   /**
    * Store empty results when no documents are available
    */
-  private async storeEmptyResults(dealId: number, jobId: string): Promise<void> {
+  private async storeEmptyResults(dealId: number): Promise<void> {
     const emptyAnalysisData = {
       agentType: this.agentType.toLowerCase(),
       questions: {},
@@ -565,16 +578,19 @@ Provide a thorough analysis with specific source attribution.`;
    * Update progress
    */
   private async updateProgress(
-    jobId: string, 
     progress: number, 
     currentStep: string, 
     status: string = 'processing'
   ): Promise<void> {
-    await storage.updateBackgroundJob(jobId, {
-      progress,
-      currentStep,
-      status
-    });
+    try {
+      await storage.updateBackgroundJob(this.jobId, {
+        progress,
+        currentStep,
+        status
+      });
+    } catch (error) {
+      console.warn(`⚠️ Failed to update progress for job ${this.jobId}:`, error);
+    }
   }
 }
 
