@@ -129,6 +129,13 @@ interface ClinicalAnswer {
 export class ComprehensiveClinicalAnalysisService {
   
   /**
+   * Start comprehensive clinical analysis
+   */
+  async startComprehensiveAnalysis(dealId: number): Promise<any> {
+    return this.runComprehensiveAnalysis(dealId);
+  }
+  
+  /**
    * Run comprehensive analysis for all assigned clinical documents
    */
   async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string): Promise<any> {
