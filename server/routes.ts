@@ -42,6 +42,7 @@ import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import jobRecoveryRoutes from './routes/jobRecovery';
 import unifiedAnalysisRoutes from './routes/unifiedAnalysis';
+import forceStopRoutes from './routes/forceStopFragmentedJobs';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -7131,6 +7132,9 @@ export async function registerAllRoutes(app: Express) {
   
   // Mount unified analysis routes
   app.use(unifiedAnalysisRoutes);
+  
+  // Mount force stop routes
+  app.use(forceStopRoutes);
 
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
