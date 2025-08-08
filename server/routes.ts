@@ -41,7 +41,7 @@ import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import jobRecoveryRoutes from './routes/jobRecovery';
-import unifiedAnalysisRoutes from './routes/unifiedAnalysis';
+import simpleUnifiedAnalysisRoutes from './routes/simpleUnifiedAnalysis';
 import forceStopRoutes from './routes/forceStopFragmentedJobs';
 
 // Background processing function for AI evaluation
@@ -7130,8 +7130,8 @@ export async function registerAllRoutes(app: Express) {
   // Mount job recovery routes
   app.use(jobRecoveryRoutes);
   
-  // Mount unified analysis routes
-  app.use(unifiedAnalysisRoutes);
+  // Mount simple unified analysis routes
+  app.use(simpleUnifiedAnalysisRoutes);
   
   // Mount force stop routes
   app.use(forceStopRoutes);
