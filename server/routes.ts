@@ -4755,7 +4755,8 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Check for existing IP analysis jobs to prevent duplicates  
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
       const existingIpJob = existingJobs.find(job => 
-        job.agentType === 'IP' && job.status === 'processing'
+        (job.agentType === 'IP' || job.agentType === 'ip') && 
+        job.status === 'processing'
       );
       
       if (existingIpJob) {
@@ -4763,7 +4764,8 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.json({ 
           success: true, 
           message: `IP analysis already running`,
-          jobId: existingIpJob.jobId
+          jobId: existingIpJob.jobId,
+          alreadyRunning: true
         });
       }
       
