@@ -4549,13 +4549,27 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      const { getComprehensiveHrAnalysisProgress } = await import('./comprehensiveHrAnalysisService');
-      const progress = await getComprehensiveHrAnalysisProgress(dealId);
+      // Check for active comprehensive HR analysis job using the same pattern as other agents
+      const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const comprehensiveJob = activeJobs.find(job => 
+        job.agentType === 'HR' && job.status === 'processing'
+      );
       
-      res.json({
-        success: true,
-        ...progress
-      });
+      if (comprehensiveJob) {
+        res.json({
+          success: true,
+          isRunning: true,
+          progress: comprehensiveJob.progress || 0,
+          currentStep: comprehensiveJob.currentStep || 'Starting analysis',
+          jobId: comprehensiveJob.jobId
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0
+        });
+      }
     } catch (error) {
       console.error(`❌ Error getting comprehensive HR analysis progress:`, error);
       res.status(500).json({ success: false, error: 'Failed to get progress' });
