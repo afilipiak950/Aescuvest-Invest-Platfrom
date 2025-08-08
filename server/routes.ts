@@ -4567,15 +4567,32 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      const { getComprehensiveHrAnalysisResults } = await import('./comprehensiveHrAnalysisService');
-      const results = await getComprehensiveHrAnalysisResults(dealId);
+      // Use the same working pattern as the general agents endpoint
+      const analysis = await storage.getAgentAnalysis(dealId, 'HR');
       
-      if (results.success) {
+      if (analysis && analysis.hr_answers) {
+        const hrAnswers = analysis.hr_answers;
+        const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+        const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+        
+        console.log(`✅ Found HR comprehensive analysis for deal ${dealId}:`, {
+          id: analysis.id,
+          agentType: analysis.agentType,
+          status: analysis.status,
+          answersCount: Object.keys(hrAnswers).length
+        });
+        
         res.json({
           success: true,
-          ...results
+          analysis: {
+            ...analysis,
+            hrAnswers,
+            findings,
+            recommendations
+          }
         });
       } else {
+        console.log(`❌ No HR comprehensive analysis found for deal ${dealId}`);
         res.json({
           success: false,
           message: 'No comprehensive HR analysis results found'
