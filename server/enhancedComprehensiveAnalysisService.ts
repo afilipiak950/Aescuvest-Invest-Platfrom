@@ -113,16 +113,18 @@ export class EnhancedComprehensiveAnalysisService {
 
         console.log(`✅ Completed question ${i + 1}/${totalQuestions} with ${documentEvidence.length} evidence pieces`);
         
-        // Brief delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Longer delay to make progress visible to users
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
 
       // Step 3: Generate cross-analysis insights
       await this.updateProgress(jobId, 86, 'Generating comprehensive insights');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Show progress step
       const insights = await this.generateCrossAnalysisInsights(comprehensiveAnswers);
 
       // Step 4: Store enhanced results
       await this.updateProgress(jobId, 99, 'Storing enhanced analysis results');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Show progress step
       await this.storeEnhancedResults(dealId, comprehensiveAnswers, insights, assignedDocuments);
 
       // Complete
