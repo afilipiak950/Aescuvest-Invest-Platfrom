@@ -226,10 +226,7 @@ export async function startComprehensiveAnalysis(dealId: number) {
       await storage.updateBackgroundJob(jobId, {
         progress,
         currentStep: step,
-        metadata: {
-          ...job.metadata,
-          lastUpdate: new Date().toISOString()
-        }
+        updatedAt: new Date()
       });
     } catch (error) {
       console.error(`Error updating IP job progress:`, error);
