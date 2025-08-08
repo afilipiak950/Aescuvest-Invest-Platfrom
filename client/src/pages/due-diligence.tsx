@@ -780,8 +780,42 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <div className="text-sm text-gray-400">
-                  Automatic AI Processing Enabled
+                <div className="flex items-center gap-4">
+                  {documents && documents.length > 0 && (
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setIsRunningAllAnalyses(true);
+                          const response = await fetch('/api/start-all-ai-analyses', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
+                          });
+                          
+                          if (response.ok) {
+                            console.log('✅ Started all AI analyses');
+                          } else {
+                            console.error('❌ Failed to start analyses');
+                            setIsRunningAllAnalyses(false);
+                          }
+                        } catch (error) {
+                          console.error('❌ Error starting analyses:', error);
+                          setIsRunningAllAnalyses(false);
+                        }
+                      }}
+                      disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress.jobs.length > 0)}
+                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0"
+                    >
+                      {(jobProgress?.jobs && jobProgress.jobs.length > 0) ? (
+                        <>🔄 {jobProgress.jobs.length} Agents Running</>
+                      ) : (
+                        <>🚀 Start All 7 AI Agents</>
+                      )}
+                    </Button>
+                  )}
+                  <div className="text-sm text-gray-400">
+                    {documents?.length || 0} documents ready
+                  </div>
                 </div>
               </div>
             </CardHeader>
