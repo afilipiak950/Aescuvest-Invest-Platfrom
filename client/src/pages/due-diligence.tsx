@@ -7,6 +7,7 @@ import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
+import { UnifiedAnalysisProgress } from '@/components/UnifiedAnalysisProgress';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
@@ -1499,6 +1500,9 @@ function DueDiligenceContent() {
                 </TabsContent>
                 
                 <TabsContent value="ai-agents">
+                  {/* Unified Analysis Progress - ONE progress bar for ALL documents across ALL agents */}
+                  <UnifiedAnalysisProgress dealId={parseInt(selectedDeal)} />
+                  
                   <div className="pt-4">
                     <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
                   </div>
