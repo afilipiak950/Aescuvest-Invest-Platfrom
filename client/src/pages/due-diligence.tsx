@@ -6,7 +6,7 @@ import { apiRequest } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
-import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
+// Removed DueDiligenceAgents - now using automatic system
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
@@ -950,7 +950,23 @@ function DueDiligenceContent() {
                 
                 <TabsContent value="ai-agents">
                   <div className="pt-4">
-                    <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
+                    <Card className="bg-dark-light border-dark-lighter">
+                      <CardContent className="pt-6">
+                        <h3 className="text-lg font-semibold mb-4">🤖 Automatic AI Processing Enabled</h3>
+                        <p className="text-gray-400 mb-4">
+                          All AI agents now operate automatically in the background. When documents are uploaded, 
+                          the 7 specialized agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) 
+                          begin processing immediately without manual intervention.
+                        </p>
+                        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
+                          <p className="text-green-400 text-sm">
+                            ✅ No manual buttons required - system operates automatically<br/>
+                            ✅ Real-time progress tracking in agent tabs<br/>
+                            ✅ 12-hour timeout protection for stuck jobs
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </TabsContent>
               </Tabs>
