@@ -456,8 +456,9 @@ export default function EnhancedAgentCard({
   });
 
   const handleRunMistralAnalysis = () => {
-    setIsRunningAnalysis(true);
-    runMistralAnalysisMutation.mutate();
+    console.log('🚫 Individual agent analysis disabled. Please use the unified analysis system.');
+    // setIsRunningAnalysis(true);
+    // runMistralAnalysisMutation.mutate();
   };
 
   // Check if analysis is currently processing by looking at status and recent activity
@@ -3018,22 +3019,16 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
 
   return (
     <Button
-      onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      onClick={() => {
+        console.log('🚫 Individual agent analysis disabled. Please use the unified analysis system.');
+      }}
+      disabled={true}
       size="sm"
-      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
+      className="bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed"
+      title="Individual agent analysis disabled. Use the unified analysis system instead."
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          {isAlreadyRunning ? 'Legal Analysis Running...' : isRunning ? 'Legal Analysis Running...' : 'Starting Analysis...'}
-        </>
-      ) : (
-        <>
-          <Zap className="h-4 w-4 mr-2" />
-          Run AI Analysis
-        </>
-      )}
+      <AlertTriangle className="h-4 w-4 mr-2" />
+      Disabled - Use Unified Analysis
     </Button>
   );
 }
