@@ -843,6 +843,7 @@ export default function EnhancedAgentCard({
       </CardHeader>
       <CardContent>
         {/* Progress Bars - Show for all active background jobs regardless of how they were started */}
+        {console.log(`🎯 Rendering ${agentType} agent card - Agent type match:`, agentType.toLowerCase())}
         {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
         {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
@@ -2490,16 +2491,20 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    console.log('🔬 Research Progress - Job data:', jobProgress);
     
     if (jobProgress?.jobs) {
       const researchJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'Research' || job.agentType === 'research' || 
         (job.jobId && job.jobId.includes('research-analysis'))
       );
-      if (researchJob && researchJob.status === 'processing') {
+      console.log('🔬 Found research job:', researchJob);
+      
+      if (researchJob && researchJob.status === 'processing' && researchJob.progress > 0) {
         setProgress(researchJob.progress || 0);
         setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
         setIsVisible(true);
+        console.log('✅ Research progress bar visible:', researchJob.progress + '%');
         
         // Handle jobs stuck at 100%
         if (researchJob.progress >= 100) {
@@ -2513,9 +2518,11 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
+        console.log('❌ Research progress bar hidden - Job status:', researchJob?.status, 'Progress:', researchJob?.progress);
       }
     } else {
       setIsVisible(false);
+      console.log('❌ Research progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3044,16 +3051,20 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    console.log('🏪 Commercial Progress - Job data:', jobProgress);
     
     if (jobProgress?.jobs) {
       const commercialJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'Commercial' || job.agentType === 'commercial' || 
         (job.jobId && job.jobId.includes('commercial-analysis'))
       );
-      if (commercialJob && commercialJob.status === 'processing') {
+      console.log('🏪 Found commercial job:', commercialJob);
+      
+      if (commercialJob && commercialJob.status === 'processing' && commercialJob.progress > 0) {
         setProgress(commercialJob.progress || 0);
         setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
         setIsVisible(true);
+        console.log('✅ Commercial progress bar visible:', commercialJob.progress + '%');
         
         // Handle stuck jobs - check if job hasn't updated in 5+ minutes
         const jobCreated = new Date(commercialJob.metadata?.startTime || commercialJob.createdAt);
@@ -3085,9 +3096,11 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
+        console.log('❌ Commercial progress bar hidden - Job status:', commercialJob?.status, 'Progress:', commercialJob?.progress);
       }
     } else {
       setIsVisible(false);
+      console.log('❌ Commercial progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3095,6 +3108,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
     };
   }, [jobProgress]);
 
+  console.log('🏪 Commercial Progress - isVisible:', isVisible, 'progress:', progress);
   if (!isVisible) return null;
 
   return (
@@ -3137,16 +3151,20 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    console.log('🧬 Clinical Progress - Job data:', jobProgress);
     
     if (jobProgress?.jobs) {
       const clinicalJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'Clinical' || job.agentType === 'clinical' || 
         (job.jobId && job.jobId.includes('clinical-analysis'))
       );
-      if (clinicalJob && clinicalJob.status === 'processing') {
+      console.log('🧬 Found clinical job:', clinicalJob);
+      
+      if (clinicalJob && clinicalJob.status === 'processing' && clinicalJob.progress > 0) {
         setProgress(clinicalJob.progress || 0);
         setCurrentStep(clinicalJob.currentDocument || clinicalJob.currentStep || 'Processing clinical analysis...');
         setIsVisible(true);
+        console.log('✅ Clinical progress bar visible:', clinicalJob.progress + '%');
         
         // Handle jobs stuck at 100%
         if (clinicalJob.progress >= 100) {
@@ -3160,9 +3178,11 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
+        console.log('❌ Clinical progress bar hidden - Job status:', clinicalJob?.status, 'Progress:', clinicalJob?.progress);
       }
     } else {
       setIsVisible(false);
+      console.log('❌ Clinical progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3170,6 +3190,7 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     };
   }, [jobProgress]);
 
+  console.log('🧬 Clinical Progress - isVisible:', isVisible, 'progress:', progress);
   if (!isVisible) return null;
 
   return (
@@ -3518,16 +3539,20 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    console.log('🔍 Legal Progress - Job data:', jobProgress);
     
     if (jobProgress?.jobs) {
       const legalJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'Legal' || job.agentType === 'legal' || 
         (job.jobId && job.jobId.includes('legal-analysis'))
       );
-      if (legalJob && legalJob.status === 'processing') {
+      console.log('⚖️ Found legal job:', legalJob);
+      
+      if (legalJob && legalJob.status === 'processing' && legalJob.progress > 0) {
         setProgress(legalJob.progress || 0);
         setCurrentStep(legalJob.currentDocument || legalJob.currentStep || 'Processing legal analysis...');
         setIsVisible(true);
+        console.log('✅ Legal progress bar visible:', legalJob.progress + '%');
         
         // Handle jobs stuck at 100%
         if (legalJob.progress >= 100) {
@@ -3541,9 +3566,11 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
         }
       } else {
         setIsVisible(false);
+        console.log('❌ Legal progress bar hidden - Job status:', legalJob?.status, 'Progress:', legalJob?.progress);
       }
     } else {
       setIsVisible(false);
+      console.log('❌ Legal progress bar hidden - No jobs data');
     }
 
     return () => {
@@ -3551,6 +3578,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
     };
   }, [jobProgress]);
 
+  console.log('🔍 Legal Progress - isVisible:', isVisible, 'progress:', progress);
   if (!isVisible) return null;
 
   return (
