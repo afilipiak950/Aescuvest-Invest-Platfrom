@@ -125,13 +125,18 @@ class AIProcessingTimeoutService {
 
       // Send WebSocket update
       if (job.dealId) {
-        websocketManager.notifyJobUpdate(job.dealId, {
-          jobId: job.jobId,
-          status: 'completed',
-          progress: 100,
-          currentStep: `Auto-completed after ${minutesStuck} minutes timeout`,
-          message: 'Processing completed automatically due to timeout'
-        });
+        try {
+          websocketManager.notifyJobUpdate(job.dealId, {
+            jobId: job.jobId,
+            status: 'completed',
+            progress: 100,
+            currentStep: `Auto-completed after ${minutesStuck} minutes timeout`,
+            message: 'Processing completed automatically due to timeout'
+          });
+        } catch (wsError) {
+          console.error('❌ WebSocket notification failed:', wsError);
+          // Continue without failing the job cleanup
+        }
       }
 
       console.log(`✅ Successfully handled stuck job ${job.jobId} after ${minutesStuck} minutes`);
