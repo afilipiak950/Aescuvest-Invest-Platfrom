@@ -144,14 +144,9 @@ export default function Dashboard() {
       try {
         setIsLoading(true);
         
-        // Use mock data as fallback if API fails
-        try {
-          // Fetch real deals data
-          const dealsResponse = await fetch('/api/deals');
-          if (!dealsResponse.ok) {
-            throw new Error('API not available');
-          }
-          const dealsData = await dealsResponse.json();
+        // Fetch real deals data
+        const dealsResponse = await fetch('/api/deals');
+        const dealsData = await dealsResponse.json();
         
         if (Array.isArray(dealsData)) {
           setDeals(dealsData);
@@ -315,21 +310,6 @@ export default function Dashboard() {
             deal.status === 'screening' || deal.status === 'Due Diligence'
           ).length;
           setPendingTasks(tasksCount);
-        } catch (apiError) {
-          console.log('API call failed, using mock data');
-          // Use mock data as fallback
-          setDeals(mockDeals);
-          setActivities(mockActivities);
-          setReminders(mockReminders);
-          setStats(mockDashboardStats);
-          setUserName('Admin');
-          setPendingTasks(3);
-          setRealStats({
-            dueDiligenceActive: 14,
-            memosDrafts: 3,
-            investorMatches: 8,
-            recentDealsChange: 15
-          });
         }
         
       } catch (error) {
