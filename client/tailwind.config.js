@@ -2,10 +2,8 @@
 export default {
   darkMode: ["class"],
   content: [
-    "./client/index.html",
-    "./client/src/**/*.{js,jsx,ts,tsx}",
+    "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
-    "./index.html"
   ],
   safelist: [
     // Core theme colors
