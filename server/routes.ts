@@ -162,6 +162,17 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Fix CSS content type for production builds
+  app.get('/assets/*.css', (req, res, next) => {
+    res.set('Content-Type', 'text/css; charset=utf-8');
+    next();
+  });
+  
+  app.get('/assets/*.js', (req, res, next) => {
+    res.set('Content-Type', 'application/javascript; charset=utf-8');
+    next();
+  });
+  
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
   app.get('/api/test-route', (req: Request, res: Response) => {
