@@ -234,6 +234,16 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // Fix CSS content-type before serving static files in production
+  app.use((req, res, next) => {
+    if (req.path.endsWith('.css')) {
+      res.set('Content-Type', 'text/css; charset=utf-8');
+    } else if (req.path.endsWith('.js')) {
+      res.set('Content-Type', 'application/javascript; charset=utf-8');
+    }
+    next();
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes

@@ -2,9 +2,26 @@
 export default {
   darkMode: ["class"],
   content: [
-    "./client/index.html", 
     "./client/src/**/*.{js,jsx,ts,tsx}",
-    "./client/**/*.{html,js,jsx,ts,tsx}"
+    "./client/index.html"
+  ],
+  safelist: [
+    'bg-dark',
+    'bg-navy', 
+    'bg-primary',
+    'text-primary',
+    'text-white',
+    'text-gray-300',
+    'text-gray-400',
+    'text-gray-500',
+    'border-primary',
+    'hover:bg-primary/90',
+    'focus:border-primary',
+    'bg-gray-900/50',
+    'border-gray-800',
+    'border-gray-600',
+    'focus:ring-primary',
+    'focus:ring-2'
   ],
   theme: {
     extend: {
@@ -64,17 +81,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Custom dark theme colors
+        // Custom dark theme colors - ensure these are included
         dark: "#090921",
         "dark-light": "#10102d", 
         "dark-lighter": "#161638",
         "dark-border": "#1e1e40",
         "primary-custom": "#00CC00",
         navy: "#050533",
-      },
-      // Add missing border utilities
-      borderColor: {
-        'hal': 'var(--border)',
       },
       keyframes: {
         "accordion-down": {
