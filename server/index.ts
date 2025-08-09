@@ -234,13 +234,17 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Fix CSS content-type before serving static files
-  app.use('/assets', (req, res, next) => {
+  // Fix CSS content-type with override middleware
+  app.use((req, res, next) => {
+    const originalSend = res.send;
+    const originalSendFile = res.sendFile;
+    
     if (req.path.endsWith('.css')) {
       res.set('Content-Type', 'text/css; charset=utf-8');
     } else if (req.path.endsWith('.js')) {
       res.set('Content-Type', 'application/javascript; charset=utf-8');
     }
+    
     next();
   });
 
