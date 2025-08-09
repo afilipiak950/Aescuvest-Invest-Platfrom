@@ -110,7 +110,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     // Use the assignedAgents field populated by the intelligent assignment system
     if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
       console.log(`📋 Document "${document.name}" assigned to agents:`, document.assignedAgents);
-      return document.assignedAgents.map(agentType => {
+      return document.assignedAgents.map((agentType: string) => {
         // Capitalize the agent type for display
         const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
         return getAgentInfo(capitalizedType);
@@ -459,7 +459,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                 <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
                 {assignedAgents.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {assignedAgents.map((agent, index) => {
+                    {assignedAgents.map((agent: any, index: number) => {
                       const colorClasses = agent.colorClasses.split(' ');
                       return (
                         <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
@@ -1423,11 +1423,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="zipFile" className="text-white">Upload ZIP File</Label>
+            <Label htmlFor="zipFile-primary" className="text-white">Upload ZIP File</Label>
             <div className="flex items-center gap-3">
               <Input
                 ref={fileInputRef}
-                id="zipFile"
+                id="zipFile-primary"
                 type="file"
                 accept=".zip"
                 onChange={handleZipUpload}
@@ -1898,11 +1898,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
                   {/* ZIP Upload */}
                   <div className="space-y-3">
-                    <Label htmlFor="zipFile" className="text-white text-sm font-medium">Upload ZIP File</Label>
+                    <Label htmlFor="zipFile-secondary" className="text-white text-sm font-medium">Upload ZIP File</Label>
                     <div className="relative">
                       <Input
                         ref={fileInputRef}
-                        id="zipFile"
+                        id="zipFile-secondary"
                         type="file"
                         accept=".zip"
                         onChange={handleZipUpload}
