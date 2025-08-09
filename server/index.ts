@@ -234,8 +234,8 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Fix CSS content-type before serving static files in production
-  app.use((req, res, next) => {
+  // Fix CSS content-type before serving static files
+  app.use('/assets', (req, res, next) => {
     if (req.path.endsWith('.css')) {
       res.set('Content-Type', 'text/css; charset=utf-8');
     } else if (req.path.endsWith('.js')) {
