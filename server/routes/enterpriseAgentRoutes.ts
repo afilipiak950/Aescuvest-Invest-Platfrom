@@ -447,4 +447,94 @@ router.get('/progress/:dealId', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/enterprise/deals/:dealId/agent/:agentType/comprehensive
+ * Get comprehensive analysis results including structured Q&A
+ */
+router.get('/deals/:dealId/agent/:agentType/comprehensive', async (req: Request, res: Response) => {
+  try {
+    const { dealId, agentType } = req.params;
+    const dealIdNum = parseInt(dealId);
+
+    if (isNaN(dealIdNum)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid deal ID'
+      });
+    }
+
+    const validAgentTypes = ['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
+    if (!validAgentTypes.includes(agentType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid agent type. Must be one of: ${validAgentTypes.join(', ')}`
+      });
+    }
+
+    console.log(`🔍 Fetching comprehensive ${agentType} analysis for deal ${dealIdNum}`);
+
+    // Get analysis from database
+    const { storage } = await import('../storage');
+    const analysis = await storage.getAnalysisByDealAndAgent(dealIdNum, agentType);
+    
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: 'Analysis not found',
+        message: `No ${agentType} analysis found for deal ${dealIdNum}`
+      });
+    }
+
+    // Parse structured Q&A from metadata
+    let structuredAnswers = {};
+    try {
+      const metadata = typeof analysis.metadata === 'string' 
+        ? JSON.parse(analysis.metadata) 
+        : analysis.metadata;
+      structuredAnswers = metadata?.structuredAnswers || {};
+    } catch (error) {
+      console.warn(`⚠️ Failed to parse metadata for ${agentType} analysis:`, error);
+    }
+
+    // Build comprehensive response
+    const comprehensiveResult = {
+      analysis: {
+        findings: typeof analysis.findings === 'string' 
+          ? JSON.parse(analysis.findings) 
+          : analysis.findings || [],
+        recommendations: typeof analysis.recommendations === 'string' 
+          ? JSON.parse(analysis.recommendations) 
+          : analysis.recommendations || [],
+        documentsAnalyzed: analysis.documentsAnalyzed || 0,
+        // **CRITICAL**: Include structured Q&A answers
+        [`${agentType.toLowerCase()}Answers`]: structuredAnswers,
+        createdAt: analysis.createdAt,
+        updatedAt: analysis.updatedAt
+      },
+      metadata: {
+        dealId: dealIdNum,
+        agentType,
+        hasStructuredAnswers: Object.keys(structuredAnswers).length > 0,
+        questionCount: Object.keys(structuredAnswers).length,
+        version: '2.0-structured-qa'
+      }
+    };
+
+    console.log(`✅ Retrieved ${agentType} analysis with ${Object.keys(structuredAnswers).length} Q&A answers`);
+
+    return res.json({
+      success: true,
+      ...comprehensiveResult
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to fetch comprehensive analysis:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch comprehensive analysis',
+      message: error.message
+    });
+  }
+});
+
 export default router;
