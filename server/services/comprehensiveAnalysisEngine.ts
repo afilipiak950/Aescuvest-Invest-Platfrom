@@ -654,9 +654,16 @@ Provide synthesized answer:`
     const analyses = await storage.getAnalysesByDealId(dealId);
     const agentStatus: Record<string, any> = {};
     
+    // Get document assignments for context
+    const assignments = await this.getAgentDocumentAssignments(dealId);
+    
     for (const agentType of Object.keys(AGENT_QUESTIONS)) {
-      const analysis = analyses.find(a => a.agentType.toLowerCase() === agentType);
+      // Find the most recent analysis for this agent
+      const relevantAnalyses = analyses.filter(a => a.agentType.toLowerCase() === agentType);
+      const analysis = relevantAnalyses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      
       const questions = AGENT_QUESTIONS[agentType];
+      const assignedDocs = assignments[agentType] || [];
       
       if (analysis) {
         const answers = (analysis as any)[`${agentType}Answers`] || {};
@@ -664,11 +671,11 @@ Provide synthesized answer:`
         
         agentStatus[agentType] = {
           status: analysis.status,
-          progress: analysis.progress,
+          progress: analysis.progress || 0,
           questionsCompleted,
           totalQuestions: questions.length,
-          documentsProcessed: 0, // This would need tracking in the actual implementation
-          totalDocuments: 0
+          documentsProcessed: assignedDocs.length,
+          totalDocuments: assignedDocs.length
         };
       } else {
         agentStatus[agentType] = {
@@ -677,7 +684,7 @@ Provide synthesized answer:`
           questionsCompleted: 0,
           totalQuestions: questions.length,
           documentsProcessed: 0,
-          totalDocuments: 0
+          totalDocuments: assignedDocs.length
         };
       }
     }
