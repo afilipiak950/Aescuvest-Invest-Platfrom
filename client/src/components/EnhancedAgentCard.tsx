@@ -1932,7 +1932,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed legal documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the legal documents for this question</p>
                               </div>
                             </div>
                           )}
@@ -2266,7 +2266,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed clinical documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the clinical documents for this question</p>
                               </div>
                             </div>
                           )}
@@ -2563,7 +2563,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Research Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed research documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the research documents for this question</p>
                               </div>
                             </div>
                           )}
@@ -3509,7 +3509,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-emerald-400 mb-2">Financial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed financial documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the financial documents for this question</p>
                               </div>
                             </div>
                           )}
@@ -3788,7 +3788,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed commercial documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the commercial documents for this question</p>
                               </div>
                             </div>
                           )}
@@ -4089,7 +4089,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed HR documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the HR documents for this question</p>
                               </div>
                               <div className="bg-dark/30 rounded p-3">
                                 <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
@@ -4399,7 +4399,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed IP documents for: {question.question}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the IP documents for this question</p>
                               </div>
                             </div>
                           )}
