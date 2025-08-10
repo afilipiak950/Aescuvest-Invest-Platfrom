@@ -2468,21 +2468,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         };
       }
       
-      // Fallback: Try to find any relevant research answer for this question
-      for (const [key, answerData] of Object.entries(researchAnswersData)) {
-        if (answerData && typeof answerData === 'object' && answerData.answer) {
-          console.log('📝 Using fallback research answer from', key, 'for question', questionId);
-          return {
-            answer: answerData.answer,
-            confidence: Math.round((answerData.confidence || 0.7) * 100),
-            sources: answerData.sources || [],
-            quotes: answerData.quotes || [],
-            keyFindings: answerData.keyFindings || [],
-            evidenceSummary: answerData.evidenceSummary,
-            researchAssessment: answerData.researchAssessment
-          };
-        }
-      }
+      // No fallback to prevent all questions showing the same answer
+      console.log('❌ No specific research answer found for question', questionId, 'in research_answers:', Object.keys(researchAnswersData));
     }
     
     // Fallback to camelCase if available
