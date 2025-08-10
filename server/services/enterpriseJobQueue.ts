@@ -450,21 +450,39 @@ class EnterpriseJobQueue {
         ...results // Include all structured answers (legalAnswers, clinicalAnswers, etc.)
       };
 
-      // Save to agent analyses table
+      // Save to agent analyses table with proper structured Q&A columns
       const { storage } = await import('../storage');
-      await storage.createAgentAnalysis({
+      
+      // **CRITICAL FIX**: Save structured answers to proper database columns
+      const analysisData: any = {
         dealId,
         agentType,
         findings: JSON.stringify(comprehensiveResults.findings),
         recommendations: JSON.stringify(comprehensiveResults.recommendations),
         documentsAnalyzed: comprehensiveResults.documentsAnalyzed,
-        // **CRITICAL**: Store structured Q&A in metadata
-        metadata: JSON.stringify({
-          structuredAnswers: results[`${agentType.toLowerCase()}Answers`] || {},
-          processedAt: new Date(),
-          version: '2.0-structured-qa'
-        })
-      });
+      };
+      
+      // **CRITICAL**: Save structured Q&A to proper column based on agent type
+      const agentAnswers = results[`${agentType.toLowerCase()}Answers`] || {};
+      if (Object.keys(agentAnswers).length > 0) {
+        if (agentType === 'Legal') {
+          analysisData.legalAnswers = JSON.stringify(agentAnswers);
+        } else if (agentType === 'Clinical') {
+          analysisData.clinicalAnswers = JSON.stringify(agentAnswers);
+        } else if (agentType === 'Commercial') {
+          analysisData.commercialAnswers = JSON.stringify(agentAnswers);
+        } else if (agentType === 'IP') {
+          analysisData.ip_answers = JSON.stringify(agentAnswers);
+        } else if (agentType === 'HR') {
+          analysisData.hr_answers = JSON.stringify(agentAnswers);
+        } else if (agentType === 'Financial') {
+          analysisData.financial_answers = JSON.stringify(agentAnswers);
+        } else if (agentType === 'Research') {
+          analysisData.research_answers = JSON.stringify(agentAnswers);
+        }
+      }
+      
+      await storage.createAgentAnalysis(analysisData);
       
       console.log(`✅ Successfully saved ${agentType} analysis with ${Object.keys(results[`${agentType.toLowerCase()}Answers`] || {}).length} Q&A answers`);
     } catch (error) {

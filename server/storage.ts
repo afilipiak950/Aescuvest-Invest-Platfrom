@@ -844,8 +844,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnalysisByDealAndAgent(dealId: number, agentType: string): Promise<AgentAnalysis | undefined> {
+    // **CRITICAL FIX**: Explicitly select ALL columns including structured answer columns
     const [analysis] = await db
-      .select()
+      .select({
+        id: agentAnalyses.id,
+        dealId: agentAnalyses.dealId,
+        agentType: agentAnalyses.agentType,
+        status: agentAnalyses.status,
+        progress: agentAnalyses.progress,
+        findings: agentAnalyses.findings,
+        recommendations: agentAnalyses.recommendations,
+        documentSources: agentAnalyses.documentSources,
+        // **CRITICAL**: Include all structured answer columns
+        legalAnswers: agentAnalyses.legalAnswers,
+        clinicalAnswers: agentAnalyses.clinicalAnswers,
+        commercialAnswers: agentAnalyses.commercialAnswers,
+        ip_answers: agentAnalyses.ip_answers,
+        hr_answers: agentAnalyses.hr_answers,
+        financial_answers: agentAnalyses.financial_answers,
+        research_answers: agentAnalyses.research_answers,
+        createdAt: agentAnalyses.createdAt,
+        updatedAt: agentAnalyses.updatedAt
+      })
       .from(agentAnalyses)
       .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType)))
       .orderBy(desc(agentAnalyses.createdAt))
