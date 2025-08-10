@@ -277,7 +277,7 @@ class EnterpriseJobQueue {
       return { message: 'No documents to analyze', findings: [], recommendations: [] };
     }
 
-    // Process documents with retry logic
+    // Process documents with retry logic AND generate structured Q&A
     progress.currentStep = 'Processing documents with AI analysis';
     const analysisResult = await this.processDocumentsWithRetry(
       job,
@@ -285,6 +285,21 @@ class EnterpriseJobQueue {
       agentType,
       progress
     );
+
+    // **CRITICAL FIX**: Generate structured Q&A answers with sources and quotes
+    progress.currentStep = 'Generating structured Q&A answers';
+    job.progress = 85;
+    this.broadcastProgress(job.id, progress);
+    
+    const { StructuredQuestionAnswering } = await import('./structuredQuestionAnswering');
+    const qaService = new StructuredQuestionAnswering();
+    const structuredAnswers = await qaService.generateAllAnswersForAgent(agentType, documents);
+    
+    // Merge Q&A answers into analysis result with proper structure
+    const agentAnswersKey = `${agentType.toLowerCase()}Answers`;
+    analysisResult[agentAnswersKey] = structuredAnswers;
+    
+    console.log(`✅ Generated ${Object.keys(structuredAnswers).length} structured Q&A answers for ${agentType}`);
 
     // Save results to database
     progress.currentStep = 'Saving analysis results';
@@ -421,10 +436,37 @@ class EnterpriseJobQueue {
 
   private async saveAnalysisResults(dealId: number, agentType: string, results: any): Promise<void> {
     try {
-      // Use the existing createAgentAnalysis function
-      const { createAgentAnalysis } = await import('./dueDiligence');
-      await createAgentAnalysis(dealId, agentType as any, results);
-      console.log(`💾 Saved ${agentType} analysis results for deal ${dealId}`);
+      console.log(`💾 Saving ${agentType} analysis results for deal ${dealId}`, {
+        findings: results.findings?.length || 0,
+        recommendations: results.recommendations?.length || 0,
+        structuredAnswers: Object.keys(results[`${agentType.toLowerCase()}Answers`] || {}).length
+      });
+
+      // **CRITICAL FIX**: Save comprehensive results including structured Q&A
+      const comprehensiveResults = {
+        findings: results.findings || [],
+        recommendations: results.recommendations || [],
+        documentsAnalyzed: results.documentsProcessed || 0,
+        ...results // Include all structured answers (legalAnswers, clinicalAnswers, etc.)
+      };
+
+      // Save to agent analyses table
+      const { storage } = await import('../storage');
+      await storage.createAgentAnalysis({
+        dealId,
+        agentType,
+        findings: JSON.stringify(comprehensiveResults.findings),
+        recommendations: JSON.stringify(comprehensiveResults.recommendations),
+        documentsAnalyzed: comprehensiveResults.documentsAnalyzed,
+        // **CRITICAL**: Store structured Q&A in metadata
+        metadata: JSON.stringify({
+          structuredAnswers: results[`${agentType.toLowerCase()}Answers`] || {},
+          processedAt: new Date(),
+          version: '2.0-structured-qa'
+        })
+      });
+      
+      console.log(`✅ Successfully saved ${agentType} analysis with ${Object.keys(results[`${agentType.toLowerCase()}Answers`] || {}).length} Q&A answers`);
     } catch (error) {
       console.error(`❌ Failed to save ${agentType} analysis results:`, error);
       throw error;
