@@ -60,6 +60,8 @@ const AGENT_QUESTIONS = {
 
 interface DocumentChunk {
   content: string;
+  score: number;
+  index: number;
   metadata: {
     documentId: number;
     documentName: string;
@@ -114,7 +116,7 @@ export class StructuredQuestionAnswering {
 
   // Generate document hash for deduplication
   private async getDocumentHash(document: any): Promise<string> {
-    const content = document.extractedText || document.ocrText || '';
+    const content = document.ocrText || document.ocr_text || '';
     const crypto = await import('crypto');
     return crypto.createHash('sha256').update(content + document.name).digest('hex').substring(0, 16);
   }
@@ -124,17 +126,18 @@ export class StructuredQuestionAnswering {
     const chunks: DocumentChunk[] = [];
     
     for (const doc of documents) {
-      // CRITICAL FIX: Use AI summary as fallback when no OCR text available  
-      let content = doc.extractedText || doc.ocrText || doc.summary || '';
+      // CRITICAL FIX: Use correct database column names and AI summary as fallback  
+      let content = doc.ocrText || doc.ocr_text || doc.summary || '';
       
-      // Safely extract from AI summary object
-      if (!content && doc.aiSummary) {
-        if (typeof doc.aiSummary === 'string') {
-          content = doc.aiSummary;
-        } else if (doc.aiSummary.executiveSummary) {
-          content = doc.aiSummary.executiveSummary;
-        } else if (Array.isArray(doc.aiSummary.criticalFindings)) {
-          content = doc.aiSummary.criticalFindings.join('. ');
+      // Safely extract from AI summary object (database uses ai_summary column)
+      const aiSummary = doc.aiSummary || doc.ai_summary;
+      if (!content && aiSummary) {
+        if (typeof aiSummary === 'string') {
+          content = aiSummary;
+        } else if (aiSummary.executiveSummary) {
+          content = aiSummary.executiveSummary;
+        } else if (Array.isArray(aiSummary.criticalFindings)) {
+          content = aiSummary.criticalFindings.join('. ');
         }
       }
       

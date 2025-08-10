@@ -6811,7 +6811,12 @@ async function runSpecializedAgentAnalysis(document: any, agent: any, deal: any)
 
 Company: ${deal.companyName}
 Document: ${document.name}
-Content: ${(document.ocrText || document.aiSummary || '').substring(0, 3000) || 'No content available'}
+Content: ${(() => {
+        // Import safe document utilities for type-safe content extraction
+        const { safeGetDocumentContent } = require('./utils/documentUtils');
+        const content = safeGetDocumentContent(document);
+        return content.text.substring(0, 3000) || 'No content available';
+      })()}
 
 Focus on: ${agent.focus}
 
