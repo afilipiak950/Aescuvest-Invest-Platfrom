@@ -1512,6 +1512,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Reset analyses endpoint - Called by Comprehensive Analysis button
+  app.post('/api/analyses/reset', async (req: Request, res: Response) => {
+    try {
+      const { dealId } = req.body;
+      
+      if (!dealId || isNaN(parseInt(dealId))) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Valid deal ID is required' 
+        });
+      }
+      
+      const dealIdInt = parseInt(dealId);
+      console.log(`🔄 COMPREHENSIVE RESET for deal ${dealIdInt} - clearing all analysis states`);
+      
+      // Step 1: Delete all existing analyses
+      const existingAnalyses = await storage.getAnalysesByDealId(dealIdInt);
+      let deletedCount = 0;
+      
+      for (const analysis of existingAnalyses) {
+        await storage.deleteAnalysis(analysis.id);
+        deletedCount++;
+      }
+      console.log(`✅ Deleted ${deletedCount} existing analyses`);
+      
+      // Step 2: Cancel all background jobs for this deal
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealIdInt);
+      let cancelledJobs = 0;
+      
+      for (const job of existingJobs) {
+        if (job.jobType === 'agent_analysis' || 
+            job.jobType === 'comprehensive_analysis' ||
+            job.jobType === 'granular_analysis' ||
+            job.jobType === 'document_question_analysis') {
+          await storage.updateBackgroundJob(job.id.toString(), { status: 'cancelled' });
+          cancelledJobs++;
+        }
+      }
+      console.log(`✅ Cancelled ${cancelledJobs} background jobs`);
+      
+      // Step 3: Clear all relevant caches
+      (globalThis as any).agentCache = {};
+      (globalThis as any).analysisCache = {};
+      (globalThis as any).questionAnswerCache = {};
+      (globalThis as any).granularJobProcessor = null;
+      (globalThis as any).documentQuestionJobs = {};
+      console.log('✅ Cleared all analysis caches');
+      
+      // Step 4: Reset comprehensive analysis if it exists
+      try {
+        await storage.deleteComprehensiveAnalysis?.(dealIdInt);
+        console.log('✅ Cleared comprehensive analysis');
+      } catch (error) {
+        console.log('No comprehensive analysis to clear');
+      }
+      
+      console.log(`🎯 Reset completed for deal ${dealIdInt} - ready for fresh analysis`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Analysis reset completed successfully',
+        deletedAnalyses: deletedCount,
+        cancelledJobs: cancelledJobs,
+        resetType: 'comprehensive',
+        dealId: dealIdInt
+      });
+      
+    } catch (error) {
+      console.error('❌ Analysis reset failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: (error as Error).message 
+      });
+    }
+  });
   
   // Investment Memo routes
   app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
