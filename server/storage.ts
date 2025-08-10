@@ -1864,6 +1864,29 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async markStuckJobsAsFailed(dealId: number, agentType: string): Promise<void> {
+    try {
+      console.log(`🧹 Marking stuck ${agentType} jobs as failed for deal ${dealId}`);
+      
+      await db
+        .update(backgroundJobs)
+        .set({ 
+          status: 'failed', 
+          errorMessage: `Job marked as stuck and failed during cleanup for ${agentType} agent`,
+          updatedAt: new Date() 
+        })
+        .where(and(
+          eq(backgroundJobs.dealId, dealId),
+          eq(backgroundJobs.agentType, agentType),
+          inArray(backgroundJobs.status, ['processing', 'pending'])
+        ));
+        
+      console.log(`✅ Marked stuck ${agentType} jobs as failed for deal ${dealId}`);
+    } catch (error) {
+      console.error(`❌ Error marking stuck ${agentType} jobs as failed:`, error);
+    }
+  }
+
 
 
 

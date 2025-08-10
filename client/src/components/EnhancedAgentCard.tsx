@@ -13,7 +13,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap } from 'lucide-react';
+import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap, BookOpen, Clock, ExternalLink } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -77,6 +77,37 @@ export default function EnhancedAgentCard({
     title: string;
   }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
+
+  // Mutation for starting individual agent analysis
+  const startAgentAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/start-analysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response;
+    },
+    onMutate: () => {
+      setIsRunningAnalysis(true);
+    },
+    onSuccess: () => {
+      // Invalidate all relevant queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`] });
+    },
+    onError: (error) => {
+      console.error(`Failed to start ${agentType} analysis:`, error);
+      setIsRunningAnalysis(false);
+    },
+    onSettled: () => {
+      // Keep running state true while we wait for background processing
+      setTimeout(() => setIsRunningAnalysis(false), 5000);
+    }
+  });
+
+  const handleStartAnalysis = () => {
+    startAgentAnalysisMutation.mutate();
+  };
 
   // Fetch comprehensive HR analysis data directly for HR agents
   const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
@@ -457,7 +488,37 @@ export default function EnhancedAgentCard({
   
 
 
-  // Mutation to run Mistral analysis for this agent
+  // Mutation to run individual agent analysis
+  const runIndividualAgentAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log(`🚀 Starting individual ${agentType} agent analysis for deal ${dealId}`);
+      return apiRequest(`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/start-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    },
+    onSuccess: (data) => {
+      console.log(`✅ Individual ${agentType} analysis started successfully:`, data);
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      // Set running state
+      setIsRunningAnalysis(true);
+      // Keep running state for a longer period to allow backend processing to be detected
+      setTimeout(() => {
+        setIsRunningAnalysis(false);
+      }, 10000);
+    },
+    onError: (error) => {
+      console.error(`❌ Individual ${agentType} analysis failed to start:`, error);
+      setIsRunningAnalysis(false);
+    }
+  });
+
+  // Mutation to run Mistral analysis for this agent (legacy)
   const runMistralAnalysisMutation = useMutation({
     mutationFn: async () => {
       console.log(`🚀 Starting ${agentType} agent analysis for deal ${dealId}`);
@@ -484,6 +545,11 @@ export default function EnhancedAgentCard({
       setIsRunningAnalysis(false);
     }
   });
+
+  const handleRunIndividualAnalysis = () => {
+    setIsRunningAnalysis(true);
+    runIndividualAgentAnalysisMutation.mutate();
+  };
 
   const handleRunMistralAnalysis = () => {
     setIsRunningAnalysis(true);
@@ -980,6 +1046,32 @@ export default function EnhancedAgentCard({
             <div className="text-xl md:text-2xl font-bold text-red-400 mb-1">{riskFactors}</div>
             <div className="text-xs md:text-sm text-gray-400">Risk Factors</div>
           </div>
+        </div>
+
+        {/* Individual Agent Start Analysis Button */}
+        <div className="mb-6">
+          <button
+            onClick={handleRunIndividualAnalysis}
+            disabled={runIndividualAgentAnalysisMutation.isPending || isRunningAnalysis}
+            className="w-full bg-gradient-to-r from-primary to-primary/80 text-white font-medium py-3 px-4 rounded-lg hover:from-primary/90 hover:to-primary/70 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {runIndividualAgentAnalysisMutation.isPending || isRunningAnalysis ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Starting {agentType} Analysis...
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                Start {agentType} Analysis
+              </>
+            )}
+          </button>
+          {runIndividualAgentAnalysisMutation.isPending && (
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              Starting individual {agentType} analysis pipeline...
+            </p>
+          )}
         </div>
 
         {/* Comprehensive Questions for Legal and Clinical Agents */}
@@ -4403,9 +4495,24 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
           </p>
         </div>
-        <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
-          <Play className="h-4 w-4 mr-2" />
-          Start Analysis
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-purple-400 border-purple-400 hover:bg-purple-400/10"
+          onClick={handleStartAnalysis}
+          disabled={isRunningAnalysis || startAgentAnalysisMutation.isPending}
+        >
+          {(isRunningAnalysis || startAgentAnalysisMutation.isPending) ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Starting...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 mr-2" />
+              Start Analysis
+            </>
+          )}
         </Button>
       </div>
 

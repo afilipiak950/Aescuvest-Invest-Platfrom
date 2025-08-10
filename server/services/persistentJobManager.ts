@@ -221,6 +221,39 @@ export class PersistentJobManager {
     return this.activeJobs;
   }
 
+  async clearStuckJobsForAgent(dealId: number, agentType: string): Promise<void> {
+    try {
+      console.log(`🧹 Clearing stuck jobs for ${agentType} agent on deal ${dealId}`);
+      
+      // Clear from in-memory tracking
+      const jobKeysToDelete = [];
+      for (const [jobId, job] of this.activeJobs.entries()) {
+        if (job.dealId === dealId && job.agentType === agentType) {
+          jobKeysToDelete.push(jobId);
+          
+          // Clear any intervals
+          const interval = this.jobIntervals.get(jobId);
+          if (interval) {
+            clearInterval(interval);
+            this.jobIntervals.delete(jobId);
+          }
+        }
+      }
+      
+      jobKeysToDelete.forEach(jobId => {
+        this.activeJobs.delete(jobId);
+        console.log(`🗑️ Cleared stuck ${agentType} job: ${jobId}`);
+      });
+      
+      // Update database to mark as failed
+      await storage.markStuckJobsAsFailed(dealId, agentType);
+      
+      console.log(`✅ Cleared ${jobKeysToDelete.length} stuck ${agentType} jobs for deal ${dealId}`);
+    } catch (error) {
+      console.error(`❌ Error clearing stuck ${agentType} jobs:`, error);
+    }
+  }
+
   async clearStuckJobs(dealId: number): Promise<void> {
     try {
       console.log(`🧹 Clearing stuck jobs for deal ${dealId} from persistent job manager`);
