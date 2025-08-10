@@ -345,71 +345,76 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Comprehensive Analysis Mutation - Full document×question matrix processing
+  // Combined OCR Analysis Mutation - New efficient Combined OCR system
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log(`🚀 Comprehensive Analysis - Starting full document×question matrix processing`);
+        console.log(`🚀 Combined OCR Analysis - Starting efficient Combined OCR system for all 7 agents`);
         
         if (!selectedDeal) {
           throw new Error('No deal selected for analysis');
         }
         
-        // Call the comprehensive reset and start endpoint
-        const response = await apiRequest(`/api/deals/${selectedDeal}/comprehensive-reset-and-start`, {
+        // Call the new Combined OCR bulk analysis endpoint
+        const response = await apiRequest(`/api/combined-ocr/analyze-bulk`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            dealId: parseInt(selectedDeal),
+            agentTypes: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
+            forceRefresh: true
+          })
         });
         
-        console.log(`✅ Comprehensive analysis started:`, response);
+        console.log(`✅ Combined OCR analysis started:`, response);
         return response;
         
       } catch (error) {
-        console.error('❌ Comprehensive analysis failed:', error);
+        console.error('❌ Combined OCR analysis failed:', error);
         throw error;
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ Comprehensive analysis started:`, results);
+      console.log(`✅ Combined OCR analysis started:`, results);
       
       toast({
-        title: "Comprehensive Analysis Started",
-        description: `Processing ${results.totalJobs} document×question combinations across all 7 agents`,
+        title: "Combined OCR Analysis Started",
+        description: `Processing all 7 agents with efficient Combined OCR system - ${results.jobId}`,
         duration: 5000,
       });
       
       // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       
-      // Monitor progress
+      // Monitor progress with new Combined OCR status endpoint
       const checkProgress = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`/api/deals/${selectedDeal}/comprehensive-status`);
+          const statusResponse = await fetch(`/api/combined-ocr/bulk-status/${results.jobId}`);
           const statusData = await statusResponse.json();
           
           if (statusData.success && statusData.overallProgress >= 100) {
-            console.log(`🎉 Comprehensive analysis completed!`);
+            console.log(`🎉 Combined OCR analysis completed!`);
             setIsRunningAllAnalyses(false);
             clearInterval(checkProgress);
             
             queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
             
             toast({
-              title: "Analysis Complete",
-              description: "Comprehensive document×question analysis completed for all agents",
+              title: "Combined OCR Analysis Complete",
+              description: "All 7 agents completed with high-quality sources and evidence",
               duration: 5000,
             });
           }
         } catch (error) {
-          console.error('Error checking progress:', error);
+          console.error('Error checking Combined OCR progress:', error);
         }
-      }, 5000);
+      }, 3000);
       
-      // Cleanup after 30 minutes
+      // Cleanup after 20 minutes
       setTimeout(() => {
         setIsRunningAllAnalyses(false);
         clearInterval(checkProgress);
-      }, 1800000);
+      }, 1200000);
     },
     onError: (error) => {
       console.error(`❌ Comprehensive analysis failed:`, error);
@@ -424,102 +429,53 @@ function DueDiligenceContent() {
     }
   });
 
-  // Legacy mutation for running all agent analyses using enterprise queue system
+  // Combined OCR Reset & Analysis Mutation - Uses new efficient Combined OCR system
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log(`🚀 Hard Reset & Run All Analyses - Starting for all 7 agents using enterprise queue`);
+        console.log(`🚀 Combined OCR Reset & Analysis - Starting for all 7 agents using efficient Combined OCR system`);
         
-        // Validate selectedDeal is available in mutation context
         if (!selectedDeal) {
           throw new Error('No deal selected for analysis');
         }
         
-        // Step 1: GRANULAR RESET - Clear outputs only, preserve ingestion
-        console.log(`🔄 GRANULAR RESET: Clearing outputs and caches for deal ${selectedDeal}`);
-        try {
-          // Use new granular reset endpoint that preserves document ingestion
-          await apiRequest(`/api/deals/${selectedDeal}/reset-granular`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          
-          console.log(`✅ Granular reset completed - ready for document×question processing`);
-        } catch (resetError) {
-          console.warn(`⚠️ Granular reset failed, falling back to legacy clear:`, resetError);
-          
-          // Fallback to legacy clearing
-          await apiRequest(`/api/background-jobs/clear-stuck`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
-          });
-          
-          await apiRequest(`/api/enterprise/clear-jobs`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
-          });
-          
-          await apiRequest(`/api/analyses/${selectedDeal}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
+        // Step 1: Clear existing analyses (preserving document ingestion)
+        console.log(`🔄 Clearing previous analyses for deal ${selectedDeal}`);
+        await apiRequest(`/api/analyses/${selectedDeal}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
         
         // Wait for cleanup to complete
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Step 2: Start ALL 7 agents with granular document×question processing
-      console.log(`📋 Starting all 7 agents with granular document×question processing`);
-      const agentTypes = ['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
-      
-      const enterprisePromises = agentTypes.map(agentType => {
-        console.log(`🎯 GRANULAR PROCESSING: ${agentType} agent for deal ${selectedDeal}`);
-        return apiRequest(`/api/enterprise/analyze`, {
+        // Step 2: Start Combined OCR bulk analysis for all 7 agents
+        console.log(`📋 Starting Combined OCR bulk analysis for all 7 agents`);
+        const response = await apiRequest(`/api/combined-ocr/analyze-bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            dealId: parseInt(selectedDeal), 
-            agentType: agentType,
-            forceRefresh: true,
-            priority: 1,
-            processingMode: 'granular' // Enable granular document×question processing
+            dealId: parseInt(selectedDeal),
+            agentTypes: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
+            forceRefresh: true
           })
         });
-      });
-      
-      const results = await Promise.allSettled(enterprisePromises);
-      
-      // Log individual agent status
-      const jobIds = [];
-      results.forEach((result, index) => {
-        const agentType = agentTypes[index];
-        if (result.status === 'fulfilled') {
-          console.log(`✅ GRANULAR PROCESSING STARTED: ${agentType} agent successfully enqueued`);
-          if (result.value?.jobId) {
-            jobIds.push({ agentType, jobId: result.value.jobId });
-          }
-        } else {
-          console.log(`❌ GRANULAR PROCESSING FAILED: ${agentType} agent failed to enqueue:`, result.reason);
-        }
-      });
-      
-      console.log(`🎯 All 7 agents started with granular processing. Job IDs:`, jobIds);
-      return { success: true, jobIds, agentCount: agentTypes.length, processingMode: 'granular' };
-      
+        
+        console.log(`✅ Combined OCR analysis started:`, response);
+        return response;
+        
       } catch (mutationError) {
-        console.error('❌ Critical error in enterprise queue mutation:', mutationError);
-        throw new Error(`Enterprise analysis failed: ${(mutationError as any)?.message || 'Unknown error'}`);
+        console.error('❌ Critical error in Combined OCR analysis:', mutationError);
+        throw new Error(`Combined OCR analysis failed: ${(mutationError as any)?.message || 'Unknown error'}`);
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ All 7 agents started via enterprise queue:`, results);
+      console.log(`✅ Combined OCR analysis started for all 7 agents:`, results);
       
-      // Show immediate feedback with hard reset confirmation
+      // Show immediate feedback with Combined OCR confirmation
       toast({
-        title: "Hard Reset Complete - All 7 Agents Started",
-        description: `Successfully cleared old data and started all agents via enterprise queue. Job IDs: ${results?.jobIds?.length || 0}`,
+        title: "Combined OCR Analysis Started",
+        description: `Successfully started all 7 agents with efficient Combined OCR system - Job: ${results?.jobId}`,
         duration: 5000,
       });
       
@@ -618,8 +574,8 @@ function DueDiligenceContent() {
       
       // Immediately show loading feedback for hard reset
       toast({
-        title: "Hard Reset & Run All Analyses",
-        description: "Clearing all outputs/caches/job-states and starting all 7 agents fresh via enterprise queue...",
+        title: "Combined OCR Reset & Analysis",
+        description: "Clearing previous analyses and starting all 7 agents with efficient Combined OCR system...",
         duration: 3000,
       });
       
@@ -672,8 +628,8 @@ function DueDiligenceContent() {
       setIsRunningAllAnalyses(true);
       
       toast({
-        title: "Starting Comprehensive Analysis",
-        description: "Processing full document×question matrix for all 7 agents...",
+        title: "Starting Combined OCR Analysis",
+        description: "Efficient Combined OCR system processing all 7 agents...",
         duration: 3000,
       });
       
