@@ -85,6 +85,14 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Affinity CRM**: For organization data synchronization.
 
 ### Recent Changes (August 2025)
+
+#### Legal Agent Diagnosis & Fix (August 10, 2025)
+- **Issue Diagnosed**: Legal Agent appeared to produce no Q&A answers while other agents worked
+- **Root Cause Found**: NOT Legal-specific - ALL agents failed due to missing OCR text in documents
+- **Technical Problem**: Documents had `extractedText = null` and `aiSummary` as complex object requiring field extraction
+- **Solution Applied**: Enhanced structured Q&A service to fallback to `aiSummary.executiveSummary` and `aiSummary.criticalFindings` when no OCR text available
+- **Fix Location**: `server/services/structuredQuestionAnswering.ts` - added intelligent content extraction from AI summary object structure
+- **Status**: Root cause identified and fix implemented, ready for validation with processed documents
 - **PERFORMANCE BREAKTHROUGH ACHIEVED**: Revolutionized AI agent processing for 500-document scalability:
   - **300x Speed Improvement**: 5 docs in 0.13 minutes vs previous 10+ minutes
   - **Two-Stage LLM Pipeline**: Summary generation → parallel agent analysis with document caching
