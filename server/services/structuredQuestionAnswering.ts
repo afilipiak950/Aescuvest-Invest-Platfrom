@@ -275,25 +275,37 @@ export class StructuredQuestionAnswering {
         }
       );
 
-      if (!response || !response.answer) {
+      // Parse JSON response properly  
+      let result;
+      try {
+        result = typeof response === 'string' ? JSON.parse(response) : response;
+      } catch (error) {
+        console.error(`❌ Failed to parse JSON response for ${agentType}.${questionId}:`, error);
+        console.error(`❌ Raw response was:`, response);
+        return null;
+      }
+
+      // Validate required fields
+      if (!result || typeof result !== 'object' || !result.answer) {
+        console.log(`⚠️ Invalid response structure for ${agentType}.${questionId}:`, result);
         return null;
       }
 
       // Enrich response with document metadata
       const enrichedAnswer: QuestionAnswer = {
-        answer: response.answer,
-        confidence: response.confidence || 0.8,
-        keyFindings: response.keyFindings || [],
-        evidenceSummary: response.evidenceSummary || '',
-        recommendations: response.recommendations || [],
-        quotes: (response.quotes || []).map((quote: any, index: number) => ({
-          text: quote.text,
+        answer: result.answer,
+        confidence: Math.max(0, Math.min(1, result.confidence || 0.8)),
+        keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings : [],
+        evidenceSummary: result.evidenceSummary || 'Evidence analyzed from provided documents',
+        recommendations: Array.isArray(result.recommendations) ? result.recommendations : [],
+        quotes: (Array.isArray(result.quotes) ? result.quotes : []).map((quote: any, index: number) => ({
+          text: quote.text || '',
           docId: relevantChunks[index]?.metadata.documentId || documents[0].id,
           document: quote.document || relevantChunks[index]?.metadata.documentName || 'Unknown',
           page: relevantChunks[index]?.metadata.page,
           relevance: quote.relevance || 'Supporting evidence'
         })),
-        sources: (response.sources || []).map((source: any, index: number) => ({
+        sources: (Array.isArray(result.sources) ? result.sources : []).map((source: any, index: number) => ({
           title: source.title || relevantChunks[index]?.metadata.documentName || 'Unknown',
           docId: source.docId || relevantChunks[index]?.metadata.documentId || documents[0].id,
           page: relevantChunks[index]?.metadata.page,
@@ -302,14 +314,21 @@ export class StructuredQuestionAnswering {
         detailedEvidence: relevantChunks.map(chunk => ({
           documentName: chunk.metadata.documentName,
           relevantContent: [chunk.content],
-          keyFindings: response.keyFindings?.slice(0, 2) || [],
-          documentSummary: chunk.metadata.snippet
+          keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings.slice(0, 2) : [],
+          documentSummary: chunk.metadata.snippet || chunk.content.substring(0, 200) + '...'
         }))
       };
 
+      // Add specific assessment field based on agent type
+      if (agentType === 'Legal') {
+        (enrichedAnswer as any).legalAssessment = result.legalAssessment || 'Legal assessment completed based on available documentation';
+      } else if (agentType === 'Clinical') {
+        (enrichedAnswer as any).clinicalAssessment = result.clinicalAssessment || 'Clinical assessment completed based on available documentation';
+      }
+
       // Cache the result
       this.answerCache.set(cacheKey, enrichedAnswer);
-      console.log(`✅ Generated structured answer for ${agentType}.${questionId}: ${enrichedAnswer.sources.length} sources, ${enrichedAnswer.quotes.length} quotes`);
+      console.log(`✅ Generated structured answer for ${agentType}.${questionId}: ${enrichedAnswer.sources.length} sources, ${enrichedAnswer.quotes.length} quotes, confidence: ${Math.round(enrichedAnswer.confidence * 100)}%`);
       
       return enrichedAnswer;
 
