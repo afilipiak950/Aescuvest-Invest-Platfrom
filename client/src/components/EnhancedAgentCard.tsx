@@ -2350,29 +2350,95 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
+    // First, log what we have available for debugging
+    console.log('🔍 Research getAnswerForQuestion - questionId:', questionId, 'comprehensiveResults:', comprehensiveResults);
+    console.log('🔍 Research analysis data structure:', comprehensiveResults?.analysis);
+    
     // Try comprehensive results first - check snake_case field name from API
     if (comprehensiveResults?.analysis?.research_answers) {
-      const answer = comprehensiveResults.analysis.research_answers[questionId];
-      if (answer) return answer;
+      const researchAnswersData = comprehensiveResults.analysis.research_answers;
+      console.log('✅ Found research_answers data:', researchAnswersData);
+      
+      const answer = researchAnswersData[questionId];
+      if (answer && answer.answer) {
+        console.log('✅ Found structured research answer for', questionId, ':', answer);
+        return {
+          answer: answer.answer,
+          confidence: Math.round((answer.confidence || 0.8) * 100),
+          sources: answer.sources || [],
+          quotes: answer.quotes || [],
+          keyFindings: answer.keyFindings || [],
+          evidenceSummary: answer.evidenceSummary,
+          researchAssessment: answer.researchAssessment
+        };
+      }
+      
+      // Fallback: Try to find any relevant research answer for this question
+      for (const [key, answerData] of Object.entries(researchAnswersData)) {
+        if (answerData && typeof answerData === 'object' && answerData.answer) {
+          console.log('📝 Using fallback research answer from', key, 'for question', questionId);
+          return {
+            answer: answerData.answer,
+            confidence: Math.round((answerData.confidence || 0.7) * 100),
+            sources: answerData.sources || [],
+            quotes: answerData.quotes || [],
+            keyFindings: answerData.keyFindings || [],
+            evidenceSummary: answerData.evidenceSummary,
+            researchAssessment: answerData.researchAssessment
+          };
+        }
+      }
     }
     
     // Fallback to camelCase if available
     if (comprehensiveResults?.analysis?.researchAnswers) {
-      const answer = comprehensiveResults.analysis.researchAnswers[questionId];
-      if (answer) return answer;
+      const researchAnswersData = comprehensiveResults.analysis.researchAnswers;
+      const answer = researchAnswersData[questionId];
+      if (answer && answer.answer) {
+        return {
+          answer: answer.answer,
+          confidence: Math.round((answer.confidence || 0.8) * 100),
+          sources: answer.sources || [],
+          quotes: answer.quotes || [],
+          keyFindings: answer.keyFindings || [],
+          evidenceSummary: answer.evidenceSummary,
+          researchAssessment: answer.researchAssessment
+        };
+      }
     }
     
     // Fallback to regular analysis results if comprehensive is empty
     if (analysisData?.research_answers) {
       const answer = analysisData.research_answers[questionId];
-      if (answer) return answer;
+      if (answer && answer.answer) {
+        return {
+          answer: answer.answer,
+          confidence: Math.round((answer.confidence || 0.8) * 100),
+          sources: answer.sources || [],
+          quotes: answer.quotes || [],
+          keyFindings: answer.keyFindings || [],
+          evidenceSummary: answer.evidenceSummary,
+          researchAssessment: answer.researchAssessment
+        };
+      }
     }
     
     if (analysisData?.researchAnswers) {
       const answer = analysisData.researchAnswers[questionId];
-      if (answer) return answer;
+      if (answer && answer.answer) {
+        return {
+          answer: answer.answer,
+          confidence: Math.round((answer.confidence || 0.8) * 100),
+          sources: answer.sources || [],
+          quotes: answer.quotes || [],
+          keyFindings: answer.keyFindings || [],
+          evidenceSummary: answer.evidenceSummary,
+          researchAssessment: answer.researchAssessment
+        };
+      }
     }
     
+    console.log('❌ No research answer found for question', questionId);
     return null;
   };
 
@@ -4361,22 +4427,26 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                     📖 Document Quotes ({answer.sources.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.sources.map((source: string, index: number) => (
-                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
-                                        <div className="flex items-start justify-between mb-1">
-                                          <button
-                                            onClick={() => handleDocumentClick(source)}
-                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${source}`}
-                                          >
-                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
-                                          </button>
+                                    {answer.sources.map((source: any, index: number) => {
+                                      // Handle both string and object sources safely
+                                      const sourceName = typeof source === 'string' ? source : (source?.name || source?.title || source?.document || String(source));
+                                      return (
+                                        <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                          <div className="flex items-start justify-between mb-1">
+                                            <button
+                                              onClick={() => handleDocumentClick(sourceName)}
+                                              className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                              title={`View document: ${sourceName}`}
+                                            >
+                                              📄 {sourceName.length > 25 ? `${sourceName.substring(0, 25)}...` : sourceName}
+                                            </button>
+                                          </div>
+                                          <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                            "{answer.answer}"
+                                          </blockquote>
                                         </div>
-                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{answer.answer}"
-                                        </blockquote>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
