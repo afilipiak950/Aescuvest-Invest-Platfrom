@@ -485,15 +485,40 @@ router.get('/deals/:dealId/agent/:agentType/comprehensive', async (req: Request,
       });
     }
 
-    // Parse structured Q&A from metadata
+    // **CRITICAL FIX**: Parse structured Q&A from proper database columns
     let structuredAnswers = {};
     try {
-      const metadata = typeof analysis.metadata === 'string' 
-        ? JSON.parse(analysis.metadata) 
-        : analysis.metadata;
-      structuredAnswers = metadata?.structuredAnswers || {};
+      if (agentType === 'Legal' && analysis.legalAnswers) {
+        structuredAnswers = typeof analysis.legalAnswers === 'string' 
+          ? JSON.parse(analysis.legalAnswers) 
+          : analysis.legalAnswers;
+      } else if (agentType === 'Clinical' && analysis.clinicalAnswers) {
+        structuredAnswers = typeof analysis.clinicalAnswers === 'string' 
+          ? JSON.parse(analysis.clinicalAnswers) 
+          : analysis.clinicalAnswers;
+      } else if (agentType === 'Commercial' && analysis.commercialAnswers) {
+        structuredAnswers = typeof analysis.commercialAnswers === 'string' 
+          ? JSON.parse(analysis.commercialAnswers) 
+          : analysis.commercialAnswers;
+      } else if (agentType === 'IP' && analysis.ip_answers) {
+        structuredAnswers = typeof analysis.ip_answers === 'string' 
+          ? JSON.parse(analysis.ip_answers) 
+          : analysis.ip_answers;
+      } else if (agentType === 'HR' && analysis.hr_answers) {
+        structuredAnswers = typeof analysis.hr_answers === 'string' 
+          ? JSON.parse(analysis.hr_answers) 
+          : analysis.hr_answers;
+      } else if (agentType === 'Financial' && analysis.financial_answers) {
+        structuredAnswers = typeof analysis.financial_answers === 'string' 
+          ? JSON.parse(analysis.financial_answers) 
+          : analysis.financial_answers;
+      } else if (agentType === 'Research' && analysis.research_answers) {
+        structuredAnswers = typeof analysis.research_answers === 'string' 
+          ? JSON.parse(analysis.research_answers) 
+          : analysis.research_answers;
+      }
     } catch (error) {
-      console.warn(`⚠️ Failed to parse metadata for ${agentType} analysis:`, error);
+      console.warn(`⚠️ Failed to parse ${agentType} structured answers:`, error);
     }
 
     // Build comprehensive response
