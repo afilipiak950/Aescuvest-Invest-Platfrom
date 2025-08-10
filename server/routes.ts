@@ -4035,29 +4035,60 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Clinical Analysis Start Route
+  // Clinical Analysis Start Route - Using Enterprise Job Queue
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      // Check if there's already a running comprehensive clinical analysis
-      const existingClinicalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_clinical_analysis');
-      if (existingClinicalJob) {
-        return res.json({
-          success: true,
-          message: 'Comprehensive clinical analysis already running',
-          alreadyRunning: true,
-          progress: existingClinicalJob.progress || 0
-        });
-      }
+      console.log(`🧬 Clinical analysis request for deal ${dealId} - redirecting to enterprise queue`);
       
-      // Import the comprehensive clinical analysis service
-      const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
-      
-      // Create background job for progress tracking
-      const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
-      
+      // Redirect to enterprise job queue for clinical analysis
       try {
+        const { enterpriseJobQueue } = await import('./services/enterpriseJobQueue');
+        
+        const jobId = await enterpriseJobQueue.enqueueAgentAnalysis(
+          dealId,
+          'Clinical',
+          {
+            priority: 8, // High priority for clinical analysis
+            forceRefresh: true,
+            metadata: {
+              source: 'comprehensive_clinical_analysis',
+              triggeredBy: 'user_request'
+            }
+          }
+        );
+        
+        console.log(`✅ Clinical analysis job ${jobId} enqueued for deal ${dealId}`);
+        
+        res.json({ 
+          success: true,
+          jobId,
+          message: 'Clinical analysis started using enterprise job queue - processing documents with AI agent',
+          redirectedToEnterprise: true
+        });
+        
+      } catch (enterpriseError) {
+        console.error(`❌ Enterprise queue failed, falling back to legacy system:`, enterpriseError);
+        
+        // Fallback to legacy system if enterprise queue fails
+        // Check if there's already a running comprehensive clinical analysis
+        const existingClinicalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_clinical_analysis');
+        if (existingClinicalJob) {
+          return res.json({
+            success: true,
+            message: 'Comprehensive clinical analysis already running',
+            alreadyRunning: true,
+            progress: existingClinicalJob.progress || 0
+          });
+        }
+        
+        // Import the comprehensive clinical analysis service
+        const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
+        
+        // Create background job for progress tracking
+        const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
+        
         await storage.createBackgroundJob({
           jobId,
           jobType: 'comprehensive_clinical_analysis',
@@ -4069,30 +4100,25 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
           processedDocuments: 0,
           startedAt: new Date()
         });
-      } catch (error) {
-        console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-        return res.status(500).json({ 
-          success: false, 
-          error: `Failed to initialize comprehensive clinical analysis: ${error.message}` 
+
+        // Run comprehensive clinical analysis in background with progress tracking
+        (async () => {
+          try {
+            console.log(`🔧 Starting comprehensive clinical analysis background process for deal ${dealId}`);
+            await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId);
+            console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
+          } catch (error) {
+            console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
+            console.error(`❌ Error stack:`, error.stack);
+          }
+        })();
+        
+        res.json({ 
+          success: true, 
+          message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
         });
       }
-
-      // Run comprehensive clinical analysis in background with progress tracking
-      (async () => {
-        try {
-          console.log(`🔧 Starting comprehensive clinical analysis background process for deal ${dealId}`);
-          await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId);
-          console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
-          console.error(`❌ Error stack:`, error.stack);
-        }
-      })();
       
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
-      });
     } catch (error) {
       console.error(`❌ Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive clinical analysis' });
