@@ -220,7 +220,7 @@ export async function analyzeDocument(
     { 
       jsonResponse: true, 
       temperature: 0.2, // Lower temperature for more consistent, detailed analysis
-      model: "gpt-4o", // Ensure we use the most capable model
+      model: "gpt-5", // GPT-5 is the newest OpenAI model (August 2025) with advanced reasoning capabilities
       maxTokens: 8000 // Increase token limit for detailed responses
     }
   );
