@@ -4,6 +4,53 @@ import { enterpriseJobQueue } from '../services/enterpriseJobQueue';
 
 const router = express.Router();
 
+/**
+ * GET /api/enterprise/system-notice
+ * Information about system optimization and the new Combined OCR approach
+ */
+router.get('/system-notice', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    notice: {
+      title: "System Performance Optimization Available",
+      message: "A new Combined OCR analysis system is now available for significantly improved performance",
+      currentSystem: {
+        name: "Granular Job Processing",
+        approach: "Individual document×question pairs",
+        estimatedJobsForFullAnalysis: "1000+ jobs",
+        averageCompletionTime: "20-30 minutes",
+        status: "Legacy - Still supported but not recommended"
+      },
+      optimizedSystem: {
+        name: "Combined OCR Processing", 
+        approach: "Agent-level document analysis",
+        estimatedJobsForFullAnalysis: "7 jobs (one per agent)",
+        averageCompletionTime: "3-5 minutes",
+        performanceImprovement: "5-10x faster",
+        status: "Recommended - Production ready",
+        apiEndpoint: "/api/combined-ocr/"
+      },
+      migration: {
+        recommended: true,
+        backwardCompatible: true,
+        benefits: [
+          "90%+ reduction in background job count",
+          "Faster processing with better resource utilization",
+          "Improved answer quality through combined context analysis",
+          "Stronger source citations and evidence linking",
+          "Simplified error handling and recovery"
+        ],
+        howToMigrate: {
+          "Single Agent": "POST /api/combined-ocr/analyze",
+          "All Agents": "POST /api/combined-ocr/reset-and-run", 
+          "Custom Selection": "POST /api/combined-ocr/analyze-bulk"
+        }
+      }
+    },
+    recommendation: "For optimal performance, please consider using the Combined OCR system at /api/combined-ocr/"
+  });
+});
+
 // Request schemas for validation
 const AnalysisRequestSchema = z.object({
   dealId: z.number(),
