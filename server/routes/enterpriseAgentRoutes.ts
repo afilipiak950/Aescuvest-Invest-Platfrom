@@ -400,4 +400,51 @@ router.post('/clear-jobs', async (req: Request, res: Response) => {
   }
 });
 
+// Progress endpoint for UI progress bars
+router.get('/progress/:dealId', async (req: Request, res: Response) => {
+  try {
+    const { dealId } = req.params;
+    
+    if (!dealId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'dealId is required' 
+      });
+    }
+
+    console.log(`📊 Getting enterprise job progress for deal ${dealId}`);
+    
+    // Get all active jobs for this deal from enterprise queue
+    const activeJobs = enterpriseJobQueue.getActiveJobsForDeal(parseInt(dealId));
+    
+    // Format jobs for UI compatibility
+    const formattedJobs = activeJobs.map(job => ({
+      jobId: job.jobId,
+      agentType: job.agentType,
+      progress: job.progress || 0,
+      status: job.status,
+      currentStep: job.currentStep || 'Processing...',
+      currentDocument: job.currentDocument || '',
+      processedDocuments: job.processedDocuments || 0,
+      totalDocuments: job.totalDocuments || 0,
+      startTime: job.startTime,
+    }));
+    
+    console.log(`📊 Found ${formattedJobs.length} active enterprise jobs for deal ${dealId}`);
+    
+    res.json({ 
+      success: true, 
+      jobs: formattedJobs,
+      totalJobs: formattedJobs.length
+    });
+  } catch (error) {
+    console.error('❌ Error getting enterprise job progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to get progress',
+      jobs: []
+    });
+  }
+});
+
 export default router;
