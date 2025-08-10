@@ -338,14 +338,15 @@ export class ComprehensiveAnalysisEngine {
         content = document.summary || document.text || document.description || '';
       }
       
-      if (!content || content.length < 50) {
+      // Only skip documents with absolutely no content - ensure we process everything possible
+      if (!content || content.trim().length === 0) {
         return {
           docId: document.id,
           questionId: question.id,
-          answer: `Insufficient content in ${document.name} to answer this question`,
+          answer: `Document ${document.name} contains no extractable text content`,
           confidence: 0,
           evidence: [],
-          sources: [],
+          sources: [document.name],
           processing_time: Date.now() - startTime
         };
       }
@@ -356,27 +357,34 @@ export class ComprehensiveAnalysisEngine {
         messages: [
           {
             role: 'system',
-            content: `You are an expert investment analyst extracting specific evidence from documents.
+            content: `You are an expert investment analyst extracting specific evidence from documents for due diligence.
 
 CRITICAL REQUIREMENTS:
-1. Provide a direct, specific answer to the question based ONLY on the document content
-2. Include exact quotes with page references when available
-3. Rate confidence 0-100 based on evidence quality
-4. If no relevant information exists, clearly state that
-5. Never provide generic or speculative answers
+1. Analyze the document content thoroughly for ANY information relevant to the question
+2. Provide substantive, evidence-based answers - never use "no evidence found" unless document is completely irrelevant
+3. Extract specific details, numbers, names, dates, and facts that address the question
+4. Include exact quotes from the document to support your answer
+5. Rate confidence based on the strength and relevance of evidence found
+6. Look for indirect evidence and implications, not just direct statements
 
-RESPONSE FORMAT:
+ANSWER STRUCTURE:
+- Give a comprehensive answer based on what the document reveals about the question
+- Include specific details, facts, and context from the document
+- Support with relevant quotes and references
+- Rate confidence 0-100 based on evidence quality and relevance
+
+RESPONSE FORMAT (valid JSON only):
 {
-  "answer": "Direct answer with specific details from the document",
-  "confidence": 85,
+  "answer": "Comprehensive answer with specific findings from document analysis",
+  "confidence": 75,
   "evidence": [
     {
-      "text": "exact quote from document",
+      "text": "relevant quote or fact from document",
       "page": 1,
-      "relevance": "high|medium|low"
+      "relevance": "high"
     }
   ],
-  "sources": ["document name or section"]
+  "sources": ["document section or page reference"]
 }`
           },
           {
@@ -395,12 +403,27 @@ Extract evidence-based answer:`
         max_tokens: 1000
       });
       
-      const result = JSON.parse(completion.choices[0].message.content || '{}');
+      let result;
+      try {
+        const content = completion.choices[0].message.content || '{}';
+        // Remove any markdown code blocks if present
+        const cleanContent = content.replace(/```json\s*|\s*```/g, '').trim();
+        result = JSON.parse(cleanContent);
+      } catch (parseError) {
+        console.error('JSON parsing error:', parseError);
+        console.error('Raw content:', completion.choices[0].message.content);
+        result = {
+          answer: `Analysis error: Unable to parse AI response for ${document.name}`,
+          confidence: 0,
+          evidence: [],
+          sources: [document.name]
+        };
+      }
       
       return {
         docId: document.id,
         questionId: question.id,
-        answer: result.answer || `No specific evidence found in ${document.name}`,
+        answer: result.answer || `Analysis of ${document.name} did not yield information relevant to this specific question`,
         confidence: result.confidence || 0,
         evidence: result.evidence || [],
         sources: result.sources || [document.name],
@@ -536,8 +559,22 @@ Provide synthesized answer:`
     };
     
     for (const doc of documents) {
-      const docName = doc.name.toLowerCase();
-      const content = (doc.ocrText || doc.aiSummary || doc.summary || '').toLowerCase();
+      const docName = (doc.name || '').toLowerCase();
+      
+      // Safely extract content from various fields
+      let content = '';
+      if (typeof doc.ocrText === 'string') {
+        content = doc.ocrText;
+      } else if (doc.aiSummary) {
+        if (typeof doc.aiSummary === 'string') {
+          content = doc.aiSummary;
+        } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.summary) {
+          content = doc.aiSummary.summary;
+        }
+      } else if (typeof doc.summary === 'string') {
+        content = doc.summary;
+      }
+      content = content.toLowerCase();
       
       // Legal documents
       if (docName.includes('legal') || docName.includes('contract') || docName.includes('agreement') ||
@@ -645,11 +682,14 @@ Provide synthesized answer:`
       }
     }
     
-    const overallProgress = Object.values(agentStatus).reduce((sum: number, agent: any) => sum + agent.progress, 0) / Object.keys(agentStatus).length;
+    const totalProgress = Object.values(agentStatus).reduce((sum: number, agent: any) => sum + (agent.progress || 0), 0);
+    const overallProgress = Object.keys(agentStatus).length > 0 
+      ? Math.round(totalProgress / Object.keys(agentStatus).length)
+      : 0;
     
     return {
       agents: agentStatus,
-      overallProgress: Math.round(overallProgress)
+      overallProgress
     };
   }
 

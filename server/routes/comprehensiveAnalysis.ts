@@ -26,10 +26,10 @@ router.post('/api/deals/:dealId/comprehensive-reset-and-start', async (req: Requ
     const result = await comprehensiveAnalysisEngine.startComprehensiveAnalysis(dealId);
     
     res.json({
-      success: true,
       message: 'Comprehensive analysis started successfully',
       resetCompleted: true,
       analysisStarted: true,
+      success: true,
       ...result
     });
     
