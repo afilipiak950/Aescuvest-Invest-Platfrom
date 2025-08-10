@@ -345,7 +345,86 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Mutation for running all agent analyses using enterprise queue system
+  // Comprehensive Analysis Mutation - Full document×question matrix processing
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      try {
+        console.log(`🚀 Comprehensive Analysis - Starting full document×question matrix processing`);
+        
+        if (!selectedDeal) {
+          throw new Error('No deal selected for analysis');
+        }
+        
+        // Call the comprehensive reset and start endpoint
+        const response = await apiRequest(`/api/deals/${selectedDeal}/comprehensive-reset-and-start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        console.log(`✅ Comprehensive analysis started:`, response);
+        return response;
+        
+      } catch (error) {
+        console.error('❌ Comprehensive analysis failed:', error);
+        throw error;
+      }
+    },
+    onSuccess: (results) => {
+      console.log(`✅ Comprehensive analysis started:`, results);
+      
+      toast({
+        title: "Comprehensive Analysis Started",
+        description: `Processing ${results.totalJobs} document×question combinations across all 7 agents`,
+        duration: 5000,
+      });
+      
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      
+      // Monitor progress
+      const checkProgress = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`/api/deals/${selectedDeal}/comprehensive-status`);
+          const statusData = await statusResponse.json();
+          
+          if (statusData.success && statusData.overallProgress >= 100) {
+            console.log(`🎉 Comprehensive analysis completed!`);
+            setIsRunningAllAnalyses(false);
+            clearInterval(checkProgress);
+            
+            queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+            
+            toast({
+              title: "Analysis Complete",
+              description: "Comprehensive document×question analysis completed for all agents",
+              duration: 5000,
+            });
+          }
+        } catch (error) {
+          console.error('Error checking progress:', error);
+        }
+      }, 5000);
+      
+      // Cleanup after 30 minutes
+      setTimeout(() => {
+        setIsRunningAllAnalyses(false);
+        clearInterval(checkProgress);
+      }, 1800000);
+    },
+    onError: (error) => {
+      console.error(`❌ Comprehensive analysis failed:`, error);
+      setIsRunningAllAnalyses(false);
+      
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to start comprehensive analysis. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+  });
+
+  // Legacy mutation for running all agent analyses using enterprise queue system
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
       try {
@@ -568,6 +647,45 @@ function DueDiligenceContent() {
       toast({
         title: "Critical Error",
         description: `Failed to start analyses: ${(error as any)?.message || 'Unknown error'}. Please refresh the page and try again.`,
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+  };
+
+  // Handler for comprehensive analysis
+  const handleComprehensiveAnalysis = () => {
+    try {
+      console.log(`🚀 Comprehensive Analysis button clicked for deal ${selectedDeal}`);
+      
+      if (!selectedDeal) {
+        console.error('❌ No deal selected');
+        toast({
+          title: "No Deal Selected",
+          description: "Please select a deal before running analysis.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+      
+      setIsRunningAllAnalyses(true);
+      
+      toast({
+        title: "Starting Comprehensive Analysis",
+        description: "Processing full document×question matrix for all 7 agents...",
+        duration: 3000,
+      });
+      
+      comprehensiveAnalysisMutation.mutate();
+      
+    } catch (error) {
+      console.error('❌ Error in handleComprehensiveAnalysis:', error);
+      setIsRunningAllAnalyses(false);
+      
+      toast({
+        title: "Error",
+        description: `Failed to start analysis: ${(error as any)?.message || 'Unknown error'}`,
         variant: "destructive",
         duration: 5000,
       });
@@ -1030,36 +1148,70 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <Button 
-                  onClick={() => {
-                    try {
-                      handleRunAllAnalyses();
-                    } catch (buttonError) {
-                      console.error('❌ Button click error:', buttonError);
-                      toast({
-                        title: "Button Error",
-                        description: "Failed to handle button click. Please refresh the page.",
-                        variant: "destructive",
-                        duration: 5000,
-                      });
-                    }
-                  }}
-                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
-                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
-                  size="sm"
-                >
-                  {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Running All Analyses
-                    </>
-                  ) : (
-                    <>
-                      <Bot className="h-4 w-4 mr-2" />
-                      Reset & Run All Analyses
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => {
+                      try {
+                        handleComprehensiveAnalysis();
+                      } catch (buttonError) {
+                        console.error('❌ Button click error:', buttonError);
+                        toast({
+                          title: "Button Error",
+                          description: "Failed to handle button click. Please refresh the page.",
+                          variant: "destructive",
+                          duration: 5000,
+                        });
+                      }
+                    }}
+                    disabled={isRunningAllAnalyses || comprehensiveAnalysisMutation.isPending}
+                    className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
+                    size="sm"
+                  >
+                    {isRunningAllAnalyses || comprehensiveAnalysisMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing Matrix
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 mr-2" />
+                        Comprehensive Analysis
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => {
+                      try {
+                        handleRunAllAnalyses();
+                      } catch (buttonError) {
+                        console.error('❌ Button click error:', buttonError);
+                        toast({
+                          title: "Button Error",
+                          description: "Failed to handle button click. Please refresh the page.",
+                          variant: "destructive",
+                          duration: 5000,
+                        });
+                      }
+                    }}
+                    disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
+                    variant="outline"
+                    className="border-gray-600 hover:bg-gray-700 text-gray-300 pt-[19px] pb-[19px]"
+                    size="sm"
+                  >
+                    {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Legacy Mode
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 mr-2" />
+                        Legacy Reset
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
