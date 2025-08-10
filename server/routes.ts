@@ -41,6 +41,7 @@ import persistentAnalysisRoutes from './routes/persistentAnalysis';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
+import { comprehensiveAnalysisRouter } from './routes/comprehensiveAnalysis';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -1754,6 +1755,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register enterprise job queue routes (high-performance non-blocking)
   app.use('/api/enterprise', enterpriseAgentRoutes);
+  
+  // Register comprehensive analysis routes (document×question matrix processing)
+  app.use(comprehensiveAnalysisRouter);
   
   // Register Microsoft OAuth routes
   app.use('/api/microsoft', microsoftAuthRoutes);
