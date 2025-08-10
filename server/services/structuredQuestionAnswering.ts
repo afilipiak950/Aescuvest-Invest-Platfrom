@@ -61,11 +61,19 @@ const IP_QUESTIONS = [
   { id: 'source_code_4', category: 'Source Code Ownership', question: 'Are all code contributions properly documented and assigned?' }
 ];
 
-// Research questions
+// Research questions - Matching frontend expectations exactly
 const RESEARCH_QUESTIONS = [
-  { id: 'market_research', category: 'Market Research', question: 'What market research supports the opportunity?' },
-  { id: 'industry_trends', category: 'Industry', question: 'What are the key industry trends?' },
-  { id: 'competitive_analysis', category: 'Competition', question: 'What does the competitive analysis show?' }
+  { id: 'research_1', category: 'Technical Whitepapers', question: 'Are technical whitepapers available?' },
+  { id: 'research_2', category: 'Market Research Reports', question: 'Are competitive analyses included?' },
+  { id: 'research_3', category: 'Market Research Reports', question: 'Is market sizing data provided?' },
+  { id: 'research_4', category: 'Customer Validation', question: 'Are customer validation studies included?' },
+  { id: 'research_5', category: 'Third-party Reports', question: 'Are third-party reports referenced?' },
+  { id: 'research_6', category: 'Regulatory Analysis', question: 'Are regulatory considerations addressed?' },
+  { id: 'research_7', category: 'Academic Publications', question: 'Are academic publications cited?' },
+  { id: 'research_8', category: 'Technical Whitepapers', question: 'Are methodologies reproducible?' },
+  { id: 'research_9', category: 'Academic Publications', question: 'Are citations and forward references analyzed?' },
+  { id: 'research_10', category: 'Patent Landscape', question: 'Are patent landscape analyses provided?' },
+  { id: 'research_11', category: 'Patent Landscape', question: 'Is competitive IP density mapped?' }
 ];
 
 const AGENT_QUESTIONS = {
