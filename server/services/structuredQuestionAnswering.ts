@@ -124,8 +124,24 @@ export class StructuredQuestionAnswering {
     const chunks: DocumentChunk[] = [];
     
     for (const doc of documents) {
-      const content = doc.extractedText || doc.ocrText || '';
-      if (!content) continue;
+      // CRITICAL FIX: Use AI summary as fallback when no OCR text available  
+      let content = doc.extractedText || doc.ocrText || doc.summary || '';
+      
+      // Safely extract from AI summary object
+      if (!content && doc.aiSummary) {
+        if (typeof doc.aiSummary === 'string') {
+          content = doc.aiSummary;
+        } else if (doc.aiSummary.executiveSummary) {
+          content = doc.aiSummary.executiveSummary;
+        } else if (Array.isArray(doc.aiSummary.criticalFindings)) {
+          content = doc.aiSummary.criticalFindings.join('. ');
+        }
+      }
+      
+      if (!content || typeof content !== 'string') {
+        console.log(`⚠️ No valid content for document ${doc.name}, type: ${typeof content}`);
+        continue;
+      }
 
       // Split document into chunks (simple sentence-based splitting)
       const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
