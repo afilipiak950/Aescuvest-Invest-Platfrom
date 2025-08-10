@@ -224,7 +224,8 @@ export class ComprehensiveAnalysisEngine {
         findings: [],
         recommendations: []
       };
-      const analysisId = await storage.createAnalysis(analysisData);
+      const analysis = await storage.createAnalysis(analysisData);
+      const analysisId = analysis.id;
       
       const documents = await storage.getDocumentsByDealId(dealId);
       const assignedDocs = documents.filter(doc => assignedDocIds.includes(doc.id));
