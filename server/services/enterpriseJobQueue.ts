@@ -489,6 +489,62 @@ class EnterpriseJobQueue {
     }
   }
 
+  async clearJobsForDeal(dealId: number): Promise<number> {
+    try {
+      console.log(`🧹 Clearing all enterprise jobs for deal ${dealId}`);
+      
+      let clearedCount = 0;
+      
+      // Remove from active queue
+      const beforeQueueSize = this.jobQueue.length;
+      this.jobQueue = this.jobQueue.filter(job => {
+        if (job.data.dealId === dealId) {
+          clearedCount++;
+          return false;
+        }
+        return true;
+      });
+      
+      // Remove from completed jobs
+      const beforeCompletedSize = this.completedJobs.length;
+      this.completedJobs = this.completedJobs.filter(job => {
+        if (job.data.dealId === dealId) {
+          clearedCount++;
+          return false;
+        }
+        return true;
+      });
+      
+      // Remove from failed jobs
+      const beforeFailedSize = this.failedJobs.length;
+      this.failedJobs = this.failedJobs.filter(job => {
+        if (job.data.dealId === dealId) {
+          clearedCount++;
+          return false;
+        }
+        return true;
+      });
+      
+      // Clear active job progress tracking
+      const activeJobKeys = Array.from(this.activeJobs.keys());
+      activeJobKeys.forEach(jobId => {
+        const progress = this.activeJobs.get(jobId);
+        if (progress && progress.dealId === dealId) {
+          this.activeJobs.delete(jobId);
+          clearedCount++;
+        }
+      });
+      
+      console.log(`✅ Cleared ${clearedCount} enterprise jobs for deal ${dealId}`);
+      console.log(`📊 Queue sizes: active ${beforeQueueSize} → ${this.jobQueue.length}, completed ${beforeCompletedSize} → ${this.completedJobs.length}, failed ${beforeFailedSize} → ${this.failedJobs.length}`);
+      
+      return clearedCount;
+    } catch (error) {
+      console.error(`❌ Failed to clear jobs for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
   async gracefulShutdown(): Promise<void> {
     if (this.isShuttingDown) {
       return;

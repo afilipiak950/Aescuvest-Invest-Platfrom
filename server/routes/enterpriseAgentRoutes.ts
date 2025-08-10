@@ -367,4 +367,37 @@ router.get('/health', async (req: Request, res: Response) => {
   }
 });
 
+// Clear enterprise jobs for hard reset
+router.post('/clear-jobs', async (req: Request, res: Response) => {
+  try {
+    const { dealId } = req.body;
+    
+    if (!dealId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'dealId is required' 
+      });
+    }
+
+    console.log(`🧹 Clearing all enterprise jobs for deal ${dealId}`);
+    
+    // Clear from enterprise job queue
+    const cleared = await enterpriseJobQueue.clearJobsForDeal(dealId);
+    
+    console.log(`✅ Cleared ${cleared} enterprise jobs for deal ${dealId}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Cleared ${cleared} enterprise jobs for deal ${dealId}`,
+      clearedJobs: cleared
+    });
+  } catch (error) {
+    console.error('❌ Error clearing enterprise jobs:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to clear jobs' 
+    });
+  }
+});
+
 export default router;
