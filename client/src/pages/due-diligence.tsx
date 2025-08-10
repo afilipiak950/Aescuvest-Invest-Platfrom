@@ -122,6 +122,13 @@ function DueDiligenceContent() {
       }
     }, [jobProgress, isRunningAllAnalyses]);
 
+    // Fetch real analysis data - MOVED UP to prevent temporal dead zone error
+    const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
+      queryKey: [`/api/analyses/${selectedDeal}`],
+      retry: false,
+      enabled: !!selectedDeal
+    });
+
     // Enterprise job metrics for overall queue state
     const { data: queueMetrics } = useQuery({
       queryKey: ['/api/enterprise/metrics'],
@@ -138,9 +145,53 @@ function DueDiligenceContent() {
       }
     }, [selectedDeal, jobProgress, queueMetrics]);
 
+    // Create comprehensive agent progress data for overview component - MOVED AFTER analyses query
+    const agentProgressData = useMemo(() => {
+      const agentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
+      
+      return agentTypes.map(agentType => {
+        const job = findJobSafely(jobProgress?.jobs, [agentType, `${agentType.toLowerCase()}_analysis`, `${agentType.toLowerCase()}-analysis`]);
+        
+        // Get analysis data for this agent if available - temporarily simplified to fix crash
+        const agentAnalysis = Array.isArray(analyses) ? analyses.find((analysis: any) => 
+          analysis.agentType?.toLowerCase() === agentType.toLowerCase()
+        ) : null;
+        
+        let status: 'Idle' | 'Processing' | 'Completed' | 'Failed' = 'Idle';
+        let progress = 0;
+        let currentStep = undefined;
+        let processedCount = undefined;
+        let totalCount = undefined;
+
+        if (job) {
+          status = job.status === 'processing' ? 'Processing' : 
+                   job.status === 'completed' ? 'Completed' : 
+                   job.status === 'failed' ? 'Failed' : 'Idle';
+          progress = job.progress || 0;
+          currentStep = job.currentDocument || job.message;
+          processedCount = job.processedCount;
+          totalCount = job.totalCount;
+        } else if (agentAnalysis && agentAnalysis.status === 'Completed') {
+          status = 'Completed';
+          progress = 100;
+        }
+
+        return {
+          agentType,
+          progress,
+          status,
+          currentStep,
+          processedCount,
+          totalCount
+        };
+      });
+    }, [jobProgress, analyses]);
+
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
+    // Using safe null checks to prevent temporal dead zone errors
     const legalProgress = useMemo(() => {
-      const legalJob = findJobSafely(jobProgress?.jobs, ['Legal', 'legal_analysis', 'legal-analysis']);
+      if (!jobProgress?.jobs) return null;
+      const legalJob = findJobSafely(jobProgress.jobs, ['Legal', 'legal_analysis', 'legal-analysis']);
       return legalJob ? {
         isRunning: legalJob.status === 'processing',
         progress: legalJob.progress || 0,
@@ -179,47 +230,7 @@ function DueDiligenceContent() {
       } : null;
     }, [jobProgress]);
 
-    // Create comprehensive agent progress data for overview component
-    const agentProgressData = useMemo(() => {
-      const agentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
-      
-      return agentTypes.map(agentType => {
-        const job = findJobSafely(jobProgress?.jobs, [agentType, `${agentType.toLowerCase()}_analysis`, `${agentType.toLowerCase()}-analysis`]);
-        
-        // Get analysis data for this agent if available
-        const agentAnalysis = analyses?.find((analysis: any) => 
-          analysis.agentType?.toLowerCase() === agentType.toLowerCase()
-        );
-        
-        let status: 'Idle' | 'Processing' | 'Completed' | 'Failed' = 'Idle';
-        let progress = 0;
-        let currentStep = undefined;
-        let processedCount = undefined;
-        let totalCount = undefined;
-
-        if (job) {
-          status = job.status === 'processing' ? 'Processing' : 
-                   job.status === 'completed' ? 'Completed' : 
-                   job.status === 'failed' ? 'Failed' : 'Idle';
-          progress = job.progress || 0;
-          currentStep = job.currentDocument || job.message;
-          processedCount = job.processedCount;
-          totalCount = job.totalCount;
-        } else if (agentAnalysis && agentAnalysis.status === 'Completed') {
-          status = 'Completed';
-          progress = 100;
-        }
-
-        return {
-          agentType,
-          progress,
-          status,
-          currentStep,
-          processedCount,
-          totalCount
-        };
-      });
-    }, [jobProgress, analyses]);
+    // Moved to after analyses query definition to prevent temporal dead zone error
 
     // Stop job mutation
     const stopJobMutation = useMutation({
@@ -330,12 +341,7 @@ function DueDiligenceContent() {
   //   // Automatic analysis temporarily disabled for stability
   // }, []);
 
-  // Fetch real analysis data
-  const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
-    queryKey: [`/api/analyses/${selectedDeal}`],
-    retry: false,
-    enabled: !!selectedDeal
-  });
+  // Analysis data moved up above to prevent temporal dead zone error
 
   // Debug log for analyses data
   console.log('🔍 Analyses Query Debug:', {
