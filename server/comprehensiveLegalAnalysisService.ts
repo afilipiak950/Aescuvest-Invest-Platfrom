@@ -290,9 +290,12 @@ export class ComprehensiveLegalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to legal agent
+    // First try documents explicitly assigned to legal agent (case-insensitive)
     let legalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('legal')) && 
+      (doc.assignedAgents && (
+        doc.assignedAgents.includes('Legal') || 
+        doc.assignedAgents.includes('legal')
+      )) && 
       (doc.ocrText || doc.aiSummary)
     );
     

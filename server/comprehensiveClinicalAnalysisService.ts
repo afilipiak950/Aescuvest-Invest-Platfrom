@@ -287,7 +287,7 @@ export class ComprehensiveClinicalAnalysisService {
       
       await storageService.updateBackgroundJob(jobId, {
         status: 'failed',
-        error: error?.message || 'Unknown error'
+        error: (error as Error)?.message || 'Unknown error'
       });
       
       throw error;
@@ -305,9 +305,12 @@ export class ComprehensiveClinicalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to clinical agent
+    // First try documents explicitly assigned to clinical agent (case-insensitive)
     let clinicalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('clinical')) && 
+      (doc.assignedAgents && (
+        doc.assignedAgents.includes('Clinical') || 
+        doc.assignedAgents.includes('clinical')
+      )) && 
       (doc.ocrText || doc.aiSummary)
     );
     
