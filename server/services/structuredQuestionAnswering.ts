@@ -126,8 +126,15 @@ export class StructuredQuestionAnswering {
     const chunks: DocumentChunk[] = [];
     
     for (const doc of documents) {
-      // CRITICAL FIX: Use correct database column names and AI summary as fallback  
-      let content = doc.ocrText || doc.ocr_text || doc.summary || '';
+      // FIXED: Complete OCR content extraction with proper fallbacks
+      let content = doc.ocrText || 
+                   (doc.aiSummary?.executiveSummary) || 
+                   (typeof doc.aiSummary === 'string' ? doc.aiSummary : '') ||
+                   doc.ocr_text || 
+                   doc.summary || 
+                   '';
+      
+      console.log(`📄 Doc ${doc.id} content length: ${content.length} chars`);
       
       // Safely extract from AI summary object (database uses ai_summary column)
       const aiSummary = doc.aiSummary || doc.ai_summary;
