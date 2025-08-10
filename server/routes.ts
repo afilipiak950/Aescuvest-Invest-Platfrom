@@ -31,6 +31,7 @@ import { registerApiRoutes } from "./routes/api";
 import { registerAffinityRoutes } from "./routes/affinity-routes";
 import matchingIntelligenceRoutes from "./routes/matching-intelligence-routes";
 import enterpriseAgentRoutes from "./routes/enterpriseAgentRoutes";
+import combinedOcrRoutes from "./routes/combinedOcrRoutes";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
@@ -1754,6 +1755,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register enterprise job queue routes (high-performance non-blocking)
   app.use('/api/enterprise', enterpriseAgentRoutes);
+  
+  // Register Combined OCR analysis routes (optimized agent-level processing)
+  console.log('🔗 Registering Combined OCR analysis routes...');
+  app.use('/api/combined-ocr', combinedOcrRoutes);
   
   // Register comprehensive analysis routes (document×question matrix processing)
   app.use(comprehensiveAnalysisRouter);
