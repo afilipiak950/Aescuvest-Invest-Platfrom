@@ -1929,11 +1929,11 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 bg-dark/30 rounded p-3">
-                              <p className="text-gray-400 text-sm italic">No answer found in analyzed documents</p>
-                              <Badge variant="outline" className="text-gray-400 border-gray-400 mt-2">
-                                Requires analysis
-                              </Badge>
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">No specific evidence found in the analyzed legal documents for: {question.question}</p>
+                              </div>
                             </div>
                           )}
                         </div>
