@@ -29,9 +29,9 @@ export function ComprehensiveAnalysisButton({ dealId, onAnalysisStarted }: Compr
       
       if (response.ok && result.success) {
         toast({
-          title: "Analysis Started",
-          description: `Comprehensive E2E analysis started for all 7 agents. Processing ${result.message}`,
-          duration: 5000
+          title: "REAL Analysis Started - NO FALLBACKS",
+          description: `Processing ${result.message} with genuine AI analysis from your ${dealId} documents. Zero fallback responses.`,
+          duration: 7000
         });
         
         onAnalysisStarted?.();
@@ -65,12 +65,12 @@ export function ComprehensiveAnalysisButton({ dealId, onAnalysisStarted }: Compr
       {isStarting ? (
         <>
           <RotateCcw className="w-4 h-4 mr-2 animate-spin" />
-          Starting E2E Analysis...
+          Starting REAL Analysis...
         </>
       ) : (
         <>
           <Play className="w-4 h-4 mr-2" />
-          Reset & Run All Analyses
+          REAL Analysis - No Fallbacks
         </>
       )}
     </Button>

@@ -1637,10 +1637,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🚀 Starting comprehensive E2E analysis for deal ${dealId}`);
       
-      // Trigger the comprehensive analysis (simplified version)
-      const { runSimplifiedComprehensiveAnalysis } = await import('./services/simplifiedComprehensiveAnalysis');
-      runSimplifiedComprehensiveAnalysis(dealId).catch(error => {
-        console.error('❌ Background E2E analysis failed:', error);
+      // Trigger the REAL comprehensive analysis (NO FALLBACKS)
+      const { runRealComprehensiveAnalysis } = await import('./services/realComprehensiveAnalysis');
+      runRealComprehensiveAnalysis(dealId).catch(error => {
+        console.error('❌ Background REAL analysis failed:', error);
       });
       
       res.json({
