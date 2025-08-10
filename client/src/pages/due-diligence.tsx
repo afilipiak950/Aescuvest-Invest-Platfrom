@@ -113,6 +113,14 @@ function DueDiligenceContent() {
       staleTime: 0, // Always consider stale to refetch
     });
 
+    // Auto-reset stuck state when no jobs are running
+    useEffect(() => {
+      if (isRunningAllAnalyses && jobProgress && Array.isArray(jobProgress.jobs) && jobProgress.jobs.length === 0) {
+        console.log('🔄 No active jobs detected - resetting stuck analysis state');
+        setIsRunningAllAnalyses(false);
+      }
+    }, [jobProgress, isRunningAllAnalyses]);
+
     // Enterprise job metrics for overall queue state
     const { data: queueMetrics } = useQuery({
       queryKey: ['/api/enterprise/metrics'],
