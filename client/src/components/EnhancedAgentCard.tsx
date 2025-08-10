@@ -872,14 +872,46 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Progress Bars - Show individual progress for each agent */}
-        {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'clinical' && <ClinicalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'financial' && <FinancialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'ip' && <IpAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'research' && <ResearchAnalysisProgress dealId={dealId} />}
+        {/* CRITICAL: Universal Progress Bar - Shows for ALL agents when running Enterprise Queue */}
+        {(currentProgress > 0 || isRunningAnalysis) && (
+          <div className="mb-6">
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                <div className="flex-1">
+                  <p className="text-blue-400 font-medium">
+                    {agentType} Analysis in Progress
+                  </p>
+                  <p className="text-gray-300 text-sm">
+                    {currentDocumentName && currentDocumentName.length > 50 
+                      ? `${currentDocumentName.substring(0, 47)}...` 
+                      : currentDocumentName || `Processing ${agentType.toLowerCase()} documents...`
+                    }
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-medium">{Math.round(currentProgress || 0)}%</p>
+                </div>
+              </div>
+              <Progress 
+                value={currentProgress || 0} 
+                className="h-2 bg-dark-lighter"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-2">
+                <span>Analyzing {assignedDocuments} documents</span>
+                <span>{Math.round(currentProgress || 0)}% complete</span>
+              </div>
+              
+              {/* Enterprise Queue Indicator */}
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                <span className="text-xs text-gray-400">
+                  Enterprise Queue System • Live Updates
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* KPI Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
