@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, HelpCircle, Zap, ChevronDown, ChevronRight } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Loader2, HelpCircle, Zap, ChevronDown, ChevronRight, CheckCircle, Clock } from 'lucide-react';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 
 // Comprehensive Research Analysis Button Component
@@ -348,7 +349,28 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-medium text-white">{question.question}</p>
+                            <div className="flex items-center gap-2">
+                              {answer ? (
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                              ) : (
+                                <Clock className="h-4 w-4 text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Per-Question Progress Bar */}
+                          <div className="mb-3">
+                            <Progress 
+                              value={answer ? 100 : 0} 
+                              className="h-1 bg-dark-lighter"
+                            />
+                            <div className="flex justify-between text-xs text-gray-400 mt-1">
+                              <span>{answer ? 'Question Answered' : 'Pending Analysis'}</span>
+                              <span>{answer ? '100%' : '0%'}</span>
+                            </div>
+                          </div>
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">

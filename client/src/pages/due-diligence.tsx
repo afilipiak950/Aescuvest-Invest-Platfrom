@@ -13,6 +13,7 @@ import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
+import { AgentOverviewProgress } from '@/components/AgentOverviewProgress';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -177,6 +178,48 @@ function DueDiligenceContent() {
         currentDocumentName: clinicalJob.currentDocument || 'Processing'
       } : null;
     }, [jobProgress]);
+
+    // Create comprehensive agent progress data for overview component
+    const agentProgressData = useMemo(() => {
+      const agentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
+      
+      return agentTypes.map(agentType => {
+        const job = findJobSafely(jobProgress?.jobs, [agentType, `${agentType.toLowerCase()}_analysis`, `${agentType.toLowerCase()}-analysis`]);
+        
+        // Get analysis data for this agent if available
+        const agentAnalysis = analyses?.find((analysis: any) => 
+          analysis.agentType?.toLowerCase() === agentType.toLowerCase()
+        );
+        
+        let status: 'Idle' | 'Processing' | 'Completed' | 'Failed' = 'Idle';
+        let progress = 0;
+        let currentStep = undefined;
+        let processedCount = undefined;
+        let totalCount = undefined;
+
+        if (job) {
+          status = job.status === 'processing' ? 'Processing' : 
+                   job.status === 'completed' ? 'Completed' : 
+                   job.status === 'failed' ? 'Failed' : 'Idle';
+          progress = job.progress || 0;
+          currentStep = job.currentDocument || job.message;
+          processedCount = job.processedCount;
+          totalCount = job.totalCount;
+        } else if (agentAnalysis && agentAnalysis.status === 'Completed') {
+          status = 'Completed';
+          progress = 100;
+        }
+
+        return {
+          agentType,
+          progress,
+          status,
+          currentStep,
+          processedCount,
+          totalCount
+        };
+      });
+    }, [jobProgress, analyses]);
 
     // Stop job mutation
     const stopJobMutation = useMutation({
@@ -1230,6 +1273,15 @@ function DueDiligenceContent() {
                     AI Agents
                   </TabsTrigger>
                 </TabsList>
+
+                {/* Agent Overview Progress - Always visible */}
+                <div className="mb-6">
+                  <AgentOverviewProgress 
+                    dealId={parseInt(selectedDeal)}
+                    agents={agentProgressData}
+                    isRunningAllAnalyses={isRunningAllAnalyses}
+                  />
+                </div>
                 
                 <TabsContent value="clinical">
                   <EnhancedAgentCard 
