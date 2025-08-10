@@ -545,6 +545,66 @@ class EnterpriseJobQueue {
     }
   }
 
+  getActiveJobsForDeal(dealId: number): Array<{
+    jobId: string;
+    agentType: string;
+    progress: number;
+    status: string;
+    currentStep: string;
+    currentDocument: string;
+    processedDocuments: number;
+    totalDocuments: number;
+    startTime: Date;
+  }> {
+    try {
+      const activeJobs: Array<any> = [];
+      
+      // Check active jobs in queue
+      this.jobQueue.forEach(job => {
+        if (job.data.dealId === dealId && (job.status === 'active' || job.status === 'waiting')) {
+          const progress = this.activeJobs.get(job.id);
+          activeJobs.push({
+            jobId: job.id,
+            agentType: job.data.agentType,
+            progress: job.progress || 0,
+            status: job.status,
+            currentStep: progress?.currentStep || 'Queued',
+            currentDocument: progress?.currentDocument || '',
+            processedDocuments: progress?.processedDocuments || 0,
+            totalDocuments: progress?.totalDocuments || 0,
+            startTime: progress?.startTime || job.createdAt,
+          });
+        }
+      });
+      
+      // Check active job progress tracking
+      this.activeJobs.forEach((progress, jobId) => {
+        if (progress.dealId === dealId && progress.status === 'processing') {
+          // Only add if not already included from queue
+          if (!activeJobs.some(job => job.jobId === jobId)) {
+            activeJobs.push({
+              jobId,
+              agentType: progress.agentType,
+              progress: progress.progress || 0,
+              status: 'processing',
+              currentStep: progress.currentStep || 'Processing...',
+              currentDocument: progress.currentDocument || '',
+              processedDocuments: progress.processedDocuments || 0,
+              totalDocuments: progress.totalDocuments || 0,
+              startTime: progress.startTime,
+            });
+          }
+        }
+      });
+      
+      console.log(`📊 Found ${activeJobs.length} active jobs for deal ${dealId}`);
+      return activeJobs;
+    } catch (error) {
+      console.error(`❌ Failed to get active jobs for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
   async gracefulShutdown(): Promise<void> {
     if (this.isShuttingDown) {
       return;

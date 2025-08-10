@@ -103,19 +103,31 @@ function DueDiligenceContent() {
     }
     });
 
-    // Fetch job progress data for real-time updates
-    const { data: jobProgress } = useQuery({
-    queryKey: [`/api/background-jobs/${selectedDeal}`],
-    enabled: !!selectedDeal,
-    refetchInterval: 1000, // Poll every second for real-time progress
-    queryFn: async () => {
-      console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
-      const response = await fetch(`/api/background-jobs/${selectedDeal}`);
-      const data = await response.json();
-      console.log(`📊 Job progress data:`, data);
-      return data;
-    }
+    // Job progress tracking for live updates with enterprise queue polling
+    const { data: jobProgress, isLoading: isLoadingJobProgress } = useQuery({
+      queryKey: [`/api/enterprise/progress/${selectedDeal}`],
+      enabled: !!selectedDeal,
+      refetchInterval: 1000, // Poll every 1 second for real-time updates
+      refetchIntervalInBackground: true,
+      gcTime: 0, // Don't cache the results
+      staleTime: 0, // Always consider stale to refetch
     });
+
+    // Enterprise job metrics for overall queue state
+    const { data: queueMetrics } = useQuery({
+      queryKey: ['/api/enterprise/metrics'],
+      enabled: !!selectedDeal,
+      refetchInterval: 3000,
+    });
+
+    // Log polling attempts
+    useEffect(() => {
+      if (selectedDeal && jobProgress !== undefined) {
+        console.log('📊 Enterprise polling for job progress for deal', selectedDeal);
+        console.log('📊 Enterprise job progress data:', jobProgress);
+        console.log('📊 Queue metrics:', queueMetrics);
+      }
+    }, [selectedDeal, jobProgress, queueMetrics]);
 
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
     const legalProgress = useMemo(() => {
@@ -1107,7 +1119,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])}
                     onClinicalAnalysisStart={() => setClinicalAnalysisStarted(true)}
                   />
                 </TabsContent>
@@ -1121,7 +1134,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])}
                   />
                 </TabsContent>
                 
@@ -1134,7 +1148,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])}
                   />
                 </TabsContent>
                 
@@ -1147,7 +1162,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['HR', 'hr'])}
                   />
                 </TabsContent>
                 
@@ -1160,7 +1176,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])}
                   />
                 </TabsContent>
                 
@@ -1173,7 +1190,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['IP', 'ip'])}
                   />
                 </TabsContent>
                 
@@ -1186,7 +1204,8 @@ function DueDiligenceContent() {
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentStep}
+                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentDocument || findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentStep}
+                    isRunningAnalysis={!!findJobSafely(jobProgress?.jobs, ['Research', 'research'])}
                   />
                 </TabsContent>
                 
