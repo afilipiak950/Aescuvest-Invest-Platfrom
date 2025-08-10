@@ -404,7 +404,24 @@ Respond with JSON:
   "keyFindings": ["finding 1", "finding 2"]
 }
 
-NEVER include "No specific evidence found" in your response. If evidence is limited, acknowledge it professionally.`;
+CRITICAL: NEVER include "No specific evidence found", "no specific evidence found", "No relevant evidence found", or similar phrases in your response. 
+
+Instead, provide meaningful analysis based on available information, context, and professional assessment. Even with limited evidence, offer strategic insights, framework-based analysis, or contextual evaluation relevant to the question category.
+
+Example good responses:
+- "Based on the available documentation, strategic recommendations for market positioning include..."
+- "Analysis of business model indicates opportunities for revenue optimization through..."
+- "Assessment of competitive landscape suggests differentiation strategies focusing on..."
+
+BANNED PHRASES TO NEVER USE:
+- "No specific evidence found"
+- "No relevant evidence found" 
+- "Unable to find evidence"
+- "No information available"
+- "No data found"
+- "Evidence not available"
+
+Always provide constructive, meaningful analysis even when direct evidence is limited.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",

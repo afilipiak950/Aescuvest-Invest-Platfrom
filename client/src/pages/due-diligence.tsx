@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -356,43 +356,47 @@ function DueDiligenceContent() {
           throw new Error('No deal selected for analysis');
         }
         
-        // Step 1: Hard reset - clear all existing outputs, caches, and job states
-        console.log(`🧹 HARD RESET: Clearing all outputs/caches/job-states for deal ${selectedDeal}`);
+        // Step 1: GRANULAR RESET - Clear outputs only, preserve ingestion
+        console.log(`🔄 GRANULAR RESET: Clearing outputs and caches for deal ${selectedDeal}`);
         try {
-          // Stop all running background jobs
+          // Use new granular reset endpoint that preserves document ingestion
+          await apiRequest(`/api/deals/${selectedDeal}/reset-granular`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          console.log(`✅ Granular reset completed - ready for document×question processing`);
+        } catch (resetError) {
+          console.warn(`⚠️ Granular reset failed, falling back to legacy clear:`, resetError);
+          
+          // Fallback to legacy clearing
           await apiRequest(`/api/background-jobs/clear-stuck`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dealId: parseInt(selectedDeal) })
           });
           
-          // Clear all enterprise job states
           await apiRequest(`/api/enterprise/clear-jobs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dealId: parseInt(selectedDeal) })
           });
           
-          // Delete all existing analyses from database
           await apiRequest(`/api/analyses/${selectedDeal}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
           });
-          
-          console.log(`✅ Successfully cleared all existing states for deal ${selectedDeal}`);
-        } catch (clearError) {
-          console.warn(`⚠️ Failed to clear some states (continuing anyway):`, clearError);
         }
         
         // Wait for cleanup to complete
         await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Step 2: Start ALL 7 agents using unified enterprise queue system
-      console.log(`🚀 Starting all 7 agents via enterprise queue (unified path)`);
+      // Step 2: Start ALL 7 agents with granular document×question processing
+      console.log(`📋 Starting all 7 agents with granular document×question processing`);
       const agentTypes = ['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
       
       const enterprisePromises = agentTypes.map(agentType => {
-        console.log(`📋 ENQUEUED: ${agentType} agent for deal ${selectedDeal}`);
+        console.log(`🎯 GRANULAR PROCESSING: ${agentType} agent for deal ${selectedDeal}`);
         return apiRequest(`/api/enterprise/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -400,7 +404,8 @@ function DueDiligenceContent() {
             dealId: parseInt(selectedDeal), 
             agentType: agentType,
             forceRefresh: true,
-            priority: 1
+            priority: 1,
+            processingMode: 'granular' // Enable granular document×question processing
           })
         });
       });
@@ -412,17 +417,17 @@ function DueDiligenceContent() {
       results.forEach((result, index) => {
         const agentType = agentTypes[index];
         if (result.status === 'fulfilled') {
-          console.log(`✅ STARTED: ${agentType} agent successfully enqueued`);
+          console.log(`✅ GRANULAR PROCESSING STARTED: ${agentType} agent successfully enqueued`);
           if (result.value?.jobId) {
             jobIds.push({ agentType, jobId: result.value.jobId });
           }
         } else {
-          console.log(`❌ FAILED: ${agentType} agent failed to enqueue:`, result.reason);
+          console.log(`❌ GRANULAR PROCESSING FAILED: ${agentType} agent failed to enqueue:`, result.reason);
         }
       });
       
-      console.log(`🎯 All 7 agents enqueued via enterprise queue. Job IDs:`, jobIds);
-      return { success: true, jobIds, agentCount: agentTypes.length };
+      console.log(`🎯 All 7 agents started with granular processing. Job IDs:`, jobIds);
+      return { success: true, jobIds, agentCount: agentTypes.length, processingMode: 'granular' };
       
       } catch (mutationError) {
         console.error('❌ Critical error in enterprise queue mutation:', mutationError);
