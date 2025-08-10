@@ -34,46 +34,18 @@ const FINANCIAL_QUESTIONS = [
   { id: 'revenue_model', category: 'Revenue', question: 'What is the revenue model and unit economics?' }
 ];
 
-// IP questions - Complete 16-question set matching frontend
+// IP questions  
 const IP_QUESTIONS = [
-  // Patents
-  { id: 'patents_1', category: 'Patents', question: 'In what jurisdictions are patents filed (US, EU, China, Japan)?' },
-  { id: 'patents_2', category: 'Patents', question: 'What is the status of patent applications (granted, pending, abandoned)?' },
-  { id: 'patents_3', category: 'Patents', question: 'What is the remaining duration of patent protection?' },
-  { id: 'patents_4', category: 'Patents', question: 'Has a freedom to operate (FTO) analysis been conducted?' },
-  
-  // Trademarks
-  { id: 'trademarks_1', category: 'Trademarks', question: 'What Nice classes do the trademarks cover for protection?' },
-  { id: 'trademarks_2', category: 'Trademarks', question: 'Have there been any opposition proceedings or disputes filed?' },
-  { id: 'trademarks_3', category: 'Trademarks', question: 'What are the renewal and maintenance requirements?' },
-  { id: 'trademarks_4', category: 'Trademarks', question: 'Are there plans for brand extension or geographical expansion?' },
-  
-  // Licenses
-  { id: 'licenses_1', category: 'Licenses', question: 'Are the licenses exclusive or non-exclusive?' },
-  { id: 'licenses_2', category: 'Licenses', question: 'What are the royalty rates and payment terms?' },
-  { id: 'licenses_3', category: 'Licenses', question: 'Are sublicensing rights granted or restricted?' },
-  { id: 'licenses_4', category: 'Licenses', question: 'What are the termination clauses and conditions?' },
-  
-  // Source Code Ownership
-  { id: 'source_code_1', category: 'Source Code Ownership', question: 'What percentage of code is developed in-house vs third-party components?' },
-  { id: 'source_code_2', category: 'Source Code Ownership', question: 'What open-source licenses are used (GPL, MIT, Apache)?' },
-  { id: 'source_code_3', category: 'Source Code Ownership', question: 'Are there clear policies for employee-created IP?' },
-  { id: 'source_code_4', category: 'Source Code Ownership', question: 'Are all code contributions properly documented and assigned?' }
+  { id: 'patent_portfolio', category: 'Patents', question: 'What is the patent portfolio and strategy?' },
+  { id: 'ip_freedom', category: 'Freedom to Operate', question: 'Is there freedom to operate?' },
+  { id: 'ip_risks', category: 'IP Risks', question: 'What are the IP litigation risks?' }
 ];
 
-// Research questions - Matching frontend expectations exactly
+// Research questions
 const RESEARCH_QUESTIONS = [
-  { id: 'research_1', category: 'Technical Whitepapers', question: 'Are technical whitepapers available?' },
-  { id: 'research_2', category: 'Market Research Reports', question: 'Are competitive analyses included?' },
-  { id: 'research_3', category: 'Market Research Reports', question: 'Is market sizing data provided?' },
-  { id: 'research_4', category: 'Customer Validation', question: 'Are customer validation studies included?' },
-  { id: 'research_5', category: 'Third-party Reports', question: 'Are third-party reports referenced?' },
-  { id: 'research_6', category: 'Regulatory Analysis', question: 'Are regulatory considerations addressed?' },
-  { id: 'research_7', category: 'Academic Publications', question: 'Are academic publications cited?' },
-  { id: 'research_8', category: 'Technical Whitepapers', question: 'Are methodologies reproducible?' },
-  { id: 'research_9', category: 'Academic Publications', question: 'Are citations and forward references analyzed?' },
-  { id: 'research_10', category: 'Patent Landscape', question: 'Are patent landscape analyses provided?' },
-  { id: 'research_11', category: 'Patent Landscape', question: 'Is competitive IP density mapped?' }
+  { id: 'market_research', category: 'Market Research', question: 'What market research supports the opportunity?' },
+  { id: 'industry_trends', category: 'Industry', question: 'What are the key industry trends?' },
+  { id: 'competitive_analysis', category: 'Competition', question: 'What does the competitive analysis show?' }
 ];
 
 const AGENT_QUESTIONS = {

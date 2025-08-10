@@ -78,64 +78,6 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
 });
 
 /**
- * Start analysis for a specific agent type
- */
-router.post('/api/deals/:dealId/agents/:agentType/start-analysis', async (req: Request, res: Response) => {
-  try {
-    const dealId = parseInt(req.params.dealId);
-    const agentType = req.params.agentType.charAt(0).toUpperCase() + req.params.agentType.slice(1).toLowerCase();
-    
-    // Validate agent type
-    const validAgentTypes = ['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
-    if (!validAgentTypes.includes(agentType)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid agent type. Must be one of: ${validAgentTypes.join(', ')}`
-      });
-    }
-    
-    console.log(`🚀 Starting ${agentType} analysis for deal ${dealId}`);
-    
-    // Clear any stuck jobs for this agent first
-    await persistentJobManager.clearStuckJobsForAgent(dealId, agentType);
-    
-    try {
-      const analysisService = getAnalysisServiceForAgent(agentType);
-      const jobId = await persistentJobManager.startAnalysisJob(
-        dealId,
-        agentType,
-        analysisService
-      );
-      
-      console.log(`✅ Started ${agentType} analysis job: ${jobId}`);
-      
-      res.json({
-        success: true,
-        message: `Started ${agentType} analysis successfully`,
-        jobId,
-        agentType
-      });
-      
-    } catch (error) {
-      console.error(`❌ Failed to start ${agentType} analysis:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to start ${agentType} analysis`,
-        details: error.message
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ Error starting individual agent analysis:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to start analysis',
-      details: error.message
-    });
-  }
-});
-
-/**
  * Get status of all persistent jobs for a deal
  */
 router.get('/api/deals/:dealId/persistent-jobs-status', async (req: Request, res: Response) => {

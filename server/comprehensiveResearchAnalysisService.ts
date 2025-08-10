@@ -11,83 +11,68 @@ const openai = new OpenAI({
 const RESEARCH_QUESTIONS = [
   // Technical Whitepapers
   {
-    id: 'research_1',
-    category: 'Technical Whitepapers',
-    question: 'Are technical whitepapers available?',
-    analysisPrompt: 'Analyze the availability of technical whitepapers, including methodologies, reproducibility, clear step-by-step procedures, documented protocols, and replicable experimental designs.'
-  },
-  {
-    id: 'research_8',
+    id: 'technical_1',
     category: 'Technical Whitepapers',
     question: 'Are methodologies reproducible?',
-    analysisPrompt: 'Evaluate whether technical methodologies are reproducible with clear step-by-step procedures, documented protocols, and replicable experimental designs.'
+    analysisPrompt: 'Analyze technical methodologies for reproducibility, clear step-by-step procedures, documented protocols, and replicable experimental designs.'
+  },
+  {
+    id: 'technical_2',
+    category: 'Technical Whitepapers',
+    question: 'Are KPIs / benchmarks clearly described?',
+    analysisPrompt: 'Evaluate whether key performance indicators and benchmarks are clearly defined, measurable, and include baseline comparisons.'
+  },
+  {
+    id: 'technical_3',
+    category: 'Technical Whitepapers',
+    question: 'Are claims cited and supported by peer-reviewed literature?',
+    analysisPrompt: 'Verify that technical claims are backed by citations to peer-reviewed literature, scientific studies, and authoritative sources.'
   },
   
   // Market Research Reports
   {
-    id: 'research_2',
+    id: 'market_1',
     category: 'Market Research Reports',
-    question: 'Are competitive analyses included?',
-    analysisPrompt: 'Assess whether competitive analysis documents are included, covering competitor positioning, market share, and competitive advantages.'
+    question: 'Are TAM/SAM/SOM defined with assumptions?',
+    analysisPrompt: 'Assess whether Total Addressable Market, Serviceable Addressable Market, and Serviceable Obtainable Market are clearly defined with underlying assumptions.'
   },
   {
-    id: 'research_3',
-    category: 'Market Research Reports', 
-    question: 'Is market sizing data provided?',
-    analysisPrompt: 'Verify that market sizing data is provided, including TAM/SAM/SOM definitions with underlying assumptions and forecasting methodologies.'
+    id: 'market_2',
+    category: 'Market Research Reports',
+    question: 'Are sources cited (Gartner, Statista, CB Insights)?',
+    analysisPrompt: 'Verify that market data sources are cited, including reputable sources like Gartner, Statista, CB Insights, IDC, or other authoritative market research firms.'
   },
-  
-  // Customer Validation
   {
-    id: 'research_4',
-    category: 'Customer Validation',
-    question: 'Are customer validation studies included?',
-    analysisPrompt: 'Check for customer validation studies, user interviews, surveys, beta testing results, and customer feedback documentation.'
-  },
-  
-  // Third-party Reports
-  {
-    id: 'research_5',
-    category: 'Third-party Reports',
-    question: 'Are third-party reports referenced?',
-    analysisPrompt: 'Verify that third-party reports from reputable sources like Gartner, Statista, CB Insights, IDC, or other authoritative research firms are referenced.'
-  },
-  
-  // Regulatory Analysis
-  {
-    id: 'research_6',
-    category: 'Regulatory Analysis',
-    question: 'Are regulatory considerations addressed?',
-    analysisPrompt: 'Evaluate whether regulatory considerations are addressed, including compliance requirements, regulatory pathways, and industry-specific regulations.'
+    id: 'market_3',
+    category: 'Market Research Reports',
+    question: 'Are forecasts based on bottom-up or top-down logic?',
+    analysisPrompt: 'Determine whether market forecasts use bottom-up analysis (building from individual data points) or top-down analysis (starting from broad market), and assess the logic.'
   },
   
   // Academic Publications
   {
-    id: 'research_7',
+    id: 'academic_1',
     category: 'Academic Publications',
-    question: 'Are academic publications cited?',
-    analysisPrompt: 'Verify whether academic papers are cited from peer-reviewed publications, recognized academic journals, or conferences.'
+    question: 'Are papers peer-reviewed?',
+    analysisPrompt: 'Verify whether academic papers are peer-reviewed publications from recognized academic journals or conferences.'
   },
   {
-    id: 'research_9',
+    id: 'academic_2',
     category: 'Academic Publications',
-    question: 'Are citations and forward references analyzed?',
-    analysisPrompt: 'Check if citations reference authoritative academic databases like PubMed, arXiv, Nature, Science, IEEE, and include forward reference analysis.'
+    question: 'Are citations in PubMed, arXiv, Nature, etc.?',
+    analysisPrompt: 'Check if citations reference authoritative academic databases like PubMed, arXiv, Nature, Science, IEEE, or other high-impact journals.'
+  },
+  {
+    id: 'academic_3',
+    category: 'Academic Publications',
+    question: 'Is the publication recent and still relevant?',
+    analysisPrompt: 'Evaluate the publication date and assess whether the research is current and relevant to modern applications.'
   },
   
-  // Patent Landscape
+  // Patent Landscape Analyses
   {
-    id: 'research_10',
-    category: 'Patent Landscape',
-    question: 'Are patent landscape analyses provided?',
-    analysisPrompt: 'Assess whether patent landscape analysis is provided, including patent mapping, competitive patent density, and IP white space identification.'
-  },
-  {
-    id: 'research_11',
-    category: 'Patent Landscape',
-    question: 'Is competitive IP density mapped?',
-    analysisPrompt: 'Evaluate whether competitive intellectual property density is mapped, identifying crowded fields and white space opportunities.'
-  }
+    id: 'patent_1',
+    category: 'Patent Landscape Analyses',
     question: 'Are citations and forward references analyzed?',
     analysisPrompt: 'Assess whether patent analysis includes backward citations (prior art) and forward citations (patents that reference this work).'
   },
