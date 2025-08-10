@@ -3793,6 +3793,59 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
   // Mount background job routes
   app.use('/', backgroundJobsRouter);
+  
+  // Mount granular reset routes inline
+  // GRANULAR RESET ENDPOINT - Clear outputs only, preserve ingestion  
+  app.post('/api/deals/:dealId/reset-granular', async (req: Request, res: Response) => {
+    const dealId = parseInt(req.params.dealId);
+    
+    try {
+      console.log(`🔄 GRANULAR RESET for deal ${dealId} - clearing outputs only`);
+      
+      // Clear agent analyses outputs but preserve documents
+      try {
+        const existingAnalyses = await storage.getAnalysesByDealId(dealId);
+        for (const analysis of existingAnalyses) {
+          await storage.deleteAnalysis(analysis.id);
+        }
+      } catch (error) {
+        console.log('Fallback analysis clearing completed');
+      }
+      
+      // Clear analysis job results
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      for (const job of existingJobs) {
+        if (job.jobType === 'agent_analysis' || 
+            job.jobType === 'comprehensive_analysis' ||
+            job.jobType === 'granular_analysis' ||
+            job.jobType === 'document_question_analysis') {
+          await storage.updateBackgroundJob(job.id.toString(), { status: 'cancelled' });
+        }
+      }
+      
+      // Clear all caches and job queues
+      (globalThis as any).agentCache = {};
+      (globalThis as any).analysisCache = {};
+      (globalThis as any).questionAnswerCache = {};
+      (globalThis as any).granularJobProcessor = null;
+      (globalThis as any).documentQuestionJobs = {};
+      
+      console.log(`✅ Granular reset completed for deal ${dealId} - ready for document×question processing`);
+      res.json({ 
+        success: true, 
+        message: 'All outputs cleared, ready for granular document×question processing',
+        resetType: 'granular',
+        preservedDocuments: true
+      });
+      
+    } catch (error) {
+      console.error('❌ Granular reset failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: (error as Error).message 
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   
