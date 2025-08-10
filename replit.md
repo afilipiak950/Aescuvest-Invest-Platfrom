@@ -38,7 +38,6 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy (agent analyses, document batches, synthesis).
 - **Performance-Optimized Processing**: Revolutionary two-stage LLM pipeline achieving 300x speed improvement for 500-document scalability with hash-based caching, intelligent relevance filtering, and massive parallelization (15 global + 8 per-agent concurrency).
 - **Comprehensive Processing Engine**: Implemented full document-question matrix processing for all 7 AI agents, providing multi-source evidence synthesis.
-- **IP Agent Question-Specific Analysis**: Fixed identical answer issue across all IP questions by implementing 16 unique questions with proper backend support and question-specific fallback responses (August 2025).
 
 ### Data Flow
 Deals are submitted, documents processed, AI agents analyze different aspects, external research augments profiles, leading to scoring and evaluation. Deals then progress through pipeline stages with notifications.

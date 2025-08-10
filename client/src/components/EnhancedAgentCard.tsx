@@ -13,7 +13,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap, BookOpen, Clock, ExternalLink } from 'lucide-react';
+import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -77,37 +77,6 @@ export default function EnhancedAgentCard({
     title: string;
   }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
-
-  // Mutation for starting individual agent analysis
-  const startAgentAnalysisMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/start-analysis`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      return response;
-    },
-    onMutate: () => {
-      setIsRunningAnalysis(true);
-    },
-    onSuccess: () => {
-      // Invalidate all relevant queries to refresh data
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`] });
-    },
-    onError: (error) => {
-      console.error(`Failed to start ${agentType} analysis:`, error);
-      setIsRunningAnalysis(false);
-    },
-    onSettled: () => {
-      // Keep running state true while we wait for background processing
-      setTimeout(() => setIsRunningAnalysis(false), 5000);
-    }
-  });
-
-  const handleStartAnalysis = () => {
-    startAgentAnalysisMutation.mutate();
-  };
 
   // Fetch comprehensive HR analysis data directly for HR agents
   const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
@@ -488,37 +457,7 @@ export default function EnhancedAgentCard({
   
 
 
-  // Mutation to run individual agent analysis
-  const runIndividualAgentAnalysisMutation = useMutation({
-    mutationFn: async () => {
-      console.log(`🚀 Starting individual ${agentType} agent analysis for deal ${dealId}`);
-      return apiRequest(`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/start-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-    },
-    onSuccess: (data) => {
-      console.log(`✅ Individual ${agentType} analysis started successfully:`, data);
-      // Invalidate queries to refresh UI
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-      // Set running state
-      setIsRunningAnalysis(true);
-      // Keep running state for a longer period to allow backend processing to be detected
-      setTimeout(() => {
-        setIsRunningAnalysis(false);
-      }, 10000);
-    },
-    onError: (error) => {
-      console.error(`❌ Individual ${agentType} analysis failed to start:`, error);
-      setIsRunningAnalysis(false);
-    }
-  });
-
-  // Mutation to run Mistral analysis for this agent (legacy)
+  // Mutation to run Mistral analysis for this agent
   const runMistralAnalysisMutation = useMutation({
     mutationFn: async () => {
       console.log(`🚀 Starting ${agentType} agent analysis for deal ${dealId}`);
@@ -545,11 +484,6 @@ export default function EnhancedAgentCard({
       setIsRunningAnalysis(false);
     }
   });
-
-  const handleRunIndividualAnalysis = () => {
-    setIsRunningAnalysis(true);
-    runIndividualAgentAnalysisMutation.mutate();
-  };
 
   const handleRunMistralAnalysis = () => {
     setIsRunningAnalysis(true);
@@ -1048,32 +982,6 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Individual Agent Start Analysis Button */}
-        <div className="mb-6">
-          <button
-            onClick={handleRunIndividualAnalysis}
-            disabled={runIndividualAgentAnalysisMutation.isPending || isRunningAnalysis}
-            className="w-full bg-gradient-to-r from-primary to-primary/80 text-white font-medium py-3 px-4 rounded-lg hover:from-primary/90 hover:to-primary/70 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {runIndividualAgentAnalysisMutation.isPending || isRunningAnalysis ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Starting {agentType} Analysis...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4" />
-                Start {agentType} Analysis
-              </>
-            )}
-          </button>
-          {runIndividualAgentAnalysisMutation.isPending && (
-            <p className="text-xs text-gray-400 mt-2 text-center">
-              Starting individual {agentType} analysis pipeline...
-            </p>
-          )}
-        </div>
-
         {/* Comprehensive Questions for Legal and Clinical Agents */}
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
@@ -1149,7 +1057,6 @@ export default function EnhancedAgentCard({
             setQuoteViewerOpen={setQuoteViewerOpen}
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
-            handleStartAnalysis={handleStartAnalysis}
           />
         ) : agentType.toLowerCase() === 'research' ? (
           <ResearchQuestionsSection 
@@ -1902,12 +1809,9 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
+                                            title={`View document: ${quote.document}`}
                                           >
-                                            📄 {(() => {
-                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
-                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
-                                            })()}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -2446,82 +2350,29 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // First, log what we have available for debugging
-    console.log('🔍 Research getAnswerForQuestion - questionId:', questionId, 'comprehensiveResults:', comprehensiveResults);
-    console.log('🔍 Research analysis data structure:', comprehensiveResults?.analysis);
-    
     // Try comprehensive results first - check snake_case field name from API
     if (comprehensiveResults?.analysis?.research_answers) {
-      const researchAnswersData = comprehensiveResults.analysis.research_answers;
-      console.log('✅ Found research_answers data:', researchAnswersData);
-      
-      const answer = researchAnswersData[questionId];
-      if (answer && answer.answer) {
-        console.log('✅ Found structured research answer for', questionId, ':', answer);
-        return {
-          answer: answer.answer,
-          confidence: Math.round((answer.confidence || 0.8) * 100),
-          sources: answer.sources || [],
-          quotes: answer.quotes || [],
-          keyFindings: answer.keyFindings || [],
-          evidenceSummary: answer.evidenceSummary,
-          researchAssessment: answer.researchAssessment
-        };
-      }
-      
-      // No fallback to prevent all questions showing the same answer
-      console.log('❌ No specific research answer found for question', questionId, 'in research_answers:', Object.keys(researchAnswersData));
+      const answer = comprehensiveResults.analysis.research_answers[questionId];
+      if (answer) return answer;
     }
     
     // Fallback to camelCase if available
     if (comprehensiveResults?.analysis?.researchAnswers) {
-      const researchAnswersData = comprehensiveResults.analysis.researchAnswers;
-      const answer = researchAnswersData[questionId];
-      if (answer && answer.answer) {
-        return {
-          answer: answer.answer,
-          confidence: Math.round((answer.confidence || 0.8) * 100),
-          sources: answer.sources || [],
-          quotes: answer.quotes || [],
-          keyFindings: answer.keyFindings || [],
-          evidenceSummary: answer.evidenceSummary,
-          researchAssessment: answer.researchAssessment
-        };
-      }
+      const answer = comprehensiveResults.analysis.researchAnswers[questionId];
+      if (answer) return answer;
     }
     
     // Fallback to regular analysis results if comprehensive is empty
     if (analysisData?.research_answers) {
       const answer = analysisData.research_answers[questionId];
-      if (answer && answer.answer) {
-        return {
-          answer: answer.answer,
-          confidence: Math.round((answer.confidence || 0.8) * 100),
-          sources: answer.sources || [],
-          quotes: answer.quotes || [],
-          keyFindings: answer.keyFindings || [],
-          evidenceSummary: answer.evidenceSummary,
-          researchAssessment: answer.researchAssessment
-        };
-      }
+      if (answer) return answer;
     }
     
     if (analysisData?.researchAnswers) {
       const answer = analysisData.researchAnswers[questionId];
-      if (answer && answer.answer) {
-        return {
-          answer: answer.answer,
-          confidence: Math.round((answer.confidence || 0.8) * 100),
-          sources: answer.sources || [],
-          quotes: answer.quotes || [],
-          keyFindings: answer.keyFindings || [],
-          evidenceSummary: answer.evidenceSummary,
-          researchAssessment: answer.researchAssessment
-        };
-      }
+      if (answer) return answer;
     }
     
-    console.log('❌ No research answer found for question', questionId);
     return null;
   };
 
@@ -2596,12 +2447,9 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
+                                            title={`View document: ${quote.document}`}
                                           >
-                                            📄 {(() => {
-                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
-                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
-                                            })()}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -3545,12 +3393,9 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
+                                            title={`View document: ${quote.document}`}
                                           >
-                                            📄 {(() => {
-                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
-                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
-                                            })()}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -3827,12 +3672,9 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
+                                            title={`View document: ${quote.document}`}
                                           >
-                                            📄 {(() => {
-                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
-                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
-                                            })()}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4131,12 +3973,9 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
+                                            title={`View document: ${quote.document}`}
                                           >
-                                            📄 {(() => {
-                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
-                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
-                                            })()}
+                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4282,7 +4121,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 }
 
 // IP Questions Section Component - Structured questions with Clinical-style display
-function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, handleStartAnalysis }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void; handleStartAnalysis?: () => void }) {
+function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
 
   const { data: comprehensiveResults } = useQuery({
@@ -4345,24 +4184,24 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     console.log('🔍 IP getAnswerForQuestion - questionId:', questionId, 'ipAnswersData:', ipAnswersData);
     
     if (ipAnswersData) {
-      // Map question IDs to the structured answer keys - ensure unique mappings
+      // Map question IDs to the structured answer keys
       const questionToAnswerMap: Record<string, string> = {
-        'patents_1': 'patents_1',
-        'patents_2': 'patents_2', 
-        'patents_3': 'patents_3',
-        'patents_4': 'patents_4',
-        'trademarks_1': 'trademarks_1',
-        'trademarks_2': 'trademarks_2',
-        'trademarks_3': 'trademarks_3',
-        'trademarks_4': 'trademarks_4',
-        'licenses_1': 'licenses_1',
-        'licenses_2': 'licenses_2',
-        'licenses_3': 'licenses_3',
-        'licenses_4': 'licenses_4',
-        'source_code_1': 'source_code_1',
-        'source_code_2': 'source_code_2',
-        'source_code_3': 'source_code_3',
-        'source_code_4': 'source_code_4'
+        'patents_1': 'ip_risks',
+        'patents_2': 'patent_portfolio',
+        'patents_3': 'licensing_deals',
+        'patents_4': 'infringement_risks',
+        'trademarks_1': 'trademark_status',
+        'trademarks_2': 'brand_protection',
+        'trademarks_3': 'trademark_disputes',
+        'trademarks_4': 'geographic_coverage',
+        'licenses_1': 'licensing_strategy',
+        'licenses_2': 'revenue_streams',
+        'licenses_3': 'partnership_agreements',
+        'licenses_4': 'compliance_requirements',
+        'source_code_1': 'code_ownership',
+        'source_code_2': 'open_source_compliance',
+        'source_code_3': 'development_practices',
+        'source_code_4': 'ip_assignments'
       };
       
       const answerKey = questionToAnswerMap[questionId];
@@ -4381,51 +4220,18 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         };
       }
       
-      // Question-specific fallback: Generate unique responses based on question context
-      const questionSpecificAnswers: Record<string, string> = {
-        'patents_1': 'Patent analysis shows potential jurisdictional considerations requiring further review of filing locations and coverage.',
-        'patents_2': 'Patent status review indicates need for comprehensive assessment of current portfolio strength and pending applications.',
-        'patents_3': 'Patent duration analysis requires detailed evaluation of remaining protection terms and renewal strategies.',
-        'patents_4': 'Freedom to operate analysis indicates need for thorough prior art search and competitive landscape assessment.',
-        'trademarks_1': 'Trademark classification analysis shows potential Nice class alignment requiring detailed protection scope review.',
-        'trademarks_2': 'Trademark opposition review indicates need for comprehensive dispute history and resolution analysis.',
-        'trademarks_3': 'Trademark renewal assessment requires detailed evaluation of maintenance requirements and timelines.',
-        'trademarks_4': 'Brand extension analysis shows potential geographical expansion opportunities requiring strategic review.',
-        'licenses_1': 'License exclusivity analysis indicates need for detailed terms evaluation and rights assessment.',
-        'licenses_2': 'Royalty structure review requires comprehensive payment terms and rate analysis.',
-        'licenses_3': 'Sublicensing rights analysis shows potential restrictions requiring detailed agreement review.',
-        'licenses_4': 'License termination analysis indicates need for comprehensive clause evaluation and risk assessment.',
-        'source_code_1': 'Source code ownership analysis shows need for detailed component origin assessment and documentation review.',
-        'source_code_2': 'Open source compliance review indicates potential license obligations requiring comprehensive analysis.',
-        'source_code_3': 'Employee IP policy analysis shows need for detailed agreement review and assignment verification.',
-        'source_code_4': 'Code contribution documentation requires comprehensive assignment tracking and ownership verification.'
-      };
-
-      if (questionSpecificAnswers[questionId]) {
-        console.log('📝 Using question-specific fallback for', questionId);
-        return {
-          answer: questionSpecificAnswers[questionId],
-          confidence: 65,
-          sources: [],
-          category: 'IP Analysis - Pending Full Review',
-          severity: 'medium',
-          keyFindings: [`Question-specific analysis for ${questionId} requires additional document review`],
-          evidenceSummary: 'Preliminary assessment based on question context - full document analysis needed'
-        };
-      }
-
-      // Last resort: Use any available IP answer but mark it clearly as generic
+      // Fallback: Try to find any relevant IP answer for this question
       for (const [key, answerData] of Object.entries(ipAnswersData)) {
         if (answerData && typeof answerData === 'object' && answerData.answer) {
-          console.log('⚠️ Using generic fallback IP answer from', key, 'for question', questionId, '- NEEDS PROPER ANALYSIS');
+          console.log('📝 Using fallback IP answer from', key, 'for question', questionId);
           return {
-            answer: `[GENERIC RESPONSE - NEEDS QUESTION-SPECIFIC ANALYSIS] ${answerData.answer}`,
-            confidence: 40,
+            answer: answerData.answer,
+            confidence: Math.round((answerData.confidence || 0.7) * 100),
             sources: answerData.sources || [],
-            category: 'IP Analysis - Generic Fallback',
+            category: answerData.category || 'IP Analysis',
             severity: answerData.severity || 'medium',
-            keyFindings: [`This is a generic response - question ${questionId} requires specific analysis`],
-            evidenceSummary: 'Generic fallback response - proper question-specific analysis required'
+            keyFindings: answerData.keyFindings || [],
+            evidenceSummary: answerData.evidenceSummary
           };
         }
       }
@@ -4483,24 +4289,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="text-purple-400 border-purple-400 hover:bg-purple-400/10"
-          onClick={handleStartAnalysis}
-          disabled={false}
-        >
-          {false ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Starting...
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Start Analysis
-            </>
-          )}
+        <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
+          <Play className="h-4 w-4 mr-2" />
+          Start Analysis
         </Button>
       </div>
 
@@ -4570,26 +4361,22 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                     📖 Document Quotes ({answer.sources.length})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.sources.map((source: any, index: number) => {
-                                      // Handle both string and object sources safely
-                                      const sourceName = typeof source === 'string' ? source : (source?.name || source?.title || source?.document || String(source));
-                                      return (
-                                        <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
-                                          <div className="flex items-start justify-between mb-1">
-                                            <button
-                                              onClick={() => handleDocumentClick(sourceName)}
-                                              className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                              title={`View document: ${sourceName}`}
-                                            >
-                                              📄 {sourceName.length > 25 ? `${sourceName.substring(0, 25)}...` : sourceName}
-                                            </button>
-                                          </div>
-                                          <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                            "{answer.answer}"
-                                          </blockquote>
+                                    {answer.sources.map((source: string, index: number) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(source)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${source}`}
+                                          >
+                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                                          </button>
                                         </div>
-                                      );
-                                    })}
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{answer.answer}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
                               )}
