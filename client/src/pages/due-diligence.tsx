@@ -1417,11 +1417,16 @@ function DueDiligenceContent() {
     );
     } catch (error) {
         console.error('Error in DueDiligenceContent:', error);
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
         return (
             <Card className="bg-dark-light border-dark-lighter">
                 <CardContent className="py-12 text-center">
                     <h3 className="text-xl font-semibold mb-2">An error occurred</h3>
                     <p className="text-gray-400 mb-4">Please refresh the page or try again.</p>
+                    <p className="text-red-400 text-sm mt-4">
+                        Error: {error instanceof Error ? error.message : 'Unknown error'}
+                    </p>
                 </CardContent>
             </Card>
         );
