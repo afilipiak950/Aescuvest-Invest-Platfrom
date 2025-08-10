@@ -114,7 +114,6 @@ async function processCompanyResearchForDeal(
   }
 }
 import inboxRoutes from "./routes/inbox";
-import microsoftAuthRoutes from "./routes/microsoftAuth";
 import documentUploadRoutes from "./routes/document-upload";
 import backgroundJobsRouter from "./routes/backgroundJobs";
 import { websocketManager } from "./services/websocketManager";
@@ -6949,8 +6948,7 @@ function calculateInvestmentScore(insights: any): number {
   return Math.round(normalizedScore);
 }
 
-// Import Affinity routes
-import { registerAffinityRoutes } from './routes/affinity-routes';
+// Affinity routes already imported above
 
 // Register API routes at the end of the file
 export async function registerAllRoutes(app: Express) {
