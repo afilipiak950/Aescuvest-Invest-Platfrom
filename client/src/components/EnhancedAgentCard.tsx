@@ -4179,9 +4179,66 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const recommendations = (comprehensiveResults as any)?.analysis?.recommendations || [];
 
   const getAnswerForQuestion = (questionId: string) => {
-    // Try to map findings to questions based on content similarity
+    // First, try to get structured IP answers from the comprehensive analysis
+    const ipAnswersData = (comprehensiveResults as any)?.analysis?.ip_answers;
+    console.log('🔍 IP getAnswerForQuestion - questionId:', questionId, 'ipAnswersData:', ipAnswersData);
+    
+    if (ipAnswersData) {
+      // Map question IDs to the structured answer keys
+      const questionToAnswerMap: Record<string, string> = {
+        'patents_1': 'ip_risks',
+        'patents_2': 'patent_portfolio',
+        'patents_3': 'licensing_deals',
+        'patents_4': 'infringement_risks',
+        'trademarks_1': 'trademark_status',
+        'trademarks_2': 'brand_protection',
+        'trademarks_3': 'trademark_disputes',
+        'trademarks_4': 'geographic_coverage',
+        'licenses_1': 'licensing_strategy',
+        'licenses_2': 'revenue_streams',
+        'licenses_3': 'partnership_agreements',
+        'licenses_4': 'compliance_requirements',
+        'source_code_1': 'code_ownership',
+        'source_code_2': 'open_source_compliance',
+        'source_code_3': 'development_practices',
+        'source_code_4': 'ip_assignments'
+      };
+      
+      const answerKey = questionToAnswerMap[questionId];
+      if (answerKey && ipAnswersData[answerKey]) {
+        const structuredAnswer = ipAnswersData[answerKey];
+        console.log('✅ Found structured IP answer for', questionId, ':', structuredAnswer);
+        
+        return {
+          answer: structuredAnswer.answer,
+          confidence: Math.round((structuredAnswer.confidence || 0.8) * 100),
+          sources: structuredAnswer.sources || [],
+          category: structuredAnswer.category || 'IP Analysis',
+          severity: structuredAnswer.severity || 'medium',
+          keyFindings: structuredAnswer.keyFindings || [],
+          evidenceSummary: structuredAnswer.evidenceSummary
+        };
+      }
+      
+      // Fallback: Try to find any relevant IP answer for this question
+      for (const [key, answerData] of Object.entries(ipAnswersData)) {
+        if (answerData && typeof answerData === 'object' && answerData.answer) {
+          console.log('📝 Using fallback IP answer from', key, 'for question', questionId);
+          return {
+            answer: answerData.answer,
+            confidence: Math.round((answerData.confidence || 0.7) * 100),
+            sources: answerData.sources || [],
+            category: answerData.category || 'IP Analysis',
+            severity: answerData.severity || 'medium',
+            keyFindings: answerData.keyFindings || [],
+            evidenceSummary: answerData.evidenceSummary
+          };
+        }
+      }
+    }
+    
+    // Legacy fallback: Try to map findings to questions based on content similarity
     if (findings.length > 0) {
-      // Find the most relevant finding for this question
       const relevantFinding = findings.find((finding: any) => {
         const questionKeywords = {
           'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan', 'country', 'countries', 'filed', 'application'],
@@ -4217,27 +4274,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           severity: relevantFinding.severity
         };
       }
-      
-      // Fallback: If no exact match, return the first finding with some basic relevance
-      if (findings.length > 0 && questionId.startsWith('patents_')) {
-        const patentFinding = findings.find((finding: any) => 
-          finding.finding?.toLowerCase().includes('patent') ||
-          finding.finding?.toLowerCase().includes('IP') ||
-          finding.finding?.toLowerCase().includes('intellectual property')
-        );
-        
-        if (patentFinding) {
-          return {
-            answer: patentFinding.finding,
-            confidence: Math.round((patentFinding.confidence || 0.5) * 100),
-            sources: patentFinding.sources || [],
-            category: patentFinding.category || 'IP Analysis',
-            severity: patentFinding.severity
-          };
-        }
-      }
     }
     
+    console.log('❌ No IP answer found for question', questionId);
     return null;
   };
 
