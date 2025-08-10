@@ -1149,6 +1149,7 @@ export default function EnhancedAgentCard({
             setQuoteViewerOpen={setQuoteViewerOpen}
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
+            handleStartAnalysis={handleStartAnalysis}
           />
         ) : agentType.toLowerCase() === 'research' ? (
           <ResearchQuestionsSection 
@@ -4281,7 +4282,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 }
 
 // IP Questions Section Component - Structured questions with Clinical-style display
-function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
+function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, handleStartAnalysis }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void; handleStartAnalysis?: () => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
 
   const { data: comprehensiveResults } = useQuery({
@@ -4487,9 +4488,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           size="sm" 
           className="text-purple-400 border-purple-400 hover:bg-purple-400/10"
           onClick={handleStartAnalysis}
-          disabled={isRunningAnalysis || startAgentAnalysisMutation.isPending}
+          disabled={false}
         >
-          {(isRunningAnalysis || startAgentAnalysisMutation.isPending) ? (
+          {false ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Starting...
