@@ -621,7 +621,7 @@ Focus on investment due diligence. Be thorough and critical in your analysis.
       return {
         answer: analysis.answer || `Analysis completed for: ${question.question}`,
         confidence: Math.min(100, Math.max(0, analysis.confidence || 60)),
-        keyFindings: Array.isArray(analysis.keyFindings) ? analysis.keyFindings.slice(0, 3) : [],
+        keyFindings: Array.isArray(analysis.keyFindings) ? analysis.keyFindings.slice(0, 5) : [],
         evidenceSummary: analysis.evidenceSummary || 'Evidence analyzed successfully',
         researchAssessment: analysis.researchAssessment || 'Research assessment completed',
         recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations.slice(0, 2) : []
