@@ -1623,6 +1623,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // COMPREHENSIVE E2E ANALYSIS ROUTES
+  app.post('/api/deals/:dealId/comprehensive-analysis/reset-and-run', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID' 
+        });
+      }
+      
+      console.log(`🚀 Starting comprehensive E2E analysis for deal ${dealId}`);
+      
+      // Trigger the comprehensive analysis (simplified version)
+      const { runSimplifiedComprehensiveAnalysis } = await import('./services/simplifiedComprehensiveAnalysis');
+      runSimplifiedComprehensiveAnalysis(dealId).catch(error => {
+        console.error('❌ Background E2E analysis failed:', error);
+      });
+      
+      res.json({
+        success: true,
+        message: 'Comprehensive E2E analysis started',
+        dealId,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Error starting comprehensive analysis:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Track user activity
   app.post('/api/user/activity', async (req: Request, res: Response) => {
     try {

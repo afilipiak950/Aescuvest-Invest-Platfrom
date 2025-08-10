@@ -13,6 +13,7 @@ import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
+import ComprehensiveAnalysisButton from '@/components/ComprehensiveAnalysisButton';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1030,36 +1031,15 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <Button 
-                  onClick={() => {
-                    try {
-                      handleRunAllAnalyses();
-                    } catch (buttonError) {
-                      console.error('❌ Button click error:', buttonError);
-                      toast({
-                        title: "Button Error",
-                        description: "Failed to handle button click. Please refresh the page.",
-                        variant: "destructive",
-                        duration: 5000,
-                      });
-                    }
+                <ComprehensiveAnalysisButton 
+                  dealId={parseInt(selectedDeal)}
+                  onAnalysisStarted={() => {
+                    setIsRunningAllAnalyses(true);
+                    // Refresh queries to show updated progress
+                    queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
                   }}
-                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
-                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
-                  size="sm"
-                >
-                  {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Running All Analyses
-                    </>
-                  ) : (
-                    <>
-                      <Bot className="h-4 w-4 mr-2" />
-                      Reset & Run All Analyses
-                    </>
-                  )}
-                </Button>
+                />
               </div>
             </CardHeader>
             <CardContent>

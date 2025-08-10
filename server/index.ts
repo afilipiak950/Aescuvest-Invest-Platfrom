@@ -10,6 +10,7 @@ import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { enterpriseJobQueue } from "./services/enterpriseJobQueue";
+import comprehensiveAnalysisRoutes from "./routes/comprehensiveAnalysis";
 
 const app = express();
 
