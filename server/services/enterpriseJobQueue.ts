@@ -4,10 +4,12 @@ import { z } from 'zod';
 import { websocketManager } from './websocketManager';
 import { storage } from '../storage';
 
-// Environment configuration with fallbacks
-const CONCURRENCY = parseInt(process.env.CONCURRENCY || '5');
+// Optimized environment configuration for 500-document scalability
+const CONCURRENCY = parseInt(process.env.CONCURRENCY || '15'); // Increased from 5 to 15
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // Base delay in ms for exponential backoff
+const RETRY_DELAY = 1000; // Reduced from 2000ms to 1000ms for faster recovery
+const MAX_TIMEOUT = 120000; // 2 minutes timeout per LLM call (p95 requirement)
+const AGENT_CONCURRENCY = parseInt(process.env.AGENT_CONCURRENCY || '8'); // Per-agent concurrency
 
 // In-memory job queue for Replit environment (Redis replacement)
 interface QueuedJob {
@@ -59,7 +61,8 @@ class EnterpriseJobQueue {
   private activeJobs = new Map<string, JobProgress>();
   private isShuttingDown = false;
   private isProcessing = false;
-  private limit = pLimit(CONCURRENCY);
+  private globalLimit = pLimit(CONCURRENCY);
+  private agentLimits = new Map<string, any>(); // Per-agent rate limiting
   private jobIdCounter = 0;
   private processingInterval: NodeJS.Timeout | null = null;
 
@@ -104,7 +107,15 @@ class EnterpriseJobQueue {
       const jobsToProcess = waitingJobs.slice(0, CONCURRENCY - activeCount);
       
       for (const job of jobsToProcess) {
-        this.limit(() => this.processJob(job));
+        // Get or create per-agent rate limiter
+        const agentType = job.data.agentType;
+        if (!this.agentLimits.has(agentType)) {
+          this.agentLimits.set(agentType, pLimit(AGENT_CONCURRENCY));
+        }
+        const agentLimit = this.agentLimits.get(agentType);
+        
+        // Use both global and per-agent rate limiting
+        this.globalLimit(() => agentLimit(() => this.processJob(job)));
       }
     }
   }
@@ -298,6 +309,59 @@ class EnterpriseJobQueue {
     agentType: string,
     progress: JobProgress
   ): Promise<any> {
+    // Use optimized document processor for massive performance improvement
+    const { OptimizedDocumentProcessor } = await import('./optimizedDocumentProcessor');
+    const processor = new OptimizedDocumentProcessor();
+    
+    try {
+      progress.currentStep = 'Generating document summaries';
+      progress.progress = 25;
+      this.broadcastProgress(job.id, progress);
+
+      // Stage 1: Generate summaries for all documents (parallel)
+      const summaryMap = await processor.generateDocumentSummaries(documents);
+      
+      progress.currentStep = `Running ${agentType} analysis on relevant documents`;
+      progress.progress = 50;
+      this.broadcastProgress(job.id, progress);
+
+      // Stage 2: Run agent analysis using summaries
+      const agentResults = await processor.runAllAgentsInParallel(
+        documents, 
+        summaryMap, 
+        [agentType]
+      );
+
+      progress.progress = 90;
+      this.broadcastProgress(job.id, progress);
+
+      const result = agentResults.get(agentType) || { findings: [], recommendations: [] };
+      
+      console.log(`✅ Optimized ${agentType} analysis: ${result.findings?.length || 0} findings, ${result.recommendations?.length || 0} recommendations`);
+      
+      return {
+        findings: result.findings || [],
+        recommendations: result.recommendations || [],
+        documentsAnalyzed: result.documentsAnalyzed || documents.length,
+        processingStats: processor.getStats()
+      };
+
+    } catch (error) {
+      console.error(`❌ Optimized processing failed for ${agentType}:`, error);
+      
+      // Fallback to legacy processing for reliability
+      return this.legacyProcessDocuments(job, documents, agentType, progress);
+    }
+  }
+
+  // Legacy fallback processing method
+  private async legacyProcessDocuments(
+    job: QueuedJob,
+    documents: any[],
+    agentType: string,
+    progress: JobProgress
+  ): Promise<any> {
+    console.log(`⚠️ Using legacy processing for ${agentType} as fallback`);
     const { analyzeDocument } = await import('./dueDiligence');
     
     let allFindings: any[] = [];
