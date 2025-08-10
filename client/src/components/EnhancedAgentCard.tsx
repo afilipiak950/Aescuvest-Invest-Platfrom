@@ -1809,9 +1809,12 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => {
+                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
+                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
+                                            })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -2513,9 +2516,12 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => {
+                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
+                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
+                                            })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -3459,9 +3465,12 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => {
+                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
+                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
+                                            })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -3738,9 +3747,12 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => {
+                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
+                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
+                                            })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4039,9 +4051,12 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                           <button
                                             onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document')}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => {
+                                              const docName = typeof quote.document === 'string' ? quote.document : (quote.document?.title || quote.document?.name || 'Document');
+                                              return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName;
+                                            })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
