@@ -394,68 +394,112 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Combined OCR Analysis Mutation - New efficient Combined OCR system
+  // Comprehensive Analysis Mutation - Reset and run all 7 agents with fresh state
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log(`🚀 Combined OCR Analysis - Starting efficient Combined OCR system for all 7 agents`);
+        console.log(`🚀 Comprehensive Analysis - Starting fresh analysis for all 7 agents with reset`);
         
         if (!selectedDeal) {
           throw new Error('No deal selected for analysis');
         }
         
-        // Call the new Combined OCR bulk analysis endpoint
+        const dealId = parseInt(selectedDeal);
+        
+        // Step 1: Reset all previous analysis states
+        console.log('🔄 Step 1: Resetting all previous analysis states...');
+        const resetResponse = await apiRequest(`/api/analyses/reset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dealId })
+        });
+        console.log('✅ Reset completed:', resetResponse);
+        
+        // Step 2: Launch Combined OCR for all 7 agents
+        console.log('🚀 Step 2: Launching Combined OCR analysis for all 7 agents...');
         const response = await apiRequest(`/api/combined-ocr/analyze-bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            dealId: parseInt(selectedDeal),
+            dealId,
             agentTypes: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
-            forceRefresh: true
+            forceRefresh: true,
+            resetFirst: true // Ensure clean slate
           })
         });
         
-        console.log(`✅ Combined OCR analysis started:`, response);
-        return response;
+        console.log(`✅ Comprehensive analysis started with job:`, response.jobId);
+        return { ...response, resetSuccess: true };
         
       } catch (error) {
-        console.error('❌ Combined OCR analysis failed:', error);
+        console.error('❌ Comprehensive analysis failed:', error);
         throw error;
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ Combined OCR analysis started:`, results);
+      console.log(`✅ Comprehensive analysis started:`, results);
+      console.log(`📊 Expected jobs: ${7} agents × multiple questions each`);
       
       toast({
-        title: "Combined OCR Analysis Started",
-        description: `Processing all 7 agents with efficient Combined OCR system - ${results.jobId}`,
+        title: "Comprehensive Analysis Started",
+        description: `Reset complete. Processing all 7 agents from 0% with fresh analysis - ${results.jobId}`,
         duration: 5000,
       });
       
-      // Invalidate queries to refresh UI
+      // Immediately refresh UI to show reset state
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
       
-      // Monitor progress with new Combined OCR status endpoint
+      // Track progress and ensure we get real answers
+      let progressCheckCount = 0;
+      const maxChecks = 200; // 10 minutes max
+      
       const checkProgress = setInterval(async () => {
+        progressCheckCount++;
+        
         try {
           const statusResponse = await fetch(`/api/combined-ocr/bulk-status/${results.jobId}`);
           const statusData = await statusResponse.json();
           
-          if (statusData.success && statusData.overallProgress >= 100) {
-            console.log(`🎉 Combined OCR analysis completed!`);
+          if (statusData.success) {
+            console.log(`📊 Progress check ${progressCheckCount}: ${statusData.overallProgress}% complete`);
+            console.log(`📊 Agent statuses:`, statusData.agentStatuses);
+            
+            if (statusData.overallProgress >= 100) {
+              console.log(`🎉 Comprehensive analysis completed!`);
+              setIsRunningAllAnalyses(false);
+              clearInterval(checkProgress);
+              
+              // Force refresh all data
+              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
+              
+              // Verify results are properly saved
+              setTimeout(async () => {
+                const verificationResponse = await fetch(`/api/analyses/${selectedDeal}`);
+                const verificationData = await verificationResponse.json();
+                const completedAgents = verificationData.filter((a: any) => a.status === 'Completed').length;
+                
+                toast({
+                  title: "Comprehensive Analysis Complete",
+                  description: `All 7 agents completed. ${completedAgents}/7 agents have results with answers and sources.`,
+                  duration: 8000,
+                });
+                
+                console.log(`📊 Verification: ${completedAgents}/7 agents completed with results`);
+              }, 2000);
+            }
+          }
+          
+          // Safety timeout
+          if (progressCheckCount >= maxChecks) {
+            console.log('⏰ Progress check timeout - stopping monitoring');
             setIsRunningAllAnalyses(false);
             clearInterval(checkProgress);
-            
-            queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-            
-            toast({
-              title: "Combined OCR Analysis Complete",
-              description: "All 7 agents completed with high-quality sources and evidence",
-              duration: 5000,
-            });
           }
+          
         } catch (error) {
-          console.error('Error checking Combined OCR progress:', error);
+          console.error('Error checking progress:', error);
         }
       }, 3000);
       
@@ -662,11 +706,12 @@ function DueDiligenceContent() {
   const handleComprehensiveAnalysis = () => {
     try {
       console.log(`🚀 Comprehensive Analysis button clicked for deal ${selectedDeal}`);
+      console.log('🔄 This will: 1) Reset all analysis states 2) Launch fresh analysis for all 7 agents 3) Generate real answers');
       
       if (!selectedDeal) {
         console.error('❌ No deal selected');
         toast({
-          title: "No Deal Selected",
+          title: "No Deal Selected", 
           description: "Please select a deal before running analysis.",
           variant: "destructive",
           duration: 3000,
@@ -674,12 +719,13 @@ function DueDiligenceContent() {
         return;
       }
       
+      // Start the comprehensive analysis process
       setIsRunningAllAnalyses(true);
       
       toast({
-        title: "Starting Combined OCR Analysis",
-        description: "Efficient Combined OCR system processing all 7 agents...",
-        duration: 3000,
+        title: "Starting Comprehensive Analysis",
+        description: "Resetting previous states and launching fresh analysis for all 7 agents...",
+        duration: 4000,
       });
       
       comprehensiveAnalysisMutation.mutate();
