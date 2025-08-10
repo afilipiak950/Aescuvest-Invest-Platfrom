@@ -150,6 +150,12 @@ router.post('/analyze-bulk', async (req, res) => {
     const validatedData = MultiAnalysisRequestSchema.parse(req.body);
     const { dealId, agentTypes, forceRefresh } = validatedData;
 
+    // 🔥 CRITICAL: Always perform complete reset for bulk analysis
+    await performCompleteReset(dealId);
+
+    // 🔥 CRITICAL: Always perform complete reset for bulk analysis
+    await performCompleteReset(dealId);
+
     // Validate all agent types
     const validAgentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
     const invalidAgents = agentTypes.filter(type => !validAgentTypes.includes(type));
@@ -187,6 +193,33 @@ router.post('/analyze-bulk', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to start bulk analysis',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * POST /api/combined-ocr/complete-reset
+ * Perform complete reset of all analyses for a deal
+ */
+router.post('/complete-reset', async (req, res) => {
+  try {
+    const { dealId } = ResetAnalysisSchema.parse(req.body);
+    
+    await performCompleteReset(dealId);
+    
+    res.json({
+      success: true,
+      message: `Complete reset performed for deal ${dealId}`,
+      dealId,
+      clearedItems: ['agent_analyses', 'cache', 'active_jobs'],
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('❌ Reset failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Reset failed',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -720,6 +753,44 @@ function generateOverallCoverageReport(results: any[]): any {
       ]
     }
   };
+}
+
+/**
+ * Perform complete reset of all analyses for a deal
+ */
+async function performCompleteReset(dealId: number): Promise<void> {
+  console.log(`🔄 Performing complete reset for deal ${dealId}`);
+  
+  try {
+    // Clear all agent analyses from database
+    await storage.clearAgentAnalyses(dealId);
+    
+    // Clear Combined OCR cache
+    combinedOcrProcessor.clearCache();
+    
+    // Clear any active jobs from memory
+    const jobsToRemove: string[] = [];
+    for (const [jobId, job] of activeJobs.entries()) {
+      if (job.dealId === dealId) {
+        jobsToRemove.push(jobId);
+      }
+    }
+    jobsToRemove.forEach(jobId => activeJobs.delete(jobId));
+    
+    const bulkJobsToRemove: string[] = [];
+    for (const [bulkJobId, bulkJob] of activeBulkJobs.entries()) {
+      if (bulkJob.dealId === dealId) {
+        bulkJobsToRemove.push(bulkJobId);
+      }
+    }
+    bulkJobsToRemove.forEach(bulkJobId => activeBulkJobs.delete(bulkJobId));
+    
+    console.log(`✅ Complete reset performed for deal ${dealId}: cleared analyses, cache, and ${jobsToRemove.length + bulkJobsToRemove.length} active jobs`);
+    
+  } catch (error) {
+    console.error(`❌ Error performing complete reset for deal ${dealId}:`, error);
+    throw error;
+  }
 }
 
 export default router;
