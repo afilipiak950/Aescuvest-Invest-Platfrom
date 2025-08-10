@@ -325,104 +325,108 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Mutation for running all agent analyses (manual trigger)
+  // Mutation for running all agent analyses using enterprise queue system
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
+        console.log(`🚀 Hard Reset & Run All Analyses - Starting for all 7 agents using enterprise queue`);
         
         // Validate selectedDeal is available in mutation context
         if (!selectedDeal) {
           throw new Error('No deal selected for analysis');
         }
         
-        // Step 1: Stop all running analyses first 
-        console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
+        // Step 1: Hard reset - clear all existing outputs, caches, and job states
+        console.log(`🧹 HARD RESET: Clearing all outputs/caches/job-states for deal ${selectedDeal}`);
         try {
-          await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
-        } catch (stopError) {
-          console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
-        }
-      
-      // Step 2: Delete all existing analyses 
-      console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
-      try {
-        await apiRequest(`/api/analyses/${selectedDeal}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
-        
-        // Also clear any stuck background jobs
-        try {
+          // Stop all running background jobs
           await apiRequest(`/api/background-jobs/clear-stuck`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dealId: parseInt(selectedDeal) })
           });
-          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
+          
+          // Clear all enterprise job states
+          await apiRequest(`/api/enterprise/clear-jobs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
+          });
+          
+          // Delete all existing analyses from database
+          await apiRequest(`/api/analyses/${selectedDeal}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          console.log(`✅ Successfully cleared all existing states for deal ${selectedDeal}`);
         } catch (clearError) {
-          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
+          console.warn(`⚠️ Failed to clear some states (continuing anyway):`, clearError);
         }
         
         // Wait for cleanup to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (deleteError) {
-        console.error(`❌ Failed to delete existing analyses:`, deleteError);
-        // Continue anyway - the analyses will be overwritten
-      }
+        await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Step 3: Run all comprehensive analyses in parallel
-      const comprehensiveEndpoints = [
-        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
-      ];
-
-      const promises = comprehensiveEndpoints.map(endpoint => {
-        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
-        return apiRequest(endpoint, {
+      // Step 2: Start ALL 7 agents using unified enterprise queue system
+      console.log(`🚀 Starting all 7 agents via enterprise queue (unified path)`);
+      const agentTypes = ['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
+      
+      const enterprisePromises = agentTypes.map(agentType => {
+        console.log(`📋 ENQUEUED: ${agentType} agent for deal ${selectedDeal}`);
+        return apiRequest(`/api/enterprise/analyze`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            dealId: parseInt(selectedDeal), 
+            agentType: agentType,
+            forceRefresh: true,
+            priority: 1
+          })
         });
       });
       
-      return Promise.all(promises);
+      const results = await Promise.allSettled(enterprisePromises);
+      
+      // Log individual agent status
+      const jobIds = [];
+      results.forEach((result, index) => {
+        const agentType = agentTypes[index];
+        if (result.status === 'fulfilled') {
+          console.log(`✅ STARTED: ${agentType} agent successfully enqueued`);
+          if (result.value?.jobId) {
+            jobIds.push({ agentType, jobId: result.value.jobId });
+          }
+        } else {
+          console.log(`❌ FAILED: ${agentType} agent failed to enqueue:`, result.reason);
+        }
+      });
+      
+      console.log(`🎯 All 7 agents enqueued via enterprise queue. Job IDs:`, jobIds);
+      return { success: true, jobIds, agentCount: agentTypes.length };
       
       } catch (mutationError) {
-        console.error('❌ Critical error in mutation function:', mutationError);
-        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
+        console.error('❌ Critical error in enterprise queue mutation:', mutationError);
+        throw new Error(`Enterprise analysis failed: ${(mutationError as any)?.message || 'Unknown error'}`);
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ All comprehensive analyses started successfully:`, results);
+      console.log(`✅ All 7 agents started via enterprise queue:`, results);
       
-      // Show immediate feedback
+      // Show immediate feedback with hard reset confirmation
       toast({
-        title: "Comprehensive Analyses Started",
-        description: "All 7 AI agents are now running comprehensive document analysis...",
+        title: "Hard Reset Complete - All 7 Agents Started",
+        description: `Successfully cleared old data and started all agents via enterprise queue. Job IDs: ${results?.jobIds?.length || 0}`,
         duration: 5000,
       });
       
-      // Invalidate all comprehensive analysis results queries to refresh UI
+      // Invalidate all agent result queries to refresh UI
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       
-      // Invalidate comprehensive analysis endpoints
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
+      // Invalidate both legacy and new endpoints for comprehensive refresh
+      agentTypes.forEach(agentType => {
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/${agentType}-analysis/comprehensive/results`] });
+      });
       
       // Also invalidate regular agent endpoints for backwards compatibility
       agentTypes.forEach(agentType => {
@@ -508,11 +512,11 @@ function DueDiligenceContent() {
       
       setIsRunningAllAnalyses(true);
       
-      // Immediately show loading feedback
+      // Immediately show loading feedback for hard reset
       toast({
-        title: "Resetting Analyses",
-        description: "Stopping all running analyses and starting fresh...",
-        duration: 2000,
+        title: "Hard Reset & Run All Analyses",
+        description: "Clearing all outputs/caches/job-states and starting all 7 agents fresh via enterprise queue...",
+        duration: 3000,
       });
       
       // Skip query invalidation to prevent crashes - let mutation handle cache updates
