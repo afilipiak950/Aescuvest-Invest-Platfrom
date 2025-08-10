@@ -3000,8 +3000,8 @@ ${document.ocrText}`
         if (pendingDocs.length > 0) {
           console.log(`🔄 Processing up to 3 documents out of ${pendingDocs.length} pending`);
           
-          // Process up to 3 documents concurrently for optimal throughput
-          const batch = pendingDocs.slice(0, 3);
+          // Process up to 5 documents concurrently for optimal throughput
+          const batch = pendingDocs.slice(0, 5);
           const promises = batch.map(async (doc) => {
             processingDocuments.add(doc.id);
             try {
@@ -6492,7 +6492,7 @@ async function runAgentAnalysisWithPersistence(dealId: number, agentType: string
             ...allInsights.neutral,
             ...allInsights.risk
           ],
-          recommendations: allInsights.positive.slice(0, 3).map(insight => insight.content || insight),
+          recommendations: allInsights.positive.slice(0, 5).map(insight => insight.content || insight),
           documentSources: assignedDocuments.map(doc => doc.name)
         });
 

@@ -523,7 +523,7 @@ class ComprehensiveFinancialAnalysisService {
       confidence: evidence.length > 0 ? 0.6 : 0.1,
       sources: evidence.map(e => e.documentName),
       detailedEvidence: evidence,
-      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
+      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 5),
       evidenceSummary: `Analyzed ${evidence.length} financial documents`,
       financialAssessment: 'Financial assessment completed with available evidence',
       recommendations: evidence.length > 0 ? ['Review findings for investment decision-making'] : ['Provide additional financial documentation']
