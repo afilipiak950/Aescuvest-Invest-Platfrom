@@ -563,7 +563,7 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
                 `;
 
                 const response = await openai.chat.completions.create({
-                  model: 'gpt-4o', // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+                  model: 'gpt-5', // GPT-5 is the newest OpenAI model (August 2025) with advanced reasoning capabilities
                   messages: [{ role: 'user', content: evidencePrompt }],
                   temperature: 0.2,
                   max_tokens: 800
@@ -616,7 +616,7 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
           `;
 
           const response = await openai.chat.completions.create({
-            model: 'gpt-4o', // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            model: 'gpt-5', // GPT-5 is the newest OpenAI model (August 2025) with advanced reasoning capabilities
             messages: [{ role: 'user', content: answerPrompt }],
             temperature: 0.1,
             response_format: { type: "json_object" }

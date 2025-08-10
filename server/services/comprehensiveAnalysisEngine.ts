@@ -354,7 +354,7 @@ export class ComprehensiveAnalysisEngine {
       
       // Use AI to extract evidence-based answer
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-5',
         messages: [
           {
             role: 'system',
@@ -516,7 +516,7 @@ Extract evidence-based answer:`
     
     try {
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-5',
         messages: [
           {
             role: 'system',

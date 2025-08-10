@@ -5,8 +5,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// This is the newest OpenAI model (May 2024) which provides the best performance
-const DEFAULT_MODEL = "gpt-4o";
+// GPT-5 is the newest OpenAI model (August 2025) with advanced reasoning capabilities
+const DEFAULT_MODEL = "gpt-5";
 
 /**
  * Generate a response from the AI based on a system prompt and user message
