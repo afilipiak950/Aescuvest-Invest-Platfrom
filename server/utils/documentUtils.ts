@@ -35,36 +35,38 @@ export function safeGetDocumentContent(document: any): SafeDocumentContent {
     };
   }
 
-  // Try OCR text first (most reliable)
-  if (document.ocrText && typeof document.ocrText === 'string' && document.ocrText.trim().length > 50) {
+  // Try OCR text first (most reliable) - check both camelCase and snake_case
+  const ocrText = document.ocrText || document.ocr_text;
+  if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 50) {
     return {
-      text: document.ocrText.trim(),
+      text: ocrText.trim(),
       hasContent: true,
       source: 'ocr',
-      length: document.ocrText.trim().length
+      length: ocrText.trim().length
     };
   }
 
-  // Try AI summary content
-  if (document.aiSummary) {
+  // Try AI summary content - check both camelCase and snake_case
+  const aiSummary = document.aiSummary || document.ai_summary;
+  if (aiSummary) {
     let summaryText = '';
     
     try {
-      if (typeof document.aiSummary === 'string') {
-        summaryText = document.aiSummary;
-      } else if (typeof document.aiSummary === 'object') {
+      if (typeof aiSummary === 'string') {
+        summaryText = aiSummary;
+      } else if (typeof aiSummary === 'object') {
         // Extract text from summary object
-        if (document.aiSummary.executiveSummary) {
-          summaryText += document.aiSummary.executiveSummary + ' ';
+        if (aiSummary.executiveSummary) {
+          summaryText += aiSummary.executiveSummary + ' ';
         }
-        if (document.aiSummary.criticalFindings && Array.isArray(document.aiSummary.criticalFindings)) {
-          summaryText += document.aiSummary.criticalFindings.join(' ') + ' ';
+        if (aiSummary.criticalFindings && Array.isArray(aiSummary.criticalFindings)) {
+          summaryText += aiSummary.criticalFindings.join(' ') + ' ';
         }
-        if (document.aiSummary.keyFinancialData && Array.isArray(document.aiSummary.keyFinancialData)) {
-          summaryText += document.aiSummary.keyFinancialData.join(' ') + ' ';
+        if (aiSummary.keyFinancialData && Array.isArray(aiSummary.keyFinancialData)) {
+          summaryText += aiSummary.keyFinancialData.join(' ') + ' ';
         }
-        if (document.aiSummary.strategicImplications) {
-          summaryText += document.aiSummary.strategicImplications;
+        if (aiSummary.strategicImplications) {
+          summaryText += aiSummary.strategicImplications;
         }
       }
     } catch (error) {

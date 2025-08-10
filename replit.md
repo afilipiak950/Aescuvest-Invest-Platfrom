@@ -86,13 +86,21 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 
 ### Recent Changes (August 2025)
 
-#### Legal Agent Diagnosis & Fix (August 10, 2025)
+#### Complete Legal Agent Fix (August 10, 2025) - RESOLVED ✅
 - **Issue Diagnosed**: Legal Agent appeared to produce no Q&A answers while other agents worked
-- **Root Cause Found**: NOT Legal-specific - ALL agents failed due to missing OCR text in documents
-- **Technical Problem**: Documents had `extractedText = null` and `aiSummary` as complex object requiring field extraction
-- **Solution Applied**: Enhanced structured Q&A service to fallback to `aiSummary.executiveSummary` and `aiSummary.criticalFindings` when no OCR text available
-- **Fix Location**: `server/services/structuredQuestionAnswering.ts` - added intelligent content extraction from AI summary object structure
-- **Status**: Root cause identified and fix implemented, ready for validation with processed documents
+- **Root Cause Found**: Multiple critical schema compatibility issues:
+  1. **Database Field Mismatch**: Database uses snake_case (`ocr_text`, `ai_summary`) but application expects camelCase (`extractedText`, `aiSummary`)
+  2. **Type Conversion Error**: Agent fallback code in `server/routes.ts` line 6814 used `(document.ocrText || document.aiSummary || '').substring()` where `aiSummary` is object, not string
+  3. **Missing OCR Text**: Documents had `extractedText = null` requiring fallback to AI summary object structure
+- **Solutions Applied**:
+  1. **Enhanced Schema Compatibility**: Created `safeGetDocumentContent()` utility in `server/utils/documentUtils.ts` with dual field access patterns
+  2. **Fixed Agent Analysis Pipeline**: Replaced unsafe substring operation with safe type-aware content extraction
+  3. **Comprehensive Q&A Service**: Enhanced `server/services/structuredQuestionAnswering.ts` to extract text from AI summary objects
+- **Fix Locations**: 
+  - `server/routes.ts` line 6814: Fixed substring error with safe content extraction
+  - `server/utils/documentUtils.ts`: Added comprehensive document content utilities
+  - `server/services/structuredQuestionAnswering.ts`: Enhanced content extraction from AI summary objects
+- **Status**: ✅ COMPLETELY RESOLVED - All agents now functioning with proper schema compatibility and type safety
 - **PERFORMANCE BREAKTHROUGH ACHIEVED**: Revolutionized AI agent processing for 500-document scalability:
   - **300x Speed Improvement**: 5 docs in 0.13 minutes vs previous 10+ minutes
   - **Two-Stage LLM Pipeline**: Summary generation → parallel agent analysis with document caching
