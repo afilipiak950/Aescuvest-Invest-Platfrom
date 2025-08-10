@@ -22,10 +22,16 @@ export async function generateResponse(
     model?: string;
     temperature?: number;
     jsonResponse?: boolean;
+    maxTokens?: number;
   } = {}
 ): Promise<string> {
   try {
-    const { model = DEFAULT_MODEL, temperature = 0.7, jsonResponse = false } = options;
+    const { 
+      model = DEFAULT_MODEL, 
+      temperature = 0.7, 
+      jsonResponse = false,
+      maxTokens = 4096
+    } = options;
     
     const messages = [
       { role: "system", content: systemPrompt },
@@ -35,7 +41,8 @@ export async function generateResponse(
     const apiOptions: any = {
       model,
       messages,
-      temperature
+      temperature,
+      max_tokens: maxTokens
     };
     
     // If JSON response is requested, specify the response format
@@ -66,6 +73,7 @@ export async function analyzeDocument(
     model?: string;
     temperature?: number;
     jsonResponse?: boolean;
+    maxTokens?: number;
   } = {}
 ): Promise<string> {
   const systemPrompt = `You are an expert document analyzer with deep expertise in venture capital, startup assessment, and due diligence. ${analysisPrompt}`;

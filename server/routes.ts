@@ -30,6 +30,7 @@ import investorMatchingRoutes from "./routes/investor-matching";
 import { registerApiRoutes } from "./routes/api";
 import { registerAffinityRoutes } from "./routes/affinity-routes";
 import matchingIntelligenceRoutes from "./routes/matching-intelligence-routes";
+import enterpriseAgentRoutes from "./routes/enterpriseAgentRoutes";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
@@ -1750,6 +1751,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register AI agent routes
   app.use('/api/ai', aiAgentRoutes);
+  
+  // Register enterprise job queue routes (high-performance non-blocking)
+  app.use('/api/enterprise', enterpriseAgentRoutes);
   
   // Register Microsoft OAuth routes
   app.use('/api/microsoft', microsoftAuthRoutes);

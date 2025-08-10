@@ -9,6 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
+import { enterpriseJobQueue } from "./services/enterpriseJobQueue";
 
 const app = express();
 
@@ -108,6 +109,10 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Initialize enterprise job queue
+  await enterpriseJobQueue.startWorker();
+  console.log('🚀 Enterprise job queue initialized and ready');
 
   // ZIP file upload routes - registered AFTER main routes to take priority
   console.log('🚀 REGISTERING ZIP UPLOAD ROUTES');
