@@ -383,7 +383,7 @@ export default function EnhancedAgentCard({
             <div>
               <p className="text-yellow-400 font-medium">Legal Analysis Ready</p>
               <p className="text-gray-400 text-sm">
-                Ready to analyze {assignedDocuments} legal documents. Click "Run AI Analysis" to start.
+                Ready to analyze {assignedDocuments} legal documents. Click "Run Combined OCR" to start.
               </p>
             </div>
           </div>
@@ -457,30 +457,34 @@ export default function EnhancedAgentCard({
   
 
 
-  // Mutation to run Mistral analysis for this agent
+  // Combined OCR mutation to run efficient analysis for this agent
   const runMistralAnalysisMutation = useMutation({
     mutationFn: async () => {
-      console.log(`🚀 Starting ${agentType} agent analysis for deal ${dealId}`);
-      return apiRequest(`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/analyze`, {
+      console.log(`🚀 Starting ${agentType} Combined OCR analysis for deal ${dealId}`);
+      return apiRequest(`/api/combined-ocr/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ forceRefresh: true })
+        body: JSON.stringify({ 
+          dealId: dealId, 
+          agentType: agentType,
+          forceRefresh: true 
+        })
       });
     },
     onSuccess: (data) => {
-      console.log(`✅ ${agentType} analysis completed successfully:`, data);
+      console.log(`✅ ${agentType} Combined OCR analysis started successfully:`, data);
       // Invalidate both results and general analyses queries to refresh UI
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      // Keep running state for a longer period to allow backend processing to be detected
+      // Keep running state for a shorter period since Combined OCR is faster
       setTimeout(() => {
         setIsRunningAnalysis(false);
-      }, 5000);
+      }, 3000);
     },
     onError: (error) => {
-      console.error(`❌ ${agentType} analysis failed:`, error);
+      console.error(`❌ ${agentType} Combined OCR analysis failed:`, error);
       setIsRunningAnalysis(false);
     }
   });
@@ -4291,7 +4295,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         </div>
         <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
           <Play className="h-4 w-4 mr-2" />
-          Start Analysis
+          Start Combined OCR
         </Button>
       </div>
 

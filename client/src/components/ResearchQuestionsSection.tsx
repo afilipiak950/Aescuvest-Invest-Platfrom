@@ -12,9 +12,14 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/research-analysis/comprehensive`, {
+      const response = await apiRequest(`/api/combined-ocr/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          dealId: dealId,
+          agentType: 'Research',
+          forceRefresh: true
+        })
       });
       return response;
     },
@@ -49,12 +54,12 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
       {isRunning || comprehensiveAnalysisMutation.isPending ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Research Analysis Running...
+          Combined OCR Research Running...
         </>
       ) : (
         <>
           <Zap className="h-4 w-4 mr-2" />
-          Run Research Analysis
+          Run Combined OCR Research
         </>
       )}
     </Button>

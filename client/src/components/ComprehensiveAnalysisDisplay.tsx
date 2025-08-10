@@ -58,12 +58,16 @@ export function ComprehensiveAnalysisDisplay({ dealId, analyses, documents }: Co
     enabled: !!dealId
   });
 
-  // Mutation for running comprehensive analysis
+  // Combined OCR mutation for running comprehensive analysis
   const runAnalysisMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/deals/${dealId}/run-comprehensive-analysis`, {
+      return apiRequest(`/api/combined-ocr/analyze-bulk`, {
         method: 'POST',
-        body: JSON.stringify({ forceRefresh: true }),
+        body: JSON.stringify({ 
+          dealId: dealId,
+          agentTypes: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
+          forceRefresh: true 
+        }),
         headers: {
           'Content-Type': 'application/json'
         }
@@ -166,9 +170,9 @@ export function ComprehensiveAnalysisDisplay({ dealId, analyses, documents }: Co
           <div className="w-16 h-16 bg-dark-lighter rounded-full flex items-center justify-center mx-auto mb-4">
             <Brain className="h-8 w-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">Run Comprehensive Analysis</h3>
+          <h3 className="text-lg font-medium text-white mb-2">Run Combined OCR Analysis</h3>
           <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto">
-            Analyze all documents across all specialized agents to generate a comprehensive investment analysis with positive factors, neutral observations, and risk assessments.
+            Efficient Combined OCR system analyzing all documents across all 7 specialized agents with high-quality sources and evidence.
           </p>
         </div>
         <Button 
@@ -179,12 +183,12 @@ export function ComprehensiveAnalysisDisplay({ dealId, analyses, documents }: Co
           {isRunningAnalysis || runAnalysisMutation.isPending ? (
             <>
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Running Analysis...
+              Running Combined OCR...
             </>
           ) : (
             <>
               <Play className="h-4 w-4 mr-2" />
-              Run Comprehensive Analysis
+              Run Combined OCR Analysis
             </>
           )}
         </Button>
@@ -349,7 +353,7 @@ export function ComprehensiveAnalysisDisplay({ dealId, analyses, documents }: Co
           className="border-dark-lighter text-gray-300 hover:bg-dark-light"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRunningAnalysis ? 'animate-spin' : ''}`} />
-          Refresh Analysis
+          Refresh Combined OCR
         </Button>
         <Button 
           onClick={() => refetch()}
