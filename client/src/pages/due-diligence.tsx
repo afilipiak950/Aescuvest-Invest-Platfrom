@@ -406,29 +406,15 @@ function DueDiligenceContent() {
         
         const dealId = parseInt(selectedDeal);
         
-        // Step 1: Reset all previous analysis states
-        console.log('🔄 Step 1: Resetting all previous analysis states...');
-        const resetResponse = await apiRequest(`/api/analyses/reset`, {
+        // Use the new comprehensive analysis endpoint that handles both reset and analysis
+        console.log('🚀 Using new comprehensive analysis engine with question-specific OCR...');
+        const response = await apiRequest(`/api/analyses/comprehensive`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ dealId })
         });
-        console.log('✅ Reset completed:', resetResponse);
         
-        // Step 2: Launch Combined OCR for all 7 agents
-        console.log('🚀 Step 2: Launching Combined OCR analysis for all 7 agents...');
-        const response = await apiRequest(`/api/combined-ocr/analyze-bulk`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            dealId,
-            agentTypes: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
-            forceRefresh: true,
-            resetFirst: true // Ensure clean slate
-          })
-        });
-        
-        console.log(`✅ Comprehensive analysis started with job:`, response.jobId);
+        console.log(`✅ Comprehensive analysis started with new engine:`, response);
         return { ...response, resetSuccess: true };
         
       } catch (error) {
@@ -442,7 +428,7 @@ function DueDiligenceContent() {
       
       toast({
         title: "Comprehensive Analysis Started",
-        description: `Reset complete. Processing all 7 agents from 0% with fresh analysis - ${results.jobId}`,
+        description: `New comprehensive analysis engine started with question-specific OCR for all 7 agents`,
         duration: 5000,
       });
       
@@ -450,64 +436,29 @@ function DueDiligenceContent() {
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
       
-      // Track progress and ensure we get real answers
-      let progressCheckCount = 0;
-      const maxChecks = 200; // 10 minutes max
-      
-      const checkProgress = setInterval(async () => {
-        progressCheckCount++;
-        
-        try {
-          const statusResponse = await fetch(`/api/combined-ocr/bulk-status/${results.jobId}`);
-          const statusData = await statusResponse.json();
-          
-          if (statusData.success) {
-            console.log(`📊 Progress check ${progressCheckCount}: ${statusData.overallProgress}% complete`);
-            console.log(`📊 Agent statuses:`, statusData.agentStatuses);
-            
-            if (statusData.overallProgress >= 100) {
-              console.log(`🎉 Comprehensive analysis completed!`);
-              setIsRunningAllAnalyses(false);
-              clearInterval(checkProgress);
-              
-              // Force refresh all data
-              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-              queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
-              
-              // Verify results are properly saved
-              setTimeout(async () => {
-                const verificationResponse = await fetch(`/api/analyses/${selectedDeal}`);
-                const verificationData = await verificationResponse.json();
-                const completedAgents = verificationData.filter((a: any) => a.status === 'Completed').length;
-                
-                toast({
-                  title: "Comprehensive Analysis Complete",
-                  description: `All 7 agents completed. ${completedAgents}/7 agents have results with answers and sources.`,
-                  duration: 8000,
-                });
-                
-                console.log(`📊 Verification: ${completedAgents}/7 agents completed with results`);
-              }, 2000);
-            }
-          }
-          
-          // Safety timeout
-          if (progressCheckCount >= maxChecks) {
-            console.log('⏰ Progress check timeout - stopping monitoring');
-            setIsRunningAllAnalyses(false);
-            clearInterval(checkProgress);
-          }
-          
-        } catch (error) {
-          console.error('Error checking progress:', error);
-        }
-      }, 3000);
-      
-      // Cleanup after 20 minutes
+      // Set completion flag after reasonable time since new system is synchronous
       setTimeout(() => {
         setIsRunningAllAnalyses(false);
-        clearInterval(checkProgress);
-      }, 1200000);
+        
+        // Force refresh all data to show new results
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
+        
+        // Verify results are properly saved
+        setTimeout(async () => {
+          const verificationResponse = await fetch(`/api/analyses/${selectedDeal}`);
+          const verificationData = await verificationResponse.json();
+          const completedAgents = verificationData.filter((a: any) => a.status === 'Completed').length;
+          
+          toast({
+            title: "Comprehensive Analysis Complete",
+            description: `Analysis completed. ${completedAgents}/7 agents have question-specific answers with source citations.`,
+            duration: 8000,
+          });
+          
+          console.log(`📊 Verification: ${completedAgents}/7 agents completed with question-specific answers`);
+        }, 2000);
+      }, 10000); // 10 seconds for comprehensive analysis to complete
     },
     onError: (error) => {
       console.error(`❌ Comprehensive analysis failed:`, error);

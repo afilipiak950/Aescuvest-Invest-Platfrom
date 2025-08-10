@@ -43,6 +43,7 @@ import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { comprehensiveAnalysisRouter } from './routes/comprehensiveAnalysis';
+import { comprehensiveAnalysisEngine } from './services/comprehensiveAnalysisEngine';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -1510,6 +1511,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting analyses:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Comprehensive Analysis - NEW SYSTEM
+  app.post('/api/analyses/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const { dealId } = req.body;
+      
+      if (!dealId || isNaN(parseInt(dealId))) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Valid deal ID is required' 
+        });
+      }
+
+      const id = parseInt(dealId);
+      console.log(`🚀 Starting comprehensive analysis for deal ${id}`);
+      
+      // First reset existing analyses
+      await comprehensiveAnalysisEngine.resetAnalyses(id);
+      
+      // Then run comprehensive analysis
+      await comprehensiveAnalysisEngine.runComprehensiveAnalysis(id);
+      
+      console.log(`✅ Comprehensive analysis completed for deal ${id}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Comprehensive analysis completed',
+        dealId: id
+      });
+      
+    } catch (error) {
+      console.error('❌ Comprehensive analysis failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Comprehensive analysis failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
