@@ -442,14 +442,15 @@ class ComprehensiveFinancialAnalysisService {
     if (evidence.length === 0) {
       return {
         question: question.question,
-        answer: `No specific evidence found in the analyzed financial documents for: ${question.question}`,
+        answer: null,
         confidence: 0,
         sources: [],
         detailedEvidence: [],
         keyFindings: [],
-        evidenceSummary: 'No relevant financial evidence available',
-        financialAssessment: 'Unable to assess due to lack of relevant documentation',
-        recommendations: ['Consider providing additional financial documentation for comprehensive analysis']
+        evidenceSummary: null,
+        financialAssessment: null,
+        recommendations: [],
+        reason: 'no_hits'
       };
     }
 

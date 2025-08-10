@@ -649,7 +649,7 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
           confidence = 0.5;
         }
       } else {
-        answer = `No specific evidence found in the analyzed HR documents for: ${question.question}`;
+        answer = null;
         confidence = 0;
         sources = [];
         evidenceCount = 0;
@@ -667,10 +667,9 @@ async function processHrAnalysisInBackground(dealId: number, jobId: string) {
         keyFindings,
         evidenceSummary: questionFindings.length > 0 
           ? `Found relevant HR evidence in ${questionFindings.length} document extracts`
-          : 'No relevant HR evidence available',
-        recommendations: questionFindings.length === 0 
-          ? ['Consider providing additional HR documentation for comprehensive analysis']
-          : [],
+          : null,
+        recommendations: [],
+        reason: questionFindings.length === 0 ? 'no_hits' : undefined,
         detailedEvidence: questionFindings.map((finding, i) => ({
           documentName: questionSources[i],
           content: finding,
