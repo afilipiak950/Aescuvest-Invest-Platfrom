@@ -876,41 +876,61 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* CRITICAL: Universal Progress Bar - Shows for ALL agents when running Enterprise Queue */}
-        {(currentProgress > 0 || isRunningAnalysis) && (
+        {/* ENHANCED: Combined OCR Progress Display - Always visible during analysis */}
+        {(currentProgress > 0 || isRunningAnalysis || status === 'Processing') && (
           <div className="mb-6">
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+              {/* Header with status and percentage */}
               <div className="flex items-center gap-3 mb-3">
                 <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
                 <div className="flex-1">
                   <p className="text-blue-400 font-medium">
-                    {agentType} Analysis in Progress
+                    {agentType} Combined OCR Analysis
                   </p>
                   <p className="text-gray-300 text-sm">
                     {currentDocumentName && currentDocumentName.length > 50 
                       ? `${currentDocumentName.substring(0, 47)}...` 
-                      : currentDocumentName || `Processing ${agentType.toLowerCase()} documents...`
+                      : currentDocumentName || `Building ${agentType.toLowerCase()} dossier...`
                     }
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-white font-medium">{Math.round(currentProgress || 0)}%</p>
+                  <p className="text-xs text-gray-400">
+                    {Math.round((currentProgress || 0) * assignedDocuments / 100)}/{assignedDocuments} docs
+                  </p>
                 </div>
               </div>
+              
+              {/* Main progress bar */}
               <Progress 
                 value={currentProgress || 0} 
-                className="h-2 bg-dark-lighter"
+                className="h-3 bg-dark-lighter mb-2"
               />
-              <div className="flex justify-between text-xs text-gray-400 mt-2">
-                <span>Analyzing {assignedDocuments} documents</span>
+              
+              {/* Progress details */}
+              <div className="flex justify-between text-xs text-gray-400 mb-3">
+                <span>Processing {assignedDocuments} documents</span>
                 <span>{Math.round(currentProgress || 0)}% complete</span>
               </div>
               
-              {/* Enterprise Queue Indicator */}
-              <div className="flex items-center gap-2 mt-2">
+              {/* Combined OCR stages indicator */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${currentProgress > 30 ? 'bg-green-400' : 'bg-gray-500'}`}></div>
+                  <span className="text-xs text-gray-400">Dossier Building</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${currentProgress > 70 ? 'bg-green-400' : 'bg-gray-500'}`}></div>
+                  <span className="text-xs text-gray-400">Question Answering</span>
+                </div>
+              </div>
+              
+              {/* System indicator */}
+              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                 <span className="text-xs text-gray-400">
-                  Enterprise Queue System • Live Updates
+                  Combined OCR System • Live Updates
                 </span>
               </div>
             </div>
