@@ -34,11 +34,31 @@ const FINANCIAL_QUESTIONS = [
   { id: 'revenue_model', category: 'Revenue', question: 'What is the revenue model and unit economics?' }
 ];
 
-// IP questions  
+// IP questions - Complete 16-question set matching frontend
 const IP_QUESTIONS = [
-  { id: 'patent_portfolio', category: 'Patents', question: 'What is the patent portfolio and strategy?' },
-  { id: 'ip_freedom', category: 'Freedom to Operate', question: 'Is there freedom to operate?' },
-  { id: 'ip_risks', category: 'IP Risks', question: 'What are the IP litigation risks?' }
+  // Patents
+  { id: 'patents_1', category: 'Patents', question: 'In what jurisdictions are patents filed (US, EU, China, Japan)?' },
+  { id: 'patents_2', category: 'Patents', question: 'What is the status of patent applications (granted, pending, abandoned)?' },
+  { id: 'patents_3', category: 'Patents', question: 'What is the remaining duration of patent protection?' },
+  { id: 'patents_4', category: 'Patents', question: 'Has a freedom to operate (FTO) analysis been conducted?' },
+  
+  // Trademarks
+  { id: 'trademarks_1', category: 'Trademarks', question: 'What Nice classes do the trademarks cover for protection?' },
+  { id: 'trademarks_2', category: 'Trademarks', question: 'Have there been any opposition proceedings or disputes filed?' },
+  { id: 'trademarks_3', category: 'Trademarks', question: 'What are the renewal and maintenance requirements?' },
+  { id: 'trademarks_4', category: 'Trademarks', question: 'Are there plans for brand extension or geographical expansion?' },
+  
+  // Licenses
+  { id: 'licenses_1', category: 'Licenses', question: 'Are the licenses exclusive or non-exclusive?' },
+  { id: 'licenses_2', category: 'Licenses', question: 'What are the royalty rates and payment terms?' },
+  { id: 'licenses_3', category: 'Licenses', question: 'Are sublicensing rights granted or restricted?' },
+  { id: 'licenses_4', category: 'Licenses', question: 'What are the termination clauses and conditions?' },
+  
+  // Source Code Ownership
+  { id: 'source_code_1', category: 'Source Code Ownership', question: 'What percentage of code is developed in-house vs third-party components?' },
+  { id: 'source_code_2', category: 'Source Code Ownership', question: 'What open-source licenses are used (GPL, MIT, Apache)?' },
+  { id: 'source_code_3', category: 'Source Code Ownership', question: 'Are there clear policies for employee-created IP?' },
+  { id: 'source_code_4', category: 'Source Code Ownership', question: 'Are all code contributions properly documented and assigned?' }
 ];
 
 // Research questions
