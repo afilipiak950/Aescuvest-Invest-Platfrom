@@ -78,84 +78,21 @@ export default function EnhancedAgentCard({
   }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
 
-  // Fetch comprehensive HR analysis data directly for HR agents
-  const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
-    enabled: agentType.toLowerCase() === 'hr',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
+  // 🔥 UNIFIED UI BINDING FIX - ALL 7 AGENTS
+  // Removed all agent-specific endpoint queries that were causing "No evidence available" issues
+  // These endpoints don't exist: /api/deals/{id}/agents/{agent}/results
+  // All agents now use unified analysis data passed from parent component
 
-  // Fetch comprehensive IP analysis data directly for IP agents
-  const { data: ipAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
-    enabled: agentType.toLowerCase() === 'ip',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
-
-  // Fetch comprehensive Research analysis data directly for Research agents
-  const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
-    enabled: agentType.toLowerCase() === 'research',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
-
-  // Fetch comprehensive Clinical analysis data directly for Clinical agents
-  const { data: clinicalAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/clinical/results`],
-    enabled: agentType.toLowerCase() === 'clinical',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
-
-  // Fetch comprehensive Legal analysis data directly for Legal agents
-  const { data: legalAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/legal/results`],
-    enabled: agentType.toLowerCase() === 'legal',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
-
-  // Fetch comprehensive Commercial analysis data directly for Commercial agents
-  const { data: commercialAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
-    enabled: agentType.toLowerCase() === 'commercial',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
-
-  // Fetch comprehensive Financial analysis data directly for Financial agents
-  const { data: financialAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
-    enabled: agentType.toLowerCase() === 'financial',
-    refetchInterval: 2000, // Refresh every 2 seconds
-  });
-
-  // 🔥 UI BINDING FIX: Use the analysis data that's already passed in from the parent component
+  // 🔥 UNIFIED UI BINDING: Use analysis data passed from parent for ALL agents
   const actualAnalysisData = (() => {
-    // PRIORITY 1: Use specific endpoint data if available
-    if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
-      return hrAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'ip' && ipAnalysisData && typeof ipAnalysisData === 'object' && 'analysis' in ipAnalysisData) {
-      return ipAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
-      return clinicalAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'legal' && legalAnalysisData && typeof legalAnalysisData === 'object' && 'analysis' in legalAnalysisData) {
-      return legalAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'commercial' && commercialAnalysisData && typeof commercialAnalysisData === 'object' && 'analysis' in commercialAnalysisData) {
-      return commercialAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
-      return financialAnalysisData.analysis;
-    }
-    
-    // PRIORITY 2: Use analysis data passed from parent (works for Research and other agents)
-    // This fixes the Research agent display issue!
+    // SINGLE SOURCE OF TRUTH: Use analysis data passed from parent component
+    // This works for ALL 7 agents (Legal, Clinical, Commercial, HR, Financial, IP, Research)
     if (analysis && typeof analysis === 'object') {
-      console.log(`🎯 Using parent analysis data for ${agentType}:`, analysis);
+      console.log(`🎯 Using unified analysis data for ${agentType}:`, analysis);
       return analysis;
     }
     
+    console.log(`❌ No analysis data available for ${agentType} agent`);
     return {};
   })();
 
@@ -3854,10 +3791,8 @@ interface HrQuestionsSectionProps {
 function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Employment Contracts"]));
 
-  const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
-    refetchInterval: 2000,
-  });
+  // 🔥 CRITICAL FIX: Don't call missing HR endpoint, use analysisData directly
+  const comprehensiveResults = null; // Disabled - endpoint doesn't exist
 
   const { data: hrProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
@@ -3958,9 +3893,9 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
               {HR_QUESTIONS.filter(q => q.category === category).map(question => {
-                const answer = comprehensiveResults?.success && comprehensiveResults.analysis?.hrAnswers 
-                  ? comprehensiveResults.analysis.hrAnswers[question.id] 
-                  : null;
+                // 🔥 CRITICAL FIX: Use analysisData directly (unified binding)
+                const answer = analysisData?.hr_answers?.[question.id] || null;
+                console.log(`🔍 HR Question ${question.id} answer:`, answer);
 
                 return (
                   <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
@@ -4148,10 +4083,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
 
-  const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
-    refetchInterval: 2000,
-  });
+  // 🔥 CRITICAL FIX: Don't call missing IP endpoint, use analysisData directly
+  const comprehensiveResults = null; // Disabled - endpoint doesn't exist
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -4203,10 +4136,19 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const recommendations = (comprehensiveResults as any)?.analysis?.recommendations || [];
 
   const getAnswerForQuestion = (questionId: string) => {
-    // First, try to get structured IP answers from the comprehensive analysis
-    const ipAnswersData = (comprehensiveResults as any)?.analysis?.ip_answers;
-    console.log('🔍 IP getAnswerForQuestion - questionId:', questionId, 'ipAnswersData:', ipAnswersData);
+    // 🔥 CRITICAL FIX: Use analysisData directly instead of missing endpoint
+    console.log(`🔍 IP Looking for answer to question: ${questionId}`);
+    console.log(`📋 IP Available analysisData:`, analysisData);
     
+    // PRIORITY 1: Use analysisData.ip_answers (unified analysis data)
+    if (analysisData?.ip_answers) {
+      const answer = analysisData.ip_answers[questionId];
+      console.log(`🎯 Found IP answer in ip_answers for ${questionId}:`, answer);
+      if (answer) return answer;
+    }
+    
+    // Legacy fallback for comprehensive results (kept for compatibility)
+    const ipAnswersData = (comprehensiveResults as any)?.analysis?.ip_answers;
     if (ipAnswersData) {
       // Map question IDs to the structured answer keys
       const questionToAnswerMap: Record<string, string> = {
