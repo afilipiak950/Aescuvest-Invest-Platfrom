@@ -127,16 +127,14 @@ export default function EnhancedAgentCard({
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
-  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, Legal, Commercial, or Financial agent and we have the data
+  // 🔥 UI BINDING FIX: Use the analysis data that's already passed in from the parent component
   const actualAnalysisData = (() => {
+    // PRIORITY 1: Use specific endpoint data if available
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
     }
     if (agentType.toLowerCase() === 'ip' && ipAnalysisData && typeof ipAnalysisData === 'object' && 'analysis' in ipAnalysisData) {
       return ipAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'analysis' in researchAnalysisData) {
-      return researchAnalysisData.analysis;
     }
     if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
       return clinicalAnalysisData.analysis;
@@ -150,7 +148,15 @@ export default function EnhancedAgentCard({
     if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
       return financialAnalysisData.analysis;
     }
-    return analysis || {};
+    
+    // PRIORITY 2: Use analysis data passed from parent (works for Research and other agents)
+    // This fixes the Research agent display issue!
+    if (analysis && typeof analysis === 'object') {
+      console.log(`🎯 Using parent analysis data for ${agentType}:`, analysis);
+      return analysis;
+    }
+    
+    return {};
   })();
 
   console.log(`🔍 ${agentType} Agent Analysis Data:`, actualAnalysisData);
