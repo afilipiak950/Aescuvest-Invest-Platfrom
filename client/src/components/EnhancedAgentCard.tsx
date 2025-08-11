@@ -176,215 +176,121 @@ export default function EnhancedAgentCard({
     );
 
     const activeLegalJob = legalJobs[0];
-    
-    // Show comprehensive commercial analysis if running
-    if (commercialProgress && typeof commercialProgress === 'object' && 'isRunning' in commercialProgress && commercialProgress.isRunning) {
-      return (
-        <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-purple-400 font-medium">Comprehensive Commercial Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {(commercialProgress && typeof commercialProgress === 'object' && 'currentStep' in commercialProgress ? commercialProgress.currentStep : null) || 'Processing comprehensive commercial analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round((commercialProgress && typeof commercialProgress === 'object' && 'progress' in commercialProgress ? commercialProgress.progress as number : 0) || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={(commercialProgress && typeof commercialProgress === 'object' && 'progress' in commercialProgress ? commercialProgress.progress as number : 0) || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round(commercialProgress.progress || 0)}% complete</span>
-          </div>
-        </div>
-      );
-    }
 
-    // Show comprehensive HR analysis if running
-    if (hrProgress && typeof hrProgress === 'object' && 'isRunning' in hrProgress && hrProgress.isRunning) {
-      return (
-        <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-orange-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-orange-400 font-medium">Comprehensive HR Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {(hrProgress && typeof hrProgress === 'object' && 'currentStep' in hrProgress ? hrProgress.currentStep : null) || 'Processing comprehensive HR analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round((hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={(hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round((hrProgress && typeof hrProgress === 'object' && 'progress' in hrProgress ? hrProgress.progress as number : 0) || 0)}% complete</span>
-          </div>
-        </div>
+    // Function to get agent-specific jobs based on current agent type
+    const getAgentJobs = (agentTypeToCheck: string) => {
+      if (!jobProgress?.jobs) return [];
+      return jobProgress.jobs.filter((job: any) => 
+        job.agentType?.toLowerCase() === agentTypeToCheck.toLowerCase() && 
+        job.status === 'processing' &&
+        job.progress >= 0
       );
-    }
+    };
 
-    // Show comprehensive Clinical analysis if running
-    if (clinicalProgress && typeof clinicalProgress === 'object' && 'isRunning' in clinicalProgress && clinicalProgress.isRunning) {
+    // Universal progress bar display for any agent type
+    const renderAgentProgressBar = (currentAgentType: string) => {
+      const agentJobs = getAgentJobs(currentAgentType);
+      const activeJob = agentJobs[0];
+      
+      // Check if comprehensive analysis is running for this agent
+      const comprehensiveProgressMap: Record<string, any> = {
+        'legal': legalProgress,
+        'commercial': commercialProgress,
+        'hr': hrProgress,
+        'ip': ipProgress,
+        'financial': financialProgress,
+        'clinical': clinicalProgress
+      };
+      
+      const comprehensiveProgress = comprehensiveProgressMap[currentAgentType.toLowerCase()];
+      
+      // Show comprehensive analysis progress if running
+      if (comprehensiveProgress && comprehensiveProgress.isRunning) {
+        const colorMap: Record<string, string> = {
+          'legal': 'blue',
+          'commercial': 'purple',
+          'hr': 'orange',
+          'ip': 'purple',
+          'financial': 'green',
+          'clinical': 'green'
+        };
+        
+        const color = colorMap[currentAgentType.toLowerCase()] || 'blue';
+        
+        return (
+          <div className={`bg-${color}-500/5 border border-${color}-500/20 rounded-lg p-4 mb-4`}>
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className={`h-5 w-5 text-${color}-400 animate-spin`} />
+              <div className="flex-1">
+                <p className={`text-${color}-400 font-medium`}>Comprehensive {currentAgentType} Analysis in Progress</p>
+                <p className="text-gray-300 text-sm">
+                  {comprehensiveProgress.currentStep || `Processing comprehensive ${currentAgentType.toLowerCase()} analysis...`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-white font-medium">{Math.round(comprehensiveProgress.progress || 0)}%</p>
+              </div>
+            </div>
+            <Progress 
+              value={comprehensiveProgress.progress || 0} 
+              className="h-2 bg-dark-lighter"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>Comprehensive analysis of {assignedDocuments} documents</span>
+              <span>{Math.round(comprehensiveProgress.progress || 0)}% complete</span>
+            </div>
+          </div>
+        );
+      }
+      
+      // Show background job progress if active
+      if (activeJob) {
+        return (
+          <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
+              <div className="flex-1">
+                <p className="text-yellow-400 font-medium">{currentAgentType} Analysis in Progress</p>
+                <p className="text-gray-400 text-sm">
+                  {activeJob.currentStep || activeJob.currentDocument || `Processing ${currentAgentType.toLowerCase()} documents...`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-white font-medium">{Math.round(activeJob.progress || 0)}%</p>
+              </div>
+            </div>
+            <Progress 
+              value={activeJob.progress || 0} 
+              className="h-2 bg-dark-lighter"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>Analyzing {assignedDocuments} documents</span>
+              <span>{Math.round(activeJob.progress || 0)}% complete</span>
+            </div>
+          </div>
+        );
+      }
+      
+      // Show ready state when no jobs are running
       return (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-green-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-green-400 font-medium">Comprehensive Clinical Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {(clinicalProgress && typeof clinicalProgress === 'object' && 'currentStep' in clinicalProgress ? clinicalProgress.currentStep : null) || 'Processing comprehensive clinical analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round((clinicalProgress && typeof clinicalProgress === 'object' && 'progress' in clinicalProgress ? clinicalProgress.progress as number : 0) || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={(clinicalProgress && typeof clinicalProgress === 'object' && 'progress' in clinicalProgress ? clinicalProgress.progress as number : 0) || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round((clinicalProgress && typeof clinicalProgress === 'object' && 'progress' in clinicalProgress ? clinicalProgress.progress as number : 0) || 0)}% complete</span>
-          </div>
-        </div>
-      );
-    }
-
-    // Show comprehensive IP analysis if running
-    if (ipProgress?.isRunning) {
-      return (
-        <div className="bg-purple-600/5 border border-purple-600/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-purple-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-purple-400 font-medium">Comprehensive IP Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {ipProgress.currentStep || 'Processing comprehensive IP analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round(ipProgress.progress || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={ipProgress.progress || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round(ipProgress.progress || 0)}% complete</span>
-          </div>
-        </div>
-      );
-    }
-
-    // Show comprehensive Financial analysis if running
-    if (financialProgress?.isRunning) {
-      return (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-green-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-green-400 font-medium">Comprehensive Financial Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {financialProgress.currentStep || 'Processing comprehensive financial analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round(financialProgress.progress || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={financialProgress.progress || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round(financialProgress.progress || 0)}% complete</span>
-          </div>
-        </div>
-      );
-    }
-
-    // Show comprehensive legal analysis if running
-    if (legalProgress?.isRunning) {
-      return (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
-            <div className="flex-1">
-              <p className="text-blue-400 font-medium">Comprehensive Legal Analysis in Progress</p>
-              <p className="text-gray-300 text-sm">
-                {legalProgress.currentStep || 'Processing comprehensive legal analysis...'}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-medium">{Math.round(legalProgress.progress || 0)}%</p>
-            </div>
-          </div>
-          <Progress 
-            value={legalProgress.progress || 0} 
-            className="h-2 bg-dark-lighter"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-2">
-            <span>Comprehensive analysis of {assignedDocuments} documents</span>
-            <span>{Math.round(legalProgress.progress || 0)}% complete</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (!activeLegalJob) {
-      return (
-        <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
+        <div className="bg-dark-lighter/30 border border-dark-lighter/50 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
+            <div className="h-5 w-5 rounded-full bg-gray-400/20 flex items-center justify-center">
+              <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+            </div>
             <div>
-              <p className="text-yellow-400 font-medium">Legal Analysis Ready</p>
-              <p className="text-gray-400 text-sm">
-                Ready to analyze {assignedDocuments} legal documents. Click "Run AI Analysis" to start.
+              <p className="text-gray-300 font-medium">{currentAgentType} Analysis Ready</p>
+              <p className="text-gray-500 text-sm">
+                Ready to analyze {assignedDocuments} documents. Click "Run AI Analysis" to start.
               </p>
             </div>
           </div>
         </div>
       );
-    }
-
-    return (
-      <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
-        <div className="flex items-center gap-3 mb-3">
-          <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
-          <div className="flex-1">
-            <p className="text-yellow-400 font-medium">Legal Analysis in Progress</p>
-            <p className="text-gray-400 text-sm">
-              {activeLegalJob.currentStep || 'Processing legal documents...'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-white font-medium">{Math.round(activeLegalJob.progress || 0)}%</p>
-          </div>
-        </div>
-        <Progress 
-          value={activeLegalJob.progress || 0} 
-          className="h-2 bg-dark-lighter"
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-2">
-          <span>Analyzing {assignedDocuments} documents</span>
-          <span>{Math.round(activeLegalJob.progress || 0)}% complete</span>
-        </div>
-      </div>
-    );
+    };
+    
+    // Use the universal progress display function
+    return renderAgentProgressBar(agentType);
   }
 
   // Handle document click to open document
