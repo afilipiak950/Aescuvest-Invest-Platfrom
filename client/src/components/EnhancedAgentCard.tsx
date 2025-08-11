@@ -1735,8 +1735,23 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     
     // First try to get answer from legalAnswers structure (camelCase)
     const legalAnswers = legalData?.legalAnswers || legalData?.legal_answers;
+    
+    // **CRITICAL DEBUG**: Log the exact structure for this specific question
+    console.log(`⚖️ DEBUG ${questionId}:`, {
+      hasLegalAnswers: !!legalAnswers,
+      legalAnswersKeys: legalAnswers ? Object.keys(legalAnswers) : [],
+      hasSpecificAnswer: !!(legalAnswers && legalAnswers[questionId]),
+      answerPreview: legalAnswers && legalAnswers[questionId] ? JSON.stringify(legalAnswers[questionId]).substring(0, 100) : 'NO ANSWER'
+    });
+    
     if (legalAnswers && legalAnswers[questionId]) {
       const answer = legalAnswers[questionId];
+      console.log(`⚖️ FOUND answer for ${questionId}:`, {
+        hasAnswer: !!answer.answer,
+        answerLength: answer.answer ? answer.answer.length : 0,
+        confidence: answer.confidence,
+        sourcesCount: Array.isArray(answer.sources) ? answer.sources.length : 0
+      });
       return {
         answer: answer.answer || 'Analysis in progress...',
         confidence: answer.confidence || 0,
@@ -1748,6 +1763,8 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
         recommendations: answer.recommendations || [],
         detailedEvidence: answer.detailedEvidence || []
       };
+    } else {
+      console.log(`⚖️ NO answer found for ${questionId} - falling back to findings`);
     }
     
     // Fallback to findings-based system
