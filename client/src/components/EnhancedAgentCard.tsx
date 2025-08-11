@@ -1715,11 +1715,14 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     if (!legalData) return null;
     
     console.log(`⚖️ Looking for answer to legal question ${questionId}`);
-    console.log(`⚖️ Legal Answers exists:`, !!legalData.legalAnswers);
+    console.log(`⚖️ Legal Answers exists:`, !!(legalData.legalAnswers || legalData.legal_answers));
+    console.log(`⚖️ legalAnswers (camelCase):`, !!legalData.legalAnswers);
+    console.log(`⚖️ legal_answers (snake_case):`, !!legalData.legal_answers);
     
-    // First try to get answer from legalAnswers structure
-    if (legalData?.legalAnswers && legalData.legalAnswers[questionId]) {
-      const answer = legalData.legalAnswers[questionId];
+    // First try to get answer from legalAnswers structure (camelCase)
+    const legalAnswers = legalData?.legalAnswers || legalData?.legal_answers;
+    if (legalAnswers && legalAnswers[questionId]) {
+      const answer = legalAnswers[questionId];
       return {
         answer: answer.answer || 'Analysis in progress...',
         confidence: answer.confidence || 0,

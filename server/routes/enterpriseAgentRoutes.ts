@@ -532,37 +532,58 @@ router.get('/deals/:dealId/agent/:agentType/comprehensive', async (req: Request,
       });
     }
 
-    // **CRITICAL FIX**: Parse structured Q&A from proper database columns
+    // **CRITICAL FIX**: Parse structured Q&A from proper database columns (handle both camelCase and snake_case)
     let structuredAnswers = {};
     try {
-      if (agentType === 'Legal' && analysis.legalAnswers) {
-        structuredAnswers = typeof analysis.legalAnswers === 'string' 
-          ? JSON.parse(analysis.legalAnswers) 
-          : analysis.legalAnswers;
-      } else if (agentType === 'Clinical' && analysis.clinicalAnswers) {
-        structuredAnswers = typeof analysis.clinicalAnswers === 'string' 
-          ? JSON.parse(analysis.clinicalAnswers) 
-          : analysis.clinicalAnswers;
-      } else if (agentType === 'Commercial' && analysis.commercialAnswers) {
-        structuredAnswers = typeof analysis.commercialAnswers === 'string' 
-          ? JSON.parse(analysis.commercialAnswers) 
-          : analysis.commercialAnswers;
-      } else if (agentType === 'IP' && analysis.ip_answers) {
-        structuredAnswers = typeof analysis.ip_answers === 'string' 
-          ? JSON.parse(analysis.ip_answers) 
-          : analysis.ip_answers;
-      } else if (agentType === 'HR' && analysis.hr_answers) {
-        structuredAnswers = typeof analysis.hr_answers === 'string' 
-          ? JSON.parse(analysis.hr_answers) 
-          : analysis.hr_answers;
-      } else if (agentType === 'Financial' && analysis.financial_answers) {
-        structuredAnswers = typeof analysis.financial_answers === 'string' 
-          ? JSON.parse(analysis.financial_answers) 
-          : analysis.financial_answers;
-      } else if (agentType === 'Research' && analysis.research_answers) {
-        structuredAnswers = typeof analysis.research_answers === 'string' 
-          ? JSON.parse(analysis.research_answers) 
-          : analysis.research_answers;
+      if (agentType === 'Legal') {
+        const legalAnswers = (analysis as any).legal_answers;
+        if (legalAnswers) {
+          structuredAnswers = typeof legalAnswers === 'string' 
+            ? JSON.parse(legalAnswers) 
+            : legalAnswers;
+        }
+      } else if (agentType === 'Clinical') {
+        const clinicalAnswers = (analysis as any).clinical_answers;
+        if (clinicalAnswers) {
+          structuredAnswers = typeof clinicalAnswers === 'string' 
+            ? JSON.parse(clinicalAnswers) 
+            : clinicalAnswers;
+        }
+      } else if (agentType === 'Commercial') {
+        const commercialAnswers = (analysis as any).commercial_answers;
+        if (commercialAnswers) {
+          structuredAnswers = typeof commercialAnswers === 'string' 
+            ? JSON.parse(commercialAnswers) 
+            : commercialAnswers;
+        }
+      } else if (agentType === 'IP') {
+        const ipAnswers = (analysis as any).ip_answers;
+        if (ipAnswers) {
+          structuredAnswers = typeof ipAnswers === 'string' 
+            ? JSON.parse(ipAnswers) 
+            : ipAnswers;
+        }
+      } else if (agentType === 'HR') {
+        const hrAnswers = (analysis as any).hr_answers;
+        if (hrAnswers) {
+          structuredAnswers = typeof hrAnswers === 'string' 
+            ? JSON.parse(hrAnswers) 
+            : hrAnswers;
+        }
+      } else if (agentType === 'Financial') {
+        const financialAnswers = (analysis as any).financial_answers;
+        if (financialAnswers) {
+          structuredAnswers = typeof financialAnswers === 'string' 
+            ? JSON.parse(financialAnswers) 
+            : financialAnswers;
+        }
+      } else if (agentType === 'Research') {
+        const researchAnswers = (analysis as any).research_answers;
+        if (researchAnswers) {
+          structuredAnswers = typeof researchAnswers === 'string' 
+            ? JSON.parse(researchAnswers) 
+            : researchAnswers;
+        }
       }
     } catch (error) {
       console.warn(`⚠️ Failed to parse ${agentType} structured answers:`, error);
@@ -577,9 +598,10 @@ router.get('/deals/:dealId/agent/:agentType/comprehensive', async (req: Request,
         recommendations: typeof analysis.recommendations === 'string' 
           ? JSON.parse(analysis.recommendations) 
           : analysis.recommendations || [],
-        documentsAnalyzed: analysis.documentsAnalyzed || 0,
-        // **CRITICAL**: Include structured Q&A answers
+        documentsAnalyzed: (analysis as any).documents_analyzed || 0,
+        // **CRITICAL**: Include structured Q&A answers in both formats for compatibility
         [`${agentType.toLowerCase()}Answers`]: structuredAnswers,
+        [`${agentType.toLowerCase()}_answers`]: structuredAnswers,
         createdAt: analysis.createdAt,
         updatedAt: analysis.updatedAt
       },
