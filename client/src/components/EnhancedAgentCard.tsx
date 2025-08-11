@@ -1648,7 +1648,19 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
 ];
 
 function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  // Start with all categories expanded to show real answers immediately
+  const allCategories = new Set([
+    'Corporate Governance & Board Structure',
+    'Intellectual Property Portfolio', 
+    'Shareholders Agreement / Articles of Association',
+    'Governance & Voting',
+    'IP Assignment & Key Personnel',
+    'Commercial Agreements',
+    'Litigation & Regulatory',
+    'Regulatory Compliance',
+    'Financial Instruments'
+  ]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(allCategories);
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   // Check if legal analysis is available from comprehensive endpoint
@@ -1881,7 +1893,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Legal Assessment */}
