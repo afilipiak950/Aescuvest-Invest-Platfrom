@@ -400,11 +400,12 @@ export default function EnhancedAgentCard({
   
 
 
-  // Real OpenAI Analysis mutation (NEW SYSTEM)
+  // Comprehensive Analysis mutation - Reset first, then run real OCR analysis
   const runRealAnalysisMutation = useMutation({
     mutationFn: async () => {
-      console.log(`🚀 Starting REAL OpenAI analysis for ${agentType} on deal ${dealId}`);
-      return apiRequest(`/api/deals/${dealId}/analyze`, {
+      console.log(`🚀 Starting Comprehensive Analysis (Real OCR) for deal ${dealId}`);
+      // This should reset first, then run Combined OCR per agent analysis
+      return apiRequest(`/api/deals/${dealId}/comprehensive-analysis`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -412,22 +413,23 @@ export default function EnhancedAgentCard({
       });
     },
     onSuccess: (data) => {
-      console.log(`✅ Real OpenAI analysis started successfully:`, data);
+      console.log(`✅ Comprehensive Analysis started successfully:`, data);
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/analysis/deal-progress/${dealId}`] });
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       }, 3000);
     },
     onError: (error) => {
-      console.error(`❌ Real OpenAI analysis failed:`, error);
+      console.error(`❌ Comprehensive Analysis failed:`, error);
     }
   });
 
-  // Reset & Run All Analyses mutation (NEW SYSTEM)
+  // Legacy Reset mutation - Clear all results
   const resetAndRunAllMutation = useMutation({
     mutationFn: async () => {
-      console.log(`🔄 Reset & Run All Analyses for deal ${dealId}`);
-      return apiRequest(`/api/deals/${dealId}/reset-and-analyze`, {
+      console.log(`🔄 Legacy Reset - Clearing all results for deal ${dealId}`);
+      return apiRequest(`/api/deals/${dealId}/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -435,14 +437,17 @@ export default function EnhancedAgentCard({
       });
     },
     onSuccess: (data) => {
-      console.log(`✅ Reset & Run All Analyses started successfully:`, data);
+      console.log(`✅ Legacy Reset completed successfully:`, data);
+      // Invalidate all analysis queries to refresh UI
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/analysis/deal-progress/${dealId}`] });
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      }, 5000);
+      }, 2000);
     },
     onError: (error) => {
-      console.error(`❌ Reset & Run All Analyses failed:`, error);
+      console.error(`❌ Legacy Reset failed:`, error);
     }
   });
 
@@ -995,51 +1000,46 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Action Buttons Section */}
+        {/* Action Buttons Section - Only Original Buttons */}
         <div className="flex flex-wrap gap-3 mb-6">
-          {/* Real OpenAI Analysis Button */}
-          <Button
-            onClick={() => runRealAnalysisMutation.mutate()}
-            disabled={runRealAnalysisMutation.isPending || !documents || documents.length === 0}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2 px-4 py-2"
-          >
-            {runRealAnalysisMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-            Real OpenAI Analysis
-          </Button>
+          {/* Comprehensive Analysis Button - Runs Real OCR Analysis */}
+          {agentType === 'Clinical' && (
+            <Button
+              onClick={() => {
+                console.log('🚀 Starting Comprehensive Analysis (Real OCR)');
+                if (onClinicalAnalysisStart) {
+                  onClinicalAnalysisStart();
+                }
+                runRealAnalysisMutation.mutate();
+              }}
+              disabled={runRealAnalysisMutation.isPending || !documents || documents.length === 0}
+              className="bg-primary hover:bg-primary/80 text-white flex items-center gap-2 px-4 py-2"
+            >
+              {runRealAnalysisMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Comprehensive Analysis
+            </Button>
+          )}
 
-          {/* Reset & Run All Button (only show for Legal agent) */}
+          {/* Legacy Reset Button - Clear All Results */}
           {agentType === 'Legal' && (
             <Button
-              onClick={() => resetAndRunAllMutation.mutate()}
+              onClick={() => {
+                console.log('🔄 Legacy Reset - Clearing all results');
+                resetAndRunAllMutation.mutate();
+              }}
               disabled={resetAndRunAllMutation.isPending}
-              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white flex items-center gap-2 px-4 py-2"
+              className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2 px-4 py-2"
             >
               {resetAndRunAllMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Reset & Run All Analyses
-            </Button>
-          )}
-
-          {/* Combined OCR Analysis Button (Legacy) */}
-          {!hasAnalysis && !isAnalysisCurrentlyRunning() && (
-            <Button
-              onClick={handleRunMistralAnalysis}
-              disabled={isRunningAnalysis || runMistralAnalysisMutation.isPending || !documents || documents.length === 0}
-              className="bg-primary hover:bg-primary/80 text-white flex items-center gap-2 px-4 py-2"
-            >
-              {isRunningAnalysis || runMistralAnalysisMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              {agentType === 'Clinical' && onClinicalAnalysisStart ? 'Start Comprehensive Analysis' : `Run ${agentType} Analysis`}
+              Legacy Reset
             </Button>
           )}
         </div>
