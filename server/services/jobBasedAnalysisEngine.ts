@@ -307,8 +307,17 @@ class JobBasedAnalysisEngine {
         runId: runId
       };
 
+      console.log(`💾 Attempting to save ${agentType} analysis with ${Object.keys(questionAnswers).length} answers`);
       await storage.updateAgentAnalysis(dealId, agentType.charAt(0).toUpperCase() + agentType.slice(1), analysisData);
-      console.log(`💾 Saved ${Object.keys(questionAnswers).length} answers for ${agentType} agent to database`);
+      console.log(`✅ ${agentType} analysis saved successfully to database`);
+      
+      // Verify save worked
+      const verification = await storage.getAnalysisByDealAndAgent(dealId, agentType.charAt(0).toUpperCase() + agentType.slice(1));
+      if (!verification) {
+        console.error(`❌ Failed to verify ${agentType} analysis save`);
+      } else {
+        console.log(`✅ Verification: ${agentType} analysis found in database with ${Object.keys(verification[`${agentType.toLowerCase()}_answers`] || {}).length} answers`);
+      }
 
     } catch (error) {
       console.error(`❌ Failed to combine and save answers for ${agentType}:`, error);
