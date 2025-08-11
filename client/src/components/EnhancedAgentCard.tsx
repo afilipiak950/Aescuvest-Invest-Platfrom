@@ -1542,94 +1542,16 @@ const RESEARCH_QUESTIONS: ResearchQuestion[] = [
 
 const LEGAL_QUESTIONS: LegalQuestion[] = [
   {
-    id: 'sha_1',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'What class of shares exist?',
-    subQuestions: ['Preferred shares', 'Common shares', 'Other share classes']
+    id: 'legal_1',
+    category: 'Corporate Governance & Board Structure',
+    question: 'What is the corporate governance structure and board composition?',
+    subQuestions: ['Board composition', 'Independent directors', 'Governance committees', 'Oversight mechanisms']
   },
   {
-    id: 'sha_2',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are liquidation preferences defined?',
-    subQuestions: ['1x preferences', 'Participating preferences', 'Non-participating preferences']
-  },
-  {
-    id: 'sha_3',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Is anti-dilution protection present?',
-    subQuestions: ['Full ratchet protection', 'Weighted average protection']
-  },
-  {
-    id: 'gov_1',
-    category: 'Governance & Voting',
-    question: 'Is board composition defined?',
-    subQuestions: ['Board seats', 'Director appointments', 'Board procedures']
-  },
-  {
-    id: 'gov_2',
-    category: 'Governance & Voting',
-    question: 'Are voting rights clearly specified?',
-    subQuestions: ['Voting procedures', 'Majority requirements', 'Veto rights']
-  },
-  {
-    id: 'ip_1',
-    category: 'IP Assignment & Key Personnel',
-    question: 'Are IP assignment agreements in place?',
-    subQuestions: ['Patents', 'Trademarks', 'Copyrights', 'Trade secrets']
-  },
-  {
-    id: 'ip_2',
-    category: 'IP Assignment & Key Personnel',
-    question: 'Are all founders/key personnel covered?',
-    subQuestions: ['Founders', 'Key employees', 'Consultants', 'Advisors']
-  },
-  {
-    id: 'commercial_1',
-    category: 'Commercial Agreements',
-    question: 'Are SLAs, warranties, and indemnity clauses present?',
-    subQuestions: ['Service level agreements', 'Warranty terms', 'Indemnification clauses']
-  },
-  {
-    id: 'commercial_2',
-    category: 'Commercial Agreements',
-    question: 'Are termination clauses fair and mutual?',
-    subQuestions: ['Notice periods', 'Termination triggers', 'Post-termination obligations']
-  },
-  {
-    id: 'lit_1',
-    category: 'Litigation & Regulatory',
-    question: 'Are there pending litigations or regulatory proceedings?',
-    subQuestions: ['Ongoing litigation', 'Regulatory investigations', 'Compliance issues']
-  },
-  {
-    id: 'lit_2',
-    category: 'Litigation & Regulatory',
-    question: 'Is financial exposure quantified?',
-    subQuestions: ['Potential damages', 'Legal costs', 'Settlement amounts']
-  },
-  {
-    id: 'reg_1',
-    category: 'Regulatory Compliance',
-    question: 'Are there FDA submissions or regulatory approvals?',
-    subQuestions: ['FDA submissions', 'Regulatory approvals', 'Compliance status']
-  },
-  {
-    id: 'reg_2',
-    category: 'Regulatory Compliance',
-    question: 'Are there any regulatory compliance issues?',
-    subQuestions: ['Compliance violations', 'Regulatory warnings', 'Audit findings']
-  },
-  {
-    id: 'financial_1',
-    category: 'Financial Instruments',
-    question: 'Are there warrants or convertible instruments?',
-    subQuestions: ['Exercise price', 'Conversion terms', 'Maturity dates']
-  },
-  {
-    id: 'financial_2',
-    category: 'Financial Instruments',
-    question: 'What are the interest rates and maturity for debt instruments?',
-    subQuestions: ['Interest rate structure', 'Maturity timeline', 'Conversion features']
+    id: 'legal_2',
+    category: 'Intellectual Property Portfolio',
+    question: 'What is the intellectual property portfolio and protection status?',
+    subQuestions: ['Patent portfolio', 'IP assignments', 'Protection mechanisms', 'Technology areas']
   }
 ];
 
