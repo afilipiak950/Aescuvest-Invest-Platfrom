@@ -389,8 +389,12 @@ export class DatabaseStorage implements IStorage {
         assignmentReason: documents.assignmentReason,
         assignmentConfidence: documents.assignmentConfidence,
         manuallyAssigned: documents.manuallyAssigned,
-        assignedAt: documents.assignedAt
-        // Exclude only: ocrText (heaviest field), insights, riskFactors
+        assignedAt: documents.assignedAt,
+        // 🔥 CRITICAL FIX: Include OCR text and summaries for AI analysis
+        ocrText: documents.ocrText,
+        summary: documents.summary,
+        insights: documents.insights,
+        riskFactors: documents.riskFactors
       })
       .from(documents)
       .where(eq(documents.dealId, dealId))
