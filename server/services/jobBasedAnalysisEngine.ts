@@ -196,7 +196,7 @@ class JobBasedAnalysisEngine {
   /**
    * Update progress for an agent and broadcast progress
    */
-  private updateAgentProgress(runId: string, agentType: string) {
+  private async updateAgentProgress(runId: string, agentType: string) {
     // Count completed/failed jobs for this agent
     const agentJobs = Array.from(this.activeJobs.values()).filter(
       job => job.runId === runId && job.agentType === agentType
@@ -204,6 +204,14 @@ class JobBasedAnalysisEngine {
 
     const completedJobs = agentJobs.filter(job => job.status === 'completed').length;
     const failedJobs = agentJobs.filter(job => job.status === 'failed').length;
+
+    // Check if agent completed all jobs
+    const allJobsComplete = (completedJobs + failedJobs) === agentJobs.length && agentJobs.length > 0;
+    
+    if (allJobsComplete) {
+      console.log(`✅ All jobs completed for ${agentType}, combining answers and saving to database`);
+      await this.combineAndSaveAgentAnswers(runId, agentType, agentJobs);
+    }
 
     // Update run tracker
     const progress = runTracker.updateJobProgress(runId, agentType, completedJobs, failedJobs);
@@ -218,6 +226,78 @@ class JobBasedAnalysisEngine {
       }, progress.dealId);
 
       console.log(`📊 ${agentType}: ${completedJobs}/${agentJobs.length} jobs done (${Math.floor((completedJobs/agentJobs.length)*100)}%)`);
+    }
+  }
+
+  /**
+   * Combine job results into final agent answers and save to database
+   */
+  private async combineAndSaveAgentAnswers(runId: string, agentType: string, agentJobs: DocumentQuestionJob[]) {
+    try {
+      const dealId = agentJobs[0]?.dealId;
+      if (!dealId) return;
+
+      console.log(`🔄 Combining ${agentJobs.length} job results for ${agentType} agent`);
+
+      // Group jobs by question
+      const jobsByQuestion = new Map<string, DocumentQuestionJob[]>();
+      for (const job of agentJobs.filter(j => j.status === 'completed' && j.result)) {
+        if (!jobsByQuestion.has(job.questionId)) {
+          jobsByQuestion.set(job.questionId, []);
+        }
+        jobsByQuestion.get(job.questionId)!.push(job);
+      }
+
+      // Combine answers for each question
+      const questionAnswers: Record<string, any> = {};
+      const questions = this.getQuestionsForAgent(agentType);
+
+      for (const question of questions) {
+        const questionJobs = jobsByQuestion.get(question.id) || [];
+        
+        if (questionJobs.length > 0) {
+          // Combine evidence from all documents for this question
+          const allSources = questionJobs.map(job => `Document ${job.docId}`);
+          const allAnswers = questionJobs.map(job => job.result?.answer || '').filter(a => a);
+          
+          // Create comprehensive answer from all job results
+          const combinedAnswer = {
+            answer: allAnswers.length > 0 
+              ? `Based on analysis of ${allAnswers.length} documents: ${allAnswers.slice(0, 3).join(' ')}` 
+              : `Analysis found relevant information in ${questionJobs.length} documents`,
+            confidence: Math.min(100, Math.round(questionJobs.reduce((sum, job) => sum + (job.result?.confidence || 0), 0) / questionJobs.length)),
+            sources: allSources.slice(0, 5), // Limit to top 5 sources
+            quotes: questionJobs.map(job => ({
+              text: job.result?.answer || 'Evidence found in document',
+              document: `Document ${job.docId}`,
+              relevance: 'high'
+            })).slice(0, 3),
+            keyFindings: allAnswers.length > 0 ? [`Found evidence in ${questionJobs.length} documents`, `Average confidence: ${Math.round(questionJobs.reduce((sum, job) => sum + (job.result?.confidence || 0), 0) / questionJobs.length)}%`] : [],
+            recommendations: questionJobs.length > 2 ? [`Review detailed findings from ${questionJobs.length} source documents`] : []
+          };
+          
+          questionAnswers[question.id] = combinedAnswer;
+          console.log(`  ✅ Combined answer for ${question.id}: ${allAnswers.length} sources`);
+        } else {
+          console.log(`  ❌ No results found for ${question.id}`);
+        }
+      }
+
+      // Save combined analysis to database
+      const analysisData = {
+        [`${agentType.toLowerCase()}_answers`]: questionAnswers,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        totalQuestions: questions.length,
+        answeredQuestions: Object.keys(questionAnswers).length,
+        runId: runId
+      };
+
+      await storage.updateAgentAnalysis(dealId, agentType, analysisData);
+      console.log(`💾 Saved ${Object.keys(questionAnswers).length} answers for ${agentType} agent to database`);
+
+    } catch (error) {
+      console.error(`❌ Failed to combine and save answers for ${agentType}:`, error);
     }
   }
 
