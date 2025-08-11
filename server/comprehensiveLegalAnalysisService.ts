@@ -677,3 +677,6 @@ Respond in JSON format:
     console.log(`📊 Created fresh comprehensive legal analysis for deal ${dealId} with ${Object.keys(legalAnswers).length} questions answered`);
   }
 }
+
+// Export a singleton instance
+export const comprehensiveLegalAnalysisService = new ComprehensiveLegalAnalysisService();
