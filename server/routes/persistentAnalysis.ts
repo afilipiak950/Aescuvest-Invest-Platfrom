@@ -5,6 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { persistentJobManager } from '../PersistentJobManager';
 import { storage } from '../storage';
+import { comprehensiveLegalAnalysisService } from '../comprehensiveLegalAnalysisService';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
   try {
     const dealId = parseInt(req.params.dealId);
     
-    console.log(`🚀 Starting persistent analysis for all 7 agents on deal ${dealId}`);
+    console.log(`🚀 COMPREHENSIVE ANALYSIS START - Deal ${dealId} - Route Hit Successfully`);
     
     // Clear any stuck jobs first
     await persistentJobManager.clearStuckJobs(dealId);
@@ -289,9 +290,10 @@ router.post('/api/deals/:dealId/start-all-specialized-agents', async (req: Reque
  * Get analysis service for specific agent type
  */
 function getAnalysisServiceForAgent(agentType: string): any {
+  console.log(`🔧 Getting analysis service for agent: ${agentType}`);
   switch (agentType.toLowerCase()) {
     case 'legal':
-      const { comprehensiveLegalAnalysisService } = require('../comprehensiveLegalAnalysisService');
+      console.log(`✅ Returning legal analysis service`);
       return comprehensiveLegalAnalysisService;
       
     case 'clinical':

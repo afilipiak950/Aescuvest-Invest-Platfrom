@@ -1253,6 +1253,67 @@ function DueDiligenceContent() {
               </div>
             )}
             <CardContent>
+              {/* Overall Progress for All 7 Agents */}
+              {(jobProgress?.jobs && jobProgress.jobs.length > 0) && (
+                <div className="mb-6 p-4 bg-dark border border-dark-lighter rounded-lg">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-sm font-semibold text-white">Overall Analysis Progress</h4>
+                    <span className="text-xs text-gray-400">
+                      {jobProgress.jobs.length} agent{jobProgress.jobs.length > 1 ? 's' : ''} running
+                    </span>
+                  </div>
+                  
+                  {/* Overall progress bar */}
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-gray-400">Combined Progress</span>
+                      <span className="text-xs text-primary font-medium">
+                        {jobProgress.jobs.length > 0 ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) : 0}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-dark-lighter rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${jobProgress.jobs.length > 0 ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) : 0}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Individual agent progress bars */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType) => {
+                      const job = findJobSafely(jobProgress?.jobs, [agentType, agentType.toLowerCase()]);
+                      const progress = job?.progress || 0;
+                      const isRunning = job?.status === 'processing';
+                      
+                      return (
+                        <div key={agentType} className="bg-dark-light border border-dark-lighter rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              {isRunning && <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>}
+                              <span className="text-xs font-medium text-white">{agentType}</span>
+                            </div>
+                            <span className="text-xs text-gray-400">{progress}%</span>
+                          </div>
+                          <div className="w-full bg-dark rounded-full h-1.5">
+                            <div 
+                              className="bg-primary h-1.5 rounded-full transition-all duration-500"
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                          {job?.currentStep && (
+                            <p className="text-xs text-gray-500 mt-1 truncate">
+                              {job.currentStep}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               
               <Tabs value={activeAgent} onValueChange={setActiveAgent} className="w-full">
@@ -1261,7 +1322,17 @@ function DueDiligenceContent() {
                     value="clinical"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Clinical ({clinicalDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Clinical ({clinicalDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="legal"
@@ -1299,25 +1370,65 @@ function DueDiligenceContent() {
                     value="hr"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    HR ({hrDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>HR ({hrDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="financial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Financial ({financialDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Financial ({financialDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="ip"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    IP ({ipDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>IP ({ipDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="research"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Research ({researchDocs?.length || 0})
+                    <div className="flex items-center space-x-2">
+                      <span>Research ({researchDocs?.length || 0})</span>
+                      {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.status === 'processing' && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                          <span className="text-xs text-primary">
+                            {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger
                     value="unassigned"
