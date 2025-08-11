@@ -180,6 +180,25 @@ class RunBasedProgressTracker {
   }
 
   /**
+   * Get all active runs for debugging/recovery purposes
+   */
+  getAllActiveRuns(): Array<[string, AnalysisRun]> {
+    return Array.from(this.activeRuns.entries());
+  }
+
+  /**
+   * Find any run for a deal (including ones with progress but wrong status)
+   */
+  findAnyRunForDeal(dealId: number): string | null {
+    for (const [runId, run] of this.activeRuns.entries()) {
+      if (run.dealId === dealId && (run.status === 'running' || run.completedJobs > 0)) {
+        return runId;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Complete a run
    */
   completeRun(runId: string) {

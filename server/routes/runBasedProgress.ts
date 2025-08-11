@@ -99,7 +99,21 @@ router.get('/api/analysis/deal-progress/:dealId', async (req: Request, res: Resp
   try {
     const dealId = parseInt(req.params.dealId);
     
-    const runId = jobBasedEngine.getActiveRunForDeal(dealId);
+    // 🔥 FIX: Check both job engine and run tracker for active runs
+    let runId = jobBasedEngine.getActiveRunForDeal(dealId);
+    
+    // If no run found in job engine, check run tracker directly
+    if (!runId) {
+      runId = runTracker.getActiveRunForDeal(dealId);
+    }
+    
+    // If still no run, check if there are active jobs processing
+    if (!runId) {
+      runId = runTracker.findAnyRunForDeal(dealId);
+      if (runId) {
+        console.log(`🔧 Found orphaned active run: ${runId} for deal ${dealId}`);
+      }
+    }
     
     if (!runId) {
       return res.json({
