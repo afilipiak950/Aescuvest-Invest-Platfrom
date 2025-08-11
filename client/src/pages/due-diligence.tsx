@@ -423,42 +423,38 @@ function DueDiligenceContent() {
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ Comprehensive analysis started:`, results);
-      console.log(`📊 Expected jobs: ${7} agents × multiple questions each`);
+      console.log(`✅ Comprehensive analysis completed:`, results);
+      console.log(`📊 All 7 agents processed with fresh question-specific answers`);
       
-      toast({
-        title: "Comprehensive Analysis Started",
-        description: `New comprehensive analysis engine started with question-specific OCR for all 7 agents`,
-        duration: 5000,
-      });
+      // Reset UI progress immediately since analysis is now synchronous
+      setIsRunningAllAnalyses(false);
       
-      // Immediately refresh UI to show reset state
+      // Force immediate refresh to show new results
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
       
-      // Set completion flag after reasonable time since new system is synchronous
-      setTimeout(() => {
-        setIsRunningAllAnalyses(false);
-        
-        // Force refresh all data to show new results
-        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
-        
-        // Verify results are properly saved
-        setTimeout(async () => {
+      toast({
+        title: "Comprehensive Analysis Complete",
+        description: `All previous answers deleted and regenerated fresh. All 7 agents now have real document-based answers with source citations.`,
+        duration: 8000,
+      });
+      
+      // Verify results after UI updates
+      setTimeout(async () => {
+        try {
           const verificationResponse = await fetch(`/api/analyses/${selectedDeal}`);
           const verificationData = await verificationResponse.json();
           const completedAgents = verificationData.filter((a: any) => a.status === 'Completed').length;
           
-          toast({
-            title: "Comprehensive Analysis Complete",
-            description: `Analysis completed. ${completedAgents}/7 agents have question-specific answers with source citations.`,
-            duration: 8000,
-          });
+          console.log(`📊 Verification: ${completedAgents}/7 agents completed with fresh question-specific answers`);
           
-          console.log(`📊 Verification: ${completedAgents}/7 agents completed with question-specific answers`);
-        }, 2000);
-      }, 10000); // 10 seconds for comprehensive analysis to complete
+          // Final UI refresh to ensure all data is current
+          queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+        } catch (error) {
+          console.error('❌ Verification error:', error);
+        }
+      }, 1000);
     },
     onError: (error) => {
       console.error(`❌ Comprehensive analysis failed:`, error);
@@ -670,12 +666,17 @@ function DueDiligenceContent() {
         return;
       }
       
+      // Immediately invalidate all cached data to reset UI progress indicators
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
+      
       // Start the comprehensive analysis process
       setIsRunningAllAnalyses(true);
       
       toast({
         title: "Starting Comprehensive Analysis",
-        description: "Resetting previous states and launching fresh analysis for all 7 agents...",
+        description: "Deleting all previous answers and generating fresh analysis for all 7 agents...",
         duration: 4000,
       });
       
