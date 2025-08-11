@@ -35,38 +35,36 @@ export function safeGetDocumentContent(document: any): SafeDocumentContent {
     };
   }
 
-  // Try OCR text first (most reliable) - check both camelCase and snake_case
-  const ocrText = document.ocrText || document.ocr_text;
-  if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 50) {
+  // Try OCR text first (most reliable)
+  if (document.ocrText && typeof document.ocrText === 'string' && document.ocrText.trim().length > 50) {
     return {
-      text: ocrText.trim(),
+      text: document.ocrText.trim(),
       hasContent: true,
       source: 'ocr',
-      length: ocrText.trim().length
+      length: document.ocrText.trim().length
     };
   }
 
-  // Try AI summary content - check both camelCase and snake_case
-  const aiSummary = document.aiSummary || document.ai_summary;
-  if (aiSummary) {
+  // Try AI summary content
+  if (document.aiSummary) {
     let summaryText = '';
     
     try {
-      if (typeof aiSummary === 'string') {
-        summaryText = aiSummary;
-      } else if (typeof aiSummary === 'object') {
+      if (typeof document.aiSummary === 'string') {
+        summaryText = document.aiSummary;
+      } else if (typeof document.aiSummary === 'object') {
         // Extract text from summary object
-        if (aiSummary.executiveSummary) {
-          summaryText += aiSummary.executiveSummary + ' ';
+        if (document.aiSummary.executiveSummary) {
+          summaryText += document.aiSummary.executiveSummary + ' ';
         }
-        if (aiSummary.criticalFindings && Array.isArray(aiSummary.criticalFindings)) {
-          summaryText += aiSummary.criticalFindings.join(' ') + ' ';
+        if (document.aiSummary.criticalFindings && Array.isArray(document.aiSummary.criticalFindings)) {
+          summaryText += document.aiSummary.criticalFindings.join(' ') + ' ';
         }
-        if (aiSummary.keyFinancialData && Array.isArray(aiSummary.keyFinancialData)) {
-          summaryText += aiSummary.keyFinancialData.join(' ') + ' ';
+        if (document.aiSummary.keyFinancialData && Array.isArray(document.aiSummary.keyFinancialData)) {
+          summaryText += document.aiSummary.keyFinancialData.join(' ') + ' ';
         }
-        if (aiSummary.strategicImplications) {
-          summaryText += aiSummary.strategicImplications;
+        if (document.aiSummary.strategicImplications) {
+          summaryText += document.aiSummary.strategicImplications;
         }
       }
     } catch (error) {

@@ -116,113 +116,39 @@ export async function analyzeDocument(
   const agent = agentSpecialties[agentType];
   
   const analysisPrompt = `
-    You are an expert ${agent.specialty} specialist conducting comprehensive due diligence on a healthcare investment opportunity.
+    You are an expert ${agent.specialty} specialist conducting due diligence on a healthcare investment opportunity.
     
-    DETAILED ANALYSIS REQUIREMENTS:
-    Conduct an exhaustive analysis of the following ${documentType} document with specific focus on:
+    Analyze the following ${documentType} document with specific focus on:
     ${agent.focusAreas.map(area => `- ${area}`).join('\n')}
     
-    ANALYSIS SECTIONS TO COMPLETE:
+    Identify key findings and classify them as:
+    - Positive: Favorable aspects that support investment
+    - Negative: Concerning issues that represent significant risks
+    - Warning: Potential issues that require further investigation
+    - Info: Neutral but important information
     
-    1. EXECUTIVE SUMMARY (2-3 sentences)
-    Provide a high-level assessment of the document's relevance and key implications for investment decision-making.
+    Provide specific, actionable recommendations based on your findings.
     
-    2. DETAILED FINDINGS (15-25 findings minimum)
-    Identify comprehensive findings and classify them as:
-    - Positive: Favorable aspects that strongly support investment thesis
-    - Negative: Concerning issues that represent significant investment risks
-    - Warning: Potential red flags requiring immediate further investigation
-    - Info: Critical neutral information that impacts investment evaluation
-    
-    For each finding, provide:
-    - Specific evidence from the document
-    - Investment implications
-    - Risk/opportunity assessment
-    - Confidence level (High/Medium/Low)
-    
-    3. RISK ASSESSMENT
-    - Identify all potential risks across technical, commercial, regulatory, and financial dimensions
-    - Assess probability and impact for each risk
-    - Provide risk mitigation strategies
-    
-    4. STRATEGIC RECOMMENDATIONS (10-15 recommendations minimum)
-    Provide specific, actionable recommendations including:
-    - Immediate next steps for due diligence
-    - Additional information/documents required
-    - Key questions for management team
-    - Potential deal structure considerations
-    - Timeline implications
-    
-    5. COMPETITIVE LANDSCAPE INSIGHTS
-    - Market positioning analysis
-    - Competitive advantages/disadvantages identified
-    - Differentiation factors
-    
-    6. INVESTMENT DECISION FACTORS
-    - Key value drivers identified
-    - Critical success factors
-    - Potential value creation opportunities
-    - Exit strategy considerations
-    
-    Return your analysis as a comprehensive JSON object with:
+    Return your analysis as a JSON object with:
     {
-      "executiveSummary": "2-3 sentence high-level assessment",
       "findings": [
-        {
-          "id": 1, 
-          "content": "detailed finding with specific evidence and investment implications (minimum 100 words per finding)", 
-          "type": "Positive|Negative|Warning|Info",
-          "confidence": "High|Medium|Low",
-          "investmentImpact": "description of how this affects investment decision",
-          "evidence": "specific quotes or data points from document"
-        },
-        ... (minimum 15-25 findings)
+        {"id": 1, "content": "detailed finding description", "type": "Positive|Negative|Warning|Info"},
+        ...
       ],
-      "riskAssessment": {
-        "technicalRisks": ["detailed risk descriptions"],
-        "commercialRisks": ["detailed risk descriptions"],
-        "regulatoryRisks": ["detailed risk descriptions"],
-        "financialRisks": ["detailed risk descriptions"],
-        "mitigationStrategies": ["specific mitigation approaches"]
-      },
       "recommendations": [
-        "detailed actionable recommendation with specific next steps and rationale (minimum 50 words per recommendation)",
-        ... (minimum 10-15 recommendations)
-      ],
-      "competitiveLandscape": {
-        "positioning": "market position analysis",
-        "advantages": ["competitive advantages identified"],
-        "disadvantages": ["competitive weaknesses"],
-        "differentiation": "key differentiating factors"
-      },
-      "investmentFactors": {
-        "valueDrivers": ["key value creation opportunities"],
-        "successFactors": ["critical success factors"],
-        "exitConsiderations": ["potential exit strategy factors"]
-      },
-      "additionalDataNeeded": [
-        "specific documents or information required for complete assessment"
+        "specific recommendation 1",
+        "specific recommendation 2",
+        ...
       ]
     }
     
-    QUALITY REQUIREMENTS:
-    - Each finding must be substantive (minimum 100 words) with specific evidence
-    - Each recommendation must be actionable (minimum 50 words) with clear rationale
-    - Provide detailed analysis rather than superficial observations
-    - Focus on investment-relevant insights that drive decision-making
-    - Include specific quotes and data points where available
-    - Maintain professional investment analysis standards throughout
+    Limit to 5-7 most significant findings and 3-5 actionable recommendations.
   `;
 
   const analysisResult = await openaiService.analyzeDocument(
     documentContent,
     analysisPrompt,
-    { 
-      jsonResponse: true, 
-      temperature: 0.2, // Lower temperature for more consistent, detailed analysis
-      model: "gpt-5", // GPT-5 is the newest OpenAI model (August 2025) with advanced reasoning capabilities
-      maxTokens: 8000 // Increase token limit for detailed responses
-    }
+    { jsonResponse: true, temperature: 0.4 }
   );
 
   try {

@@ -191,14 +191,14 @@ export class ComprehensiveClinicalAnalysisService {
           
           // Brief delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 1500));
-        } catch (questionError: any) {
+        } catch (questionError) {
           console.error(`❌ Error processing question "${question.question}":`, questionError);
           
           // Store partial answer for this question
           clinicalAnswers[question.id] = {
             question: question.question,
             category: question.category,
-            answer: `Error processing this question: ${questionError?.message || 'Unknown error'}`,
+            answer: `Error processing this question: ${questionError.message}`,
             confidence: 0,
             sources: [],
             evidence: [],
@@ -249,7 +249,7 @@ export class ComprehensiveClinicalAnalysisService {
           findings: findings.length,
           recommendations: recommendations.length
         };
-      } catch (finalError: any) {
+      } catch (finalError) {
         console.error(`❌ Error in final stages of clinical analysis for deal ${dealId}:`, finalError);
         
         // Still try to save what we have
@@ -262,7 +262,7 @@ export class ComprehensiveClinicalAnalysisService {
           await storageService.updateBackgroundJob(jobId, {
             status: 'completed',
             currentStep: 'Completed with partial results due to errors',
-            error: finalError?.message || 'Unknown error'
+            error: finalError.message
           });
           
           return {
@@ -273,11 +273,11 @@ export class ComprehensiveClinicalAnalysisService {
             recommendations: partialRecommendations.length,
             warning: 'Analysis completed with some errors'
           };
-        } catch (saveError: any) {
+        } catch (saveError) {
           // Mark job as failed
           await storageService.updateBackgroundJob(jobId, {
             status: 'failed',
-            error: `Final error: ${finalError?.message || 'Unknown'}, Save error: ${saveError?.message || 'Unknown'}`
+            error: `Final error: ${finalError.message}, Save error: ${saveError.message}`
           });
           throw finalError;
         }
@@ -287,7 +287,7 @@ export class ComprehensiveClinicalAnalysisService {
       
       await storageService.updateBackgroundJob(jobId, {
         status: 'failed',
-        error: (error as Error)?.message || 'Unknown error'
+        error: error.message
       });
       
       throw error;
@@ -305,12 +305,9 @@ export class ComprehensiveClinicalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to clinical agent (case-insensitive)
+    // First try documents explicitly assigned to clinical agent
     let clinicalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && (
-        doc.assignedAgents.includes('Clinical') || 
-        doc.assignedAgents.includes('clinical')
-      )) && 
+      (doc.assignedAgents && doc.assignedAgents.includes('clinical')) && 
       (doc.ocrText || doc.aiSummary)
     );
     
@@ -688,12 +685,11 @@ Respond in JSON format:
     
     await db
       .insert(agentAnalyses)
-      .values([analysisData]);
+      .values(analysisData);
     
     console.log(`📊 Created fresh comprehensive clinical analysis for deal ${dealId} with ${Object.keys(clinicalAnswers).length} questions answered`);
   }
 }
-
 
 // Export the service instance
 export const comprehensiveClinicalAnalysisService = new ComprehensiveClinicalAnalysisService();

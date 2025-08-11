@@ -3,8 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Loader2, HelpCircle, Zap, ChevronDown, ChevronRight, CheckCircle, Clock } from 'lucide-react';
+import { Loader2, HelpCircle, Zap, ChevronDown, ChevronRight } from 'lucide-react';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 
 // Comprehensive Research Analysis Button Component
@@ -13,14 +12,9 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/combined-ocr/analyze`, {
+      const response = await apiRequest(`/api/deals/${dealId}/research-analysis/comprehensive`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          dealId: dealId,
-          agentType: 'Research',
-          forceRefresh: true
-        })
+        headers: { 'Content-Type': 'application/json' }
       });
       return response;
     },
@@ -55,12 +49,12 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
       {isRunning || comprehensiveAnalysisMutation.isPending ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Combined OCR Research Running...
+          Research Analysis Running...
         </>
       ) : (
         <>
           <Zap className="h-4 w-4 mr-2" />
-          Run Combined OCR Research
+          Run Research Analysis
         </>
       )}
     </Button>
@@ -214,20 +208,26 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     }
   };
 
-  // Research questions by category - UPDATED IDs to match database storage
+  // Research questions by category
   const RESEARCH_QUESTIONS = [
-    // Research questions 1-11 matching the database structure
-    { id: "research_1", question: "Are technical whitepapers available?", category: "Technical Whitepapers" },
-    { id: "research_2", question: "Are competitive analyses included?", category: "Market Research Reports" },
-    { id: "research_3", question: "Is market sizing data provided?", category: "Market Research Reports" },
-    { id: "research_4", question: "Are customer validation studies included?", category: "Customer Validation" },
-    { id: "research_5", question: "Are third-party reports referenced?", category: "Third-party Reports" },
-    { id: "research_6", question: "Are regulatory considerations addressed?", category: "Regulatory Analysis" },
-    { id: "research_7", question: "Are academic publications cited?", category: "Academic Publications" },
-    { id: "research_8", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
-    { id: "research_9", question: "Are citations and forward references analyzed?", category: "Academic Publications" },
-    { id: "research_10", question: "Are patent landscape analyses provided?", category: "Patent Landscape" },
-    { id: "research_11", question: "Is competitive IP density mapped?", category: "Patent Landscape" }
+    // Technical Whitepapers - 3 questions
+    { id: "technical_1", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
+    { id: "technical_2", question: "Are KPIs / benchmarks clearly described?", category: "Technical Whitepapers" },
+    { id: "technical_3", question: "Are claims cited and supported by peer-reviewed literature?", category: "Technical Whitepapers" },
+    
+    // Market Research Reports - 3 questions
+    { id: "market_1", question: "Are TAM/SAM/SOM defined with assumptions?", category: "Market Research Reports" },
+    { id: "market_2", question: "Are sources cited (Gartner, Statista, CB Insights)?", category: "Market Research Reports" },
+    { id: "market_3", question: "Are forecasts based on bottom-up or top-down logic?", category: "Market Research Reports" },
+    
+    // Academic Publications - 3 questions
+    { id: "academic_1", question: "Are papers peer-reviewed?", category: "Academic Publications" },
+    { id: "academic_2", question: "Are citations in PubMed, arXiv, Nature, etc.?", category: "Academic Publications" },
+    { id: "academic_3", question: "Is the publication recent and still relevant?", category: "Academic Publications" },
+    
+    // Patent Landscape Analyses - 2 questions
+    { id: "patent_1", question: "Are citations and forward references analyzed?", category: "Patent Landscape Analyses" },
+    { id: "patent_2", question: "Is competitive IP density mapped?", category: "Patent Landscape Analyses" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
@@ -349,28 +349,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="font-medium text-white">{question.question}</p>
-                            <div className="flex items-center gap-2">
-                              {answer ? (
-                                <CheckCircle className="h-4 w-4 text-green-400" />
-                              ) : (
-                                <Clock className="h-4 w-4 text-gray-400" />
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Per-Question Progress Bar */}
-                          <div className="mb-3">
-                            <Progress 
-                              value={answer ? 100 : 0} 
-                              className="h-1 bg-dark-lighter"
-                            />
-                            <div className="flex justify-between text-xs text-gray-400 mt-1">
-                              <span>{answer ? 'Question Answered' : 'Pending Analysis'}</span>
-                              <span>{answer ? '100%' : '0%'}</span>
-                            </div>
-                          </div>
+                          <p className="font-medium text-white mb-2">{question.question}</p>
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">

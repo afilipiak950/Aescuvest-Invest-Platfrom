@@ -5,8 +5,8 @@
  */
 
 import { db } from '../db';
-import { backgroundJobs, agentAnalyses } from '../../shared/schema';
-import { eq, and, lt } from 'drizzle-orm';
+import { backgroundJobs, agentAnalyses, documents } from '../../shared/schema';
+import { eq, and, lt, or } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 
 interface TimeoutConfig {
@@ -17,8 +17,8 @@ interface TimeoutConfig {
 
 class AIProcessingTimeoutService {
   private config: TimeoutConfig = {
-    processingTimeout: 12 * 60 * 60 * 1000, // 12 hours
-    checkInterval: 30 * 60 * 1000, // 30 minutes
+    processingTimeout: 45 * 60 * 1000, // 45 minutes - allow more time for complex analyses
+    checkInterval: 5 * 60 * 1000, // 5 minute check intervals - less aggressive monitoring
     maxRetries: 3
   };
   
@@ -66,7 +66,7 @@ class AIProcessingTimeoutService {
   /**
    * Check for stuck AI processing jobs and auto-complete them
    */
-  private async checkForStuckProcessing(): Promise<void> {
+  async checkForStuckProcessing(): Promise<void> {
     console.log('🔍 Checking for stuck AI processing jobs...');
     
     try {
@@ -83,7 +83,7 @@ class AIProcessingTimeoutService {
           )
         );
 
-      console.log(`⏰ Found ${stuckJobs.length} stuck jobs older than ${this.config.processingTimeout / (60 * 60 * 1000)} hours`);
+      console.log(`⏰ Found ${stuckJobs.length} stuck jobs older than ${this.config.processingTimeout / (60 * 1000)} minutes`);
 
       for (const job of stuckJobs) {
         await this.handleStuckJob(job);
@@ -102,10 +102,10 @@ class AIProcessingTimeoutService {
    */
   private async handleStuckJob(job: any): Promise<void> {
     const jobAge = Date.now() - new Date(job.createdAt).getTime();
-    const hoursStuck = Math.round(jobAge / (60 * 60 * 1000) * 10) / 10;
+    const minutesStuck = Math.round(jobAge / (60 * 1000) * 10) / 10;
     
     console.log(`⚠️ Processing stuck job ${job.jobId} (${job.jobType}) for deal ${job.dealId}`);
-    console.log(`⏰ Job has been running for ${hoursStuck} hours`);
+    console.log(`⏰ Job has been running for ${minutesStuck} minutes`);
 
     try {
       // Update the job to completed with timeout message
@@ -114,8 +114,8 @@ class AIProcessingTimeoutService {
         .set({
           status: 'completed',
           progress: 100,
-          currentStep: `Auto-completed after ${hoursStuck} hours timeout`,
-          error: `Processing was automatically completed due to ${hoursStuck} hour timeout. Results may be partial.`,
+          currentStep: `Auto-completed after ${minutesStuck} minutes timeout`,
+          error: `Processing was automatically completed due to ${minutesStuck} minute timeout. Results may be partial.`,
           updatedAt: new Date()
         })
         .where(eq(backgroundJobs.id, job.id));
@@ -129,12 +129,12 @@ class AIProcessingTimeoutService {
           jobId: job.jobId,
           status: 'completed',
           progress: 100,
-          currentStep: `Auto-completed after ${hoursStuck} hours timeout`,
+          currentStep: `Auto-completed after ${minutesStuck} minutes timeout`,
           message: 'Processing completed automatically due to timeout'
         });
       }
 
-      console.log(`✅ Successfully handled stuck job ${job.jobId} after ${hoursStuck} hours`);
+      console.log(`✅ Successfully handled stuck job ${job.jobId} after ${minutesStuck} minutes`);
       
     } catch (error) {
       console.error(`❌ Error handling stuck job ${job.jobId}:`, error);
@@ -162,14 +162,183 @@ class AIProcessingTimeoutService {
     console.log('🔍 Checking for deals with incomplete AI processing...');
     
     try {
-      // This would need to be implemented based on your specific logic
-      // for determining when a deal's AI processing should be considered "complete"
+      // Find documents that are stuck in processing or failed analysis
+      const timeoutThreshold = new Date(Date.now() - this.config.processingTimeout);
       
-      // For now, we focus on the background jobs timeout
+      // Simple approach: get all documents that need attention
+      const stuckDocuments = await db
+        .select()
+        .from(documents)
+        .where(
+          or(
+            // Documents stuck in processing state
+            eq(documents.aiSummaryStatus, 'processing'),
+            // Documents that failed analysis
+            and(
+              eq(documents.status, 'Failed Analysis'),
+              eq(documents.aiSummaryStatus, 'pending')
+            ),
+            // Analyzed documents stuck in pending AI summary
+            and(
+              eq(documents.status, 'Analyzed'),
+              eq(documents.aiSummaryStatus, 'pending')
+            )
+          )
+        );
+
+      if (stuckDocuments.length > 0) {
+        console.log(`🔧 Found ${stuckDocuments.length} stuck documents that need completion`);
+        
+        // Group by deal
+        const documentsByDeal = stuckDocuments.reduce((acc, doc) => {
+          if (!acc[doc.dealId]) acc[doc.dealId] = [];
+          acc[doc.dealId].push(doc);
+          return acc;
+        }, {});
+
+        // Process each deal's stuck documents
+        for (const [dealId, docs] of Object.entries(documentsByDeal)) {
+          await this.handleStuckDocuments(parseInt(dealId), docs as any[]);
+        }
+      }
+      
       console.log('✅ Deal completion check completed');
       
     } catch (error) {
       console.error('❌ Error checking incomplete deals:', error);
+    }
+  }
+
+  /**
+   * Handle stuck documents by forcing completion
+   */
+  private async handleStuckDocuments(dealId: number, stuckDocs: any[]): Promise<void> {
+    console.log(`🔧 Handling ${stuckDocs.length} stuck documents for deal ${dealId}`);
+    
+    for (const doc of stuckDocs) {
+      try {
+        const minutesStuck = Math.round((Date.now() - new Date(doc.updatedAt).getTime()) / (60 * 1000) * 10) / 10;
+        console.log(`⚠️ Auto-completing stuck document: ${doc.name} (${doc.status}/${doc.aiSummaryStatus}) - stuck for ${minutesStuck} minutes`);
+        
+        // Update document to completed status
+        await db
+          .update(documents)
+          .set({
+            aiSummaryStatus: 'completed',
+            aiSummary: 'Auto-completed due to processing timeout. Document analyzed but AI summary generation was interrupted.',
+            updatedAt: new Date()
+          })
+          .where(eq(documents.id, doc.id));
+        
+        console.log(`✅ Auto-completed document ${doc.name} after ${minutesStuck} minutes`);
+        
+      } catch (error) {
+        console.error(`❌ Error handling stuck document ${doc.name}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Force complete AI processing for a specific deal - immediate action
+   */
+  async forceCompleteProcessing(dealId: number, reason: string = 'Manual force completion'): Promise<void> {
+    console.log(`🔧 Force completing AI processing for deal ${dealId}: ${reason}`);
+    
+    try {
+      // Find all processing jobs for this deal
+      const processingJobs = await db
+        .select()
+        .from(backgroundJobs)
+        .where(
+          and(
+            eq(backgroundJobs.dealId, dealId),
+            eq(backgroundJobs.status, 'processing')
+          )
+        );
+
+      console.log(`🔧 Found ${processingJobs.length} processing jobs to force complete for deal ${dealId}`);
+
+      // Complete all processing jobs immediately
+      for (const job of processingJobs) {
+        await db
+          .update(backgroundJobs)
+          .set({
+            status: 'completed',
+            progress: 100,
+            currentStep: `Force completed: ${reason}`,
+            error: `Processing was manually force completed. Results may be partial.`,
+            updatedAt: new Date(),
+            completedAt: new Date()
+          })
+          .where(eq(backgroundJobs.id, job.id));
+
+        // Send WebSocket update
+        websocketManager.notifyJobUpdate(dealId, {
+          jobId: job.jobId,
+          status: 'completed',
+          progress: 100,
+          currentStep: `Force completed: ${reason}`,
+          message: 'Processing force completed successfully'
+        });
+
+        console.log(`✅ Force completed job ${job.jobId} for deal ${dealId}`);
+      }
+
+      // Create minimal analysis results if needed
+      for (const job of processingJobs) {
+        if (job.jobType) {
+          await this.createMinimalAnalysisResult(dealId, job.jobType);
+        }
+      }
+
+      console.log(`✅ Successfully force completed AI processing for deal ${dealId}`);
+      
+    } catch (error) {
+      console.error(`❌ Error force completing processing for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get timeout statistics
+   */
+  async getTimeoutStats(): Promise<any> {
+    try {
+      const currentTime = new Date();
+      const timeoutThreshold = new Date(currentTime.getTime() - this.config.processingTimeout);
+      
+      const stuckJobs = await db
+        .select()
+        .from(backgroundJobs)
+        .where(
+          and(
+            eq(backgroundJobs.status, 'processing'),
+            lt(backgroundJobs.createdAt, timeoutThreshold)
+          )
+        );
+
+      const allProcessingJobs = await db
+        .select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.status, 'processing'));
+
+      return {
+        currentTimeout: `${this.config.processingTimeout / (60 * 1000)} minutes`,
+        checkInterval: `${this.config.checkInterval / (60 * 1000)} minutes`,
+        currentlyStuck: stuckJobs.length,
+        totalProcessing: allProcessingJobs.length,
+        stuckJobs: stuckJobs.map(job => ({
+          jobId: job.jobId,
+          dealId: job.dealId,
+          jobType: job.jobType,
+          agentType: job.agentType,
+          progress: job.progress,
+          runningFor: `${Math.round((currentTime.getTime() - new Date(job.createdAt).getTime()) / (60 * 1000))} minutes`
+        }))
+      };
+    } catch (error) {
+      console.error('❌ Error getting timeout stats:', error);
+      throw error;
     }
   }
 

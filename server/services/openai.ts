@@ -5,8 +5,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// GPT-5 is the newest OpenAI model (August 2025) with advanced reasoning capabilities
-const DEFAULT_MODEL = "gpt-5";
+// This is the newest OpenAI model (May 2024) which provides the best performance
+const DEFAULT_MODEL = "gpt-4o";
 
 /**
  * Generate a response from the AI based on a system prompt and user message
@@ -22,16 +22,10 @@ export async function generateResponse(
     model?: string;
     temperature?: number;
     jsonResponse?: boolean;
-    maxTokens?: number;
   } = {}
 ): Promise<string> {
   try {
-    const { 
-      model = DEFAULT_MODEL, 
-      temperature = 0.7, 
-      jsonResponse = false,
-      maxTokens = 4096
-    } = options;
+    const { model = DEFAULT_MODEL, temperature = 0.7, jsonResponse = false } = options;
     
     const messages = [
       { role: "system", content: systemPrompt },
@@ -41,8 +35,7 @@ export async function generateResponse(
     const apiOptions: any = {
       model,
       messages,
-      temperature,
-      max_tokens: maxTokens
+      temperature
     };
     
     // If JSON response is requested, specify the response format
@@ -73,7 +66,6 @@ export async function analyzeDocument(
     model?: string;
     temperature?: number;
     jsonResponse?: boolean;
-    maxTokens?: number;
   } = {}
 ): Promise<string> {
   const systemPrompt = `You are an expert document analyzer with deep expertise in venture capital, startup assessment, and due diligence. ${analysisPrompt}`;

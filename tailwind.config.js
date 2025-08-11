@@ -1,77 +1,7 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   darkMode: ["class"],
-  content: [
-    "./client/index.html",
-    "./client/src/**/*.{js,jsx,ts,tsx}",
-    "./src/**/*.{js,jsx,ts,tsx}",
-    "./index.html"
-  ],
-  safelist: [
-    // Core theme colors
-    'bg-dark',
-    'bg-navy', 
-    'bg-dark-light',
-    'bg-dark-lighter',
-    'bg-primary',
-    'bg-primary-custom',
-    'text-primary',
-    'text-white',
-    'text-gray-300',
-    'text-gray-400',
-    'text-gray-500',
-    'text-gray-600',
-    'text-gray-700',
-    'text-gray-800',
-    'text-gray-900',
-    // Borders
-    'border-primary',
-    'border-gray-800',
-    'border-gray-600',
-    'border-dark-border',
-    // Interactive states
-    'hover:bg-primary/90',
-    'hover:bg-primary',
-    'focus:border-primary',
-    'focus:ring-primary',
-    'focus:ring-2',
-    // Backgrounds with opacity
-    'bg-gray-900/50',
-    'bg-black/50',
-    // Layout classes
-    'flex',
-    'grid',
-    'hidden',
-    'block',
-    'inline-block',
-    'absolute',
-    'relative',
-    'fixed',
-    // Spacing
-    'p-4',
-    'p-6',
-    'px-4',
-    'py-2',
-    'py-4',
-    'py-6',
-    'mx-auto',
-    'mb-4',
-    'mb-6',
-    'mb-8',
-    // Typography
-    'font-bold',
-    'font-semibold',
-    'text-lg',
-    'text-xl',
-    'text-2xl',
-    'text-3xl',
-    // Container and max-width
-    'container',
-    'max-w-7xl',
-    'w-full',
-    'h-full',
-    'h-screen'
-  ],
+  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}", "./client/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       borderRadius: {
@@ -130,9 +60,9 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Custom dark theme colors - ensure these are included
+        // Custom dark theme colors
         dark: "#090921",
-        "dark-light": "#10102d", 
+        "dark-light": "#10102d",
         "dark-lighter": "#161638",
         "dark-border": "#1e1e40",
         "primary-custom": "#00CC00",

@@ -93,7 +93,7 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
         </div>
 
         <div className="space-y-3 mb-6">
-          {analysis.findings.map((finding, index) => (
+          {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.map((finding, index) => (
             <div key={index} className="flex items-start">
               <div className="min-w-[24px] h-6 flex items-center justify-center mt-0.5">
                 {getFindingIcon(finding.type)}
@@ -129,7 +129,7 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
   // Complete analysis
   return (
     <div>
-      {analysis.findings.length > 0 && (
+      {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.length > 0 && (
         <div>
           <h4 className="text-lg font-medium mb-3">Key Findings</h4>
           <div className="space-y-4 mb-6">
@@ -216,7 +216,7 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
                   <h4 className="text-lg font-medium mb-3">Financial Health Assessment</h4>
                   <div className="bg-dark-lighter p-4 rounded-lg">
                     <div className="space-y-3">
-                      {analysis.findings.map((finding, index) => (
+                      {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.map((finding, index) => (
                         <div key={index} className="flex items-start">
                           <div className="min-w-[24px] h-6 flex items-center justify-center mt-0.5">
                             {getFindingIcon(finding.type)}
@@ -235,7 +235,7 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
             {(analysis.agentType === 'Medical' || analysis.agentType === 'Commercial') && (
               <div className="bg-dark-lighter p-4 rounded-lg">
                 <div className="space-y-3">
-                  {analysis.findings.map((finding, index) => (
+                  {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.map((finding, index) => (
                     <div key={index} className="flex items-start">
                       <div className="min-w-[24px] h-6 flex items-center justify-center mt-0.5">
                         {getFindingIcon(finding.type)}
@@ -252,7 +252,7 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
         </div>
       )}
       
-      {analysis.recommendations && analysis.recommendations.length > 0 && (
+      {analysis.recommendations && Array.isArray(analysis.recommendations) && analysis.recommendations.length > 0 && (
         <div className="border-t border-dark-lighter pt-6">
           <div className="flex items-center mb-4">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center mr-3">
@@ -262,7 +262,7 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
           </div>
           
           <div className="space-y-3">
-            {analysis.recommendations.map((recommendation, index) => (
+            {analysis.recommendations && Array.isArray(analysis.recommendations) && analysis.recommendations.map((recommendation, index) => (
               <div 
                 key={index} 
                 className="bg-dark-lighter p-3 rounded-lg border-l-4 border-green-500"
