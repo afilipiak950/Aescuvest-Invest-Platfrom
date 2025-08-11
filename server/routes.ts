@@ -30,8 +30,6 @@ import investorMatchingRoutes from "./routes/investor-matching";
 import { registerApiRoutes } from "./routes/api";
 import { registerAffinityRoutes } from "./routes/affinity-routes";
 import matchingIntelligenceRoutes from "./routes/matching-intelligence-routes";
-import enterpriseAgentRoutes from "./routes/enterpriseAgentRoutes";
-import combinedOcrRoutes from "./routes/combinedOcrRoutes";
 import { companyResearchService } from "./services/companyResearch";
 import { evaluateCompanyByDeal } from './services/aiEvaluation';
 import { comprehensiveResearchService } from './services/comprehensiveResearch';
@@ -42,9 +40,6 @@ import persistentAnalysisRoutes from './routes/persistentAnalysis';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
-import { comprehensiveAnalysisRouter } from './routes/comprehensiveAnalysis';
-import { comprehensiveAnalysisEngine } from './services/comprehensiveAnalysisEngine';
-import { analysisRoutes } from './routes/analysisRoutes';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -117,11 +112,11 @@ async function processCompanyResearchForDeal(
   }
 }
 import inboxRoutes from "./routes/inbox";
+import microsoftAuthRoutes from "./routes/microsoftAuth";
 import documentUploadRoutes from "./routes/document-upload";
 import backgroundJobsRouter from "./routes/backgroundJobs";
 import { websocketManager } from "./services/websocketManager";
 import { jobProcessor } from "./services/jobProcessor";
-import runBasedProgressRoutes from "./routes/runBasedProgress";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -166,17 +161,6 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // Fix CSS content type for production builds
-  app.get('/assets/*.css', (req, res, next) => {
-    res.set('Content-Type', 'text/css; charset=utf-8');
-    next();
-  });
-  
-  app.get('/assets/*.js', (req, res, next) => {
-    res.set('Content-Type', 'application/javascript; charset=utf-8');
-    next();
-  });
   
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
@@ -1515,121 +1499,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
-
-  // Comprehensive Analysis - NEW SYSTEM
-  app.post('/api/analyses/comprehensive', async (req: Request, res: Response) => {
-    try {
-      const { dealId } = req.body;
-      
-      if (!dealId || isNaN(parseInt(dealId))) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Valid deal ID is required' 
-        });
-      }
-
-      const id = parseInt(dealId);
-      console.log(`🚀 Starting comprehensive analysis for deal ${id}`);
-      
-      // First reset existing analyses
-      await comprehensiveAnalysisEngine.resetAnalyses(id);
-      
-      // Then run comprehensive analysis
-      await comprehensiveAnalysisEngine.runComprehensiveAnalysis(id);
-      
-      console.log(`✅ Comprehensive analysis completed for deal ${id}`);
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Comprehensive analysis completed',
-        dealId: id
-      });
-      
-    } catch (error) {
-      console.error('❌ Comprehensive analysis failed:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Comprehensive analysis failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // Reset analyses endpoint - Called by Comprehensive Analysis button
-  app.post('/api/analyses/reset', async (req: Request, res: Response) => {
-    try {
-      const { dealId } = req.body;
-      
-      if (!dealId || isNaN(parseInt(dealId))) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Valid deal ID is required' 
-        });
-      }
-      
-      const dealIdInt = parseInt(dealId);
-      console.log(`🔄 COMPREHENSIVE RESET for deal ${dealIdInt} - clearing all analysis states`);
-      
-      // Step 1: Delete all existing analyses
-      const existingAnalyses = await storage.getAnalysesByDealId(dealIdInt);
-      let deletedCount = 0;
-      
-      for (const analysis of existingAnalyses) {
-        await storage.deleteAnalysis(analysis.id);
-        deletedCount++;
-      }
-      console.log(`✅ Deleted ${deletedCount} existing analyses`);
-      
-      // Step 2: Cancel all background jobs for this deal
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealIdInt);
-      let cancelledJobs = 0;
-      
-      for (const job of existingJobs) {
-        if (job.jobType === 'agent_analysis' || 
-            job.jobType === 'comprehensive_analysis' ||
-            job.jobType === 'granular_analysis' ||
-            job.jobType === 'document_question_analysis') {
-          await storage.updateBackgroundJob(job.id.toString(), { status: 'cancelled' });
-          cancelledJobs++;
-        }
-      }
-      console.log(`✅ Cancelled ${cancelledJobs} background jobs`);
-      
-      // Step 3: Clear all relevant caches
-      (globalThis as any).agentCache = {};
-      (globalThis as any).analysisCache = {};
-      (globalThis as any).questionAnswerCache = {};
-      (globalThis as any).granularJobProcessor = null;
-      (globalThis as any).documentQuestionJobs = {};
-      console.log('✅ Cleared all analysis caches');
-      
-      // Step 4: Reset comprehensive analysis if it exists
-      try {
-        await storage.deleteComprehensiveAnalysis?.(dealIdInt);
-        console.log('✅ Cleared comprehensive analysis');
-      } catch (error) {
-        console.log('No comprehensive analysis to clear');
-      }
-      
-      console.log(`🎯 Reset completed for deal ${dealIdInt} - ready for fresh analysis`);
-      
-      res.json({ 
-        success: true, 
-        message: 'Analysis reset completed successfully',
-        deletedAnalyses: deletedCount,
-        cancelledJobs: cancelledJobs,
-        resetType: 'comprehensive',
-        dealId: dealIdInt
-      });
-      
-    } catch (error) {
-      console.error('❌ Analysis reset failed:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: (error as Error).message 
-      });
-    }
-  });
   
   // Investment Memo routes
   app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
@@ -1870,19 +1739,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register AI agent routes
   app.use('/api/ai', aiAgentRoutes);
-  
-  // Register enterprise job queue routes (high-performance non-blocking)
-  app.use('/api/enterprise', enterpriseAgentRoutes);
-  
-  // Register Combined OCR analysis routes (optimized agent-level processing)
-  console.log('🔗 Registering Combined OCR analysis routes...');
-  app.use('/api/combined-ocr', combinedOcrRoutes);
-  
-  // Register comprehensive analysis routes (document×question matrix processing)
-  app.use(comprehensiveAnalysisRouter);
-  
-  // Register run-based progress tracking routes (job-based progress system)
-  app.use(runBasedProgressRoutes);
   
   // Register Microsoft OAuth routes
   app.use('/api/microsoft', microsoftAuthRoutes);
@@ -3129,8 +2985,8 @@ ${document.ocrText}`
         if (pendingDocs.length > 0) {
           console.log(`🔄 Processing up to 3 documents out of ${pendingDocs.length} pending`);
           
-          // Process up to 5 documents concurrently for optimal throughput
-          const batch = pendingDocs.slice(0, 5);
+          // Process up to 3 documents concurrently for optimal throughput
+          const batch = pendingDocs.slice(0, 3);
           const promises = batch.map(async (doc) => {
             processingDocuments.add(doc.id);
             try {
@@ -3920,61 +3776,39 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Mount background job routes
-  app.use('/', backgroundJobsRouter);
-  
-  // Mount granular reset routes inline
-  // GRANULAR RESET ENDPOINT - Clear outputs only, preserve ingestion  
-  app.post('/api/deals/:dealId/reset-granular', async (req: Request, res: Response) => {
-    const dealId = parseInt(req.params.dealId);
-    
+  // Trigger immediate timeout check for stuck processing
+  app.post('/api/ai-processing/check-stuck-now', async (req: Request, res: Response) => {
     try {
-      console.log(`🔄 GRANULAR RESET for deal ${dealId} - clearing outputs only`);
+      console.log(`🔍 Manual trigger for stuck processing check`);
       
-      // Clear agent analyses outputs but preserve documents
-      try {
-        const existingAnalyses = await storage.getAnalysesByDealId(dealId);
-        for (const analysis of existingAnalyses) {
-          await storage.deleteAnalysis(analysis.id);
-        }
-      } catch (error) {
-        console.log('Fallback analysis clearing completed');
-      }
+      // Get current timeout stats before check
+      const statsBefore = await aiProcessingTimeoutService.getTimeoutStats();
       
-      // Clear analysis job results
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      for (const job of existingJobs) {
-        if (job.jobType === 'agent_analysis' || 
-            job.jobType === 'comprehensive_analysis' ||
-            job.jobType === 'granular_analysis' ||
-            job.jobType === 'document_question_analysis') {
-          await storage.updateBackgroundJob(job.id.toString(), { status: 'cancelled' });
-        }
-      }
+      // Force an immediate timeout check
+      await aiProcessingTimeoutService.checkForStuckProcessing();
       
-      // Clear all caches and job queues
-      (globalThis as any).agentCache = {};
-      (globalThis as any).analysisCache = {};
-      (globalThis as any).questionAnswerCache = {};
-      (globalThis as any).granularJobProcessor = null;
-      (globalThis as any).documentQuestionJobs = {};
+      // Get stats after check  
+      const statsAfter = await aiProcessingTimeoutService.getTimeoutStats();
       
-      console.log(`✅ Granular reset completed for deal ${dealId} - ready for document×question processing`);
-      res.json({ 
-        success: true, 
-        message: 'All outputs cleared, ready for granular document×question processing',
-        resetType: 'granular',
-        preservedDocuments: true
+      res.json({
+        success: true,
+        message: 'Stuck processing check completed',
+        before: statsBefore,
+        after: statsAfter,
+        actionsTaken: statsBefore.currentlyStuck > statsAfter.currentlyStuck
       });
       
     } catch (error) {
-      console.error('❌ Granular reset failed:', error);
+      console.error('Error checking stuck processing:', error);
       res.status(500).json({ 
         success: false, 
-        error: (error as Error).message 
+        error: 'Failed to check stuck processing' 
       });
     }
   });
+
+  // Mount background job routes
+  app.use('/', backgroundJobsRouter);
 
   const httpServer = createServer(app);
   
@@ -4119,25 +3953,24 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive legal analysis service
-      const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
-      const legalService = new ComprehensiveLegalAnalysisService();
+      // Import the ENHANCED legal analysis service
+      const { startEnhancedLegalAnalysis } = await import('./enhancedLegalAnalysisService');
       
-      // Run comprehensive legal analysis in background with progress tracking
+      // Run ENHANCED legal analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔧 Starting comprehensive legal analysis background process for deal ${dealId}`);
-          const result = await legalService.runComprehensiveAnalysis(dealId, storage);
-          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}:`, result);
+          console.log(`🔬 Starting ENHANCED legal analysis background process for deal ${dealId}`);
+          await startEnhancedLegalAnalysis(dealId);
+          console.log(`✅ Enhanced legal analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced legal analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive legal analysis started - processing 15 legal questions across all assigned documents'
+        message: 'ENHANCED legal analysis started - deep evidence-based processing with comprehensive source attribution across ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
@@ -4217,90 +4050,41 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Clinical Analysis Start Route - Using Enterprise Job Queue
+  // Clinical Analysis Start Route
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🧬 Clinical analysis request for deal ${dealId} - redirecting to enterprise queue`);
-      
-      // Redirect to enterprise job queue for clinical analysis
-      try {
-        const { enterpriseJobQueue } = await import('./services/enterpriseJobQueue');
-        
-        const jobId = await enterpriseJobQueue.enqueueAgentAnalysis(
-          dealId,
-          'Clinical',
-          {
-            priority: 8, // High priority for clinical analysis
-            forceRefresh: true,
-            metadata: {
-              source: 'comprehensive_clinical_analysis',
-              triggeredBy: 'user_request'
-            }
-          }
-        );
-        
-        console.log(`✅ Clinical analysis job ${jobId} enqueued for deal ${dealId}`);
-        
-        res.json({ 
+      // Check if there's already a running comprehensive clinical analysis
+      const existingClinicalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_clinical_analysis');
+      if (existingClinicalJob) {
+        return res.json({
           success: true,
-          jobId,
-          message: 'Clinical analysis started using enterprise job queue - processing documents with AI agent',
-          redirectedToEnterprise: true
-        });
-        
-      } catch (enterpriseError) {
-        console.error(`❌ Enterprise queue failed, falling back to legacy system:`, enterpriseError);
-        
-        // Fallback to legacy system if enterprise queue fails
-        // Check if there's already a running comprehensive clinical analysis
-        const existingClinicalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_clinical_analysis');
-        if (existingClinicalJob) {
-          return res.json({
-            success: true,
-            message: 'Comprehensive clinical analysis already running',
-            alreadyRunning: true,
-            progress: existingClinicalJob.progress || 0
-          });
-        }
-        
-        // Import the comprehensive clinical analysis service
-        const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
-        
-        // Create background job for progress tracking
-        const jobId = `clinical_analysis_${dealId}_${Date.now()}`;
-        
-        await storage.createBackgroundJob({
-          jobId,
-          jobType: 'comprehensive_clinical_analysis',
-          dealId,
-          agentType: 'Clinical',
-          status: 'processing',
-          progress: 0,
-          totalDocuments: 0,
-          processedDocuments: 0,
-          startedAt: new Date()
-        });
-
-        // Run comprehensive clinical analysis in background with progress tracking
-        (async () => {
-          try {
-            console.log(`🔧 Starting comprehensive clinical analysis background process for deal ${dealId}`);
-            await comprehensiveClinicalAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId);
-            console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
-          } catch (error) {
-            console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
-            console.error(`❌ Error stack:`, error.stack);
-          }
-        })();
-        
-        res.json({ 
-          success: true, 
-          message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
+          message: 'Comprehensive clinical analysis already running',
+          alreadyRunning: true,
+          progress: existingClinicalJob.progress || 0
         });
       }
       
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      
+      // Run ENHANCED comprehensive clinical analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`🔬 Starting ENHANCED clinical analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Clinical');
+          console.log(`✅ Enhanced clinical analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced clinical analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
+        }
+      })();
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
+      });
     } catch (error) {
       console.error(`❌ Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
       res.status(500).json({ success: false, error: 'Failed to start comprehensive clinical analysis' });
@@ -4405,45 +4189,50 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const dealId = parseInt(req.params.dealId);
       const agentType = req.params.agentType.toLowerCase();
       
-      // For HR agent, use comprehensive HR analysis results
+      // For HR agent, get analysis from database
       if (agentType === 'hr') {
-        const { getComprehensiveHrAnalysisResults } = await import('./comprehensiveHrAnalysisService');
-        const hrResults = await getComprehensiveHrAnalysisResults(dealId);
-        
-        if (hrResults.success && hrResults.hrAnswers) {
-          // Transform comprehensive HR results to match the expected format
-          const hrAnswers = hrResults.hrAnswers || {};
-          const findings = hrResults.findings || [];
-          const recommendations = hrResults.recommendations || [];
+        try {
+          const analysis = await storage.getAgentAnalysis(dealId, 'HR');
           
-          // Count answered questions
-          const answeredQuestions = Object.keys(hrAnswers).length;
-          const totalQuestions = 24; // HR has 24 questions
-          
-          const analysis = {
-            status: answeredQuestions > 0 ? 'Completed' : 'Failed',
-            progress: Math.round((answeredQuestions / totalQuestions) * 100),
-            findings,
-            recommendations,
-            hrAnswers,
-            questionsAnswered: answeredQuestions,
-            totalQuestions,
-            completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
-          };
-          
-          console.log(`✅ Found comprehensive HR analysis for deal ${dealId}: ${answeredQuestions} questions answered, ${findings.length} findings, ${recommendations.length} recommendations`);
-          
-          return res.json({
-            success: true,
-            analysis
-          });
-        } else {
-          // Fallback to regular agent analysis if no comprehensive results
-          const analysis = await storage.getAgentAnalysis(dealId, agentType);
-          return res.json({ 
-            success: true, 
-            analysis: analysis || null
-          });
+          if (analysis && analysis.hr_answers) {
+            const hrAnswers = analysis.hr_answers;
+            const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+            const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+            
+            const answeredQuestions = Object.keys(hrAnswers).length;
+            const totalQuestions = 8;
+            
+            console.log(`✅ Found HR analysis for deal ${dealId}:`, {
+              id: analysis.id,
+              agentType: analysis.agentType,
+              status: analysis.status,
+              findingsLength: JSON.stringify(findings).length,
+              recommendationsLength: JSON.stringify(recommendations).length,
+              totalRecordsFound: 1
+            });
+            
+            return res.json({
+              success: true,
+              analysis: {
+                ...analysis,
+                hrAnswers,
+                findings,
+                recommendations,
+                questionsAnswered: answeredQuestions,
+                totalQuestions,
+                completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+              }
+            });
+          } else {
+            console.log(`❌ No HR analysis found for deal ${dealId}`);
+            return res.json({
+              success: true,
+              analysis: null
+            });
+          }
+        } catch (error) {
+          console.error(`Error getting HR analysis:`, error);
+          return res.status(500).json({ success: false, error: 'Failed to get HR analysis results' });
         }
       }
 
@@ -4490,6 +4279,132 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
       
+      // For IP agent, get analysis with IP answers
+      if (agentType === 'ip') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'IP');
+        
+        if (analysis && analysis.ip_answers) {
+          const ipAnswers = analysis.ip_answers;
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+          
+          const answeredQuestions = Object.keys(ipAnswers).length;
+          const totalQuestions = 8;
+          
+          console.log(`✅ Found IP analysis for deal ${dealId}:`, {
+            id: analysis.id,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            findingsLength: JSON.stringify(findings).length,
+            recommendationsLength: JSON.stringify(recommendations).length,
+            totalRecordsFound: 1
+          });
+          
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              ipAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No IP analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+
+      // For Research agent, get analysis with research answers
+      if (agentType === 'research') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'Research');
+        
+        if (analysis && analysis.research_answers) {
+          const researchAnswers = analysis.research_answers;
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+          
+          const answeredQuestions = Object.keys(researchAnswers).length;
+          const totalQuestions = 8;
+          
+          console.log(`✅ Found research analysis for deal ${dealId}:`, {
+            id: analysis.id,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            findingsLength: JSON.stringify(findings).length,
+            recommendationsLength: JSON.stringify(recommendations).length,
+            totalRecordsFound: 1
+          });
+          
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              researchAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No research analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+      
+      // For Commercial agent, get analysis with commercial answers  
+      if (agentType === 'commercial') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'Commercial');
+        
+        if (analysis && analysis.commercial_answers) {
+          const commercialAnswers = analysis.commercial_answers;
+          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
+          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+          
+          const answeredQuestions = Object.keys(commercialAnswers).length;
+          const totalQuestions = 8;
+          
+          console.log(`✅ Found commercial analysis for deal ${dealId}:`, {
+            id: analysis.id,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            findingsLength: JSON.stringify(findings).length,
+            recommendationsLength: JSON.stringify(recommendations).length,
+            totalRecordsFound: 1
+          });
+          
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              commercialAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No commercial analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+
       // For other agent types, use regular agent analysis
       const analysis = await storage.getAgentAnalysis(dealId, agentType);
       
@@ -4513,17 +4428,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // REMOVED: Check for existing jobs - this was blocking the cleanup from running
       // The service will handle cleanup internally
       
-      // Import the comprehensive commercial analysis service
-      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Run comprehensive commercial analysis in background with progress tracking
+      // Run ENHANCED comprehensive commercial analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
-          await comprehensiveCommercialAnalysisService.startComprehensiveAnalysis(dealId);
-          console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
+          console.log(`🏢 Starting ENHANCED commercial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Commercial');
+          console.log(`✅ Enhanced commercial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced commercial analysis for deal ${dealId}:`, error);
         }
       })();
       
@@ -4602,11 +4517,21 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the comprehensive HR analysis service
-      const { startComprehensiveHrAnalysis } = await import('./comprehensiveHrAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Start the comprehensive HR analysis
-      const result = await startComprehensiveHrAnalysis(dealId);
+      // Run ENHANCED comprehensive HR analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`🧑‍💼 Starting ENHANCED HR analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'HR');
+          console.log(`✅ Enhanced HR analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced HR analysis for deal ${dealId}:`, error);
+        }
+      })();
+
+      const result = {};
       
       res.json({ 
         success: true, 
@@ -4684,34 +4609,23 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import and start the comprehensive financial analysis service
-      const { comprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Create background job
-      const jobId = `financial_analysis_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_financial_analysis',
-        agentType: 'Financial',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Starting financial analysis...'
-      });
-      
-      // Start comprehensive financial analysis in background
-      comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
-        console.error(`❌ Background financial analysis failed for deal ${dealId}:`, error);
-        storage.updateBackgroundJob(jobId, {
-          status: 'failed',
-          error: error.message
-        });
-      });
+      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`💰 Starting ENHANCED financial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
+          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
+        }
+      })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive financial analysis started - processing 6 financial categories across all assigned documents',
-        jobId
+        message: 'Comprehensive financial analysis started - processing 6 financial categories across all assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
@@ -4822,56 +4736,23 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import and start the comprehensive IP analysis service
-      const { comprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Create background job
-      const jobId = `ip_analysis_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_ip_analysis',
-        agentType: 'IP',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Starting IP analysis...'
-      });
-      
-      // Start comprehensive IP analysis in background with enhanced error handling
-      comprehensiveIpAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId)
-        .then(result => {
-          console.log(`✅ IP analysis completed successfully for deal ${dealId}`);
-          // Ensure job is marked as completed even if service didn't do it
-          return storage.updateBackgroundJob(jobId, {
-            status: 'completed',
-            progress: 100,
-            currentStep: 'Analysis completed',
-            completedAt: new Date()
-          }).then(() => {
-            console.log(`✅ Route-level: Background job ${jobId} marked as completed`);
-          }).catch(error => {
-            console.error(`❌ Route-level: Failed to mark job ${jobId} as completed:`, error);
-          });
-        })
-        .catch(error => {
-          console.error(`❌ Background IP analysis failed for deal ${dealId}:`, error);
-          return storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            progress: 0,
-            currentStep: 'Analysis failed',
-            error: error.message,
-            failedAt: new Date()
-          }).then(() => {
-            console.log(`❌ Route-level: Background job ${jobId} marked as failed`);
-          }).catch(jobError => {
-            console.error(`❌ Route-level: Failed to mark job ${jobId} as failed:`, jobError);
-          });
-        });
+      // Run ENHANCED comprehensive IP analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`🔬 Starting ENHANCED IP analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'IP');
+          console.log(`✅ Enhanced IP analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced IP analysis for deal ${dealId}:`, error);
+        }
+      })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive IP analysis started - processing 12 IP categories across all assigned documents',
-        jobId
+        message: 'Comprehensive IP analysis started - processing 12 IP categories across all assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive IP analysis for deal ${req.params.dealId}:`, error);
@@ -4990,27 +4871,19 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Create background job for progress tracking
-      const jobId = `research_analysis_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_research_analysis',
-        dealId,
-        agentType: 'Research',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 0,
-        processedDocuments: 0,
-        startedAt: new Date()
-      });
-
-      // Import and start the comprehensive research analysis service
-      const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Start comprehensive research analysis in background with storage and jobId
-      comprehensiveResearchAnalysisService.startComprehensiveAnalysis(dealId, storage, jobId).catch(error => {
-        console.error(`❌ Background research analysis failed for deal ${dealId}:`, error);
-      });
+      // Run ENHANCED comprehensive research analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Research');
+          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
+        }
+      })();
       
       res.json({ 
         success: true, 
@@ -5836,8 +5709,21 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
 
     console.log(`🎯 Processing ${assignedDocuments.length} documents assigned to ${agent.name} agent`);
 
-    // Create initial job progress entry for real-time tracking
-    const trackingJobId = `${agentType}_${dealId}`;
+    // Create initial job progress entry for real-time tracking using unified pattern
+    const trackingJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
+    
+    // Check if a job already exists to prevent duplicates
+    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const existingJob = existingJobs.find(job => 
+      job.agentType.toLowerCase() === agentType.toLowerCase() && 
+      (job.status === 'processing' || job.status === 'pending')
+    );
+    
+    if (existingJob) {
+      console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
+      throw new Error(`${agentType} analysis already running for deal ${dealId}`);
+    }
+    
     try {
       console.log(`🚀 Creating background job ${trackingJobId} for ${agentType} agent...`);
       const createdJob = await storage.createBackgroundJob({
@@ -6674,7 +6560,7 @@ async function runAgentAnalysisWithPersistence(dealId: number, agentType: string
             ...allInsights.neutral,
             ...allInsights.risk
           ],
-          recommendations: allInsights.positive.slice(0, 5).map(insight => insight.content || insight),
+          recommendations: allInsights.positive.slice(0, 3).map(insight => insight.content || insight),
           documentSources: assignedDocuments.map(doc => doc.name)
         });
 
@@ -6993,12 +6879,7 @@ async function runSpecializedAgentAnalysis(document: any, agent: any, deal: any)
 
 Company: ${deal.companyName}
 Document: ${document.name}
-Content: ${(() => {
-        // Import safe document utilities for type-safe content extraction
-        const { safeGetDocumentContent } = require('./utils/documentUtils');
-        const content = safeGetDocumentContent(document);
-        return content.text.substring(0, 3000) || 'No content available';
-      })()}
+Content: ${(document.ocrText || document.aiSummary || '').substring(0, 3000) || 'No content available'}
 
 Focus on: ${agent.focus}
 
@@ -7074,7 +6955,8 @@ function calculateInvestmentScore(insights: any): number {
   return Math.round(normalizedScore);
 }
 
-// Affinity routes already imported above
+// Import Affinity routes
+import { registerAffinityRoutes } from './routes/affinity-routes';
 
 // Register API routes at the end of the file
 export async function registerAllRoutes(app: Express) {
@@ -7092,9 +6974,6 @@ export async function registerAllRoutes(app: Express) {
   
   // Register persistent analysis routes
   app.use('/', persistentAnalysisRoutes);
-  
-  // Register job-based analysis routes
-  app.use(analysisRoutes);
   
   // Investment Memo Generator Routes
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {

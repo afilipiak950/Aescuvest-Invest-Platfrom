@@ -268,7 +268,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
                       </CardHeader>
                       
                       <CardContent className="pb-2">
-                        {analysis.findings && analysis.findings.length > 0 ? (
+                        {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.length > 0 ? (
                           <div className="space-y-4">
                             <h4 className="font-medium">Key Findings:</h4>
                             <div className="space-y-3">
@@ -293,7 +293,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
                         )}
                       </CardContent>
                       
-                      {analysis.recommendations && analysis.recommendations.length > 0 && (
+                      {analysis.recommendations && Array.isArray(analysis.recommendations) && analysis.recommendations.length > 0 && (
                         <>
                           <Separator />
                           <CardFooter className="pt-4">

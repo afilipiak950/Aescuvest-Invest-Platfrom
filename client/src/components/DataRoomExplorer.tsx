@@ -110,7 +110,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     // Use the assignedAgents field populated by the intelligent assignment system
     if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
       console.log(`📋 Document "${document.name}" assigned to agents:`, document.assignedAgents);
-      return document.assignedAgents.map((agentType: string) => {
+      return document.assignedAgents.map(agentType => {
         // Capitalize the agent type for display
         const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
         return getAgentInfo(capitalizedType);
@@ -459,7 +459,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                 <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
                 {assignedAgents.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {assignedAgents.map((agent: any, index: number) => {
+                    {assignedAgents.map((agent, index) => {
                       const colorClasses = agent.colorClasses.split(' ');
                       return (
                         <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
@@ -1189,6 +1189,25 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
+  // Force complete AI processing mutation for stuck jobs
+  const forceCompleteProcessingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/deals/${dealId}/force-complete-processing`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      refetch();
+    },
+    onError: (error) => {
+      console.error('Force complete processing failed:', error);
+    }
+  });
+
+
+
   // AI Document Assignment mutation
   const assignAgentsMutation = useMutation({
     mutationFn: async () => {
@@ -1355,6 +1374,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     });
   };
 
+  const documentsArray = documents as Document[] | undefined;
+
   if (isLoading) {
     return (
       <div className="bg-dark-lighter rounded-lg">
@@ -1378,14 +1399,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       </div>
     );
   }
+  
+  // Note: Auto force complete functionality temporarily disabled due to component lifecycle issues
+  // The AI processing timeout service handles stuck processing automatically
 
-  const documentsArray = documents as Document[] | undefined;
   console.log('📊 DataRoomExplorer debug:', { 
     dealId,
-    documents: Array.isArray(documentsArray) ? documentsArray.length : 'undefined', 
+    documents: Array.isArray(documents) ? documents.length : 'undefined', 
     isLoading, 
-    isArray: Array.isArray(documentsArray),
-    firstDoc: Array.isArray(documentsArray) && documentsArray.length > 0 ? documentsArray[0]?.name : 'none',
+    isArray: Array.isArray(documents),
+    firstDoc: Array.isArray(documents) && documents.length > 0 ? documents[0]?.name : 'none',
     queryKey: `/api/deals/${dealId}/documents`
   });
   
@@ -1394,13 +1417,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   }
   
   // Check if we have only email attachments but no regular documents
-  const hasOnlyEmailAttachments = documentsArray && Array.isArray(documentsArray) && documentsArray.length > 0 && 
-    documentsArray.every(doc => doc.folderPath?.includes('email-attachments'));
+  const hasOnlyEmailAttachments = documents && Array.isArray(documents) && documents.length > 0 && 
+    documents.every(doc => doc.folderPath?.includes('email-attachments'));
 
-  if ((!documentsArray || !Array.isArray(documentsArray) || documentsArray.length === 0) && !hasOnlyEmailAttachments) {
+  if ((!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments) {
     console.log('📊 DataRoomExplorer: No documents condition met', { 
-      documents: Array.isArray(documentsArray) ? documentsArray.length : 'not array', 
-      isArray: Array.isArray(documentsArray) 
+      documents: Array.isArray(documents) ? documents.length : 'not array', 
+      isArray: Array.isArray(documents) 
     });
     return (
       <div className="bg-dark-lighter rounded-lg">
@@ -1423,11 +1446,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="zipFile-primary" className="text-white">Upload ZIP File</Label>
+            <Label htmlFor="zipFile" className="text-white">Upload ZIP File</Label>
             <div className="flex items-center gap-3">
               <Input
                 ref={fileInputRef}
-                id="zipFile-primary"
+                id="zipFile"
                 type="file"
                 accept=".zip"
                 onChange={handleZipUpload}
@@ -1501,7 +1524,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  const { folderTree, emailAttachments } = buildFolderTree(documentsArray || []);
+  const { folderTree, emailAttachments } = buildFolderTree(documents || []);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -1567,20 +1590,24 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
-              <p className="text-sm text-gray-400 mt-1">{(documentsArray?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
+              <p className="text-sm text-gray-400 mt-1">{(documents?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
             </div>
           
           <div className="flex items-center space-x-2">
             {!isSelectionMode ? (
               <>
                 {/* Smart AI Summary Status Indicator */}
-                {documentsArray && Array.isArray(documentsArray) && (() => {
-                  const totalDocs = documentsArray.length;
-                  const docsWithSummaries = documentsArray.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
-                  const processingDocs = documentsArray.filter((doc: any) => doc.aiSummaryStatus === 'processing').length;
-                  const docsWithOCR = documentsArray.filter((doc: any) => doc.status === 'Analyzed').length;
-                  const docsNeedingSummaries = documentsArray.filter((doc: any) => 
-                    doc.status === 'Analyzed' && 
+                {documents && Array.isArray(documents) && (() => {
+                  // Only count documents that have been analyzed and can have AI summaries
+                  const analyzedDocs = documents.filter((doc: any) => 
+                    doc.status === 'Analyzed'
+                  );
+                  
+                  const totalDocs = analyzedDocs.length;
+                  const docsWithSummaries = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
+                  const processingDocs = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'processing').length;
+                  const docsWithOCR = analyzedDocs.length;
+                  const docsNeedingSummaries = analyzedDocs.filter((doc: any) => 
                     (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
                   ).length;
                   
@@ -1591,16 +1618,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   
                   if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0)) {
                     return (
-                      <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
-                        <span className="text-sm text-blue-300 font-medium">
-                          AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
-                        </span>
-                        {completionPercentage > 85 && (
-                          <span className="text-xs text-yellow-300 ml-2">
-                            (Auto-timeout: 12h)
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
+                          <span className="text-sm text-blue-300 font-medium">
+                            AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
                           </span>
-                        )}
+                          {completionPercentage > 85 && (
+                            <span className="text-xs text-yellow-300 ml-2">
+                              (Auto-timeout: 5min)
+                            </span>
+                          )}
+                        </div>
+
                       </div>
                     );
                   } else if (docsWithSummaries === totalDocs) {
@@ -1648,7 +1678,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 })()}
 
                 {/* AI Agent Assignment Button */}
-                {documentsArray && documentsArray.length > 0 && (
+                {documents && Array.isArray(documents) && documents.length > 0 && (
                   <Button
                     onClick={() => assignAgentsMutation.mutate()}
                     size="sm"
@@ -1693,7 +1723,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    checked={selectedFiles.size === (documentsArray?.length || 0) && (documentsArray?.length || 0) > 0}
+                    checked={selectedFiles.size === (documents?.length || 0) && (documents?.length || 0) > 0}
                     onCheckedChange={handleSelectAll}
                   />
                   <span className="text-sm text-gray-300">Select All</span>
@@ -1898,11 +1928,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
                   {/* ZIP Upload */}
                   <div className="space-y-3">
-                    <Label htmlFor="zipFile-secondary" className="text-white text-sm font-medium">Upload ZIP File</Label>
+                    <Label htmlFor="zipFile" className="text-white text-sm font-medium">Upload ZIP File</Label>
                     <div className="relative">
                       <Input
                         ref={fileInputRef}
-                        id="zipFile-secondary"
+                        id="zipFile"
                         type="file"
                         accept=".zip"
                         onChange={handleZipUpload}

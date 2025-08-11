@@ -82,7 +82,7 @@ export default function DocumentQuoteViewer({
         <div className="mb-4">
           <h3 className="text-lg font-medium text-white flex items-center gap-2">
             <FileText className="h-5 w-5 text-green-400" />
-            Document Sources ({sources.length})
+            Document Sources ({sources && Array.isArray(sources) ? sources.length : 0})
           </h3>
           <p id="document-evidence-description" className="text-sm text-gray-400 mt-1">
             Evidence extracted from documents to support the analysis findings
@@ -91,13 +91,13 @@ export default function DocumentQuoteViewer({
 
         <ScrollArea className="h-[500px] w-full">
           <div className="space-y-4">
-              {sources.length === 0 ? (
+              {!sources || !Array.isArray(sources) || sources.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No sources available</p>
                 </div>
               ) : (
-                sources.map((source, index) => (
+                sources && Array.isArray(sources) && sources.map((source, index) => (
                   <div key={index} className="border border-dark-lighter rounded-lg p-4 bg-dark/30">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export default function DocumentQuoteViewer({
                           </Badge>
                         )}
                         <Badge variant="outline" className="text-xs text-green-400 border-green-400">
-                          {source.relevantSections.length} section{source.relevantSections.length > 1 ? 's' : ''}
+                          {source.relevantSections && Array.isArray(source.relevantSections) ? source.relevantSections.length : 0} section{source.relevantSections && Array.isArray(source.relevantSections) && source.relevantSections.length > 1 ? 's' : ''}
                         </Badge>
                       </div>
                       <Button
@@ -123,7 +123,7 @@ export default function DocumentQuoteViewer({
                     </div>
 
                     <div className="space-y-3">
-                      {source.relevantSections.map((section, sectionIndex) => (
+                      {source.relevantSections && Array.isArray(source.relevantSections) && source.relevantSections.map((section, sectionIndex) => (
                         <div key={sectionIndex} className="bg-dark-lighter/50 rounded-lg p-3">
                           <h4 className="text-sm font-medium text-gray-300 mb-2">
                             Relevant Section {sectionIndex + 1}:
@@ -136,12 +136,12 @@ export default function DocumentQuoteViewer({
 
                       {/* Only show Full Extract if it's different from relevant sections */}
                       {source.extractedText && 
-                       !source.relevantSections.some(section => {
+                       !(source.relevantSections && Array.isArray(source.relevantSections) && source.relevantSections.some(section => {
                          // Normalize both strings for comparison
                          const normalizeText = (text: string) => 
                            text.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[^\w\s]/g, '');
-                         return normalizeText(section) === normalizeText(source.extractedText);
-                       }) && (
+                         return normalizeText(section) === normalizeText(source.extractedText || '');
+                       })) && (
                         <div className="bg-dark-lighter/30 rounded-lg p-3">
                           <h4 className="text-sm font-medium text-gray-300 mb-2">Full Extract:</h4>
                           <p className="text-gray-300 text-sm leading-relaxed">
@@ -160,7 +160,7 @@ export default function DocumentQuoteViewer({
         
         <div className="flex justify-between items-center text-sm text-gray-400">
           <span>
-            {sources.length} sources found
+            {sources && Array.isArray(sources) ? sources.length : 0} sources found
           </span>
           <span>
             Click <ExternalLink className="inline h-3 w-3" /> to view full document

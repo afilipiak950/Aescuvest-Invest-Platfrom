@@ -9,7 +9,6 @@ import { setupVite, serveStatic, log } from "./vite";
 import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
-import { enterpriseJobQueue } from "./services/enterpriseJobQueue";
 
 const app = express();
 
@@ -109,10 +108,6 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
-
-  // Initialize enterprise job queue
-  await enterpriseJobQueue.startWorker();
-  console.log('🚀 Enterprise job queue initialized and ready');
 
   // ZIP file upload routes - registered AFTER main routes to take priority
   console.log('🚀 REGISTERING ZIP UPLOAD ROUTES');
@@ -237,20 +232,6 @@ app.use((req, res, next) => {
 
     res.status(status).json({ message });
     throw err;
-  });
-
-  // Fix CSS content-type with override middleware
-  app.use((req, res, next) => {
-    const originalSend = res.send;
-    const originalSendFile = res.sendFile;
-    
-    if (req.path.endsWith('.css')) {
-      res.set('Content-Type', 'text/css; charset=utf-8');
-    } else if (req.path.endsWith('.js')) {
-      res.set('Content-Type', 'application/javascript; charset=utf-8');
-    }
-    
-    next();
   });
 
   // importantly only setup vite in development and after

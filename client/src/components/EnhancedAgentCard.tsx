@@ -78,29 +78,56 @@ export default function EnhancedAgentCard({
   }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
 
-  // 🔥 UNIFIED UI BINDING FIX - ALL 7 AGENTS
-  // Removed all agent-specific endpoint queries that were causing "No evidence available" issues
-  // These endpoints don't exist: /api/deals/{id}/agents/{agent}/results
-  // All agents now use unified analysis data passed from parent component
+  // Fetch comprehensive HR analysis data directly for HR agents
+  const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
+    enabled: agentType.toLowerCase() === 'hr',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
 
-  // 🔥 UNIFIED UI BINDING: Use analysis data passed from parent for ALL agents
+  // Fetch comprehensive IP analysis data directly for IP agents
+  const { data: ipAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
+    enabled: agentType.toLowerCase() === 'ip',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Fetch comprehensive Research analysis data directly for Research agents
+  const { data: researchAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    enabled: agentType.toLowerCase() === 'research',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Fetch comprehensive Clinical analysis data directly for Clinical agents
+  const { data: clinicalAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/clinical/results`],
+    enabled: agentType.toLowerCase() === 'clinical',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use comprehensive analysis data if this is an HR, IP, Research, or Clinical agent and we have the data
   const actualAnalysisData = (() => {
-    // SINGLE SOURCE OF TRUTH: Use analysis data passed from parent component
-    // This works for ALL 7 agents (Legal, Clinical, Commercial, HR, Financial, IP, Research)
-    if (analysis && typeof analysis === 'object') {
-      console.log(`🎯 Using unified analysis data for ${agentType}:`, analysis);
-      return analysis;
+    if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
+      return hrAnalysisData.analysis;
     }
-    
-    console.log(`❌ No analysis data available for ${agentType} agent`);
-    return {};
+    if (agentType.toLowerCase() === 'ip' && ipAnalysisData && typeof ipAnalysisData === 'object' && 'analysis' in ipAnalysisData) {
+      return ipAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'analysis' in researchAnalysisData) {
+      return researchAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
+      return clinicalAnalysisData.analysis;
+    }
+    return analysis || {};
   })();
 
   console.log(`🔍 ${agentType} Agent Analysis Data:`, actualAnalysisData);
 
   // Progress Display Component for Legal Analysis
   function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
-    const { data: enterpriseProgress } = useQuery({
+    const { data: jobProgress } = useQuery({
       queryKey: [`/api/background-jobs/${dealId}`],
       refetchInterval: 1000, // Poll every second for progress updates
     });
@@ -142,7 +169,7 @@ export default function EnhancedAgentCard({
     });
 
     // Look for both comprehensive legal analysis and regular legal agent jobs
-    const legalJobs = (enterpriseProgress && typeof enterpriseProgress === 'object' && 'jobs' in enterpriseProgress && Array.isArray(enterpriseProgress.jobs) ? enterpriseProgress.jobs : []).filter((job: any) => 
+    const legalJobs = (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs) ? jobProgress.jobs : []).filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
       job.status === 'processing' &&
       job.progress > 0 // Only show jobs with actual progress
@@ -326,7 +353,7 @@ export default function EnhancedAgentCard({
             <div>
               <p className="text-yellow-400 font-medium">Legal Analysis Ready</p>
               <p className="text-gray-400 text-sm">
-                Ready to analyze {assignedDocuments} legal documents. Click "Run Combined OCR" to start.
+                Ready to analyze {assignedDocuments} legal documents. Click "Run AI Analysis" to start.
               </p>
             </div>
           </div>
@@ -400,85 +427,30 @@ export default function EnhancedAgentCard({
   
 
 
-  // Comprehensive Analysis mutation - Reset first, then run real OCR analysis
-  const runRealAnalysisMutation = useMutation({
-    mutationFn: async () => {
-      console.log(`🚀 Starting Comprehensive Analysis (Real OCR) for deal ${dealId}`);
-      // This should reset first, then run Combined OCR per agent analysis
-      return apiRequest(`/api/deals/${dealId}/comprehensive-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-    },
-    onSuccess: (data) => {
-      console.log(`✅ Comprehensive Analysis started successfully:`, data);
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/analysis/deal-progress/${dealId}`] });
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      }, 3000);
-    },
-    onError: (error) => {
-      console.error(`❌ Comprehensive Analysis failed:`, error);
-    }
-  });
-
-  // Legacy Reset mutation - Clear all results
-  const resetAndRunAllMutation = useMutation({
-    mutationFn: async () => {
-      console.log(`🔄 Legacy Reset - Clearing all results for deal ${dealId}`);
-      return apiRequest(`/api/deals/${dealId}/reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-    },
-    onSuccess: (data) => {
-      console.log(`✅ Legacy Reset completed successfully:`, data);
-      // Invalidate all analysis queries to refresh UI
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/analysis/deal-progress/${dealId}`] });
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      }, 2000);
-    },
-    onError: (error) => {
-      console.error(`❌ Legacy Reset failed:`, error);
-    }
-  });
-
-  // Combined OCR mutation to run efficient analysis for this agent
+  // Mutation to run Mistral analysis for this agent
   const runMistralAnalysisMutation = useMutation({
     mutationFn: async () => {
-      console.log(`🚀 Starting ${agentType} Combined OCR analysis for deal ${dealId}`);
-      return apiRequest(`/api/combined-ocr/analyze`, {
+      console.log(`🚀 Starting ${agentType} agent analysis for deal ${dealId}`);
+      return apiRequest(`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
-          dealId: dealId, 
-          agentType: agentType,
-          forceRefresh: true 
-        })
+        body: JSON.stringify({ forceRefresh: true })
       });
     },
     onSuccess: (data) => {
-      console.log(`✅ ${agentType} Combined OCR analysis started successfully:`, data);
+      console.log(`✅ ${agentType} analysis completed successfully:`, data);
       // Invalidate both results and general analyses queries to refresh UI
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
-      // Keep running state for a shorter period since Combined OCR is faster
+      // Keep running state for a longer period to allow backend processing to be detected
       setTimeout(() => {
         setIsRunningAnalysis(false);
-      }, 3000);
+      }, 5000);
     },
     onError: (error) => {
-      console.error(`❌ ${agentType} Combined OCR analysis failed:`, error);
+      console.error(`❌ ${agentType} analysis failed:`, error);
       setIsRunningAnalysis(false);
     }
   });
@@ -870,66 +842,14 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* ENHANCED: Combined OCR Progress Display - Always visible during analysis */}
-        {(currentProgress > 0 || isRunningAnalysis || status === 'Processing') && (
-          <div className="mb-6">
-            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-              {/* Header with status and percentage */}
-              <div className="flex items-center gap-3 mb-3">
-                <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
-                <div className="flex-1">
-                  <p className="text-blue-400 font-medium">
-                    {agentType} Combined OCR Analysis
-                  </p>
-                  <p className="text-gray-300 text-sm">
-                    {currentDocumentName && currentDocumentName.length > 50 
-                      ? `${currentDocumentName.substring(0, 47)}...` 
-                      : currentDocumentName || `Building ${agentType.toLowerCase()} dossier...`
-                    }
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-medium">{Math.round(currentProgress || 0)}%</p>
-                  <p className="text-xs text-gray-400">
-                    {Math.round((currentProgress || 0) * assignedDocuments / 100)}/{assignedDocuments} docs
-                  </p>
-                </div>
-              </div>
-              
-              {/* Main progress bar */}
-              <Progress 
-                value={currentProgress || 0} 
-                className="h-3 bg-dark-lighter mb-2"
-              />
-              
-              {/* Progress details */}
-              <div className="flex justify-between text-xs text-gray-400 mb-3">
-                <span>Processing {assignedDocuments} documents</span>
-                <span>{Math.round(currentProgress || 0)}% complete</span>
-              </div>
-              
-              {/* Combined OCR stages indicator */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${currentProgress > 30 ? 'bg-green-400' : 'bg-gray-500'}`}></div>
-                  <span className="text-xs text-gray-400">Dossier Building</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${currentProgress > 70 ? 'bg-green-400' : 'bg-gray-500'}`}></div>
-                  <span className="text-xs text-gray-400">Question Answering</span>
-                </div>
-              </div>
-              
-              {/* System indicator */}
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span className="text-xs text-gray-400">
-                  Combined OCR System • Live Updates
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Progress Bars - Show individual progress for each agent */}
+        {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'clinical' && <ClinicalAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'financial' && <FinancialAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'ip' && <IpAnalysisProgress dealId={dealId} />}
+        {agentType.toLowerCase() === 'research' && <ResearchAnalysisProgress dealId={dealId} />}
         
         {/* KPI Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -1000,55 +920,11 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Action Buttons Section - Only Original Buttons */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          {/* Comprehensive Analysis Button - Runs Real OCR Analysis */}
-          {agentType === 'Clinical' && (
-            <Button
-              onClick={() => {
-                console.log('🚀 Starting Comprehensive Analysis (Real OCR)');
-                if (onClinicalAnalysisStart) {
-                  onClinicalAnalysisStart();
-                }
-                runRealAnalysisMutation.mutate();
-              }}
-              disabled={runRealAnalysisMutation.isPending || !documents || documents.length === 0}
-              className="bg-primary hover:bg-primary/80 text-white flex items-center gap-2 px-4 py-2"
-            >
-              {runRealAnalysisMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Comprehensive Analysis
-            </Button>
-          )}
-
-          {/* Legacy Reset Button - Clear All Results */}
-          {agentType === 'Legal' && (
-            <Button
-              onClick={() => {
-                console.log('🔄 Legacy Reset - Clearing all results');
-                resetAndRunAllMutation.mutate();
-              }}
-              disabled={resetAndRunAllMutation.isPending}
-              className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2 px-4 py-2"
-            >
-              {resetAndRunAllMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Legacy Reset
-            </Button>
-          )}
-        </div>
-
         {/* Comprehensive Questions for Legal and Clinical Agents */}
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
             dealId={dealId}
-            analysisData={actualAnalysisData} 
+            analysisData={analysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
@@ -1061,7 +937,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'clinical' ? (
           <ClinicalQuestionsSection 
             dealId={dealId}
-            analysisData={actualAnalysisData} 
+            analysisData={analysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
@@ -1075,7 +951,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'commercial' ? (
           <CommercialQuestionsSection 
             dealId={dealId}
-            analysisData={actualAnalysisData} 
+            analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
@@ -1087,7 +963,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'hr' ? (
           <HrQuestionsSection 
             dealId={dealId}
-            analysisData={actualAnalysisData} 
+            analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
@@ -1099,7 +975,7 @@ export default function EnhancedAgentCard({
         ) : agentType.toLowerCase() === 'financial' ? (
           <FinancialQuestionsSection 
             dealId={dealId}
-            analysisData={actualAnalysisData} 
+            analysisData={analysisData} 
             assignedDocuments={assignedDocuments}
             documents={documents || []}
             handleDocumentClick={handleDocumentClick}
@@ -1541,20 +1417,6 @@ const RESEARCH_QUESTIONS: ResearchQuestion[] = [
 ];
 
 const LEGAL_QUESTIONS: LegalQuestion[] = [
-  // Questions with actual data in database
-  {
-    id: 'legal_1',
-    category: 'Corporate Governance & Board Structure',
-    question: 'What is the corporate governance structure and board composition?',
-    subQuestions: ['Board composition', 'Independent directors', 'Governance committees', 'Oversight mechanisms']
-  },
-  {
-    id: 'legal_2',
-    category: 'Intellectual Property Portfolio',
-    question: 'What is the intellectual property portfolio and protection status?',
-    subQuestions: ['Patent portfolio', 'IP assignments', 'Protection mechanisms', 'Technology areas']
-  },
-  // Standard legal due diligence questions (will show "No evidence" if no data)
   {
     id: 'sha_1',
     category: 'Shareholders Agreement / Articles of Association',
@@ -1648,54 +1510,23 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
 ];
 
 function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
-  // Start with all categories expanded to show real answers immediately
-  const allCategories = new Set([
-    'Corporate Governance & Board Structure',
-    'Intellectual Property Portfolio', 
-    'Shareholders Agreement / Articles of Association',
-    'Governance & Voting',
-    'IP Assignment & Key Personnel',
-    'Commercial Agreements',
-    'Litigation & Regulatory',
-    'Regulatory Compliance',
-    'Financial Instruments'
-  ]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(allCategories);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
-  // Check if legal analysis is available from comprehensive endpoint
-  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/enterprise/deals/${dealId}/agent/Legal/comprehensive`],
-    refetchInterval: 2000,
-    staleTime: 0, // Always treat as stale to force fresh data
-    gcTime: 0, // Don't cache results (replaces cacheTime in newer versions)
-  });
-
-  // Force refetch on component mount to ensure fresh data
-  useEffect(() => {
-    refetchComprehensive();
-  }, [refetchComprehensive]);
-
-  // Use comprehensive results if available, fallback to analysisData
-  const legalData = comprehensiveResults?.analysis || analysisData || null;
-
   // Check if legal analysis is available - enhanced detection
-  const hasLegalAnalysis = legalData && (
-    (legalData?.legalAnswers && typeof legalData.legalAnswers === 'object' && Object.keys(legalData.legalAnswers).length > 0) ||
-    (legalData?.findings && Array.isArray(legalData.findings) && legalData.findings.length > 0)
+  const hasLegalAnalysis = analysisData && (
+    (analysisData.legalAnswers && Object.keys(analysisData.legalAnswers).length > 0) ||
+    (analysisData?.findings && analysisData.findings.length > 0) ||
+    (analysisData?.status === 'Completed' || analysisData?.status === 'completed')
   );
   
-  console.log('⚖️ Legal Analysis Available:', hasLegalAnalysis);
-  console.log('⚖️ Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
-  console.log('⚖️ Legal Data from Comprehensive:', !!legalData?.legalAnswers);
-  
-  // Debug: Log legal data structure for verification
-  if (legalData) {
-    console.log('⚖️ Legal Data Available:', !!legalData);
-    console.log('⚖️ Has legalAnswers:', !!legalData?.legalAnswers);
-    console.log('⚖️ Has findings:', !!legalData?.findings);
-    console.log('⚖️ Has recommendations:', !!legalData?.recommendations);
-  }
+  // Debug logging - enhanced for troubleshooting
+  console.log('🔍 Legal Analysis Available:', hasLegalAnalysis);
+  console.log('🔍 Analysis Data exists:', !!analysisData);
+  console.log('🔍 Legal Answers exists:', !!analysisData?.legalAnswers);
+  console.log('🔍 Legal Answers keys:', analysisData?.legalAnswers ? Object.keys(analysisData.legalAnswers) : 'none');
+  console.log('🔍 Analysis Status:', analysisData?.status);
+  console.log('🔍 Findings count:', findings?.length || 0);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -1738,56 +1569,40 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     recommendations?: string[];
     detailedEvidence?: any[];
   } | null => {
-    if (!legalData) return null;
+    if (!analysisData) return null;
     
-    console.log(`⚖️ Looking for answer to legal question ${questionId}`);
-    console.log(`⚖️ Legal Answers exists:`, !!(legalData.legalAnswers || legalData.legal_answers));
-    console.log(`⚖️ legalAnswers (camelCase):`, !!legalData.legalAnswers);
-    console.log(`⚖️ legal_answers (snake_case):`, !!legalData.legal_answers);
+    // Debug logging
+    console.log(`🔍 Looking for answer to question ${questionId}`);
+    console.log(`🔍 Legal Answers exists:`, !!analysisData.legalAnswers);
+    console.log(`🔍 Question ${questionId} exists in legal answers:`, !!analysisData.legalAnswers?.[questionId]);
     
-    // First try to get answer from legalAnswers structure (camelCase)
-    const legalAnswers = legalData?.legalAnswers || legalData?.legal_answers;
-    
-    // **CRITICAL DEBUG**: Log the exact structure for this specific question
-    console.log(`⚖️ DEBUG ${questionId}:`, {
-      hasLegalAnswers: !!legalAnswers,
-      legalAnswersKeys: legalAnswers ? Object.keys(legalAnswers) : [],
-      hasSpecificAnswer: !!(legalAnswers && legalAnswers[questionId]),
-      answerPreview: legalAnswers && legalAnswers[questionId] ? JSON.stringify(legalAnswers[questionId]).substring(0, 100) : 'NO ANSWER'
-    });
-    
-    if (legalAnswers && legalAnswers[questionId]) {
-      const answer = legalAnswers[questionId];
-      console.log(`⚖️ FOUND answer for ${questionId}:`, {
-        hasAnswer: !!answer.answer,
-        answerLength: answer.answer ? answer.answer.length : 0,
-        confidence: answer.confidence,
-        sourcesCount: Array.isArray(answer.sources) ? answer.sources.length : 0
-      });
+    // First try to get answer from legalAnswers structure
+    if (analysisData.legalAnswers && analysisData.legalAnswers[questionId]) {
+      const answer = analysisData.legalAnswers[questionId];
+      console.log(`🔍 Found enhanced answer for ${questionId}:`, answer);
+      console.log(`🔍 Has detailedEvidence:`, !!answer.detailedEvidence);
       return {
-        answer: answer.answer || 'Analysis in progress...',
+        answer: answer.answer || '',
         confidence: answer.confidence || 0,
-        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
-        quotes: answer.quotes || [],
-        keyFindings: answer.keyFindings || [],
+        sources: answer.sources && Array.isArray(answer.sources) ? answer.sources : (answer.sources ? [answer.sources] : []),
+        quotes: answer.quotes && Array.isArray(answer.quotes) ? answer.quotes : [],
+        keyFindings: answer.keyFindings && Array.isArray(answer.keyFindings) ? answer.keyFindings : [],
         evidenceSummary: answer.evidenceSummary || '',
         legalAssessment: answer.legalAssessment || '',
-        recommendations: answer.recommendations || [],
-        detailedEvidence: answer.detailedEvidence || []
+        recommendations: answer.recommendations && Array.isArray(answer.recommendations) ? answer.recommendations : [],
+        detailedEvidence: answer.detailedEvidence && Array.isArray(answer.detailedEvidence) ? answer.detailedEvidence : []
       };
-    } else {
-      console.log(`⚖️ NO answer found for ${questionId} - falling back to findings`);
     }
     
-    // Fallback to findings-based system
+    // Fallback to findings-based extraction
+    if (!analysisData?.findings || !Array.isArray(analysisData.findings)) return null;
+    
+    // Convert question ID to searchable keywords
     const questionKeywords = LEGAL_QUESTIONS.find(q => q.id === questionId);
     if (!questionKeywords) return null;
     
-    // Check if findings exist before filtering
-    if (!legalData?.findings || !Array.isArray(legalData.findings)) return null;
-    
     // Search through findings for relevant content
-    const relevantFindings = legalData.findings.filter((finding: any) => {
+    const relevantFindings = analysisData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
@@ -1840,7 +1655,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-
+        <ComprehensiveLegalAnalysisButton dealId={22} />
       </div>
 
       {/* Progress is now shown in main progress bar at top of page - removed duplicate here */}
@@ -1854,7 +1669,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
             <h4 className="font-medium text-white text-left">{category}</h4>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -1866,7 +1681,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
 
           {expandedCategories.has(category) && (
             <div className="p-4 space-y-4">
-              {questions.map((question) => {
+              {questions && Array.isArray(questions) && questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
                 const hasAnswer = answer !== null;
                 
@@ -1880,7 +1695,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {question.subQuestions && (
+                          {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
                               {question.subQuestions.map((subQ, index) => (
                                 <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
@@ -1893,7 +1708,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Legal Assessment */}
@@ -1905,13 +1720,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -1919,7 +1734,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -1945,7 +1760,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-blue-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -1960,7 +1775,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -1977,15 +1792,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -1996,10 +1811,10 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2031,17 +1846,17 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the legal documents for this question</p>
-                              </div>
+                            <div className="mt-3 bg-dark/30 rounded p-3">
+                              <p className="text-gray-400 text-sm italic">No answer found in analyzed documents</p>
+                              <Badge variant="outline" className="text-gray-400 border-gray-400 mt-2">
+                                Requires analysis
+                              </Badge>
                             </div>
                           )}
                         </div>
@@ -2232,7 +2047,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-
+        <ComprehensiveClinicalAnalysisButton dealId={dealId} onAnalysisStart={onClinicalAnalysisStart} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -2244,7 +2059,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             <h4 className="font-medium text-white text-left">{category}</h4>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -2256,7 +2071,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
 
           {expandedCategories.has(category) && (
             <div className="p-4 space-y-4">
-              {questions.map((question) => {
+              {questions && Array.isArray(questions) && questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
                 const hasAnswer = answer !== null;
                 
@@ -2270,7 +2085,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {question.subQuestions && (
+                          {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
                               {question.subQuestions.map((subQ, index) => (
                                 <p key={index} className="text-gray-400 text-xs ml-2">• {subQ}</p>
@@ -2295,7 +2110,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-gradient-to-r from-green-400/10 to-blue-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">
                                     🔬 Key Clinical Findings ({answer.keyFindings.length})
@@ -2312,10 +2127,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    💡 Clinical Recommendations ({answer.recommendations.length})
+                                    💡 Clinical Recommendations ({answer.recommendations && Array.isArray(answer.recommendations) ? answer.recommendations.length : 0})
                                   </h5>
                                   <ul className="space-y-1">
                                     {answer.recommendations.map((rec, index) => (
@@ -2331,9 +2146,9 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2365,17 +2180,14 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the clinical documents for this question</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No clinical analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -2417,9 +2229,11 @@ interface ResearchQuestionsSectionProps {
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: ResearchQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Whitepapers"]));
 
-  // 🔥 CRITICAL FIX: Don't call missing research endpoint, use analysisData directly
-  // This was causing Research tab to always show empty results
-  const comprehensiveResults = null; // Disabled - endpoint doesn't exist
+  // Check if research analysis is available from agent endpoint
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    refetchInterval: 2000,
+  });
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -2431,20 +2245,24 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Research questions structure matching the database storage - UPDATED to use correct IDs
+  // Complete Research questions structure - ALL questions that should be answered
   const RESEARCH_QUESTIONS = [
-    // Research questions 1-11 matching the database structure exactly
-    { id: "research_1", question: "Are technical whitepapers available?", category: "Technical Whitepapers" },
-    { id: "research_2", question: "Are competitive analyses included?", category: "Market Research Reports" },
-    { id: "research_3", question: "Is market sizing data provided?", category: "Market Research Reports" },
-    { id: "research_4", question: "Are customer validation studies included?", category: "Customer Validation" },
-    { id: "research_5", question: "Are third-party reports referenced?", category: "Third-party Reports" },
-    { id: "research_6", question: "Are regulatory considerations addressed?", category: "Regulatory Analysis" },
-    { id: "research_7", question: "Are academic publications cited?", category: "Academic Publications" },
-    { id: "research_8", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
-    { id: "research_9", question: "Are citations and forward references analyzed?", category: "Academic Publications" },
-    { id: "research_10", question: "Are patent landscape analyses provided?", category: "Patent Landscape" },
-    { id: "research_11", question: "Is competitive IP density mapped?", category: "Patent Landscape" }
+    // Current questions with answers (res_1 to res_5)
+    { id: "res_1", question: "What research methodology and scientific approach is used?", category: "Technical Methodology" },
+    { id: "res_2", question: "What peer-reviewed publications and citations exist?", category: "Academic Publications" },
+    { id: "res_3", question: "What research partnerships and collaborations are present?", category: "Academic Publications" },
+    { id: "res_4", question: "What data quality and validation has been performed?", category: "Technical Methodology" },
+    { id: "res_5", question: "What research competitive advantages exist?", category: "Technical Innovation" },
+    
+    // Additional research questions that should be analyzed
+    { id: "res_6", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
+    { id: "res_7", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
+    { id: "res_8", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
+    { id: "res_9", question: "What is the total addressable market (TAM) size?", category: "Market Research" },
+    { id: "res_10", question: "Who are the main competitors and what is their market share?", category: "Market Research" },
+    { id: "res_11", question: "What are the market growth projections and key drivers?", category: "Market Research" },
+    { id: "res_12", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
+    { id: "res_13", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
@@ -2455,26 +2273,44 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
-  const getAnswerForQuestion = (questionId: string) => {
-    // 🔥 CRITICAL FIX: Prioritize analysisData (which contains our SENTINEL_ANSWER_123)
-    console.log(`🔍 Looking for answer to question: ${questionId}`);
-    console.log(`📋 Available analysisData:`, analysisData);
+  const getAnswerForQuestion = (questionId: string, questionText: string) => {
+    // Try comprehensive results first - check snake_case field name from API
+    if (comprehensiveResults?.analysis?.research_answers) {
+      // First try by question text (exact match)
+      const answer = comprehensiveResults.analysis.research_answers[questionText];
+      if (answer) return answer;
+      
+      // Fallback to question ID
+      const answerById = comprehensiveResults.analysis.research_answers[questionId];
+      if (answerById) return answerById;
+    }
     
-    // PRIORITY 1: Use analysisData.research_answers (this has our test data!)
+    // Fallback to camelCase if available
+    if (comprehensiveResults?.analysis?.researchAnswers) {
+      const answer = comprehensiveResults.analysis.researchAnswers[questionText];
+      if (answer) return answer;
+      
+      const answerById = comprehensiveResults.analysis.researchAnswers[questionId];
+      if (answerById) return answerById;
+    }
+    
+    // Fallback to regular analysis results if comprehensive is empty
     if (analysisData?.research_answers) {
-      const answer = analysisData.research_answers[questionId];
-      console.log(`🎯 Found answer in research_answers for ${questionId}:`, answer);
+      const answer = analysisData.research_answers[questionText];
       if (answer) return answer;
+      
+      const answerById = analysisData.research_answers[questionId];
+      if (answerById) return answerById;
     }
     
-    // PRIORITY 2: Check camelCase version
     if (analysisData?.researchAnswers) {
-      const answer = analysisData.researchAnswers[questionId];
-      console.log(`🎯 Found answer in researchAnswers for ${questionId}:`, answer);
+      const answer = analysisData.researchAnswers[questionText];
       if (answer) return answer;
+      
+      const answerById = analysisData.researchAnswers[questionId];
+      if (answerById) return answerById;
     }
     
-    console.log(`❌ No answer found for question: ${questionId}`);
     return null;
   };
 
@@ -2487,7 +2323,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
           </p>
         </div>
-
+        <ComprehensiveResearchAnalysisButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -2499,7 +2335,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -2511,8 +2347,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
-                const answer = getAnswerForQuestion(question.id);
+              {questions && Array.isArray(questions) && questions.map(question => {
+                const answer = getAnswerForQuestion(question.id, question.question);
 
                 return (
                   <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
@@ -2537,13 +2373,13 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -2551,7 +2387,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -2577,7 +2413,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-cyan-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -2592,7 +2428,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -2609,15 +2445,15 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -2628,10 +2464,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -2656,17 +2492,14 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-blue-400 mb-2">Research Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the research documents for this question</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -2693,12 +2526,477 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
 }
 
 // Comprehensive Research Analysis Button Component
+function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
 
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if research analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs)) {
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      return !!researchJob && researchJob.status === 'processing';
+    }
+    return false;
+  })();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/research-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log('Research analysis already running');
+        setIsRunning(false);
+        return;
+      }
+      
+      // Invalidate ALL relevant query keys to refresh the research data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/research/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      console.log('✅ Comprehensive research analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive research analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('🔬 Starting comprehensive research analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      console.log('✅ Analysis request sent, waiting for completion...');
+      
+      // Wait for results since analysis takes time
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes max wait
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          // Check for new comprehensive research analysis results
+          const response = await fetch(`/api/deals/${dealId}/research-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🔬 Attempt ${attempts}: Checking for comprehensive research results...`);
+          
+          if (data.success && data.results && data.results.researchAnswers && Object.keys(data.results.researchAnswers).length > 0) {
+            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.results.researchAnswers).length);
+            
+            // Force refresh of comprehensive research results
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/research/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
+              setIsRunning(false);
+              console.log('🎉 Research analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for research results:', error);
+        }
+        
+        // Continue checking if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
+        } else {
+          console.log('⏰ Timeout reached - research analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/agents/research/results`]
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          
+          setIsRunning(false);
+        }
+      };
+      
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      
+    } catch (error) {
+      console.error('❌ Error starting comprehensive research analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Research Analysis Running...' : isRunning ? 'Research Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Research Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Comprehensive Clinical Analysis Button Component
+function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { dealId: number; onAnalysisStart?: () => void }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
 
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
 
+  // Check if clinical analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+      return !!clinicalJob && clinicalJob.status === 'processing';
+    }
+    return false;
+  })();
 
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log(`⚠️ Clinical analysis already running (${data.progress}% complete)`);
+        setIsRunning(false);
+        return;
+      }
+      
+      // Invalidate ALL relevant query keys to refresh the clinical data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      // Show success message
+      console.log('✅ Comprehensive clinical analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive clinical analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('🧬 Starting comprehensive clinical analysis for deal', dealId);
+    
+    // Call the callback to trigger client-side progress state
+    if (onAnalysisStart) {
+      onAnalysisStart();
+    }
+    
+    try {
+      // Trigger custom event to show progress bar immediately
+      window.dispatchEvent(new CustomEvent('clinicalAnalysisStarted'));
+      
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      console.log('✅ Analysis request sent, waiting for completion...');
+      
+      // Wait for results since analysis takes time
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes max wait
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          // Check for new comprehensive clinical analysis results
+          const response = await fetch(`/api/deals/${dealId}/clinical-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🧬 Attempt ${attempts}: Checking for comprehensive clinical results...`);
+          
+          if (data.success && data.analysis && data.analysis.clinicalAnswers && Object.keys(data.analysis.clinicalAnswers).length > 0) {
+            console.log('✅ New comprehensive clinical analysis completed! Questions answered:', Object.keys(data.analysis.clinicalAnswers).length);
+            
+            // Force refresh of comprehensive clinical results
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
+              setIsRunning(false);
+              console.log('🎉 Clinical analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for clinical results:', error);
+        }
+        
+        // Continue checking if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
+        } else {
+          console.log('⏰ Timeout reached - clinical analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/agents/clinical/results`]
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          
+          setIsRunning(false);
+        }
+      };
+      
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      
+    } catch (error) {
+      console.error('❌ Error starting comprehensive clinical analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Clinical Analysis Running...' : isRunning ? 'Clinical Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Clinical Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
+function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if legal analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+      return !!legalJob && legalJob.status === 'processing';
+    }
+    return false;
+  })();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log(`⚠️ Legal analysis already running (${data.progress}% complete)`);
+        setIsRunning(false);
+        return;
+      }
+      
+      // Invalidate ALL relevant query keys to refresh the legal data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      // Show success message
+      console.log('✅ Comprehensive legal analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive legal analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('🚀 Starting comprehensive legal analysis for deal', dealId);
+    
+    try {
+      // Trigger custom event to show progress bar immediately
+      window.dispatchEvent(new CustomEvent('legalAnalysisStarted'));
+      
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      console.log('✅ Analysis request sent, waiting for completion...');
+      
+      // Wait a bit longer for results since analysis takes time
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes max wait
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          // Check for new analysis results
+          const response = await fetch(`/api/deals/${dealId}/agents/legal/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`📊 Attempt ${attempts}: Checking for results...`);
+          
+          if (data.success && data.analysis && data.analysis.legalAnswers && Object.keys(data.analysis.legalAnswers).length > 0) {
+            console.log('✅ New comprehensive legal analysis completed! Questions answered:', Object.keys(data.analysis.legalAnswers).length);
+            
+            // Force refresh of all related UI data
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
+              setIsRunning(false);
+              console.log('🎉 Legal analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for results:', error);
+        }
+        
+        // Continue checking if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
+        } else {
+          console.log('⏰ Timeout reached - analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/agents/legal/results`]
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          
+          setIsRunning(false);
+        }
+      };
+      
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      
+    } catch (error) {
+      console.error('❌ Error starting comprehensive analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Legal Analysis Running...' : isRunning ? 'Legal Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run AI Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Commercial Analysis Progress Display Component
 function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
@@ -2706,7 +3004,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2714,8 +3012,8 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (enterpriseProgress?.jobs) {
-      const commercialJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+    if (jobProgress?.jobs) {
+      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
       if (commercialJob && commercialJob.status === 'processing') {
         setProgress(commercialJob.progress || 0);
         setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
@@ -2759,7 +3057,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress]);
+  }, [jobProgress]);
 
   if (!isVisible) return null;
 
@@ -2779,7 +3077,10 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-purple-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -2793,7 +3094,7 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2801,8 +3102,8 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (enterpriseProgress?.jobs) {
-      const clinicalJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+    if (jobProgress?.jobs) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
       if (clinicalJob && clinicalJob.status === 'processing') {
         setProgress(clinicalJob.progress || 0);
         setCurrentStep(clinicalJob.currentDocument || clinicalJob.currentStep || 'Processing clinical analysis...');
@@ -2828,7 +3129,7 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress]);
+  }, [jobProgress]);
 
   if (!isVisible) return null;
 
@@ -2862,7 +3163,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2870,8 +3171,8 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (enterpriseProgress?.jobs) {
-      const hrJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'HR');
+    if (jobProgress?.jobs) {
+      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
       if (hrJob && hrJob.status === 'processing') {
         setProgress(hrJob.progress || 0);
         setCurrentStep(hrJob.currentDocument || hrJob.currentStep || 'Processing HR analysis...');
@@ -2897,7 +3198,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress]);
+  }, [jobProgress]);
 
   if (!isVisible) return null;
 
@@ -2917,7 +3218,10 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-orange-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -2931,7 +3235,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2954,8 +3258,8 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     }
 
     // Then check for regular financial jobs
-    if (enterpriseProgress?.jobs) {
-      const financialJob = enterpriseProgress.jobs.find((job: any) => 
+    if (jobProgress?.jobs) {
+      const financialJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'Financial' || job.jobType === 'comprehensive_financial_analysis'
       );
       if (financialJob && financialJob.status === 'processing') {
@@ -2983,7 +3287,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress, financialProgress]);
+  }, [jobProgress, financialProgress]);
 
   if (!isVisible) return null;
 
@@ -3003,7 +3307,10 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-emerald-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -3019,7 +3326,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
     retry: false,
@@ -3065,8 +3372,8 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     }
 
     // Then check for regular IP jobs
-    if (enterpriseProgress?.jobs) {
-      const ipJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'IP');
+    if (jobProgress?.jobs) {
+      const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
       if (ipJob && ipJob.status === 'processing') {
         // Check if this is a new job or continuing existing one
         if (lastJobId && lastJobId !== ipJob.jobId) {
@@ -3116,10 +3423,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress, ipProgress, lastJobId, dealId]);
+  }, [jobProgress, ipProgress, lastJobId, dealId]);
 
   // Extra safety check - if no IP jobs exist at all, never show progress
-  const hasActiveIpJob = enterpriseProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
+  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
   
   if (!isVisible || !hasActiveIpJob) return null;
 
@@ -3139,7 +3446,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
             />
           </div>
           <div className="text-xs text-pink-300/80 truncate">
-            {currentStep}
+            {currentStep && currentStep.includes('batch') ? 
+              currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
+              currentStep
+            }
           </div>
         </div>
       </div>
@@ -3153,7 +3463,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -3161,8 +3471,8 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (enterpriseProgress?.jobs) {
-      const researchJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Research');
+    if (jobProgress?.jobs) {
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
       if (researchJob && researchJob.status === 'processing') {
         setProgress(researchJob.progress || 0);
         setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
@@ -3188,7 +3498,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress]);
+  }, [jobProgress]);
 
   if (!isVisible) return null;
 
@@ -3222,7 +3532,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: enterpriseProgress } = useQuery({
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -3230,8 +3540,8 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (enterpriseProgress?.jobs) {
-      const legalJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Legal');
+    if (jobProgress?.jobs) {
+      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
       if (legalJob && legalJob.status === 'processing') {
         setProgress(legalJob.progress || 0);
         setCurrentStep(legalJob.currentDocument || legalJob.currentStep || 'Processing legal analysis...');
@@ -3257,7 +3567,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enterpriseProgress]);
+  }, [jobProgress]);
 
   if (!isVisible) return null;
 
@@ -3286,8 +3596,276 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
 }
 
 // Commercial Analysis Button Component  
+function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if commercial analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+      return !!commercialJob && commercialJob.status === 'processing';
+    }
+    return false;
+  })();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log('Commercial analysis already running');
+        setIsRunning(false);
+        return;
+      }
+      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      console.log('Comprehensive commercial analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('Error starting comprehensive commercial analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive commercial analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/commercial-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`Commercial analysis attempt ${attempts}...`);
+          
+          if (data.success && data.commercialAnswers && Object.keys(data.commercialAnswers).length > 0) {
+            console.log('Commercial analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for commercial results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting commercial analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Commercial Analysis Running...' : isRunning ? 'Commercial Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Commercial Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // HR Analysis Button Component
+function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if HR analysis is already running
+  const isAlreadyRunning = (() => {
+    if (jobProgress?.jobs) {
+      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
+      return !!hrJob && hrJob.status === 'processing';
+    }
+    return false;
+  })();
+
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/comprehensive`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log('HR analysis already running');
+        setIsRunning(false);
+        return;
+      }
+      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      console.log('Comprehensive HR analysis started successfully');
+    },
+    onError: (error) => {
+      console.error('Error starting comprehensive HR analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive HR analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/hr-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`HR analysis attempt ${attempts}...`);
+          
+          if (data.success && data.hrAnswers && Object.keys(data.hrAnswers).length > 0) {
+            console.log('HR analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for HR results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting HR analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-orange-600 hover:bg-orange-700 text-white border-orange-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'HR Analysis Running...' : isRunning ? 'HR Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run HR Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Financial Questions Section Component  
 interface FinancialQuestionsSectionProps {
@@ -3433,7 +4011,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             Analyze {assignedDocuments} financial documents across 4 categories with 12 detailed questions
           </p>
         </div>
-
+        <ComprehensiveFinancialAnalysisButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -3445,7 +4023,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -3457,7 +4035,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -3483,13 +4061,13 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -3497,7 +4075,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -3523,7 +4101,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -3538,7 +4116,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -3557,13 +4135,13 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                 <Badge variant="outline" className="text-green-400 border-green-400">
                                   Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -3574,10 +4152,10 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -3602,17 +4180,14 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-emerald-400 mb-2">Financial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the financial documents for this question</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No financial analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -3639,8 +4214,241 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
 }
 
 // Comprehensive Financial Analysis Button
+function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
+  const isAlreadyRunning = progressData?.isRunning || 
+    jobProgress?.jobs?.some((job: any) => 
+      job.jobType === 'comprehensive_financial_analysis' && job.status === 'processing'
+    );
+
+  const queryClient = useQueryClient();
+  
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log('Starting comprehensive financial analysis for deal', dealId);
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/comprehensive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      console.log('✅ Comprehensive financial analysis started successfully');
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      setIsRunning(false);
+    },
+    onError: (error) => {
+      console.error('❌ Failed to start comprehensive financial analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive financial analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        console.log(`📊 Checking for financial analysis results (attempt ${attempts})`);
+        
+        if (attempts >= maxAttempts) {
+          console.log('⏰ Max attempts reached for financial analysis');
+          setIsRunning(false);
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/deals/${dealId}/financial-analysis/comprehensive/results`);
+          const data = await response.json();
+          
+          console.log('📊 Financial analysis status:', data);
+          
+          if (data && data.financialAnswers && Object.keys(data.financialAnswers).length > 0) {
+            console.log('✅ Financial analysis completed successfully');
+            queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+            setIsRunning(false);
+            return;
+          }
+        } catch (error) {
+          console.log('⚠️ Error checking financial analysis results:', error);
+        }
+        
+        setTimeout(checkForResults, 5000);
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting financial analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'Financial Analysis Running...' : isRunning ? 'Financial Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run Financial Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Comprehensive IP Analysis Button
+function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
+    refetchInterval: 1000,
+  });
+
+  const isAlreadyRunning = (progressData as any)?.isRunning || 
+    (jobProgress as any)?.jobs?.some((job: any) => 
+      job.jobType === 'comprehensive_ip_analysis' && job.status === 'processing'
+    );
+
+  const queryClient = useQueryClient();
+  
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log('Starting comprehensive IP analysis for deal', dealId);
+      const response = await apiRequest(`/api/deals/${dealId}/ip-analysis/comprehensive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      console.log('✅ Comprehensive IP analysis started successfully');
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive IP analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive IP analysis for deal', dealId);
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/ip-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🔐 IP analysis attempt ${attempts}...`);
+          
+          if (data.success && data.results && data.results.ipAnswers && Object.keys(data.results.ipAnswers).length > 0) {
+            console.log('✅ IP analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/ip/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for IP results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting IP analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'IP Analysis Running...' : isRunning ? 'IP Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run IP Analysis
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Commercial Questions Section Component  
 interface CommercialQuestionsSectionProps {
@@ -3711,7 +4519,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             Analyze {assignedDocuments} commercial documents across 4 categories with 12 detailed questions
           </p>
         </div>
-
+        <ComprehensiveCommercialAnalysisButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -3723,7 +4531,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -3735,7 +4543,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -3762,13 +4570,13 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -3776,7 +4584,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -3802,7 +4610,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -3817,7 +4625,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -3834,15 +4642,15 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -3853,10 +4661,10 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -3881,17 +4689,14 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the commercial documents for this question</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No commercial analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -3932,8 +4737,10 @@ interface HrQuestionsSectionProps {
 function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Employment Contracts"]));
 
-  // 🔥 CRITICAL FIX: Don't call missing HR endpoint, use analysisData directly
-  const comprehensiveResults = null; // Disabled - endpoint doesn't exist
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
+    refetchInterval: 2000,
+  });
 
   const { data: hrProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
@@ -4009,7 +4816,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} HR documents across 7 categories with 32 detailed questions
           </p>
         </div>
-
+        <ComprehensiveHrAnalysisButton dealId={dealId} />
       </div>
 
       {categories.map(category => (
@@ -4034,9 +4841,9 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
               {HR_QUESTIONS.filter(q => q.category === category).map(question => {
-                // 🔥 CRITICAL FIX: Use analysisData directly (unified binding)
-                const answer = analysisData?.hr_answers?.[question.id] || null;
-                console.log(`🔍 HR Question ${question.id} answer:`, answer);
+                const answer = comprehensiveResults?.success && comprehensiveResults.analysis?.hrAnswers 
+                  ? comprehensiveResults.analysis.hrAnswers[question.id] 
+                  : null;
 
                 return (
                   <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
@@ -4061,13 +4868,13 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Document Quotes */}
-                              {answer.quotes && answer.quotes.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes.length})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.quotes.map((quote, index) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
@@ -4075,7 +4882,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${quote.document}`}
                                           >
-                                            📄 {quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
@@ -4101,7 +4908,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Key Findings */}
-                              {answer.keyFindings && answer.keyFindings.length > 0 && (
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-orange-400 mb-2">Key Findings</h5>
                                   <ul className="space-y-1">
@@ -4116,7 +4923,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Recommendations */}
-                              {answer.recommendations && answer.recommendations.length > 0 && (
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
                                   <ul className="space-y-1">
@@ -4133,15 +4940,15 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  Confidence: {Math.min(100, Math.round((answer.confidence || 0) > 1 ? answer.confidence : (answer.confidence || 0) * 100))}%
+                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && answer.quotes.length > 0 && (
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
                                     onClick={() => {
                                       setSelectedQuoteData({
-                                        quotes: answer.quotes.map((quote: string) => ({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
                                           text: quote,
                                           documentName: answer.sources?.[0] || 'Unknown Document',
                                           confidence: answer.confidence || 0.8
@@ -4152,10 +4959,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.quotes.length} quote{answer.quotes.length > 1 ? 's' : ''}
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
@@ -4180,21 +4987,14 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       setQuoteViewerOpen(true);
                                     }}
                                   >
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the HR documents for this question</p>
-                              </div>
-                              <div className="bg-dark/30 rounded p-3">
-                                <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">Unable to assess due to lack of relevant HR documentation</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No HR analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -4224,8 +5024,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
 
-  // 🔥 CRITICAL FIX: Don't call missing IP endpoint, use analysisData directly
-  const comprehensiveResults = null; // Disabled - endpoint doesn't exist
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
+    refetchInterval: 2000,
+  });
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -4277,75 +5079,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const recommendations = (comprehensiveResults as any)?.analysis?.recommendations || [];
 
   const getAnswerForQuestion = (questionId: string) => {
-    // 🔥 CRITICAL FIX: Use analysisData directly instead of missing endpoint
-    console.log(`🔍 IP Looking for answer to question: ${questionId}`);
-    console.log(`📋 IP Available analysisData:`, analysisData);
-    
-    // PRIORITY 1: Use analysisData.ip_answers (unified analysis data)
-    if (analysisData?.ip_answers) {
-      const answer = analysisData.ip_answers[questionId];
-      console.log(`🎯 Found IP answer in ip_answers for ${questionId}:`, answer);
-      if (answer) return answer;
-    }
-    
-    // Legacy fallback for comprehensive results (kept for compatibility)
-    const ipAnswersData = (comprehensiveResults as any)?.analysis?.ip_answers;
-    if (ipAnswersData) {
-      // Map question IDs to the structured answer keys
-      const questionToAnswerMap: Record<string, string> = {
-        'patents_1': 'ip_risks',
-        'patents_2': 'patent_portfolio',
-        'patents_3': 'licensing_deals',
-        'patents_4': 'infringement_risks',
-        'trademarks_1': 'trademark_status',
-        'trademarks_2': 'brand_protection',
-        'trademarks_3': 'trademark_disputes',
-        'trademarks_4': 'geographic_coverage',
-        'licenses_1': 'licensing_strategy',
-        'licenses_2': 'revenue_streams',
-        'licenses_3': 'partnership_agreements',
-        'licenses_4': 'compliance_requirements',
-        'source_code_1': 'code_ownership',
-        'source_code_2': 'open_source_compliance',
-        'source_code_3': 'development_practices',
-        'source_code_4': 'ip_assignments'
-      };
-      
-      const answerKey = questionToAnswerMap[questionId];
-      if (answerKey && ipAnswersData[answerKey]) {
-        const structuredAnswer = ipAnswersData[answerKey];
-        console.log('✅ Found structured IP answer for', questionId, ':', structuredAnswer);
-        
-        return {
-          answer: structuredAnswer.answer,
-          confidence: Math.round((structuredAnswer.confidence || 0.8) * 100),
-          sources: structuredAnswer.sources || [],
-          category: structuredAnswer.category || 'IP Analysis',
-          severity: structuredAnswer.severity || 'medium',
-          keyFindings: structuredAnswer.keyFindings || [],
-          evidenceSummary: structuredAnswer.evidenceSummary
-        };
-      }
-      
-      // Fallback: Try to find any relevant IP answer for this question
-      for (const [key, answerData] of Object.entries(ipAnswersData)) {
-        if (answerData && typeof answerData === 'object' && answerData.answer) {
-          console.log('📝 Using fallback IP answer from', key, 'for question', questionId);
-          return {
-            answer: answerData.answer,
-            confidence: Math.round((answerData.confidence || 0.7) * 100),
-            sources: answerData.sources || [],
-            category: answerData.category || 'IP Analysis',
-            severity: answerData.severity || 'medium',
-            keyFindings: answerData.keyFindings || [],
-            evidenceSummary: answerData.evidenceSummary
-          };
-        }
-      }
-    }
-    
-    // Legacy fallback: Try to map findings to questions based on content similarity
+    // Try to map findings to questions based on content similarity
     if (findings.length > 0) {
+      // Find the most relevant finding for this question
       const relevantFinding = findings.find((finding: any) => {
         const questionKeywords = {
           'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan', 'country', 'countries', 'filed', 'application'],
@@ -4381,9 +5117,27 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           severity: relevantFinding.severity
         };
       }
+      
+      // Fallback: If no exact match, return the first finding with some basic relevance
+      if (findings.length > 0 && questionId.startsWith('patents_')) {
+        const patentFinding = findings.find((finding: any) => 
+          finding.finding?.toLowerCase().includes('patent') ||
+          finding.finding?.toLowerCase().includes('IP') ||
+          finding.finding?.toLowerCase().includes('intellectual property')
+        );
+        
+        if (patentFinding) {
+          return {
+            answer: patentFinding.finding,
+            confidence: Math.round((patentFinding.confidence || 0.5) * 100),
+            sources: patentFinding.sources || [],
+            category: patentFinding.category || 'IP Analysis',
+            severity: patentFinding.severity
+          };
+        }
+      }
     }
     
-    console.log('❌ No IP answer found for question', questionId);
     return null;
   };
 
@@ -4396,32 +5150,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
-            <Play className="h-4 w-4 mr-2" />
-            Start Combined OCR
-          </Button>
-          
-          <Button 
-            onClick={() => runRealAnalysisMutation.mutate()}
-            disabled={runRealAnalysisMutation.isPending}
-            size="sm" 
-            className="bg-green-500 hover:bg-green-600 text-white"
-            title="Test real OpenAI analysis pipeline"
-          >
-            {runRealAnalysisMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                OpenAI Running...
-              </>
-            ) : (
-              <>
-                <Bot className="h-4 w-4 mr-2" />
-                Real OpenAI Test
-              </>
-            )}
-          </Button>
-        </div>
+        <ComprehensiveIPAnalysisButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -4433,7 +5162,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {questions.length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -4445,7 +5174,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map(question => {
                 const answer = getAnswerForQuestion(question.id);
 
                 return (
@@ -4484,10 +5213,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Document Quotes */}
-                              {answer.sources && answer.sources.length > 0 && (
+                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.sources.length})
+                                    📖 Document Quotes ({answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0})
                                   </h5>
                                   <div className="space-y-2">
                                     {answer.sources.map((source: string, index: number) => (
@@ -4498,7 +5227,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
                                             title={`View document: ${source}`}
                                           >
-                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                                            📄 {source && source.length > 25 ? `${source.substring(0, 25)}...` : source}
                                           </button>
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
@@ -4556,19 +5285,16 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
                                   Confidence: {answer.confidence}%
                                 </Badge>
-                                {answer.sources && answer.sources.length > 0 && (
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">No relevant evidence available in the IP documents for this question</p>
-                              </div>
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No IP analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -4583,10 +5309,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       ))}
 
       {/* Additional Recommendations Section */}
-      {recommendations && recommendations.length > 0 && (
+      {recommendations && Array.isArray(recommendations) && recommendations.length > 0 && (
         <div className="border border-dark-lighter rounded-lg overflow-hidden">
           <div className="p-4 bg-dark-light">
-            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations.length})</h4>
+            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations && Array.isArray(recommendations) ? recommendations.length : 0})</h4>
           </div>
           <div className="border-t border-dark-lighter p-4">
             <div className="space-y-3">

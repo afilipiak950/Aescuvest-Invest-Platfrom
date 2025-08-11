@@ -389,12 +389,8 @@ export class DatabaseStorage implements IStorage {
         assignmentReason: documents.assignmentReason,
         assignmentConfidence: documents.assignmentConfidence,
         manuallyAssigned: documents.manuallyAssigned,
-        assignedAt: documents.assignedAt,
-        // 🔥 CRITICAL FIX: Include OCR text and summaries for AI analysis
-        ocrText: documents.ocrText,
-        summary: documents.summary,
-        insights: documents.insights,
-        riskFactors: documents.riskFactors
+        assignedAt: documents.assignedAt
+        // Exclude only: ocrText (heaviest field), insights, riskFactors
       })
       .from(documents)
       .where(eq(documents.dealId, dealId))
@@ -831,39 +827,12 @@ export class DatabaseStorage implements IStorage {
     console.log(`🔍 Querying agent analyses for deal ${dealId}`);
     const startTime = Date.now();
     
-    // **CRITICAL FIX**: Use raw SQL to avoid Drizzle schema issues with JSON columns
-    const result = await db.execute(sql`
-      SELECT 
-        id, deal_id, agent_type, status, progress, 
-        findings, recommendations, document_sources,
-        legal_answers, clinical_answers, commercial_answers,
-        ip_answers, hr_answers, financial_answers, research_answers,
-        created_at, updated_at
-      FROM agent_analyses 
-      WHERE deal_id = ${dealId}
-      ORDER BY created_at DESC 
-      LIMIT 50
-    `);
-    
-    const analysisList: AgentAnalysis[] = result.rows.map((row: any) => ({
-      id: row.id,
-      dealId: row.deal_id,
-      agentType: row.agent_type,
-      status: row.status,
-      progress: row.progress,
-      findings: row.findings,
-      recommendations: row.recommendations,
-      documentSources: row.document_sources,
-      legalAnswers: row.legal_answers,
-      clinicalAnswers: row.clinical_answers,
-      commercialAnswers: row.commercial_answers,
-      ip_answers: row.ip_answers,
-      hr_answers: row.hr_answers,
-      financial_answers: row.financial_answers,
-      research_answers: row.research_answers,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    }));
+    const analysisList = await db
+      .select()
+      .from(agentAnalyses)
+      .where(eq(agentAnalyses.dealId, dealId))
+      .orderBy(desc(agentAnalyses.createdAt))
+      .limit(50); // Limit results for performance
     
     const queryTime = Date.now() - startTime;
     console.log(`🔍 Found ${analysisList.length} analyses for deal ${dealId} in ${queryTime}ms`);
@@ -875,65 +844,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnalysisByDealAndAgent(dealId: number, agentType: string): Promise<AgentAnalysis | undefined> {
-    console.log(`🔍 Fetching analysis for deal ${dealId}, agent ${agentType}`);
-    
-    // **CRITICAL FIX**: Use raw SQL to avoid Drizzle schema issues with JSON columns
-    const result = await db.execute(sql`
-      SELECT 
-        id, deal_id, agent_type, status, progress, 
-        findings, recommendations, document_sources,
-        legal_answers, clinical_answers, commercial_answers,
-        ip_answers, hr_answers, financial_answers, research_answers,
-        created_at, updated_at
-      FROM agent_analyses 
-      WHERE deal_id = ${dealId} AND agent_type = ${agentType}
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `);
-    
-    console.log(`🔍 Raw SQL Result:`, {
-      resultType: typeof result,
-      hasRows: !!result.rows,
-      rowCount: result.rows?.length || 0,
-      firstRowKeys: result.rows?.[0] ? Object.keys(result.rows[0]) : [],
-      resultKeys: Object.keys(result)
-    });
-    
-    if (!result.rows || result.rows.length === 0) {
-      console.log(`❌ No analysis found for deal ${dealId}, agent ${agentType}`);
-      return undefined;
-    }
-    
-    const row = result.rows[0] as any;
-    const analysis: AgentAnalysis = {
-      id: row.id,
-      dealId: row.deal_id,
-      agentType: row.agent_type,
-      status: row.status,
-      progress: row.progress,
-      findings: row.findings,
-      recommendations: row.recommendations,
-      documentSources: row.document_sources,
-      legalAnswers: row.legal_answers,
-      clinicalAnswers: row.clinical_answers,
-      commercialAnswers: row.commercial_answers,
-      ip_answers: row.ip_answers,
-      hr_answers: row.hr_answers,
-      financial_answers: row.financial_answers,
-      research_answers: row.research_answers,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    };
-    
-    console.log(`✅ Retrieved analysis:`, {
-      found: !!analysis,
-      id: analysis?.id,
-      hasLegalAnswers: !!analysis?.legalAnswers,
-      legalAnswersType: typeof analysis?.legalAnswers,
-      legalAnswersKeys: analysis?.legalAnswers ? Object.keys(analysis.legalAnswers) : []
-    });
-    
-    return analysis;
+    const [analysis] = await db
+      .select()
+      .from(agentAnalyses)
+      .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType)))
+      .orderBy(desc(agentAnalyses.createdAt))
+      .limit(1);
+    return analysis || undefined;
   }
 
   async getAnalysis(dealId: number, agentType: string): Promise<AgentAnalysis | undefined> {
@@ -1288,7 +1205,7 @@ export class DatabaseStorage implements IStorage {
     return [];
   }
 
-  // Duplicate method removed - original implementation at line 1148
+
 
   async deleteEvaluationResultsByDealId(dealId: number): Promise<number> {
     try {
@@ -1437,8 +1354,11 @@ export class DatabaseStorage implements IStorage {
   async saveAgentAnalysis(dealId: number, agentType: string, analysisData: any): Promise<any> {
     try {
       // Store agent analysis in the agentAnalyses table
+      // Ensure agentType is properly formatted
+      const formattedAgentType = agentType ? agentType.charAt(0).toUpperCase() + agentType.slice(1) : 'Unknown';
+      
       const existing = await db.select().from(agentAnalyses)
-        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))));
+        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, formattedAgentType)));
       
       if (existing.length > 0) {
         // Prepare update object with common fields

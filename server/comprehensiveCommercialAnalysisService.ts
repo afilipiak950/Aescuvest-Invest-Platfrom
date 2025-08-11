@@ -327,7 +327,7 @@ class ComprehensiveCommercialAnalysisService {
       const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
       await this.setProgress(dealId, {
         progress: batchProgress,
-        currentStep: `checking ${batchIndex * BATCH_SIZE}/${documents.length} - batch ${batchIndex + 1}/${totalBatches} - processing ${batch.length} documents`
+        currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
       }, jobId);
       
       // Process documents in parallel within batch
@@ -499,15 +499,14 @@ class ComprehensiveCommercialAnalysisService {
     if (evidence.length === 0) {
       return {
         question: question.question,
-        answer: null,
+        answer: `No specific evidence found in the analyzed commercial documents for: ${question.question}`,
         confidence: 0,
         sources: [],
         detailedEvidence: [],
         keyFindings: [],
-        evidenceSummary: null,
-        commercialAssessment: null,
-        recommendations: [],
-        reason: 'no_hits'
+        evidenceSummary: 'No relevant commercial evidence available',
+        commercialAssessment: 'Unable to assess due to lack of relevant documentation',
+        recommendations: ['Consider providing additional commercial documentation for comprehensive analysis']
       };
     }
 
