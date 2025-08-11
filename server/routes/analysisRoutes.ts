@@ -31,7 +31,7 @@ router.post('/api/deals/:dealId/analyze', async (req, res) => {
     console.error('Analysis start error:', error);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -69,12 +69,78 @@ router.get('/api/deals/:dealId/analyze/progress', async (req, res) => {
     console.error('Progress check error:', error);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
 // Reset & Run All Analyses (clear previous and start fresh)
+// Comprehensive Analysis endpoint - Reset first, then run real OCR analysis
+router.post('/api/deals/:dealId/comprehensive-analysis', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🚀 Starting Comprehensive Analysis (Real OCR) for deal ${dealId}`);
+    
+    // First reset all previous analysis results
+    await realAnalysisEngine.resetAnalysisResults(dealId);
+    console.log(`✅ Reset completed for deal ${dealId}`);
+    
+    // Then start comprehensive analysis using Combined OCR per agent
+    const runId = await realAnalysisEngine.startComprehensiveAnalysis(dealId);
+    
+    res.json({ 
+      success: true, 
+      runId,
+      message: 'Comprehensive Analysis started with real OCR processing' 
+    });
+  } catch (error) {
+    console.error('Error in comprehensive analysis:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Legacy Reset endpoint - Clear all results
+router.post('/api/deals/:dealId/reset', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🔄 Legacy Reset - Clearing all results for deal ${dealId}`);
+    
+    // Clear all answers, progress, caches for all agents (keep documents/OCR)
+    await realAnalysisEngine.resetAnalysisResults(dealId);
+    
+    res.json({ 
+      success: true, 
+      message: 'All analysis results cleared successfully',
+      dealId
+    });
+  } catch (error) {
+    console.error('Error in legacy reset:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 router.post('/deals/:dealId/reset-and-analyze', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
@@ -127,7 +193,7 @@ router.get('/deals/:dealId/acceptance-report', async (req, res) => {
     console.error('Error generating acceptance report:', error);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

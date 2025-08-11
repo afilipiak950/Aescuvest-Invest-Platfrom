@@ -127,6 +127,14 @@ class RealAnalysisEngine {
   }
 
   /**
+   * Public method to reset all analysis results for a deal
+   */
+  async resetAnalysisResults(dealId: number): Promise<void> {
+    console.log(`🔄 Legacy Reset - Clearing all analysis results for deal ${dealId}`);
+    await this.clearExistingAnalyses(dealId);
+  }
+
+  /**
    * Clear existing analyses for fresh start
    */
   private async clearExistingAnalyses(dealId: number): Promise<void> {
