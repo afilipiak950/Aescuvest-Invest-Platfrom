@@ -10,7 +10,40 @@ import { comprehensiveAnalysisEngine } from '../services/comprehensiveAnalysisEn
 const router = Router();
 
 /**
- * RESET & START COMPREHENSIVE ANALYSIS
+ * COMPREHENSIVE ANALYSIS ENDPOINT (Frontend Compatible)
+ * Endpoint that matches frontend expectations: /api/analyses/comprehensive
+ */
+router.post('/api/analyses/comprehensive', async (req: Request, res: Response) => {
+  const { dealId } = req.body;
+  
+  try {
+    console.log(`🚀 Starting comprehensive analysis for deal ${dealId} using new engine`);
+    
+    // Step 1: Perform full reset
+    await comprehensiveAnalysisEngine.performFullReset(dealId);
+    
+    // Step 2: Start comprehensive analysis
+    const result = await comprehensiveAnalysisEngine.startComprehensiveAnalysis(dealId);
+    
+    res.json({
+      message: 'Comprehensive analysis started successfully',
+      resetCompleted: true,
+      analysisStarted: true,
+      success: true,
+      ...result
+    });
+    
+  } catch (error) {
+    console.error(`❌ Comprehensive analysis failed:`, error);
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message
+    });
+  }
+});
+
+/**
+ * RESET & START COMPREHENSIVE ANALYSIS (Legacy)
  * Clears all previous outputs and starts fresh processing
  */
 router.post('/api/deals/:dealId/comprehensive-reset-and-start', async (req: Request, res: Response) => {
