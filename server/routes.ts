@@ -120,6 +120,7 @@ import documentUploadRoutes from "./routes/document-upload";
 import backgroundJobsRouter from "./routes/backgroundJobs";
 import { websocketManager } from "./services/websocketManager";
 import { jobProcessor } from "./services/jobProcessor";
+import runBasedProgressRoutes from "./routes/runBasedProgress";
 
 // Setup multer for file uploads
 const upload = multer({
@@ -1878,6 +1879,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register comprehensive analysis routes (document×question matrix processing)
   app.use(comprehensiveAnalysisRouter);
+  
+  // Register run-based progress tracking routes (job-based progress system)
+  app.use(runBasedProgressRoutes);
   
   // Register Microsoft OAuth routes
   app.use('/api/microsoft', microsoftAuthRoutes);

@@ -406,12 +406,11 @@ function DueDiligenceContent() {
         
         const dealId = parseInt(selectedDeal);
         
-        // Use the new comprehensive analysis endpoint that handles both reset and analysis
-        console.log('🚀 Using new comprehensive analysis engine with question-specific OCR...');
-        const response = await apiRequest(`/api/analyses/comprehensive`, {
+        // Use the new job-based comprehensive analysis endpoint that creates individual jobs for progress tracking
+        console.log('🚀 Using new job-based comprehensive analysis engine with gradual progress tracking...');
+        const response = await apiRequest(`/api/analysis/comprehensive/${dealId}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dealId })
+          headers: { 'Content-Type': 'application/json' }
         });
         
         console.log(`✅ Comprehensive analysis started with new engine:`, response);
@@ -423,22 +422,49 @@ function DueDiligenceContent() {
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ Comprehensive analysis completed:`, results);
-      console.log(`📊 All 7 agents processed with fresh question-specific answers`);
+      console.log(`✅ Job-based comprehensive analysis started:`, results);
+      console.log(`📊 Run ID: ${results.runId} - Individual jobs created for each agent with gradual progress tracking`);
       
-      // Reset UI progress immediately since analysis is now synchronous
-      setIsRunningAllAnalyses(false);
-      
-      // Force immediate refresh to show new results
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
+      // Start monitoring progress for the new run
+      const runId = results.runId;
       
       toast({
-        title: "Comprehensive Analysis Complete",
-        description: `All previous answers deleted and regenerated fresh. All 7 agents now have real document-based answers with source citations.`,
+        title: "Job-Based Analysis Started",
+        description: `Run ${runId} created. Progress bars will show gradual 0-100% progression for each agent.`,
         duration: 8000,
       });
+      
+      // Set up progress monitoring for the specific run
+      const monitorProgress = setInterval(async () => {
+        try {
+          const progressResponse = await fetch(`/api/analysis/deal-progress/${selectedDeal}`);
+          const progressData = await progressResponse.json();
+          
+          if (progressData.progress && progressData.progress.status === 'completed') {
+            console.log(`🎉 Job-based analysis completed for run ${runId}!`);
+            setIsRunningAllAnalyses(false);
+            clearInterval(monitorProgress);
+            
+            // Refresh all relevant queries
+            queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/analysis/deal-progress/${selectedDeal}`] });
+            
+            toast({
+              title: "Analysis Complete",
+              description: "All agents completed with gradual progress tracking!",
+              duration: 5000,
+            });
+          }
+        } catch (error) {
+          console.error('Error monitoring job progress:', error);
+        }
+      }, 2000); // Check every 2 seconds
+      
+      // Cleanup after 20 minutes
+      setTimeout(() => {
+        setIsRunningAllAnalyses(false);
+        clearInterval(monitorProgress);
+      }, 1200000);
       
       // Verify results after UI updates
       setTimeout(async () => {
@@ -489,16 +515,11 @@ function DueDiligenceContent() {
         // Wait for cleanup to complete
         await new Promise(resolve => setTimeout(resolve, 1000));
       
-        // Step 2: Start Combined OCR bulk analysis for all 7 agents
-        console.log(`📋 Starting Combined OCR bulk analysis for all 7 agents`);
-        const response = await apiRequest(`/api/combined-ocr/analyze-bulk`, {
+        // Step 2: Start job-based legacy analysis for all 7 agents
+        console.log(`📋 Starting job-based legacy analysis for all 7 agents`);
+        const response = await apiRequest(`/api/analysis/legacy/${parseInt(selectedDeal)}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            dealId: parseInt(selectedDeal),
-            agentTypes: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
-            forceRefresh: true
-          })
+          headers: { 'Content-Type': 'application/json' }
         });
         
         console.log(`✅ Combined OCR analysis started:`, response);
@@ -510,12 +531,12 @@ function DueDiligenceContent() {
       }
     },
     onSuccess: (results) => {
-      console.log(`✅ Combined OCR analysis started for all 7 agents:`, results);
+      console.log(`✅ Job-based legacy analysis started for all 7 agents:`, results);
       
-      // Show immediate feedback with Combined OCR confirmation
+      // Show immediate feedback with job-based progress confirmation
       toast({
-        title: "Combined OCR Analysis Started",
-        description: `Successfully started all 7 agents with efficient Combined OCR system - Job: ${results?.jobId}`,
+        title: "Job-Based Legacy Analysis Started",
+        description: `Run ${results.runId} created. Progress bars will show gradual 0-100% progression for each agent.`,
         duration: 5000,
       });
       
