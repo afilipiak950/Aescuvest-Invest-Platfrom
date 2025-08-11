@@ -423,6 +423,29 @@ export default function EnhancedAgentCard({
     }
   });
 
+  // Reset & Run All Analyses mutation (NEW SYSTEM)
+  const resetAndRunAllMutation = useMutation({
+    mutationFn: async () => {
+      console.log(`🔄 Reset & Run All Analyses for deal ${dealId}`);
+      return apiRequest(`/api/deals/${dealId}/reset-and-analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    },
+    onSuccess: (data) => {
+      console.log(`✅ Reset & Run All Analyses started successfully:`, data);
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      }, 5000);
+    },
+    onError: (error) => {
+      console.error(`❌ Reset & Run All Analyses failed:`, error);
+    }
+  });
+
   // Combined OCR mutation to run efficient analysis for this agent
   const runMistralAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -970,6 +993,55 @@ export default function EnhancedAgentCard({
             <div className="text-xl md:text-2xl font-bold text-red-400 mb-1">{riskFactors}</div>
             <div className="text-xs md:text-sm text-gray-400">Risk Factors</div>
           </div>
+        </div>
+
+        {/* Action Buttons Section */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          {/* Real OpenAI Analysis Button */}
+          <Button
+            onClick={() => runRealAnalysisMutation.mutate()}
+            disabled={runRealAnalysisMutation.isPending || !documents || documents.length === 0}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center gap-2 px-4 py-2"
+          >
+            {runRealAnalysisMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Real OpenAI Analysis
+          </Button>
+
+          {/* Reset & Run All Button (only show for Legal agent) */}
+          {agentType === 'Legal' && (
+            <Button
+              onClick={() => resetAndRunAllMutation.mutate()}
+              disabled={resetAndRunAllMutation.isPending}
+              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white flex items-center gap-2 px-4 py-2"
+            >
+              {resetAndRunAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Reset & Run All Analyses
+            </Button>
+          )}
+
+          {/* Combined OCR Analysis Button (Legacy) */}
+          {!hasAnalysis && !isAnalysisCurrentlyRunning() && (
+            <Button
+              onClick={handleRunMistralAnalysis}
+              disabled={isRunningAnalysis || runMistralAnalysisMutation.isPending || !documents || documents.length === 0}
+              className="bg-primary hover:bg-primary/80 text-white flex items-center gap-2 px-4 py-2"
+            >
+              {isRunningAnalysis || runMistralAnalysisMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              {agentType === 'Clinical' && onClinicalAnalysisStart ? 'Start Comprehensive Analysis' : `Run ${agentType} Analysis`}
+            </Button>
+          )}
         </div>
 
         {/* Comprehensive Questions for Legal and Clinical Agents */}
