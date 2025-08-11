@@ -596,9 +596,9 @@ function DueDiligenceContent() {
 
   const handleRunAllAnalyses = () => {
     try {
-      console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
+      console.log(`🚀 Legacy Reset button clicked for deal ${selectedDeal}`);
+      console.log('🔄 This will: 1) Delete all analyses 2) Start fresh Combined OCR for all 7 agents');
       
-      // Validate selectedDeal exists
       if (!selectedDeal) {
         console.error('❌ No deal selected');
         toast({
@@ -610,31 +610,32 @@ function DueDiligenceContent() {
         return;
       }
       
-      setIsRunningAllAnalyses(true);
+      // CRITICAL: Clear all cached analysis data IMMEDIATELY to reset progress to 0%
+      queryClient.setQueryData([`/api/analyses/${selectedDeal}`], []);
+      queryClient.setQueryData([`/api/enterprise/progress/${selectedDeal}`], { jobs: [], totalJobs: 0 });
       
-      // Immediately show loading feedback for hard reset
-      toast({
-        title: "Combined OCR Reset & Analysis",
-        description: "Clearing previous analyses and starting all 7 agents with efficient Combined OCR system...",
-        duration: 3000,
+      // Clear all agent-specific results caches
+      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      agentTypes.forEach(agentType => {
+        queryClient.setQueryData([`/api/deals/${selectedDeal}/agents/${agentType}/results`], null);
+        queryClient.setQueryData([`/api/deals/${selectedDeal}/${agentType}-analysis/comprehensive/results`], null);
       });
       
-      // Skip query invalidation to prevent crashes - let mutation handle cache updates
-      console.log('📋 Skipping immediate query invalidation to prevent component crashes');
+      // Also invalidate to trigger fresh fetch
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
       
-      // Start mutation immediately to prevent state conflicts
-      try {
-        runAllAnalysesMutation.mutate();
-      } catch (mutationError) {
-        console.error('❌ Error starting mutation:', mutationError);
-        setIsRunningAllAnalyses(false);
-        toast({
-          title: "Mutation Error",
-          description: "Failed to start analysis mutation. Please try again.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
+      // Start the reset and analysis process
+      setIsRunningAllAnalyses(true);
+      
+      toast({
+        title: "Legacy Reset Started",
+        description: "Progress reset to 0% - All answers cleared - Starting fresh Combined OCR for all 7 agents...",
+        duration: 4000,
+      });
+      
+      runAllAnalysesMutation.mutate();
       
     } catch (error) {
       console.error('❌ Critical error in handleRunAllAnalyses:', error);
@@ -666,7 +667,11 @@ function DueDiligenceContent() {
         return;
       }
       
-      // Immediately invalidate all cached data to reset UI progress indicators
+      // CRITICAL: Clear all cached analysis data IMMEDIATELY to reset progress to 0%
+      queryClient.setQueryData([`/api/analyses/${selectedDeal}`], []);
+      queryClient.setQueryData([`/api/enterprise/progress/${selectedDeal}`], { jobs: [], totalJobs: 0 });
+      
+      // Also invalidate to trigger fresh fetch
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
@@ -676,7 +681,7 @@ function DueDiligenceContent() {
       
       toast({
         title: "Starting Comprehensive Analysis",
-        description: "Deleting all previous answers and generating fresh analysis for all 7 agents...",
+        description: "Progress reset to 0% - Deleting all previous answers and generating fresh analysis for all 7 agents...",
         duration: 4000,
       });
       

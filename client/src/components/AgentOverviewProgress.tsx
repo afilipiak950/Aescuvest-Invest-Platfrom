@@ -19,10 +19,19 @@ interface AgentOverviewProgressProps {
 }
 
 export function AgentOverviewProgress({ dealId, agents, isRunningAllAnalyses }: AgentOverviewProgressProps) {
-  // Calculate overall progress
-  const totalProgress = agents.length > 0 ? agents.reduce((sum, agent) => sum + agent.progress, 0) / agents.length : 0;
-  const completedAgents = agents.filter(agent => agent.status === 'Completed').length;
-  const processingAgents = agents.filter(agent => agent.status === 'Processing').length;
+  // Calculate overall progress - Reset to 0 if running new analysis
+  const totalProgress = isRunningAllAnalyses && agents.every(agent => agent.status === 'Completed') 
+    ? 0 // Force reset to 0% when starting new analysis with cached completed data
+    : agents.length > 0 ? agents.reduce((sum, agent) => sum + agent.progress, 0) / agents.length : 0;
+    
+  const completedAgents = isRunningAllAnalyses && agents.every(agent => agent.status === 'Completed')
+    ? 0 // Force reset completed count when starting new analysis
+    : agents.filter(agent => agent.status === 'Completed').length;
+    
+  const processingAgents = isRunningAllAnalyses 
+    ? 7 // Show all agents as processing when running new analysis
+    : agents.filter(agent => agent.status === 'Processing').length;
+    
   const failedAgents = agents.filter(agent => agent.status === 'Failed').length;
   
   const getAgentStatusIcon = (status: string, progress: number) => {
@@ -89,40 +98,46 @@ export function AgentOverviewProgress({ dealId, agents, isRunningAllAnalyses }: 
 
         {/* Individual Agent Mini Progress Bars */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
-          {agents.map((agent) => (
-            <div
-              key={agent.agentType}
-              className={`p-3 rounded-lg border transition-colors ${getAgentColorClass(agent.agentType)}`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                {getAgentStatusIcon(agent.status, agent.progress)}
-                <span className="text-xs font-medium text-white truncate">
-                  {agent.agentType}
-                </span>
-              </div>
-              
-              <Progress 
-                value={agent.progress} 
-                className="h-1.5 bg-dark-lighter mb-1"
-              />
-              
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>{Math.round(agent.progress)}%</span>
-                {agent.processedCount !== undefined && agent.totalCount !== undefined && (
-                  <span>{agent.processedCount}/{agent.totalCount}</span>
+          {agents.map((agent) => {
+            // Reset progress to 0% if starting new analysis with cached completed data
+            const displayProgress = isRunningAllAnalyses && agent.status === 'Completed' ? 0 : agent.progress;
+            const displayStatus = isRunningAllAnalyses && agent.status === 'Completed' ? 'Processing' : agent.status;
+            
+            return (
+              <div
+                key={agent.agentType}
+                className={`p-3 rounded-lg border transition-colors ${getAgentColorClass(agent.agentType)}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  {getAgentStatusIcon(displayStatus, displayProgress)}
+                  <span className="text-xs font-medium text-white truncate">
+                    {agent.agentType}
+                  </span>
+                </div>
+                
+                <Progress 
+                  value={displayProgress} 
+                  className="h-1.5 bg-dark-lighter mb-1"
+                />
+                
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>{Math.round(displayProgress)}%</span>
+                  {agent.processedCount !== undefined && agent.totalCount !== undefined && (
+                    <span>{agent.processedCount}/{agent.totalCount}</span>
+                  )}
+                </div>
+                
+                {agent.currentStep && displayStatus === 'Processing' && (
+                  <div className="text-xs text-gray-400 mt-1 truncate" title={agent.currentStep}>
+                    {agent.currentStep.length > 20 
+                      ? `${agent.currentStep.substring(0, 17)}...` 
+                      : agent.currentStep
+                    }
+                  </div>
                 )}
               </div>
-              
-              {agent.currentStep && agent.status === 'Processing' && (
-                <div className="text-xs text-gray-400 mt-1 truncate" title={agent.currentStep}>
-                  {agent.currentStep.length > 20 
-                    ? `${agent.currentStep.substring(0, 17)}...` 
-                    : agent.currentStep
-                  }
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Combined OCR System Status */}
