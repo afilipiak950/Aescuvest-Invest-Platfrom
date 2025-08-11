@@ -44,6 +44,7 @@ import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { comprehensiveAnalysisRouter } from './routes/comprehensiveAnalysis';
 import { comprehensiveAnalysisEngine } from './services/comprehensiveAnalysisEngine';
+import { analysisRoutes } from './routes/analysisRoutes';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -7091,6 +7092,9 @@ export async function registerAllRoutes(app: Express) {
   
   // Register persistent analysis routes
   app.use('/', persistentAnalysisRoutes);
+  
+  // Register job-based analysis routes
+  app.use(analysisRoutes);
   
   // Investment Memo Generator Routes
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {

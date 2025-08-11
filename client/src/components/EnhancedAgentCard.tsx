@@ -400,6 +400,29 @@ export default function EnhancedAgentCard({
   
 
 
+  // Real OpenAI Analysis mutation (NEW SYSTEM)
+  const runRealAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log(`🚀 Starting REAL OpenAI analysis for ${agentType} on deal ${dealId}`);
+      return apiRequest(`/api/deals/${dealId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    },
+    onSuccess: (data) => {
+      console.log(`✅ Real OpenAI analysis started successfully:`, data);
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      }, 3000);
+    },
+    onError: (error) => {
+      console.error(`❌ Real OpenAI analysis failed:`, error);
+    }
+  });
+
   // Combined OCR mutation to run efficient analysis for this agent
   const runMistralAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -4255,10 +4278,32 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
           </p>
         </div>
-        <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
-          <Play className="h-4 w-4 mr-2" />
-          Start Combined OCR
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="text-purple-400 border-purple-400 hover:bg-purple-400/10">
+            <Play className="h-4 w-4 mr-2" />
+            Start Combined OCR
+          </Button>
+          
+          <Button 
+            onClick={() => runRealAnalysisMutation.mutate()}
+            disabled={runRealAnalysisMutation.isPending}
+            size="sm" 
+            className="bg-green-500 hover:bg-green-600 text-white"
+            title="Test real OpenAI analysis pipeline"
+          >
+            {runRealAnalysisMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                OpenAI Running...
+              </>
+            ) : (
+              <>
+                <Bot className="h-4 w-4 mr-2" />
+                Real OpenAI Test
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
