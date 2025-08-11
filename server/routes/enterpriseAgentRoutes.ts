@@ -532,25 +532,36 @@ router.get('/deals/:dealId/agent/:agentType/comprehensive', async (req: Request,
       });
     }
 
-    // **CRITICAL FIX**: Parse structured Q&A from proper database columns (handle both camelCase and snake_case)
+    // **CRITICAL FIX**: Parse structured Q&A from proper database columns (use camelCase as returned by storage)
     let structuredAnswers = {};
     try {
       if (agentType === 'Legal') {
-        const legalAnswers = (analysis as any).legal_answers;
+        const legalAnswers = analysis.legalAnswers;
+        console.log(`🔍 Debug Legal Answers:`, {
+          hasLegalAnswers: !!legalAnswers,
+          legalAnswersType: typeof legalAnswers,
+          legalAnswersPreview: legalAnswers ? JSON.stringify(legalAnswers).substring(0, 200) : 'null',
+          analysisKeys: Object.keys(analysis),
+          analysisId: analysis.id
+        });
+        
         if (legalAnswers) {
           structuredAnswers = typeof legalAnswers === 'string' 
             ? JSON.parse(legalAnswers) 
             : legalAnswers;
+          console.log(`✅ Parsed Legal Answers:`, Object.keys(structuredAnswers));
+        } else {
+          console.log(`❌ No legalAnswers field found in analysis`);
         }
       } else if (agentType === 'Clinical') {
-        const clinicalAnswers = (analysis as any).clinical_answers;
+        const clinicalAnswers = analysis.clinicalAnswers;
         if (clinicalAnswers) {
           structuredAnswers = typeof clinicalAnswers === 'string' 
             ? JSON.parse(clinicalAnswers) 
             : clinicalAnswers;
         }
       } else if (agentType === 'Commercial') {
-        const commercialAnswers = (analysis as any).commercial_answers;
+        const commercialAnswers = analysis.commercialAnswers;
         if (commercialAnswers) {
           structuredAnswers = typeof commercialAnswers === 'string' 
             ? JSON.parse(commercialAnswers) 
