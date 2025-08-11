@@ -104,23 +104,38 @@ function DueDiligenceContent() {
     }
     });
 
-    // Job progress tracking for live updates with enterprise queue polling
-    const { data: jobProgress, isLoading: isLoadingJobProgress } = useQuery({
-      queryKey: [`/api/enterprise/progress/${selectedDeal}`],
+    // NEW: Job-based progress tracking for gradual 0-100% progress
+    const { data: jobBasedProgress, isLoading: isLoadingJobProgress } = useQuery({
+      queryKey: [`/api/analysis/deal-progress/${selectedDeal}`],
       enabled: !!selectedDeal,
-      refetchInterval: 1000, // Poll every 1 second for real-time updates
+      refetchInterval: 1000, // Poll every 1 second for gradual progress updates
       refetchIntervalInBackground: true,
       gcTime: 0, // Don't cache the results
       staleTime: 0, // Always consider stale to refetch
     });
 
-    // Auto-reset stuck state when no jobs are running
+    // Fallback: Enterprise progress tracking (legacy support)
+    const { data: enterpriseProgress } = useQuery({
+      queryKey: [`/api/enterprise/progress/${selectedDeal}`],
+      enabled: !!selectedDeal && !jobBasedProgress?.progress,
+      refetchInterval: 2000,
+      refetchIntervalInBackground: true,
+      gcTime: 0,
+      staleTime: 0,
+    });
+
+    // Auto-reset stuck state when no jobs are running (update to use new progress APIs)
     useEffect(() => {
-      if (isRunningAllAnalyses && jobProgress && Array.isArray(jobProgress.jobs) && jobProgress.jobs.length === 0) {
+      const noJobsRunning = (
+        (enterpriseProgress && Array.isArray(enterpriseProgress.jobs) && enterpriseProgress.jobs.length === 0) &&
+        (!jobBasedProgress?.progress || jobBasedProgress.progress.status === 'idle')
+      );
+      
+      if (isRunningAllAnalyses && noJobsRunning) {
         console.log('🔄 No active jobs detected - resetting stuck analysis state');
         setIsRunningAllAnalyses(false);
       }
-    }, [jobProgress, isRunningAllAnalyses]);
+    }, [enterpriseProgress, jobBasedProgress, isRunningAllAnalyses]);
 
     // Fetch real analysis data - MOVED UP to prevent temporal dead zone error
     const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
@@ -138,97 +153,127 @@ function DueDiligenceContent() {
 
     // Log polling attempts
     useEffect(() => {
-      if (selectedDeal && jobProgress !== undefined) {
-        console.log('📊 Enterprise polling for job progress for deal', selectedDeal);
-        console.log('📊 Enterprise job progress data:', jobProgress);
+      if (selectedDeal) {
+        console.log('📊 Job-based progress polling for deal', selectedDeal);
+        console.log('📊 Job-based progress data:', jobBasedProgress);
+        console.log('📊 Job-based agents:', jobBasedProgress?.progress?.agentProgress);
+        console.log('📊 Enterprise progress data (fallback):', enterpriseProgress);
         console.log('📊 Queue metrics:', queueMetrics);
       }
-    }, [selectedDeal, jobProgress, queueMetrics]);
+    }, [selectedDeal, jobBasedProgress, enterpriseProgress, queueMetrics]);
 
-    // Create comprehensive agent progress data for overview component - MOVED AFTER analyses query
+    // Create comprehensive agent progress data using job-based progress tracking
     const agentProgressData = useMemo(() => {
       const agentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
       
       return agentTypes.map(agentType => {
-        const job = findJobSafely(jobProgress?.jobs, [agentType, `${agentType.toLowerCase()}_analysis`, `${agentType.toLowerCase()}-analysis`]);
-        
-        // Get analysis data for this agent if available - temporarily simplified to fix crash
-        const agentAnalysis = Array.isArray(analyses) ? analyses.find((analysis: any) => 
-          analysis.agentType?.toLowerCase() === agentType.toLowerCase()
-        ) : null;
-        
-        let status: 'Idle' | 'Processing' | 'Completed' | 'Failed' = 'Idle';
         let progress = 0;
-        let currentStep = undefined;
-        let processedCount = undefined;
-        let totalCount = undefined;
-
-        if (job) {
-          status = job.status === 'processing' ? 'Processing' : 
-                   job.status === 'completed' ? 'Completed' : 
-                   job.status === 'failed' ? 'Failed' : 'Idle';
-          progress = job.progress || 0;
-          currentStep = job.currentDocument || job.message;
-          processedCount = job.processedCount;
-          totalCount = job.totalCount;
-        } else if (agentAnalysis && agentAnalysis.status === 'Completed') {
-          status = 'Completed';
-          progress = 100;
+        let status = 'Idle' as 'Idle' | 'Processing' | 'Completed' | 'Failed';
+        let processedCount: number | undefined;
+        let totalCount: number | undefined;
+        let currentStep: string | undefined;
+        
+        // PRIORITY 1: Use job-based progress from new API
+        if (jobBasedProgress?.progress?.agentProgress) {
+          const agentProgress = jobBasedProgress.progress.agentProgress.find(
+            (a: any) => a.agentType?.toLowerCase() === agentType.toLowerCase()
+          );
+          
+          if (agentProgress) {
+            progress = Math.max(0, Math.min(100, Math.floor(agentProgress.progress || 0)));
+            status = agentProgress.status === 'running' ? 'Processing' : 
+                     agentProgress.status === 'completed' ? 'Completed' : 
+                     agentProgress.status === 'failed' ? 'Failed' : 'Idle';
+            processedCount = agentProgress.completedJobs;
+            totalCount = agentProgress.totalJobs;
+            currentStep = `${agentProgress.completedJobs || 0}/${agentProgress.totalJobs || 0} tasks completed`;
+            
+            console.log(`🔍 Job-based progress for ${agentType}: ${progress}% (${status})`);
+          }
+        } 
+        // PRIORITY 2: Use enterprise job progress (fallback)
+        else if (enterpriseProgress?.jobs) {
+          const job = findJobSafely(
+            enterpriseProgress.jobs, 
+            [agentType.toLowerCase(), agentType]
+          );
+          
+          if (job && typeof job.progress === 'number') {
+            progress = Math.max(0, Math.min(100, Math.floor(job.progress)));
+            status = job.status || 'Processing';
+            processedCount = job.processedCount;
+            totalCount = job.totalCount;
+            currentStep = job.currentStep;
+          }
         }
-
+        // PRIORITY 3: Use legacy analysis data (last resort)
+        else if (analyses && Array.isArray(analyses)) {
+          const analysis = analyses.find((a: any) => a.agentType?.toLowerCase() === agentType.toLowerCase());
+          
+          if (analysis) {
+            progress = typeof analysis.progress === 'number' ? analysis.progress : 0;
+            status = analysis.status === 'Completed' ? 'Completed' : 
+                     analysis.status === 'Processing' ? 'Processing' : 'Idle';
+          }
+        }
+        
+        // CRITICAL: Force reset to 0% when starting new analysis
+        if (isRunningAllAnalyses && status === 'Completed') {
+          progress = 0;
+          status = 'Processing';
+        }
+        
         return {
           agentType,
           progress,
           status,
-          currentStep,
           processedCount,
-          totalCount
+          totalCount,
+          currentStep
         };
       });
-    }, [jobProgress, analyses]);
+    }, [jobBasedProgress, enterpriseProgress, analyses, isRunningAllAnalyses]);
 
-    // Create progress states from jobProgress data instead of separate queries to prevent UI interference
-    // Using safe null checks to prevent temporal dead zone errors
+    // Create progress states from new job-based progress data
     const legalProgress = useMemo(() => {
-      if (!jobProgress?.jobs) return null;
-      const legalJob = findJobSafely(jobProgress.jobs, ['Legal', 'legal_analysis', 'legal-analysis']);
-      return legalJob ? {
-        isRunning: legalJob.status === 'processing',
-        progress: legalJob.progress || 0,
-        currentStep: legalJob.currentDocument || legalJob.message || 'Processing legal documents...',
-        currentDocumentName: legalJob.currentDocument || 'Processing'
+      const agent = agentProgressData.find(a => a.agentType === 'Legal');
+      return agent && agent.status === 'Processing' ? {
+        isRunning: true,
+        progress: agent.progress,
+        currentStep: agent.currentStep || 'Processing legal documents...',
+        currentDocumentName: agent.currentStep || 'Processing'
       } : null;
-    }, [jobProgress]);
+    }, [agentProgressData]);
 
     const commercialProgress = useMemo(() => {
-      const commercialJob = findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial-analysis', 'commercial_analysis']);
-      return commercialJob ? {
-        isRunning: commercialJob.status === 'processing',
-        progress: commercialJob.progress || 0,
-        currentStep: commercialJob.currentDocument || commercialJob.message || 'Processing commercial documents...',
-        currentDocumentName: commercialJob.currentDocument || 'Processing'
+      const agent = agentProgressData.find(a => a.agentType === 'Commercial');
+      return agent && agent.status === 'Processing' ? {
+        isRunning: true,
+        progress: agent.progress,
+        currentStep: agent.currentStep || 'Processing commercial documents...',
+        currentDocumentName: agent.currentStep || 'Processing'
       } : null;
-    }, [jobProgress]);
+    }, [agentProgressData]);
 
     const hrProgress = useMemo(() => {
-      const hrJob = findJobSafely(jobProgress?.jobs, ['HR', 'hr_analysis', 'hr-analysis']);
-      return hrJob ? {
-        isRunning: hrJob.status === 'processing',
-        progress: hrJob.progress || 0,
-        currentStep: hrJob.currentDocument || hrJob.message || 'Processing HR documents...',
-        currentDocumentName: hrJob.currentDocument || 'Processing'
+      const agent = agentProgressData.find(a => a.agentType === 'HR');
+      return agent && agent.status === 'Processing' ? {
+        isRunning: true,
+        progress: agent.progress,
+        currentStep: agent.currentStep || 'Processing HR documents...',
+        currentDocumentName: agent.currentStep || 'Processing'
       } : null;
-    }, [jobProgress]);
+    }, [agentProgressData]);
 
     const clinicalProgress = useMemo(() => {
-      const clinicalJob = findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical_analysis', 'clinical-analysis']);
-      return clinicalJob ? {
-        isRunning: clinicalJob.status === 'processing' && clinicalJob.progress > 0,
-        progress: clinicalJob.progress || 0,
-        currentStep: clinicalJob.currentDocument || clinicalJob.message || 'Processing clinical documents...',
-        currentDocumentName: clinicalJob.currentDocument || 'Processing'
+      const agent = agentProgressData.find(a => a.agentType === 'Clinical');
+      return agent && agent.status === 'Processing' ? {
+        isRunning: true,
+        progress: agent.progress,
+        currentStep: agent.currentStep || 'Processing clinical documents...',
+        currentDocumentName: agent.currentStep || 'Processing'
       } : null;
-    }, [jobProgress]);
+    }, [agentProgressData]);
 
     // Moved to after analyses query definition to prevent temporal dead zone error
 
@@ -505,12 +550,35 @@ function DueDiligenceContent() {
           throw new Error('No deal selected for analysis');
         }
         
-        // Step 1: Clear existing analyses (preserving document ingestion)
-        console.log(`🔄 Clearing previous analyses for deal ${selectedDeal}`);
+        // Step 1: COMPLETE DATA DELETION - Clear all analysis data, caches, localStorage
+        console.log(`🔄 LEGACY RESET: Complete data deletion for deal ${selectedDeal}`);
+        
+        // Clear server analysis data
         await apiRequest(`/api/analyses/${selectedDeal}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });
+        
+        // Clear all client-side caches immediately to reset progress to 0%
+        const agentTypes = ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'];
+        agentTypes.forEach(agentType => {
+          queryClient.removeQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+          queryClient.removeQueries({ queryKey: [`/api/enterprise/deals/${selectedDeal}/agent/${agentType.charAt(0).toUpperCase() + agentType.slice(1)}/comprehensive`] });
+        });
+        
+        // Clear all progress tracking caches
+        queryClient.removeQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+        queryClient.removeQueries({ queryKey: [`/api/enterprise/progress/${selectedDeal}`] });
+        queryClient.removeQueries({ queryKey: [`/api/analysis/deal-progress/${selectedDeal}`] });
+        
+        // Clear localStorage caches
+        localStorage.removeItem(`deal-${selectedDeal}-progress`);
+        localStorage.removeItem(`deal-${selectedDeal}-runId`);
+        
+        // Force reset UI state to 0% immediately
+        queryClient.setQueryData([`/api/analyses/${selectedDeal}`], []);
+        queryClient.setQueryData([`/api/enterprise/progress/${selectedDeal}`], { jobs: [], totalJobs: 0 });
+        queryClient.setQueryData([`/api/analysis/deal-progress/${selectedDeal}`], { progress: { status: 'idle', agents: [] } });
         
         // Wait for cleanup to complete
         await new Promise(resolve => setTimeout(resolve, 1000));
