@@ -19,18 +19,20 @@ router.post('/api/analyses/comprehensive', async (req: Request, res: Response) =
   try {
     console.log(`🚀 Starting comprehensive analysis for deal ${dealId} using new engine`);
     
-    // Step 1: Perform full reset
-    await comprehensiveAnalysisEngine.performFullReset(dealId);
+    // Step 1: Perform full reset - DELETE ALL PREVIOUS ANSWERS
+    await comprehensiveAnalysisEngine.resetAnalyses(dealId);
+    console.log(`✅ Reset completed - all previous answers deleted for deal ${dealId}`);
     
-    // Step 2: Start comprehensive analysis
-    const result = await comprehensiveAnalysisEngine.startComprehensiveAnalysis(dealId);
+    // Step 2: Start comprehensive analysis - GENERATE ALL NEW ANSWERS
+    await comprehensiveAnalysisEngine.runComprehensiveAnalysis(dealId);
+    console.log(`✅ Comprehensive analysis completed for deal ${dealId}`);
     
     res.json({
-      message: 'Comprehensive analysis started successfully',
-      resetCompleted: true,
-      analysisStarted: true,
       success: true,
-      ...result
+      message: 'Comprehensive analysis completed',
+      dealId: dealId,
+      resetCompleted: true,
+      analysisCompleted: true
     });
     
   } catch (error) {
@@ -52,18 +54,20 @@ router.post('/api/deals/:dealId/comprehensive-reset-and-start', async (req: Requ
   try {
     console.log(`🔄 Starting comprehensive reset and analysis for deal ${dealId}`);
     
-    // Step 1: Perform full reset
-    await comprehensiveAnalysisEngine.performFullReset(dealId);
+    // Step 1: Perform full reset - DELETE ALL PREVIOUS ANSWERS
+    await comprehensiveAnalysisEngine.resetAnalyses(dealId);
+    console.log(`✅ Reset completed - all previous answers deleted for deal ${dealId}`);
     
-    // Step 2: Start comprehensive analysis
-    const result = await comprehensiveAnalysisEngine.startComprehensiveAnalysis(dealId);
+    // Step 2: Start comprehensive analysis - GENERATE ALL NEW ANSWERS
+    await comprehensiveAnalysisEngine.runComprehensiveAnalysis(dealId);
+    console.log(`✅ Comprehensive analysis completed for deal ${dealId}`);
     
     res.json({
-      message: 'Comprehensive analysis started successfully',
-      resetCompleted: true,
-      analysisStarted: true,
       success: true,
-      ...result
+      message: 'Comprehensive analysis completed',
+      dealId: dealId,
+      resetCompleted: true,
+      analysisCompleted: true
     });
     
   } catch (error) {
@@ -83,7 +87,22 @@ router.get('/api/deals/:dealId/comprehensive-status', async (req: Request, res: 
   const dealId = parseInt(req.params.dealId);
   
   try {
-    const status = await comprehensiveAnalysisEngine.getProcessingStatus(dealId);
+    // Get basic analysis status from storage
+    const { storage } = await import('../storage');
+    const analyses = await storage.getAnalysesByDealId(dealId);
+    
+    const status = {
+      totalAgents: 7,
+      completedAgents: analyses.filter(a => a.status === 'Completed').length,
+      inProgressAgents: analyses.filter(a => a.status === 'In Progress').length,
+      analyses: analyses.map(a => ({
+        agentType: a.agentType,
+        status: a.status,
+        progress: a.progress,
+        hasAnswers: !!(a as any)[`${a.agentType.toLowerCase()}Answers`] || !!(a as any)[`${a.agentType.toLowerCase()}_answers`]
+      }))
+    };
+    
     res.json({
       success: true,
       ...status
@@ -106,7 +125,25 @@ router.get('/api/deals/:dealId/completion-report', async (req: Request, res: Res
   const dealId = parseInt(req.params.dealId);
   
   try {
-    const report = await comprehensiveAnalysisEngine.getCompletionReport(dealId);
+    // Get analysis completion report from storage
+    const { storage } = await import('../storage');
+    const analyses = await storage.getAnalysesByDealId(dealId);
+    
+    const report = {
+      dealId,
+      totalAgents: 7,
+      completedAnalyses: analyses.length,
+      timestamp: new Date().toISOString(),
+      analyses: analyses.map(analysis => ({
+        agentType: analysis.agentType,
+        status: analysis.status,
+        progress: analysis.progress,
+        findingsCount: analysis.findings?.length || 0,
+        recommendationsCount: analysis.recommendations?.length || 0,
+        lastUpdated: analysis.updatedAt || analysis.createdAt
+      }))
+    };
+    
     res.json({
       success: true,
       ...report
