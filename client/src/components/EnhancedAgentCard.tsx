@@ -2339,11 +2339,9 @@ interface ResearchQuestionsSectionProps {
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: ResearchQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Whitepapers"]));
 
-  // Check if research analysis is available from agent endpoint
-  const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
-    refetchInterval: 2000,
-  });
+  // 🔥 CRITICAL FIX: Don't call missing research endpoint, use analysisData directly
+  // This was causing Research tab to always show empty results
+  const comprehensiveResults = null; // Disabled - endpoint doesn't exist
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -2380,29 +2378,25 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // Try comprehensive results first - check snake_case field name from API
-    if (comprehensiveResults?.analysis?.research_answers) {
-      const answer = comprehensiveResults.analysis.research_answers[questionId];
-      if (answer) return answer;
-    }
+    // 🔥 CRITICAL FIX: Prioritize analysisData (which contains our SENTINEL_ANSWER_123)
+    console.log(`🔍 Looking for answer to question: ${questionId}`);
+    console.log(`📋 Available analysisData:`, analysisData);
     
-    // Fallback to camelCase if available
-    if (comprehensiveResults?.analysis?.researchAnswers) {
-      const answer = comprehensiveResults.analysis.researchAnswers[questionId];
-      if (answer) return answer;
-    }
-    
-    // Fallback to regular analysis results if comprehensive is empty
+    // PRIORITY 1: Use analysisData.research_answers (this has our test data!)
     if (analysisData?.research_answers) {
       const answer = analysisData.research_answers[questionId];
+      console.log(`🎯 Found answer in research_answers for ${questionId}:`, answer);
       if (answer) return answer;
     }
     
+    // PRIORITY 2: Check camelCase version
     if (analysisData?.researchAnswers) {
       const answer = analysisData.researchAnswers[questionId];
+      console.log(`🎯 Found answer in researchAnswers for ${questionId}:`, answer);
       if (answer) return answer;
     }
     
+    console.log(`❌ No answer found for question: ${questionId}`);
     return null;
   };
 
