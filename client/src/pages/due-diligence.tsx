@@ -1123,17 +1123,17 @@ function DueDiligenceContent() {
 
           
           {/* Main Progress Bar - Restored */}
-          {jobProgress && jobProgress.jobs && jobProgress.jobs.length > 0 && (
+          {enterpriseProgress && enterpriseProgress.jobs && enterpriseProgress.jobs.length > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Analysis Progress</CardTitle>
                 <CardDescription>
-                  {jobProgress.jobs.length} analysis{jobProgress.jobs.length > 1 ? 'es' : ''} running
+                  {enterpriseProgress.jobs.length} analysis{enterpriseProgress.jobs.length > 1 ? 'es' : ''} running
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {jobProgress.jobs.map((job: any) => (
+                  {enterpriseProgress.jobs.map((job: any) => (
                     <div key={job.jobId} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-300">

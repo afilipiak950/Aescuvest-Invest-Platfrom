@@ -157,7 +157,7 @@ export default function EnhancedAgentCard({
 
   // Progress Display Component for Legal Analysis
   function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
-    const { data: jobProgress } = useQuery({
+    const { data: enterpriseProgress } = useQuery({
       queryKey: [`/api/background-jobs/${dealId}`],
       refetchInterval: 1000, // Poll every second for progress updates
     });
@@ -199,7 +199,7 @@ export default function EnhancedAgentCard({
     });
 
     // Look for both comprehensive legal analysis and regular legal agent jobs
-    const legalJobs = (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs) ? jobProgress.jobs : []).filter((job: any) => 
+    const legalJobs = (enterpriseProgress && typeof enterpriseProgress === 'object' && 'jobs' in enterpriseProgress && Array.isArray(enterpriseProgress.jobs) ? enterpriseProgress.jobs : []).filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
       job.status === 'processing' &&
       job.progress > 0 // Only show jobs with actual progress
@@ -2628,7 +2628,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2636,8 +2636,8 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (jobProgress?.jobs) {
-      const commercialJob = jobProgress.jobs.find((job: any) => job.agentType === 'Commercial');
+    if (enterpriseProgress?.jobs) {
+      const commercialJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Commercial');
       if (commercialJob && commercialJob.status === 'processing') {
         setProgress(commercialJob.progress || 0);
         setCurrentStep(commercialJob.currentDocument || commercialJob.currentStep || 'Processing commercial analysis...');
@@ -2681,7 +2681,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress]);
+  }, [enterpriseProgress]);
 
   if (!isVisible) return null;
 
@@ -2715,7 +2715,7 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2723,8 +2723,8 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (jobProgress?.jobs) {
-      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Clinical');
+    if (enterpriseProgress?.jobs) {
+      const clinicalJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Clinical');
       if (clinicalJob && clinicalJob.status === 'processing') {
         setProgress(clinicalJob.progress || 0);
         setCurrentStep(clinicalJob.currentDocument || clinicalJob.currentStep || 'Processing clinical analysis...');
@@ -2750,7 +2750,7 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress]);
+  }, [enterpriseProgress]);
 
   if (!isVisible) return null;
 
@@ -2784,7 +2784,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2792,8 +2792,8 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (jobProgress?.jobs) {
-      const hrJob = jobProgress.jobs.find((job: any) => job.agentType === 'HR');
+    if (enterpriseProgress?.jobs) {
+      const hrJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'HR');
       if (hrJob && hrJob.status === 'processing') {
         setProgress(hrJob.progress || 0);
         setCurrentStep(hrJob.currentDocument || hrJob.currentStep || 'Processing HR analysis...');
@@ -2819,7 +2819,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress]);
+  }, [enterpriseProgress]);
 
   if (!isVisible) return null;
 
@@ -2853,7 +2853,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -2876,8 +2876,8 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     }
 
     // Then check for regular financial jobs
-    if (jobProgress?.jobs) {
-      const financialJob = jobProgress.jobs.find((job: any) => 
+    if (enterpriseProgress?.jobs) {
+      const financialJob = enterpriseProgress.jobs.find((job: any) => 
         job.agentType === 'Financial' || job.jobType === 'comprehensive_financial_analysis'
       );
       if (financialJob && financialJob.status === 'processing') {
@@ -2905,7 +2905,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress, financialProgress]);
+  }, [enterpriseProgress, financialProgress]);
 
   if (!isVisible) return null;
 
@@ -2941,7 +2941,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
     retry: false,
@@ -2987,8 +2987,8 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     }
 
     // Then check for regular IP jobs
-    if (jobProgress?.jobs) {
-      const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
+    if (enterpriseProgress?.jobs) {
+      const ipJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'IP');
       if (ipJob && ipJob.status === 'processing') {
         // Check if this is a new job or continuing existing one
         if (lastJobId && lastJobId !== ipJob.jobId) {
@@ -3038,10 +3038,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress, ipProgress, lastJobId, dealId]);
+  }, [enterpriseProgress, ipProgress, lastJobId, dealId]);
 
   // Extra safety check - if no IP jobs exist at all, never show progress
-  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
+  const hasActiveIpJob = enterpriseProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
   
   if (!isVisible || !hasActiveIpJob) return null;
 
@@ -3075,7 +3075,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -3083,8 +3083,8 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (jobProgress?.jobs) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+    if (enterpriseProgress?.jobs) {
+      const researchJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Research');
       if (researchJob && researchJob.status === 'processing') {
         setProgress(researchJob.progress || 0);
         setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
@@ -3110,7 +3110,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress]);
+  }, [enterpriseProgress]);
 
   if (!isVisible) return null;
 
@@ -3144,7 +3144,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
-  const { data: jobProgress } = useQuery({
+  const { data: enterpriseProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     refetchInterval: 1000,
   });
@@ -3152,8 +3152,8 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (jobProgress?.jobs) {
-      const legalJob = jobProgress.jobs.find((job: any) => job.agentType === 'Legal');
+    if (enterpriseProgress?.jobs) {
+      const legalJob = enterpriseProgress.jobs.find((job: any) => job.agentType === 'Legal');
       if (legalJob && legalJob.status === 'processing') {
         setProgress(legalJob.progress || 0);
         setCurrentStep(legalJob.currentDocument || legalJob.currentStep || 'Processing legal analysis...');
@@ -3179,7 +3179,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress]);
+  }, [enterpriseProgress]);
 
   if (!isVisible) return null;
 
