@@ -446,14 +446,10 @@ Format as JSON:
     console.log(`🔄 Resetting all analyses for deal ${dealId}`);
     
     try {
-      // Delete all existing agent analyses
-      const analyses = await storage.getAnalysesByDealId(dealId);
+      // Delete all existing agent analyses for this deal
+      const deletedCount = await storage.deleteAnalysesByDealId(dealId);
       
-      for (const analysis of analyses) {
-        await storage.deleteAgentAnalysis(analysis.id);
-      }
-      
-      console.log(`✅ Reset completed: deleted ${analyses.length} analyses`);
+      console.log(`✅ Reset completed: deleted ${deletedCount} analyses for deal ${dealId}`);
       
     } catch (error) {
       console.error(`❌ Error resetting analyses:`, error);
