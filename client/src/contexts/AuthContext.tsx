@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 import { User } from '@shared/schema';
 
 interface AuthContextType {
@@ -63,20 +63,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string, stayLoggedIn = false) => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const data = await apiRequest('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ email, password, stayLoggedIn }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { success: false, error: data.message || 'Login failed' };
-      }
 
       // Immediately set the user data from the response
       if (data.user) {
@@ -92,38 +82,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true, user: data.user };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      return { success: false, error: errorMessage };
     }
   };
 
   const register = async (userData: RegisterData) => {
     try {
-      const response = await fetch('/api/auth/register', {
+      await apiRequest('/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(userData),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { success: false, error: data.message || 'Registration failed' };
-      }
 
       return { success: true };
     } catch (error) {
       console.error('Registration error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
+      return { success: false, error: errorMessage };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await apiRequest('/api/auth/logout', {
         method: 'POST',
-        credentials: 'include',
       });
       
       setUser(null);
