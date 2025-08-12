@@ -33,9 +33,7 @@ npm ci --production=false
 
 # Build frontend with optimizations
 echo "🔨 Building frontend..."
-cd client
 npx vite build --mode production
-cd ..
 
 # Build backend with optimizations
 echo "🔨 Building backend..."

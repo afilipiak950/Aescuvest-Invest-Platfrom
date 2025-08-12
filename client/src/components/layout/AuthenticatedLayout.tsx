@@ -10,14 +10,12 @@ interface AuthenticatedLayoutProps {
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   return (
     <SidebarProvider>
-      <div className="app-container">
+      <div className="flex h-screen overflow-hidden bg-dark text-white">
         <Sidebar />
-        <div className="main-content-container">
+        <div className="flex flex-col flex-1 overflow-hidden">
           <Navbar />
-          <main className="main-content-area">
-            <div className="content-wrapper">
-              {children}
-            </div>
+          <main className="flex-1 overflow-y-auto bg-dark">
+            {children}
           </main>
         </div>
       </div>

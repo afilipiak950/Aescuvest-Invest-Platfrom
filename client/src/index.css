@@ -136,86 +136,9 @@
   * {
     border-color: hsl(var(--border));
   }
-  
-  html, body {
-    height: 100%;
-    overflow-x: hidden;
-  }
-  
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-  }
-  
-  #root {
-    min-height: 100vh;
-    width: 100%;
-  }
-  
-  /* Force proper layout on all viewports */
-  .login-container {
-    display: flex !important;
-    min-height: 100vh !important;
-    width: 100% !important;
-  }
-  
-  .login-left {
-    flex: 0 0 50% !important;
-    min-height: 100vh !important;
-  }
-  
-  .login-right {
-    flex: 0 0 50% !important;
-    min-height: 100vh !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  
-  @media (max-width: 1023px) {
-    .login-left {
-      display: none !important;
-    }
-    .login-right {
-      flex: 1 !important;
-    }
-  }
-  
-  /* Critical deployment layout fixes for production consistency */
-  .flex {
-    display: flex !important;
-  }
-  
-  .h-screen {
-    height: 100vh !important;
-  }
-  
-  .overflow-hidden {
-    overflow: hidden !important;
-  }
-  
-  .flex-1 {
-    flex: 1 1 0% !important;
-  }
-  
-  .flex-col {
-    flex-direction: column !important;
-  }
-  
-  .min-w-0 {
-    min-width: 0px !important;
-  }
-  
-  .overflow-y-auto {
-    overflow-y: auto !important;
-  }
-  
-  .w-full {
-    width: 100% !important;
-  }
-  
-  .min-h-full {
-    min-height: 100% !important;
   }
 }
 

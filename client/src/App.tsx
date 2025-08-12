@@ -9,7 +9,6 @@ import { SidebarProvider } from "./contexts/SidebarContext";
 import { useAuth } from "./hooks/useAuth";
 import { useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import "./styles/deployment-fixes.css";
 
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";

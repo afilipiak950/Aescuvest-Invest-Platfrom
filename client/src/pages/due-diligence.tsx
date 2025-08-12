@@ -648,8 +648,7 @@ function DueDiligenceContent() {
   }
 
   return (
-    <div className="w-full h-full bg-dark">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="container mx-auto px-4 py-6">
         <PageHeader 
           title="Due Diligence Analysis" 
           description="Analyze company documents and generate insights with AI agents."
@@ -1760,8 +1759,8 @@ function DueDiligenceContent() {
         </Card>
         )}
       </div>
-    </div>
-  );
+    );
+
 }
 
 export default function DueDiligence() {
