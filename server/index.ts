@@ -226,6 +226,15 @@ app.use((req, res, next) => {
     }
   });
 
+  // Health check endpoint for deployment
+  app.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -255,10 +264,11 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Use PORT environment variable in production, fallback to 5000 for development
+  // Cloud Run and other deployment platforms set PORT automatically
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+  
+  console.log(`🚀 Starting server on port: ${port}`);
   
   // Configure server timeouts for large file uploads
   server.timeout = 10 * 60 * 1000; // 10 minutes for large ZIP uploads
