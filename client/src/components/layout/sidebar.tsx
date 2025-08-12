@@ -23,9 +23,21 @@ export default function Sidebar() {
 
   return (
     <div className={cn(
-      "flex flex-col bg-navy border-r border-dark-border transition-all duration-300 ease-in-out",
+      "sidebar-nav flex flex-col bg-navy border-r border-dark-border transition-all duration-300 ease-in-out",
       isExpanded ? "w-64" : "w-16"
-    )}>
+    )} style={{
+      backgroundColor: 'rgb(15, 23, 42)',
+      color: 'white',
+      width: isExpanded ? '16rem' : '4rem',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      zIndex: '50',
+      borderRight: '1px solid rgb(75, 85, 99)'
+    }}>
       {/* Header with logo and toggle */}
       <div className="p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
