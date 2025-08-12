@@ -76,7 +76,7 @@ function AppContent() {
           <AuthenticatedLayout>
             <Switch>
               <Route path="/">
-                <DueDiligence />
+                <Dashboard />
               </Route>
               <Route path="/all-deals">
                 <AllDealsPage />
