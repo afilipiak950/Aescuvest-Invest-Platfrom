@@ -28,14 +28,14 @@ router.post('/api/deals/:dealId/comprehensive-analysis', async (req: Request, re
       .where(eq(backgroundJobs.dealId, dealId));
     
     // Clear in-memory active jobs
-    if (global.activeJobs) {
+    if ((global as any).activeJobs) {
       const keysToDelete = [];
-      for (const [key, job] of global.activeJobs.entries()) {
+      for (const [key, job] of (global as any).activeJobs.entries()) {
         if (job.dealId === dealId) {
           keysToDelete.push(key);
         }
       }
-      keysToDelete.forEach(key => global.activeJobs.delete(key));
+      keysToDelete.forEach((key: any) => (global as any).activeJobs.delete(key));
     }
     
     // Step 2: Get document counts for proper progress calculation
@@ -89,8 +89,8 @@ router.post('/api/deals/:dealId/comprehensive-analysis', async (req: Request, re
     
     for (const agentType of agentTypes) {
       try {
-        const assignedDocs = docsByAgent[agentType] || 0;
-        const questions = questionCounts[agentType] || 10;
+        const assignedDocs = (docsByAgent as any)[agentType] || 0;
+        const questions = (questionCounts as any)[agentType] || 10;
         const totalJobs = Math.max(assignedDocs * questions, 1); // At least 1 job
         
         // Get analysis service
@@ -171,7 +171,7 @@ router.post('/api/deals/:dealId/comprehensive-analysis', async (req: Request, re
           agentType,
           jobId: null,
           status: 'failed',
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -200,7 +200,7 @@ router.post('/api/deals/:dealId/comprehensive-analysis', async (req: Request, re
     res.status(500).json({
       success: false,
       error: 'Comprehensive analysis failed',
-      details: error.message
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

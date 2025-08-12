@@ -28,16 +28,16 @@ router.post('/api/deals/:dealId/legacy-reset', async (req: Request, res: Respons
     console.log(`🗑️ Deleted background jobs for deal ${dealId}`);
     
     // 3. Clear in-memory active jobs if they exist
-    if (global.activeJobs) {
+    if ((global as any).activeJobs) {
       const keysToDelete = [];
-      for (const [key, job] of global.activeJobs.entries()) {
+      for (const [key, job] of (global as any).activeJobs.entries()) {
         if (job.dealId === dealId) {
           keysToDelete.push(key);
         }
       }
       
-      keysToDelete.forEach(key => {
-        global.activeJobs.delete(key);
+      keysToDelete.forEach((key: any) => {
+        (global as any).activeJobs.delete(key);
       });
       
       console.log(`🗑️ Cleared ${keysToDelete.length} active in-memory jobs`);
@@ -46,12 +46,12 @@ router.post('/api/deals/:dealId/legacy-reset', async (req: Request, res: Respons
     // 4. Clear any cached data (if storage service has cache clearing methods)
     try {
       const { storage } = await import('../storage');
-      if (storage.clearAnalysisCache) {
-        await storage.clearAnalysisCache(dealId);
+      if ((storage as any).clearAnalysisCache) {
+        await (storage as any).clearAnalysisCache(dealId);
         console.log(`🗑️ Cleared analysis cache for deal ${dealId}`);
       }
     } catch (error) {
-      console.log(`⚠️ No cache clearing method available or failed:`, error.message);
+      console.log(`⚠️ No cache clearing method available or failed:`, error instanceof Error ? error.message : 'Unknown error');
     }
     
     console.log(`✅ LEGACY RESET COMPLETED for deal ${dealId}`);
@@ -77,7 +77,7 @@ router.post('/api/deals/:dealId/legacy-reset', async (req: Request, res: Respons
     res.status(500).json({
       success: false,
       error: 'Legacy reset failed',
-      details: error.message
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
