@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
+import { PersistentClinicalButton } from './PersistentClinicalButton';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -1953,7 +1954,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <ComprehensiveClinicalAnalysisButton dealId={dealId} onAnalysisStart={onClinicalAnalysisStart} />
+        <PersistentClinicalButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
