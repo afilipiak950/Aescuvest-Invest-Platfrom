@@ -39,16 +39,16 @@ function DueDiligenceContent() {
     const queryClient = useQueryClient();
     const { toast } = useToast();
 
-    // Safe helper function to find jobs
+    // Enhanced job finder - matches by agent type (case insensitive)
     const findJobSafely = (jobs: any[], patterns: string[]) => {
       if (!jobs || !Array.isArray(jobs)) return null;
       return jobs.find((job: any) => {
-        if (!job) return false;
-        if (patterns.some(pattern => job.agentType === pattern)) return true;
-        if (job.jobId && typeof job.jobId === 'string') {
-          return patterns.some(pattern => job.jobId.includes(pattern));
-        }
-        return false;
+        if (!job || !job.agentType) return false;
+        const jobAgent = job.agentType.toLowerCase();
+        return patterns.some(pattern => {
+          const searchPattern = pattern.toLowerCase();
+          return jobAgent === searchPattern || jobAgent.includes(searchPattern);
+        });
       });
     };
 
@@ -112,6 +112,10 @@ function DueDiligenceContent() {
       const response = await fetch(`/api/background-jobs/${selectedDeal}`);
       const data = await response.json();
       console.log(`📊 Job progress data:`, data);
+      if (data?.jobs?.length > 0) {
+        console.log(`🔍 Available job agent types:`, data.jobs.map(j => j.agentType));
+        console.log(`🔍 First job details:`, data.jobs[0]);
+      }
       return data;
     }
     });
@@ -1254,9 +1258,24 @@ function DueDiligenceContent() {
                 {/* Horizontal 7-Agent Cards */}
                 <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
+                    // Find job with enhanced matching - use exact agent type from job data
                     const job = findJobSafely(jobProgress?.jobs, [agentType, agentType.toLowerCase()]);
-                    const progress = job?.progress || 0;
                     const isRunning = job?.status === 'processing';
+                    const actualProgress = job?.progress || 0;
+                    
+                    // Debug logging
+                    if (index === 0 || job) { // Only log for Legal (first) or if there's a job
+                      console.log(`🔍 ${agentType} Agent Progress Check:`, {
+                        hasJob: !!job,
+                        jobId: job?.jobId,
+                        jobAgentType: job?.agentType,
+                        jobProgress: job?.progress,
+                        status: job?.status,
+                        actualProgress: actualProgress,
+                        isRunning: isRunning,
+                        allJobs: jobProgress?.jobs?.map(j => `${j.agentType}:${j.progress}%`)
+                      });
+                    }
                     
                     // Calculate realistic job statistics
                     const assignedDocs = documents?.filter(doc => 
@@ -1273,8 +1292,7 @@ function DueDiligenceContent() {
                     const totalQuestions = questionCounts[agentType] || 5;
                     const totalJobs = Math.max(assignedDocs * totalQuestions, assignedDocs || 1);
                     
-                    // Get actual job progress from running jobs
-                    const actualProgress = job?.progress || 0;
+                    // Calculate job progress stats based on actual progress
                     const doneJobs = Math.floor((actualProgress / 100) * totalJobs);
                     const queuedJobs = isRunning ? Math.max(totalJobs - doneJobs - 1, 0) : 0;
                     const runningJobs = isRunning ? 1 : 0;
