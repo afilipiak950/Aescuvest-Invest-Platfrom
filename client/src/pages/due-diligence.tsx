@@ -1344,35 +1344,41 @@ function DueDiligenceContent() {
                           <span className={`text-lg font-bold ${statusColors[index]}`}>{directProgress}%</span>
                         </div>
                         
-                        {/* Progress Bar - Direct CSS Test */}
-                        <div 
-                          className="w-full rounded-full h-2 mb-3"
-                          style={{ backgroundColor: '#1a1a2e' }}
-                        >
-                          <div 
-                            className="h-2 rounded-full"
-                            style={{ 
-                              width: `${directProgress}%`,
-                              backgroundColor: progressBarColors[index] === 'bg-blue-500' ? '#3b82f6' :
-                                               progressBarColors[index] === 'bg-green-500' ? '#10b981' :
-                                               progressBarColors[index] === 'bg-purple-500' ? '#8b5cf6' :
-                                               progressBarColors[index] === 'bg-orange-500' ? '#f97316' :
-                                               progressBarColors[index] === 'bg-red-500' ? '#ef4444' :
-                                               progressBarColors[index] === 'bg-cyan-500' ? '#06b6d4' :
-                                               progressBarColors[index] === 'bg-yellow-500' ? '#eab308' : '#3b82f6',
-                              minWidth: directProgress > 0 ? '2px' : '0px'
-                            }}
-                            ref={(el) => {
-                              if (el && (agentType === 'Legal' || agentType === 'Clinical')) {
-                                console.log(`🎯 BAR ${agentType} DIRECT CSS:`, {
-                                  width: el.style.width,
-                                  backgroundColor: el.style.backgroundColor,
-                                  directProgress,
-                                  offsetWidth: el.offsetWidth
-                                });
-                              }
-                            }}
-                          ></div>
+                        {/* Progress Bar - Pure Inline Test */}
+                        <div style={{
+                          width: '100%',
+                          backgroundColor: '#1a1a2e',
+                          borderRadius: '9999px',
+                          height: '8px',
+                          marginBottom: '12px'
+                        }}>
+                          <div style={{
+                            width: `${directProgress}%`,
+                            height: '8px',
+                            borderRadius: '9999px',
+                            backgroundColor: index === 0 ? '#3b82f6' : // Legal - blue
+                                           index === 1 ? '#10b981' : // Clinical - green 
+                                           index === 2 ? '#8b5cf6' : // Commercial - purple
+                                           index === 3 ? '#f97316' : // HR - orange
+                                           index === 4 ? '#ef4444' : // Financial - red
+                                           index === 5 ? '#06b6d4' : // IP - cyan
+                                           index === 6 ? '#eab308' : '#3b82f6', // Research - yellow
+                            transition: 'none'
+                          }} 
+                          ref={(el) => {
+                            if (el) {
+                              console.log(`🔥 ${agentType} BAR PURE INLINE:`, {
+                                agentType,
+                                index,
+                                directProgress,
+                                appliedWidth: el.style.width,
+                                actualWidth: el.offsetWidth,
+                                parentWidth: el.parentElement?.offsetWidth,
+                                backgroundColor: el.style.backgroundColor
+                              });
+                            }
+                          }}
+                          />
                         </div>
                         
                         {/* Job Statistics */}
