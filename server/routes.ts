@@ -37,6 +37,8 @@ import { websocketManager as wsManager } from './services/websocketManager';
 import { legalAnalysisService } from './legalAnalysisService';
 import { persistentJobManager } from './services/persistentJobManager';
 import persistentAnalysisRoutes from './routes/persistentAnalysis';
+import legacyResetRoutes from './routes/legacyReset';
+import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
@@ -6974,6 +6976,12 @@ export async function registerAllRoutes(app: Express) {
   
   // Register persistent analysis routes
   app.use('/', persistentAnalysisRoutes);
+  
+  // Register legacy reset routes
+  app.use('/', legacyResetRoutes);
+  
+  // Register comprehensive analysis routes
+  app.use('/', comprehensiveAnalysisRoutes);
   
   // Investment Memo Generator Routes
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {

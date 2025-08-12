@@ -1221,99 +1221,217 @@ function DueDiligenceContent() {
               </div>
             </CardHeader>
             
-            {/* Show Running Analysis Progress */}
-            {(jobProgress?.jobs && jobProgress.jobs.length > 0) && (
-              <div className="mx-6 mb-4 p-4 bg-dark-light border border-primary/30 rounded-lg">
-                <h4 className="text-sm font-medium text-primary mb-3">Currently Running Analyses</h4>
-                <div className="space-y-3">
-                  {jobProgress.jobs.map((job) => (
-                    <div key={job.jobId} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                            <span className="text-sm font-medium text-white">
-                              {job.agentType || 'Analysis'} - {job.progress || 0}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-400 truncate">
-                          {job.currentStep || 'Processing...'}
-                        </div>
-                        <div className="w-full bg-dark-lighter rounded-full h-1.5 mt-2">
-                          <div 
-                            className="bg-primary h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${job.progress || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
             <CardContent>
-              {/* Overall Progress for All 7 Agents */}
-              {(jobProgress?.jobs && jobProgress.jobs.length > 0) && (
-                <div className="mb-6 p-4 bg-dark border border-dark-lighter rounded-lg">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-sm font-semibold text-white">Overall Analysis Progress</h4>
-                    <span className="text-xs text-gray-400">
-                      {jobProgress.jobs.length} agent{jobProgress.jobs.length > 1 ? 's' : ''} running
+              {/* All Agents Progress Overview - Horizontal 7-Card Layout */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
+                  <div className="flex items-center space-x-2">
+                    {/* Overall progress indicator */}
+                    <span className="text-sm text-gray-400">Overall Progress</span>
+                    <span className="text-sm font-medium text-primary">
+                      {jobProgress?.jobs && jobProgress.jobs.length > 0 
+                        ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
+                        : 0}%
                     </span>
                   </div>
-                  
-                  {/* Overall progress bar */}
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs text-gray-400">Combined Progress</span>
-                      <span className="text-xs text-primary font-medium">
-                        {jobProgress.jobs.length > 0 ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) : 0}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-dark-lighter rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${jobProgress.jobs.length > 0 ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) : 0}%` 
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Individual agent progress bars */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {['Clinical', 'Legal', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType) => {
-                      const job = findJobSafely(jobProgress?.jobs, [agentType, agentType.toLowerCase()]);
-                      const progress = job?.progress || 0;
-                      const isRunning = job?.status === 'processing';
-                      
-                      return (
-                        <div key={agentType} className="bg-dark-light border border-dark-lighter rounded-lg p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              {isRunning && <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>}
-                              <span className="text-xs font-medium text-white">{agentType}</span>
-                            </div>
-                            <span className="text-xs text-gray-400">{progress}%</span>
-                          </div>
-                          <div className="w-full bg-dark rounded-full h-1.5">
-                            <div 
-                              className="bg-primary h-1.5 rounded-full transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            ></div>
-                          </div>
-                          {job?.currentStep && (
-                            <p className="text-xs text-gray-500 mt-1 truncate">
-                              {job.currentStep}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
-              )}
+                
+                {/* Overall Progress Bar */}
+                <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
+                  <div 
+                    className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full transition-all duration-500"
+                    style={{ 
+                      width: `${jobProgress?.jobs && jobProgress.jobs.length > 0 
+                        ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
+                        : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                
+                {/* Horizontal 7-Agent Cards */}
+                <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
+                  {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType) => {
+                    const job = findJobSafely(jobProgress?.jobs, [agentType, agentType.toLowerCase()]);
+                    const progress = job?.progress || 0;
+                    const isRunning = job?.status === 'processing';
+                    
+                    // Calculate job statistics
+                    const assignedDocs = documents?.filter(doc => 
+                      doc.assignedAgents?.includes(agentType) || 
+                      doc.category?.toLowerCase() === agentType.toLowerCase() ||
+                      doc.documentType?.toLowerCase() === agentType.toLowerCase()
+                    ).length || 0;
+                    
+                    // Estimate questions per agent
+                    const questionCounts = {
+                      'Legal': 20, 'Clinical': 15, 'Commercial': 12, 
+                      'HR': 10, 'Financial': 18, 'IP': 8, 'Research': 6
+                    };
+                    const totalQuestions = questionCounts[agentType] || 10;
+                    const totalJobs = Math.max(assignedDocs * totalQuestions, 1);
+                    
+                    const doneJobs = Math.floor((progress / 100) * totalJobs);
+                    const queuedJobs = isRunning ? totalJobs - doneJobs : 0;
+                    const runningJobs = isRunning ? 1 : 0;
+                    const failedJobs = 0; // Would need to track failures separately
+                    
+                    return (
+                      <div 
+                        key={agentType} 
+                        className="bg-dark-light border border-dark-lighter rounded-lg p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                        onClick={() => setActiveAgent(agentType.toLowerCase())}
+                      >
+                        {/* Agent Title and Progress */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            {isRunning && <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>}
+                            <span className="text-sm font-semibold text-white">{agentType}</span>
+                          </div>
+                          <span className="text-lg font-bold text-primary">{progress}%</span>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="w-full bg-dark rounded-full h-2 mb-3">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                        </div>
+                        
+                        {/* Job Statistics */}
+                        <div className="space-y-2 text-xs">
+                          {/* Jobs Done/Total */}
+                          <div className="flex justify-between text-gray-300">
+                            <span>Jobs:</span>
+                            <span>{doneJobs} / {totalJobs}</span>
+                          </div>
+                          
+                          {/* Queue Status */}
+                          <div className="flex justify-between text-gray-400">
+                            <span>Queue:</span>
+                            <span>
+                              {queuedJobs} | {runningJobs} | {failedJobs} | 0
+                            </span>
+                          </div>
+                          
+                          {/* Documents and Questions */}
+                          <div className="flex justify-between text-gray-400">
+                            <span>Docs: {assignedDocs} • Q: {totalQuestions}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Current Activity */}
+                        {isRunning && job?.currentStep && (
+                          <div className="mt-3 pt-2 border-t border-dark-lighter">
+                            <div className="text-xs text-primary font-medium mb-1">Currently Working:</div>
+                            <div className="text-xs text-gray-400 truncate">
+                              {job.currentDocumentName || 'Processing'} → {job.currentStep}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Completed Status */}
+                        {!isRunning && progress === 100 && (
+                          <div className="mt-3 pt-2 border-t border-dark-lighter">
+                            <div className="text-xs text-green-400 font-medium">✓ Analysis Complete</div>
+                            <div className="text-xs text-gray-400">Ready to view results</div>
+                          </div>
+                        )}
+                        
+                        {/* Not Started Status */}
+                        {!isRunning && progress === 0 && (
+                          <div className="mt-3 pt-2 border-t border-dark-lighter">
+                            <div className="text-xs text-gray-500">Not Started</div>
+                            <div className="text-xs text-gray-500">{assignedDocs} docs assigned</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex justify-center space-x-4 mt-6">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        setIsRunningAllAnalyses(true);
+                        const response = await apiRequest(`/api/deals/${selectedDeal}/comprehensive-analysis`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (response.success) {
+                          toast({
+                            title: "Comprehensive Analysis Started",
+                            description: `Started analysis for ${response.summary.startedSuccessfully}/7 agents`,
+                          });
+                          // Refresh progress data
+                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+                        }
+                      } catch (error) {
+                        console.error('Error starting comprehensive analysis:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to start comprehensive analysis",
+                          variant: "destructive"
+                        });
+                      } finally {
+                        setIsRunningAllAnalyses(false);
+                      }
+                    }}
+                    disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress.jobs.length > 0)}
+                    className="bg-primary hover:bg-primary/80 text-white px-6 py-2"
+                  >
+                    {isRunningAllAnalyses ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Starting Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 mr-2" />
+                        Comprehensive Analysis
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const response = await apiRequest(`/api/deals/${selectedDeal}/legacy-reset`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (response.success) {
+                          toast({
+                            title: "Legacy Reset Complete",
+                            description: "All analysis data cleared. Ready for fresh start.",
+                          });
+                          // Refresh all data
+                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
+                          queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+                        }
+                      } catch (error) {
+                        console.error('Error performing legacy reset:', error);
+                        toast({
+                          title: "Error", 
+                          description: "Failed to reset analysis data",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    variant="outline"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-800 px-6 py-2"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Legacy Reset
+                  </Button>
+                </div>
+              </div>
 
               
               <Tabs value={activeAgent} onValueChange={setActiveAgent} className="w-full">
