@@ -1,34 +1,39 @@
 /**
  * Comprehensive IP Analysis Service
- * Analyzes IP documents for patents, trademarks, and technology licensing
+ * Analyzes ALL assigned IP documents systematically for each question
+ * Extracts specific evidence from documents and compiles complete answers
  */
 
-import { storage } from './storage';
 import { db } from './db';
-import { documents } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { documents, agentAnalyses } from '../shared/schema';
+import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { storage } from './storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const IP_QUESTIONS = [
+// Enhanced IP questions for comprehensive analysis
+export const COMPREHENSIVE_IP_QUESTIONS = [
   // Patent Portfolio
   { 
     id: 'patents_1', 
     question: 'What patents are owned or pending?', 
     category: 'Patent Portfolio',
+    analysisPrompt: 'Identify owned patents, pending patent applications, and intellectual property portfolio details.',
     keywords: ['patent', 'patent application', 'intellectual property', 'patent pending', 'patent portfolio']
   },
   { 
     id: 'patents_2', 
     question: 'Are core technologies protected?', 
     category: 'Patent Portfolio',
+    analysisPrompt: 'Find technology protection strategies, core technology patents, and proprietary technology coverage.',
     keywords: ['technology protection', 'core technology', 'proprietary technology', 'patent protection']
   },
   { 
     id: 'patents_3', 
     question: 'What is the patent landscape analysis?', 
     category: 'Patent Portfolio',
+    analysisPrompt: 'Look for patent landscape analyses, prior art searches, and freedom to operate assessments.',
     keywords: ['patent landscape', 'prior art', 'patent search', 'freedom to operate']
   },
   // Trademarks & Branding
@@ -36,12 +41,14 @@ const IP_QUESTIONS = [
     id: 'trademarks_1', 
     question: 'Are trademarks registered and protected?', 
     category: 'Trademarks & Branding',
+    analysisPrompt: 'Identify trademark registrations, service marks, and brand protection measures.',
     keywords: ['trademark', 'service mark', 'brand protection', 'trademark registration']
   },
   { 
     id: 'trademarks_2', 
     question: 'Is brand identity legally secure?', 
     category: 'Trademarks & Branding',
+    analysisPrompt: 'Find brand identity protection, logo protection, and brand security measures.',
     keywords: ['brand identity', 'brand protection', 'logo protection', 'brand security']
   },
   // Technology Licensing
@@ -49,12 +56,14 @@ const IP_QUESTIONS = [
     id: 'licensing_1', 
     question: 'What licensing agreements are in place?', 
     category: 'Technology Licensing',
+    analysisPrompt: 'Identify licensing agreements, technology licenses, and IP licensing deals.',
     keywords: ['licensing agreement', 'technology license', 'ip license', 'licensing deal']
   },
   { 
     id: 'licensing_2', 
     question: 'Are there any IP infringement risks?', 
     category: 'Technology Licensing',
+    analysisPrompt: 'Look for IP infringement risks, patent infringement issues, and IP risk assessments.',
     keywords: ['ip infringement', 'patent infringement', 'trademark infringement', 'ip risk']
   }
 ];
