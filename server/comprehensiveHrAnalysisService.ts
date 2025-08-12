@@ -1,34 +1,39 @@
 /**
  * Comprehensive HR Analysis Service
- * Analyzes HR documents for employment contracts, compensation, and organizational structure
+ * Analyzes ALL assigned HR documents systematically for each question
+ * Extracts specific evidence from documents and compiles complete answers
  */
 
-import { storage } from './storage';
 import { db } from './db';
-import { documents } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { documents, agentAnalyses } from '../shared/schema';
+import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { storage } from './storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const HR_QUESTIONS = [
+// Enhanced HR questions for comprehensive analysis
+export const COMPREHENSIVE_HR_QUESTIONS = [
   // Employment Contracts
   { 
     id: 'employment_1', 
     question: 'Are employment contracts standardized?', 
     category: 'Employment Contracts',
+    analysisPrompt: 'Identify employment contract structures, standardization patterns, and contract terms consistency.',
     keywords: ['employment contract', 'employment agreement', 'job contract', 'work agreement', 'employment terms']
   },
   { 
     id: 'employment_2', 
     question: 'Are compensation structures clearly defined?', 
     category: 'Employment Contracts',
+    analysisPrompt: 'Find compensation details, salary structures, benefits packages, and equity arrangements.',
     keywords: ['salary', 'compensation', 'benefits', 'bonus', 'equity', 'stock options', 'vesting']
   },
   { 
     id: 'employment_3', 
     question: 'Are non-compete and confidentiality clauses present?', 
     category: 'Employment Contracts',
+    analysisPrompt: 'Look for non-compete agreements, confidentiality clauses, and restrictive covenants.',
     keywords: ['non-compete', 'non-disclosure', 'confidentiality', 'nda', 'restrictive covenant']
   },
   // Organizational Structure
@@ -36,12 +41,14 @@ const HR_QUESTIONS = [
     id: 'org_1', 
     question: 'Is organizational hierarchy clearly defined?', 
     category: 'Organizational Structure',
+    analysisPrompt: 'Identify organizational charts, reporting structures, and management hierarchies.',
     keywords: ['organizational chart', 'hierarchy', 'reporting structure', 'management structure', 'org chart']
   },
   { 
     id: 'org_2', 
     question: 'Are key roles and responsibilities documented?', 
     category: 'Organizational Structure',
+    analysisPrompt: 'Find job descriptions, role definitions, and key personnel responsibilities.',
     keywords: ['job description', 'role definition', 'responsibilities', 'key personnel', 'management team']
   },
   // HR Policies
@@ -49,12 +56,14 @@ const HR_QUESTIONS = [
     id: 'policy_1', 
     question: 'Are HR policies comprehensive and up-to-date?', 
     category: 'HR Policies',
+    analysisPrompt: 'Review HR policy documentation, employee handbooks, and policy comprehensiveness.',
     keywords: ['hr policy', 'employee handbook', 'workplace policy', 'hr procedures', 'policy manual']
   },
   { 
     id: 'policy_2', 
     question: 'Are diversity and inclusion policies in place?', 
     category: 'HR Policies',
+    analysisPrompt: 'Look for diversity and inclusion policies, equal opportunity statements, and workplace culture documentation.',
     keywords: ['diversity', 'inclusion', 'equal opportunity', 'discrimination', 'workplace culture']
   }
 ];
