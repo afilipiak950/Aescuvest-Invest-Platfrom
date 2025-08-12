@@ -213,8 +213,8 @@ export default function Pipeline() {
   }
 
   return (
-    <div className="min-h-screen bg-dark text-white">
-      <div className="container mx-auto px-4 py-6">
+    <div className="w-full h-full bg-dark">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         <PageHeader
           title="Investment Pipeline"
           description="Manage deals through the investment process with drag & drop"

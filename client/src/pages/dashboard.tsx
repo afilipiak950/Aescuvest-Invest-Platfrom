@@ -337,15 +337,16 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <PageHeader 
-        title="Dashboard" 
-        description={`Welcome back, ${userName}. You have ${pendingTasks} pending tasks.`}
-        actions={[
-          { label: 'New Deal', icon: 'Plus', href: '/deal-intake', variant: 'outline' },
-          { label: 'Generate Memo', icon: 'FileText', href: '/memo-generator', variant: 'default' }
-        ]}
-      />
+    <div className="w-full h-full bg-dark">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <PageHeader 
+          title="Dashboard" 
+          description={`Welcome back, ${userName}. You have ${pendingTasks} pending tasks.`}
+          actions={[
+            { label: 'New Deal', icon: 'Plus', href: '/deal-intake', variant: 'outline' },
+            { label: 'Generate Memo', icon: 'FileText', href: '/memo-generator', variant: 'default' }
+          ]}
+        />
 
       {/* Dashboard Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -442,6 +443,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 }
