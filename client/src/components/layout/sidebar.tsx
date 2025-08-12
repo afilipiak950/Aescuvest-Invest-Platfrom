@@ -23,7 +23,7 @@ export default function Sidebar() {
 
   return (
     <div className={cn(
-      "flex flex-col bg-navy border-r border-dark-border transition-all duration-300 ease-in-out",
+      "hidden lg:flex flex-col bg-navy border-r border-dark-border transition-all duration-300 ease-in-out",
       isExpanded ? "w-64" : "w-16"
     )}>
       {/* Header with logo and toggle */}

@@ -527,6 +527,8 @@ export class EnhancedCompanyResearchService {
       };
     });
   }
+    });
+  }
 
   private async analyzeFinancials(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {

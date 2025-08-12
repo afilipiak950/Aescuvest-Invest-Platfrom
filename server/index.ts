@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import multer from "multer";
-import fs, { existsSync } from "fs";
+import fs from "fs";
 import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -237,21 +237,9 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  const nodeEnv = process.env.NODE_ENV;
-  const appEnv = app.get("env");
-  const isBuiltVersion = existsSync(path.resolve(import.meta.dirname, "public", "index.html"));
-  const isProduction = nodeEnv === "production" || appEnv === "production" || isBuiltVersion;
-  
-  console.log(`🚀 NODE_ENV: ${nodeEnv}`);
-  console.log(`🚀 app.get("env"): ${appEnv}`);
-  console.log(`🚀 Built files exist: ${isBuiltVersion}`);
-  console.log(`🚀 Environment mode: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
-  
-  if (!isProduction) {
-    console.log('🚀 Setting up Vite development server...');
+  if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    console.log('🚀 Setting up static file serving for production...');
     serveStatic(app);
   }
 
