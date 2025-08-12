@@ -62,7 +62,7 @@ export class ProfessionalPdfExportService {
     // Enhanced text rendering with professional formatting
     const addFormattedText = (text: string, style: any = {}) => {
       const {
-        fonts.body = fonts.body,
+        fontSize = fonts.body,
         fontWeight = 'normal',
         color = colors.text,
         alignment = 'left',
