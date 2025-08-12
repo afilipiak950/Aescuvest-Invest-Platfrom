@@ -45,11 +45,13 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Production**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
 - **Configuration**: Environment variables, modular service architecture.
 - **Build System**: 
-  - **Build Script**: `./build` - Executable shell script for Replit deployment
-  - **Frontend Build**: Vite from `client/` directory to `dist/public/`
-  - **Backend Build**: esbuild bundling `server/index.ts` to `dist/index.js`
+  - **Build Script**: `./build` - Executable shell script for Replit deployment (Fixed 2025-08-12)
+  - **Build Entry Point**: `build.js` - Node.js script that calls `./build` executable
+  - **Frontend Build**: Vite from `client/` directory to `dist/public/` with client-specific package.json
+  - **Backend Build**: esbuild bundling `server/index.ts` to `dist/index.js` (674KB optimized)
   - **Dependencies**: tsx, esbuild, @vitejs/plugin-react, autoprefixer, @tailwindcss/postcss
   - **Configuration**: Client-specific tsconfig.json and vite.config.ts with proper path aliases
+  - **Deployment Ready**: All build scripts now executable with error handling and validation
 - **Size Optimization**: 
   - Enhanced .dockerignore excluding large files, caches, docs, tests, and media
   - attached_assets/ removal (112MB saved) with runtime directory recreation
