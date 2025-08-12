@@ -6,19 +6,34 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { Loader2, Play, Square } from 'lucide-react';
 
 interface PersistentClinicalButtonProps {
   dealId: number;
-  isAnalysisRunning?: boolean;
 }
 
-export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: PersistentClinicalButtonProps) {
+export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const { toast } = useToast();
+
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
+
+  // Check if clinical analysis is already running
+  const isAnalysisRunning = (() => {
+    if (jobProgress?.jobs) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'clinical');
+      return !!clinicalJob && clinicalJob.status === 'processing';
+    }
+    return false;
+  })();
 
   const handleStartPersistentAnalysis = async () => {
     setIsStarting(true);
@@ -27,7 +42,7 @@ export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: 
       
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/persistent/start`, {
         method: 'POST',
-        body: {}
+        body: JSON.stringify({})
       });
       
       if (response.ok) {
@@ -73,7 +88,7 @@ export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: 
       
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/persistent/stop`, {
         method: 'POST',
-        body: {}
+        body: JSON.stringify({})
       });
       
       if (response.ok) {
@@ -118,7 +133,6 @@ export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: 
         disabled={isStopping}
         variant="destructive"
         size="sm"
-        className="w-full"
       >
         {isStopping ? (
           <>
@@ -128,7 +142,7 @@ export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: 
         ) : (
           <>
             <Square className="mr-2 h-4 w-4" />
-            Stop Persistent Analysis
+            Stop Clinical Analysis
           </>
         )}
       </Button>
@@ -139,9 +153,8 @@ export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: 
     <Button
       onClick={handleStartPersistentAnalysis}
       disabled={isStarting}
-      variant="default"
       size="sm"
-      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
     >
       {isStarting ? (
         <>
@@ -151,7 +164,7 @@ export function PersistentClinicalButton({ dealId, isAnalysisRunning = false }: 
       ) : (
         <>
           <Play className="mr-2 h-4 w-4" />
-          Start Persistent Analysis
+          Run Clinical Analysis
         </>
       )}
     </Button>
