@@ -1252,51 +1252,84 @@ function DueDiligenceContent() {
                 
                 {/* Horizontal 7-Agent Cards */}
                 <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
-                  {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType) => {
+                  {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
                     const job = findJobSafely(jobProgress?.jobs, [agentType, agentType.toLowerCase()]);
                     const progress = job?.progress || 0;
                     const isRunning = job?.status === 'processing';
                     
-                    // Calculate job statistics
+                    // Calculate realistic job statistics
                     const assignedDocs = documents?.filter(doc => 
                       doc.assignedAgents?.includes(agentType) || 
                       doc.category?.toLowerCase() === agentType.toLowerCase() ||
                       doc.documentType?.toLowerCase() === agentType.toLowerCase()
                     ).length || 0;
                     
-                    // Estimate questions per agent
+                    // Realistic questions per agent (much smaller numbers)
                     const questionCounts = {
-                      'Legal': 20, 'Clinical': 15, 'Commercial': 12, 
-                      'HR': 10, 'Financial': 18, 'IP': 8, 'Research': 6
+                      'Legal': 8, 'Clinical': 6, 'Commercial': 5, 
+                      'HR': 4, 'Financial': 7, 'IP': 3, 'Research': 4
                     };
-                    const totalQuestions = questionCounts[agentType] || 10;
-                    const totalJobs = Math.max(assignedDocs * totalQuestions, 1);
+                    const totalQuestions = questionCounts[agentType] || 5;
+                    const totalJobs = Math.max(assignedDocs * totalQuestions, assignedDocs || 1);
                     
-                    const doneJobs = Math.floor((progress / 100) * totalJobs);
-                    const queuedJobs = isRunning ? totalJobs - doneJobs : 0;
+                    // Get actual job progress from running jobs
+                    const actualProgress = job?.progress || 0;
+                    const doneJobs = Math.floor((actualProgress / 100) * totalJobs);
+                    const queuedJobs = isRunning ? Math.max(totalJobs - doneJobs - 1, 0) : 0;
                     const runningJobs = isRunning ? 1 : 0;
-                    const failedJobs = 0; // Would need to track failures separately
+                    const failedJobs = 0;
+                    
+                    // Define unique colors for each agent
+                    const agentColors = [
+                      'border-blue-500 bg-blue-500/10', // Legal
+                      'border-green-500 bg-green-500/10', // Clinical  
+                      'border-purple-500 bg-purple-500/10', // Commercial
+                      'border-orange-500 bg-orange-500/10', // HR
+                      'border-red-500 bg-red-500/10', // Financial
+                      'border-cyan-500 bg-cyan-500/10', // IP
+                      'border-yellow-500 bg-yellow-500/10', // Research
+                    ];
+                    
+                    const progressBarColors = [
+                      'bg-blue-500', // Legal
+                      'bg-green-500', // Clinical
+                      'bg-purple-500', // Commercial
+                      'bg-orange-500', // HR
+                      'bg-red-500', // Financial
+                      'bg-cyan-500', // IP
+                      'bg-yellow-500', // Research
+                    ];
+                    
+                    const statusColors = [
+                      'text-blue-400', // Legal
+                      'text-green-400', // Clinical
+                      'text-purple-400', // Commercial
+                      'text-orange-400', // HR
+                      'text-red-400', // Financial
+                      'text-cyan-400', // IP
+                      'text-yellow-400', // Research
+                    ];
                     
                     return (
                       <div 
                         key={agentType} 
-                        className="bg-dark-light border border-dark-lighter rounded-lg p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                        className={`${agentColors[index]} border rounded-lg p-4 cursor-pointer hover:border-opacity-70 transition-colors`}
                         onClick={() => setActiveAgent(agentType.toLowerCase())}
                       >
                         {/* Agent Title and Progress */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-2">
-                            {isRunning && <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>}
+                            {isRunning && <div className={`w-2 h-2 ${progressBarColors[index]} rounded-full animate-pulse`}></div>}
                             <span className="text-sm font-semibold text-white">{agentType}</span>
                           </div>
-                          <span className="text-lg font-bold text-primary">{progress}%</span>
+                          <span className={`text-lg font-bold ${statusColors[index]}`}>{actualProgress}%</span>
                         </div>
                         
                         {/* Progress Bar */}
                         <div className="w-full bg-dark rounded-full h-2 mb-3">
                           <div 
-                            className="bg-primary h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${progress}%` }}
+                            className={`${progressBarColors[index]} h-2 rounded-full transition-all duration-500`}
+                            style={{ width: `${actualProgress}%` }}
                           ></div>
                         </div>
                         
@@ -1324,8 +1357,8 @@ function DueDiligenceContent() {
                         
                         {/* Current Activity */}
                         {isRunning && job?.currentStep && (
-                          <div className="mt-3 pt-2 border-t border-dark-lighter">
-                            <div className="text-xs text-primary font-medium mb-1">Currently Working:</div>
+                          <div className="mt-3 pt-2 border-t border-opacity-20">
+                            <div className={`text-xs ${statusColors[index]} font-medium mb-1`}>Currently Working:</div>
                             <div className="text-xs text-gray-400 truncate">
                               {job.currentDocumentName || 'Processing'} → {job.currentStep}
                             </div>
@@ -1333,16 +1366,16 @@ function DueDiligenceContent() {
                         )}
                         
                         {/* Completed Status */}
-                        {!isRunning && progress === 100 && (
-                          <div className="mt-3 pt-2 border-t border-dark-lighter">
+                        {!isRunning && actualProgress === 100 && (
+                          <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className="text-xs text-green-400 font-medium">✓ Analysis Complete</div>
                             <div className="text-xs text-gray-400">Ready to view results</div>
                           </div>
                         )}
                         
                         {/* Not Started Status */}
-                        {!isRunning && progress === 0 && (
-                          <div className="mt-3 pt-2 border-t border-dark-lighter">
+                        {!isRunning && actualProgress === 0 && (
+                          <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className="text-xs text-gray-500">Not Started</div>
                             <div className="text-xs text-gray-500">{assignedDocs} docs assigned</div>
                           </div>
