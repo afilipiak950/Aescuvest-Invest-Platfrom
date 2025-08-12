@@ -12,10 +12,12 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     <SidebarProvider>
       <div className="flex h-screen overflow-hidden bg-dark text-white">
         <Sidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0">
           <Navbar />
           <main className="flex-1 overflow-y-auto bg-dark">
-            {children}
+            <div className="w-full h-full">
+              {children}
+            </div>
           </main>
         </div>
       </div>
