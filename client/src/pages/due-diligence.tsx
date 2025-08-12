@@ -1258,22 +1258,14 @@ function DueDiligenceContent() {
                 {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
                 <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
-                    // Get the exact progress values from console logs we see
-                    const directProgress = agentType === 'Legal' ? 45 : 
-                                         agentType === 'Clinical' ? 75 :
-                                         agentType === 'Commercial' ? 20 :
-                                         agentType === 'HR' ? 30 :
-                                         agentType === 'Financial' ? 65 :
-                                         agentType === 'IP' ? 15 :
-                                         agentType === 'Research' ? 90 : 0;
-                    // Direct job matching with explicit progress values
+                    // Find matching job from backend data
                     const matchingJob = jobProgress?.jobs?.find(j => 
                       j.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
-                    // Use the hardcoded progress values to fix the visual issue
-                    const currentProgress = directProgress;
-                    const isCurrentlyRunning = matchingJob?.status === 'processing' || directProgress > 0;
+                    // Use REAL progress from backend, default to 0 if no job exists
+                    const currentProgress = matchingJob?.progress || 0;
+                    const isCurrentlyRunning = matchingJob?.status === 'processing';
                     const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
                     const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
                     
@@ -1341,7 +1333,7 @@ function DueDiligenceContent() {
                             {isCurrentlyRunning && <div className={`w-2 h-2 ${progressBarColors[index]} rounded-full animate-pulse`}></div>}
                             <span className="text-sm font-semibold text-white">{agentType}</span>
                           </div>
-                          <span className={`text-lg font-bold ${statusColors[index]}`}>{directProgress}%</span>
+                          <span className={`text-lg font-bold ${statusColors[index]}`}>{currentProgress}%</span>
                         </div>
                         
                         {/* Progress Bar - Pure Inline Test */}
@@ -1353,7 +1345,7 @@ function DueDiligenceContent() {
                           marginBottom: '12px'
                         }}>
                           <div style={{
-                            width: `${directProgress}%`,
+                            width: `${currentProgress}%`,
                             height: '8px',
                             borderRadius: '9999px',
                             backgroundColor: index === 0 ? '#3b82f6' : // Legal - blue
@@ -1367,10 +1359,10 @@ function DueDiligenceContent() {
                           }} 
                           ref={(el) => {
                             if (el) {
-                              console.log(`🔥 ${agentType} BAR PURE INLINE:`, {
+                              console.log(`🔥 ${agentType} BAR REAL PROGRESS:`, {
                                 agentType,
                                 index,
-                                directProgress,
+                                realProgress: currentProgress,
                                 appliedWidth: el.style.width,
                                 actualWidth: el.offsetWidth,
                                 parentWidth: el.parentElement?.offsetWidth,
