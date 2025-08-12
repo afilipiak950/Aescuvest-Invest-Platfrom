@@ -3,7 +3,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { persistentJobManager } from '../PersistentJobManager';
+import { persistentJobManager } from '../services/persistentJobManager';
 import { storage } from '../storage';
 import { comprehensiveLegalAnalysisService } from '../comprehensiveLegalAnalysisService';
 
@@ -57,7 +57,7 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
           agentType,
           jobId: null,
           status: 'failed',
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -73,7 +73,7 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
     res.status(500).json({
       success: false,
       error: 'Failed to start analyses',
-      details: error.message
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -164,13 +164,22 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
     
     console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
     
-    // Get all jobs for this deal
-    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
+    // Get all active jobs for this deal from storage
+    const activeJobs = await storage.getBackgroundJobs(dealId);
+    const processingJobs = activeJobs.filter(job => job.status === 'processing');
+    
     let stoppedCount = 0;
     
-    for (const job of allJobs) {
+    for (const job of processingJobs) {
       try {
-        await persistentJobManager.stopJob(job.jobId);
+        // Update job status to cancelled
+        await storage.updateBackgroundJob(job.jobId, {
+          status: 'cancelled',
+          currentStep: 'Cancelled by user',
+          completedAt: new Date(),
+          updatedAt: new Date()
+        });
+        
         stoppedCount++;
         console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
       } catch (error) {
@@ -178,16 +187,12 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
       }
     }
     
-    // Also clear any stuck jobs
-    const clearedCount = await persistentJobManager.clearStuckJobs(dealId);
-    
-    console.log(`✅ Stopped ${stoppedCount} jobs and cleared ${clearedCount} stuck jobs for deal ${dealId}`);
+    console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);
     
     res.json({
       success: true,
-      message: `Stopped ${stoppedCount} jobs and cleared ${clearedCount} stuck jobs`,
-      stoppedCount,
-      clearedCount
+      message: `Stopped ${stoppedCount} jobs for deal ${dealId}`,
+      stoppedCount
     });
     
   } catch (error) {

@@ -7088,6 +7088,50 @@ export async function registerAllRoutes(app: Express) {
     }
   });
   
+  // Stop all background jobs for a deal - Direct SQL approach
+  app.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid deal ID'
+        });
+      }
+
+      console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
+      
+      // Stop all processing jobs directly via SQL
+      const result = await db.update(backgroundJobs)
+        .set({
+          status: 'cancelled',
+          currentStep: 'Cancelled by user',
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(backgroundJobs.dealId, dealId),
+          eq(backgroundJobs.status, 'processing')
+        ));
+      
+      console.log(`✅ Stopped background jobs for deal ${dealId}`);
+      
+      res.json({
+        success: true,
+        message: `All jobs stopped for deal ${dealId}`,
+        stoppedCount: result.rowCount || 0
+      });
+      
+    } catch (error) {
+      console.error(`❌ Error stopping all jobs for deal ${req.params.dealId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to stop all jobs'
+      });
+    }
+  });
+
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
   try {

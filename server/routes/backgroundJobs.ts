@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { backgroundJobManager } from '../services/backgroundJobManager';
+import { storage } from '../storage';
 
 const router = Router();
 
@@ -152,6 +153,62 @@ router.post('/api/background-jobs/:jobId/stop', async (req: Request, res: Respon
   } catch (error) {
     console.error('Error stopping background job:', error);
     res.status(500).json({ success: false, error: 'Failed to stop background job' });
+  }
+});
+
+/**
+ * Stop ALL background jobs for a deal
+ */
+router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid deal ID'
+      });
+    }
+
+    console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
+    
+    // Get all active jobs for this deal
+    const activeJobs = await storage.getBackgroundJobs(dealId);
+    const processingJobs = activeJobs.filter((job: any) => job.status === 'processing');
+    
+    let stoppedCount = 0;
+    
+    for (const job of processingJobs) {
+      try {
+        // Update job status to cancelled
+        await storage.updateBackgroundJob(job.jobId, {
+          status: 'cancelled',
+          currentStep: 'Cancelled by user',
+          completedAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        stoppedCount++;
+        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
+      } catch (error) {
+        console.error(`❌ Error stopping job ${job.jobId}:`, error);
+      }
+    }
+    
+    console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);
+    
+    res.json({
+      success: true,
+      message: `Stopped ${stoppedCount} jobs for deal ${dealId}`,
+      stoppedCount
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error stopping all jobs for deal ${req.params.dealId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop all jobs'
+    });
   }
 });
 
