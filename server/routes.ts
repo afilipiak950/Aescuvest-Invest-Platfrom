@@ -2,8 +2,8 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { documents, systemSettings } from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { documents, systemSettings, backgroundJobs } from "../shared/schema";
+import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { authenticate } from "./middleware/auth";
@@ -7088,7 +7088,7 @@ export async function registerAllRoutes(app: Express) {
     }
   });
   
-  // Stop all background jobs for a deal - Direct SQL approach
+  // Stop all background jobs for a deal - Using storage interface
   app.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -7102,25 +7102,15 @@ export async function registerAllRoutes(app: Express) {
 
       console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
       
-      // Stop all processing jobs directly via SQL
-      const result = await db.update(backgroundJobs)
-        .set({
-          status: 'cancelled',
-          currentStep: 'Cancelled by user',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(and(
-          eq(backgroundJobs.dealId, dealId),
-          eq(backgroundJobs.status, 'processing')
-        ));
+      // Use the storage interface which works reliably
+      const stoppedCount = await storage.clearStuckBackgroundJobs(dealId);
       
-      console.log(`✅ Stopped background jobs for deal ${dealId}`);
+      console.log(`✅ Stopped ${stoppedCount} background jobs for deal ${dealId}`);
       
       res.json({
         success: true,
         message: `All jobs stopped for deal ${dealId}`,
-        stoppedCount: result.rowCount || 0
+        stoppedCount: stoppedCount
       });
       
     } catch (error) {
