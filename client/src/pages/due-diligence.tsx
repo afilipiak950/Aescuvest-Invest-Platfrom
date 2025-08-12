@@ -1263,18 +1263,17 @@ function DueDiligenceContent() {
                     const isRunning = job?.status === 'processing';
                     const actualProgress = job?.progress || 0;
                     
-                    // Enhanced debug logging for all agents
-                    console.log(`🔍 ${agentType} Agent Progress Check:`, {
-                      hasJob: !!job,
-                      jobId: job?.jobId,
-                      jobAgentType: job?.agentType,
-                      jobProgress: job?.progress,
-                      status: job?.status,
-                      actualProgress: actualProgress,
-                      isRunning: isRunning,
-                      searchKeys: [agentType.toLowerCase(), agentType],
-                      allJobs: jobProgress?.jobs?.map(j => `${j.agentType}:${j.progress}%`)
-                    });
+                    // Simple debug logging to identify rendering issue
+                    if (agentType === 'Legal') {
+                      console.log(`🔍 CARD ${agentType} Progress:`, {
+                        hasJob: !!job,
+                        jobAgentType: job?.agentType,
+                        jobProgress: job?.progress,
+                        actualProgress: actualProgress,
+                        isRunning: isRunning,
+                        totalJobsInArray: jobProgress?.jobs?.length || 0
+                      });
+                    }
                     
                     // Calculate realistic job statistics
                     const assignedDocs = documents?.filter(doc => 
