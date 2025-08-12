@@ -136,8 +136,8 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB limit for large ZIP files
-    fieldSize: 500 * 1024 * 1024,
+    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
+    fieldSize: 1000 * 1024 * 1024,
     files: 10
   },
   fileFilter: function (req, file, cb) {
