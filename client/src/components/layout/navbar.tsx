@@ -15,7 +15,10 @@ export default function Navbar() {
   };
   
   return (
-    <nav className="sticky top-0 z-50 bg-dark border-b border-dark-border">
+    <nav className="sticky top-0 z-50 bg-white border-b border-gray-200" style={{
+      backgroundColor: 'white',
+      borderBottom: '1px solid rgb(229, 231, 235)'
+    }}>
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           {!isExpanded && (

@@ -60,8 +60,9 @@
 }
 
 /* GLOBAL PLATFORM FIXES - Apply to ALL pages and components */
+/* RESTORED ORIGINAL LIGHT DESIGN */
 
-/* Main application layout */
+/* Main application layout - Light Theme */
 .min-h-screen {
   min-height: 100vh !important;
 }
@@ -85,6 +86,11 @@
 
 .text-gray-900 {
   color: rgb(17, 24, 39) !important;
+}
+
+/* Main content area - Light background */
+body {
+  background-color: rgb(248, 250, 252) !important;
 }
 
 /* Dashboard Layout Fixes */
@@ -424,21 +430,30 @@
   }
 }
 
-/* Critical Dark Theme Support */
-.dark .bg-gray-50 {
-  background-color: rgb(17, 24, 39) !important;
+/* Light Theme Enforcement - Override any dark classes */
+.bg-gray-50, 
+.bg-slate-50,
+html,
+body,
+#root {
+  background-color: rgb(248, 250, 252) !important;
 }
 
-.dark .bg-white {
-  background-color: rgb(31, 41, 55) !important;
+/* Ensure text is dark on light background */
+.text-gray-900,
+.text-slate-900 {
+  color: rgb(17, 24, 39) !important;
 }
 
-.dark .text-gray-900 {
-  color: rgb(243, 244, 246) !important;
+/* Card backgrounds should be white */
+.bg-white {
+  background-color: white !important;
 }
 
-.dark .border-gray-300 {
-  border-color: rgb(75, 85, 99) !important;
+/* Borders should be light gray */
+.border-gray-300,
+.border-slate-300 {
+  border-color: rgb(209, 213, 219) !important;
 }
 
 /* Component-specific fixes */
@@ -464,7 +479,7 @@
   margin-left: 4rem !important;
   min-height: 100vh !important;
   padding: 1.5rem !important;
-  background-color: rgb(17, 24, 39) !important;
+  background-color: rgb(248, 250, 252) !important;
   flex: 1 !important;
   overflow-x: hidden !important;
 }
