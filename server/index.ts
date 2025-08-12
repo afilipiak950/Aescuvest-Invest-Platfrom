@@ -9,6 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
+import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
 
 const app = express();
 
@@ -263,5 +264,11 @@ app.use((req, res, next) => {
     // Start AI Processing Timeout Service
     console.log('🚀 Starting AI Processing Timeout Service...');
     aiProcessingTimeoutService.start();
+    
+    // Initialize Persistent Clinical Analysis Service
+    console.log('🧬 Initializing Persistent Clinical Analysis Service...');
+    persistentClinicalAnalysisService.initialize().catch(err => {
+      console.error('❌ Failed to initialize persistent clinical analysis:', err);
+    });
   });
 })();

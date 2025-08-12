@@ -39,6 +39,7 @@ import { persistentJobManager } from './services/persistentJobManager';
 import persistentAnalysisRoutes from './routes/persistentAnalysis';
 import legacyResetRoutes from './routes/legacyReset';
 import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
+import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
@@ -167,6 +168,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🚀 Registering comprehensive analysis routes FIRST...');
   app.use(comprehensiveAnalysisRoutes);
   console.log('✅ Comprehensive analysis routes registered FIRST');
+  
+  // Register persistent clinical analysis routes
+  console.log('🧬 Registering persistent clinical analysis routes...');
+  app.use(persistentClinicalRoutes);
+  console.log('✅ Persistent clinical analysis routes registered');
   
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
