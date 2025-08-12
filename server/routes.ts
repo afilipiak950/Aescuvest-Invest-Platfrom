@@ -7024,8 +7024,7 @@ function calculateInvestmentScore(insights: any): number {
   return Math.round(normalizedScore);
 }
 
-// Import Affinity routes
-import { registerAffinityRoutes } from './routes/affinity-routes';
+// Affinity routes already imported at top of file
 
 // Register API routes at the end of the file
 export async function registerAllRoutes(app: Express) {
