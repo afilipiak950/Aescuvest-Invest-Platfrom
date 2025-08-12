@@ -1890,6 +1890,35 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getBackgroundJobById(jobId: string): Promise<BackgroundJob | null> {
+    try {
+      const jobs = await db.select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.jobId, jobId))
+        .limit(1);
+      
+      return jobs[0] || null;
+    } catch (error) {
+      console.error(`Error getting background job ${jobId}:`, error);
+      return null;
+    }
+  }
+
+  async deleteBackgroundJob(jobId: string): Promise<boolean> {
+    try {
+      console.log(`🗑️ Deleting background job ${jobId}`);
+      const result = await db.delete(backgroundJobs)
+        .where(eq(backgroundJobs.jobId, jobId));
+      
+      const deleted = result.rowCount > 0;
+      console.log(`${deleted ? '✅' : '❌'} Background job ${jobId} ${deleted ? 'deleted' : 'not found'}`);
+      return deleted;
+    } catch (error) {
+      console.error(`Error deleting background job ${jobId}:`, error);
+      return false;
+    }
+  }
+
   // Research jobs methods
   async createResearchJob(job: InsertResearchJob): Promise<ResearchJob> {
     try {
