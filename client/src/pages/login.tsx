@@ -59,9 +59,9 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container bg-dark">
+    <div className="login-page-container">
       {/* Left side - Dynamic Interactive Hero */}
-      <div className="login-left bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      <div className="login-left-panel">
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
           {/* Primary gradient overlay */}
@@ -169,7 +169,7 @@ export default function Login() {
       </div>
 
       {/* Right side - Enhanced Login form */}
-      <div className="login-right bg-slate-900 relative">
+      <div className="login-right-panel">
         {/* Subtle background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 -right-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
