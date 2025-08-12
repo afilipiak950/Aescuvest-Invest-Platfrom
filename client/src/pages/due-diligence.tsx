@@ -1148,7 +1148,8 @@ function DueDiligenceContent() {
                       try {
                         console.log('🛑 Stopping all background jobs for deal', selectedDeal);
                         
-                        const response = await fetch(`/api/deals/${selectedDeal}/stop-all-jobs`, {
+                        // Use the existing clear-stuck-jobs endpoint which works reliably
+                        const response = await fetch(`/api/deals/${selectedDeal}/clear-stuck-jobs`, {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json'
@@ -1160,20 +1161,20 @@ function DueDiligenceContent() {
                         if (result.success) {
                           toast({
                             title: "Jobs Stopped",
-                            description: `Stopped ${result.stoppedCount} running analyses`,
+                            description: `Cleared ${result.clearedCount} background jobs`,
                             duration: 3000,
                           });
                           
                           // Refresh job progress
                           queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
                         } else {
-                          throw new Error(result.error || 'Failed to stop jobs');
+                          throw new Error(result.error || 'Failed to clear jobs');
                         }
                       } catch (error) {
                         console.error('❌ Error stopping jobs:', error);
                         toast({
-                          title: "Stop Failed",
-                          description: "Failed to stop background jobs. Please try again.",
+                          title: "Clear Failed",
+                          description: "Failed to clear background jobs. Please try again.",
                           variant: "destructive",
                           duration: 5000,
                         });
