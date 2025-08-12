@@ -7,44 +7,38 @@ const router = Router();
 router.get('/api/background-jobs/:dealId', async (req: Request, res: Response) => {
   try {
     const dealId = parseInt(req.params.dealId);
+    console.log(`📊 Found 0 running background jobs for deal ${dealId}`);
     
-    // Get in-memory jobs first (primary source)
-    const inMemoryJobs = [];
-    if (global.activeJobs) {
-      for (const [jobId, job] of global.activeJobs.entries()) {
-        if (job.dealId === dealId && job.status === 'processing') {
-          inMemoryJobs.push({
-            jobId: job.id,
-            progress: job.progress,
-            status: job.status,
-            currentStep: `${job.currentStep}/${job.totalSteps}`,
-            documentName: job.currentDocumentName,
-            agentType: job.agentType,
-            metadata: job.metadata
-          });
-        }
-      }
-    }
-    
-    if (inMemoryJobs.length > 0) {
-      console.log(`📊 Found ${inMemoryJobs.length} active in-memory jobs for deal ${dealId}`);
-      return res.json({ success: true, jobs: inMemoryJobs });
-    }
-    
-    // Fallback to database jobs
+    // Get from database jobs (primary source for new system)
     const { db } = await import('../db');
     const { backgroundJobs } = await import('../../shared/schema');
-    const { eq, and } = await import('drizzle-orm');
+    const { eq, and, or } = await import('drizzle-orm');
     
     const dbJobs = await db.select().from(backgroundJobs)
       .where(and(
         eq(backgroundJobs.dealId, dealId),
-        eq(backgroundJobs.status, 'processing')
+        or(
+          eq(backgroundJobs.status, 'processing'),
+          eq(backgroundJobs.status, 'queued')
+        )
       ));
     
-    console.log(`📊 Found ${dbJobs.length} database jobs for deal ${dealId}`);
+    console.log(`📊 Found ${dbJobs.length} background jobs for deal ${dealId}`);
     
-    const jobs = await backgroundJobManager.getActiveJobs(dealId);
+    // Transform database jobs to expected format
+    const jobs = dbJobs.map(job => ({
+      jobId: job.jobId,
+      agentType: job.agentType,
+      progress: job.progress || 0,
+      status: job.status,
+      currentStep: job.currentStep || 'Processing...',
+      currentDocumentName: job.currentDocumentName || 'Processing',
+      totalDocuments: job.totalDocuments || 0,
+      processedDocuments: job.processedDocuments || 0,
+      runId: job.runId,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt
+    }));
     
     res.json({ success: true, jobs });
   } catch (error) {

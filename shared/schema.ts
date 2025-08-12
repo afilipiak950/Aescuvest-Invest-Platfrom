@@ -587,6 +587,7 @@ export const backgroundJobs = pgTable("background_jobs", {
   currentStep: text("current_step"), // Current processing step description
   result: json("result"), // Store processing results
   error: text("error"), // Error message if failed
+  runId: text("run_id"), // Run ID for binding progress to specific comprehensive analysis runs
   createdAt: timestamp("created_at").defaultNow().notNull(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
