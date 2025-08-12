@@ -163,6 +163,10 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register comprehensive analysis routes FIRST - before any conflicting routes
+  console.log('🚀 Registering comprehensive analysis routes FIRST...');
+  app.use(comprehensiveAnalysisRoutes);
+  console.log('✅ Comprehensive analysis routes registered FIRST');
   
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
@@ -3525,8 +3529,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
   // Remove duplicate route - using the enhanced one at line 1566
 
-  // Get comprehensive analysis results
+  // Get comprehensive analysis results (GET only)
   app.get('/api/deals/:dealId/comprehensive-analysis', async (req: Request, res: Response) => {
+    console.log(`🔍 GET /api/deals/${req.params.dealId}/comprehensive-analysis called`);
     try {
       const dealId = parseInt(req.params.dealId);
       if (isNaN(dealId)) {
@@ -6962,7 +6967,12 @@ import { registerAffinityRoutes } from './routes/affinity-routes';
 
 // Register API routes at the end of the file
 export async function registerAllRoutes(app: Express) {
-  // Register existing routes first
+  // Register comprehensive analysis routes FIRST - before any conflicting routes
+  console.log('🚀 Registering comprehensive analysis routes FIRST...');
+  app.use(comprehensiveAnalysisRoutes);
+  console.log('✅ Comprehensive analysis routes registered FIRST');
+  
+  // Register existing routes after comprehensive analysis
   authRoutes(app);
   emailRoutes(app);
   microsoftAuthRoutes(app);
@@ -6979,9 +6989,6 @@ export async function registerAllRoutes(app: Express) {
   
   // Register legacy reset routes
   app.use('/', legacyResetRoutes);
-  
-  // Register comprehensive analysis routes
-  app.use('/', comprehensiveAnalysisRoutes);
   
   // Investment Memo Generator Routes
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
@@ -7089,4 +7096,6 @@ export async function registerAllRoutes(app: Express) {
   } catch (error) {
     console.error('❌ Failed to initialize persistent job manager:', error);
   }
+  
+  return server;
 }
