@@ -1255,25 +1255,22 @@ function DueDiligenceContent() {
                   ></div>
                 </div>
                 
-                {/* Horizontal 7-Agent Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
+                {/* Horizontal 7-Agent Cards - Force re-render with key */}
+                <div 
+                  key={`agent-cards-${jobProgress?.jobs?.length || 0}-${jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0)}`}
+                  className="grid grid-cols-1 lg:grid-cols-7 gap-3"
+                >
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
-                    // Find job with enhanced matching - jobs use lowercase agent types
-                    const job = findJobSafely(jobProgress?.jobs, [agentType.toLowerCase(), agentType]);
-                    const isRunning = job?.status === 'processing';
-                    const actualProgress = job?.progress || 0;
+                    // Direct job matching with explicit progress values
+                    const matchingJob = jobProgress?.jobs?.find(j => 
+                      j.agentType?.toLowerCase() === agentType.toLowerCase()
+                    );
                     
-                    // Simple debug logging to identify rendering issue
-                    if (agentType === 'Legal') {
-                      console.log(`🔍 CARD ${agentType} Progress:`, {
-                        hasJob: !!job,
-                        jobAgentType: job?.agentType,
-                        jobProgress: job?.progress,
-                        actualProgress: actualProgress,
-                        isRunning: isRunning,
-                        totalJobsInArray: jobProgress?.jobs?.length || 0
-                      });
-                    }
+                    // Use live progress values directly from the API data
+                    const currentProgress = matchingJob?.progress ?? 0;
+                    const isCurrentlyRunning = matchingJob?.status === 'processing';
+                    const currentStep = matchingJob?.currentStep || '';
+                    const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
                     
                     // Calculate realistic job statistics
                     const assignedDocs = documents?.filter(doc => 
@@ -1290,10 +1287,10 @@ function DueDiligenceContent() {
                     const totalQuestions = questionCounts[agentType] || 5;
                     const totalJobs = Math.max(assignedDocs * totalQuestions, assignedDocs || 1);
                     
-                    // Calculate job progress stats based on actual progress
-                    const doneJobs = Math.floor((actualProgress / 100) * totalJobs);
-                    const queuedJobs = isRunning ? Math.max(totalJobs - doneJobs - 1, 0) : 0;
-                    const runningJobs = isRunning ? 1 : 0;
+                    // Calculate job progress stats based on live progress data
+                    const doneJobs = Math.floor((currentProgress / 100) * totalJobs);
+                    const queuedJobs = isCurrentlyRunning ? Math.max(totalJobs - doneJobs - 1, 0) : 0;
+                    const runningJobs = isCurrentlyRunning ? 1 : 0;
                     const failedJobs = 0;
                     
                     // Define unique colors for each agent
@@ -1336,17 +1333,17 @@ function DueDiligenceContent() {
                         {/* Agent Title and Progress */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-2">
-                            {isRunning && <div className={`w-2 h-2 ${progressBarColors[index]} rounded-full animate-pulse`}></div>}
+                            {isCurrentlyRunning && <div className={`w-2 h-2 ${progressBarColors[index]} rounded-full animate-pulse`}></div>}
                             <span className="text-sm font-semibold text-white">{agentType}</span>
                           </div>
-                          <span className={`text-lg font-bold ${statusColors[index]}`}>{actualProgress}%</span>
+                          <span className={`text-lg font-bold ${statusColors[index]}`}>{currentProgress}%</span>
                         </div>
                         
                         {/* Progress Bar */}
                         <div className="w-full bg-dark rounded-full h-2 mb-3">
                           <div 
                             className={`${progressBarColors[index]} h-2 rounded-full transition-all duration-500`}
-                            style={{ width: `${actualProgress}%` }}
+                            style={{ width: `${currentProgress}%` }}
                           ></div>
                         </div>
                         
@@ -1373,17 +1370,17 @@ function DueDiligenceContent() {
                         </div>
                         
                         {/* Current Activity */}
-                        {isRunning && job?.currentStep && (
+                        {isCurrentlyRunning && currentStep && (
                           <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className={`text-xs ${statusColors[index]} font-medium mb-1`}>Currently Working:</div>
                             <div className="text-xs text-gray-400 truncate">
-                              {job.currentDocumentName || 'Processing'} → {job.currentStep}
+                              {currentDocumentName || 'Processing'} → {currentStep}
                             </div>
                           </div>
                         )}
                         
                         {/* Completed Status */}
-                        {!isRunning && actualProgress === 100 && (
+                        {!isCurrentlyRunning && currentProgress === 100 && (
                           <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className="text-xs text-green-400 font-medium">✓ Analysis Complete</div>
                             <div className="text-xs text-gray-400">Ready to view results</div>
@@ -1391,7 +1388,7 @@ function DueDiligenceContent() {
                         )}
                         
                         {/* Not Started Status */}
-                        {!isRunning && actualProgress === 0 && (
+                        {!isCurrentlyRunning && currentProgress === 0 && (
                           <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className="text-xs text-gray-500">Not Started</div>
                             <div className="text-xs text-gray-500">{assignedDocs} docs assigned</div>
