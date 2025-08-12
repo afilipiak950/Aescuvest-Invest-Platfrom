@@ -4,7 +4,7 @@
  */
 
 import { storage } from '../storage';
-import { comprehensiveClinicalAnalysisService } from '../comprehensiveClinicalAnalysisService';
+import { comprehensiveClinicalAnalysisService, COMPREHENSIVE_CLINICAL_QUESTIONS } from '../comprehensiveClinicalAnalysisService';
 import { websocketManager } from './websocketManager';
 
 interface ClinicalJobState {
@@ -51,9 +51,20 @@ export class PersistentClinicalAnalysisService {
           const clinicalJobsForDeal = dealJobs.filter(job => 
             job.agentType === 'clinical' && 
             job.jobType === 'comprehensive_clinical_analysis' &&
-            job.status === 'processing'
+            (job.status === 'processing' || job.status === 'completed')
           );
-          clinicalJobs.push(...clinicalJobsForDeal);
+          
+          // For each job, check if it's really complete or just marked as complete incorrectly
+          for (const job of clinicalJobsForDeal) {
+            const existingAnalysis = await storage.getAgentAnalysis(dealId, 'clinical');
+            const expectedQuestions = this.getClinicalQuestions();
+            const answeredQuestions = existingAnalysis?.clinicalAnswers ? Object.keys(existingAnalysis.clinicalAnswers).length : 0;
+            
+            if (answeredQuestions < expectedQuestions.length) {
+              console.log(`🔄 Job ${job.jobId} marked complete but only ${answeredQuestions}/${expectedQuestions.length} questions done. Adding to resume list.`);
+              clinicalJobs.push(job);
+            }
+          }
         } catch (error) {
           console.log(`Skipping deal ${dealId} during initialization`);
         }
@@ -127,11 +138,13 @@ export class PersistentClinicalAnalysisService {
         return;
       }
 
-      // Check if analysis already completed
+      // Check if analysis is FULLY completed (all questions answered)
       const existingAnalysis = await storage.getAgentAnalysis(dealId, 'clinical');
-      if (existingAnalysis && existingAnalysis.clinicalAnswers && 
-          Object.keys(existingAnalysis.clinicalAnswers).length > 0) {
-        console.log(`✅ Clinical analysis already completed for deal ${dealId}`);
+      const expectedQuestions = this.getClinicalQuestions();
+      const answeredQuestions = existingAnalysis?.clinicalAnswers ? Object.keys(existingAnalysis.clinicalAnswers).length : 0;
+      
+      if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
+        console.log(`✅ Clinical analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
         await storage.updateBackgroundJob(jobId, {
           status: 'completed',
           progress: 100,
@@ -139,6 +152,8 @@ export class PersistentClinicalAnalysisService {
         });
         return;
       }
+      
+      console.log(`🔄 Clinical analysis incomplete: ${answeredQuestions}/${expectedQuestions.length} questions answered. Continuing...`);
 
       // Resume from where it left off
       const progress = job.progress || 0;
@@ -357,6 +372,13 @@ export class PersistentClinicalAnalysisService {
    */
   getAllActiveJobs(): Map<string, ClinicalJobState> {
     return this.activeJobs;
+  }
+
+  /**
+   * Get the standard clinical questions for analysis
+   */
+  getClinicalQuestions() {
+    return COMPREHENSIVE_CLINICAL_QUESTIONS;
   }
 }
 
