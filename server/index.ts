@@ -261,6 +261,33 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     console.log('🚀 Setting up static file serving for production...');
+    
+    // CRITICAL FIX: Serve static assets with proper content types BEFORE catch-all route
+    const distPath = path.resolve(import.meta.dirname, "public");
+    console.log(`🚀 Static files path: ${distPath}`);
+    
+    // Serve assets with explicit content type headers to prevent HTML serving
+    app.use('/assets', express.static(path.join(distPath, 'assets'), {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css')) {
+          res.setHeader('Content-Type', 'text/css');
+        } else if (filePath.endsWith('.js')) {
+          res.setHeader('Content-Type', 'application/javascript');
+        }
+      }
+    }));
+    
+    // Serve other static files (images, etc.)
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.png')) {
+          res.setHeader('Content-Type', 'image/png');
+        } else if (filePath.endsWith('.ico')) {
+          res.setHeader('Content-Type', 'image/x-icon');
+        }
+      }
+    }));
+    
     serveStatic(app);
   }
 
