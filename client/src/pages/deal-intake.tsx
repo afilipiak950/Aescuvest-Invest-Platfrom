@@ -94,11 +94,12 @@ export default function DealIntake() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <PageHeader 
-        title="Deal Intake & Screening" 
-        description="Upload and analyze new investment opportunities."
-      />
+    <div className="w-full h-full bg-dark">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <PageHeader 
+          title="Deal Intake & Screening" 
+          description="Upload and analyze new investment opportunities."
+        />
       
       <Tabs defaultValue="dealIntake" className="mt-6">
         <TabsList className="border-b border-dark-lighter bg-transparent mb-6">
@@ -210,6 +211,7 @@ export default function DealIntake() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

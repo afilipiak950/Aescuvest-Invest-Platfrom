@@ -15,7 +15,7 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
         <div className="flex flex-col flex-1 overflow-hidden min-w-0">
           <Navbar />
           <main className="flex-1 overflow-y-auto bg-dark">
-            <div className="w-full h-full">
+            <div className="w-full min-h-full">
               {children}
             </div>
           </main>
