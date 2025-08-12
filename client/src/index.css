@@ -2,6 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Critical fallback styles to ensure platform works regardless of CSS loading issues */
+.login-container,
+.login-container-fallback {
+  display: flex !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  background-color: rgb(15, 23, 42) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.login-left,
+.login-left-fallback {
+  flex: 0 0 50% !important;
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 50%, rgb(15, 23, 42) 100%) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.login-right,
+.login-right-fallback {
+  flex: 0 0 50% !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgb(15, 23, 42) !important;
+  position: relative !important;
+  padding: 2rem !important;
+}
+
+.login-form,
+.login-form-fallback {
+  width: 100% !important;
+  max-width: 28rem !important;
+  background-color: rgba(30, 41, 59, 0.5) !important;
+  padding: 3rem !important;
+  border-radius: 1rem !important;
+  border: 1px solid rgba(71, 85, 105, 0.3) !important;
+}
+
+@media (max-width: 1023px) {
+  .login-left,
+  .login-left-fallback {
+    display: none !important;
+  }
+  .login-right,
+  .login-right-fallback {
+    flex: 1 !important;
+  }
+}
+
 /* Custom scrollbar styles for document layout */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
