@@ -33,7 +33,9 @@ npm ci --production=false
 
 # Build frontend with optimizations
 echo "🔨 Building frontend..."
+cd client
 npx vite build --mode production
+cd ..
 
 # Build backend with optimizations
 echo "🔨 Building backend..."
@@ -45,8 +47,7 @@ npx esbuild server/index.ts \
   --outdir=dist \
   --minify \
   --tree-shaking=true \
-  --target=node18 \
-  --sourcemap=false
+  --target=node18
 
 # Clean up development dependencies after build
 echo "🧹 Removing development dependencies..."

@@ -17,6 +17,8 @@ export default defineConfig({
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
     },
+    cssCodeSplit: false,
+    assetsDir: "assets",
   },
   server: {
     port: 5173,
