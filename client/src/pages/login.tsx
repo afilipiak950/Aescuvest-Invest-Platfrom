@@ -59,9 +59,23 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container bg-dark">
+    <div className="login-container" style={{ 
+      display: 'flex', 
+      minHeight: '100vh', 
+      width: '100%',
+      backgroundColor: 'rgb(15, 23, 42)' // slate-900 fallback
+    }}>
       {/* Left side - Dynamic Interactive Hero */}
-      <div className="login-left bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      <div 
+        className="login-left bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden"
+        style={{
+          flex: '0 0 50%',
+          minHeight: '100vh',
+          background: 'linear-gradient(to bottom right, rgb(15, 23, 42), rgb(30, 41, 59), rgb(15, 23, 42))',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
           {/* Primary gradient overlay */}
@@ -169,7 +183,18 @@ export default function Login() {
       </div>
 
       {/* Right side - Enhanced Login form */}
-      <div className="login-right bg-slate-900 relative">
+      <div 
+        className="login-right bg-slate-900 relative"
+        style={{
+          flex: '0 0 50%',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgb(15, 23, 42)',
+          position: 'relative'
+        }}
+      >
         {/* Subtle background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 -right-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
