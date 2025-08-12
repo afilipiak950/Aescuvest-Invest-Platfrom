@@ -1246,7 +1246,7 @@ function DueDiligenceContent() {
                 {/* Overall Progress Bar */}
                 <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
                   <div 
-                    className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full transition-all duration-500"
+                    className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
                     style={{ 
                       width: `${jobProgress?.jobs && jobProgress.jobs.length > 0 
                         ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
@@ -1344,13 +1344,33 @@ function DueDiligenceContent() {
                           <span className={`text-lg font-bold ${statusColors[index]}`}>{directProgress}%</span>
                         </div>
                         
-                        {/* Progress Bar */}
-                        <div className="w-full bg-dark rounded-full h-2 mb-3">
+                        {/* Progress Bar - Direct CSS Test */}
+                        <div 
+                          className="w-full rounded-full h-2 mb-3"
+                          style={{ backgroundColor: '#1a1a2e' }}
+                        >
                           <div 
-                            className={`${progressBarColors[index]} h-2 rounded-full transition-all duration-500`}
+                            className="h-2 rounded-full"
                             style={{ 
                               width: `${directProgress}%`,
+                              backgroundColor: progressBarColors[index] === 'bg-blue-500' ? '#3b82f6' :
+                                               progressBarColors[index] === 'bg-green-500' ? '#10b981' :
+                                               progressBarColors[index] === 'bg-purple-500' ? '#8b5cf6' :
+                                               progressBarColors[index] === 'bg-orange-500' ? '#f97316' :
+                                               progressBarColors[index] === 'bg-red-500' ? '#ef4444' :
+                                               progressBarColors[index] === 'bg-cyan-500' ? '#06b6d4' :
+                                               progressBarColors[index] === 'bg-yellow-500' ? '#eab308' : '#3b82f6',
                               minWidth: directProgress > 0 ? '2px' : '0px'
+                            }}
+                            ref={(el) => {
+                              if (el && (agentType === 'Legal' || agentType === 'Clinical')) {
+                                console.log(`🎯 BAR ${agentType} DIRECT CSS:`, {
+                                  width: el.style.width,
+                                  backgroundColor: el.style.backgroundColor,
+                                  directProgress,
+                                  offsetWidth: el.offsetWidth
+                                });
+                              }
                             }}
                           ></div>
                         </div>
