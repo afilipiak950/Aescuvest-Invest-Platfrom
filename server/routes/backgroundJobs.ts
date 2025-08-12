@@ -134,10 +134,11 @@ router.post('/api/background-jobs/:jobId/stop', async (req: Request, res: Respon
       .where(eq(backgroundJobs.jobId, jobId));
     
     // Clear from in-memory active jobs if it exists
-    if (global.activeJobs) {
-      for (const [key, activeJob] of global.activeJobs.entries()) {
+    const globalScope = global as any;
+    if (globalScope.activeJobs) {
+      for (const [key, activeJob] of globalScope.activeJobs.entries()) {
         if (activeJob.id === jobId || activeJob.jobId === jobId) {
-          global.activeJobs.delete(key);
+          globalScope.activeJobs.delete(key);
           break;
         }
       }
@@ -172,21 +173,34 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
 
     console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
     
-    // Get all active jobs for this deal
-    const activeJobs = await storage.getBackgroundJobs(dealId);
-    const processingJobs = activeJobs.filter((job: any) => job.status === 'processing');
+    // Get all active jobs for this deal from database
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { eq, and, or } = await import('drizzle-orm');
+    
+    const activeJobs = await db.select().from(backgroundJobs)
+      .where(and(
+        eq(backgroundJobs.dealId, dealId),
+        or(
+          eq(backgroundJobs.status, 'processing'),
+          eq(backgroundJobs.status, 'queued')
+        )
+      ));
+    const processingJobs = activeJobs.filter(job => job.status === 'processing');
     
     let stoppedCount = 0;
     
     for (const job of processingJobs) {
       try {
         // Update job status to cancelled
-        await storage.updateBackgroundJob(job.jobId, {
-          status: 'cancelled',
-          currentStep: 'Cancelled by user',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        });
+        await db.update(backgroundJobs)
+          .set({
+            status: 'cancelled',
+            currentStep: 'Cancelled by user',
+            completedAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(backgroundJobs.jobId, job.jobId));
         
         stoppedCount++;
         console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);

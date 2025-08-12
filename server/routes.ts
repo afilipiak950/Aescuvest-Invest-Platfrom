@@ -1466,6 +1466,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // CRITICAL MISSING ROUTE: Agent Results API for due diligence dashboard
+  app.get('/api/deals/:dealId/agents/:agentType/results', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const agentType = req.params.agentType;
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID' 
+        });
+      }
+      
+      console.log(`🎯 API /api/deals/${dealId}/agents/${agentType}/results called!`);
+      
+      // Get analyses for this deal and agent type from database
+      const existingAnalyses = await storage.getAnalysesByDealId(dealId);
+      const analysis = existingAnalyses.find(a => 
+        a.agentType.toLowerCase() === agentType.toLowerCase()
+      );
+      
+      if (analysis) {
+        console.log(`✅ Found ${agentType} analysis for deal ${dealId}:`, {
+          id: analysis.id,
+          agentType: analysis.agentType,
+          status: analysis.status,
+          findingsCount: analysis.findings?.length || 0,
+          recommendationsCount: analysis.recommendations?.length || 0
+        });
+        
+        return res.json({ 
+          success: true, 
+          analysis: {
+            id: analysis.id,
+            dealId: analysis.dealId,
+            agentType: analysis.agentType,
+            status: analysis.status,
+            confidence: analysis.confidence,
+            summary: analysis.summary,
+            findings: analysis.findings,
+            recommendations: analysis.recommendations,
+            createdAt: analysis.createdAt,
+            updatedAt: analysis.updatedAt
+          }
+        });
+      }
+      
+      console.log(`⚠️ No ${agentType} analysis found for deal ${dealId}`);
+      res.json({ 
+        success: false, 
+        message: `No ${agentType} analysis found for deal ${dealId}`,
+        analysis: null
+      });
+      
+    } catch (error) {
+      console.error(`❌ Error fetching ${req.params.agentType} analysis:`, error);
+      res.status(500).json({ 
+        success: false, 
+        error: `Failed to fetch ${req.params.agentType} analysis` 
+      });
+    }
+  });
   
   app.post('/api/analyses', async (req: Request, res: Response) => {
     try {
