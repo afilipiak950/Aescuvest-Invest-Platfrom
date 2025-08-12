@@ -1258,24 +1258,23 @@ function DueDiligenceContent() {
                 {/* Horizontal 7-Agent Cards */}
                 <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
-                    // Find job with enhanced matching - use exact agent type from job data
-                    const job = findJobSafely(jobProgress?.jobs, [agentType, agentType.toLowerCase()]);
+                    // Find job with enhanced matching - jobs use lowercase agent types
+                    const job = findJobSafely(jobProgress?.jobs, [agentType.toLowerCase(), agentType]);
                     const isRunning = job?.status === 'processing';
                     const actualProgress = job?.progress || 0;
                     
-                    // Debug logging
-                    if (index === 0 || job) { // Only log for Legal (first) or if there's a job
-                      console.log(`🔍 ${agentType} Agent Progress Check:`, {
-                        hasJob: !!job,
-                        jobId: job?.jobId,
-                        jobAgentType: job?.agentType,
-                        jobProgress: job?.progress,
-                        status: job?.status,
-                        actualProgress: actualProgress,
-                        isRunning: isRunning,
-                        allJobs: jobProgress?.jobs?.map(j => `${j.agentType}:${j.progress}%`)
-                      });
-                    }
+                    // Enhanced debug logging for all agents
+                    console.log(`🔍 ${agentType} Agent Progress Check:`, {
+                      hasJob: !!job,
+                      jobId: job?.jobId,
+                      jobAgentType: job?.agentType,
+                      jobProgress: job?.progress,
+                      status: job?.status,
+                      actualProgress: actualProgress,
+                      isRunning: isRunning,
+                      searchKeys: [agentType.toLowerCase(), agentType],
+                      allJobs: jobProgress?.jobs?.map(j => `${j.agentType}:${j.progress}%`)
+                    });
                     
                     // Calculate realistic job statistics
                     const assignedDocs = documents?.filter(doc => 
