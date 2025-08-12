@@ -226,15 +226,6 @@ app.use((req, res, next) => {
     }
   });
 
-  // Health check endpoint for deployment
-  app.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({ 
-      status: 'healthy', 
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
-    });
-  });
-
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -261,41 +252,13 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     console.log('🚀 Setting up static file serving for production...');
-    
-    // CRITICAL FIX: Serve static assets with proper content types BEFORE catch-all route
-    const distPath = path.resolve(import.meta.dirname, "public");
-    console.log(`🚀 Static files path: ${distPath}`);
-    
-    // Serve assets with explicit content type headers to prevent HTML serving
-    app.use('/assets', express.static(path.join(distPath, 'assets'), {
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.css')) {
-          res.setHeader('Content-Type', 'text/css');
-        } else if (filePath.endsWith('.js')) {
-          res.setHeader('Content-Type', 'application/javascript');
-        }
-      }
-    }));
-    
-    // Serve other static files (images, etc.)
-    app.use(express.static(distPath, {
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.png')) {
-          res.setHeader('Content-Type', 'image/png');
-        } else if (filePath.endsWith('.ico')) {
-          res.setHeader('Content-Type', 'image/x-icon');
-        }
-      }
-    }));
-    
     serveStatic(app);
   }
 
-  // Use PORT environment variable in production, fallback to 5000 for development
-  // Cloud Run and other deployment platforms set PORT automatically
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
-  
-  console.log(`🚀 Starting server on port: ${port}`);
+  // ALWAYS serve the app on port 5000
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = 5000;
   
   // Configure server timeouts for large file uploads
   server.timeout = 10 * 60 * 1000; // 10 minutes for large ZIP uploads

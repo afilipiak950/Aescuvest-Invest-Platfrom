@@ -10,7 +10,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
-import '../styles/login-fallback.css';
 
 const formSchema = z.object({
   email: z.string().min(1, 'Email is required'),
@@ -60,9 +59,9 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container login-container-fallback">
+    <div className="login-container bg-dark">
       {/* Left side - Dynamic Interactive Hero */}
-      <div className="login-left login-left-fallback bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      <div className="login-left bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
           {/* Primary gradient overlay */}
@@ -113,28 +112,18 @@ export default function Login() {
         </div>
 
         {/* Content Container */}
-        <div className="hero-content-fallback relative z-10 flex flex-col justify-center items-center h-full text-center px-12">
+        <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-12">
           {/* Logo and Tagline */}
           <div className="mb-16">
-            <div className="mb-8">
-              <div style={{
-                width: '5rem',
-                height: '5rem',
-                backgroundColor: 'rgb(34, 197, 94)',
-                borderRadius: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1rem auto',
-                boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.25)'
-              }}>
+            <div className="mb-8 animate-fade-in">
+              <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-2xl shadow-primary/25">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
                   <path d="M9,11H15L13.5,7.5L9,11M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,1L13,3L15,5V7H17V9H21M9,7V5L11,3L9,1L3,7V9H7V7H9M12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5M12,17C14.21,17 16,18.79 16,21H8C8,18.79 9.79,17 12,17Z"/>
                 </svg>
               </div>
             </div>
             
-            <h1 className="hero-title-fallback text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight animate-fade-in-up" style={{animationDelay: '0.3s'}}>
               <span className="bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
                 AESCUVEST
               </span>
@@ -144,11 +133,11 @@ export default function Login() {
               </span>
             </h1>
             
-            <div>
-              <h2 className="hero-subtitle-fallback text-xl md:text-2xl font-semibold text-white mb-4 max-w-md mx-auto">
+            <div className="animate-fade-in-up" style={{animationDelay: '0.6s'}}>
+              <h2 className="text-xl md:text-2xl font-semibold text-white mb-4 max-w-md mx-auto">
                 Venture Capital Revolutionized
               </h2>
-              <p className="text-gray-300 text-base leading-relaxed max-w-sm mx-auto">
+              <p className="text-gray-300 text-base leading-relaxed max-w-sm animate-fade-in-up" style={{animationDelay: '0.6s'}}>
                 Transforming investment workflows with artificial intelligence and advanced analytics
               </p>
             </div>
@@ -180,17 +169,17 @@ export default function Login() {
       </div>
 
       {/* Right side - Enhanced Login form */}
-      <div className="login-right login-right-fallback bg-slate-900 relative">
+      <div className="login-right bg-slate-900 relative">
         {/* Subtle background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 -right-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/3 -left-32 w-48 h-48 bg-blue-400/5 rounded-full blur-2xl"></div>
         </div>
         
-        <div className="login-form-fallback relative z-10 w-full max-w-md px-8 py-12">
+        <div className="relative z-10 w-full max-w-md px-8 py-12">
           <div className="mb-10">
-            <h2 className="login-title-fallback text-3xl font-bold text-white mb-4">Sign In</h2>
-            <p className="login-subtitle-fallback text-gray-400 text-base">Access your investment dashboard</p>
+            <h2 className="text-3xl font-bold text-white mb-4">Sign In</h2>
+            <p className="text-gray-400 text-base">Access your investment dashboard</p>
           </div>
           
           {error && (
@@ -209,7 +198,7 @@ export default function Login() {
                     <FormControl>
                       <Input 
                         placeholder="Username or Email" 
-                        className="login-input-fallback w-full py-4 px-4 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-gray-400 text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 backdrop-blur-sm" 
+                        className="w-full py-4 px-4 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-gray-400 text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 backdrop-blur-sm" 
                         {...field} 
                       />
                     </FormControl>
@@ -227,7 +216,7 @@ export default function Login() {
                       <Input 
                         type="password" 
                         placeholder="Password" 
-                        className="login-input-fallback w-full py-4 px-4 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-gray-400 text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 backdrop-blur-sm" 
+                        className="w-full py-4 px-4 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-gray-400 text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 backdrop-blur-sm" 
                         {...field} 
                       />
                     </FormControl>
@@ -262,7 +251,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="login-button-fallback w-full py-4 bg-primary hover:bg-primary/90 hover:scale-[1.02] text-black font-semibold text-base rounded-lg transition-all duration-200 shadow-lg hover:shadow-primary/25"
+                className="w-full py-4 bg-primary hover:bg-primary/90 hover:scale-[1.02] text-black font-semibold text-base rounded-lg transition-all duration-200 shadow-lg hover:shadow-primary/25"
                 disabled={isLoading}
               >
                 {isLoading ? (
