@@ -101,7 +101,7 @@ class ComprehensiveLegalAnalysisService {
       console.log(`🧬 Starting comprehensive legal analysis for deal ${dealId}`);
       
       // Get all documents for the deal
-      const allDocuments = await storage.getDocuments(dealId);
+      const allDocuments = await storage.getDocumentsByDealId(dealId);
       
       // Filter for legal-relevant documents
       const legalDocuments = allDocuments.filter(doc => 
@@ -365,7 +365,13 @@ Focus on:
         )
       };
 
-      await storage.upsertAgentAnalysis(analysisData);
+      // Check if analysis already exists
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
+      if (existingAnalysis) {
+        await storage.updateAgentAnalysis(existingAnalysis.id, analysisData);
+      } else {
+        await storage.createAgentAnalysis(analysisData);
+      }
       
       console.log(`✅ Saved legal analysis for deal ${dealId} with ${Object.keys(legalAnswers).length} questions`);
       
