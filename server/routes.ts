@@ -180,6 +180,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(persistentLegalRoutes);
   console.log('✅ Persistent legal analysis routes registered');
   
+  // Register persistent analysis routes (includes clear-stuck-jobs and stop-all-jobs endpoints)
+  console.log('🔄 Registering persistent analysis routes...');
+  app.use('/', persistentAnalysisRoutes);
+  console.log('✅ Persistent analysis routes registered');
+  
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
   app.get('/api/test-route', (req: Request, res: Response) => {
@@ -7100,39 +7105,7 @@ export async function registerAllRoutes(app: Express) {
     }
   });
   
-  // Stop all background jobs for a deal - Using storage interface
-  app.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      if (isNaN(dealId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid deal ID'
-        });
-      }
-
-      console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
-      
-      // Use the storage interface which works reliably
-      const stoppedCount = await storage.clearStuckBackgroundJobs(dealId);
-      
-      console.log(`✅ Stopped ${stoppedCount} background jobs for deal ${dealId}`);
-      
-      res.json({
-        success: true,
-        message: `All jobs stopped for deal ${dealId}`,
-        stoppedCount: stoppedCount
-      });
-      
-    } catch (error) {
-      console.error(`❌ Error stopping all jobs for deal ${req.params.dealId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to stop all jobs'
-      });
-    }
-  });
+  // Stop all background jobs for a deal - REMOVED - Using persistentAnalysisRoutes instead
 
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
