@@ -1326,94 +1326,82 @@ const RESEARCH_QUESTIONS: ResearchQuestion[] = [
 
 const LEGAL_QUESTIONS: LegalQuestion[] = [
   {
-    id: 'sha_1',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'What class of shares exist?',
-    subQuestions: ['Preferred shares', 'Common shares', 'Other share classes']
+    id: 'contracts_1',
+    category: 'Contracts & Agreements',
+    question: 'Are key commercial contracts clearly defined?',
+    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
   },
   {
-    id: 'sha_2',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are liquidation preferences defined?',
-    subQuestions: ['1x preferences', 'Participating preferences', 'Non-participating preferences']
+    id: 'contracts_2',
+    category: 'Contracts & Agreements',
+    question: 'What are the key contractual obligations and terms?',
+    subQuestions: ['Obligations', 'Terms and conditions', 'Performance requirements']
   },
   {
-    id: 'sha_3',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Is anti-dilution protection present?',
-    subQuestions: ['Full ratchet protection', 'Weighted average protection']
+    id: 'contracts_3',
+    category: 'Contracts & Agreements',
+    question: 'Are there any concerning contract provisions or risks?',
+    subQuestions: ['Risk provisions', 'Liability clauses', 'Termination conditions']
   },
   {
-    id: 'gov_1',
-    category: 'Governance & Voting',
-    question: 'Is board composition defined?',
-    subQuestions: ['Board seats', 'Director appointments', 'Board procedures']
+    id: 'governance_1',
+    category: 'Corporate Governance',
+    question: 'What is the corporate governance structure?',
+    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes']
   },
   {
-    id: 'gov_2',
-    category: 'Governance & Voting',
-    question: 'Are voting rights clearly specified?',
-    subQuestions: ['Voting procedures', 'Majority requirements', 'Veto rights']
+    id: 'governance_2',
+    category: 'Corporate Governance',
+    question: 'Are there adequate governance controls and oversight?',
+    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks']
+  },
+  {
+    id: 'governance_3',
+    category: 'Corporate Governance',
+    question: 'What are the key governance risks and mitigation strategies?',
+    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses']
   },
   {
     id: 'ip_1',
-    category: 'IP Assignment & Key Personnel',
-    question: 'Are IP assignment agreements in place?',
-    subQuestions: ['Patents', 'Trademarks', 'Copyrights', 'Trade secrets']
+    category: 'Intellectual Property',
+    question: 'What is the intellectual property portfolio?',
+    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights']
   },
   {
     id: 'ip_2',
-    category: 'IP Assignment & Key Personnel',
-    question: 'Are all founders/key personnel covered?',
-    subQuestions: ['Founders', 'Key employees', 'Consultants', 'Advisors']
+    category: 'Intellectual Property',
+    question: 'Are there any IP ownership or infringement issues?',
+    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate']
   },
   {
-    id: 'commercial_1',
-    category: 'Commercial Agreements',
-    question: 'Are SLAs, warranties, and indemnity clauses present?',
-    subQuestions: ['Service level agreements', 'Warranty terms', 'Indemnification clauses']
+    id: 'ip_3',
+    category: 'Intellectual Property',
+    question: 'What IP protection and enforcement strategies are in place?',
+    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy']
   },
   {
-    id: 'commercial_2',
-    category: 'Commercial Agreements',
-    question: 'Are termination clauses fair and mutual?',
-    subQuestions: ['Notice periods', 'Termination triggers', 'Post-termination obligations']
+    id: 'litigation_1',
+    category: 'Litigation & Legal Risks',
+    question: 'Are there any pending or threatened litigations?',
+    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes']
   },
   {
-    id: 'lit_1',
-    category: 'Litigation & Regulatory',
-    question: 'Are there pending litigations or regulatory proceedings?',
-    subQuestions: ['Ongoing litigation', 'Regulatory investigations', 'Compliance issues']
+    id: 'litigation_2',
+    category: 'Litigation & Legal Risks',
+    question: 'What are the key legal risks and potential exposures?',
+    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities']
   },
   {
-    id: 'lit_2',
-    category: 'Litigation & Regulatory',
-    question: 'Is financial exposure quantified?',
-    subQuestions: ['Potential damages', 'Legal costs', 'Settlement amounts']
-  },
-  {
-    id: 'reg_1',
+    id: 'regulatory_1',
     category: 'Regulatory Compliance',
-    question: 'Are there FDA submissions or regulatory approvals?',
-    subQuestions: ['FDA submissions', 'Regulatory approvals', 'Compliance status']
+    question: 'What regulatory requirements apply to the business?',
+    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations']
   },
   {
-    id: 'reg_2',
+    id: 'regulatory_2',
     category: 'Regulatory Compliance',
-    question: 'Are there any regulatory compliance issues?',
-    subQuestions: ['Compliance violations', 'Regulatory warnings', 'Audit findings']
-  },
-  {
-    id: 'financial_1',
-    category: 'Financial Instruments',
-    question: 'Are there warrants or convertible instruments?',
-    subQuestions: ['Exercise price', 'Conversion terms', 'Maturity dates']
-  },
-  {
-    id: 'financial_2',
-    category: 'Financial Instruments',
-    question: 'What are the interest rates and maturity for debt instruments?',
-    subQuestions: ['Interest rate structure', 'Maturity timeline', 'Conversion features']
+    question: 'Are there any regulatory compliance issues or violations?',
+    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings']
   }
 ];
 
