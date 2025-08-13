@@ -561,7 +561,7 @@ Respond in JSON format:
         category: question.category,
         answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
         confidence: compiledAnswer.confidence || 30,
-        sources: compiledAnswer.sources || evidence.map(e => e.documentName),
+        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
@@ -577,7 +577,7 @@ Respond in JSON format:
         category: question.category,
         answer: `Error compiling answer: ${error.message}`,
         confidence: 0,
-        sources: evidence.map(e => e.documentName),
+        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
         keyFindings: [],
         gaps: ['Analysis compilation failed'],
         recommendations: ['Manual review required'],
