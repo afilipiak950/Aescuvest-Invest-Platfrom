@@ -1706,7 +1706,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {answer.confidence || 0}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
