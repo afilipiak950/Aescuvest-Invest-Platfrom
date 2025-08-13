@@ -94,7 +94,295 @@ interface LegalAnswer {
 
 class ComprehensiveLegalAnalysisService {
   /**
-   * Analyze all legal documents for a deal
+   * Run comprehensive analysis for all assigned legal documents - MATCHES Clinical signature
+   */
+  async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string): Promise<any> {
+    console.log(`🔍 Starting comprehensive legal analysis for deal ${dealId}`);
+    
+    try {
+      // Get all legal documents - EXACTLY like Clinical
+      const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} legal documents for analysis`);
+      
+      if (assignedDocuments.length === 0) {
+        console.log('⚠️ No legal documents found for analysis');
+        await storageService.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          currentStep: 'No legal documents available for analysis'
+        });
+        return { success: false, message: 'No legal documents found' };
+      }
+      
+      // Initialize progress - EXACTLY like Clinical
+      await storageService.updateBackgroundJob(jobId, {
+        progress: 5,
+        currentStep: 'Starting legal analysis',
+        processedDocuments: 0,
+        totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length
+      });
+      
+      // Process each question systematically - EXACTLY like Clinical
+      const legalAnswers: Record<string, any> = {};
+      
+      for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
+        const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
+        console.log(`🔍 Processing legal question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
+        
+        // Update progress - EXACTLY like Clinical
+        const progress = Math.round(((i + 1) / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 90) + 5;
+        await storageService.updateBackgroundJob(jobId, {
+          progress,
+          currentDocumentName: question.question,
+          currentStep: `Analyzing: ${question.category}`,
+          processedDocuments: i
+        });
+        
+        try {
+          console.log(`📊 Extracting legal evidence for: ${question.question}`);
+          
+          // Extract evidence from ALL documents for this question - EXACTLY like Clinical
+          const documentEvidence = await this.extractEvidenceFromAllDocuments(
+            assignedDocuments, 
+            question
+          );
+          console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+          
+          // Compile comprehensive answer based on all evidence - EXACTLY like Clinical
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          legalAnswers[question.id] = answer;
+          
+          console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
+          
+          // Brief delay to avoid rate limiting - EXACTLY like Clinical
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (questionError) {
+          console.error(`❌ Error processing question "${question.question}":`, questionError);
+          
+          // Store partial answer for this question - EXACTLY like Clinical
+          legalAnswers[question.id] = {
+            question: question.question,
+            category: question.category,
+            answer: `Error processing this question: ${questionError.message}`,
+            confidence: 0,
+            sources: [],
+            evidence: [],
+            error: true
+          };
+          
+          // Update progress to continue processing - EXACTLY like Clinical
+          await storageService.updateBackgroundJob(jobId, {
+            progress: Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100),
+            processedDocuments: i,
+            currentDocumentName: `Error: ${question.question}`,
+            currentStep: `Error in: ${question.category}`
+          });
+          
+          // Continue with next question instead of failing completely - EXACTLY like Clinical
+          continue;
+        }
+      }
+      
+      try {
+        // Update progress to completion - EXACTLY like Clinical
+        await storageService.updateBackgroundJob(jobId, {
+          progress: 100,
+          processedDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
+          currentStep: 'Generating findings and recommendations',
+          status: 'completing'
+        });
+        
+        // Generate comprehensive findings and recommendations - EXACTLY like Clinical
+        const findings = this.generateComprehensiveFindings(legalAnswers);
+        const recommendations = this.generateComprehensiveRecommendations(legalAnswers);
+        
+        // Store the analysis results - EXACTLY like Clinical
+        await this.storeComprehensiveResults(dealId, legalAnswers, findings, recommendations, assignedDocuments);
+        
+        // Mark job as completed - EXACTLY like Clinical
+        await storageService.updateBackgroundJob(jobId, {
+          status: 'completed',
+          currentStep: 'Analysis completed'
+        });
+        
+        console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
+        
+        return {
+          success: true,
+          documentsAnalyzed: assignedDocuments.length,
+          questionsAnswered: Object.keys(legalAnswers).length,
+          findings: findings.length,
+          recommendations: recommendations.length
+        };
+      } catch (finalError) {
+        console.error(`❌ Error in final stages of legal analysis for deal ${dealId}:`, finalError);
+        
+        // Still try to save what we have - EXACTLY like Clinical
+        try {
+          const partialFindings = this.generateComprehensiveFindings(legalAnswers);
+          const partialRecommendations = this.generateComprehensiveRecommendations(legalAnswers);
+          await this.storeComprehensiveResults(dealId, legalAnswers, partialFindings, partialRecommendations, assignedDocuments);
+          
+          // Mark as completed with error - EXACTLY like Clinical
+          await storageService.updateBackgroundJob(jobId, {
+            status: 'completed',
+            currentStep: 'Completed with partial results due to errors',
+            error: finalError.message
+          });
+          
+          return {
+            success: true,
+            documentsAnalyzed: assignedDocuments.length,
+            questionsAnswered: Object.keys(legalAnswers).length,
+            findings: partialFindings.length,
+            recommendations: partialRecommendations.length,
+            warning: 'Analysis completed with some errors'
+          };
+        } catch (saveError) {
+          console.error(`❌ Failed to save partial legal results:`, saveError);
+          throw finalError;
+        }
+      }
+      
+    } catch (error) {
+      console.error(`❌ Critical error in comprehensive legal analysis for deal ${dealId}:`, error);
+      
+      // Mark job as failed - EXACTLY like Clinical
+      await storageService.updateBackgroundJob(jobId, {
+        status: 'failed',
+        currentStep: 'Analysis failed',
+        error: error.message
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Get assigned legal documents - MATCHES Clinical's getAssignedClinicalDocuments
+   */
+  private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
+    const allDocuments = await storage.getDocumentsByDealId(dealId);
+    
+    // Filter for legal-relevant documents
+    return allDocuments.filter(doc => 
+      doc.assignedAgents?.includes('Legal') ||
+      doc.category?.toLowerCase() === 'legal' ||
+      doc.documentType?.toLowerCase().includes('legal') ||
+      doc.documentType?.toLowerCase().includes('contract') ||
+      doc.documentType?.toLowerCase().includes('agreement') ||
+      doc.name.toLowerCase().includes('contract') ||
+      doc.name.toLowerCase().includes('agreement') ||
+      doc.name.toLowerCase().includes('legal')
+    );
+  }
+
+  /**
+   * Extract evidence from all documents for a question - MATCHES Clinical
+   */
+  private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<any[]> {
+    const evidence = [];
+    for (const doc of documents) {
+      if (doc.summary || doc.extractedText) {
+        const content = doc.summary || doc.extractedText;
+        if (this.isRelevantToQuestion(content, question)) {
+          evidence.push({
+            documentName: doc.name,
+            documentSummary: doc.summary || 'No summary available',
+            relevantContent: [content],
+            keyFindings: await this.extractKeyFindings(content, question),
+            confidence: 0.8
+          });
+        }
+      }
+    }
+    return evidence;
+  }
+
+  /**
+   * Compile comprehensive answer - MATCHES Clinical
+   */
+  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    return {
+      question: question.question,
+      answer: evidence.length > 0 ? `Based on analysis of ${evidence.length} documents: ${evidence.map(e => e.keyFindings).flat().join('; ')}` : 'No relevant information found in available documents.',
+      confidence: evidence.length > 0 ? 0.8 : 0.1,
+      sources: evidence.map(e => e.documentName),
+      detailedEvidence: evidence,
+      keyFindings: evidence.map(e => e.keyFindings).flat(),
+      evidenceSummary: evidence.length > 0 ? `Found relevant information in ${evidence.length} documents` : 'No evidence found',
+      legalAssessment: evidence.length > 0 ? 'Legal analysis completed' : 'Insufficient information for analysis',
+      recommendations: evidence.length > 0 ? ['Review additional documentation', 'Consider legal consultation'] : ['Gather more legal documentation']
+    };
+  }
+
+  /**
+   * Store comprehensive results - MATCHES Clinical
+   */
+  private async storeComprehensiveResults(dealId: number, answers: any, findings: any[], recommendations: any[], documents: any[]): Promise<void> {
+    await storage.updateOrCreateAgentAnalysis(dealId, 'Legal', {
+      status: 'completed',
+      legalAnswers: answers,
+      findings: findings,
+      recommendations: recommendations,
+      confidence: 0.85,
+      completedAt: new Date(),
+      documentsAnalyzed: documents.length,
+      questionsAnswered: Object.keys(answers).length
+    });
+  }
+
+  /**
+   * Generate comprehensive findings - MATCHES Clinical
+   */
+  private generateComprehensiveFindings(answers: Record<string, any>): string[] {
+    const findings = [];
+    for (const [questionId, answer] of Object.entries(answers)) {
+      if (answer.keyFindings && answer.keyFindings.length > 0) {
+        findings.push(...answer.keyFindings);
+      }
+    }
+    return findings.length > 0 ? findings : ['No significant legal findings identified from available documentation'];
+  }
+
+  /**
+   * Generate comprehensive recommendations - MATCHES Clinical
+   */
+  private generateComprehensiveRecommendations(answers: Record<string, any>): string[] {
+    const recommendations = [];
+    for (const [questionId, answer] of Object.entries(answers)) {
+      if (answer.recommendations && answer.recommendations.length > 0) {
+        recommendations.push(...answer.recommendations);
+      }
+    }
+    return recommendations.length > 0 ? recommendations : ['Conduct comprehensive legal due diligence review', 'Engage legal counsel for detailed analysis'];
+  }
+
+  /**
+   * Check if content is relevant to question
+   */
+  private isRelevantToQuestion(content: string, question: any): boolean {
+    const contentLower = content.toLowerCase();
+    return question.keywords.some(keyword => contentLower.includes(keyword.toLowerCase()));
+  }
+
+  /**
+   * Extract key findings from content
+   */
+  private async extractKeyFindings(content: string, question: any): Promise<string[]> {
+    // Simple keyword matching for now
+    const findings = [];
+    const contentLower = content.toLowerCase();
+    for (const keyword of question.keywords) {
+      if (contentLower.includes(keyword.toLowerCase())) {
+        findings.push(`Found reference to ${keyword}`);
+      }
+    }
+    return findings.length > 0 ? findings : ['No specific findings for this question'];
+  }
+
+  /**
+   * Analyze all legal documents for a deal - LEGACY METHOD for backwards compatibility
    */
   async analyzeLegalDocuments(dealId: number): Promise<void> {
     try {

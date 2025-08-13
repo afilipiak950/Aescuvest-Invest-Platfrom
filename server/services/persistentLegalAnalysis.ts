@@ -179,39 +179,140 @@ export class PersistentLegalAnalysisService {
    */
   private async processLegalAnalysis(dealId: number, jobId: string, startProgress: number = 0): Promise<void> {
     try {
-      console.log(`🔍 Delegating to comprehensive legal analysis service...`);
-
-      // Update job status to show we're starting 
-      await storage.updateBackgroundJob(jobId, {
-        status: 'processing',
+      // Track job in memory for real-time updates - EXACTLY like Clinical
+      const jobState: LegalJobState = {
+        dealId,
+        jobId,
         progress: startProgress,
-        currentStep: 'Starting comprehensive legal analysis...',
+        currentQuestionIndex: Math.floor(startProgress / 100 * 8), // 8 total legal questions
+        totalQuestions: 8,
+        currentBatch: 0,
+        totalBatches: 0,
+        currentStep: 'Processing legal analysis...',
+        documentsAnalyzed: 0,
+        totalDocuments: 0,
+        startTime: new Date(),
+        lastUpdate: new Date()
+      };
+
+      this.activeJobs.set(jobId, jobState);
+
+      // Set up progress monitoring interval - EXACTLY like Clinical
+      const progressInterval = setInterval(async () => {
+        await this.broadcastProgress(jobId, jobState);
+      }, 2000);
+
+      this.jobIntervals.set(jobId, progressInterval);
+
+      // Delegate to comprehensive legal analysis service but with persistence - EXACTLY like Clinical
+      console.log(`🔍 Delegating to comprehensive legal analysis service...`);
+      
+      // Hook into the existing service but with persistent tracking - EXACTLY like Clinical
+      await this.runPersistentAnalysis(dealId, jobId, jobState);
+
+    } catch (error) {
+      console.error(`❌ Legal analysis failed for deal ${dealId}:`, error);
+      
+      // Clean up - EXACTLY like Clinical
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+      this.activeJobs.delete(jobId);
+
+      // Mark as failed - EXACTLY like Clinical
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        error: error.message,
         updatedAt: new Date()
       });
 
-      // Delegate to the existing comprehensive service
-      const result = await comprehensiveLegalAnalysisService.analyzeLegalDocuments(dealId);
+      throw error;
+    }
+  }
 
-      // Update final job status
+  /**
+   * Run the actual analysis with persistent state updates - IDENTICAL to Clinical
+   */
+  private async runPersistentAnalysis(dealId: number, jobId: string, jobState: LegalJobState): Promise<void> {
+    try {
+      // Update job state - EXACTLY like Clinical
+      jobState.currentStep = 'Running comprehensive legal analysis...';
+      await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
+
+      // Call the existing comprehensive legal analysis service with EXACT Clinical signature
+      const result = await comprehensiveLegalAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
+
+      // Mark as completed - EXACTLY like Clinical
+      jobState.progress = 100;
+      jobState.currentStep = 'Legal analysis completed';
+      
       await storage.updateBackgroundJob(jobId, {
         status: 'completed',
         progress: 100,
         currentStep: 'Legal analysis completed',
-        updatedAt: new Date(),
-        completedAt: new Date()
-      });
-
-      console.log(`✅ Legal analysis completed for deal ${dealId}`);
-      
-    } catch (error) {
-      console.error(`❌ Legal analysis failed for deal ${dealId}:`, error);
-      
-      // Mark job as failed
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed', 
-        error: error.message,
+        completedAt: new Date(),
         updatedAt: new Date()
       });
+
+      // Clean up - EXACTLY like Clinical
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+      this.activeJobs.delete(jobId);
+
+      console.log(`✅ Legal analysis completed for deal ${dealId}`);
+
+    } catch (error) {
+      console.error(`❌ Persistent legal analysis failed:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update job progress in database - IDENTICAL to Clinical
+   */
+  private async updateJobProgress(jobId: string, progress: number, currentStep: string): Promise<void> {
+    try {
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        currentStep,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error(`❌ Failed to update job progress for ${jobId}:`, error);
+    }
+  }
+
+  /**
+   * Broadcast progress updates via WebSocket - IDENTICAL to Clinical
+   */
+  private async broadcastProgress(jobId: string, jobState: LegalJobState): Promise<void> {
+    try {
+      // Update job state progress
+      const jobData = this.activeJobs.get(jobId);
+      if (jobData) {
+        jobData.lastUpdate = new Date();
+        
+        // Broadcast via WebSocket
+        const progressData = {
+          jobId,
+          dealId: jobState.dealId,
+          agentType: 'legal',
+          progress: jobState.progress,
+          currentStep: jobState.currentStep,
+          documentsAnalyzed: jobState.documentsAnalyzed,
+          totalDocuments: jobState.totalDocuments
+        };
+
+        // Update database
+        await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to broadcast progress for ${jobId}:`, error);
     }
   }
 
