@@ -4499,23 +4499,66 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
-      const results = await comprehensiveCommercialAnalysisService.getAnalysisResults(dealId);
+      console.log(`🏢 Fetching comprehensive commercial analysis results for deal ${dealId}`);
       
-      if (results) {
-        res.json({
-          success: true,
-          ...results
-        });
-      } else {
-        res.json({
-          success: false,
-          message: 'No comprehensive commercial analysis results found'
+      // Get comprehensive commercial analysis from agent_analyses table - EXACT Clinical approach
+      const analysis = await storage.getAgentAnalysis(dealId, 'Commercial');
+      console.log(`🏢 Raw analysis data from storage:`, analysis);
+      
+      if (!analysis) {
+        console.log(`❌ No comprehensive commercial analysis found for deal ${dealId}`);
+        return res.json({ 
+          success: false, 
+          message: 'No comprehensive commercial analysis found',
+          analysis: null
         });
       }
+
+      // Parse the stored results - EXACT Clinical approach
+      let commercialAnswers = {};
+      let findings = [];
+      let recommendations = [];
+
+      try {
+        // Fix field name mismatch: database uses commercial_answers (snake_case) but code expects commercialAnswers (camelCase)
+        if (analysis.commercial_answers || analysis.commercialAnswers) {
+          const commercialAnswersData = analysis.commercial_answers || analysis.commercialAnswers;
+          commercialAnswers = typeof commercialAnswersData === 'string' 
+            ? JSON.parse(commercialAnswersData) 
+            : commercialAnswersData;
+        }
+        if (analysis.findings) {
+          findings = typeof analysis.findings === 'string' 
+            ? JSON.parse(analysis.findings) 
+            : analysis.findings;
+        }
+        if (analysis.recommendations) {
+          recommendations = typeof analysis.recommendations === 'string' 
+            ? JSON.parse(analysis.recommendations) 
+            : analysis.recommendations;
+        }
+      } catch (parseError) {
+        console.error('Error parsing comprehensive commercial analysis data:', parseError);
+        console.error('Analysis data received:', analysis);
+      }
+
+      console.log(`✅ Found comprehensive commercial analysis - ${Object.keys(commercialAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
+      res.json({
+        success: true,
+        analysis: {
+          ...analysis,
+          commercialAnswers,
+          findings,
+          recommendations,
+          questionsAnswered: Object.keys(commercialAnswers).length,
+          totalQuestions: 12,
+          completionRate: Math.round((Object.keys(commercialAnswers).length / 12) * 100)
+        }
+      });
     } catch (error) {
       console.error(`❌ Error getting comprehensive commercial analysis results:`, error);
-      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
+      res.status(500).json({ success: false, error: 'Failed to get comprehensive commercial analysis results' });
     }
   });
 
