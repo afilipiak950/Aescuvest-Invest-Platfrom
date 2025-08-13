@@ -77,85 +77,75 @@ export class PersistentLegalAnalysisService {
         await this.resumeLegalAnalysis(job.dealId, job.jobId);
       }
       
-      console.log(`✅ Persistent Legal Analysis Service initialized with ${legalJobs.length} restored jobs`);
+      console.log('✅ Persistent Legal Analysis Service initialized');
     } catch (error) {
       console.error('❌ Error initializing Persistent Legal Analysis Service:', error);
     }
   }
 
   /**
-   * Start or resume legal analysis for a deal
+   * Start a new persistent legal analysis job - IDENTICAL to Clinical
    */
-  async startLegalAnalysis(dealId: number): Promise<{ success: boolean; jobId: string; message: string }> {
-    try {
-      const jobId = `legal-analysis-${dealId}`;
-      
-      // Check if job already exists and is processing
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingJob = existingJobs.find(job => 
-        job.agentType === 'legal' && 
-        job.jobType === 'comprehensive_legal_analysis' &&
-        job.status === 'processing'
-      );
-      if (existingJob) {
-        console.log(`🔄 Legal analysis already running for deal ${dealId}`);
-        return { success: true, jobId, message: 'Legal analysis already in progress' };
-      }
+  async startLegalAnalysis(dealId: number): Promise<string> {
+    const jobId = `legal-analysis-${dealId}`;
+    
+    console.log(`🔍 Starting persistent legal analysis for deal ${dealId}`);
 
-      // Check if analysis is already complete
-      if (await this.isLegalAnalysisComplete(dealId)) {
-        console.log(`✅ Legal analysis already complete for deal ${dealId}`);
-        return { success: true, jobId, message: 'Legal analysis already complete' };
-      }
-
-      console.log(`🚀 Starting legal analysis for deal ${dealId}`);
-
-      // Check if job already exists (from previous run)
-      const existingJobById = await storage.getBackgroundJobById(jobId);
-      if (existingJobById) {
-        console.log(`🔄 Existing job found for deal ${dealId}, updating status to processing`);
-        await storage.updateBackgroundJob(jobId, {
-          status: 'processing',
-          progress: 0,
-          currentStep: 'Analyzing: Legal Due Diligence',
-          updatedAt: new Date()
-        });
-      } else {
-        // Create new background job
-        await storage.createBackgroundJob({
-          jobId,
-          dealId,
-          agentType: 'legal',
-          jobType: 'comprehensive_legal_analysis',
-          status: 'processing',
-          progress: 0,
-          totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-          processedDocuments: 0,
-          currentDocument: '',
-          currentStep: 'Analyzing: Legal Due Diligence'
-        });
-      }
-
-      // Start the analysis process
+    // Check if job already exists and is running
+    const existingJob = await storage.getBackgroundJobById(jobId);
+    if (existingJob && existingJob.status === 'processing') {
+      console.log(`🔄 Legal analysis already running for deal ${dealId}, resuming...`);
       await this.resumeLegalAnalysis(dealId, jobId);
-
-      return { success: true, jobId, message: 'Legal analysis started successfully' };
-    } catch (error) {
-      console.error(`❌ Failed to start legal analysis for deal ${dealId}:`, error);
-      return { success: false, jobId: '', message: 'Failed to start legal analysis' };
+      return jobId;
     }
+
+    // Clean up any old completed or failed jobs for this deal
+    if (existingJob && existingJob.status !== 'processing') {
+      console.log(`🧹 Found old job for deal ${dealId} with status ${existingJob.status}, deleting it...`);
+      await storage.deleteBackgroundJob(jobId);
+    }
+
+    // Create new background job record
+    await storage.createBackgroundJob({
+      jobId,
+      jobType: 'comprehensive_legal_analysis',
+      dealId,
+      agentType: 'legal',
+      status: 'processing',
+      progress: 0,
+      totalDocuments: 0,
+      processedDocuments: 0,
+      currentStep: 'Initializing legal analysis...',
+      startedAt: new Date()
+    });
+
+    // Start the analysis process
+    await this.processLegalAnalysis(dealId, jobId);
+    
+    return jobId;
   }
 
   /**
-   * Resume legal analysis from where it left off
+   * Resume an interrupted legal analysis job - IDENTICAL to Clinical
    */
   private async resumeLegalAnalysis(dealId: number, jobId: string): Promise<void> {
     try {
-      console.log(`🔄 Resuming legal analysis for deal ${dealId}, job ${jobId}`);
+      console.log(`🔄 Resuming legal analysis job ${jobId} for deal ${dealId}`);
 
-      // Check if analysis is complete
-      if (await this.isLegalAnalysisComplete(dealId)) {
-        console.log(`✅ Legal analysis already complete for deal ${dealId}`);
+      // Get job state from database
+      const job = await storage.getBackgroundJobById(jobId);
+      if (!job) {
+        console.error(`❌ Job ${jobId} not found in database`);
+        return;
+      }
+
+      // Check if analysis is FULLY completed (all questions answered)
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'legal');
+      const expectedQuestions = COMPREHENSIVE_LEGAL_QUESTIONS;
+      const answeredQuestions = existingAnalysis?.legalAnswers ? Object.keys(existingAnalysis.legalAnswers).length : 0;
+      
+      if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
+        console.log(`✅ Legal analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
         await storage.updateBackgroundJob(jobId, {
           status: 'completed',
           progress: 100,
@@ -164,36 +154,64 @@ export class PersistentLegalAnalysisService {
         return;
       }
 
-      // Initialize job state
-      const jobState: LegalJobState = {
-        dealId,
-        jobId,
-        progress: 0,
-        currentQuestionIndex: 0,
-        totalQuestions: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-        currentBatch: 1,
-        totalBatches: 32, // Estimated batches
-        currentStep: 'Analyzing: Legal Due Diligence',
-        documentsAnalyzed: 0,
-        totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-        startTime: new Date(),
-        lastUpdate: new Date()
-      };
+      // Analysis is incomplete, continue from where we left off
+      console.log(`🔄 Legal analysis incomplete: ${answeredQuestions}/${expectedQuestions.length} questions answered. Continuing...`);
+      
+      const currentProgress = job.progress || 0;
+      console.log(`🔄 Resuming legal analysis at ${currentProgress}% completion`);
 
-      this.activeJobs.set(jobId, jobState);
-
-      // Start processing interval
-      const interval = setInterval(async () => {
-        await this.processLegalAnalysisBatch(jobId);
-      }, 2000); // Process every 2 seconds
-
-      this.jobIntervals.set(jobId, interval);
-
-      // Hook into the existing service but with persistent tracking
-      await this.runPersistentLegalAnalysis(dealId, jobId, jobState);
+      // Continue processing from current state
+      await this.processLegalAnalysis(dealId, jobId, currentProgress);
 
     } catch (error) {
       console.error(`❌ Failed to resume legal analysis for deal ${dealId}:`, error);
+      // Mark job as failed
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        error: error.message,
+        updatedAt: new Date()
+      });
+    }
+  }
+
+  /**
+   * Process legal analysis with persistent state tracking - IDENTICAL to Clinical
+   */
+  private async processLegalAnalysis(dealId: number, jobId: string, startProgress: number = 0): Promise<void> {
+    try {
+      console.log(`🔍 Delegating to comprehensive legal analysis service...`);
+
+      // Update job status to show we're starting 
+      await storage.updateBackgroundJob(jobId, {
+        status: 'processing',
+        progress: startProgress,
+        currentStep: 'Starting comprehensive legal analysis...',
+        updatedAt: new Date()
+      });
+
+      // Delegate to the existing comprehensive service
+      const result = await comprehensiveLegalAnalysisService.analyzeLegalDocuments(dealId);
+
+      // Update final job status
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: 'Legal analysis completed',
+        updatedAt: new Date(),
+        completedAt: new Date()
+      });
+
+      console.log(`✅ Legal analysis completed for deal ${dealId}`);
+      
+    } catch (error) {
+      console.error(`❌ Legal analysis failed for deal ${dealId}:`, error);
+      
+      // Mark job as failed
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed', 
+        error: error.message,
+        updatedAt: new Date()
+      });
     }
   }
 
@@ -238,172 +256,9 @@ export class PersistentLegalAnalysisService {
     }
   }
 
-  /**
-   * Run persistent legal analysis - EXACTLY like Clinical agent approach
-   */
-  private async runPersistentLegalAnalysis(dealId: number, jobId: string, jobState: LegalJobState): Promise<void> {
-    try {
-      console.log(`🧬 Starting persistent legal analysis for deal ${dealId} with jobId ${jobId}`);
-      
-      // Continuously process questions until complete
-      while (!await this.isLegalAnalysisComplete(dealId)) {
-        
-        // Check if job was cancelled
-        const job = await storage.getBackgroundJobById(jobId);
-        if (!job || job.status === 'cancelled') {
-          console.log(`🛑 Legal analysis job ${jobId} was cancelled`);
-          this.cleanup(jobId);
-          return;
-        }
 
-        // Get current analysis state
-        const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
-        const answeredQuestions = existingAnalysis?.legalAnswers ? Object.keys(existingAnalysis.legalAnswers).length : 0;
-        const totalQuestions = COMPREHENSIVE_LEGAL_QUESTIONS.length;
-        
-        // Calculate real progress based on answered questions
-        const realProgress = Math.floor((answeredQuestions / totalQuestions) * 100);
-        
-        console.log(`📊 Legal analysis progress: ${answeredQuestions}/${totalQuestions} questions (${realProgress}%)`);
-        
-        // Update job state
-        jobState.progress = realProgress;
-        jobState.currentQuestionIndex = answeredQuestions;
-        jobState.currentStep = `Processing legal question ${answeredQuestions + 1}/${totalQuestions}`;
-        jobState.lastUpdate = new Date();
-        
-        // Update database
-        await storage.updateBackgroundJob(jobId, {
-          progress: realProgress,
-          currentStep: jobState.currentStep,
-          updatedAt: new Date()
-        });
 
-        // Process the next question if not all are done
-        if (answeredQuestions < totalQuestions) {
-          try {
-            console.log(`🔍 Processing legal question ${answeredQuestions + 1}: ${COMPREHENSIVE_LEGAL_QUESTIONS[answeredQuestions]?.question}`);
-            
-            // Call the comprehensive analysis service to process next question
-            await comprehensiveLegalAnalysisService.analyzeLegalDocuments(dealId);
-            
-            // Small delay to prevent overwhelming the system
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-          } catch (error) {
-            console.error(`❌ Error processing legal question ${answeredQuestions + 1}:`, error);
-            // Continue to next iteration to try again
-            await new Promise(resolve => setTimeout(resolve, 5000));
-          }
-        }
-        
-        // Prevent infinite loops
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
-      // Mark as complete when all questions are answered
-      console.log(`✅ All legal questions completed for deal ${dealId}`);
-      
-      await storage.updateBackgroundJob(jobId, {
-        status: 'completed',
-        progress: 100,
-        currentStep: 'Legal analysis completed',
-        completedAt: new Date(),
-        updatedAt: new Date()
-      });
 
-      // Update job state
-      jobState.progress = 100;
-      jobState.currentStep = 'Legal analysis completed';
-      
-      this.cleanup(jobId);
-      
-      console.log(`✅ Persistent legal analysis completed for deal ${dealId}`);
-      
-    } catch (error) {
-      console.error(`❌ Error in persistent legal analysis for deal ${dealId}:`, error);
-      
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        updatedAt: new Date()
-      });
-
-      this.cleanup(jobId);
-    }
-  }
-
-  /**
-   * Process legal analysis batch updates
-   */
-  private async processLegalAnalysisBatch(jobId: string): Promise<void> {
-    try {
-      const jobState = this.activeJobs.get(jobId);
-      if (!jobState) return;
-
-      // Simulate progress updates (in real implementation, this would track actual progress)
-      jobState.progress = Math.min(jobState.progress + 2, 95); // Don't go to 100 until complete
-      jobState.currentBatch = Math.floor(jobState.progress / 3) + 1;
-      jobState.documentsAnalyzed = Math.floor((jobState.progress / 100) * jobState.totalDocuments);
-      jobState.lastUpdate = new Date();
-
-      // Update current step based on progress
-      if (jobState.progress < 30) {
-        jobState.currentStep = 'Analyzing: Legal Due Diligence';
-      } else if (jobState.progress < 60) {
-        jobState.currentStep = 'Analyzing: Corporate Documents';
-      } else if (jobState.progress < 90) {
-        jobState.currentStep = 'Analyzing: Regulatory Compliance';
-      } else {
-        jobState.currentStep = 'Finalizing Legal Analysis';
-      }
-
-      // Update database
-      await storage.updateBackgroundJob(jobId, {
-        progress: jobState.progress,
-        processedDocuments: jobState.documentsAnalyzed,
-        currentStep: jobState.currentStep,
-        metadata: {
-          agentType: 'legal',
-          startTime: jobState.startTime.toISOString(),
-          lastUpdate: jobState.lastUpdate.toISOString()
-        },
-        updatedAt: new Date()
-      });
-
-      // Broadcast progress
-      this.broadcastProgress(jobState);
-
-      console.log(`📊 Legal analysis progress for ${jobId}: ${jobState.progress}% (batch ${jobState.currentBatch}/${jobState.totalBatches})`);
-
-    } catch (error) {
-      console.error(`❌ Error processing legal analysis batch for ${jobId}:`, error);
-    }
-  }
-
-  /**
-   * Broadcast progress updates via WebSocket
-   */
-  private broadcastProgress(jobState: LegalJobState): void {
-    try {
-      const progressData = {
-        jobId: jobState.jobId,
-        dealId: jobState.dealId,
-        agentType: 'legal',
-        progress: jobState.progress,
-        currentStep: jobState.currentStep,
-        currentBatch: jobState.currentBatch,
-        totalBatches: jobState.totalBatches,
-        documentsAnalyzed: jobState.documentsAnalyzed,
-        totalDocuments: jobState.totalDocuments
-      };
-
-      // Send via WebSocket to all connected clients for this deal
-      websocketManager.broadcastToRoom(`deal-${jobState.dealId}`, 'job-progress', progressData);
-    } catch (error) {
-      console.error(`❌ Failed to broadcast progress for ${jobState.jobId}:`, error);
-    }
-  }
 
   /**
    * Clean up job resources

@@ -24,20 +24,14 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/start', async (req
 
     console.log(`🚀 Starting legal analysis for deal ${dealId}`);
     
-    const result = await persistentLegalAnalysisService.startLegalAnalysis(dealId);
+    const jobId = await persistentLegalAnalysisService.startLegalAnalysis(dealId);
     
-    if (result.success) {
-      res.json({
-        success: true,
-        jobId: result.jobId,
-        message: result.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: result.message
-      });
-    }
+    res.json({
+      success: true,
+      message: 'Persistent legal analysis started',
+      jobId,
+      dealId
+    });
     
   } catch (error) {
     console.error('Error starting legal analysis:', error);
