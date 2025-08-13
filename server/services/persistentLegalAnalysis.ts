@@ -199,6 +199,7 @@ export class PersistentLegalAnalysisService {
 
       // Set up progress monitoring interval - EXACTLY like Clinical
       const progressInterval = setInterval(async () => {
+        console.log(`🔄 Legal progress monitoring tick for job ${jobId}`);
         await this.broadcastProgress(jobId, jobState);
       }, 2000);
 
@@ -288,28 +289,39 @@ export class PersistentLegalAnalysisService {
   }
 
   /**
-   * Broadcast progress updates via WebSocket - IDENTICAL to Clinical
+   * Broadcast progress updates via WebSocket - FIXED to read actual progress
    */
   private async broadcastProgress(jobId: string, jobState: LegalJobState): Promise<void> {
     try {
-      // Update job state progress
-      const jobData = this.activeJobs.get(jobId);
-      if (jobData) {
-        jobData.lastUpdate = new Date();
-        
-        // Broadcast via WebSocket
-        const progressData = {
-          jobId,
-          dealId: jobState.dealId,
-          agentType: 'legal',
-          progress: jobState.progress,
-          currentStep: jobState.currentStep,
-          documentsAnalyzed: jobState.documentsAnalyzed,
-          totalDocuments: jobState.totalDocuments
-        };
+      // Get current progress from database (don't overwrite it!)
+      const currentJob = await storage.getBackgroundJobById(jobId);
+      if (currentJob && this.activeJobs.has(jobId)) {
+        const jobData = this.activeJobs.get(jobId);
+        if (jobData) {
+          jobData.lastUpdate = new Date();
+          
+          // Use REAL progress from database, not our stale memory
+          const realProgress = currentJob.progress || 0;
+          const realCurrentStep = currentJob.currentStep || jobState.currentStep;
+          
+          // Update our memory with real values
+          jobState.progress = realProgress;
+          jobState.currentStep = realCurrentStep;
+          
+          // Broadcast via WebSocket with REAL progress
+          const progressData = {
+            jobId,
+            dealId: jobState.dealId,
+            agentType: 'legal',
+            progress: realProgress,
+            currentStep: realCurrentStep,
+            documentsAnalyzed: jobState.documentsAnalyzed,
+            totalDocuments: jobState.totalDocuments
+          };
 
-        // Update database
-        await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
+          // DON'T update database - just broadcast the real values
+          console.log(`📡 Broadcasting real legal progress: ${realProgress}% - ${realCurrentStep}`);
+        }
       }
     } catch (error) {
       console.error(`❌ Failed to broadcast progress for ${jobId}:`, error);
