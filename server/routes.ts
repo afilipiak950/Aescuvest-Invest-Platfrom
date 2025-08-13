@@ -4481,13 +4481,49 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     try {
       const dealId = parseInt(req.params.dealId);
       
-      const { comprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
-      const progress = comprehensiveCommercialAnalysisService.getProgress(dealId);
+      // DEBUG: Add comprehensive logging for Commercial progress debugging
+      console.log(`🏢 DEBUG: Fetching commercial progress for deal ${dealId}`);
       
-      res.json({
-        success: true,
-        ...progress
-      });
+      const backgroundJobs = await storage.getBackgroundJobsByDealId(dealId);
+      console.log(`🏢 DEBUG: Found ${backgroundJobs.length} background jobs`);
+      
+      const commercialJob = backgroundJobs.find(job => 
+        job.agentType?.toLowerCase() === 'commercial'
+      );
+      
+      console.log(`🏢 DEBUG: Commercial job found:`, commercialJob ? {
+        jobId: commercialJob.jobId,
+        status: commercialJob.status,
+        progress: commercialJob.progress,
+        currentStep: commercialJob.currentStep,
+        agentType: commercialJob.agentType
+      } : 'NULL');
+      
+      if (commercialJob && commercialJob.status === 'processing') {
+        const response = {
+          success: true,
+          isRunning: true,
+          progress: commercialJob.progress || 0,
+          currentStep: commercialJob.currentStep || 'Starting commercial analysis',
+          message: `Commercial analysis running at ${commercialJob.progress || 0}%`,
+          totalSteps: 12,
+          currentQuestion: commercialJob.currentStep
+        };
+        console.log(`🏢 DEBUG: Returning PROCESSING response:`, response);
+        res.json(response);
+      } else {
+        const response = {
+          success: true,
+          isRunning: false,
+          progress: commercialJob?.progress || 0,
+          currentStep: commercialJob?.currentStep || null,
+          message: 'No comprehensive commercial analysis running',
+          totalSteps: 12,
+          currentQuestion: null
+        };
+        console.log(`🏢 DEBUG: Returning NOT RUNNING response:`, response);
+        res.json(response);
+      }
     } catch (error) {
       console.error(`❌ Error getting comprehensive commercial analysis progress:`, error);
       res.status(500).json({ success: false, error: 'Failed to get progress' });
