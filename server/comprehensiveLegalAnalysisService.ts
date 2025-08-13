@@ -169,6 +169,14 @@ class ComprehensiveLegalAnalysisService {
         };
       }
       
+      // Initialize progress - EXACT Clinical approach
+      await storageService.updateBackgroundJob(jobId, {
+        progress: 5,
+        currentStep: 'Starting legal analysis',
+        processedDocuments: 0,
+        totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length
+      });
+      
       const legalAnswers: Record<string, any> = {};
       
       // Process each legal question systematically - EXACT Clinical approach
@@ -189,12 +197,11 @@ class ComprehensiveLegalAnalysisService {
           console.log(`📊 Extracting legal evidence for: ${question.question}`);
           
           // Extract evidence from ALL documents for this question - EXACT Clinical approach
-          console.log(`📄 STARTING document evidence extraction for question: ${question.question}`);
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
             assignedDocuments, 
             question
           );
-          console.log(`📊 COMPLETED evidence extraction for question: ${question.question} - Found ${documentEvidence.length} pieces of evidence`);
+          console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
           // Compile comprehensive answer - EXACT Clinical approach with timeout
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
@@ -205,7 +212,10 @@ class ComprehensiveLegalAnalysisService {
           legalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
-          console.log(`✅ Question ${i + 1} completed: ${question.question}`);
+          console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
+          
+          // Brief delay to avoid rate limiting - EXACT Clinical approach  
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
         } catch (questionError) {
           console.error(`❌ Error processing question ${i + 1}: ${question.question}`, questionError);
