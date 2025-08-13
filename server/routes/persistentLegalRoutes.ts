@@ -109,7 +109,7 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/status', async (req
 /**
  * Get comprehensive legal analysis results
  */
-persistentLegalRoutes.get('/deals/:dealId/legal-analysis/comprehensive/results', async (req, res) => {
+persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/results', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
     
