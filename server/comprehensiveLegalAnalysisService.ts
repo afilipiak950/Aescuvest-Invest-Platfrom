@@ -188,25 +188,21 @@ class ComprehensiveLegalAnalysisService {
           
           console.log(`📊 Extracting legal evidence for: ${question.question}`);
           
-          // Extract evidence from all documents for this question with aggressive timeout - EXACT Clinical approach
-          let documentEvidence;
-          try {
-            console.log(`⏰ Starting evidence extraction for question ${i + 1} with 15-second timeout`);
-            documentEvidence = await Promise.race([
-              this.extractEvidenceFromAllDocuments(assignedDocuments, question),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Evidence extraction timeout - forcing completion')), 15000)) // 15 second timeout
-            ]);
-            console.log(`✅ Evidence extraction completed successfully for question ${i + 1}`);
-          } catch (timeoutError) {
-            console.log(`⏰ Question ${i + 1} timed out after 15 seconds - using empty evidence and continuing: ${timeoutError.message}`);
-            documentEvidence = []; // Use empty evidence to continue
-          }
-          
+          // Extract evidence from ALL documents for this question - EXACT Clinical approach
+          const documentEvidence = await this.extractEvidenceFromAllDocuments(
+            assignedDocuments, 
+            question
+          );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
-          // Compile comprehensive answer - EXACT Clinical approach
-          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          // Compile comprehensive answer - EXACT Clinical approach with timeout
+          console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
+          const answer = await Promise.race([
+            this.compileComprehensiveAnswer(question, documentEvidence),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
+          ]);
           legalAnswers[question.id] = answer;
+          console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
           console.log(`✅ Question ${i + 1} completed: ${question.question}`);
           
@@ -479,61 +475,91 @@ Be thorough in finding relevance - most business documents have legal implicatio
   /**
    * Compile comprehensive answer based on all evidence - EXACT COPY from Clinical
    */
-  private async compileComprehensiveAnswer(question: any, documentEvidence: any[]): Promise<any> {
-    try {
-      if (documentEvidence.length === 0) {
-        return {
-          question: question.question,
-          category: question.category,
-          answer: 'No relevant information found in available documents.',
-          confidence: 0,
-          sources: [],
-          detailedEvidence: [],
-          keyFindings: [],
-          evidenceSummary: 'No evidence found',
-          legalAssessment: 'Insufficient information for legal analysis',
-          recommendations: ['Gather additional legal documentation', 'Conduct detailed legal due diligence review']
-        };
-      }
+  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    console.log(`Compiling comprehensive answer for: ${question.question} with ${evidence.length} documents`);
+    
+    if (evidence.length === 0) {
+      return {
+        question: question.question,
+        category: question.category,
+        answer: 'No relevant documents found for legal analysis',
+        confidence: 0,
+        sources: [],
+        keyFindings: [],
+        gaps: ['No legal documentation available'],
+        recommendations: ['Obtain relevant legal documents for analysis'],
+        evidenceCount: 0,
+        detailedEvidence: []
+      };
+    }
 
-      // Compile all evidence into comprehensive answer - EXACT Clinical approach
-      const allKeyFindings = documentEvidence.flatMap(evidence => evidence.keyFindings || []);
-      const allSources = documentEvidence.map(evidence => evidence.documentName);
-      const averageConfidence = documentEvidence.reduce((sum, evidence) => sum + (evidence.confidence || 0), 0) / documentEvidence.length;
+    const prompt = `You are a senior legal analyst conducting due diligence review. Analyze the following evidence to answer this question: "${question.question}"
+
+Evidence from ${evidence.length} documents:
+${evidence.map(ev => `
+DOCUMENT: ${ev.documentName}
+RELEVANT CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+KEY FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
+CONFIDENCE: ${ev.confidence}%
+`).join('\n')}
+
+Instructions:
+1. Synthesize ALL evidence into a comprehensive legal answer
+2. Cite specific documents and quotes
+3. Identify legal gaps in information
+4. Provide confidence assessment
+5. Include legal recommendations
+
+Respond in JSON format:
+{
+  "answer": "Comprehensive legal answer synthesizing all evidence",
+  "confidence": 0-100,
+  "sources": ["Document name 1", "Document name 2"],
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "gaps": ["Missing information 1", "Missing information 2"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "legalAssessment": "Overall legal assessment based on evidence",
+  "evidenceCount": ${evidence.length}
+}`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 2000
+      });
       
-      // Create comprehensive answer text based on evidence
-      const answerText = `Based on analysis of ${documentEvidence.length} documents: ${allKeyFindings.slice(0, 5).join('; ')}`;
+      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
       
       return {
         question: question.question,
         category: question.category,
-        answer: answerText,
-        confidence: Math.round(averageConfidence),
-        sources: allSources,
-        detailedEvidence: documentEvidence,
-        keyFindings: allKeyFindings,
-        evidenceSummary: `Found relevant information in ${documentEvidence.length} documents with average confidence of ${Math.round(averageConfidence)}%`,
-        legalAssessment: `Legal analysis completed based on ${documentEvidence.length} relevant documents`,
-        recommendations: [
-          'Review detailed evidence findings',
-          'Consider legal expert consultation',
-          'Verify compliance status',
-          'Assess regulatory risk exposure'
-        ]
+        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        confidence: compiledAnswer.confidence || 30,
+        sources: compiledAnswer.sources || evidence.map(e => e.documentName),
+        keyFindings: compiledAnswer.keyFindings || [],
+        gaps: compiledAnswer.gaps || [],
+        recommendations: compiledAnswer.recommendations || [],
+        legalAssessment: compiledAnswer.legalAssessment || '',
+        evidenceCount: evidence.length,
+        detailedEvidence: evidence
       };
+      
     } catch (error) {
-      console.error('Error compiling comprehensive answer:', error);
+      console.error(`Error compiling answer for "${question.question}":`, error);
       return {
         question: question.question,
         category: question.category,
         answer: `Error compiling answer: ${error.message}`,
         confidence: 0,
-        sources: [],
-        detailedEvidence: documentEvidence,
+        sources: evidence.map(e => e.documentName),
         keyFindings: [],
-        evidenceSummary: 'Error in analysis',
-        legalAssessment: 'Analysis failed',
-        recommendations: ['Retry analysis', 'Manual review required']
+        gaps: ['Analysis compilation failed'],
+        recommendations: ['Manual review required'],
+        evidenceCount: evidence.length,
+        detailedEvidence: evidence
       };
     }
   }
