@@ -132,18 +132,49 @@ router.post('/api/persistent-jobs/:jobId/stop', async (req: Request, res: Respon
 });
 
 /**
- * Clear all stuck jobs for a deal
+ * Clear all stuck jobs for a deal - NOW ALSO STOPS RUNNING JOBS
  */
 router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Response) => {
   try {
     const dealId = parseInt(req.params.dealId);
     
-    const clearedCount = await persistentJobManager.clearStuckJobs(dealId);
+    console.log(`🛑 CLEARING/STOPPING ALL JOBS for deal ${dealId}`);
+    
+    // Get all active jobs for this deal from storage
+    const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const processingJobs = activeJobs.filter(job => job.status === 'processing');
+    
+    console.log(`🔍 Found ${activeJobs.length} total jobs, ${processingJobs.length} processing jobs for deal ${dealId}`);
+    
+    let stoppedCount = 0;
+    
+    // First, update database status to cancelled
+    for (const job of processingJobs) {
+      try {
+        // Update job status to cancelled in database
+        await storage.updateBackgroundJob(job.jobId, {
+          status: 'cancelled',
+          currentStep: 'Stopped by user',
+          completedAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        stoppedCount++;
+        console.log(`🛑 Database: Cancelled job ${job.jobId} (${job.agentType})`);
+      } catch (error) {
+        console.error(`❌ Error updating job ${job.jobId}:`, error);
+      }
+    }
+    
+    // Then clear from memory using persistent job manager  
+    const clearedFromMemory = await persistentJobManager.clearStuckJobs(dealId);
+    
+    console.log(`✅ Stopped ${stoppedCount} jobs in database, cleared ${clearedFromMemory} from memory for deal ${dealId}`);
     
     res.json({
       success: true,
-      message: `Cleared ${clearedCount} stuck jobs`,
-      clearedCount
+      message: `Cleared ${stoppedCount} stuck jobs`,
+      clearedCount: stoppedCount
     });
     
   } catch (error) {
