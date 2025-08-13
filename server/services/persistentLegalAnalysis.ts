@@ -334,7 +334,14 @@ export class PersistentLegalAnalysisService {
           // Broadcast real progress to WebSocket clients
           try {
             if (this.websocketManager) {
-              this.websocketManager.broadcastProgress(progressData);
+              // Use the correct method name and format to match WebSocket manager interface
+              this.websocketManager.broadcastJobProgress({
+                jobId: parseInt(jobId.replace('legal-analysis-', '')),
+                progress: realProgress,
+                status: 'processing',
+                currentStep: realCurrentStep,
+                documentName: realCurrentDocumentName
+              }, jobState.dealId);
             }
           } catch (wsError) {
             console.log(`⚠️ WebSocket broadcast failed, continuing with progress update`);
