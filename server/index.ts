@@ -10,6 +10,7 @@ import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
+import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 
 const app = express();
 
@@ -269,6 +270,12 @@ app.use((req, res, next) => {
     console.log('🧬 Initializing Persistent Clinical Analysis Service...');
     persistentClinicalAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent clinical analysis:', err);
+    });
+    
+    // Initialize Persistent Legal Analysis Service
+    console.log('🔍 Initializing Persistent Legal Analysis Service...');
+    persistentLegalAnalysisService.initialize().catch(err => {
+      console.error('❌ Failed to initialize persistent legal analysis:', err);
     });
   });
 })();

@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
+import { PersistentLegalButton } from './PersistentLegalButton';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -1562,7 +1563,10 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <ComprehensiveLegalAnalysisButton dealId={22} />
+        <PersistentLegalButton 
+          dealId={dealId}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        />
       </div>
 
       {/* Progress is now shown in main progress bar at top of page - removed duplicate here */}
