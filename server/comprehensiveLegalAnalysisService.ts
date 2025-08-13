@@ -189,11 +189,12 @@ class ComprehensiveLegalAnalysisService {
           console.log(`📊 Extracting legal evidence for: ${question.question}`);
           
           // Extract evidence from ALL documents for this question - EXACT Clinical approach
+          console.log(`📄 STARTING document evidence extraction for question: ${question.question}`);
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
             assignedDocuments, 
             question
           );
-          console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+          console.log(`📊 COMPLETED evidence extraction for question: ${question.question} - Found ${documentEvidence.length} pieces of evidence`);
           
           // Compile comprehensive answer - EXACT Clinical approach with timeout
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
@@ -358,6 +359,12 @@ class ComprehensiveLegalAnalysisService {
         (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
       );
       console.log(`📄 Documents with content available: ${legalDocuments.length}`);
+    }
+    
+    // Limit to maximum 50 documents for efficiency - EXACTLY like Clinical
+    if (legalDocuments.length > 50) {
+      console.log(`📄 Limiting to first 50 documents for legal analysis efficiency (found ${legalDocuments.length})`);
+      legalDocuments = legalDocuments.slice(0, 50);
     }
     
     return legalDocuments;
