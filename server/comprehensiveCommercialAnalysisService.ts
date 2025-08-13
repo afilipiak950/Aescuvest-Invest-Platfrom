@@ -195,7 +195,7 @@ export class ComprehensiveCommercialAnalysisService {
     console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
     
     try {
-      // Get all commercial documents
+      // Get all commercial documents - EXACT Clinical approach
       const assignedDocuments = await this.getAssignedCommercialDocuments(dealId);
       console.log(`📄 Found ${assignedDocuments.length} commercial documents for analysis`);
       
@@ -209,7 +209,7 @@ export class ComprehensiveCommercialAnalysisService {
         return { success: false, message: 'No commercial documents found' };
       }
       
-      // Initialize progress
+      // Initialize progress - EXACT Clinical approach
       await storageService.updateBackgroundJob(jobId, {
         progress: 5,
         currentStep: 'Starting commercial analysis',
