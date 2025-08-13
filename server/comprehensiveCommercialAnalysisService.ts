@@ -187,393 +187,518 @@ class ComprehensiveCommercialAnalysisService {
     }
   }
 
-  async startComprehensiveAnalysis(dealId: number): Promise<void> {
+  /**
+   * Run comprehensive analysis for all assigned commercial documents
+   * EXACT CLONE of Clinical agent micro-step architecture
+   */
+  async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string): Promise<any> {
     console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
     
     try {
-      // NUCLEAR OPTION: Force delete the specific zombie job that's causing problems
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq, and } = await import('drizzle-orm');
+      // Get all commercial documents
+      const assignedDocuments = await this.getAssignedCommercialDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} commercial documents for analysis`);
       
-      // First, delete the specific zombie job by ID
-      const zombieJobId = 'commercial-analysis-22-1753885055889';
-      console.log(`🧹 NUCLEAR: Force deleting zombie job ${zombieJobId}`);
-      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, zombieJobId));
-      
-      // Then delete ALL Commercial jobs for this deal as backup
-      console.log(`🧹 NUCLEAR: Force deleting ALL Commercial jobs for deal ${dealId}`);
-      await db.delete(backgroundJobs).where(and(
-        eq(backgroundJobs.dealId, dealId),
-        eq(backgroundJobs.agentType, 'Commercial')
-      ));
-      
-      // Wait for database consistency
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Create unique background job ID - use timestamp to ensure uniqueness
-      const timestamp = Date.now();
-      const jobId = `commercial-analysis-${dealId}-${timestamp}`;
-      console.log(`🚀 Creating NEW Commercial job: ${jobId}`);
-      
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_commercial_analysis',
-        dealId,
-        agentType: 'Commercial', 
-        status: 'processing',
-        progress: 10,
-        currentStep: 'Initializing commercial analysis'
-      });
-
-      await this.setProgress(dealId, {
-        isRunning: true,
-        progress: 10,
-        message: 'Starting comprehensive commercial analysis',
-        currentStep: 'Initializing commercial analysis'
-      }, jobId);
-
-      // Find assigned commercial documents
-      await this.setProgress(dealId, {
-        progress: 20,
-        currentStep: 'Finding assigned commercial documents'
-      }, jobId);
-
-      const documents = await this.getAssignedCommercialDocuments(dealId);
-      console.log(`🏢 Found ${documents.length} assigned commercial documents`);
-
-      if (documents.length === 0) {
-        throw new Error('No commercial documents assigned for analysis');
-      }
-
-      // Extract evidence from all documents
-      await this.setProgress(dealId, {
-        progress: 20,
-        currentStep: 'Extracting evidence from commercial documents'
-      }, jobId);
-
-      const evidenceResults = await this.extractEvidenceFromAllDocuments(documents, dealId, jobId);
-      
-      // Generate comprehensive answers for all questions
-      await this.setProgress(dealId, {
-        progress: 70,
-        currentStep: 'Generating comprehensive commercial analysis'
-      }, jobId);
-
-      const commercialAnswers = await this.generateComprehensiveAnswers(evidenceResults, dealId);
-      
-      // Store results
-      await this.setProgress(dealId, {
-        progress: 90,
-        currentStep: 'Storing commercial analysis results'
-      }, jobId);
-
-      await this.storeAnalysisResults(dealId, commercialAnswers, evidenceResults);
-      
-      // Complete
-      await this.setProgress(dealId, {
-        isRunning: false,
-        progress: 100,
-        message: 'Commercial analysis completed successfully'
-      }, jobId);
-
-      // Update background job
-      await storage.updateBackgroundJob(jobId, {
-        status: 'completed',
-        progress: 100,
-        currentStep: 'Commercial analysis completed'
-      });
-
-      console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
-
-    } catch (error) {
-      console.error(`❌ Error in comprehensive commercial analysis:`, error);
-      
-      this.setProgress(dealId, {
-        isRunning: false,
-        progress: 0,
-        message: `Commercial analysis failed: ${(error as Error).message}`
-      });
-
-      // Find and update any existing background jobs as failed
-      try {
-        const existingJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
-        if (existingJob) {
-          await storage.updateBackgroundJob(existingJob.jobId, {
-            status: 'failed',
-            progress: 0,
-            error: (error as Error).message
-          });
-        }
-      } catch (jobError) {
-        console.error(`❌ Error updating background job:`, jobError);
-      }
-    }
-  }
-
-  async extractEvidenceFromAllDocuments(documents: any[], dealId: number, jobId?: string): Promise<Map<string, CommercialEvidence[]>> {
-    const evidenceMap = new Map<string, CommercialEvidence[]>();
-    const BATCH_SIZE = 10;
-    const totalBatches = Math.ceil(documents.length / BATCH_SIZE);
-    
-    console.log(`🏢 Processing ${documents.length} documents in ${totalBatches} batches`);
-    
-    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-      const startIdx = batchIndex * BATCH_SIZE;
-      const batch = documents.slice(startIdx, startIdx + BATCH_SIZE);
-      
-      console.log(`🏢 Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`);
-      
-      // Update progress
-      const batchProgress = 20 + Math.round((batchIndex / totalBatches) * 40);
-      await this.setProgress(dealId, {
-        progress: batchProgress,
-        currentStep: `Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} documents)`
-      }, jobId);
-      
-      // Process documents in parallel within batch
-      const batchPromises = batch.map(async (doc) => {
-        console.log(`🔎 Extracting evidence from: ${doc.name}`);
-        try {
-          return await this.extractEvidenceFromDocument(doc);
-        } catch (error) {
-          console.error(`Error extracting evidence from ${doc.name}:`, error);
-          return null;
-        }
-      });
-      
-      const batchResults = await Promise.all(batchPromises);
-      const validResults = batchResults.filter(result => result !== null);
-      
-      // Group evidence by question
-      validResults.forEach(evidence => {
-        COMMERCIAL_QUESTIONS.forEach(question => {
-          const questionEvidence = this.filterEvidenceForQuestion(evidence, question);
-          if (questionEvidence && questionEvidence.relevantContent.length > 0) {
-            if (!evidenceMap.has(question.id)) {
-              evidenceMap.set(question.id, []);
-            }
-            evidenceMap.get(question.id)!.push(questionEvidence);
-          }
+      if (assignedDocuments.length === 0) {
+        console.log('⚠️ No commercial documents found for analysis');
+        await storageService.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          currentStep: 'No commercial documents available for analysis'
         });
+        return { success: false, message: 'No commercial documents found' };
+      }
+      
+      // Initialize progress
+      await storageService.updateBackgroundJob(jobId, {
+        progress: 5,
+        currentStep: 'Starting commercial analysis',
+        processedDocuments: 0,
+        totalDocuments: COMMERCIAL_QUESTIONS.length
       });
       
-      console.log(`✅ Batch ${batchIndex + 1} completed: ${validResults.length}/${batch.length} documents processed successfully`);
+      // Process each question systematically - EXACT Clinical approach
+      const commercialAnswers: Record<string, any> = {};
+      
+      for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
+        const question = COMMERCIAL_QUESTIONS[i];
+        console.log(`🔍 Processing commercial question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
+        
+        // EXACT micro-step progress calculation matching Clinical
+        const progress = Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100);
+        await storageService.updateBackgroundJob(jobId, {
+          progress,
+          currentDocumentName: question.question,
+          currentStep: `Analyzing: ${question.category}`,
+          processedDocuments: i
+        });
+        
+        try {
+          console.log(`📊 Extracting commercial evidence for: ${question.question}`);
+          
+          // Extract evidence from ALL documents for this question - EXACT Clinical approach
+          const documentEvidence = await this.extractEvidenceFromAllDocuments(
+            assignedDocuments, 
+            question
+          );
+          console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+          
+          // Compile comprehensive answer with timeout - EXACT Clinical approach
+          console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
+          const answer = await Promise.race([
+            this.compileComprehensiveAnswer(question, documentEvidence),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
+          ]);
+          commercialAnswers[question.id] = answer;
+          console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
+          
+          console.log(`✅ Completed question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
+          
+          // Brief delay to avoid rate limiting - EXACT Clinical approach
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (questionError) {
+          console.error(`❌ Error processing question "${question.question}":`, questionError);
+          
+          // Store partial answer for this question - EXACT Clinical approach
+          commercialAnswers[question.id] = {
+            question: question.question,
+            category: question.category,
+            answer: `Error processing this question: ${questionError.message}`,
+            confidence: 0,
+            sources: [],
+            evidence: [],
+            error: true
+          };
+          
+          // Update progress to continue processing - EXACT Clinical approach
+          await storageService.updateBackgroundJob(jobId, {
+            progress: Math.round((i / COMMERCIAL_QUESTIONS.length) * 100),
+            processedDocuments: i,
+            currentDocumentName: `Error: ${question.question}`,
+            currentStep: `Error in: ${question.category}`
+          });
+          
+          // Continue with next question instead of failing completely
+          continue;
+        }
+      }
+      
+      try {
+        // Update progress to completion - EXACT Clinical approach
+        await storageService.updateBackgroundJob(jobId, {
+          progress: 100,
+          processedDocuments: COMMERCIAL_QUESTIONS.length,
+          currentStep: 'Generating findings and recommendations',
+          status: 'completing'
+        });
+        
+        // Generate comprehensive findings and recommendations - EXACT Clinical approach
+        const findings = this.generateComprehensiveFindings(commercialAnswers);
+        const recommendations = this.generateComprehensiveRecommendations(commercialAnswers);
+        
+        // Store the analysis results - EXACT Clinical approach
+        await this.storeComprehensiveResults(dealId, commercialAnswers, findings, recommendations, assignedDocuments);
+        
+        // Mark job as completed - EXACT Clinical approach
+        await storageService.updateBackgroundJob(jobId, {
+          status: 'completed',
+          currentStep: 'Analysis completed'
+        });
+        
+        console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
+        
+        return {
+          success: true,
+          documentsAnalyzed: assignedDocuments.length,
+          questionsAnswered: Object.keys(commercialAnswers).length,
+          findings: findings.length,
+          recommendations: recommendations.length
+        };
+      } catch (finalError) {
+        console.error(`❌ Error in final stages of commercial analysis for deal ${dealId}:`, finalError);
+        
+        // Still try to save what we have - EXACT Clinical approach
+        try {
+          const partialFindings = this.generateComprehensiveFindings(commercialAnswers);
+          const partialRecommendations = this.generateComprehensiveRecommendations(commercialAnswers);
+          await this.storeComprehensiveResults(dealId, commercialAnswers, partialFindings, partialRecommendations, assignedDocuments);
+          
+          // Mark as completed with error - EXACT Clinical approach
+          await storageService.updateBackgroundJob(jobId, {
+            status: 'completed',
+            currentStep: 'Completed with partial results due to errors',
+            error: finalError.message
+          });
+          
+          return {
+            success: true,
+            documentsAnalyzed: assignedDocuments.length,
+            questionsAnswered: Object.keys(commercialAnswers).length,
+            findings: partialFindings.length,
+            recommendations: partialRecommendations.length,
+            warning: 'Analysis completed with some errors'
+          };
+        } catch (saveError) {
+          // Mark job as failed - EXACT Clinical approach
+          await storageService.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: `Final error: ${finalError.message}, Save error: ${saveError.message}`
+          });
+          throw finalError;
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Critical error in commercial analysis for deal ${dealId}:`, error);
+      
+      await storageService.updateBackgroundJob(jobId, {
+        status: 'failed',
+        error: error.message
+      });
+      
+      throw error;
     }
-    
-    return evidenceMap;
   }
 
-  async extractEvidenceFromDocument(doc: any): Promise<CommercialEvidence> {
-    if (!doc.ocrText && !doc.aiSummary) {
+  /**
+   * Extract evidence from ALL documents for a specific question - EXACT Clinical approach
+   */
+  private async extractEvidenceFromAllDocuments(
+    documents: any[], 
+    question: any
+  ): Promise<any[]> {
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    
+    // Process documents in batches to avoid overwhelming the system - EXACT Clinical approach
+    const batchSize = 10;
+    const evidence = [];
+    
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (doc) => {
+          console.log(`🔎 Extracting evidence from: ${doc.name}`);
+          return this.extractEvidenceFromDocument(doc, question);
+        })
+      );
+      
+      // Filter out null results and add to evidence - EXACT Clinical approach
+      const validEvidence = batchResults.filter(docEvidence => 
+        docEvidence && docEvidence.relevantContent.length > 0
+      );
+      evidence.push(...validEvidence);
+      
+      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+    }
+    
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    return evidence;
+  }
+
+  /**
+   * Extract specific evidence from a single document - EXACT Clinical approach
+   */
+  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    
+    if (!content) return null;
+    
+    const prompt = `You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
+
+DOCUMENT: ${document.name}
+CONTENT: ${content.substring(0, 4000)}
+
+QUESTION: "${question.question}"
+CATEGORY: ${question.category}
+
+Instructions:
+- Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
+- Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
+- Consider business documents that mention commercial milestones, market positioning, competitive advantages
+- Even general business context often has commercial implications for investment due diligence
+- For investment companies, most business documents contain commercial information relevant to investors
+
+Respond in JSON format:
+{
+  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "hasRelevantInfo": true/false,
+  "confidence": 0-100,
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "documentSummary": "Brief summary of what this document contains relevant to the question",
+  "commercialContext": "How this document relates to commercial/business aspects"
+}
+
+Be thorough in finding relevance - most business documents have commercial implications for investment analysis.`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 1500
+      });
+      
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      
       return {
-        documentName: doc.name,
-        documentSummary: 'No content available for analysis',
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: analysis.relevantContent || [],
+        hasRelevantInfo: analysis.hasRelevantInfo || false,
+        confidence: analysis.confidence || 0,
+        keyFindings: analysis.keyFindings || [],
+        documentSummary: analysis.documentSummary || '',
+        fullContent: content.substring(0, 1000) // Keep sample for reference
+      };
+      
+    } catch (error) {
+      console.error(`Error extracting evidence from ${document.name}:`, error);
+      return {
+        documentName: document.name,
+        documentId: document.id,
         relevantContent: [],
+        hasRelevantInfo: false,
+        confidence: 0,
         keyFindings: [],
-        confidence: 0
+        documentSummary: 'Analysis failed',
+        fullContent: content.substring(0, 1000)
       };
     }
-
-    // Ensure content is a string for safe processing
-    let content = '';
-    if (doc.ocrText && typeof doc.ocrText === 'string') {
-      content = doc.ocrText;
-    } else if (doc.aiSummary) {
-      if (typeof doc.aiSummary === 'string') {
-        content = doc.aiSummary;
-      } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-        content = doc.aiSummary.executiveSummary;
-      }
-    }
-
-    const prompt = `
-    You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
-
-    Document: ${doc.name}
-    Content: ${content.substring(0, 4000)}
-    
-    Instructions:
-    - Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
-    - Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
-    - Consider business documents that mention commercial milestones, market positioning, competitive advantages
-    - Even general business context often has commercial implications for investment due diligence
-    - For investment companies, most business documents contain commercial information relevant to investors
-    
-    Focus on extracting:
-    1. Competitive positioning and market differentiation
-    2. Pricing strategies, revenue models, and discount policies
-    3. Sales performance, win rates, customer acquisition metrics
-    4. Customer concentration, retention, and satisfaction data
-    5. Market positioning, business strategy, and growth plans
-    6. Partnership agreements and distribution channels
-    7. Product positioning and value propositions
-    
-    Return a JSON response with:
-    {
-      "documentSummary": "Brief summary of the document's commercial relevance",
-      "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
-      "relevantContent": ["Quote 1", "Quote 2", "Quote 3"],
-      "confidence": 0.85,
-      "commercialContext": "How this document relates to commercial/business aspects"
-    }
-    
-    Be aggressive in finding commercial relevance - most business documents have commercial implications for investment analysis.
-    `;
-
-    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    });
-
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    
-    return {
-      documentName: doc.name,
-      documentSummary: result.documentSummary || 'Commercial analysis completed',
-      relevantContent: Array.isArray(result.relevantContent) ? result.relevantContent : [],
-      keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings : [],
-      confidence: result.confidence || 0.7
-    };
   }
 
-  filterEvidenceForQuestion(evidence: CommercialEvidence, question: any): CommercialEvidence | null {
-    const content = (evidence.documentSummary + ' ' + evidence.relevantContent.join(' ') + ' ' + evidence.keyFindings.join(' ')).toLowerCase();
+  /**
+   * Compile comprehensive answer based on all evidence - EXACT Clinical approach
+   */
+  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    console.log(`🔍 Compiling answer for: ${question.question}`);
+    console.log(`📋 Evidence count: ${evidence.length}`);
     
-    // Check if document contains keywords relevant to this question
-    const hasRelevantKeywords = question.keywords.some((keyword: string) => content.includes(keyword.toLowerCase()));
-    
-    if (!hasRelevantKeywords) {
-      return null;
-    }
-    
-    // Filter content to only relevant parts
-    const filteredContent = evidence.relevantContent.filter(item => 
-      question.keywords.some((keyword: string) => item.toLowerCase().includes(keyword.toLowerCase()))
-    );
-    
-    const filteredFindings = evidence.keyFindings.filter(finding => 
-      question.keywords.some((keyword: string) => finding.toLowerCase().includes(keyword.toLowerCase()))
-    );
-    
-    return {
-      ...evidence,
-      relevantContent: filteredContent,
-      keyFindings: filteredFindings,
-      confidence: Math.min(evidence.confidence, 0.9) // Slightly reduce confidence for filtered evidence
-    };
-  }
-
-  async generateComprehensiveAnswers(evidenceMap: Map<string, CommercialEvidence[]>, dealId: number): Promise<{[key: string]: CommercialAnswer}> {
-    const answers: {[key: string]: CommercialAnswer} = {};
-    const questionCount = COMMERCIAL_QUESTIONS.length;
-    
-    for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
-      const question = COMMERCIAL_QUESTIONS[i];
-      const questionProgress = 70 + Math.round((i / questionCount) * 15);
-      
-      this.setProgress(dealId, {
-        progress: questionProgress,
-        currentStep: `Analyzing: ${question.category}`,
-        currentQuestion: question.question
-      });
-      
-      const evidence = evidenceMap.get(question.id) || [];
-      console.log(`🏢 Generating answer for: ${question.question} (${evidence.length} documents with evidence)`);
-      
-      try {
-        const answer = await this.generateAnswerForQuestion(question, evidence);
-        answers[question.id] = answer;
-      } catch (error) {
-        console.error(`Error generating answer for ${question.id}:`, error);
-        // Continue with next question rather than failing entirely
-        answers[question.id] = this.generateFallbackAnswer(question, evidence);
-      }
-    }
-    
-    return answers;
-  }
-
-  async generateAnswerForQuestion(question: any, evidence: CommercialEvidence[]): Promise<CommercialAnswer> {
     if (evidence.length === 0) {
+      console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No specific evidence found in the analyzed commercial documents for: ${question.question}`,
-        confidence: 0,
+        answer: `No relevant commercial information found in the assigned commercial documents for this question.`,
+        confidence: 10,
         sources: [],
-        detailedEvidence: [],
+        evidenceCount: 0,
         keyFindings: [],
-        evidenceSummary: 'No relevant commercial evidence available',
-        commercialAssessment: 'Unable to assess due to lack of relevant documentation',
-        recommendations: ['Consider providing additional commercial documentation for comprehensive analysis']
+        gaps: ['No relevant commercial information found'],
+        category: question.category
       };
     }
 
-    // Compile all evidence
-    const allContent = evidence.map(e => e.relevantContent.join(' ')).join('\n');
-    const allFindings = evidence.flatMap(e => e.keyFindings);
-    
-    const prompt = `
-    You are a commercial due diligence expert analyzing investment opportunities. Extract SPECIFIC COMMERCIAL DATA AND METRICS.
+    // Prepare evidence summary for AI compilation - EXACT Clinical approach
+    const evidenceSummary = evidence.map(ev => ({
+      document: ev.documentName,
+      content: ev.relevantContent.join(' '),
+      findings: ev.keyFindings.join(' '),
+      confidence: ev.confidence
+    }));
 
-    Question: ${question.question}
-    Category: ${question.category}
-    
-    Evidence from documents:
-    ${allContent}
-    
-    Key findings:
-    ${allFindings.join('\n')}
-    
-    CRITICAL: Extract CONCRETE COMMERCIAL INFORMATION including:
-    - Specific customer names and contract values (e.g., "Microsoft $2.5M contract", "Amazon 3-year $890K deal")
-    - Exact pricing data (e.g., "$50/month per seat", "€25K enterprise license", "15% volume discount")
-    - Win/loss rates with percentages (e.g., "75% win rate in Q1", "12% churn rate", "85% renewal rate")
-    - Sales cycle data (e.g., "Average 6.5 months sales cycle", "Enterprise deals: 12 months", "SMB: 2.3 months")
-    - Market size numbers (e.g., "TAM: $50B", "SAM: $5.2B", "SOM: $250M by 2027")
-    - Revenue concentration (e.g., "Top 5 customers: 68% of revenue", "Largest customer: $1.2M ARR")
-    - Competitive positioning (e.g., "25% market share", "2nd largest player", "40% price premium vs competitors")
-    - Growth metrics (e.g., "NRR: 115%", "CAC: $2,400", "LTV: $18,500", "LTV/CAC: 7.7x")
-    - Customer segments (e.g., "Enterprise: 70% revenue", "SMB: 25%", "Mid-market: 5%")
-    - Geographic data (e.g., "US: 60% revenue", "Europe: 30%", "APAC: 10%")
-    
-    Provide a comprehensive commercial analysis response as JSON:
-    {
-      "answer": "Detailed answer with SPECIFIC NUMBERS, PERCENTAGES, CUSTOMER NAMES, CONTRACT VALUES, and TIMEFRAMES found in evidence. Include actual commercial data, not generic statements.",
-      "confidence": 0.85,
-      "keyFindings": ["Microsoft $2.5M contract signed Q1", "75% win rate in enterprise segment", "Average 8.2 month sales cycle"],
-      "evidenceSummary": "Summary with specific commercial metrics extracted",
-      "commercialAssessment": "Assessment based on concrete commercial data found",
-      "recommendations": ["Specific recommendations based on actual commercial performance data"]
+    const prompt = `You are an expert commercial due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
+
+QUESTION: "${question.question}"
+CATEGORY: ${question.category}
+
+EVIDENCE FROM DOCUMENTS:
+${evidenceSummary.map(ev => `
+DOCUMENT: ${ev.document}
+CONTENT: ${ev.content}
+KEY FINDINGS: ${ev.findings}
+CONFIDENCE: ${ev.confidence}%
+`).join('\n')}
+
+Instructions:
+1. Synthesize ALL evidence into a comprehensive answer
+2. Cite specific documents and quotes
+3. Identify gaps in information
+4. Provide confidence assessment
+5. Include commercial recommendations
+
+Respond in JSON format:
+{
+  "answer": "Comprehensive answer synthesizing all evidence",
+  "confidence": 0-100,
+  "sources": ["Document name 1", "Document name 2"],
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "gaps": ["Missing information 1", "Missing information 2"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "commercialAssessment": "Overall commercial assessment based on evidence",
+  "evidenceCount": ${evidence.length}
+}`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 2000
+      });
+      
+      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
+      
+      return {
+        question: question.question,
+        category: question.category,
+        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        confidence: compiledAnswer.confidence || 30,
+        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        keyFindings: compiledAnswer.keyFindings || [],
+        gaps: compiledAnswer.gaps || [],
+        recommendations: compiledAnswer.recommendations || [],
+        commercialAssessment: compiledAnswer.commercialAssessment || '',
+        evidenceCount: evidence.length,
+        detailedEvidence: evidence
+      };
+      
+    } catch (error) {
+      console.error(`Error compiling answer for "${question.question}":`, error);
+      return {
+        question: question.question,
+        category: question.category,
+        answer: `Error compiling answer: ${error.message}`,
+        confidence: 0,
+        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        keyFindings: [],
+        gaps: ['Analysis compilation failed'],
+        recommendations: ['Manual review required'],
+        evidenceCount: evidence.length,
+        detailedEvidence: evidence
+      };
     }
-    
-    IMPORTANT: Always include the EXACT NUMBERS, PERCENTAGES, CUSTOMER NAMES, CONTRACT VALUES found in the evidence. Do not provide generic responses.
-    `;
-
-    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    });
-
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    
-    return {
-      question: question.question,
-      answer: result.answer || 'Commercial analysis completed',
-      confidence: Math.min(Math.max(result.confidence || 0.7, 0), 1),
-      sources: evidence.map(e => e.documentName),
-      detailedEvidence: evidence,
-      keyFindings: Array.isArray(result.keyFindings) ? result.keyFindings : [],
-      evidenceSummary: result.evidenceSummary || 'Evidence analyzed',
-      commercialAssessment: result.commercialAssessment || 'Commercial assessment completed',
-      recommendations: Array.isArray(result.recommendations) ? result.recommendations : []
-    };
   }
 
-  generateFallbackAnswer(question: any, evidence: CommercialEvidence[]): CommercialAnswer {
+  /**
+   * Generate comprehensive findings - EXACT Clinical approach
+   */
+  private generateComprehensiveFindings(answers: Record<string, any>): any[] {
+    const findings = [];
+    
+    for (const [questionId, answer] of Object.entries(answers)) {
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
+      if (!question) continue;
+      
+      // High confidence findings
+      if (answer.confidence > 70) {
+        findings.push({
+          id: findings.length + 1,
+          type: 'positive',
+          content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
+          source: answer.sources.length > 0 ? answer.sources[0] : 'Commercial Documents',
+          confidence: answer.confidence / 100,
+          category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          evidenceCount: answer.evidenceCount || 0
+        });
+      }
+      
+      // Risk findings for low confidence or gaps
+      if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
+        findings.push({
+          id: findings.length + 1,
+          type: 'risk',
+          content: `Insufficient commercial information for: ${question.question}. Additional documentation may be required.`,
+          source: 'Commercial Analysis',
+          confidence: 0.3,
+          category: 'gaps',
+          evidenceCount: answer.evidenceCount || 0
+        });
+      }
+    }
+    
+    return findings;
+  }
+
+  /**
+   * Generate comprehensive recommendations - EXACT Clinical approach
+   */
+  private generateComprehensiveRecommendations(answers: Record<string, any>): any[] {
+    const recommendations = [];
+    
+    for (const [questionId, answer] of Object.entries(answers)) {
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
+      if (!question) continue;
+      
+      // Add specific recommendations from the answer
+      if (answer.recommendations && answer.recommendations.length > 0) {
+        answer.recommendations.forEach((rec: string, index: number) => {
+          recommendations.push({
+            id: recommendations.length + 1,
+            type: answer.confidence > 70 ? 'positive' : 'neutral',
+            content: `${question.category}: ${rec}`,
+            source: 'Commercial Analysis',
+            confidence: Math.max(answer.confidence / 100, 0.3),
+            category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+            questionId: questionId
+          });
+        });
+      }
+      
+      // Add gap-based recommendations for low confidence answers
+      if (answer.confidence < 50) {
+        recommendations.push({
+          id: recommendations.length + 1,
+          type: 'improvement',
+          content: `Improve documentation for ${question.category} to enable thorough analysis of: ${question.question}`,
+          source: 'Gap Analysis',
+          confidence: 0.4,
+          category: 'documentation_gap',
+          questionId: questionId
+        });
+      }
+    }
+    
+    return recommendations;
+  }
+
+  /**
+   * Store comprehensive analysis results - EXACT Clinical approach
+   */
+  private async storeComprehensiveResults(
+    dealId: number, 
+    commercialAnswers: Record<string, any>, 
+    findings: any[], 
+    recommendations: any[], 
+    assignedDocuments: any[]
+  ): Promise<void> {
+    console.log(`💾 Storing comprehensive commercial analysis results for deal ${dealId}`);
+    
+    try {
+      // Store in agent_analyses table
+      await storage.storeAgentAnalysis({
+        dealId,
+        agentType: 'Commercial',
+        analysis: JSON.stringify(commercialAnswers),
+        findings: JSON.stringify(findings),
+        recommendations: JSON.stringify(recommendations),
+        confidence: this.calculateOverallConfidence(commercialAnswers),
+        status: 'completed'
+      });
+      
+      console.log(`✅ Commercial analysis results stored successfully for deal ${dealId}`);
+    } catch (error) {
+      console.error(`❌ Error storing commercial analysis results:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate overall confidence - EXACT Clinical approach
+   */
+  private calculateOverallConfidence(answers: Record<string, any>): number {
+    const confidences = Object.values(answers)
+      .map(answer => answer.confidence || 0)
+      .filter(conf => conf > 0);
+    
+    if (confidences.length === 0) return 20;
+    
+    const avgConfidence = confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length;
+    return Math.round(avgConfidence);
+  }
+
+  generateFallbackAnswer(question: any, evidence: any[]): any {
     return {
       question: question.question,
       answer: `Analysis completed for ${question.question}. ${evidence.length} documents were reviewed for relevant commercial information.`,
