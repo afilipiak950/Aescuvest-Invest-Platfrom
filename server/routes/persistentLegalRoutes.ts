@@ -11,7 +11,7 @@ export const persistentLegalRoutes = Router();
 /**
  * Start legal analysis for a deal
  */
-persistentLegalRoutes.post('/deals/:dealId/legal-analysis/start', async (req, res) => {
+persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/start', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
     
@@ -51,7 +51,7 @@ persistentLegalRoutes.post('/deals/:dealId/legal-analysis/start', async (req, re
 /**
  * Stop legal analysis for a deal
  */
-persistentLegalRoutes.post('/deals/:dealId/legal-analysis/stop', async (req, res) => {
+persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/stop', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
     const jobId = `legal-analysis-${dealId}`;
@@ -84,7 +84,7 @@ persistentLegalRoutes.post('/deals/:dealId/legal-analysis/stop', async (req, res
 /**
  * Get legal analysis status
  */
-persistentLegalRoutes.get('/deals/:dealId/legal-analysis/status', async (req, res) => {
+persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/status', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
     const jobId = `legal-analysis-${dealId}`;

@@ -90,9 +90,14 @@ export class PersistentLegalAnalysisService {
     try {
       const jobId = `legal-analysis-${dealId}`;
       
-      // Check if job already exists
-      const existingJob = await storage.getBackgroundJob(jobId);
-      if (existingJob && existingJob.status === 'processing') {
+      // Check if job already exists and is processing
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingJob = existingJobs.find(job => 
+        job.agentType === 'legal' && 
+        job.jobType === 'comprehensive_legal_analysis' &&
+        job.status === 'processing'
+      );
+      if (existingJob) {
         console.log(`🔄 Legal analysis already running for deal ${dealId}`);
         return { success: true, jobId, message: 'Legal analysis already in progress' };
       }
@@ -105,23 +110,31 @@ export class PersistentLegalAnalysisService {
 
       console.log(`🚀 Starting legal analysis for deal ${dealId}`);
 
-      // Create or update background job
-      await storage.upsertBackgroundJob({
-        jobId,
-        dealId,
-        agentType: 'legal',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-        processedDocuments: 0,
-        currentDocument: '',
-        currentStep: 'Analyzing: Legal Due Diligence',
-        metadata: {
+      // Check if job already exists (from previous run)
+      const existingJobById = await storage.getBackgroundJobById(jobId);
+      if (existingJobById) {
+        console.log(`🔄 Existing job found for deal ${dealId}, updating status to processing`);
+        await storage.updateBackgroundJob(jobId, {
+          status: 'processing',
+          progress: 0,
+          currentStep: 'Analyzing: Legal Due Diligence',
+          updatedAt: new Date()
+        });
+      } else {
+        // Create new background job
+        await storage.createBackgroundJob({
+          jobId,
+          dealId,
           agentType: 'legal',
-          startTime: new Date().toISOString(),
-          lastUpdate: new Date().toISOString()
-        }
-      });
+          jobType: 'comprehensive_legal_analysis',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
+          processedDocuments: 0,
+          currentDocument: '',
+          currentStep: 'Analyzing: Legal Due Diligence'
+        });
+      }
 
       // Start the analysis process
       await this.resumeLegalAnalysis(dealId, jobId);
@@ -195,7 +208,7 @@ export class PersistentLegalAnalysisService {
       }
 
       // Check if all legal questions are answered
-      const legalQuestions = this.getLegalQuestions();
+      const legalQuestions = COMPREHENSIVE_LEGAL_QUESTIONS;
       const answeredQuestions = analysis.legalAnswers ? Object.keys(analysis.legalAnswers).length : 0;
       
       console.log(`📊 Legal analysis completion check for deal ${dealId}: ${answeredQuestions}/${legalQuestions.length} questions answered`);
@@ -303,7 +316,7 @@ export class PersistentLegalAnalysisService {
         totalDocuments: jobState.totalDocuments
       };
 
-      websocketManager.broadcastToRoom(`deal-${jobState.dealId}`, 'legal-progress', progressData);
+      websocketManager.broadcastToRoom(`deal-${jobState.dealId}`, 'job-progress', progressData);
     } catch (error) {
       console.error(`❌ Failed to broadcast progress for ${jobState.jobId}:`, error);
     }
