@@ -37,7 +37,7 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
     // Start each analysis with persistent job manager
     for (const agentType of agentTypes) {
       try {
-        const analysisService = getAnalysisServiceForAgent(agentType);
+        const analysisService = await getAnalysisServiceForAgent(agentType);
         const jobId = await persistentJobManager.startAnalysisJob(
           dealId,
           agentType,
@@ -253,7 +253,7 @@ router.post('/api/deals/:dealId/start-all-specialized-agents', async (req: Reque
         console.log(`🚀 Starting ${agentType} agent with specialized analysis technique`);
         
         // Get the specialized analysis service
-        const analysisService = getAnalysisServiceForAgent(agentType);
+        const analysisService = await getAnalysisServiceForAgent(agentType);
         
         // Start the background job with proper service
         await storage.createBackgroundJob({
@@ -325,36 +325,36 @@ router.post('/api/deals/:dealId/start-all-specialized-agents', async (req: Reque
 /**
  * Get analysis service for specific agent type
  */
-function getAnalysisServiceForAgent(agentType: string): any {
+async function getAnalysisServiceForAgent(agentType: string): Promise<any> {
   console.log(`🔧 Getting analysis service for agent: ${agentType}`);
   switch (agentType.toLowerCase()) {
     case 'legal':
       console.log(`✅ Returning legal analysis service`);
-      const { comprehensiveLegalAnalysisService } = require('../comprehensiveLegalAnalysisService');
+      const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService.js');
       return comprehensiveLegalAnalysisService;
       
     case 'clinical':
-      const { comprehensiveClinicalAnalysisService } = require('../comprehensiveClinicalAnalysisService');
+      const { comprehensiveClinicalAnalysisService } = await import('../comprehensiveClinicalAnalysisService.js');
       return comprehensiveClinicalAnalysisService;
       
     case 'commercial':
-      const { comprehensiveCommercialAnalysisService } = require('../comprehensiveCommercialAnalysisService');
+      const { comprehensiveCommercialAnalysisService } = await import('../comprehensiveCommercialAnalysisService.js');
       return comprehensiveCommercialAnalysisService;
       
     case 'hr':
-      const { comprehensiveHrAnalysisService } = require('../comprehensiveHrAnalysisService');
+      const { comprehensiveHrAnalysisService } = await import('../comprehensiveHrAnalysisService.js');
       return comprehensiveHrAnalysisService;
       
     case 'financial':
-      const { comprehensiveFinancialAnalysisService } = require('../comprehensiveFinancialAnalysisService');
+      const { comprehensiveFinancialAnalysisService } = await import('../comprehensiveFinancialAnalysisService.js');
       return comprehensiveFinancialAnalysisService;
       
     case 'ip':
-      const { comprehensiveIpAnalysisService } = require('../comprehensiveIpAnalysisService');
+      const { comprehensiveIpAnalysisService } = await import('../comprehensiveIpAnalysisService.js');
       return comprehensiveIpAnalysisService;
       
     case 'research':
-      const { comprehensiveResearchAnalysisService } = require('../comprehensiveResearchAnalysisService');
+      const { comprehensiveResearchAnalysisService } = await import('../comprehensiveResearchAnalysisService.js');
       return comprehensiveResearchAnalysisService;
       
     default:

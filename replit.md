@@ -86,6 +86,14 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Affinity CRM**: For organization data synchronization.
 
 ### Recent Changes (August 2025)
+- **Commercial Agent Architecture Completed (August 13, 2025)**: Successfully transformed Commercial agent from bulk processing to exact Clinical micro-step architecture:
+  - **COMPLETE ARCHITECTURAL REWRITE**: Replaced bulk `extractEvidenceFromAllDocuments` with Clinical's question-by-question approach
+  - **Exact Micro-Step Calculation**: Implemented `Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100)` matching Clinical perfectly
+  - **Individual Evidence Extraction**: Each question now gets dedicated `extractEvidenceFromDocument` with proper batch processing
+  - **Clinical Method Cloning**: Added `compileComprehensiveAnswer`, `generateComprehensiveFindings`, `storeComprehensiveResults` methods
+  - **Progress Tracking**: Real-time WebSocket updates showing question-by-question progression (8%→15%→23%→...→100%)
+  - **Testing Verified**: Commercial agent now runs with identical micro-step architecture as Clinical and Legal agents
+  
 - **Legal Agent Architecture Fixed (August 13, 2025)**: Resolved critical Legal analysis stuck at 8% issue by fixing exact micro-step architecture differences:
   - Fixed service import inconsistency: Changed Legal from direct import to dynamic require() matching Clinical
   - Added aggressive timeout (15 seconds) to prevent infinite loops in document evidence extraction
