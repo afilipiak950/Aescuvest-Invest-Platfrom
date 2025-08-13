@@ -330,6 +330,7 @@ function getAnalysisServiceForAgent(agentType: string): any {
   switch (agentType.toLowerCase()) {
     case 'legal':
       console.log(`✅ Returning legal analysis service`);
+      const { comprehensiveLegalAnalysisService } = require('../comprehensiveLegalAnalysisService');
       return comprehensiveLegalAnalysisService;
       
     case 'clinical':
