@@ -4442,49 +4442,64 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive commercial analysis
+  // Run comprehensive commercial analysis - EXACT CLINICAL COPY
   app.post('/api/deals/:dealId/commercial-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId} (BYPASSING DUPLICATE CHECK)`);
+      console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
       
-      // REMOVED: Check for existing jobs - this was blocking the cleanup from running
-      // The service will handle cleanup internally
+      // Check if there's already a running comprehensive commercial analysis - EXACT Clinical approach
+      const existingCommercialJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_commercial_analysis');
+      if (existingCommercialJob) {
+        return res.json({
+          success: true,
+          message: 'Comprehensive commercial analysis already running',
+          alreadyRunning: true,
+          jobId: existingCommercialJob.jobId
+        });
+      }
       
-      // Import the comprehensive commercial analysis service - EXACT Clinical approach
-      const { ComprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+      // Create background job - EXACT Clinical approach
+      const jobId = `comprehensive-commercial-analysis-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_commercial_analysis',
+        agentType: 'commercial',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing commercial analysis',
+        processedDocuments: 0,
+        totalDocuments: 0
+      });
       
-      // Run comprehensive commercial analysis in background - EXACT Clinical approach
+      // Import and run service in background - EXACT Clinical approach
       (async () => {
         try {
           console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
+          const { ComprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
           
-          // Create background job for tracking - EXACT Clinical approach
-          const jobId = `commercial-analysis-${dealId}`;
-          await storage.createBackgroundJob({
-            jobId,
-            dealId,
-            jobType: 'agent_analysis',
-            agentType: 'commercial',
-            status: 'processing',
-            progress: 5,
-            currentStep: 'Starting commercial analysis'
-          });
-          
-          // Initialize service and run analysis - EXACT Clinical approach
           const commercialService = new ComprehensiveCommercialAnalysisService();
           await commercialService.runComprehensiveAnalysis(dealId, storage, jobId);
           
           console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
         } catch (error) {
           console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Clinical approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
         }
       })();
       
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive commercial analysis started - processing 12 commercial questions across all assigned documents'
+      res.json({
+        success: true,
+        message: 'Comprehensive commercial analysis started',
+        jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive commercial analysis for deal ${req.params.dealId}:`, error);
