@@ -303,28 +303,51 @@ export class PersistentClinicalAnalysisService {
   }
 
   /**
-   * Broadcast progress via WebSocket
+   * Broadcast progress via WebSocket - READS real progress from database
    */
   private async broadcastProgress(jobId: string, jobState: ClinicalJobState): Promise<void> {
     try {
-      const progressData = {
-        jobId,
-        agentType: 'clinical',
-        progress: jobState.progress,
-        status: 'processing',
-        currentStep: jobState.currentStep,
-        processedDocuments: jobState.documentsAnalyzed,
-        totalDocuments: jobState.totalDocuments,
-        metadata: {
-          agentType: 'clinical',
-          startTime: jobState.startTime.toISOString(),
-          lastUpdate: jobState.lastUpdate.toISOString()
+      // Get current progress from database (the source of truth)
+      const currentJob = await storage.getBackgroundJobById(jobId);
+      if (currentJob && this.activeJobs.has(jobId)) {
+        const jobData = this.activeJobs.get(jobId);
+        if (jobData) {
+          jobData.lastUpdate = new Date();
+          
+          // Use REAL progress from database, not our stale memory
+          const realProgress = currentJob.progress || 0;
+          const realCurrentStep = currentJob.currentStep || jobState.currentStep;
+          const realCurrentDocumentName = currentJob.currentDocumentName || '';
+          const realProcessedDocuments = currentJob.processedDocuments || 0;
+          const realTotalDocuments = currentJob.totalDocuments || 0;
+          
+          // Update our memory with real values from comprehensive service
+          jobState.progress = realProgress;
+          jobState.currentStep = realCurrentStep;
+          jobState.documentsAnalyzed = realProcessedDocuments;
+          jobState.totalDocuments = realTotalDocuments;
+          
+          const progressData = {
+            jobId,
+            agentType: 'clinical',
+            progress: realProgress,
+            status: 'processing',
+            currentStep: realCurrentStep,
+            currentDocumentName: realCurrentDocumentName,
+            processedDocuments: realProcessedDocuments,
+            totalDocuments: realTotalDocuments,
+            metadata: {
+              agentType: 'clinical',
+              startTime: jobState.startTime.toISOString(),
+              lastUpdate: jobData.lastUpdate.toISOString()
+            }
+          };
+
+          // Send via WebSocket to all connected clients for this deal
+          websocketManager.broadcastToRoom(`deal-${jobState.dealId}`, 'job-progress', progressData);
+          console.log(`📡 Broadcasting REAL clinical progress: ${realProgress}% - ${realCurrentStep}`);
         }
-      };
-
-      // Send via WebSocket to all connected clients for this deal
-      websocketManager.broadcastToRoom(`deal-${jobState.dealId}`, 'job-progress', progressData);
-
+      }
     } catch (error) {
       console.error(`❌ Failed to broadcast progress for ${jobId}:`, error);
     }
