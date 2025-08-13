@@ -361,7 +361,7 @@ class ComprehensiveLegalAnalysisService {
       console.log(`📄 Documents with content available: ${legalDocuments.length}`);
     }
     
-    // Limit to maximum 50 documents for efficiency - EXACTLY like Clinical
+    // Apply EXACT same document limits as Clinical
     if (legalDocuments.length > 50) {
       console.log(`📄 Limiting to first 50 documents for legal analysis efficiency (found ${legalDocuments.length})`);
       legalDocuments = legalDocuments.slice(0, 50);
