@@ -27,6 +27,7 @@ export class PersistentLegalAnalysisService {
   private static instance: PersistentLegalAnalysisService;
   private activeJobs = new Map<string, LegalJobState>();
   private jobIntervals = new Map<string, NodeJS.Timeout>();
+  private websocketManager = websocketManager;
 
   static getInstance(): PersistentLegalAnalysisService {
     if (!PersistentLegalAnalysisService.instance) {
@@ -289,11 +290,11 @@ export class PersistentLegalAnalysisService {
   }
 
   /**
-   * Broadcast progress updates via WebSocket - FIXED to read actual progress
+   * Broadcast progress updates via WebSocket - READS real progress from database
    */
   private async broadcastProgress(jobId: string, jobState: LegalJobState): Promise<void> {
     try {
-      // Get current progress from database (don't overwrite it!)
+      // Get current progress from database (the source of truth)
       const currentJob = await storage.getBackgroundJobById(jobId);
       if (currentJob && this.activeJobs.has(jobId)) {
         const jobData = this.activeJobs.get(jobId);
@@ -303,24 +304,38 @@ export class PersistentLegalAnalysisService {
           // Use REAL progress from database, not our stale memory
           const realProgress = currentJob.progress || 0;
           const realCurrentStep = currentJob.currentStep || jobState.currentStep;
+          const realCurrentDocumentName = currentJob.currentDocumentName || '';
+          const realProcessedDocuments = currentJob.processedDocuments || 0;
+          const realTotalDocuments = currentJob.totalDocuments || 0;
           
-          // Update our memory with real values
+          // Update our memory with real values from comprehensive service
           jobState.progress = realProgress;
           jobState.currentStep = realCurrentStep;
+          jobState.documentsAnalyzed = realProcessedDocuments;
+          jobState.totalDocuments = realTotalDocuments;
           
-          // Broadcast via WebSocket with REAL progress
+          // Broadcast via WebSocket with REAL progress from comprehensive service
           const progressData = {
             jobId,
             dealId: jobState.dealId,
             agentType: 'legal',
             progress: realProgress,
             currentStep: realCurrentStep,
-            documentsAnalyzed: jobState.documentsAnalyzed,
-            totalDocuments: jobState.totalDocuments
+            currentDocumentName: realCurrentDocumentName,
+            documentsAnalyzed: realProcessedDocuments,
+            totalDocuments: realTotalDocuments,
+            processedDocuments: realProcessedDocuments
           };
 
-          // DON'T update database - just broadcast the real values
-          console.log(`📡 Broadcasting real legal progress: ${realProgress}% - ${realCurrentStep}`);
+          // Broadcast real progress to WebSocket clients
+          try {
+            if (this.websocketManager) {
+              this.websocketManager.broadcastProgress(progressData);
+            }
+          } catch (wsError) {
+            console.log(`⚠️ WebSocket broadcast failed, continuing with progress update`);
+          }
+          console.log(`📡 Broadcasting REAL legal progress: ${realProgress}% - ${realCurrentStep}`);
         }
       }
     } catch (error) {
