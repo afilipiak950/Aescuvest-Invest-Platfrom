@@ -1152,7 +1152,7 @@ function DueDiligenceContent() {
                       try {
                         console.log('🛑 Stopping all background jobs for deal', selectedDeal);
                         
-                        // Use the existing clear-stuck-jobs endpoint which works reliably
+                        // Use the clear-stuck-jobs endpoint which is working correctly
                         const response = await fetch(`/api/deals/${selectedDeal}/clear-stuck-jobs`, {
                           method: 'POST',
                           headers: {
