@@ -123,37 +123,9 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/resul
     // Import storage here to avoid circular dependency
     const { storage } = await import('../storage');
     
-    // Check if comprehensive analysis is actively running
-    const runningJobs = await storage.getBackgroundJobsByDeal(dealId, 'processing');
-    const isLegalAnalysisRunning = runningJobs.some(job => 
-      job.jobId.startsWith('legal-analysis-') && job.agentType === 'legal'
-    );
-
     const analysis = await storage.getAgentAnalysis(dealId, 'Legal');
     
-    // If analysis is running and existing analysis has incomplete questions, return progress status
-    if (isLegalAnalysisRunning && analysis && analysis.legalAnswers) {
-      const questionCount = Object.keys(analysis.legalAnswers).length;
-      if (questionCount < 13) {
-        console.log(`🔄 Legal analysis running - returning incomplete analysis (${questionCount}/13 questions) with processing status`);
-        return res.json({
-          success: true,
-          analysis: {
-            dealId,
-            agentType: 'Legal',
-            status: 'processing', // Override status to show it's still running
-            findings: analysis.findings || [],
-            recommendations: analysis.recommendations || [],
-            confidence: analysis.confidence || 0,
-            completedAt: null, // Clear completion time since it's still running
-            legalAnswers: analysis.legalAnswers || {},
-            isIncomplete: true,
-            expectedQuestions: 13,
-            currentQuestions: questionCount
-          }
-        });
-      }
-    }
+
     
     if (!analysis) {
       return res.status(404).json({
