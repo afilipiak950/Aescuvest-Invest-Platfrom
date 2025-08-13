@@ -14,669 +14,366 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Enhanced legal questions for comprehensive analysis
 export const COMPREHENSIVE_LEGAL_QUESTIONS = [
-  {
-    id: 'sha_1',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'What class of shares exist?',
-    analysisPrompt: 'Identify all types of shares mentioned in this document. Look for: common shares, preferred shares, class A/B shares, voting rights, non-voting shares, etc.'
+  // Corporate Structure & Governance
+  { 
+    id: 'corporate_1', 
+    question: 'What is the corporate structure and ownership?', 
+    category: 'Corporate Structure & Governance',
+    analysisPrompt: 'Identify corporate structure, ownership percentages, shareholder agreements, and governance frameworks.',
+    keywords: ['corporate structure', 'ownership', 'shareholders', 'board of directors', 'governance', 'equity', 'shares', 'voting rights']
   },
-  {
-    id: 'sha_2',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Are liquidation preferences defined?',
-    analysisPrompt: 'Find any mentions of liquidation preferences, distribution priorities, liquidation multiples, participation rights, or liquidation procedures.'
+  { 
+    id: 'corporate_2', 
+    question: 'Are there any board resolutions or governance issues?', 
+    category: 'Corporate Structure & Governance',
+    analysisPrompt: 'Find board resolutions, director appointments, governance policies, and any corporate governance concerns.',
+    keywords: ['board resolution', 'board meeting', 'director', 'governance', 'corporate policy', 'fiduciary duty', 'conflicts of interest']
   },
-  {
-    id: 'sha_3',
-    category: 'Shareholders Agreement / Articles of Association',
-    question: 'Is anti-dilution protection present?',
-    analysisPrompt: 'Look for anti-dilution provisions, weighted average adjustments, full ratchet protection, or price adjustment mechanisms.'
+  // Intellectual Property
+  { 
+    id: 'ip_1', 
+    question: 'What intellectual property assets exist?', 
+    category: 'Intellectual Property',
+    analysisPrompt: 'Identify patents, trademarks, copyrights, trade secrets, and IP ownership status.',
+    keywords: ['patent', 'trademark', 'copyright', 'trade secret', 'intellectual property', 'ip', 'proprietary', 'licensing']
   },
-  {
-    id: 'gov_1',
-    category: 'Governance & Voting',
-    question: 'Is board composition defined?',
-    analysisPrompt: 'Identify board structure, number of directors, appointment procedures, investor representation, and board meeting requirements.'
+  { 
+    id: 'ip_2', 
+    question: 'Are there IP licensing agreements or disputes?', 
+    category: 'Intellectual Property',
+    analysisPrompt: 'Find IP licensing deals, royalty agreements, IP disputes, or infringement claims.',
+    keywords: ['license agreement', 'licensing', 'royalty', 'ip dispute', 'infringement', 'patent litigation', 'trademark dispute']
   },
-  {
-    id: 'gov_2',
-    category: 'Governance & Voting',
-    question: 'Are voting rights clearly specified?',
-    analysisPrompt: 'Find voting procedures, majority requirements, veto rights, consent requirements, and shareholder voting agreements.'
+  // Contracts & Agreements
+  { 
+    id: 'contracts_1', 
+    question: 'What are the key commercial contracts and terms?', 
+    category: 'Contracts & Agreements',
+    analysisPrompt: 'Analyze major commercial agreements, contract terms, revenue commitments, and obligations.',
+    keywords: ['commercial agreement', 'contract', 'terms and conditions', 'service agreement', 'supply agreement', 'distribution']
   },
-  {
-    id: 'ip_1',
-    category: 'IP Assignment & Key Personnel',
-    question: 'Are IP assignment agreements in place?',
-    analysisPrompt: 'Look for intellectual property assignments, invention assignments, work-for-hire clauses, and IP ownership provisions.'
+  { 
+    id: 'contracts_2', 
+    question: 'Are there any contract disputes or breaches?', 
+    category: 'Contracts & Agreements',
+    analysisPrompt: 'Identify contract disputes, breach claims, penalty clauses, or termination risks.',
+    keywords: ['contract dispute', 'breach', 'default', 'penalty', 'termination', 'litigation', 'arbitration', 'dispute resolution']
   },
-  {
-    id: 'ip_2',
-    category: 'IP Assignment & Key Personnel',
-    question: 'Are all founders/key personnel covered?',
-    analysisPrompt: 'Identify which founders and key employees have signed IP assignments, employment agreements, or confidentiality agreements.'
+  // Regulatory & Compliance
+  { 
+    id: 'regulatory_1', 
+    question: 'What regulatory approvals and compliance requirements exist?', 
+    category: 'Regulatory & Compliance',
+    analysisPrompt: 'Find regulatory licenses, compliance requirements, industry regulations, and approval status.',
+    keywords: ['regulatory approval', 'license', 'permit', 'compliance', 'regulation', 'regulatory body', 'certification']
   },
-  {
-    id: 'commercial_1',
-    category: 'Commercial Agreements',
-    question: 'Are SLAs, warranties, and indemnity clauses present?',
-    analysisPrompt: 'Find service level agreements, warranty provisions, indemnification clauses, and liability limitations in commercial contracts.'
-  },
-  {
-    id: 'commercial_2',
-    category: 'Commercial Agreements',
-    question: 'Are termination clauses fair and mutual?',
-    analysisPrompt: 'Analyze termination provisions, notice periods, breach conditions, cure periods, and post-termination obligations.'
-  },
-  {
-    id: 'lit_1',
-    category: 'Litigation & Regulatory',
-    question: 'Are there pending litigations or regulatory proceedings?',
-    analysisPrompt: 'Look for mentions of lawsuits, disputes, regulatory investigations, compliance issues, or legal proceedings.'
-  },
-  {
-    id: 'lit_2',
-    category: 'Litigation & Regulatory',
-    question: 'Is financial exposure quantified?',
-    analysisPrompt: 'Find any quantification of legal costs, potential damages, settlement amounts, or financial exposure from legal matters.'
-  },
-  {
-    id: 'reg_1',
-    category: 'Regulatory Compliance',
-    question: 'Are there FDA submissions or regulatory approvals?',
-    analysisPrompt: 'Identify FDA submissions, regulatory approvals, licenses, permits, or compliance certifications.'
-  },
-  {
-    id: 'reg_2',
-    category: 'Regulatory Compliance',
-    question: 'Are there any regulatory compliance issues?',
-    analysisPrompt: 'Look for compliance violations, regulatory warnings, audit findings, or non-compliance issues.'
-  },
-  {
-    id: 'financial_1',
-    category: 'Financial Instruments',
-    question: 'Are there warrants or convertible instruments?',
-    analysisPrompt: 'Find warrants, convertible notes, convertible preferred shares, or other convertible securities.'
-  },
-  {
-    id: 'financial_2',
-    category: 'Financial Instruments',
-    question: 'What are the interest rates and maturity for debt instruments?',
-    analysisPrompt: 'Identify interest rates, maturity dates, conversion terms, and payment schedules for debt instruments.'
+  { 
+    id: 'regulatory_2', 
+    question: 'Are there any regulatory violations or investigations?', 
+    category: 'Regulatory & Compliance',
+    analysisPrompt: 'Identify regulatory violations, investigations, fines, or compliance issues.',
+    keywords: ['regulatory violation', 'investigation', 'fine', 'penalty', 'compliance issue', 'regulatory action', 'enforcement']
   }
 ];
 
-export class ComprehensiveLegalAnalysisService {
-  
+interface LegalEvidence {
+  documentId: number;
+  documentName: string;
+  relevantText: string;
+  confidence: number;
+  keyFindings: string[];
+}
+
+interface LegalAnswer {
+  question: string;
+  answer: string;
+  evidence: LegalEvidence[];
+  keyFindings: string[];
+  confidence: number;
+}
+
+class ComprehensiveLegalAnalysisService {
   /**
-   * Run comprehensive analysis for all assigned legal documents
+   * Analyze all legal documents for a deal
    */
-  async runComprehensiveAnalysis(dealId: number, storageService: any): Promise<any> {
-    console.log(`🚀 Starting comprehensive legal analysis for deal ${dealId}`);
-    
-    // Create background job for progress tracking
-    const jobId = `legal_analysis_${dealId}_${Date.now()}`;
-    
+  async analyzeLegalDocuments(dealId: number): Promise<void> {
     try {
-      await storageService.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_legal_analysis',
-        dealId,
-        agentType: 'Legal',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 0,
-        processedDocuments: 0,
-        startedAt: new Date()
-      });
-    } catch (error) {
-      console.error(`❌ Failed to create background job for deal ${dealId}:`, error);
-      throw new Error(`Failed to initialize comprehensive legal analysis: ${error.message}`);
-    }
-    
-    // Get all documents suitable for legal analysis
-    const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
-    console.log(`📄 Found ${assignedDocuments.length} documents suitable for legal analysis`);
-    
-    if (assignedDocuments.length === 0) {
-      await storageService.updateBackgroundJob(jobId, {
-        status: 'completed',
-        progress: 100,
-        error: 'No documents available for legal analysis'
-      });
-      throw new Error('No documents available for legal analysis');
-    }
-    
-    // Update job with total questions to process
-    await storageService.updateBackgroundJob(jobId, {
-      totalDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-      currentStep: 'Analyzing legal documents across 15 question categories'
-    });
-    
-    // Process each question comprehensively with enhanced error handling
-    const legalAnswers: Record<string, any> = {};
-    
-    for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
-      const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
-      console.log(`🔍 Processing question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
+      console.log(`🧬 Starting comprehensive legal analysis for deal ${dealId}`);
       
-      try {
-        // Update progress with error handling
-        const progress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
-        await storageService.updateBackgroundJob(jobId, {
-          progress,
-          processedDocuments: i,
-          currentDocumentName: question.question,
-          currentStep: `Analyzing: ${question.category}`
-        });
+      // Get all documents for the deal
+      const allDocuments = await storage.getDocuments(dealId);
+      
+      // Filter for legal-relevant documents
+      const legalDocuments = allDocuments.filter(doc => 
+        doc.assignedAgents?.includes('Legal') ||
+        doc.category?.toLowerCase() === 'legal' ||
+        doc.documentType?.toLowerCase().includes('legal') ||
+        doc.documentType?.toLowerCase().includes('contract') ||
+        doc.documentType?.toLowerCase().includes('agreement') ||
+        doc.name.toLowerCase().includes('contract') ||
+        doc.name.toLowerCase().includes('agreement') ||
+        doc.name.toLowerCase().includes('legal')
+      );
+
+      console.log(`📄 Found ${legalDocuments.length} legal documents to analyze`);
+
+      const legalAnswers: Record<string, LegalAnswer> = {};
+
+      // Process each legal question
+      for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
+        console.log(`🔍 Processing legal question: ${question.question}`);
         
-        // Extract evidence from ALL assigned documents for this question
-        console.log(`📄 Processing ${assignedDocuments.length} documents for question: ${question.question}`);
-        const documentEvidence = await this.extractEvidenceFromAllDocuments(
-          assignedDocuments, 
-          question
+        const answer = await this.analyzeDocumentsForQuestion(
+          legalDocuments,
+          question,
+          dealId
         );
-        console.log(`📊 Evidence extraction completed for question: ${question.question}`);
         
-        // Compile comprehensive answer based on all evidence
-        const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
         legalAnswers[question.id] = answer;
-        
-        console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
-        
-        // Brief delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      } catch (questionError) {
-        console.error(`❌ Error processing question "${question.question}":`, questionError);
-        
-        // Store partial answer for this question
-        legalAnswers[question.id] = {
-          question: question.question,
-          category: question.category,
-          answer: `Error processing this question: ${questionError.message}`,
-          confidence: 0,
-          sources: [],
-          evidence: [],
-          error: true
-        };
-        
-        // Update progress to continue processing
-        await storageService.updateBackgroundJob(jobId, {
-          progress: Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100),
-          processedDocuments: i,
-          currentDocumentName: `Error: ${question.question}`,
-          currentStep: `Error in: ${question.category}`
-        });
-        
-        // Continue with next question instead of failing completely
-        continue;
       }
-    }
-    
-    try {
-      // Update progress to completion
-      await storageService.updateBackgroundJob(jobId, {
-        progress: 100,
-        processedDocuments: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-        currentStep: 'Generating findings and recommendations',
-        status: 'completing'
-      });
-      
-      // Generate comprehensive findings and recommendations
-      const findings = this.generateComprehensiveFindings(legalAnswers);
-      const recommendations = this.generateComprehensiveRecommendations(legalAnswers);
-      
-      // Store the analysis results
-      await this.storeComprehensiveResults(dealId, legalAnswers, findings, recommendations, assignedDocuments);
-      
-      // Mark job as completed
-      await storageService.updateBackgroundJob(jobId, {
-        status: 'completed',
-        currentStep: 'Analysis completed'
-      });
+
+      // Save comprehensive analysis
+      await this.saveLegalAnalysis(dealId, legalAnswers);
       
       console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
       
-      return {
-        success: true,
-        documentsAnalyzed: assignedDocuments.length,
-        questionsAnswered: Object.keys(legalAnswers).length,
-        findings: findings.length,
-        recommendations: recommendations.length
-      };
-    } catch (finalError) {
-      console.error(`❌ Error in final stages of legal analysis for deal ${dealId}:`, finalError);
-      
-      // Still try to save what we have
-      try {
-        const partialFindings = this.generateComprehensiveFindings(legalAnswers);
-        const partialRecommendations = this.generateComprehensiveRecommendations(legalAnswers);
-        await this.storeComprehensiveResults(dealId, legalAnswers, partialFindings, partialRecommendations, assignedDocuments);
-        
-        // Mark as completed with error
-        await storageService.updateBackgroundJob(jobId, {
-          status: 'completed',
-          currentStep: 'Completed with partial results due to errors',
-          error: finalError.message
-        });
-        
-        return {
-          success: true,
-          documentsAnalyzed: assignedDocuments.length,
-          questionsAnswered: Object.keys(legalAnswers).length,
-          findings: partialFindings.length,
-          recommendations: partialRecommendations.length,
-          warning: 'Analysis completed with some errors'
-        };
-      } catch (saveError) {
-        // Mark job as failed
-        await storageService.updateBackgroundJob(jobId, {
-          status: 'failed',
-          error: `Final error: ${finalError.message}, Save error: ${saveError.message}`
-        });
-        throw finalError;
-      }
+    } catch (error) {
+      console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
+      throw error;
     }
   }
-  
+
   /**
-   * Get all documents suitable for legal analysis
+   * Analyze documents for a specific legal question
    */
-  private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+  private async analyzeDocumentsForQuestion(
+    documents: any[],
+    question: any,
+    dealId: number
+  ): Promise<LegalAnswer> {
+    const evidence: LegalEvidence[] = [];
     
-    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
-    
-    // First try documents explicitly assigned to legal agent
-    let legalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('legal')) && 
-      (doc.ocrText || doc.aiSummary)
-    );
-    
-    console.log(`📄 Documents explicitly assigned to legal: ${legalDocuments.length}`);
-    
-    // If no documents are explicitly assigned to legal, identify legal-related documents
-    if (legalDocuments.length === 0) {
-      console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
-      
-      legalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
-        
-        const docName = doc.name.toLowerCase();
-        const docContent = (doc.ocrText || '').toLowerCase();
-        const aiSummary = doc.aiSummary;
-        
-        // Legal document keywords
-        const legalKeywords = [
-          'contract', 'agreement', 'legal', 'license', 'patent', 'trademark', 
-          'copyright', 'litigation', 'compliance', 'regulatory', 'terms', 
-          'conditions', 'confidential', 'nda', 'employment', 'consulting', 
-          'executed', 'signed', 'shareholder', 'investor', 'funding', 
-          'liquidation', 'preference', 'anti-dilution', 'voting', 'board',
-          'ip assignment', 'intellectual property', 'governance', 'bylaws',
-          'articles', 'incorporation', 'memorandum', 'constitution'
-        ];
-        
-        // Check document name and content for legal keywords
-        const hasLegalKeywords = legalKeywords.some(keyword => 
-          docName.includes(keyword) || docContent.includes(keyword)
-        );
-        
-        // Check AI summary for legal document type
-        const isLegalDocument = aiSummary?.documentType?.toLowerCase().includes('legal') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('legal') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('contract') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('agreement');
-        
-        return hasLegalKeywords || isLegalDocument;
-      });
-      
-      console.log(`📄 Auto-identified legal documents: ${legalDocuments.length}`);
-    }
-    
-    // If still no legal documents, take documents with meaningful content for analysis
-    if (legalDocuments.length === 0) {
-      console.log('📄 No legal-related documents found, using all documents with OCR text...');
-      legalDocuments = allDocuments.filter(doc => 
-        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
-      );
-      console.log(`📄 Documents with content available: ${legalDocuments.length}`);
-    }
-    
-    return legalDocuments;
-  }
-  
-  /**
-   * Extract evidence from ALL documents for a specific question
-   */
-  private async extractEvidenceFromAllDocuments(
-    documents: any[], 
-    question: any
-  ): Promise<any[]> {
-    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
-    
-    // Process documents in batches to avoid overwhelming the system
+    // Process documents in batches
     const batchSize = 10;
-    const evidence = [];
-    
     for (let i = 0; i < documents.length; i += batchSize) {
       const batch = documents.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+      console.log(`📦 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(documents.length/batchSize)} (${batch.length} documents)`);
       
-      const batchResults = await Promise.all(
-        batch.map(async (doc) => {
-          console.log(`🔎 Extracting evidence from: ${doc.name}`);
-          return this.extractEvidenceFromDocument(doc, question);
-        })
-      );
-      
-      // Filter out null results and add to evidence
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
-      );
-      evidence.push(...validEvidence);
-      
-      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      for (const doc of batch) {
+        if (!doc.aiSummary) continue;
+        
+        console.log(`🔎 Extracting evidence from: ${doc.name}`);
+        
+        const docEvidence = await this.extractEvidenceFromDocument(
+          doc,
+          question
+        );
+        
+        if (docEvidence) {
+          evidence.push(docEvidence);
+        }
+      }
     }
+
+    // Compile final answer from all evidence
+    const finalAnswer = await this.compileQuestionAnswer(question, evidence);
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
-    return evidence;
+    console.log(`✅ Question "${question.question}" completed with ${evidence.length} pieces of evidence`);
+    
+    return finalAnswer;
   }
-  
+
   /**
-   * Extract specific evidence from a single document
+   * Extract evidence from a single document for a question
    */
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
-    
-    if (!content) return null;
-    
-    const prompt = `You are an expert legal due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY legal, corporate, governance, compliance, or regulatory information, even if indirectly related.
+  private async extractEvidenceFromDocument(
+    document: any,
+    question: any
+  ): Promise<LegalEvidence | null> {
+    try {
+      if (!document.aiSummary) return null;
+
+      // Check if document contains relevant keywords
+      const textToAnalyze = `${document.name} ${document.aiSummary}`.toLowerCase();
+      const hasRelevantKeywords = question.keywords.some(keyword => 
+        textToAnalyze.includes(keyword.toLowerCase())
+      );
+
+      if (!hasRelevantKeywords) return null;
+
+      const prompt = `
+As a legal analyst, analyze this document for the following question:
+
+QUESTION: ${question.question}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+CONTENT: ${document.aiSummary}
 
-QUESTION: "${question.question}"
-ANALYSIS TASK: ${question.analysisPrompt}
+Extract specific legal evidence that answers the question. Focus on:
+- Specific facts, terms, and provisions
+- Legal implications and risks
+- Contractual obligations or rights
+- Regulatory requirements or compliance status
 
-Instructions:
-- Look for DIRECT legal terms, contracts, agreements, governance matters, compliance issues
-- Look for INDIRECT references to corporate structure, business relationships, partnerships, licensing
-- Consider business documents that mention legal milestones, regulatory matters, corporate decisions
-- Even general business context often has legal implications for investment due diligence
-- For investment companies, most business documents contain legal information relevant to investors
-
-Respond in JSON format:
+Provide your analysis in this JSON format:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
-  "hasRelevantInfo": true/false,
-  "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "legalContext": "How this document relates to legal/corporate aspects of the business"
+  "hasRelevantInfo": boolean,
+  "relevantText": "specific quotes or paraphrases from the document",
+  "keyFindings": ["finding 1", "finding 2", "finding 3"],
+  "confidence": number (0-100),
+  "legalImplications": "summary of legal implications"
 }
+`;
 
-Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
-
-    try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 1500
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 1000
       });
-      
+
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
+      if (!analysis.hasRelevantInfo) return null;
+
       return {
-        documentName: document.name,
         documentId: document.id,
-        relevantContent: analysis.relevantContent || [],
-        hasRelevantInfo: analysis.hasRelevantInfo || false,
-        confidence: analysis.confidence || 0,
+        documentName: document.name,
+        relevantText: analysis.relevantText,
         keyFindings: analysis.keyFindings || [],
-        documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        confidence: analysis.confidence || 50
       };
-      
+
     } catch (error) {
-      console.error(`Error extracting evidence from ${document.name}:`, error);
-      return {
-        documentName: document.name,
-        documentId: document.id,
-        relevantContent: [],
-        hasRelevantInfo: false,
-        confidence: 0,
-        keyFindings: [],
-        documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 1000)
-      };
+      console.error(`Error extracting evidence from document ${document.name}:`, error);
+      return null;
     }
   }
-  
+
   /**
-   * Compile comprehensive answer based on all evidence
+   * Compile final answer from all evidence
    */
-  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
-    console.log(`🔍 Compiling answer for: ${question.question}`);
-    console.log(`📋 Evidence count: ${evidence.length}`);
-    
+  private async compileQuestionAnswer(
+    question: any,
+    evidence: LegalEvidence[]
+  ): Promise<LegalAnswer> {
     if (evidence.length === 0) {
-      console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No relevant information found in the assigned legal documents for this question.`,
-        confidence: 10,
-        sources: [],
-        evidenceCount: 0,
-        documentsCovered: 0
+        answer: "No relevant legal information found in the analyzed documents.",
+        evidence: [],
+        keyFindings: [],
+        confidence: 0
       };
     }
-    
-    // Filter evidence with relevant information
-    const relevantEvidence = evidence.filter(e => e.hasRelevantInfo);
-    console.log(`📋 Relevant evidence count: ${relevantEvidence.length}`);
-    
-    const prompt = `You are a senior legal analyst compiling a comprehensive answer based on evidence from multiple documents.
+
+    try {
+      const evidenceText = evidence.map(e => 
+        `Document: ${e.documentName}\nFindings: ${e.keyFindings.join(', ')}\nText: ${e.relevantText}`
+      ).join('\n\n');
+
+      const prompt = `
+As a senior legal analyst, synthesize the following evidence to answer this legal question:
 
 QUESTION: ${question.question}
 CATEGORY: ${question.category}
 
 EVIDENCE FROM DOCUMENTS:
-${relevantEvidence.map((ev, idx) => `
-Document ${idx + 1}: ${ev.documentName}
-Key Findings: ${ev.keyFindings.join('; ')}
-Relevant Content: ${ev.relevantContent.join(' | ')}
-Document Summary: ${ev.documentSummary}
-Confidence: ${ev.confidence}%
-`).join('\n')}
+${evidenceText}
 
-Based on ALL the evidence above, provide a comprehensive legal analysis:
-
-1. Synthesize information from all documents
-2. Provide a complete answer to the question
-3. Identify which specific documents support each part of your answer
-4. Assess overall confidence based on the quality and consistency of evidence
-5. Note any conflicts or gaps in the information
-
-Respond in JSON format:
+Provide a comprehensive legal analysis in this JSON format:
 {
-  "answer": "Comprehensive answer synthesizing all evidence",
-  "confidence": 0-100,
-  "sources": ["Document1.pdf", "Document2.pdf"],
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "evidenceSummary": "Summary of the evidence found",
-  "gaps": ["Gap 1", "Gap 2"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"]
-}`;
+  "answer": "detailed answer incorporating all relevant evidence",
+  "keyFindings": ["key finding 1", "key finding 2", "key finding 3"],
+  "legalRisks": ["risk 1", "risk 2"],
+  "recommendations": ["recommendation 1", "recommendation 2"],
+  "confidence": number (0-100)
+}
 
-    try {
-      console.log(`🤖 Making OpenAI API call for: ${question.question}`);
-      console.log(`📋 Relevant evidence: ${relevantEvidence.length} documents`);
-      
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('OpenAI API timeout after 60 seconds')), 60000);
+Focus on:
+- Legal accuracy and completeness
+- Risk identification and assessment
+- Practical implications for the business
+- Regulatory compliance considerations
+`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        max_tokens: 1500
       });
-      
-      const apiPromise = openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 2000
-      });
-      
-      const response = await Promise.race([apiPromise, timeoutPromise]);
-      console.log(`✅ OpenAI API call completed for: ${question.question}`);
-      
+
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
+
+      return {
+        question: question.question,
+        answer: analysis.answer || "Analysis could not be completed.",
+        evidence,
+        keyFindings: analysis.keyFindings || [],
+        confidence: analysis.confidence || 50
+      };
+
+    } catch (error) {
+      console.error(`Error compiling answer for question ${question.question}:`, error);
+      
+      // Fallback answer
+      const keyFindings = evidence.flatMap(e => e.keyFindings).slice(0, 5);
       
       return {
         question: question.question,
-        answer: analysis.answer || 'Unable to compile comprehensive answer',
-        confidence: analysis.confidence || 50,
-        sources: relevantEvidence.map(e => e.documentName),
-        keyFindings: analysis.keyFindings || [],
-        evidenceSummary: analysis.evidenceSummary || '',
-        gaps: analysis.gaps || [],
-        recommendations: analysis.recommendations || [],
-        evidenceCount: relevantEvidence.length,
-        documentsCovered: evidence.length,
-        detailedEvidence: relevantEvidence
+        answer: `Based on analysis of ${evidence.length} documents, key findings include: ${keyFindings.join(', ')}`,
+        evidence,
+        keyFindings,
+        confidence: 60
       };
+    }
+  }
+
+  /**
+   * Save legal analysis to database
+   */
+  private async saveLegalAnalysis(
+    dealId: number,
+    legalAnswers: Record<string, LegalAnswer>
+  ): Promise<void> {
+    try {
+      // Generate summary findings and recommendations
+      const allFindings = Object.values(legalAnswers).flatMap(a => a.keyFindings);
+      const findings = allFindings.slice(0, 15); // Top 15 findings
+      
+      const recommendations = [
+        "Review all identified legal risks with legal counsel",
+        "Ensure regulatory compliance requirements are met",
+        "Validate IP ownership and licensing agreements",
+        "Assess contract terms and potential dispute risks"
+      ];
+
+      const analysisData = {
+        dealId,
+        agentType: 'Legal' as const,
+        status: 'completed' as const,
+        findings,
+        recommendations,
+        riskLevel: 'medium' as const,
+        completedAt: new Date(),
+        legalAnswers,
+        confidence: Math.round(
+          Object.values(legalAnswers).reduce((sum, a) => sum + a.confidence, 0) / 
+          Object.values(legalAnswers).length
+        )
+      };
+
+      await storage.upsertAgentAnalysis(analysisData);
+      
+      console.log(`✅ Saved legal analysis for deal ${dealId} with ${Object.keys(legalAnswers).length} questions`);
       
     } catch (error) {
-      console.error(`❌ Error compiling answer for ${question.id}:`, error.message);
-      return {
-        question: question.question,
-        answer: `Analysis temporarily unavailable: ${error.message}. Please try again.`,
-        confidence: 10,
-        sources: relevantEvidence.map(e => e.documentName),
-        evidenceCount: relevantEvidence.length,
-        documentsCovered: evidence.length
-      };
+      console.error(`❌ Error saving legal analysis for deal ${dealId}:`, error);
+      throw error;
     }
-  }
-  
-  /**
-   * Generate comprehensive findings
-   */
-  private generateComprehensiveFindings(answers: Record<string, any>): any[] {
-    const findings = [];
-    
-    for (const [questionId, answer] of Object.entries(answers)) {
-      const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
-      if (!question) continue;
-      
-      // High confidence findings
-      if (answer.confidence > 70) {
-        findings.push({
-          id: findings.length + 1,
-          type: 'positive',
-          content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
-          source: answer.sources.length > 0 ? answer.sources[0] : 'Legal Documents',
-          confidence: answer.confidence / 100,
-          category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-          evidenceCount: answer.evidenceCount || 0
-        });
-      }
-      
-      // Risk findings for low confidence or gaps
-      if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
-        findings.push({
-          id: findings.length + 1,
-          type: 'risk',
-          content: `Insufficient information for: ${question.question}. Additional documentation may be required.`,
-          source: 'Legal Analysis',
-          confidence: 0.3,
-          category: 'gaps',
-          evidenceCount: answer.evidenceCount || 0
-        });
-      }
-    }
-    
-    return findings;
-  }
-  
-  /**
-   * Generate comprehensive recommendations
-   */
-  private generateComprehensiveRecommendations(answers: Record<string, any>): any[] {
-    const recommendations = [];
-    
-    for (const [questionId, answer] of Object.entries(answers)) {
-      if (answer.recommendations && answer.recommendations.length > 0) {
-        for (const rec of answer.recommendations) {
-          recommendations.push({
-            title: `Legal Due Diligence: ${answer.question}`,
-            description: rec,
-            priority: answer.confidence < 60 ? 'high' : 'medium',
-            category: 'legal',
-            impact: answer.confidence < 40 ? 'critical' : 'moderate'
-          });
-        }
-      }
-      
-      if (answer.gaps && answer.gaps.length > 0) {
-        recommendations.push({
-          title: `Documentation Gap: ${answer.question}`,
-          description: `Missing information identified: ${answer.gaps.join(', ')}. Request additional documentation.`,
-          priority: 'high',
-          category: 'legal',
-          impact: 'critical'
-        });
-      }
-    }
-    
-    return recommendations;
-  }
-  
-  /**
-   * Store comprehensive analysis results
-   */
-  private async storeComprehensiveResults(
-    dealId: number, 
-    legalAnswers: Record<string, any>, 
-    findings: any[], 
-    recommendations: any[],
-    documentsAnalyzed: any[]
-  ): Promise<void> {
-    // First, delete any existing legal analysis to ensure clean replacement
-    await db
-      .delete(agentAnalyses)
-      .where(and(
-        eq(agentAnalyses.dealId, dealId),
-        eq(agentAnalyses.agentType, 'legal')
-      ));
-    
-    console.log(`🗑️ Cleared existing legal analysis for deal ${dealId}`);
-    
-    // Create the new comprehensive analysis
-    const analysisData = {
-      dealId,
-      agentType: 'legal' as const,
-      status: 'completed' as const,
-      progress: 100,
-      findings: JSON.stringify(findings),
-      recommendations: JSON.stringify(recommendations),
-      legalAnswers: JSON.stringify(legalAnswers),
-      documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    await db
-      .insert(agentAnalyses)
-      .values(analysisData);
-    
-    console.log(`📊 Created fresh comprehensive legal analysis for deal ${dealId} with ${Object.keys(legalAnswers).length} questions answered`);
   }
 }
 
-// Export a singleton instance
 export const comprehensiveLegalAnalysisService = new ComprehensiveLegalAnalysisService();
