@@ -177,8 +177,8 @@ class ComprehensiveLegalAnalysisService {
         console.log(`📊 Processing legal question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
         
         try {
-          // Update progress - EXACT Clinical calculation
-          const progress = Math.round(((i + 1) / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 90) + 5;
+          // Update progress - Start at 0% like Clinical (removed +5 offset)
+          const progress = Math.round(((i + 1) / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
           await storageService.updateBackgroundJob(jobId, {
             progress,
             currentDocumentName: question.question,

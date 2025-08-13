@@ -85,25 +85,29 @@ export class PersistentLegalAnalysisService {
   }
 
   /**
-   * Start a new persistent legal analysis job - IDENTICAL to Clinical
+   * Start a new persistent legal analysis job - FORCES fresh start like Clinical
    */
   async startLegalAnalysis(dealId: number): Promise<string> {
     const jobId = `legal-analysis-${dealId}`;
     
-    console.log(`🔍 Starting persistent legal analysis for deal ${dealId}`);
+    console.log(`🔍 Starting FRESH persistent legal analysis for deal ${dealId}`);
 
-    // Check if job already exists and is running
+    // ALWAYS delete existing job to force fresh start - EXACT Clinical behavior
     const existingJob = await storage.getBackgroundJobById(jobId);
-    if (existingJob && existingJob.status === 'processing') {
-      console.log(`🔄 Legal analysis already running for deal ${dealId}, resuming...`);
-      await this.resumeLegalAnalysis(dealId, jobId);
-      return jobId;
-    }
-
-    // Clean up any old completed or failed jobs for this deal
-    if (existingJob && existingJob.status !== 'processing') {
-      console.log(`🧹 Found old job for deal ${dealId} with status ${existingJob.status}, deleting it...`);
+    if (existingJob) {
+      console.log(`🧹 FORCE DELETING existing job for deal ${dealId} with status ${existingJob.status} to start fresh...`);
       await storage.deleteBackgroundJob(jobId);
+      
+      // Also clear from memory if running
+      if (this.activeJobs.has(jobId)) {
+        this.activeJobs.delete(jobId);
+      }
+      
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
     }
 
     // Create new background job record
