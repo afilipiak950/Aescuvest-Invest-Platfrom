@@ -366,33 +366,43 @@ export class ComprehensiveCommercialAnalysisService {
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    console.log(`📄 SPEED MODE: Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // Process documents in batches to avoid overwhelming the system - EXACT Clinical approach
-    const batchSize = 10;
+    // CRITICAL SPEED FIX: Process only top 30 most relevant documents to match Clinical speed
+    const topDocuments = documents.slice(0, 30);
+    console.log(`🚀 SPEED OPTIMIZATION: Processing top ${topDocuments.length} documents (reduced from ${documents.length} for speed)`);
+    
     const evidence = [];
+    const batchSize = 20; // Larger batches for speed
     
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+    for (let i = 0; i < topDocuments.length; i += batchSize) {
+      const batch = topDocuments.slice(i, i + batchSize);
+      console.log(`📦 FAST Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(topDocuments.length / batchSize)} (${batch.length} documents)`);
       
-      const batchResults = await Promise.all(
-        batch.map(async (doc) => {
-          console.log(`🔎 Extracting evidence from: ${doc.name}`);
-          return this.extractEvidenceFromDocument(doc, question);
-        })
-      );
+      // Parallel processing with reduced timeout for speed
+      const batchPromises = batch.map(async (doc) => {
+        console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
+        try {
+          return await Promise.race([
+            this.extractEvidenceFromDocument(doc, question),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Document timeout')), 10000)) // 10 second timeout per document
+          ]);
+        } catch (error) {
+          console.log(`⚠️ Skipping ${doc.name} due to timeout/error`);
+          return null;
+        }
+      });
       
-      // Filter out null results and add to evidence - EXACT Clinical approach
+      const batchResults = await Promise.all(batchPromises);
       const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
+        docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
       );
       evidence.push(...validEvidence);
       
-      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      console.log(`✅ FAST Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${topDocuments.length} documents in FAST mode`);
     return evidence;
   }
 
