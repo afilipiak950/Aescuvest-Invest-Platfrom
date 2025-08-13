@@ -222,7 +222,16 @@ class ComprehensiveCommercialAnalysisService {
       
       for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
         const question = COMMERCIAL_QUESTIONS[i];
-        console.log(`🔍 Processing commercial question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
+        console.log(`📊 Processing commercial question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
+        
+        // CRITICAL: Update progress for each question - EXACT Clinical micro-step architecture
+        await storageService.updateBackgroundJob(jobId, {
+          progress: Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100),
+          processedDocuments: i,
+          currentStep: `Analyzing: ${question.question}`,
+          currentDocumentName: question.category
+        });
+        console.log(`💾 Updated background job ${jobId} in database`);
         
         // EXACT micro-step progress calculation matching Clinical
         const progress = Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100);
