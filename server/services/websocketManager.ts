@@ -117,6 +117,38 @@ class WebSocketManager {
     console.log(`📡 Broadcasted job cancellation for job ${jobId} to clients`);
   }
 
+  /**
+   * Broadcast to specific room (EXACTLY like Clinical agent expects)
+   */
+  broadcastToRoom(room: string, eventType: string, data: any) {
+    if (!this.wss) {
+      console.log('❌ WebSocket server not initialized');
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: eventType,
+      data: data
+    });
+
+    // Extract dealId from room format "deal-{dealId}"
+    const dealIdMatch = room.match(/deal-(\d+)/);
+    const dealId = dealIdMatch ? parseInt(dealIdMatch[1]) : null;
+
+    let sentCount = 0;
+    this.clients.forEach((clientData, ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        // Send to all clients or filter by dealId
+        if (!dealId || clientData.dealId === dealId) {
+          ws.send(message);
+          sentCount++;
+        }
+      }
+    });
+
+    console.log(`📡 Broadcasted to room ${room} (${eventType}): ${sentCount} clients`);
+  }
+
   getActiveConnections(): number {
     return this.clients.size;
   }
