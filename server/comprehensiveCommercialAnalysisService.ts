@@ -114,7 +114,7 @@ interface CommercialAnswer {
   recommendations: string[];
 }
 
-class ComprehensiveCommercialAnalysisService {
+export class ComprehensiveCommercialAnalysisService {
   private progressData: Map<number, CommercialAnalysisProgress> = new Map();
 
   getProgress(dealId: number): CommercialAnalysisProgress {
@@ -231,16 +231,7 @@ class ComprehensiveCommercialAnalysisService {
           currentStep: `Analyzing: ${question.question}`,
           currentDocumentName: question.category
         });
-        console.log(`💾 Updated background job ${jobId} in database`);
-        
-        // EXACT micro-step progress calculation matching Clinical
-        const progress = Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100);
-        await storageService.updateBackgroundJob(jobId, {
-          progress,
-          currentDocumentName: question.question,
-          currentStep: `Analyzing: ${question.category}`,
-          processedDocuments: i
-        });
+        console.log(`💾 Updated background job ${jobId} to ${Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100)}%`);
         
         try {
           console.log(`📊 Extracting commercial evidence for: ${question.question}`);

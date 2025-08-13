@@ -4452,17 +4452,33 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // REMOVED: Check for existing jobs - this was blocking the cleanup from running
       // The service will handle cleanup internally
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Import the comprehensive commercial analysis service - EXACT Clinical approach
+      const { ComprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
       
-      // Run ENHANCED comprehensive commercial analysis in background with deep evidence-based processing
+      // Run comprehensive commercial analysis in background - EXACT Clinical approach
       (async () => {
         try {
-          console.log(`🏢 Starting ENHANCED commercial analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Commercial');
-          console.log(`✅ Enhanced commercial analysis completed for deal ${dealId}`);
+          console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
+          
+          // Create background job for tracking - EXACT Clinical approach
+          const jobId = `commercial-analysis-${dealId}`;
+          await storage.createBackgroundJob({
+            jobId,
+            dealId,
+            jobType: 'agent_analysis',
+            agentType: 'commercial',
+            status: 'processing',
+            progress: 5,
+            currentStep: 'Starting commercial analysis'
+          });
+          
+          // Initialize service and run analysis - EXACT Clinical approach
+          const commercialService = new ComprehensiveCommercialAnalysisService();
+          await commercialService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced commercial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
         }
       })();
       
