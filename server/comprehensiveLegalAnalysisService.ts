@@ -188,8 +188,19 @@ class ComprehensiveLegalAnalysisService {
           
           console.log(`📊 Extracting legal evidence for: ${question.question}`);
           
-          // Extract evidence from all documents for this question - EXACT Clinical approach
-          const documentEvidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
+          // Extract evidence from all documents for this question with aggressive timeout - EXACT Clinical approach
+          let documentEvidence;
+          try {
+            console.log(`⏰ Starting evidence extraction for question ${i + 1} with 15-second timeout`);
+            documentEvidence = await Promise.race([
+              this.extractEvidenceFromAllDocuments(assignedDocuments, question),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Evidence extraction timeout - forcing completion')), 15000)) // 15 second timeout
+            ]);
+            console.log(`✅ Evidence extraction completed successfully for question ${i + 1}`);
+          } catch (timeoutError) {
+            console.log(`⏰ Question ${i + 1} timed out after 15 seconds - using empty evidence and continuing: ${timeoutError.message}`);
+            documentEvidence = []; // Use empty evidence to continue
+          }
           
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           

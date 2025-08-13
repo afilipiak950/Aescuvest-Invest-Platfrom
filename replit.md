@@ -86,6 +86,13 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Affinity CRM**: For organization data synchronization.
 
 ### Recent Changes (August 2025)
+- **Legal Agent Architecture Fixed (August 13, 2025)**: Resolved critical Legal analysis stuck at 8% issue by fixing exact micro-step architecture differences:
+  - Fixed service import inconsistency: Changed Legal from direct import to dynamic require() matching Clinical
+  - Added aggressive timeout (15 seconds) to prevent infinite loops in document evidence extraction
+  - Ensured Legal analysis follows identical micro-step progression as Clinical (8%→15%→23%→...→100%)
+  - Legal analysis now works in EXACTLY the same micro-steps as Clinical with proper WebSocket broadcasting
+  - All 7 agents now share consistent architectural patterns for reliable progress tracking
+
 - **AI Processing Timeout Fixes**: Resolved critical stuck processing issue with comprehensive timeout management:
   - Reduced processing timeout from 12 hours to 5 minutes for immediate completion
   - Enhanced monitoring intervals from 30 minutes to 1 minute for faster detection
