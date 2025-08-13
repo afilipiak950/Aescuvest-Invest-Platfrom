@@ -183,9 +183,14 @@ export class ComprehensiveClinicalAnalysisService {
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
-          // Compile comprehensive answer based on all evidence
-          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          // Compile comprehensive answer with timeout - EXACT Legal approach
+          console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
+          const answer = await Promise.race([
+            this.compileComprehensiveAnswer(question, documentEvidence),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
+          ]);
           clinicalAnswers[question.id] = answer;
+          console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
           console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}: ${question.question}`);
           
@@ -358,6 +363,12 @@ export class ComprehensiveClinicalAnalysisService {
         (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
       );
       console.log(`📄 Documents with content available: ${clinicalDocuments.length}`);
+    }
+    
+    // Apply EXACT same document limits as Legal for efficiency
+    if (clinicalDocuments.length > 50) {
+      console.log(`📄 Limiting to first 50 documents for clinical analysis efficiency (found ${clinicalDocuments.length})`);
+      clinicalDocuments = clinicalDocuments.slice(0, 50);
     }
     
     return clinicalDocuments;
