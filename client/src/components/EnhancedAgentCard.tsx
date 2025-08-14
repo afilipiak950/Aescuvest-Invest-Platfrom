@@ -4754,169 +4754,126 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {HR_QUESTIONS.filter(q => q.category === category).map(question => {
-                const answer = comprehensiveResults?.success && comprehensiveResults.analysis?.hrAnswers 
-                  ? comprehensiveResults.analysis.hrAnswers[question.id] 
-                  : null;
-
-                return (
-                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
-                          
-                          {answer ? (
-                            <div className="mt-3 space-y-3">
-                              <div className="bg-dark/50 rounded p-3">
-                                <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
-                              </div>
-
-                              {/* Enhanced HR Assessment */}
-                              {answer.hrAssessment && (
-                                <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.hrAssessment}</p>
-                                </div>
-                              )}
-
-                              {/* Document Quotes */}
-                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
-                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
-                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
-                                  </h5>
-                                  <div className="space-y-2">
-                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
-                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
-                                        <div className="flex items-start justify-between mb-1">
-                                          <button
-                                            onClick={() => handleDocumentClick(quote.document)}
-                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
-                                          >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
-                                          </button>
-                                          {quote.relevance && (
-                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
-                                        </blockquote>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Evidence Summary */}
-                              {answer.evidenceSummary && (
-                                <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
-                                </div>
-                              )}
-
-                              {/* Key Findings */}
-                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
-                                <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-orange-400 mb-2">Key Findings</h5>
-                                  <ul className="space-y-1">
-                                    {answer.keyFindings.map((finding, index) => (
-                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
-                                        <span className="text-orange-400 text-xs mt-1">•</span>
-                                        {finding}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {/* Recommendations */}
-                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
-                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
-                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
-                                  <ul className="space-y-1">
-                                    {answer.recommendations.map((rec, index) => (
-                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
-                                        <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {/* Metadata */}
-                              <div className="flex items-center gap-2">
+              {/* Show available HR analysis data instead of waiting for specific question answers */}
+              {comprehensiveResults?.success && comprehensiveResults.analysis ? (
+                <div className="p-4">
+                  <div className="space-y-4">
+                    {/* HR Questions that have answers */}
+                    {comprehensiveResults.analysis.hrAnswers && Object.keys(comprehensiveResults.analysis.hrAnswers).length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="text-sm font-medium text-orange-400">Answered HR Questions ({Object.keys(comprehensiveResults.analysis.hrAnswers).length})</h5>
+                        {Object.entries(comprehensiveResults.analysis.hrAnswers).map(([questionId, answer]: [string, any], index) => (
+                          <div key={questionId} className="bg-dark/50 rounded p-3">
+                            <h6 className="text-xs font-medium text-orange-400 mb-2">Question {index + 1}</h6>
+                            <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                            {answer.confidence && (
+                              <div className="mt-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
-                                    onClick={() => {
-                                      setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
-                                          text: quote,
-                                          documentName: answer.sources?.[0] || 'Unknown Document',
-                                          confidence: answer.confidence || 0.8
-                                        })),
-                                        sources: [],
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
-                                  </Badge>
-                                )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
-                                    onClick={() => {
-                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
-                                        return {
-                                          documentName: evidence.documentName,
-                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
-                                          extractedText: evidence.documentSummary || 'No specific content extracted'
-                                        };
-                                      }) || answer.sources.map((source: string) => ({
-                                        documentName: source,
-                                        relevantSections: [answer.answer || 'No specific section identified'],
-                                        extractedText: answer.answer
-                                      }));
-                                      
-                                      setSelectedQuoteData({
-                                        quotes: [],
-                                        sources,
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* HR Findings organized by category */}
+                    {comprehensiveResults.analysis.findings && comprehensiveResults.analysis.findings.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="text-sm font-medium text-orange-400">HR Findings ({comprehensiveResults.analysis.findings.length})</h5>
+                        <div className="grid grid-cols-1 gap-3">
+                          {comprehensiveResults.analysis.findings.slice(0, 8).map((finding: any, index: number) => (
+                            <div key={index} className="bg-dark/30 rounded p-3 border-l-2 border-orange-400">
+                              <div className="flex items-start gap-2">
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  finding.type === 'positive' ? 'bg-green-500/20 text-green-400' :
+                                  finding.type === 'risk' ? 'bg-red-500/20 text-red-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>
+                                  {finding.type || 'analysis'}
+                                </span>
+                                {finding.confidence && (
+                                  <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                    {Math.round((finding.confidence || 0) * 100)}%
                                   </Badge>
                                 )}
                               </div>
+                              <p className="text-gray-300 text-sm mt-2 leading-relaxed">
+                                {finding.content || finding.finding || finding.description || 'HR analysis finding'}
+                              </p>
+                              {finding.source && (
+                                <p className="text-gray-500 text-xs mt-1">Source: {finding.source}</p>
+                              )}
                             </div>
-                          ) : (
-                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
-                              <p className="text-gray-400 text-xs">No HR analysis available for this question yet.</p>
+                          ))}
+                        </div>
+                        {comprehensiveResults.analysis.findings.length > 8 && (
+                          <p className="text-gray-400 text-xs text-center">
+                            +{comprehensiveResults.analysis.findings.length - 8} more findings available
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* HR Recommendations */}
+                    {comprehensiveResults.analysis.recommendations && comprehensiveResults.analysis.recommendations.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="text-sm font-medium text-red-400">HR Recommendations ({comprehensiveResults.analysis.recommendations.length})</h5>
+                        <div className="space-y-2">
+                          {comprehensiveResults.analysis.recommendations.slice(0, 6).map((rec: any, index: number) => (
+                            <div key={index} className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                              <div className="flex items-start gap-2">
+                                <span className="text-red-400 text-xs mt-1">⚠</span>
+                                <p className="text-gray-300 text-sm leading-relaxed">
+                                  {rec.content || rec.recommendation || rec}
+                                </p>
+                              </div>
                             </div>
-                          )}
+                          ))}
+                        </div>
+                        {comprehensiveResults.analysis.recommendations.length > 6 && (
+                          <p className="text-gray-400 text-xs text-center">
+                            +{comprehensiveResults.analysis.recommendations.length - 6} more recommendations available
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Analysis Status */}
+                    <div className="bg-dark/20 rounded p-3 border border-orange-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                        <h6 className="text-xs font-medium text-green-400">Analysis Complete</h6>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <span className="text-gray-400">Questions:</span>
+                          <span className="text-white ml-1">{comprehensiveResults.analysis.questionsAnswered || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Progress:</span>
+                          <span className="text-white ml-1">{Math.round(comprehensiveResults.analysis.completionRate || 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Findings:</span>
+                          <span className="text-white ml-1">{comprehensiveResults.analysis.findings?.length || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Recommendations:</span>
+                          <span className="text-white ml-1">{comprehensiveResults.analysis.recommendations?.length || 0}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ) : (
+                <div className="p-4">
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No HR analysis available yet. Click "Run HR Analysis" to begin comprehensive analysis.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
