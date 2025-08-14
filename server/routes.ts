@@ -4215,7 +4215,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       // For HR agent, get analysis with HR answers - EXACT COMMERCIAL APPROACH
       if (agentType === 'hr') {
-        const analysis = await storage.getAgentAnalysis(dealId, 'hr');
+        const analysis = await storage.getAgentAnalysis(dealId, 'HR');
         
         if (analysis && (analysis.hr_answers || analysis.hrAnswers)) {
           let hrAnswers = {};
@@ -4767,7 +4767,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       console.log(`👥 Fetching comprehensive HR analysis results for deal ${dealId}`);
       
       // Get comprehensive HR analysis from agent_analyses table - EXACT Commercial approach
-      const analysis = await storage.getAgentAnalysis(dealId, 'hr');
+      const analysis = await storage.getAgentAnalysis(dealId, 'HR');
       console.log(`👥 Raw analysis data from storage:`, analysis);
       
       if (!analysis) {
