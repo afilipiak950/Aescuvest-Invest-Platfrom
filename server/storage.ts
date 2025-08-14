@@ -1531,8 +1531,10 @@ export class DatabaseStorage implements IStorage {
       const analysisResults = [...lowercaseResults, ...capitalizedResults]
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       
-      // Prioritize "Completed" status records over "Failed" ones, then by content
-      let analysisResult = analysisResults.find(result => result.status === 'Completed');
+      // Prioritize "completed" or "Completed" status records over "Failed" ones, then by content
+      let analysisResult = analysisResults.find(result => 
+        result.status === 'Completed' || result.status === 'completed'
+      );
       
       // If no completed record, look for one with actual findings/recommendations
       if (!analysisResult) {
