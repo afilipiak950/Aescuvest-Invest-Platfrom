@@ -414,7 +414,7 @@ export class ComprehensiveHRAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY HR, business, market, sales, competitive, or strategic information, even if indirectly related.
+    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY human resources, organizational, team, leadership, or management information, even if indirectly related.
 
 DOCUMENT: ${document.name}
 CONTENT: ${content.substring(0, 4000)}
@@ -423,9 +423,9 @@ QUESTION: "${question.question}"
 CATEGORY: ${question.category}
 
 Instructions:
-- Look for DIRECT HR terms: pricing, sales, customers, competition, market share, revenue, partnerships
-- Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
-- Consider business documents that mention HR milestones, market positioning, competitive advantages
+- Look for DIRECT HR terms: team size, employees, leadership, management, hiring, compensation, culture, retention
+- Look for INDIRECT HR information: organizational structure, roles, departments, executives, workforce data
+- Consider business documents that mention HR milestones, team growth, leadership changes, hiring plans
 - Even general business context often has HR implications for investment due diligence
 - For investment companies, most business documents contain HR information relevant to investors
 
@@ -436,7 +436,7 @@ Respond in JSON format:
   "confidence": 0-100,
   "keyFindings": ["Finding 1", "Finding 2"],
   "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "HRContext": "How this document relates to HR/business aspects"
+  "commercialContext": "How this document relates to HR/business aspects"
 }
 
 Be thorough in finding relevance - most business documents have HR implications for investment analysis.`;
