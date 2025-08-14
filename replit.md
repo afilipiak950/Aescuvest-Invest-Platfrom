@@ -95,6 +95,12 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
   - **Commercial Method Cloning**: All methods (`extractEvidenceFromAllDocuments`, `compileComprehensiveAnswer`, `generateComprehensiveFindings`) working
   - **STUCK-AT-33% ISSUE RESOLVED**: HR agent now properly progresses through micro-steps like Commercial agent
   - **SUCCESS VERIFIED**: HR agent runs with identical micro-step architecture and execution as Commercial agent
+  - **CRITICAL DATABASE FIELD FIX (August 14, 2025)**: Resolved HR results display issue caused by database field name mismatch:
+    - **Root Cause**: HR service stored answers as `hrAnswers` but database schema expects `hr_answers` (underscore format)
+    - **Solution**: Fixed HR service storage mechanism to use correct `hr_answers` field name matching database schema
+    - **Comparison**: Commercial agent correctly uses `commercialAnswers` which matches its database field
+    - **Impact**: HR analysis now properly stores and retrieves question answers for results display
+    - **Status**: HR results display now works identically to Commercial/Clinical/Legal agents
   
 - **Commercial Agent Architecture COMPLETED (August 13, 2025)**: Successfully achieved EXACT Clinical micro-step architecture parity:
   - **COMPLETE SERVICE EXECUTION FIX**: Fixed Commercial job creation and service instantiation to match Clinical exactly
