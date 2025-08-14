@@ -4387,21 +4387,23 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
       
-      // For Commercial agent, get analysis with commercial answers - EXACT LEGAL APPROACH  
+      // For Commercial agent, get analysis with commercial answers - EXACT CLINICAL APPROACH  
       if (agentType === 'commercial') {
         const analysis = await storage.getAgentAnalysis(dealId, 'commercial');
         
-        if (analysis && analysis.commercialAnswers) {
+        if (analysis && (analysis.commercial_answers || analysis.commercialAnswers)) {
           let commercialAnswers = {};
           let findings = [];
           let recommendations = [];
           
-          // Parse stored JSON data - EXACT Legal approach
+          // Parse stored JSON data - EXACT Clinical approach with field name fallback
           try {
-            if (analysis.commercialAnswers) {
-              commercialAnswers = typeof analysis.commercialAnswers === 'string' 
-                ? JSON.parse(analysis.commercialAnswers) 
-                : analysis.commercialAnswers;
+            // Fix field name mismatch: database uses commercial_answers (snake_case) but code expects commercialAnswers (camelCase)
+            if (analysis.commercial_answers || analysis.commercialAnswers) {
+              const commercialAnswersData = analysis.commercial_answers || analysis.commercialAnswers;
+              commercialAnswers = typeof commercialAnswersData === 'string' 
+                ? JSON.parse(commercialAnswersData) 
+                : commercialAnswersData;
             }
             if (analysis.findings) {
               findings = typeof analysis.findings === 'string' 
