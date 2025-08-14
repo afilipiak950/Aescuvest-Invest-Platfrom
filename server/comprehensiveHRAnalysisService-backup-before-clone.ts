@@ -6,86 +6,86 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const HR_QUESTIONS = [
-  // Team Structure
-  {
-    id: 'hr_1',
-    question: "What is the current team size and organizational structure?",
-    category: "Team Structure",
-    keywords: ['team size', 'organizational structure', 'org chart', 'reporting structure', 'headcount', 'workforce', 'department', 'roles', 'hierarchy']
+const COMMERCIAL_QUESTIONS = [
+  // Competitive Analysis Decks
+  { 
+    id: 'competitive_1', 
+    question: 'Is the differentiation clearly articulated?', 
+    category: 'Competitive Analysis Decks',
+    keywords: ['competitive', 'differentiation', 'competitive advantage', 'unique value', 'positioning', 'competitor', 'comparison', 'market position', 'value prop', 'usp']
   },
-  {
-    id: 'hr_2',
-    question: "Are there key person dependencies or single points of failure?",
-    category: "Risk Assessment", 
-    keywords: ['key person', 'dependencies', 'single point of failure', 'critical roles', 'key employee', 'succession', 'risk', 'backup', 'redundancy']
+  { 
+    id: 'competitive_2', 
+    question: 'Are comparison matrices based on price/features?', 
+    category: 'Competitive Analysis Decks',
+    keywords: ['comparison matrix', 'price comparison', 'feature comparison', 'competitive matrix', 'pricing table', 'feature set', 'competitive analysis', 'benchmark']
   },
-  {
-    id: 'hr_3',
-    question: "What is the leadership experience and track record?",
-    category: "Leadership Assessment",
-    keywords: ['leadership', 'executive', 'management', 'experience', 'track record', 'background', 'ceo', 'founder', 'senior team', 'qualifications']
+  { 
+    id: 'competitive_3', 
+    question: 'Is switching cost vs. competitors assessed?', 
+    category: 'Competitive Analysis Decks',
+    keywords: ['switching cost', 'migration cost', 'switching barrier', 'customer retention', 'lock-in', 'stickiness', 'churn prevention', 'switching friction']
   },
-  // Leadership Gaps  
-  {
-    id: 'hr_4',
-    question: "Are there gaps in the leadership team?",
-    category: "Leadership Gaps",
-    keywords: ['leadership gaps', 'missing roles', 'hiring needs', 'expertise gaps', 'skill gaps', 'vacant positions', 'recruitment', 'team building']
+  // Pricing Models
+  { 
+    id: 'pricing_1', 
+    question: 'What pricing logic is used (usage-based, tiered, per-seat)?', 
+    category: 'Pricing Models',
+    keywords: ['pricing model', 'usage-based', 'tiered pricing', 'per-seat', 'subscription', 'freemium', 'pricing strategy', 'pricing tier', 'billing model']
   },
-  {
-    id: 'hr_5',
-    question: "What is the employee retention and turnover rate?",
-    category: "Retention Analysis",
-    keywords: ['retention', 'turnover', 'attrition', 'churn', 'employee satisfaction', 'tenure', 'stability', 'departure', 'resignation']
+  { 
+    id: 'pricing_2', 
+    question: 'Are discount policies documented?', 
+    category: 'Pricing Models',
+    keywords: ['discount policy', 'pricing discount', 'volume discount', 'enterprise discount', 'promotional pricing', 'pricing flexibility', 'discount structure']
   },
-  {
-    id: 'hr_6',
-    question: "Are compensation and equity structures competitive?",
-    category: "Compensation Review",
-    keywords: ['compensation', 'salary', 'equity', 'stock options', 'benefits', 'competitive pay', 'market rate', 'incentives', 'package']
+  { 
+    id: 'pricing_3', 
+    question: 'Is net revenue retention tracked?', 
+    category: 'Pricing Models',
+    keywords: ['net revenue retention', 'nrr', 'revenue retention', 'expansion revenue', 'upsell', 'cross-sell', 'customer growth', 'retention rate']
   },
-  // Culture Assessment
-  {
-    id: 'hr_7',
-    question: "What is the company culture and employee engagement?",
-    category: "Culture Assessment",
-    keywords: ['culture', 'engagement', 'employee satisfaction', 'values', 'work environment', 'morale', 'team dynamics', 'workplace', 'culture fit']
+  // Sales Pipeline & CRM Data
+  { 
+    id: 'sales_1', 
+    question: 'What are win/loss rates?', 
+    category: 'Sales Pipeline & CRM Data',
+    keywords: ['win rate', 'loss rate', 'conversion rate', 'close rate', 'win/loss', 'sales conversion', 'deal closure', 'sales performance']
   },
-  {
-    id: 'hr_8',
-    question: "What are the talent acquisition and hiring strategies?",
-    category: "Talent Strategy",
-    keywords: ['talent acquisition', 'hiring strategy', 'recruitment', 'talent pipeline', 'sourcing', 'onboarding', 'hiring process', 'talent management']
+  { 
+    id: 'sales_2', 
+    question: 'What\'s the sales cycle per segment?', 
+    category: 'Sales Pipeline & CRM Data',
+    keywords: ['sales cycle', 'sales process', 'deal cycle', 'time to close', 'sales velocity', 'pipeline velocity', 'segment analysis', 'sales funnel']
   },
-  {
-    id: 'hr_9',
-    question: "Are there documented HR policies and procedures?",
-    category: "HR Operations",
-    keywords: ['hr policies', 'procedures', 'employee handbook', 'compliance', 'hr documentation', 'policies manual', 'hr processes', 'governance']
+  { 
+    id: 'sales_3', 
+    question: 'Are conversion rates stable or improving?', 
+    category: 'Sales Pipeline & CRM Data',
+    keywords: ['conversion rate', 'conversion trend', 'sales trend', 'performance trend', 'improvement', 'optimization', 'sales metrics', 'kpi trend']
   },
-  // Performance Management
-  {
-    id: 'hr_10',
-    question: "What performance management systems are in place?",
-    category: "Performance Management",
-    keywords: ['performance management', 'performance review', 'goal setting', 'feedback', 'performance metrics', 'evaluation', 'development', 'career growth']
+  // Customer Lists / Key Account Summaries
+  { 
+    id: 'customer_1', 
+    question: 'What share of revenue is concentrated on top 10 customers?', 
+    category: 'Customer Lists / Key Account Summaries',
+    keywords: ['customer concentration', 'revenue concentration', 'top customers', 'key accounts', 'customer dependence', 'revenue distribution', 'customer risk']
   },
-  {
-    id: 'hr_11',
-    question: "Are there skills development and training programs?",
-    category: "Training & Development",
-    keywords: ['training', 'development', 'skills development', 'learning', 'education', 'professional development', 'upskilling', 'career development']
+  { 
+    id: 'customer_2', 
+    question: 'What is churn over last 12 months?', 
+    category: 'Customer Lists / Key Account Summaries',
+    keywords: ['churn', 'churn rate', 'customer churn', 'attrition', 'customer retention', 'customer loss', 'retention rate', 'customer lifetime']
   },
-  {
-    id: 'hr_12',
-    question: "What is the workforce diversity and inclusion status?",
-    category: "Diversity & Inclusion",
-    keywords: ['diversity', 'inclusion', 'dei', 'workforce diversity', 'equality', 'representation', 'inclusive culture', 'bias', 'belonging']
+  { 
+    id: 'customer_3', 
+    question: 'Are customer satisfaction/NPS tracked?', 
+    category: 'Customer Lists / Key Account Summaries',
+    keywords: ['customer satisfaction', 'nps', 'net promoter score', 'customer feedback', 'satisfaction score', 'customer survey', 'customer experience', 'csat']
   }
 ];
 
-export interface HRAnalysisProgress {
+export interface CommercialAnalysisProgress {
   isRunning: boolean;
   progress: number;
   message: string;
@@ -94,7 +94,7 @@ export interface HRAnalysisProgress {
   currentQuestion?: string;
 }
 
-interface HREvidence {
+interface CommercialEvidence {
   documentName: string;
   documentSummary: string;
   relevantContent: string[];
@@ -102,30 +102,30 @@ interface HREvidence {
   confidence: number;
 }
 
-interface HRAnswer {
+interface CommercialAnswer {
   question: string;
   answer: string;
   confidence: number;
   sources: string[];
-  detailedEvidence: HREvidence[];
+  detailedEvidence: CommercialEvidence[];
   keyFindings: string[];
   evidenceSummary: string;
-  hrAssessment: string;
+  commercialAssessment: string;
   recommendations: string[];
 }
 
-export class ComprehensiveHRAnalysisService {
-  private progressData: Map<number, HRAnalysisProgress> = new Map();
+export class ComprehensiveCommercialAnalysisService {
+  private progressData: Map<number, CommercialAnalysisProgress> = new Map();
 
-  getProgress(dealId: number): HRAnalysisProgress {
+  getProgress(dealId: number): CommercialAnalysisProgress {
     return this.progressData.get(dealId) || { 
       isRunning: false, 
       progress: 0, 
-      message: 'No comprehensive HR analysis running' 
+      message: 'No comprehensive commercial analysis running' 
     };
   }
 
-  private async setProgress(dealId: number, progress: Partial<HRAnalysisProgress>, jobId?: string) {
+  private async setProgress(dealId: number, progress: Partial<CommercialAnalysisProgress>, jobId?: string) {
     const current = this.getProgress(dealId);
     this.progressData.set(dealId, { ...current, ...progress });
     
@@ -134,7 +134,7 @@ export class ComprehensiveHRAnalysisService {
       try {
         await storage.updateBackgroundJob(jobId, {
           progress: progress.progress,
-          currentStep: progress.currentStep || current.currentStep || 'Processing HR analysis'
+          currentStep: progress.currentStep || current.currentStep || 'Processing commercial analysis'
         });
       } catch (error) {
         console.error(`❌ Error updating background job ${jobId}:`, error);
@@ -142,13 +142,13 @@ export class ComprehensiveHRAnalysisService {
     }
   }
 
-  async getAssignedHRDocuments(dealId: number): Promise<any[]> {
-    console.log(`👥 Finding assigned HR documents for deal ${dealId}`);
+  async getAssignedCommercialDocuments(dealId: number): Promise<any[]> {
+    console.log(`🏢 Finding assigned commercial documents for deal ${dealId}`);
     
     try {
       // Get ALL documents for the deal with AI summaries - same approach as Legal and Clinical
       const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
-      console.log(`👥 Found ${allDocuments.length} total documents for deal ${dealId}`);
+      console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
       // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
       const documentsWithAI = allDocuments.filter(doc => {
@@ -168,13 +168,13 @@ export class ComprehensiveHRAnalysisService {
         return false;
       });
       
-      console.log(`👥 HR analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
+      console.log(`🏢 Commercial analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
       
       // Return ALL documents with AI summaries for maximum coverage
       return documentsWithAI;
       
     } catch (error) {
-      console.error(`❌ Error finding HR documents:`, error);
+      console.error(`❌ Error finding commercial documents:`, error);
       // Fallback: return all documents if there's an error
       try {
         const allDocs = await db.select().from(documents).where(eq(documents.dealId, dealId));
@@ -188,53 +188,53 @@ export class ComprehensiveHRAnalysisService {
   }
 
   /**
-   * Run comprehensive analysis for all assigned HR documents
+   * Run comprehensive analysis for all assigned commercial documents
    * EXACT CLONE of Clinical agent micro-step architecture
    */
   async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string): Promise<any> {
-    console.log(`🏢 Starting comprehensive HR analysis for deal ${dealId}`);
+    console.log(`🏢 Starting comprehensive commercial analysis for deal ${dealId}`);
     
     try {
-      // Get all HR documents - EXACT Clinical approach
-      const assignedDocuments = await this.getAssignedHRDocuments(dealId);
-      console.log(`📄 Found ${assignedDocuments.length} HR documents for analysis`);
+      // Get all commercial documents - EXACT Clinical approach
+      const assignedDocuments = await this.getAssignedCommercialDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} commercial documents for analysis`);
       
       if (assignedDocuments.length === 0) {
-        console.log('⚠️ No HR documents found for analysis');
+        console.log('⚠️ No commercial documents found for analysis');
         await storageService.updateBackgroundJob(jobId, {
           status: 'completed',
           progress: 100,
-          currentStep: 'No HR documents available for analysis'
+          currentStep: 'No commercial documents available for analysis'
         });
-        return { success: false, message: 'No HR documents found' };
+        return { success: false, message: 'No commercial documents found' };
       }
       
       // Initialize progress - EXACT Clinical approach
       await storageService.updateBackgroundJob(jobId, {
         progress: 5,
-        currentStep: 'Starting HR analysis',
+        currentStep: 'Starting commercial analysis',
         processedDocuments: 0,
-        totalDocuments: HR_QUESTIONS.length
+        totalDocuments: COMMERCIAL_QUESTIONS.length
       });
       
       // Process each question systematically - EXACT Clinical approach
-      const hrAnswers: Record<string, any> = {};
+      const commercialAnswers: Record<string, any> = {};
       
-      for (let i = 0; i < HR_QUESTIONS.length; i++) {
-        const question = HR_QUESTIONS[i];
-        console.log(`📊 Processing HR question ${i + 1}/${HR_QUESTIONS.length}: ${question.question}`);
+      for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
+        const question = COMMERCIAL_QUESTIONS[i];
+        console.log(`📊 Processing commercial question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
         
         // CRITICAL: Update progress for each question - EXACT Clinical micro-step architecture
         await storageService.updateBackgroundJob(jobId, {
-          progress: Math.round(((i + 1) / HR_QUESTIONS.length) * 100),
+          progress: Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100),
           processedDocuments: i,
           currentStep: `Analyzing: ${question.question}`,
           currentDocumentName: question.category
         });
-        console.log(`💾 Updated background job ${jobId} to ${Math.round(((i + 1) / HR_QUESTIONS.length) * 100)}%`);
+        console.log(`💾 Updated background job ${jobId} to ${Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100)}%`);
         
         try {
-          console.log(`📊 Extracting HR evidence for: ${question.question}`);
+          console.log(`📊 Extracting commercial evidence for: ${question.question}`);
           
           // Extract evidence from ALL documents for this question - EXACT Clinical approach with SPEED OPTIMIZATION
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
@@ -249,10 +249,10 @@ export class ComprehensiveHRAnalysisService {
             this.compileComprehensiveAnswer(question, documentEvidence),
             new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
           ]);
-          hrAnswers[question.id] = answer;
+          commercialAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
-          console.log(`✅ Completed question ${i + 1}/${HR_QUESTIONS.length}: ${question.question}`);
+          console.log(`✅ Completed question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
           
           // Brief delay to avoid rate limiting - EXACT Clinical approach
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -260,7 +260,7 @@ export class ComprehensiveHRAnalysisService {
           console.error(`❌ Error processing question "${question.question}":`, questionError);
           
           // Store partial answer for this question - EXACT Clinical approach
-          hrAnswers[question.id] = {
+          commercialAnswers[question.id] = {
             question: question.question,
             category: question.category,
             answer: `Error processing this question: ${questionError.message}`,
@@ -272,7 +272,7 @@ export class ComprehensiveHRAnalysisService {
           
           // Update progress to continue processing - EXACT Clinical approach
           await storageService.updateBackgroundJob(jobId, {
-            progress: Math.round((i / HR_QUESTIONS.length) * 100),
+            progress: Math.round((i / COMMERCIAL_QUESTIONS.length) * 100),
             processedDocuments: i,
             currentDocumentName: `Error: ${question.question}`,
             currentStep: `Error in: ${question.category}`
@@ -287,17 +287,17 @@ export class ComprehensiveHRAnalysisService {
         // Update progress to completion - EXACT Clinical approach
         await storageService.updateBackgroundJob(jobId, {
           progress: 100,
-          processedDocuments: HR_QUESTIONS.length,
+          processedDocuments: COMMERCIAL_QUESTIONS.length,
           currentStep: 'Generating findings and recommendations',
           status: 'completing'
         });
         
         // Generate comprehensive findings and recommendations - EXACT Clinical approach
-        const findings = this.generateComprehensiveFindings(hrAnswers);
-        const recommendations = this.generateComprehensiveRecommendations(hrAnswers);
+        const findings = this.generateComprehensiveFindings(commercialAnswers);
+        const recommendations = this.generateComprehensiveRecommendations(commercialAnswers);
         
         // Store the analysis results - EXACT Clinical approach
-        await this.storeComprehensiveResults(dealId, hrAnswers, findings, recommendations, assignedDocuments);
+        await this.storeComprehensiveResults(dealId, commercialAnswers, findings, recommendations, assignedDocuments);
         
         // Mark job as completed - EXACT Clinical approach
         await storageService.updateBackgroundJob(jobId, {
@@ -305,23 +305,23 @@ export class ComprehensiveHRAnalysisService {
           currentStep: 'Analysis completed'
         });
         
-        console.log(`✅ Comprehensive HR analysis completed for deal ${dealId}`);
+        console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
         
         return {
           success: true,
           documentsAnalyzed: assignedDocuments.length,
-          questionsAnswered: Object.keys(hrAnswers).length,
+          questionsAnswered: Object.keys(commercialAnswers).length,
           findings: findings.length,
           recommendations: recommendations.length
         };
       } catch (finalError) {
-        console.error(`❌ Error in final stages of HR analysis for deal ${dealId}:`, finalError);
+        console.error(`❌ Error in final stages of commercial analysis for deal ${dealId}:`, finalError);
         
         // Still try to save what we have - EXACT Clinical approach
         try {
-          const partialFindings = this.generateComprehensiveFindings(hrAnswers);
-          const partialRecommendations = this.generateComprehensiveRecommendations(hrAnswers);
-          await this.storeComprehensiveResults(dealId, hrAnswers, partialFindings, partialRecommendations, assignedDocuments);
+          const partialFindings = this.generateComprehensiveFindings(commercialAnswers);
+          const partialRecommendations = this.generateComprehensiveRecommendations(commercialAnswers);
+          await this.storeComprehensiveResults(dealId, commercialAnswers, partialFindings, partialRecommendations, assignedDocuments);
           
           // Mark as completed with error - EXACT Clinical approach
           await storageService.updateBackgroundJob(jobId, {
@@ -333,7 +333,7 @@ export class ComprehensiveHRAnalysisService {
           return {
             success: true,
             documentsAnalyzed: assignedDocuments.length,
-            questionsAnswered: Object.keys(hrAnswers).length,
+            questionsAnswered: Object.keys(commercialAnswers).length,
             findings: partialFindings.length,
             recommendations: partialRecommendations.length,
             warning: 'Analysis completed with some errors'
@@ -348,7 +348,7 @@ export class ComprehensiveHRAnalysisService {
         }
       }
     } catch (error) {
-      console.error(`❌ Critical error in HR analysis for deal ${dealId}:`, error);
+      console.error(`❌ Critical error in commercial analysis for deal ${dealId}:`, error);
       
       await storageService.updateBackgroundJob(jobId, {
         status: 'failed',
@@ -414,7 +414,7 @@ export class ComprehensiveHRAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY HR, business, market, sales, competitive, or strategic information, even if indirectly related.
+    const prompt = `You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
 
 DOCUMENT: ${document.name}
 CONTENT: ${content.substring(0, 4000)}
@@ -423,11 +423,11 @@ QUESTION: "${question.question}"
 CATEGORY: ${question.category}
 
 Instructions:
-- Look for DIRECT HR terms: pricing, sales, customers, competition, market share, revenue, partnerships
+- Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
 - Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
-- Consider business documents that mention HR milestones, market positioning, competitive advantages
-- Even general business context often has HR implications for investment due diligence
-- For investment companies, most business documents contain HR information relevant to investors
+- Consider business documents that mention commercial milestones, market positioning, competitive advantages
+- Even general business context often has commercial implications for investment due diligence
+- For investment companies, most business documents contain commercial information relevant to investors
 
 Respond in JSON format:
 {
@@ -436,10 +436,10 @@ Respond in JSON format:
   "confidence": 0-100,
   "keyFindings": ["Finding 1", "Finding 2"],
   "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "HRContext": "How this document relates to HR/business aspects"
+  "commercialContext": "How this document relates to commercial/business aspects"
 }
 
-Be thorough in finding relevance - most business documents have HR implications for investment analysis.`;
+Be thorough in finding relevance - most business documents have commercial implications for investment analysis.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -489,12 +489,12 @@ Be thorough in finding relevance - most business documents have HR implications 
       console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No relevant HR information found in the assigned HR documents for this question.`,
+        answer: `No relevant commercial information found in the assigned commercial documents for this question.`,
         confidence: 10,
         sources: [],
         evidenceCount: 0,
         keyFindings: [],
-        gaps: ['No relevant HR information found'],
+        gaps: ['No relevant commercial information found'],
         category: question.category
       };
     }
@@ -507,7 +507,7 @@ Be thorough in finding relevance - most business documents have HR implications 
       confidence: ev.confidence
     }));
 
-    const prompt = `You are an expert HR due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
+    const prompt = `You are an expert commercial due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
@@ -525,7 +525,7 @@ Instructions:
 2. Cite specific documents and quotes
 3. Identify gaps in information
 4. Provide confidence assessment
-5. Include HR recommendations
+5. Include commercial recommendations
 
 Respond in JSON format:
 {
@@ -535,7 +535,7 @@ Respond in JSON format:
   "keyFindings": ["Finding 1", "Finding 2"],
   "gaps": ["Missing information 1", "Missing information 2"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "HRAssessment": "Overall HR assessment based on evidence",
+  "commercialAssessment": "Overall commercial assessment based on evidence",
   "evidenceCount": ${evidence.length}
 }`;
 
@@ -559,7 +559,7 @@ Respond in JSON format:
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
-        HRAssessment: compiledAnswer.HRAssessment || '',
+        commercialAssessment: compiledAnswer.commercialAssessment || '',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -588,7 +588,7 @@ Respond in JSON format:
     const findings = [];
     
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = HR_QUESTIONS.find(q => q.id === questionId);
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
       // High confidence findings
@@ -597,7 +597,7 @@ Respond in JSON format:
           id: findings.length + 1,
           type: 'positive',
           content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
-          source: answer.sources.length > 0 ? answer.sources[0] : 'HR Documents',
+          source: answer.sources.length > 0 ? answer.sources[0] : 'Commercial Documents',
           confidence: answer.confidence / 100,
           category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
           evidenceCount: answer.evidenceCount || 0
@@ -609,8 +609,8 @@ Respond in JSON format:
         findings.push({
           id: findings.length + 1,
           type: 'risk',
-          content: `Insufficient HR information for: ${question.question}. Additional documentation may be required.`,
-          source: 'HR Analysis',
+          content: `Insufficient commercial information for: ${question.question}. Additional documentation may be required.`,
+          source: 'Commercial Analysis',
           confidence: 0.3,
           category: 'gaps',
           evidenceCount: answer.evidenceCount || 0
@@ -628,7 +628,7 @@ Respond in JSON format:
     const recommendations = [];
     
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = HR_QUESTIONS.find(q => q.id === questionId);
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
       // Add specific recommendations from the answer
@@ -638,7 +638,7 @@ Respond in JSON format:
             id: recommendations.length + 1,
             type: answer.confidence > 70 ? 'positive' : 'neutral',
             content: `${question.category}: ${rec}`,
-            source: 'HR Analysis',
+            source: 'Commercial Analysis',
             confidence: Math.max(answer.confidence / 100, 0.3),
             category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
             questionId: questionId
@@ -668,12 +668,12 @@ Respond in JSON format:
    */
   private async storeComprehensiveResults(
     dealId: number, 
-    hrAnswers: Record<string, any>, 
+    commercialAnswers: Record<string, any>, 
     findings: any[], 
     recommendations: any[], 
     assignedDocuments: any[]
   ): Promise<void> {
-    console.log(`💾 Storing comprehensive HR analysis results for deal ${dealId}`);
+    console.log(`💾 Storing comprehensive commercial analysis results for deal ${dealId}`);
     
     try {
       // Store in agent_analyses table - EXACT LEGAL APPROACH matching their working database structure
@@ -681,20 +681,20 @@ Respond in JSON format:
         .delete(agentAnalyses)
         .where(and(
           eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'HR')
+          eq(agentAnalyses.agentType, 'commercial')
         ));
       
-      console.log(`🗑️ Cleared existing HR analysis for deal ${dealId}`);
+      console.log(`🗑️ Cleared existing commercial analysis for deal ${dealId}`);
       
       // Create the new comprehensive analysis - EXACT copy of Legal structure
       const analysisData = {
         dealId,
-        agentType: 'HR' as const,
+        agentType: 'commercial' as const,
         status: 'completed' as const,
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        hrAnswers: JSON.stringify(hrAnswers),
+        commercialAnswers: JSON.stringify(commercialAnswers),
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
@@ -704,9 +704,9 @@ Respond in JSON format:
         .insert(agentAnalyses)
         .values(analysisData);
       
-      console.log(`📊 Created fresh comprehensive HR analysis for deal ${dealId} with ${Object.keys(hrAnswers).length} questions answered`);
+      console.log(`📊 Created fresh comprehensive commercial analysis for deal ${dealId} with ${Object.keys(commercialAnswers).length} questions answered`);
     } catch (error) {
-      console.error(`❌ Error storing HR analysis results:`, error);
+      console.error(`❌ Error storing commercial analysis results:`, error);
       throw error;
     }
   }
@@ -728,41 +728,41 @@ Respond in JSON format:
   generateFallbackAnswer(question: any, evidence: any[]): any {
     return {
       question: question.question,
-      answer: `Analysis completed for ${question.question}. ${evidence.length} documents were reviewed for relevant HR information.`,
+      answer: `Analysis completed for ${question.question}. ${evidence.length} documents were reviewed for relevant commercial information.`,
       confidence: evidence.length > 0 ? 0.6 : 0.1,
       sources: evidence.map(e => e.documentName),
       detailedEvidence: evidence,
       keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
-      evidenceSummary: `Analyzed ${evidence.length} HR documents`,
-      HRAssessment: 'HR analysis completed with available documentation',
-      recommendations: ['Consider additional HR documentation for more comprehensive analysis']
+      evidenceSummary: `Analyzed ${evidence.length} commercial documents`,
+      commercialAssessment: 'Commercial analysis completed with available documentation',
+      recommendations: ['Consider additional commercial documentation for more comprehensive analysis']
     };
   }
 
-  async storeAnalysisResults(dealId: number, answers: {[key: string]: HRAnswer}, evidenceMap: Map<string, HREvidence[]>): Promise<void> {
+  async storeAnalysisResults(dealId: number, answers: {[key: string]: CommercialAnswer}, evidenceMap: Map<string, CommercialEvidence[]>): Promise<void> {
     // Generate findings and recommendations
     const findings = Object.values(answers).flatMap(answer => 
       answer.keyFindings.map((finding, index) => ({
         id: index,
         content: finding,
-        type: 'HR_finding',
+        type: 'commercial_finding',
         confidence: answer.confidence,
-        source: answer.sources[0] || 'HR analysis'
+        source: answer.sources[0] || 'Commercial analysis'
       }))
     );
 
     const recommendations = Object.values(answers).flatMap(answer => 
       answer.recommendations.map(rec => ({
-        title: `HR: ${rec.substring(0, 50)}...`,
+        title: `Commercial: ${rec.substring(0, 50)}...`,
         description: rec,
         priority: 'Medium',
-        category: 'HR',
+        category: 'Commercial',
         impact: 'Medium'
       }))
     );
 
     // Store in agent_analyses table
-    const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'HR');
+    const existingAnalysis = await storage.getAnalysisByDealAndAgent(dealId, 'Commercial');
     
     if (existingAnalysis) {
       await storage.updateAgentAnalysis(existingAnalysis.id, {
@@ -770,44 +770,44 @@ Respond in JSON format:
         progress: 100,
         findings,
         recommendations,
-        hrAnswers: answers
+        commercialAnswers: answers
       });
     } else {
       await storage.createAgentAnalysis({
         dealId,
-        agentType: 'HR',
+        agentType: 'Commercial',
         status: 'Completed',
         progress: 100,
         findings,
         recommendations,
-        hrAnswers: answers
+        commercialAnswers: answers
       });
     }
 
-    console.log(`✅ Stored HR analysis: ${findings.length} findings, ${recommendations.length} recommendations`);
+    console.log(`✅ Stored commercial analysis: ${findings.length} findings, ${recommendations.length} recommendations`);
   }
 
   async getAnalysisResults(dealId: number): Promise<any> {
     try {
-      const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'HR');
+      const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'Commercial');
       
-      if (!analysis || !analysis.hrAnswers) {
+      if (!analysis || !analysis.commercialAnswers) {
         return null;
       }
       
       return {
-        hrAnswers: analysis.hrAnswers,
+        commercialAnswers: analysis.commercialAnswers,
         findings: analysis.findings || [],
         recommendations: analysis.recommendations || [],
         status: analysis.status,
         progress: analysis.progress
       };
     } catch (error) {
-      console.error(`❌ Error retrieving HR analysis results:`, error);
+      console.error(`❌ Error retrieving commercial analysis results:`, error);
       return null;
     }
   }
 }
 
-export const comprehensiveHRAnalysisService = new ComprehensiveHRAnalysisService();
-export { HR_QUESTIONS };
+export const comprehensiveCommercialAnalysisService = new ComprehensiveCommercialAnalysisService();
+export { COMMERCIAL_QUESTIONS };
