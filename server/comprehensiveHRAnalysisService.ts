@@ -694,7 +694,7 @@ Respond in JSON format:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        hr_answers: JSON.stringify(hrAnswers),
+        hrAnswers: JSON.stringify(hrAnswers),
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
