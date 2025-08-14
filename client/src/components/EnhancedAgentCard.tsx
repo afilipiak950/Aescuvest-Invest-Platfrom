@@ -4649,7 +4649,7 @@ interface HrQuestionsSectionProps {
 }
 
 function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(["Team Structure"]));
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Team Structure & Leadership"]));
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/hr/results`],
@@ -4671,27 +4671,25 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     setExpandedCategories(newExpanded);
   };
 
-  // HR questions structure matching the backend service EXACTLY (same as Commercial approach)
+  // HR questions structure grouped into fewer categories like Commercial agent
   const HR_QUESTIONS = [
-    // Team Structure
-    { id: 'hr_1', question: 'What is the current team size and organizational structure?', category: 'Team Structure' },
-    { id: 'hr_2', question: 'Are there key person dependencies or single points of failure?', category: 'Risk Assessment' },
-    { id: 'hr_3', question: 'What is the leadership experience and track record?', category: 'Leadership Assessment' },
+    // Team Structure & Leadership (4 questions)
+    { id: 'hr_1', question: 'What is the current team size and organizational structure?', category: 'Team Structure & Leadership' },
+    { id: 'hr_2', question: 'Are there key person dependencies or single points of failure?', category: 'Team Structure & Leadership' },
+    { id: 'hr_3', question: 'What is the leadership experience and track record?', category: 'Team Structure & Leadership' },
+    { id: 'hr_4', question: 'Are there gaps in the leadership team?', category: 'Team Structure & Leadership' },
     
-    // Leadership Gaps
-    { id: 'hr_4', question: 'Are there gaps in the leadership team?', category: 'Leadership Gaps' },
-    { id: 'hr_5', question: 'What is the employee retention and turnover rate?', category: 'Retention Analysis' },
-    { id: 'hr_6', question: 'Are compensation and equity structures competitive?', category: 'Compensation Review' },
+    // Employee Relations & Retention (4 questions)
+    { id: 'hr_5', question: 'What is the employee retention and turnover rate?', category: 'Employee Relations & Retention' },
+    { id: 'hr_6', question: 'Are compensation and equity structures competitive?', category: 'Employee Relations & Retention' },
+    { id: 'hr_7', question: 'What is the company culture and employee engagement?', category: 'Employee Relations & Retention' },
+    { id: 'hr_8', question: 'What are the talent acquisition and hiring strategies?', category: 'Employee Relations & Retention' },
     
-    // Culture Assessment  
-    { id: 'hr_7', question: 'What is the company culture and employee engagement?', category: 'Culture Assessment' },
-    { id: 'hr_8', question: 'What are the talent acquisition and hiring strategies?', category: 'Talent Strategy' },
-    { id: 'hr_9', question: 'Are there documented HR policies and procedures?', category: 'HR Operations' },
-    
-    // Performance Management
-    { id: 'hr_10', question: 'What performance management systems are in place?', category: 'Performance Management' },
-    { id: 'hr_11', question: 'Are there skills development and training programs?', category: 'Training & Development' },
-    { id: 'hr_12', question: 'What is the workforce diversity and inclusion status?', category: 'Diversity & Inclusion' }
+    // HR Operations & Development (4 questions)
+    { id: 'hr_9', question: 'Are there documented HR policies and procedures?', category: 'HR Operations & Development' },
+    { id: 'hr_10', question: 'What performance management systems are in place?', category: 'HR Operations & Development' },
+    { id: 'hr_11', question: 'Are there skills development and training programs?', category: 'HR Operations & Development' },
+    { id: 'hr_12', question: 'What is the workforce diversity and inclusion status?', category: 'HR Operations & Development' }
   ];
 
   const categorizedQuestions = HR_QUESTIONS.reduce((acc, question) => {
@@ -4713,7 +4711,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive HR Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} HR documents across 8 categories with 12 detailed questions
+            Analyze {assignedDocuments} HR documents across 3 categories with 12 detailed questions
           </p>
         </div>
         <ComprehensiveHrAnalysisButton dealId={dealId} />
