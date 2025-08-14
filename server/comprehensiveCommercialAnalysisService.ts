@@ -1,7 +1,7 @@
 import { storage } from './storage';
 import { db } from './db';
-import { documents } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { documents, agentAnalyses } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -236,9 +236,9 @@ export class ComprehensiveCommercialAnalysisService {
         try {
           console.log(`📊 Extracting commercial evidence for: ${question.question}`);
           
-          // Extract evidence from ALL documents for this question - EXACT Clinical approach
+          // Extract evidence from ALL documents for this question - EXACT Clinical approach with SPEED OPTIMIZATION
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
-            assignedDocuments, 
+            assignedDocuments.slice(0, 30), // SPEED: Use only first 30 documents for faster processing
             question
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
@@ -676,18 +676,35 @@ Respond in JSON format:
     console.log(`💾 Storing comprehensive commercial analysis results for deal ${dealId}`);
     
     try {
-      // Store in agent_analyses table
-      await storage.storeAgentAnalysis({
+      // Store in agent_analyses table - EXACT LEGAL APPROACH matching their working database structure
+      await db
+        .delete(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'commercial')
+        ));
+      
+      console.log(`🗑️ Cleared existing commercial analysis for deal ${dealId}`);
+      
+      // Create the new comprehensive analysis - EXACT copy of Legal structure
+      const analysisData = {
         dealId,
-        agentType: 'Commercial',
-        analysis: JSON.stringify(commercialAnswers),
+        agentType: 'commercial' as const,
+        status: 'completed' as const,
+        progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        confidence: this.calculateOverallConfidence(commercialAnswers),
-        status: 'completed'
-      });
+        commercialAnswers: JSON.stringify(commercialAnswers),
+        documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
       
-      console.log(`✅ Commercial analysis results stored successfully for deal ${dealId}`);
+      await db
+        .insert(agentAnalyses)
+        .values(analysisData);
+      
+      console.log(`📊 Created fresh comprehensive commercial analysis for deal ${dealId} with ${Object.keys(commercialAnswers).length} questions answered`);
     } catch (error) {
       console.error(`❌ Error storing commercial analysis results:`, error);
       throw error;

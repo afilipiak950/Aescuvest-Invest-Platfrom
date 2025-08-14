@@ -4387,27 +4387,39 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
       
-      // For Commercial agent, get analysis with commercial answers  
+      // For Commercial agent, get analysis with commercial answers - EXACT LEGAL APPROACH  
       if (agentType === 'commercial') {
-        const analysis = await storage.getAgentAnalysis(dealId, 'Commercial');
+        const analysis = await storage.getAgentAnalysis(dealId, 'commercial');
         
-        if (analysis && analysis.commercial_answers) {
-          const commercialAnswers = analysis.commercial_answers;
-          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
-          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+        if (analysis && analysis.commercialAnswers) {
+          let commercialAnswers = {};
+          let findings = [];
+          let recommendations = [];
           
-          const answeredQuestions = Object.keys(commercialAnswers).length;
-          const totalQuestions = 8;
-          
-          console.log(`✅ Found commercial analysis for deal ${dealId}:`, {
-            id: analysis.id,
-            agentType: analysis.agentType,
-            status: analysis.status,
-            findingsLength: JSON.stringify(findings).length,
-            recommendationsLength: JSON.stringify(recommendations).length,
-            totalRecordsFound: 1
-          });
-          
+          // Parse stored JSON data - EXACT Legal approach
+          try {
+            if (analysis.commercialAnswers) {
+              commercialAnswers = typeof analysis.commercialAnswers === 'string' 
+                ? JSON.parse(analysis.commercialAnswers) 
+                : analysis.commercialAnswers;
+            }
+            if (analysis.findings) {
+              findings = typeof analysis.findings === 'string' 
+                ? JSON.parse(analysis.findings) 
+                : analysis.findings;
+            }
+            if (analysis.recommendations) {
+              recommendations = typeof analysis.recommendations === 'string' 
+                ? JSON.parse(analysis.recommendations) 
+                : analysis.recommendations;
+            }
+          } catch (parseError) {
+            console.error('Error parsing comprehensive commercial analysis data:', parseError);
+            console.error('Analysis data received:', analysis);
+          }
+
+          console.log(`✅ Found comprehensive commercial analysis - ${Object.keys(commercialAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
           return res.json({
             success: true,
             analysis: {
@@ -4415,9 +4427,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
               commercialAnswers,
               findings,
               recommendations,
-              questionsAnswered: answeredQuestions,
-              totalQuestions,
-              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+              questionsAnswered: Object.keys(commercialAnswers).length,
+              totalQuestions: 12,
+              completionRate: Math.round((Object.keys(commercialAnswers).length / 12) * 100)
             }
           });
         } else {
