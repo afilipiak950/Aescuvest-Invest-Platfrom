@@ -4213,50 +4213,59 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const dealId = parseInt(req.params.dealId);
       const agentType = req.params.agentType.toLowerCase();
       
-      // For HR agent, get analysis from database
+      // For HR agent, get analysis with HR answers - EXACT COMMERCIAL APPROACH
       if (agentType === 'hr') {
-        try {
-          const analysis = await storage.getAgentAnalysis(dealId, 'HR');
+        const analysis = await storage.getAgentAnalysis(dealId, 'hr');
+        
+        if (analysis && (analysis.hr_answers || analysis.hrAnswers)) {
+          let hrAnswers = {};
+          let findings = [];
+          let recommendations = [];
           
-          if (analysis && analysis.hr_answers) {
-            const hrAnswers = analysis.hr_answers;
-            const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
-            const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
-            
-            const answeredQuestions = Object.keys(hrAnswers).length;
-            const totalQuestions = 8;
-            
-            console.log(`✅ Found HR analysis for deal ${dealId}:`, {
-              id: analysis.id,
-              agentType: analysis.agentType,
-              status: analysis.status,
-              findingsLength: JSON.stringify(findings).length,
-              recommendationsLength: JSON.stringify(recommendations).length,
-              totalRecordsFound: 1
-            });
-            
-            return res.json({
-              success: true,
-              analysis: {
-                ...analysis,
-                hrAnswers,
-                findings,
-                recommendations,
-                questionsAnswered: answeredQuestions,
-                totalQuestions,
-                completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
-              }
-            });
-          } else {
-            console.log(`❌ No HR analysis found for deal ${dealId}`);
-            return res.json({
-              success: true,
-              analysis: null
-            });
+          // Parse stored JSON data - EXACT Commercial approach with field name fallback
+          try {
+            // Fix field name mismatch: database uses hr_answers (snake_case) but code expects hrAnswers (camelCase)
+            if (analysis.hr_answers || analysis.hrAnswers) {
+              const hrAnswersData = analysis.hr_answers || analysis.hrAnswers;
+              hrAnswers = typeof hrAnswersData === 'string' 
+                ? JSON.parse(hrAnswersData) 
+                : hrAnswersData;
+            }
+            if (analysis.findings) {
+              findings = typeof analysis.findings === 'string' 
+                ? JSON.parse(analysis.findings) 
+                : analysis.findings;
+            }
+            if (analysis.recommendations) {
+              recommendations = typeof analysis.recommendations === 'string' 
+                ? JSON.parse(analysis.recommendations) 
+                : analysis.recommendations;
+            }
+          } catch (parseError) {
+            console.error('Error parsing comprehensive HR analysis data:', parseError);
+            console.error('Analysis data received:', analysis);
           }
-        } catch (error) {
-          console.error(`Error getting HR analysis:`, error);
-          return res.status(500).json({ success: false, error: 'Failed to get HR analysis results' });
+
+          console.log(`✅ Found comprehensive HR analysis - ${Object.keys(hrAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              hrAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: Object.keys(hrAnswers).length,
+              totalQuestions: 8,
+              completionRate: Math.round((Object.keys(hrAnswers).length / 8) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No HR analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
         }
       }
 
@@ -4665,17 +4674,35 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Create background job - EXACT Commercial approach
+      const jobId = `comprehensive-hr-analysis-${dealId}-${Date.now()}`;
       
-      // Run ENHANCED comprehensive HR analysis in background with deep evidence-based processing
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        agentType: 'HR',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing HR analysis',
+        createdAt: new Date()
+      });
+
+      // Import the comprehensive HR analysis service - EXACT Commercial approach
+      const { comprehensiveHRAnalysisService } = await import('./comprehensiveHRAnalysisService');
+      
+      // Run comprehensive HR analysis in background - EXACT Commercial approach
       (async () => {
         try {
-          console.log(`🧑‍💼 Starting ENHANCED HR analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'HR');
-          console.log(`✅ Enhanced HR analysis completed for deal ${dealId}`);
+          console.log(`👥 Starting comprehensive HR analysis background process for deal ${dealId}`);
+          await comprehensiveHRAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
+          console.log(`✅ Comprehensive HR analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced HR analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive HR analysis for deal ${dealId}:`, error);
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
         }
       })();
 
@@ -4683,8 +4710,8 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive HR analysis started - processing 17 HR questions across all assigned documents',
-        ...result
+        message: 'Comprehensive HR analysis started',
+        jobId: jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive HR analysis for deal ${req.params.dealId}:`, error);
@@ -4692,46 +4719,107 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Get comprehensive HR analysis progress
+  // Get comprehensive HR analysis progress - EXACT COMMERCIAL APPROACH
   app.get('/api/deals/:dealId/hr-analysis/comprehensive/progress', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      const { getComprehensiveHrAnalysisProgress } = await import('./comprehensiveHrAnalysisService');
-      const progress = await getComprehensiveHrAnalysisProgress(dealId);
+      // Get progress from background jobs - EXACT Commercial approach
+      const jobs = await storage.getBackgroundJobsByDeal(dealId);
+      const hrJob = jobs.find(job => job.agentType === 'HR' || job.jobId.includes('comprehensive-hr-analysis'));
       
-      res.json({
-        success: true,
-        ...progress
-      });
+      if (hrJob) {
+        res.json({
+          success: true,
+          isRunning: hrJob.status === 'processing',
+          progress: hrJob.progress || 0,
+          currentStep: hrJob.currentStep || 'Starting analysis',
+          message: hrJob.currentStep || 'HR analysis in progress',
+          totalSteps: 8,
+          questionsAnswered: hrJob.processedDocuments || 0
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0,
+          currentStep: 'No analysis running',
+          message: 'No comprehensive HR analysis running',
+          totalSteps: 8,
+          questionsAnswered: 0
+        });
+      }
     } catch (error) {
       console.error(`❌ Error getting comprehensive HR analysis progress:`, error);
       res.status(500).json({ success: false, error: 'Failed to get progress' });
     }
   });
 
-  // Get comprehensive HR analysis results
+  // Get comprehensive HR analysis results - EXACT COMMERCIAL APPROACH
   app.get('/api/deals/:dealId/hr-analysis/comprehensive/results', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      const { getComprehensiveHrAnalysisResults } = await import('./comprehensiveHrAnalysisService');
-      const results = await getComprehensiveHrAnalysisResults(dealId);
+      console.log(`👥 Fetching comprehensive HR analysis results for deal ${dealId}`);
       
-      if (results.success) {
-        res.json({
-          success: true,
-          ...results
-        });
-      } else {
-        res.json({
-          success: false,
-          message: 'No comprehensive HR analysis results found'
+      // Get comprehensive HR analysis from agent_analyses table - EXACT Commercial approach
+      const analysis = await storage.getAgentAnalysis(dealId, 'hr');
+      console.log(`👥 Raw analysis data from storage:`, analysis);
+      
+      if (!analysis) {
+        console.log(`❌ No comprehensive HR analysis found for deal ${dealId}`);
+        return res.json({ 
+          success: false, 
+          message: 'No comprehensive HR analysis found',
+          analysis: null
         });
       }
+
+      // Parse the stored results - EXACT Commercial approach
+      let hrAnswers = {};
+      let findings = [];
+      let recommendations = [];
+
+      try {
+        // Fix field name mismatch: database uses hr_answers (snake_case) but code expects hrAnswers (camelCase)
+        if (analysis.hr_answers || analysis.hrAnswers) {
+          const hrAnswersData = analysis.hr_answers || analysis.hrAnswers;
+          hrAnswers = typeof hrAnswersData === 'string' 
+            ? JSON.parse(hrAnswersData) 
+            : hrAnswersData;
+        }
+        if (analysis.findings) {
+          findings = typeof analysis.findings === 'string' 
+            ? JSON.parse(analysis.findings) 
+            : analysis.findings;
+        }
+        if (analysis.recommendations) {
+          recommendations = typeof analysis.recommendations === 'string' 
+            ? JSON.parse(analysis.recommendations) 
+            : analysis.recommendations;
+        }
+      } catch (parseError) {
+        console.error('Error parsing comprehensive HR analysis data:', parseError);
+        console.error('Analysis data received:', analysis);
+      }
+
+      console.log(`✅ Found comprehensive HR analysis - ${Object.keys(hrAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
+      res.json({
+        success: true,
+        analysis: {
+          ...analysis,
+          hrAnswers,
+          findings,
+          recommendations,
+          questionsAnswered: Object.keys(hrAnswers).length,
+          totalQuestions: 8,
+          completionRate: Math.round((Object.keys(hrAnswers).length / 8) * 100)
+        }
+      });
     } catch (error) {
       console.error(`❌ Error getting comprehensive HR analysis results:`, error);
-      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
+      res.status(500).json({ success: false, error: 'Failed to get comprehensive HR analysis results' });
     }
   });
 
