@@ -4671,55 +4671,24 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     setExpandedCategories(newExpanded);
   };
 
+  // HR questions structure matching the backend service EXACTLY (same as Commercial approach)
   const HR_QUESTIONS = [
-    // 1. Employment Contracts (Employees) - 8 questions
-    { id: 'employment_1', question: 'Are all employment contracts signed and dated?', category: 'Employment Contracts' },
-    { id: 'employment_2', question: 'Are notice periods in line with local labor law or extended?', category: 'Employment Contracts' },
-    { id: 'employment_3', question: 'Are probation periods defined? If yes, how long?', category: 'Employment Contracts' },
-    { id: 'employment_4', question: 'Are termination clauses (ordinary, extraordinary) present?', category: 'Employment Contracts' },
-    { id: 'employment_5', question: 'Is there mention of confidentiality, IP assignment, and post-contractual non-compete?', category: 'Employment Contracts' },
-    { id: 'employment_6', question: 'Are variable components (bonuses, stock options, commissions) clearly described and performance-based?', category: 'Employment Contracts' },
-    { id: 'employment_7', question: 'Are working hours, overtime rules, and leave entitlements defined?', category: 'Employment Contracts' },
-    { id: 'employment_8', question: 'Are there unusual clauses (e.g. guaranteed salary raises, minimum employment duration)?', category: 'Employment Contracts' },
-    
-    // 2. Executive/Managing Director Contracts - 5 questions
-    { id: 'executive_1', question: 'Is the total compensation package broken down (base, bonus, equity)?', category: 'Executive Contracts' },
-    { id: 'executive_2', question: 'Are KPI-driven bonuses explicitly defined?', category: 'Executive Contracts' },
-    { id: 'executive_3', question: 'Are severance packages or golden parachutes included?', category: 'Executive Contracts' },
-    { id: 'executive_4', question: 'Are liability exclusions or indemnity clauses included?', category: 'Executive Contracts' },
-    { id: 'executive_5', question: 'What exit clauses exist in case of M&A or investor-led changes?', category: 'Executive Contracts' },
-    
-    // 3. ESOP/VSOP Agreements - 6 questions
-    { id: 'equity_1', question: 'What is the total pool reserved (as % of shares)?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_2', question: 'What vesting model is used? (cliff, linear, backloaded)', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_3', question: 'Are good leaver/bad leaver rules defined?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_4', question: 'Are rights in case of IPO or acquisition clearly set?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_5', question: 'Are conversion or dilution rules defined?', category: 'ESOP/VSOP Plans' },
-    { id: 'equity_6', question: 'Is board/shareholder approval included for issuance?', category: 'ESOP/VSOP Plans' },
-    
-    // 4. Freelancer/Contractor Agreements - 3 questions
-    { id: 'freelancer_1', question: 'Are contracts aligned with IR35 or similar compliance tests?', category: 'Freelancer Agreements' },
-    { id: 'freelancer_2', question: 'Is IP assignment clearly stated?', category: 'Freelancer Agreements' },
-    { id: 'freelancer_3', question: 'Are term, termination, deliverables, and payment terms detailed?', category: 'Freelancer Agreements' },
-    
-    // 5. HR SaaS Contracts - 4 questions
-    { id: 'hr_saas_1', question: 'What modules are in use? Payroll? Performance reviews? ATS?', category: 'HR SaaS Contracts' },
-    { id: 'hr_saas_2', question: 'What is the contractual term, renewal logic, and notice period?', category: 'HR SaaS Contracts' },
-    { id: 'hr_saas_3', question: 'Is data processing governed by a GDPR-compliant DPA?', category: 'HR SaaS Contracts' },
-    { id: 'hr_saas_4', question: 'What SLAs or uptime guarantees are defined?', category: 'HR SaaS Contracts' },
-    
-    // 6. Internal HR Policies/Guidelines - 3 questions
-    { id: 'policies_1', question: 'Are internal documents covering leave, diversity, misconduct, whistleblowing, etc.?', category: 'HR Policies' },
-    { id: 'policies_2', question: 'Are policies updated and compliant with local law?', category: 'HR Policies' },
-    { id: 'policies_3', question: 'Is there a documented performance review or promotion framework?', category: 'HR Policies' },
-    
-    // 7. Compensation Benchmarking/Salary Tables - 3 questions
-    { id: 'compensation_1', question: 'Are salaries benchmarked (e.g., Radford, Mercer)?', category: 'Compensation Analysis' },
-    { id: 'compensation_2', question: 'Are pay bands defined by level and function?', category: 'Compensation Analysis' },
-    { id: 'compensation_3', question: 'Is salary growth rate documented historically?', category: 'Compensation Analysis' }
+    { id: 'hr_1', question: 'What is the current team size and organizational structure?', category: 'Team Structure' },
+    { id: 'hr_2', question: 'Are there key person dependencies or single points of failure?', category: 'Team Structure' }
   ];
 
-  const categories = [...new Set(HR_QUESTIONS.map(q => q.category))];
+  const categorizedQuestions = HR_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof HR_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    if (!comprehensiveResults?.analysis?.hrAnswers) return null;
+    return comprehensiveResults.analysis.hrAnswers[questionId] || null;
+  };
 
   return (
     <div className="space-y-6">
@@ -4733,7 +4702,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         <ComprehensiveHrAnalysisButton dealId={dealId} />
       </div>
 
-      {categories.map(category => (
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
           <div 
             className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
@@ -4742,7 +4711,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             <h4 className="font-medium text-white">{category}</h4>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-gray-400 border-gray-600">
-                {HR_QUESTIONS.filter(q => q.category === category).length} questions
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
               </Badge>
               {expandedCategories.has(category) ? (
                 <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -4754,126 +4723,50 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {/* Show available HR analysis data instead of waiting for specific question answers */}
-              {comprehensiveResults?.success && comprehensiveResults.analysis ? (
-                <div className="p-4">
-                  <div className="space-y-4">
-                    {/* HR Questions that have answers */}
-                    {comprehensiveResults.analysis.hrAnswers && Object.keys(comprehensiveResults.analysis.hrAnswers).length > 0 && (
-                      <div className="space-y-3">
-                        <h5 className="text-sm font-medium text-orange-400">Answered HR Questions ({Object.keys(comprehensiveResults.analysis.hrAnswers).length})</h5>
-                        {Object.entries(comprehensiveResults.analysis.hrAnswers).map(([questionId, answer]: [string, any], index) => (
-                          <div key={questionId} className="bg-dark/50 rounded p-3">
-                            <h6 className="text-xs font-medium text-orange-400 mb-2">Question {index + 1}</h6>
-                            <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
-                            {answer.confidence && (
-                              <div className="mt-2">
+              {questions && Array.isArray(questions) && questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
+
+                return (
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              {/* Main Finding - Commercial style */}
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+
+                              {/* Enhanced HR Assessment */}
+                              {answer.hrAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.hrAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
                                   Confidence: {Math.round((answer.confidence || 0) * 100)}%
                                 </Badge>
                               </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* HR Findings organized by category */}
-                    {comprehensiveResults.analysis.findings && comprehensiveResults.analysis.findings.length > 0 && (
-                      <div className="space-y-3">
-                        <h5 className="text-sm font-medium text-orange-400">HR Findings ({comprehensiveResults.analysis.findings.length})</h5>
-                        <div className="grid grid-cols-1 gap-3">
-                          {comprehensiveResults.analysis.findings.slice(0, 8).map((finding: any, index: number) => (
-                            <div key={index} className="bg-dark/30 rounded p-3 border-l-2 border-orange-400">
-                              <div className="flex items-start gap-2">
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  finding.type === 'positive' ? 'bg-green-500/20 text-green-400' :
-                                  finding.type === 'risk' ? 'bg-red-500/20 text-red-400' :
-                                  'bg-gray-500/20 text-gray-400'
-                                }`}>
-                                  {finding.type || 'analysis'}
-                                </span>
-                                {finding.confidence && (
-                                  <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                    {Math.round((finding.confidence || 0) * 100)}%
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-gray-300 text-sm mt-2 leading-relaxed">
-                                {finding.content || finding.finding || finding.description || 'HR analysis finding'}
-                              </p>
-                              {finding.source && (
-                                <p className="text-gray-500 text-xs mt-1">Source: {finding.source}</p>
-                              )}
                             </div>
-                          ))}
-                        </div>
-                        {comprehensiveResults.analysis.findings.length > 8 && (
-                          <p className="text-gray-400 text-xs text-center">
-                            +{comprehensiveResults.analysis.findings.length - 8} more findings available
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* HR Recommendations */}
-                    {comprehensiveResults.analysis.recommendations && comprehensiveResults.analysis.recommendations.length > 0 && (
-                      <div className="space-y-3">
-                        <h5 className="text-sm font-medium text-red-400">HR Recommendations ({comprehensiveResults.analysis.recommendations.length})</h5>
-                        <div className="space-y-2">
-                          {comprehensiveResults.analysis.recommendations.slice(0, 6).map((rec: any, index: number) => (
-                            <div key={index} className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
-                              <div className="flex items-start gap-2">
-                                <span className="text-red-400 text-xs mt-1">⚠</span>
-                                <p className="text-gray-300 text-sm leading-relaxed">
-                                  {rec.content || rec.recommendation || rec}
-                                </p>
-                              </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No HR analysis available for this question yet.</p>
                             </div>
-                          ))}
-                        </div>
-                        {comprehensiveResults.analysis.recommendations.length > 6 && (
-                          <p className="text-gray-400 text-xs text-center">
-                            +{comprehensiveResults.analysis.recommendations.length - 6} more recommendations available
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Analysis Status */}
-                    <div className="bg-dark/20 rounded p-3 border border-orange-500/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                        <h6 className="text-xs font-medium text-green-400">Analysis Complete</h6>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div>
-                          <span className="text-gray-400">Questions:</span>
-                          <span className="text-white ml-1">{comprehensiveResults.analysis.questionsAnswered || 0}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Progress:</span>
-                          <span className="text-white ml-1">{Math.round(comprehensiveResults.analysis.completionRate || 100)}%</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Findings:</span>
-                          <span className="text-white ml-1">{comprehensiveResults.analysis.findings?.length || 0}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Recommendations:</span>
-                          <span className="text-white ml-1">{comprehensiveResults.analysis.recommendations?.length || 0}</span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-4">
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">No HR analysis available yet. Click "Run HR Analysis" to begin comprehensive analysis.</p>
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           )}
         </div>
