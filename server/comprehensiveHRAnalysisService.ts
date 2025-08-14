@@ -706,7 +706,7 @@ Focus on providing specific, actionable insights for investment decision-making.
     return Math.round(avgConfidence);
   }
 
-  generateFallbackAnswer(question: any, evidence: any[]): any {
+  private generateFallbackAnswer(question: any, evidence: any[]): any {
     return {
       question: question.question,
       answer: `Analysis completed for ${question.question}. ${evidence.length} documents were reviewed for relevant HR information.`,
@@ -720,7 +720,7 @@ Focus on providing specific, actionable insights for investment decision-making.
     };
   }
 
-  async storeAnalysisResults(dealId: number, answers: {[key: string]: HRAnswer}, evidenceMap: Map<string, HREvidence[]>): Promise<void> {
+  private async storeAnalysisResults(dealId: number, answers: {[key: string]: HRAnswer}, evidenceMap: Map<string, HREvidence[]>): Promise<void> {
     // Generate findings and recommendations
     const findings = Object.values(answers).flatMap(answer => 
       answer.keyFindings.map((finding, index) => ({
@@ -768,7 +768,7 @@ Focus on providing specific, actionable insights for investment decision-making.
     console.log(`✅ Stored HR analysis: ${findings.length} findings, ${recommendations.length} recommendations`);
   }
 
-  async getAnalysisResults(dealId: number): Promise<any> {
+  private async getAnalysisResults(dealId: number): Promise<any> {
     try {
       const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'HR');
       

@@ -4679,6 +4679,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       await storage.createBackgroundJob({
         jobId,
+        jobType: 'comprehensive_hr_analysis',
         dealId,
         agentType: 'HR',
         status: 'processing',
@@ -4688,7 +4689,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       });
 
       // Import the comprehensive HR analysis service - EXACT Commercial approach
-      const { comprehensiveHRAnalysisService } = await import('./comprehensiveHRAnalysisService');
+      const { comprehensiveHRAnalysisService } = require('./comprehensiveHRAnalysisService');
       
       // Run comprehensive HR analysis in background - EXACT Commercial approach
       (async () => {
