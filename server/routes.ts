@@ -4688,8 +4688,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         createdAt: new Date()
       });
 
-      // Import the comprehensive HR analysis service - EXACT Commercial approach
-      const { comprehensiveHRAnalysisService } = require('./comprehensiveHRAnalysisService');
+      // Import the comprehensive HR analysis service - EXACT Commercial approach  
+      const { ComprehensiveHRAnalysisService } = await import('./comprehensiveHRAnalysisService.js');
+      const comprehensiveHRAnalysisService = new ComprehensiveHRAnalysisService();
       
       // Run comprehensive HR analysis in background - EXACT Commercial approach
       (async () => {
@@ -4726,7 +4727,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       const dealId = parseInt(req.params.dealId);
       
       // Get progress from background jobs - EXACT Commercial approach
-      const jobs = await storage.getBackgroundJobsByDeal(dealId);
+      const jobs = await storage.getBackgroundJobsByDealId(dealId);
       const hrJob = jobs.find(job => job.agentType === 'HR' || job.jobId.includes('comprehensive-hr-analysis'));
       
       if (hrJob) {
