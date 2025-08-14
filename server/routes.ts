@@ -4688,18 +4688,20 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         createdAt: new Date()
       });
 
-      // Import the comprehensive HR analysis service - EXACT Commercial approach  
-      const { ComprehensiveHRAnalysisService } = await import('./comprehensiveHRAnalysisService.js');
-      const comprehensiveHRAnalysisService = new ComprehensiveHRAnalysisService();
-      
-      // Run comprehensive HR analysis in background - EXACT Commercial approach
+      // Import and run service in background - EXACT Commercial approach
       (async () => {
         try {
-          console.log(`👥 Starting comprehensive HR analysis background process for deal ${dealId}`);
-          await comprehensiveHRAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
+          console.log(`🏢 Starting comprehensive HR analysis background process for deal ${dealId}`);
+          const { ComprehensiveHRAnalysisService } = await import('./comprehensiveHRAnalysisService');
+          
+          const hrService = new ComprehensiveHRAnalysisService();
+          await hrService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
           console.log(`✅ Comprehensive HR analysis completed for deal ${dealId}`);
         } catch (error) {
           console.error(`❌ Error in comprehensive HR analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Commercial approach
           await storage.updateBackgroundJob(jobId, {
             status: 'failed',
             error: error.message,
