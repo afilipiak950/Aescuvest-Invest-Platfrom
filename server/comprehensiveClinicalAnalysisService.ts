@@ -688,7 +688,7 @@ Respond in JSON format:
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      clinicalAnswers: JSON.stringify(clinicalAnswers),
+      clinical_answers: JSON.stringify(clinicalAnswers),
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()
