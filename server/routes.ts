@@ -4218,19 +4218,18 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       if (agentType === 'hr') {
         const analysis = await storage.getAgentAnalysis(dealId, 'HR');
         
-        if (analysis && (analysis.hr_answers || analysis.hrAnswers)) {
+        if (analysis) {
           let hrAnswers = {};
           let findings = [];
           let recommendations = [];
           
           // Parse stored JSON data - EXACT Commercial approach with field name fallback
           try {
-            // Fix field name mismatch: database uses hr_answers (snake_case) but code expects hrAnswers (camelCase)
-            if (analysis.hr_answers || analysis.hrAnswers) {
-              const hrAnswersData = analysis.hr_answers || analysis.hrAnswers;
-              hrAnswers = typeof hrAnswersData === 'string' 
-                ? JSON.parse(hrAnswersData) 
-                : hrAnswersData;
+            // Fix field name mismatch: database uses hr_answers (snake_case) but storage returns hrAnswers (camelCase)
+            if (analysis.hrAnswers) {
+              hrAnswers = typeof analysis.hrAnswers === 'string' 
+                ? JSON.parse(analysis.hrAnswers) 
+                : analysis.hrAnswers;
             }
             if (analysis.findings) {
               findings = typeof analysis.findings === 'string' 
@@ -4257,8 +4256,8 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
               findings,
               recommendations,
               questionsAnswered: Object.keys(hrAnswers).length,
-              totalQuestions: 8,
-              completionRate: Math.round((Object.keys(hrAnswers).length / 8) * 100)
+              totalQuestions: 12,
+              completionRate: Math.round((Object.keys(hrAnswers).length / 12) * 100)
             }
           });
         } else {
