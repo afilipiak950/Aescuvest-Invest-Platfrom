@@ -14,9 +14,9 @@ import { persistentLegalAnalysisService } from "./services/persistentLegalAnalys
 
 const app = express();
 
-// Configure Express to handle large file uploads
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ limit: '500mb', extended: true }));
+// Configure Express to handle very large file uploads (up to 5GB)
+app.use(express.json({ limit: '5gb' }));
+app.use(express.urlencoded({ limit: '5gb', extended: true }));
 
 // Setup multer for file uploads BEFORE any other middleware
 const storage = multer.diskStorage({
@@ -37,8 +37,8 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1000 * 1024 * 1024, // 1GB limit for ZIP files
-    fieldSize: 1000 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for very large files
+    fieldSize: 5 * 1024 * 1024 * 1024,
     files: 10
   },
   fileFilter: (req, file, cb) => {

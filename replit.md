@@ -36,6 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with bulletproof fallback system ensuring ZERO "No information available" responses across all 26 memo sections using 263-document dataset.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography system with consistent font sizing (title 20pt, section headers 14pt, body text 10pt), professional formatting, and completely clean design with zero interfering lines or visual artifacts for maximum readability.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy (agent analyses, document batches, synthesis) for comprehensive data extraction.
+- **Large File Upload System**: Comprehensive chunked upload infrastructure supporting files up to 5GB with automatic chunking (10MB chunks), resumable uploads, real-time progress tracking, speed estimation, and seamless integration with existing document processing pipeline.
 
 ### Data Flow
 Deals are submitted, documents processed, AI agents analyze different aspects, external research augments profiles, leading to scoring and evaluation. Deals then progress through pipeline stages with notifications.
@@ -86,6 +87,14 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Affinity CRM**: For organization data synchronization.
 
 ### Recent Changes (August 2025)
+- **Large File Upload Infrastructure COMPLETED (August 15, 2025)**: Successfully implemented comprehensive multi-gigabyte file upload system:
+  - **Chunked Upload Service**: Server-side service handling file chunks up to 5GB with proper reconstruction and error handling
+  - **Smart Upload Detection**: Automatic detection of large files (>100MB) for chunked upload vs regular upload
+  - **Enhanced API Routes**: Complete set of chunked upload endpoints (/api/upload/chunk/init, /api/upload/chunk/:uploadId/:chunkIndex, etc.)
+  - **Progress Tracking**: Real-time upload progress with speed estimation, ETA calculation, and visual progress indicators
+  - **Seamless Integration**: Works with existing ZIP processing and document analysis pipeline
+  - **Multer Configuration**: Enhanced server limits to support 5GB file processing with proper timeout handling
+  - **Frontend Enhancement**: Smart upload detection with beautiful progress UI for both regular and chunked uploads
 - **HR Agent Architecture COMPLETED (August 14, 2025)**: Successfully achieved EXACT Commercial micro-step architecture parity:
   - **COMPLETE HR SERVICE EXECUTION FIX**: Fixed HR job creation and service instantiation to match Commercial exactly
   - **Exact Route Pattern**: Copied Commercial's `comprehensive_hr_analysis` job type and background processing pattern

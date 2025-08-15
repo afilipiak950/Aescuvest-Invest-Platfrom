@@ -29,6 +29,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
+import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
 
 interface DataRoomExplorerProps {
   dealId: number;
@@ -967,6 +968,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
+  const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
   // Enhanced document click handler with PDF viewing support
   const handleDocumentClick = (document: Document) => {
@@ -1952,7 +1955,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                             <p className="text-white font-medium">
                               {uploadZipMutation.isPending ? 'Uploading...' : 'Drop ZIP file here or click to browse'}
                             </p>
-                            <p className="text-gray-400 text-xs mt-1">Maximum file size: 500MB</p>
+                            <p className="text-gray-400 text-xs mt-1">Maximum file size: 5GB (automatic chunked upload)</p>
                           </div>
                         </div>
                       </div>
