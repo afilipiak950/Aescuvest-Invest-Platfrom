@@ -1,14 +1,15 @@
 export interface ChunkedUploadProgress {
-  uploadId: string;
+  uploadId?: string;
   fileName: string;
-  totalSize: number;
-  uploadedBytes: number;
+  totalSize?: number;
+  uploadedBytes?: number;
   progress: number;
-  isComplete: boolean;
+  isComplete?: boolean;
   currentChunk?: number;
   totalChunks?: number;
-  speed?: number; // bytes per second
-  estimatedTimeRemaining?: number; // seconds
+  speed: number; // bytes per second
+  eta: number; // estimated time remaining in seconds
+  status: string; // status message
 }
 
 export interface ChunkedUploadOptions {
@@ -180,7 +181,8 @@ class ChunkedUploadService {
       currentChunk,
       totalChunks,
       speed,
-      estimatedTimeRemaining,
+      eta: estimatedTimeRemaining,
+      status: `Uploading chunk ${currentChunk} of ${totalChunks}...`
     };
   }
 
@@ -286,6 +288,41 @@ class ChunkedUploadService {
     } else {
       return `${Math.round(seconds / 3600)}h`;
     }
+  }
+
+  /**
+   * Upload a file with smart size detection (wrapper method for compatibility)
+   */
+  async uploadFile(
+    file: File,
+    dealId: number,
+    folderName?: string,
+    onProgress?: (progress: ChunkedUploadProgress) => void
+  ): Promise<any> {
+    // Use chunked upload for large files
+    const uploadId = await this.uploadLargeFile(file, {
+      onProgress: (originalProgress) => {
+        // Convert to expected format
+        const convertedProgress: ChunkedUploadProgress = {
+          fileName: originalProgress.fileName,
+          progress: originalProgress.progress,
+          speed: originalProgress.speed || 0,
+          eta: originalProgress.eta || 0,
+          status: originalProgress.isComplete ? 'Upload complete' : 
+                  `Uploading chunk ${originalProgress.currentChunk || 0} of ${originalProgress.totalChunks || 0}...`,
+          uploadId: originalProgress.uploadId,
+          totalSize: originalProgress.totalSize,
+          uploadedBytes: originalProgress.uploadedBytes,
+          isComplete: originalProgress.isComplete,
+          currentChunk: originalProgress.currentChunk,
+          totalChunks: originalProgress.totalChunks
+        };
+        onProgress?.(convertedProgress);
+      }
+    });
+
+    // Process the completed upload
+    return await this.processCompletedUpload(uploadId, dealId, folderName);
   }
 }
 
