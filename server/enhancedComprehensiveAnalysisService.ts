@@ -57,7 +57,7 @@ export class EnhancedComprehensiveAnalysisService {
     // Check for existing jobs to prevent duplicates
     const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
     const existingJob = existingJobs.find(job => 
-      job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
+      job.agentType && job.agentType.toLowerCase() === this.agentType.toLowerCase() && 
       (job.status === 'processing' || job.status === 'pending')
     );
     
