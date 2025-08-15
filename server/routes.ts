@@ -44,6 +44,7 @@ import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
+import { chunkedUploadService } from './services/chunkedUploadService';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -138,8 +139,8 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
-    fieldSize: 1000 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for very large files
+    fieldSize: 5 * 1024 * 1024 * 1024,
     files: 10
   },
   fileFilter: function (req, file, cb) {
@@ -7322,6 +7323,188 @@ export async function registerAllRoutes(app: Express) {
   });
   
   // Stop all background jobs for a deal - REMOVED - Using persistentAnalysisRoutes instead
+
+  // 🚀 CHUNKED UPLOAD ROUTES FOR LARGE FILES (up to 5GB)
+  console.log('🚀 Registering chunked upload routes for large files...');
+
+  // Initialize chunked upload
+  app.post('/api/upload/chunk/init', async (req: Request, res: Response) => {
+    try {
+      const { fileName, totalSize, chunkSize } = req.body;
+
+      if (!fileName || !totalSize || !chunkSize) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: fileName, totalSize, chunkSize'
+        });
+      }
+
+      const uploadId = chunkedUploadService.initializeUpload(fileName, totalSize, chunkSize);
+
+      res.json({
+        success: true,
+        uploadId,
+        message: `Chunked upload initialized for ${fileName}`,
+        maxFileSize: '5GB',
+        supportedTypes: ['ZIP', 'PDF', 'DOCX', 'XLSX', 'PPT']
+      });
+    } catch (error) {
+      console.error('❌ Error initializing chunked upload:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to initialize chunked upload'
+      });
+    }
+  });
+
+  // Upload a single chunk
+  app.post('/api/upload/chunk/:uploadId/:chunkIndex', upload.single('chunk'), async (req: Request, res: Response) => {
+    try {
+      const { uploadId, chunkIndex } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: 'No chunk data provided'
+        });
+      }
+
+      const chunkData = fs.readFileSync(file.path);
+      fs.unlinkSync(file.path); // Clean up temporary file
+
+      const result = await chunkedUploadService.uploadChunk(
+        uploadId,
+        parseInt(chunkIndex),
+        chunkData
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Error uploading chunk:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to upload chunk'
+      });
+    }
+  });
+
+  // Get upload status
+  app.get('/api/upload/chunk/:uploadId/status', async (req: Request, res: Response) => {
+    try {
+      const { uploadId } = req.params;
+      const status = chunkedUploadService.getUploadStatus(uploadId);
+
+      res.json({
+        success: true,
+        ...status
+      });
+    } catch (error) {
+      console.error('❌ Error getting upload status:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get upload status'
+      });
+    }
+  });
+
+  // Cancel upload
+  app.delete('/api/upload/chunk/:uploadId', async (req: Request, res: Response) => {
+    try {
+      const { uploadId } = req.params;
+      const cancelled = await chunkedUploadService.cancelUpload(uploadId);
+
+      res.json({
+        success: cancelled,
+        message: cancelled ? 'Upload cancelled successfully' : 'Upload not found'
+      });
+    } catch (error) {
+      console.error('❌ Error cancelling upload:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to cancel upload'
+      });
+    }
+  });
+
+  // Process completed chunked upload
+  app.post('/api/deals/:dealId/upload-chunked/:uploadId', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { uploadId } = req.params;
+      const { folderName } = req.body;
+
+      if (!chunkedUploadService.isUploadComplete(uploadId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Upload is not complete'
+        });
+      }
+
+      const filePath = chunkedUploadService.getFilePath(uploadId);
+      if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(404).json({
+          success: false,
+          error: 'Uploaded file not found'
+        });
+      }
+
+      // Get upload status for metadata
+      const uploadStatus = chunkedUploadService.getUploadStatus(uploadId);
+      
+      // Check if it's a ZIP file and process accordingly
+      const fileName = uploadStatus.fileName || '';
+      const isZipFile = fileName.toLowerCase().endsWith('.zip');
+      
+      if (isZipFile) {
+        // Process as ZIP file
+        const zipResult = await zipProcessor.processZipFile(filePath, dealId, folderName || 'Large File Upload');
+        
+        res.json({
+          success: true,
+          message: `Large ZIP file processed successfully`,
+          fileName: fileName,
+          documentsProcessed: zipResult.documentsProcessed,
+          errors: zipResult.errors,
+          uploadSize: (uploadStatus.totalChunks || 0) + ' chunks'
+        });
+      } else {
+        // Process as single document
+        const stats = fs.statSync(filePath);
+        const document = await storage.createDocument({
+          dealId,
+          name: fileName,
+          type: path.extname(fileName).toLowerCase().slice(1),
+          size: stats.size,
+          path: filePath,
+          folderId: folderName || 'Large Files',
+          uploadedAt: new Date()
+        });
+
+        res.json({
+          success: true,
+          message: `Large file uploaded successfully`,
+          fileName: fileName,
+          document: {
+            id: document.id,
+            name: document.name,
+            size: document.size,
+            type: document.type
+          },
+          uploadSize: `${(stats.size / 1024 / 1024).toFixed(1)}MB`
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error processing chunked upload:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process large file upload'
+      });
+    }
+  });
+
+  console.log('✅ Chunked upload routes registered - supports up to 5GB files');
 
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
