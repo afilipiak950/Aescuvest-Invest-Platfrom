@@ -45,6 +45,7 @@ import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { chunkedUploadService } from './services/chunkedUploadService';
+import { zipProcessor } from './services/zipProcessor';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -7338,6 +7339,53 @@ export async function registerAllRoutes(app: Express) {
 
   // 🚀 CHUNKED UPLOAD ROUTES FOR LARGE FILES (up to 5GB)
   console.log('🚀 Registering chunked upload routes for large files...');
+
+  // Regular ZIP upload route for files under 100MB
+  app.post('/api/deals/:dealId/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const file = req.file;
+      const { folderName } = req.body;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: 'No ZIP file provided'
+        });
+      }
+
+      if (!file.originalname.toLowerCase().endsWith('.zip')) {
+        return res.status(400).json({
+          success: false,
+          error: 'File must be a ZIP archive'
+        });
+      }
+
+      console.log(`📦 Processing regular ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+
+      // Process the ZIP file using zipProcessor
+      const zipResult = await zipProcessor.processZipFile(file.path, dealId, folderName || 'ZIP Upload');
+
+      // Clean up uploaded file
+      fs.unlinkSync(file.path);
+
+      res.json({
+        success: true,
+        message: `ZIP file processed successfully`,
+        fileName: file.originalname,
+        documentsProcessed: zipResult.documentsProcessed,
+        errors: zipResult.errors,
+        uploadSize: `${(file.size / 1024 / 1024).toFixed(1)}MB`
+      });
+
+    } catch (error) {
+      console.error('❌ Error processing ZIP upload:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process ZIP file upload'
+      });
+    }
+  });
 
   // Initialize chunked upload
   app.post('/api/upload/chunk/init', async (req: Request, res: Response) => {
