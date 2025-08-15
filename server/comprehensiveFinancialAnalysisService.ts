@@ -194,15 +194,13 @@ export class ComprehensiveFinancialAnalysisService {
         const questionNumber = i + 1;
         const totalQuestions = COMPREHENSIVE_FINANCIAL_QUESTIONS.length;
         
-        console.log(`📊 Processing financial question ${questionNumber}/${totalQuestions}: ${question.question}`);
+        console.log(`🔍 Question ${questionNumber}/${totalQuestions}: ${question.question}`);
         this.currentQuestion = question.question;
         this.currentStep = `Analyzing: ${question.question}`;
         
-        // Calculate EXACT micro-step progress to match Clinical/HR: 8%, 17%, 25%, 33%, 42%, 50%, 58%, 67%, 75%, 83%, 92%, 100%
-        const baseProgress = 8;
-        const progressIncrement = Math.floor((100 - baseProgress) / totalQuestions);
-        const currentProgress = baseProgress + (i * progressIncrement);
-        this.progress = Math.min(currentProgress, 100);
+        // EXACT Clinical progression formula - no custom calculation
+        const progress = Math.round(((i + 1) / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100);
+        this.progress = progress;
         
         if (jobId) {
           await storage.updateBackgroundJob(jobId, {

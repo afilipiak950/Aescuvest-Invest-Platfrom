@@ -4845,68 +4845,40 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive Financial analysis - EXACT HR PATTERN
+  // Financial Analysis Start Route - EXACT Clinical pattern
   app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`💰 Starting comprehensive financial analysis for deal ${dealId}`);
-      
-      // Check for existing Financial analysis jobs to prevent duplicates  
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingFinancialJob = existingJobs.find(job => 
-        job.agentType === 'Financial' && job.status === 'processing'
-      );
-      
+      // Check if there's already a running comprehensive financial analysis
+      const existingFinancialJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_financial_analysis');
       if (existingFinancialJob) {
-        console.log(`⚠️ Financial analysis already running for deal ${dealId} (Job: ${existingFinancialJob.jobId})`);
-        return res.json({ 
-          success: true, 
-          message: `Financial analysis already running`,
-          jobId: existingFinancialJob.jobId
+        return res.json({
+          success: true,
+          message: 'Comprehensive financial analysis already running',
+          alreadyRunning: true,
+          progress: existingFinancialJob.progress || 0
         });
       }
       
-      // Create background job - EXACT HR approach
-      const jobId = `comprehensive-financial-analysis-${dealId}-${Date.now()}`;
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_financial_analysis',
-        dealId,
-        agentType: 'Financial',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing financial analysis',
-        createdAt: new Date()
-      });
-
-      // Import and run service in background - EXACT HR approach
+      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
-          const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
-          
-          const financialService = new ComprehensiveFinancialAnalysisService();
-          await financialService.startComprehensiveAnalysis(dealId, jobId);
-          
-          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED financial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
+          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT HR approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
+          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
         }
       })();
-
+      
       res.json({ 
         success: true, 
-        message: 'Comprehensive financial analysis started',
-        jobId: jobId
+        message: 'Comprehensive financial analysis started - processing 12 financial questions across all assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
