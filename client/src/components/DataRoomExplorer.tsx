@@ -1254,64 +1254,21 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // Use chunked upload for files larger than 100MB
-    const useChunkedUpload = file.size > 100 * 1024 * 1024;
+    // TEMPORARY FIX: Always use regular upload to bypass chunked upload routing issue
+    console.log(`📤 Using regular upload for file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
     
-    if (useChunkedUpload) {
-      console.log(`🚀 Using chunked upload for large file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-      
-      // Initialize chunked upload progress
-      setChunkedUploadProgress({
-        fileName: file.name,
-        progress: 0,
-        speed: 0,
-        eta: 0,
-        status: 'Initializing chunked upload...'
-      });
+    // Initialize upload progress
+    setUploadProgress({
+      fileName: file.name,
+      progress: 0,
+      status: 'Starting upload...'
+    });
 
-      try {
-        const result = await chunkedUploadService.uploadFile(
-          file,
-          dealId,
-          folderName,
-          (progress) => {
-            setChunkedUploadProgress(progress);
-          }
-        );
+    const formData = new FormData();
+    formData.append('zipFile', file);
+    formData.append('folderName', folderName);
 
-        console.log('✅ Chunked upload completed:', result);
-        
-        // Clear progress and refresh documents
-        setChunkedUploadProgress(null);
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-        refetch();
-        if (onUploadComplete) onUploadComplete();
-        
-        // Show success message
-        alert(`Large ZIP file uploaded successfully: ${result.fileName}`);
-        
-      } catch (error) {
-        console.error('❌ Chunked upload failed:', error);
-        setChunkedUploadProgress(null);
-        alert(`Chunked upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    } else {
-      // Use regular upload for smaller files
-      console.log(`📤 Using regular upload for file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-      
-      // Initialize upload progress
-      setUploadProgress({
-        fileName: file.name,
-        progress: 0,
-        status: 'Starting upload...'
-      });
-
-      const formData = new FormData();
-      formData.append('zipFile', file);
-      formData.append('folderName', folderName);
-
-      uploadZipMutation.mutate(formData);
-    }
+    uploadZipMutation.mutate(formData);
   };
 
   const handleAdditionalFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
