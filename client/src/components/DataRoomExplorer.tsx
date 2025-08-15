@@ -1246,25 +1246,72 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 500 * 1024 * 1024) { // 500MB limit
-      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 500MB. Please select a smaller file.`);
+    // Check maximum file size (5GB)
+    if (file.size > 5 * 1024 * 1024 * 1024) {
+      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 5GB. Please select a smaller file.`);
       return;
     }
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+    
+    // Use chunked upload for files larger than 100MB
+    const useChunkedUpload = file.size > 100 * 1024 * 1024;
+    
+    if (useChunkedUpload) {
+      console.log(`🚀 Using chunked upload for large file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      
+      // Initialize chunked upload progress
+      setChunkedUploadProgress({
+        fileName: file.name,
+        progress: 0,
+        speed: 0,
+        eta: 0,
+        status: 'Initializing chunked upload...'
+      });
 
-    // Initialize upload progress
-    setUploadProgress({
-      fileName: file.name,
-      progress: 0,
-      status: 'Starting upload...'
-    });
+      try {
+        const result = await chunkedUploadService.uploadFile(
+          file,
+          dealId,
+          folderName,
+          (progress) => {
+            setChunkedUploadProgress(progress);
+          }
+        );
 
-    const formData = new FormData();
-    formData.append('zipFile', file);
-    formData.append('folderName', folderName);
+        console.log('✅ Chunked upload completed:', result);
+        
+        // Clear progress and refresh documents
+        setChunkedUploadProgress(null);
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        refetch();
+        if (onUploadComplete) onUploadComplete();
+        
+        // Show success message
+        alert(`Large ZIP file uploaded successfully: ${result.fileName}`);
+        
+      } catch (error) {
+        console.error('❌ Chunked upload failed:', error);
+        setChunkedUploadProgress(null);
+        alert(`Chunked upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else {
+      // Use regular upload for smaller files
+      console.log(`📤 Using regular upload for file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      
+      // Initialize upload progress
+      setUploadProgress({
+        fileName: file.name,
+        progress: 0,
+        status: 'Starting upload...'
+      });
 
-    uploadZipMutation.mutate(formData);
+      const formData = new FormData();
+      formData.append('zipFile', file);
+      formData.append('folderName', folderName);
+
+      uploadZipMutation.mutate(formData);
+    }
   };
 
   const handleAdditionalFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1500,6 +1547,38 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 />
               </div>
               <p className="text-xs text-gray-400">{uploadProgress.status}</p>
+            </div>
+          )}
+
+          {/* Chunked Upload Progress Display for Large Files */}
+          {chunkedUploadProgress && (
+            <div className="space-y-3 p-4 bg-dark border border-green-600 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-green-400" />
+                  <span className="text-sm font-medium text-white">{chunkedUploadProgress.fileName}</span>
+                </div>
+                <span className="text-sm text-green-400">{chunkedUploadProgress.progress.toFixed(1)}%</span>
+              </div>
+              
+              <div className="w-full bg-gray-700 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-green-400 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${chunkedUploadProgress.progress}%` }}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>{chunkedUploadProgress.status}</span>
+                <div className="flex items-center space-x-4">
+                  {chunkedUploadProgress.speed > 0 && (
+                    <span>Speed: {(chunkedUploadProgress.speed / 1024 / 1024).toFixed(1)} MB/s</span>
+                  )}
+                  {chunkedUploadProgress.eta > 0 && (
+                    <span>ETA: {Math.ceil(chunkedUploadProgress.eta / 60)}min</span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
