@@ -4274,33 +4274,51 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         const analysis = await storage.getAgentAnalysis(dealId, 'Financial');
         
         if (analysis && analysis.financial_answers) {
-          // Transform comprehensive Financial results to match the expected format
-          const financialAnswers = analysis.financial_answers || {};
-          const findings = Array.isArray(analysis.findings) ? analysis.findings : 
-                          (typeof analysis.findings === 'string' ? [analysis.findings] : []);
-          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : 
-                                 (typeof analysis.recommendations === 'string' ? [analysis.recommendations] : []);
+          // Transform comprehensive Financial results to match the expected format - EXACT HR PATTERN
+          let financialAnswers = {};
+          let findings = [];
+          let recommendations = [];
           
-          // Count answered questions
+          try {
+            const financialAnswersData = analysis.financial_answers;
+            financialAnswers = typeof financialAnswersData === 'string' 
+              ? JSON.parse(financialAnswersData) 
+              : financialAnswersData;
+              
+            // Parse findings and recommendations exactly like HR pattern
+            if (analysis.findings) {
+              findings = typeof analysis.findings === 'string' 
+                ? JSON.parse(analysis.findings) 
+                : analysis.findings;
+            }
+            if (analysis.recommendations) {
+              recommendations = typeof analysis.recommendations === 'string' 
+                ? JSON.parse(analysis.recommendations) 
+                : analysis.recommendations;
+            }
+          } catch (parseError) {
+            console.error('Error parsing financial analysis data:', parseError);
+            financialAnswers = {};
+            findings = [];
+            recommendations = [];
+          }
+          // Count answered questions - EXACT HR PATTERN
           const answeredQuestions = Object.keys(financialAnswers).length;
-          const totalQuestions = 6; // Financial has 6 questions
+          const totalQuestions = 12; // Financial has 12 questions (matches our comprehensive service)
           
-          const formattedAnalysis = {
-            status: answeredQuestions > 0 ? 'Completed' : 'Failed',
-            progress: Math.round((answeredQuestions / totalQuestions) * 100),
-            findings,
-            recommendations,
-            financialAnswers,
-            questionsAnswered: answeredQuestions,
-            totalQuestions,
-            completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
-          };
-          
-          console.log(`✅ Found comprehensive Financial analysis for deal ${dealId}: ${answeredQuestions} questions answered, ${findings.length} findings, ${recommendations.length} recommendations`);
+          console.log(`✅ Found comprehensive Financial analysis - ${answeredQuestions} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
           
           return res.json({
             success: true,
-            analysis: formattedAnalysis
+            analysis: {
+              ...analysis,
+              financialAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: answeredQuestions,
+              totalQuestions,
+              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+            }
           });
         } else {
           // Fallback to regular agent analysis if no comprehensive results
@@ -4827,7 +4845,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive Financial analysis
+  // Run comprehensive Financial analysis - EXACT HR PATTERN
   app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -4849,23 +4867,46 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Create background job - EXACT HR approach
+      const jobId = `comprehensive-financial-analysis-${dealId}-${Date.now()}`;
       
-      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_financial_analysis',
+        dealId,
+        agentType: 'Financial',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing financial analysis',
+        createdAt: new Date()
+      });
+
+      // Import and run service in background - EXACT HR approach
       (async () => {
         try {
-          console.log(`💰 Starting ENHANCED financial analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
-          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
+          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
+          const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
+          
+          const financialService = new ComprehensiveFinancialAnalysisService();
+          await financialService.startComprehensiveAnalysis(dealId, jobId);
+          
+          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT HR approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
         }
       })();
-      
+
       res.json({ 
         success: true, 
-        message: 'Comprehensive financial analysis started - processing 6 financial categories across all assigned documents'
+        message: 'Comprehensive financial analysis started',
+        jobId: jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
