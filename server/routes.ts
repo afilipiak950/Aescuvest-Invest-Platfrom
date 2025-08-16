@@ -193,6 +193,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('🎯 TEST ROUTE HIT!');
     res.json({ message: 'Express route working!', timestamp: new Date().toISOString() });
   });
+  
+  // 🚨 DEBUG ENDPOINT: Upload diagnostics for Cloud Run debugging
+  app.get('/api/upload/diagnostics', (req: Request, res: Response) => {
+    const diagnostics = {
+      server: {
+        environment: process.env.NODE_ENV,
+        platform: process.platform,
+        nodeVersion: process.version,
+        uploadLimits: {
+          expressjson: '5gb',
+          expressUrlencoded: '5gb',
+          multerFileSize: '5gb',
+          multerFieldSize: '5gb'
+        }
+      },
+      cloudRun: {
+        maxDirectUpload: '100MB',
+        recommendedChunking: 'Files >100MB',
+        infrastructure: 'Google Cloud Run',
+        commonErrors: ['413 Request Entity Too Large', 'Timeout', 'Network Error']
+      },
+      endpoints: {
+        dataRoomUpload: '/api/deals/:dealId/data-room/upload-zip',
+        chunkedInit: '/api/upload/chunk/init',
+        chunkedUpload: '/api/upload/chunk/:uploadId/:chunkIndex'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    res.json(diagnostics);
+  });
 
   // 🔍 OCR EXTRACTION TEST ROUTE
   app.post('/test-ocr-extraction/:dealId', async (req: Request, res: Response) => {
