@@ -76,7 +76,7 @@ app.use(session({
   name: 'aescuvest-session'
 }));
 
-// Body parsing limits already configured above for 500MB - removing duplicate configuration
+// Body parsing limits already configured above for 5GB - removing duplicate configuration
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -134,8 +134,8 @@ app.use((req, res, next) => {
       if (!zipFile.originalname.toLowerCase().endsWith('.zip')) {
         // Clean up uploaded file if it's not a ZIP
         try {
-          if (zipFile.path && require('fs').existsSync(zipFile.path)) {
-            require('fs').unlinkSync(zipFile.path);
+          if (zipFile.path && fs.existsSync(zipFile.path)) {
+            fs.unlinkSync(zipFile.path);
           }
         } catch (cleanupError) {
           console.error('Failed to cleanup non-ZIP file:', cleanupError);
