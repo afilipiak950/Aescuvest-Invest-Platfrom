@@ -132,6 +132,43 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // 🚨 CRITICAL: Add diagnostics route BEFORE vite middleware to prevent conflicts
+  app.get('/api/upload/diagnostics', (req: Request, res: Response) => {
+    const diagnostics = {
+      server: {
+        environment: process.env.NODE_ENV || 'development',
+        platform: process.platform,
+        nodeVersion: process.version,
+        uploadLimits: {
+          expressjson: '5gb',
+          expressUrlencoded: '5gb', 
+          multerFileSize: '5gb',
+          multerFieldSize: '5gb'
+        }
+      },
+      cloudRun: {
+        maxDirectUpload: '100MB',
+        recommendedChunking: 'Files >100MB',
+        infrastructure: 'Google Cloud Run',
+        commonErrors: ['413 Request Entity Too Large', 'Timeout', 'Network Error']
+      },
+      endpoints: {
+        dataRoomUpload: '/api/deals/:dealId/data-room/upload-zip',
+        chunkedInit: '/api/upload/chunk/init', 
+        chunkedUpload: '/api/upload/chunk/:uploadId/:chunkIndex'
+      },
+      verification: {
+        currentExpressLimits: 'Configured for 5GB',
+        currentMulterLimits: 'Configured for 5GB',
+        cloudRunHeaders: 'Enhanced for large uploads',
+        errorHandling: '413 detection enabled'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    res.json(diagnostics);
+  });
+
   const server = await registerRoutes(app);
 
   // ZIP file upload routes - registered AFTER main routes to take priority
