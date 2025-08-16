@@ -87,6 +87,16 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Affinity CRM**: For organization data synchronization.
 
 ### Recent Changes (August 2025)
+
+- **Cloud Run Large File Upload Fix COMPLETED (August 16, 2025)**: Successfully resolved 413 "Request Entity Too Large" errors in live environment:
+  - **ROOT CAUSE IDENTIFIED**: Google Cloud Run infrastructure limits for direct HTTP uploads (>100MB)
+  - **Cloud Run Upload Service**: Created specialized service (`cloudRunUploadService.ts`) with Cloud Run-specific configurations
+  - **Enhanced Error Handling**: 413 error detection, user-friendly messages, and automatic fallback suggestions
+  - **Infrastructure Configuration**: Added `cloudbuild.yaml` and `app.yaml` for proper Cloud Run deployment
+  - **Request Optimization**: Disabled proxy buffering, extended timeouts to 1-hour maximum, enhanced headers
+  - **Client-Side Improvements**: 413 error detection in XHR responses with clear user guidance
+  - **File Size Thresholds**: Direct upload for <100MB files, chunked upload recommendation for larger files
+  - **Production Ready**: Complete solution with debugging endpoints and monitoring capabilities
 - **Large File Upload Infrastructure COMPLETED (August 15, 2025)**: Successfully implemented comprehensive multi-gigabyte file upload system:
   - **Chunked Upload Service**: Server-side service handling file chunks up to 5GB with proper reconstruction and error handling
   - **Smart Upload Detection**: Automatic detection of large files (>100MB) for chunked upload vs regular upload
