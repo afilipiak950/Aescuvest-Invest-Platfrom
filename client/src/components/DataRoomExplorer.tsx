@@ -1044,6 +1044,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             } catch (e) {
               resolve({ success: true, message: 'Upload completed' });
             }
+          } else if (xhr.status === 413) {
+            // 413 "Request Entity Too Large" - Cloud Run infrastructure limit
+            console.log('⚠️ 413 error detected (Cloud Run limit), falling back to chunked upload');
+            reject(new Error('Upload failed: 413 - File too large for direct upload. Please try the chunked upload option or contact support for files over 100MB.'));
           } else {
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }

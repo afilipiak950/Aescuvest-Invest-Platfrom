@@ -11,8 +11,31 @@ import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
+import { cloudRunUploadService } from "./services/cloudRunUploadService";
 
 const app = express();
+
+// CRITICAL: Configure for Google Cloud Run large file uploads
+app.use((req, res, next) => {
+  // Set headers to handle large uploads in production
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block'
+  });
+  
+  // For upload routes, set specific headers
+  if (req.path.includes('/upload') || req.path.includes('/data-room')) {
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Content-Length, Authorization',
+      'Access-Control-Max-Age': '86400'
+    });
+  }
+  
+  next();
+});
 
 // Configure Express to handle very large file uploads (up to 5GB)
 app.use(express.json({ limit: '5gb' }));
@@ -114,7 +137,26 @@ app.use((req, res, next) => {
   // ZIP file upload routes - registered AFTER main routes to take priority
   console.log('🚀 REGISTERING ZIP UPLOAD ROUTES');
   
-  app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
+  // CRITICAL: Cloud Run ZIP upload with enhanced error handling
+  const cloudRunUploader = cloudRunUploadService.createCloudRunUploader();
+  
+  app.post('/api/deals/:dealId/data-room/upload-zip', 
+    cloudRunUploadService.setCloudRunHeaders.bind(cloudRunUploadService),
+    (req, res, next) => {
+      // Enhanced multer error handling for Cloud Run
+      cloudRunUploader.single('zipFile')(req, res, (error) => {
+        if (error) {
+          console.error('🚨 Multer error in Cloud Run upload:', error);
+          
+          // Use Cloud Run specific error handler
+          if (cloudRunUploadService.handleCloudRunUploadError(error, req, res)) {
+            return; // Error was handled
+          }
+        }
+        next(error);
+      });
+    },
+    async (req: Request, res: Response) => {
     try {
       console.log('🗂️ ZIP upload route called for deal:', req.params.dealId);
       console.log('📋 Request body:', req.body);
@@ -250,10 +292,14 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = 5000;
   
-  // Configure server timeouts for large file uploads
-  server.timeout = 10 * 60 * 1000; // 10 minutes for large ZIP uploads
-  server.keepAliveTimeout = 10 * 60 * 1000; // 10 minutes
-  server.headersTimeout = 10 * 60 * 1000; // 10 minutes
+  // Configure server timeouts for large file uploads - CRITICAL for Cloud Run
+  server.timeout = 60 * 60 * 1000; // 1 hour for very large uploads (Cloud Run max)
+  server.keepAliveTimeout = 30 * 60 * 1000; // 30 minutes
+  server.headersTimeout = 30 * 60 * 1000; // 30 minutes
+  server.requestTimeout = 60 * 60 * 1000; // 1 hour for request processing
+  
+  // Set max listeners to handle concurrent uploads
+  server.setMaxListeners(50);
   
   server.listen({
     port,
