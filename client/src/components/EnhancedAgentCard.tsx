@@ -1789,7 +1789,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     {answer.keyFindings.map((finding, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-blue-400 text-xs mt-1">•</span>
-                                        {finding}
+                                        {safeRender(finding, 'No finding available')}
                                       </li>
                                     ))}
                                   </ul>
@@ -2143,7 +2143,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                     {answer.keyFindings.map((finding, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-green-400 text-xs mt-1">✓</span>
-                                        {finding}
+                                        {safeRender(finding, 'No finding available')}
                                       </li>
                                     ))}
                                   </ul>
@@ -2446,7 +2446,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                     {answer.keyFindings.map((finding, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-cyan-400 text-xs mt-1">•</span>
-                                        {finding}
+                                        {safeRender(finding, 'No finding available')}
                                       </li>
                                     ))}
                                   </ul>
@@ -4096,7 +4096,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                     {answer.keyFindings.map((finding, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-green-400 text-xs mt-1">•</span>
-                                        {finding}
+                                        {safeRender(finding, 'No finding available')}
                                       </li>
                                     ))}
                                   </ul>
@@ -5370,7 +5370,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                 <div key={index} className="bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded p-3">
                   <div className="flex items-start gap-2">
                     <span className="text-blue-400 font-bold text-xs mt-1">•</span>
-                    <p className="text-gray-300 text-sm leading-relaxed">{rec.content || rec.recommendation || rec}</p>
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      {safeRender(rec.content || rec.recommendation || rec, 'No recommendation available')}
+                    </p>
                   </div>
                 </div>
               ))}
