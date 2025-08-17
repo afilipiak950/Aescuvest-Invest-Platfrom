@@ -653,7 +653,7 @@ export class ComprehensiveFinancialAnalysisService {
         updatedAt: new Date()
       };
 
-      await db.insert(agentAnalyses).values(analysisData);
+      await db.insert(agentAnalyses).values([analysisData]);
       
       console.log(`📊 Created fresh comprehensive financial analysis for deal ${dealId} with ${Object.keys(financialAnswers).length} questions answered`);
 
