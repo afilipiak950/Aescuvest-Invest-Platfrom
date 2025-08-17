@@ -3154,27 +3154,20 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     refetchInterval: 1000,
   });
 
-  // Also check for comprehensive financial analysis progress
-  const { data: financialProgress } = useQuery({
-    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
-    refetchInterval: 1000,
-  });
+  // REMOVED: No longer check old comprehensive financial analysis progress - ONLY use background jobs like Clinical
+  // const { data: financialProgress } = useQuery({
+  //   queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
+  //   refetchInterval: 1000,
+  // });
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    // Check for comprehensive financial analysis first
-    if (financialProgress?.isRunning) {
-      setProgress(financialProgress.progress || 0);
-      setCurrentStep(financialProgress.currentStep || 'Processing comprehensive financial analysis...');
-      setIsVisible(true);
-      return;
-    }
-
-    // Then check for regular financial jobs
+    // ONLY check background jobs like Clinical - no more old comprehensive routes
+    // Check for regular financial jobs
     if (jobProgress?.jobs) {
       const financialJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'Financial' || job.jobType === 'comprehensive_financial_analysis'
+        job.agentType === 'financial' || job.jobType === 'comprehensive_financial_analysis'
       );
       if (financialJob && financialJob.status === 'processing') {
         setProgress(financialJob.progress || 0);
@@ -3201,7 +3194,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [jobProgress, financialProgress]);
+  }, [jobProgress]); // REMOVED financialProgress dependency - only use background jobs like Clinical
 
   if (!isVisible) return null;
 
