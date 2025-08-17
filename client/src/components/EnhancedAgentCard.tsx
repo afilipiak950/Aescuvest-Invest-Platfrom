@@ -4887,10 +4887,27 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Portfolio"]));
 
-  const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive`],
+  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Financial agent
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`],
     refetchInterval: 2000,
+    staleTime: 0, // Always treat as stale to force fresh data like Financial
+    gcTime: 0, // Don't cache results like Financial
   });
+
+  // Force refetch on component mount to ensure fresh data like Financial
+  useEffect(() => {
+    refetchComprehensive();
+  }, [refetchComprehensive]);
+
+  // Use comprehensive results if available, fallback to analysisData like Financial
+  const ipData = comprehensiveResults?.results || analysisData || null;
+
+  console.log('🔒 IP Analysis Available:', !!ipData);
+  console.log('🔒 Comprehensive Results Available:', !!comprehensiveResults?.results);  
+  console.log('🔒 IP Data from Comprehensive:', !!ipData?.ipAnswers);
+  console.log('🔒 IP Answers Keys:', ipData?.ipAnswers ? Object.keys(ipData.ipAnswers) : 'No answers');
+  console.log('🔒 DEBUGGING: Full ipData structure:', JSON.stringify(ipData, null, 2));
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -4942,7 +4959,12 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const recommendations = (comprehensiveResults as any)?.analysis?.recommendations || [];
 
   const getAnswerForQuestion = (questionId: string) => {
-    // Try to map findings to questions based on content similarity
+    // CRITICAL FIX: Use ipAnswers from comprehensive analysis like Financial agent
+    if (ipData?.ipAnswers && ipData.ipAnswers[questionId]) {
+      return ipData.ipAnswers[questionId];
+    }
+
+    // Fallback: Try to map findings to questions based on content similarity
     if (findings.length > 0) {
       // Find the most relevant finding for this question
       const relevantFinding = findings.find((finding: any) => {
