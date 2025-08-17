@@ -4883,80 +4883,11 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Financial Analysis Start Route - EXACT Clinical pattern
-  app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      // Check if there's already a running comprehensive financial analysis
-      const existingFinancialJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_financial_analysis');
-      if (existingFinancialJob) {
-        return res.json({
-          success: true,
-          message: 'Comprehensive financial analysis already running',
-          alreadyRunning: true,
-          progress: existingFinancialJob.progress || 0
-        });
-      }
-      
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
-      
-      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
-      (async () => {
-        try {
-          console.log(`🔬 Starting ENHANCED financial analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
-          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
-          console.error(`❌ Error stack:`, error.stack);
-        }
-      })();
-      
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive financial analysis started - processing 12 financial questions across all assigned documents'
-      });
-    } catch (error) {
-      console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ success: false, error: 'Failed to start comprehensive financial analysis' });
-    }
-  });
+  // REMOVED: Old Financial Analysis Route - Now using persistent service like Clinical
+  // Financial analysis now uses persistent service via /api/deals/:dealId/financial-analysis/persistent/start
 
-  // Get comprehensive Financial analysis progress
-  app.get('/api/deals/:dealId/financial-analysis/comprehensive/progress', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      // Check for active comprehensive financial analysis job
-      const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const comprehensiveJob = activeJobs.find(job => 
-        job.jobType === 'comprehensive_financial_analysis' && 
-        job.status === 'processing'
-      );
-      
-      if (comprehensiveJob) {
-        res.json({
-          success: true,
-          isRunning: true,
-          progress: comprehensiveJob.progress || 0,
-          currentStep: comprehensiveJob.currentStep || 'Starting analysis',
-          jobId: comprehensiveJob.jobId
-        });
-      } else {
-        res.json({
-          success: true,
-          isRunning: false,
-          progress: 0,
-          message: 'No comprehensive financial analysis running'
-        });
-      }
-    } catch (error) {
-      console.error(`❌ Error getting comprehensive financial analysis progress:`, error);
-      res.status(500).json({ success: false, error: 'Failed to get analysis progress' });
-    }
-  });
+  // REMOVED: Old Financial Progress Route - Now using background jobs like Clinical
+  // Financial progress now tracked via /api/background-jobs/:dealId like other persistent services
 
   // Get comprehensive Financial analysis results
   app.get('/api/deals/:dealId/financial-analysis/comprehensive/results', async (req: Request, res: Response) => {
