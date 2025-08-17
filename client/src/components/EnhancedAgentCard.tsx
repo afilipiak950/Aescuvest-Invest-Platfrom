@@ -4141,10 +4141,19 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
     refetchInterval: 1000,
   });
 
+  const { data: resultsData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
+    refetchInterval: 2000,
+  });
+
   const isAlreadyRunning = progressData?.isRunning || 
     jobProgress?.jobs?.some((job: any) => 
       job.jobType === 'comprehensive_financial_analysis' && job.status === 'processing'
     );
+
+  const isCompleted = resultsData?.success && resultsData?.results && 
+    (resultsData.results.status === 'completed' || 
+     (resultsData.results.financialAnswers && Object.keys(resultsData.results.financialAnswers).length > 0));
 
   const queryClient = useQueryClient();
   
@@ -4219,11 +4228,16 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning || isCompleted}
       size="sm"
-      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+      className={isCompleted ? "bg-green-500 text-white border-green-400" : "bg-green-600 hover:bg-green-700 text-white border-green-500"}
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+      {isCompleted ? (
+        <>
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Financial Analysis Complete
+        </>
+      ) : isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           {isAlreadyRunning ? 'Financial Analysis Running...' : isRunning ? 'Financial Analysis Running...' : 'Starting Analysis...'}
