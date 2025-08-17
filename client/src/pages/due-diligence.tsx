@@ -281,9 +281,39 @@ function DueDiligenceContent() {
   console.log('🔍 Analyses Query Debug:', {
     selectedDeal,
     isLoadingAnalyses,
-    analysesData: analyses,
     analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
     agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
+  });
+
+  // Fetch comprehensive analysis data for each agent to detect completed analyses
+  const { data: clinicalAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000,
+  });
+
+  const { data: hrAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/agents/hr/results`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000,
+  });
+
+  const { data: ipAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/agents/ip/results`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000,
+  });
+
+  const { data: researchAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/agents/research/results`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000,
+  });
+
+  const { data: financialAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000,
   });
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
@@ -1268,8 +1298,21 @@ function DueDiligenceContent() {
                       a.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
-                    // Use progress from completed analysis (100%) or active job progress, default to 0
-                    const currentProgress = completedAnalysis?.status === 'completed' 
+                    // COMPREHENSIVE ANALYSIS FIX: Also check if comprehensive analysis exists
+                    // by checking if the agent-specific results endpoint returns data
+                    const hasComprehensiveAnalysis = (() => {
+                      const agentLower = agentType.toLowerCase();
+                      // Check if we have data from the agent-specific endpoints that were added
+                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
+                      if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
+                      if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
+                      if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
+                      if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
+                      return false;
+                    })();
+                    
+                    // Use progress from completed analysis (100%), comprehensive analysis (100%), or active job progress, default to 0
+                    const currentProgress = (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
                       ? 100 
                       : (matchingJob?.progress || 0);
                     
