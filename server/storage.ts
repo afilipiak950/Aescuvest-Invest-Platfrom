@@ -1731,7 +1731,20 @@ export class DatabaseStorage implements IStorage {
 
   async getRunningBackgroundJobs(dealId?: number): Promise<BackgroundJob[]> {
     try {
-      let whereConditions = [eq(backgroundJobs.status, 'processing')];
+      // Include both 'processing' and recently 'completed' jobs for frontend visibility
+      let whereConditions = [];
+      
+      // Base condition: either processing OR recently completed
+      const statusCondition = or(
+        eq(backgroundJobs.status, 'processing'),
+        and(
+          eq(backgroundJobs.status, 'completed'),
+          // Show completed jobs for 15 seconds after completion
+          sql`completed_at > NOW() - INTERVAL '15 seconds'`
+        )
+      );
+      
+      whereConditions.push(statusCondition);
       
       if (dealId !== undefined) {
         whereConditions.push(eq(backgroundJobs.dealId, dealId));

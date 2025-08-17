@@ -190,15 +190,19 @@ export class PersistentFinancialAnalysisService {
         updatedAt: new Date()
       });
 
-      // Clean up
-      const interval = this.jobIntervals.get(jobId);
-      if (interval) {
-        clearInterval(interval);
-        this.jobIntervals.delete(jobId);
-      }
-      this.activeJobs.delete(jobId);
-
-      console.log(`✅ Financial analysis completed for deal ${dealId}`);
+      // CRITICAL FIX: Delay cleanup to ensure frontend sees completed job
+      console.log(`✅ Financial analysis completed for deal ${dealId} - Delaying cleanup for 10 seconds`);
+      
+      setTimeout(() => {
+        // Clean up after delay to ensure frontend sees the completed job
+        const interval = this.jobIntervals.get(jobId);
+        if (interval) {
+          clearInterval(interval);
+          this.jobIntervals.delete(jobId);
+        }
+        this.activeJobs.delete(jobId);
+        console.log(`🧹 Delayed cleanup completed for job ${jobId}`);
+      }, 10000); // 10 second delay
 
     } catch (error) {
       console.error(`❌ Persistent financial analysis failed:`, error);
