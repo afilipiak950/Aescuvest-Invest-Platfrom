@@ -393,16 +393,29 @@ export default function EnhancedAgentCard({
     // CRITICAL FIX: REMOVE cached data completely for IP analysis to prevent stale data display
     if (agentType.toLowerCase() === 'ip') {
       console.log(`🔬 CACHE FIX: REMOVING ALL IP analysis cache data for deal ${dealId}`);
-      // Remove ALL IP-related cached data entirely
+      // Remove ALL IP-related cached data entirely - EXACT Financial pattern
       queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
       queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
       queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
       queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
-      // Also invalidate to trigger fresh fetches
+      
+      // ENHANCED: Also clear any related queries that might contain cached IP data
+      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents`] });
+      queryClient.removeQueries({ queryKey: [`/api/deals`, dealId, 'agents'] });
+      queryClient.removeQueries({ queryKey: [`/api/deals`, dealId, 'ip-analysis'] });
+      
+      // Invalidate to trigger fresh fetches
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/analyses', dealId] });
+      
+      // ENHANCED: Force a delay to ensure cache clear takes effect
+      setTimeout(() => {
+        console.log(`🔬 FINAL CACHE CLEAR: Force invalidating all IP queries for deal ${dealId}`);
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip`] });
+      }, 100);
     }
     
     runMistralAnalysisMutation.mutate();
