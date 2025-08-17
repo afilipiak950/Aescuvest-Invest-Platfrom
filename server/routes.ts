@@ -41,6 +41,7 @@ import legacyResetRoutes from './routes/legacyReset';
 import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
+import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
@@ -177,6 +178,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🧬 Registering persistent clinical analysis routes...');
   app.use(persistentClinicalRoutes);
   console.log('✅ Persistent clinical analysis routes registered');
+
+  console.log('💰 Registering persistent financial analysis routes...');
+  app.use(persistentFinancialRoutes);
+  console.log('✅ Persistent financial analysis routes registered');
   
   // Register persistent legal analysis routes
   console.log('🔍 Registering persistent legal analysis routes...');
