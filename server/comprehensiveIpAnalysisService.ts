@@ -413,13 +413,22 @@ export class ComprehensiveIpAnalysisService {
       const content = typeof doc.aiSummary === 'string' ? doc.aiSummary : (doc.ocrText || '');
       
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        console.log(`❌ No content available for ${doc.name}`);
         return null;
       }
 
+      // DEBUG: Log content sample and keywords for debugging
+      console.log(`🔍 DEBUG - Doc: ${doc.name.substring(0, 30)}, Content length: ${content.length}, First few keywords: ${question.keywords.slice(0, 3).join(', ')}`);
+      console.log(`📝 Content preview: ${content.substring(0, 200)}...`);
+
       // Quick keyword check first (for speed) - EXACT Financial implementation
-      const hasRelevantKeywords = question.keywords.some((keyword: string) =>
+      const matchedKeywords = question.keywords.filter((keyword: string) =>
         content.toLowerCase().includes(keyword.toLowerCase())
       );
+      
+      const hasRelevantKeywords = matchedKeywords.length > 0;
+
+      console.log(`🎯 Keyword match for ${doc.name.substring(0, 30)}: ${hasRelevantKeywords ? 'YES' : 'NO'} (matched: ${matchedKeywords.slice(0, 2).join(', ')})`);
 
       if (!hasRelevantKeywords) {
         return null;
@@ -431,7 +440,7 @@ export class ComprehensiveIpAnalysisService {
         messages: [
           {
             role: "system",
-            content: `You are an IP analysis expert. Extract specific evidence related to the given question from the document content. Focus on IP-related data, patent information, trademark details, and specific intellectual property information.`
+            content: `You are an IP analysis expert. Extract specific evidence related to the given question from the document content. Focus on IP-related data, patent information, trademark details, and specific intellectual property information. Always respond with valid JSON only.`
           },
           {
             role: "user",
@@ -444,11 +453,18 @@ CONTENT: ${content.slice(0, 6000)}
 
 Extract specific IP-related evidence for this question. Provide exact quotes, specific findings, and numerical data where available.
 
-Respond in JSON format:
+CRITICAL: Respond with ONLY valid JSON in this exact format (no additional text):
 {
   "relevantContent": ["exact quote 1", "exact quote 2"],
   "keyFindings": ["specific finding 1", "specific finding 2"],
   "confidence": 85
+}
+
+If no relevant content is found, respond with:
+{
+  "relevantContent": [],
+  "keyFindings": [],
+  "confidence": 0
 }`
           }
         ],
@@ -463,9 +479,21 @@ Respond in JSON format:
 
       let result;
       try {
-        result = JSON.parse(content_response);
+        // Clean the response to ensure it's valid JSON
+        const cleanedResponse = content_response.trim();
+        const jsonStart = cleanedResponse.indexOf('{');
+        const jsonEnd = cleanedResponse.lastIndexOf('}') + 1;
+        
+        if (jsonStart === -1 || jsonEnd === 0) {
+          console.log(`⚠️ No JSON found in response for ${doc.name}, skipping`);
+          return null;
+        }
+        
+        const jsonOnly = cleanedResponse.slice(jsonStart, jsonEnd);
+        result = JSON.parse(jsonOnly);
       } catch (parseError) {
-        console.log(`⚠️ JSON parse error for ${doc.name}, skipping`);
+        console.log(`⚠️ JSON parse error for ${doc.name}: ${(parseError as Error).message}, skipping`);
+        console.log(`📄 Raw response: ${content_response?.substring(0, 200)}...`);
         return null;
       }
 
