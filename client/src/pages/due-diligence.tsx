@@ -1332,11 +1332,12 @@ function DueDiligenceContent() {
                     
                     // Correct questions per agent - matching actual question counts in services
                     const questionCounts = {
-                      'Legal': 13, 'Clinical': 6, 'Commercial': 5, 
-                      'HR': 8, 'Financial': 12, 'IP': 12, 'Research': 4
+                      'Legal': 13, 'Clinical': 6, 'Commercial': 11, 
+                      'HR': 12, 'Financial': 12, 'IP': 12, 'Research': 4
                     };
                     const totalQuestions = questionCounts[agentType] || 5;
-                    const totalJobs = Math.max(assignedDocs * totalQuestions, assignedDocs || 1);
+                    // CORRECT FORMULA: assigned documents × questions per agent
+                    const totalJobs = assignedDocs * totalQuestions;
                     
                     // Calculate job progress stats based on live progress data
                     const doneJobs = Math.floor((currentProgress / 100) * totalJobs);
