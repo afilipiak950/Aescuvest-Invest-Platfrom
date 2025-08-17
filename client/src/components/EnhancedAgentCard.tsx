@@ -5119,14 +5119,22 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed">
+                                  {typeof answer.answer === 'string' ? answer.answer : 
+                                   typeof answer.answer === 'object' ? JSON.stringify(answer.answer, null, 2) :
+                                   String(answer.answer || 'No analysis available')}
+                                </p>
                               </div>
 
                               {/* Enhanced IP Assessment */}
                               {answer.ipAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">IP Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.ipAssessment}</p>
+                                  <p className="text-gray-300 text-sm leading-relaxed">
+                                    {typeof answer.ipAssessment === 'string' ? answer.ipAssessment : 
+                                     typeof answer.ipAssessment === 'object' ? JSON.stringify(answer.ipAssessment, null, 2) :
+                                     String(answer.ipAssessment || 'No assessment available')}
+                                  </p>
                                 </div>
                               )}
 
@@ -5166,7 +5174,11 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                  <p className="text-gray-300 text-sm leading-relaxed">
+                                    {typeof answer.evidenceSummary === 'string' ? answer.evidenceSummary : 
+                                     typeof answer.evidenceSummary === 'object' ? JSON.stringify(answer.evidenceSummary, null, 2) :
+                                     String(answer.evidenceSummary || 'No evidence summary available')}
+                                  </p>
                                 </div>
                               )}
 
@@ -5178,7 +5190,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                     {answer.keyFindings.map((finding, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-purple-400 text-xs mt-1">•</span>
-                                        {finding}
+                                        {typeof finding === 'string' ? finding : 
+                                         typeof finding === 'object' ? JSON.stringify(finding, null, 2) :
+                                         String(finding || 'No finding available')}
                                       </li>
                                     ))}
                                   </ul>
@@ -5193,7 +5207,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                     {answer.recommendations.map((rec, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec || 'No recommendation available')}
                                       </li>
                                     ))}
                                   </ul>
