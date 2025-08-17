@@ -376,11 +376,19 @@ export default function EnhancedAgentCard({
   const handleRunMistralAnalysis = () => {
     setIsRunningAnalysis(true);
     
-    // CRITICAL FIX: Clear React Query cache for financial analysis to prevent stale data display
+    // CRITICAL FIX: REMOVE cached data completely for financial analysis to prevent stale data display
     if (agentType.toLowerCase() === 'financial') {
-      console.log(`💰 CACHE FIX: Invalidating financial analysis cache for deal ${dealId}`);
+      console.log(`💰 CACHE FIX: REMOVING ALL financial analysis cache data for deal ${dealId}`);
+      // Remove ALL financial-related cached data entirely
+      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
+      // Also invalidate to trigger fresh fetches
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/analyses', dealId] });
     }
     
     runMistralAnalysisMutation.mutate();

@@ -49,6 +49,7 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Size Optimization**: Enhanced .dockerignore, automated cleanup scripts, Node modules optimization, and production build pipeline for minification and tree-shaking, ensuring deployment size under 2GB.
 
 ## Recent Changes (August 2025)
+- **FINANCIAL AGENT CACHE FIX COMPLETE**: Resolved persistent cache issue where Financial agent displayed stale analysis data despite backend deletion working correctly. Fix included: (1) Enhanced React Query cache removal in frontend using removeQueries() instead of just invalidateQueries(), (2) Comprehensive cache clearing for all financial-related endpoints, (3) Enhanced backend job creation with duplicate key error handling and automatic cleanup retry. Financial agent now shows fresh analysis data immediately when users click "Re-run Analysis" and successfully completes analysis with proper findings and recommendations generation.
 - **CRITICAL ARCHITECTURAL FIX**: Fixed Financial agent deletion behavior to match Clinical template exactly. Deletion now occurs immediately when analysis starts (not at completion) to prevent JSON parsing errors from leaving stale analysis data. This ensures fresh analysis results every time users click "Re-run Analysis".
 
 ## External Dependencies
