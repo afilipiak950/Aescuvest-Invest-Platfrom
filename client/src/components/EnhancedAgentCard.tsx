@@ -1749,7 +1749,9 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                     {answer.recommendations.map((rec, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
                                       </li>
                                     ))}
                                   </ul>
@@ -2103,7 +2105,9 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                                     {answer.recommendations.map((rec, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-yellow-400 text-xs mt-1">→</span>
-                                        {rec}
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
                                       </li>
                                     ))}
                                   </ul>
@@ -2402,7 +2406,9 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                     {answer.recommendations.map((rec, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
                                       </li>
                                     ))}
                                   </ul>
@@ -4050,7 +4056,9 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                     {answer.recommendations.map((rec, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
                                       </li>
                                     ))}
                                   </ul>
@@ -4570,7 +4578,9 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                     {answer.keyFindings.map((finding, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-purple-400 text-xs mt-1">•</span>
-                                        {finding}
+                                        {typeof finding === 'string' ? finding : 
+                                         typeof finding === 'object' ? JSON.stringify(finding, null, 2) :
+                                         String(finding)}
                                       </li>
                                     ))}
                                   </ul>
@@ -4585,7 +4595,9 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                     {answer.recommendations.map((rec, index) => (
                                       <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
                                         <span className="text-red-400 text-xs mt-1">⚠</span>
-                                        {rec}
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
                                       </li>
                                     ))}
                                   </ul>
