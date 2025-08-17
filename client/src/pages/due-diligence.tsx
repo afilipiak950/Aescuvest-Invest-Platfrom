@@ -1311,15 +1311,15 @@ function DueDiligenceContent() {
                       return false;
                     })();
                     
-                    // Use progress from completed analysis (100%), comprehensive analysis (100%), or active job progress, default to 0
-                    const currentProgress = (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
-                      ? 100 
-                      : (matchingJob?.progress || 0);
+                    // RESET FIX: Prioritize active job progress over completed analysis to allow resets
+                    const currentProgress = matchingJob?.status === 'processing'
+                      ? (matchingJob?.progress || 0)  // Active job takes priority (allows reset)
+                      : (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
+                        ? 100  // Show completed only when no active job
+                        : 0;   // Default to 0
                     
-                    // CRITICAL FIX: Don't show "Currently Running" if analysis is completed
-                    const isCurrentlyRunning = completedAnalysis?.status === 'completed' 
-                      ? false 
-                      : (matchingJob?.status === 'processing');
+                    // CRITICAL FIX: Show "Currently Running" when job is processing, regardless of completion status
+                    const isCurrentlyRunning = matchingJob?.status === 'processing';
                     const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
                     const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
                     
