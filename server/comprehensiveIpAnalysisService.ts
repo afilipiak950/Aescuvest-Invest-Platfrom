@@ -2,6 +2,7 @@
  * Comprehensive IP Analysis Service
  * Analyzes ALL assigned IP documents systematically for each question
  * Extracts specific evidence from documents and compiles complete answers
+ * EXACT COPY of Financial micro-step architecture for perfect parity
  */
 
 import { db } from './db';
@@ -12,7 +13,7 @@ import { storage } from './storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Enhanced IP questions for comprehensive analysis
+// Enhanced IP questions for comprehensive analysis - 12 questions exactly like Financial
 export const COMPREHENSIVE_IP_QUESTIONS = [
   // Patent Portfolio
   { 
@@ -65,10 +66,48 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     category: 'Technology Licensing',
     analysisPrompt: 'Look for IP infringement risks, patent infringement issues, and IP risk assessments.',
     keywords: ['ip infringement', 'patent infringement', 'trademark infringement', 'ip risk']
+  },
+  // IP Strategy & Valuation
+  { 
+    id: 'strategy_1', 
+    question: 'What is the IP strategy and roadmap?', 
+    category: 'IP Strategy & Valuation',
+    analysisPrompt: 'Find IP strategy documents, intellectual property roadmaps, and IP development plans.',
+    keywords: ['ip strategy', 'intellectual property strategy', 'ip roadmap', 'ip development', 'patent strategy']
+  },
+  { 
+    id: 'strategy_2', 
+    question: 'How is IP valued and monetized?', 
+    category: 'IP Strategy & Valuation',
+    analysisPrompt: 'Analyze IP valuation methods, IP monetization strategies, and intellectual property value.',
+    keywords: ['ip valuation', 'ip value', 'ip monetization', 'intellectual property value', 'patent value']
+  },
+  // Trade Secrets & Confidentiality
+  { 
+    id: 'secrets_1', 
+    question: 'What trade secrets are protected?', 
+    category: 'Trade Secrets & Confidentiality',
+    analysisPrompt: 'Identify trade secrets, confidential information protection, and proprietary know-how.',
+    keywords: ['trade secret', 'confidential information', 'proprietary information', 'know-how', 'confidentiality']
+  },
+  { 
+    id: 'secrets_2', 
+    question: 'Are confidentiality measures adequate?', 
+    category: 'Trade Secrets & Confidentiality',
+    analysisPrompt: 'Assess confidentiality agreements, non-disclosure agreements, and information security measures.',
+    keywords: ['confidentiality agreement', 'nda', 'non-disclosure', 'information security', 'data protection']
+  },
+  // Competitive IP Position
+  { 
+    id: 'competitive_1', 
+    question: 'What is the competitive IP landscape?', 
+    category: 'Competitive IP Position',
+    analysisPrompt: 'Analyze competitive patent landscape, competitor IP positions, and market IP dynamics.',
+    keywords: ['competitive landscape', 'competitor patents', 'market analysis', 'ip competition', 'patent analysis']
   }
 ];
 
-interface IpAnalysisProgress {
+export interface IpAnalysisProgress {
   isRunning: boolean;
   progress: number;
   message: string;
@@ -77,174 +116,409 @@ interface IpAnalysisProgress {
   currentQuestion?: string;
 }
 
-class ComprehensiveIpAnalysisService {
-  private progressData: Map<number, IpAnalysisProgress> = new Map();
+interface IpEvidence {
+  documentName: string;
+  documentSummary: string;
+  relevantContent: string[];
+  keyFindings: string[];
+  confidence: number;
+}
 
-  getProgress(dealId: number): IpAnalysisProgress {
-    return this.progressData.get(dealId) || { 
-      isRunning: false, 
-      progress: 0, 
-      message: 'No IP analysis running' 
-    };
-  }
+interface IpAnswer {
+  question: string;
+  answer: string;
+  confidence: number;
+  sources: string[];
+  detailedEvidence: IpEvidence[];
+  keyFindings: string[];
+  evidenceSummary: string;
+  ipAssessment: string;
+  recommendations: string[];
+}
 
-  private async setProgress(dealId: number, progress: Partial<IpAnalysisProgress>, jobId?: string) {
-    const current = this.getProgress(dealId);
-    this.progressData.set(dealId, { ...current, ...progress });
-    
-    if (jobId && progress.progress !== undefined) {
-      try {
+export class ComprehensiveIpAnalysisService {
+  private isRunning = false;
+  private progress = 0;
+  private currentStep = '';
+  private currentQuestion = '';
+
+  async startComprehensiveAnalysis(dealId: number, jobId?: string): Promise<void> {
+    try {
+      this.isRunning = true;
+      this.progress = 0;
+      this.currentStep = 'Initializing IP analysis';
+      this.currentQuestion = '';
+
+      console.log(`🔬 Starting comprehensive IP analysis for deal ${dealId}`);
+
+      // Update background job status
+      if (jobId) {
         await storage.updateBackgroundJob(jobId, {
-          progress: progress.progress,
-          currentStep: progress.currentStep || current.currentStep || 'Processing IP analysis'
+          status: 'processing',
+          progress: 0,
+          currentStep: this.currentStep
         });
-      } catch (error) {
-        console.error(`Error updating background job ${jobId}:`, error);
       }
+
+      // Step 1: Get assigned IP documents for this deal
+      console.log(`👥 Finding assigned IP documents for deal ${dealId}`);
+      const assignedDocuments = await this.getAssignedDocuments(dealId);
+      
+      if (assignedDocuments.length === 0) {
+        console.log(`⚠️ No IP documents found for analysis of deal ${dealId}`);
+        if (jobId) {
+          await storage.updateBackgroundJob(jobId, {
+            status: 'completed',
+            progress: 100,
+            currentStep: 'No IP documents found for analysis'
+          });
+        }
+        return;
+      }
+
+      console.log(`📄 Found ${assignedDocuments.length} IP documents for analysis`);
+      
+      if (jobId) {
+        await storage.updateBackgroundJob(jobId, {
+          progress: 5,
+          currentStep: `Processing ${assignedDocuments.length} IP documents`
+        });
+      }
+
+      // Step 2: Process each IP question systematically with EXACT micro-step progression
+      const ipAnswers: { [key: string]: IpAnswer } = {};
+      
+      for (let i = 0; i < COMPREHENSIVE_IP_QUESTIONS.length; i++) {
+        const question = COMPREHENSIVE_IP_QUESTIONS[i];
+        const questionNumber = i + 1;
+        const totalQuestions = COMPREHENSIVE_IP_QUESTIONS.length;
+        
+        console.log(`🔍 Question ${questionNumber}/${totalQuestions}: ${question.question}`);
+        this.currentQuestion = question.question;
+        this.currentStep = `Analyzing: ${question.question}`;
+        
+        // EXACT Financial progression formula - no custom calculation
+        const progress = Math.round(((i + 1) / COMPREHENSIVE_IP_QUESTIONS.length) * 100);
+        this.progress = progress;
+        
+        if (jobId) {
+          await storage.updateBackgroundJob(jobId, {
+            progress: this.progress,
+            currentStep: this.currentStep
+          });
+        }
+
+        // Process question with assigned documents
+        const answer = await this.processQuestionWithDocuments(question, assignedDocuments);
+        ipAnswers[question.id] = answer;
+
+        console.log(`✅ Question ${questionNumber} completed: ${answer.answer.slice(0, 100)}...`);
+      }
+
+      // Step 3: Save complete analysis exactly like Financial
+      await this.saveCompleteAnalysis(dealId, ipAnswers, assignedDocuments.length);
+
+      this.isRunning = false;
+      this.progress = 100;
+      this.currentStep = 'IP analysis completed';
+
+      if (jobId) {
+        await storage.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          currentStep: 'IP analysis completed successfully'
+        });
+      }
+
+      console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
+
+    } catch (error) {
+      console.error(`💥 Error in IP analysis for deal ${dealId}:`, error);
+      this.isRunning = false;
+      
+      if (jobId) {
+        await storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          progress: 0,
+          currentStep: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
+      }
+      throw error;
+    } finally {
+      this.isRunning = false;
     }
   }
 
-  async runComprehensiveAnalysis(
-    dealId: number, 
-    storageService: any, 
-    jobId: string, 
-    progressCallback: Function
-  ) {
-    try {
-      console.log(`🔬 Starting comprehensive IP analysis for deal ${dealId}`);
+  private async getAssignedDocuments(dealId: number): Promise<any[]> {
+    const allDocuments = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.dealId, dealId));
+    
+    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // First try documents explicitly assigned to IP agent
+    let ipDocuments = allDocuments.filter(doc => 
+      (doc.assignedAgents && doc.assignedAgents.includes('ip')) && 
+      (doc.ocrText || doc.aiSummary)
+    );
+    
+    console.log(`📄 Documents explicitly assigned to IP: ${ipDocuments.length}`);
+    
+    // If no documents are explicitly assigned to IP, identify IP-related documents
+    if (ipDocuments.length === 0) {
+      console.log('📄 No documents explicitly assigned to IP agent, identifying IP-related documents...');
       
-      await this.setProgress(dealId, {
-        isRunning: true,
-        progress: 0,
-        message: 'Initializing IP analysis',
-        currentStep: 'Loading IP documents'
-      }, jobId);
-
-      // Get IP-relevant documents
-      const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
-      const ipDocuments = allDocuments.filter(doc => {
-        const name = doc.name.toLowerCase();
-        const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : 
-                       (doc.aiSummary?.executiveSummary || '').toLowerCase();
+      ipDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
         
-        return IP_QUESTIONS.some(q => 
-          q.keywords.some(keyword => 
-            name.includes(keyword) || summary.includes(keyword)
-          )
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : '';
+        
+        // IP document keywords - EXACTLY matching Financial's approach
+        const ipKeywords = [
+          'patent', 'trademark', 'copyright', 'intellectual property', 'ip', 'license',
+          'licensing', 'infringement', 'prior art', 'patent application', 'patent pending',
+          'trade secret', 'confidential', 'proprietary', 'nda', 'non-disclosure',
+          'technology transfer', 'ip assignment', 'invention', 'innovation', 'know-how',
+          'technology', 'software', 'algorithm', 'technical', 'research', 'development',
+          'freedom to operate', 'patent landscape', 'ip strategy', 'brand', 'logo',
+          'service mark', 'domain', 'url', 'technology licensing', 'ip valuation'
+        ];
+        
+        // Check document name, OCR content, and AI summary for IP keywords
+        const hasIpKeywords = ipKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword) || aiContent.includes(keyword)
         );
+        
+        return hasIpKeywords;
+      });
+      
+      console.log(`📄 Auto-identified IP documents: ${ipDocuments.length}`);
+    }
+
+    // If still no documents found, use all documents with OCR text
+    if (ipDocuments.length === 0) {
+      console.log('📄 No IP-related documents found, using all documents with OCR text...');
+      ipDocuments = allDocuments.filter(doc => doc.ocrText || doc.aiSummary);
+    }
+
+    console.log(`📄 Documents with content available: ${ipDocuments.length}`);
+    console.log(`📄 Found ${ipDocuments.length} documents for IP analysis`);
+    
+    return ipDocuments;
+  }
+
+  private async processQuestionWithDocuments(question: any, documents: any[]): Promise<IpAnswer> {
+    console.log(`🔍 Processing IP question: ${question.question} with ${documents.length} documents`);
+    
+    // Extract evidence for this specific question
+    const evidence = await this.extractEvidenceFromAllDocuments(documents, question);
+    
+    // Compile comprehensive answer
+    const answer = await this.compileComprehensiveAnswer(question, evidence);
+    
+    return answer;
+  }
+
+  private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<IpEvidence[]> {
+    const evidence: IpEvidence[] = [];
+    
+    for (const doc of documents) {
+      try {
+        const docEvidence = await this.extractEvidenceFromDocument(doc, question);
+        if (docEvidence && docEvidence.relevantContent.length > 0) {
+          evidence.push(docEvidence);
+        }
+      } catch (error) {
+        console.error(`Error extracting evidence from document ${doc.name}:`, error);
+      }
+    }
+    
+    return evidence;
+  }
+
+  private async extractEvidenceFromDocument(document: any, question: any): Promise<IpEvidence | null> {
+    const docContent = document.ocrText || '';
+    const docSummary = typeof document.aiSummary === 'string' 
+      ? document.aiSummary 
+      : document.aiSummary?.executiveSummary || '';
+
+    if (!docContent && !docSummary) {
+      return null;
+    }
+
+    // Use AI to extract relevant content for this specific question
+    const prompt = `
+You are an IP analysis expert. Extract relevant information from this document that answers the following question:
+
+QUESTION: ${question.question}
+CONTEXT: ${question.analysisPrompt}
+KEYWORDS TO LOOK FOR: ${question.keywords.join(', ')}
+
+DOCUMENT NAME: ${document.name}
+DOCUMENT SUMMARY: ${docSummary}
+DOCUMENT CONTENT: ${docContent.slice(0, 8000)}
+
+Extract relevant information and provide:
+1. Relevant content quotes (exact text from document)
+2. Key findings related to the question
+3. Confidence level (0-100)
+
+Respond in JSON format:
+{
+  "relevantContent": ["quote1", "quote2"],
+  "keyFindings": ["finding1", "finding2"],
+  "confidence": 85
+}`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 1500
       });
 
-      console.log(`🔬 Found ${ipDocuments.length} IP-relevant documents`);
+      const result = JSON.parse(response.choices[0].message.content || '{}');
       
-      await progressCallback(15, 'Analyzing patent portfolios');
-      await this.setProgress(dealId, { progress: 15, currentStep: 'Analyzing patent portfolios' }, jobId);
-
-      // Analyze patents
-      await this.sleep(2000);
-      await progressCallback(35, 'Reviewing IP assignments');
-      await this.setProgress(dealId, { progress: 35, currentStep: 'Reviewing IP assignments' }, jobId);
-
-      // Analyze IP assignments
-      await this.sleep(2000);
-      await progressCallback(55, 'Assessing trademark protections');
-      await this.setProgress(dealId, { progress: 55, currentStep: 'Assessing trademark protections' }, jobId);
-
-      // Analyze trademarks
-      await this.sleep(2000);
-      await progressCallback(75, 'Evaluating technology licensing');
-      await this.setProgress(dealId, { progress: 75, currentStep: 'Evaluating technology licensing' }, jobId);
-
-      // Analyze licensing
-      await this.sleep(2000);
-      await progressCallback(90, 'Generating IP recommendations');
-      await this.setProgress(dealId, { progress: 90, currentStep: 'Generating IP recommendations' }, jobId);
-
-      // Generate findings
-      const findings = [
-        'Core technology patents are well-protected',
-        'Trademark portfolio covers key markets',
-        'No significant IP infringement risks identified'
-      ];
-
-      const recommendations = [
-        'Consider filing additional continuation patents',
-        'Register trademarks in emerging markets',
-        'Implement IP monitoring system for competitors'
-      ];
-
-      await progressCallback(100, 'IP analysis completed');
-      await this.setProgress(dealId, { 
-        isRunning: false,
-        progress: 100, 
-        currentStep: 'IP analysis completed',
-        message: 'Analysis completed successfully'
-      }, jobId);
-
       return {
-        status: 'completed',
-        agentType: 'IP',
-        findings,
-        recommendations,
-        documentsAnalyzed: ipDocuments.length
+        documentName: document.name,
+        documentSummary: docSummary,
+        relevantContent: result.relevantContent || [],
+        keyFindings: result.keyFindings || [],
+        confidence: result.confidence || 0
       };
-
     } catch (error) {
-      console.error(`IP analysis error for deal ${dealId}:`, error);
-      
-      await storageService.updateBackgroundJob(jobId, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+      console.error(`Error analyzing document ${document.name}:`, error);
+      return null;
+    }
+  }
+
+  private async compileComprehensiveAnswer(question: any, evidence: IpEvidence[]): Promise<IpAnswer> {
+    if (evidence.length === 0) {
+      return {
+        question: question.question,
+        answer: 'No relevant information found in the available documents.',
+        confidence: 0,
+        sources: [],
+        detailedEvidence: [],
+        keyFindings: [],
+        evidenceSummary: 'No evidence available',
+        ipAssessment: 'Unable to assess due to lack of relevant documentation',
+        recommendations: ['Obtain relevant IP documentation for comprehensive analysis']
+      };
+    }
+
+    // Compile all evidence
+    const allFindings = evidence.flatMap(e => e.keyFindings);
+    const allContent = evidence.flatMap(e => e.relevantContent);
+    const sources = evidence.map(e => e.documentName);
+
+    const prompt = `
+You are an expert IP analyst. Based on the following evidence, provide a comprehensive answer to this IP question:
+
+QUESTION: ${question.question}
+CATEGORY: ${question.category}
+
+EVIDENCE FROM DOCUMENTS:
+${evidence.map((e, i) => `
+Document ${i + 1}: ${e.documentName}
+Summary: ${e.documentSummary}
+Key Findings: ${e.keyFindings.join('; ')}
+Relevant Content: ${e.relevantContent.join('; ')}
+`).join('\n')}
+
+Provide a comprehensive analysis in JSON format:
+{
+  "answer": "Detailed answer based on evidence",
+  "confidence": 85,
+  "keyFindings": ["finding1", "finding2"],
+  "evidenceSummary": "Summary of all evidence",
+  "ipAssessment": "Professional IP assessment",
+  "recommendations": ["recommendation1", "recommendation2"]
+}
+
+Requirements:
+- Provide specific, detailed answers based on the evidence
+- Include confidence level (0-100)
+- Give practical IP recommendations
+- Focus on IP-specific insights and analysis`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 2000
       });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
       
+      return {
+        question: question.question,
+        answer: result.answer || 'Analysis completed but no specific answer generated.',
+        confidence: result.confidence || 0,
+        sources: sources,
+        detailedEvidence: evidence,
+        keyFindings: result.keyFindings || allFindings,
+        evidenceSummary: result.evidenceSummary || 'Evidence compiled from multiple sources',
+        ipAssessment: result.ipAssessment || 'Assessment completed',
+        recommendations: result.recommendations || []
+      };
+    } catch (error) {
+      console.error(`Error compiling answer for question ${question.question}:`, error);
+      
+      return {
+        question: question.question,
+        answer: 'Error occurred during analysis. Please review documents manually.',
+        confidence: 0,
+        sources: sources,
+        detailedEvidence: evidence,
+        keyFindings: allFindings,
+        evidenceSummary: 'Error in analysis compilation',
+        ipAssessment: 'Unable to complete assessment due to processing error',
+        recommendations: ['Manual review recommended due to processing error']
+      };
+    }
+  }
+
+  private async saveCompleteAnalysis(dealId: number, ipAnswers: { [key: string]: IpAnswer }, documentsCount: number): Promise<void> {
+    try {
+      console.log(`💾 Saving IP analysis for deal ${dealId} with ${Object.keys(ipAnswers).length} answers`);
+
+      // Extract findings and recommendations
+      const allFindings = Object.values(ipAnswers).flatMap(answer => answer.keyFindings);
+      const allRecommendations = Object.values(ipAnswers).flatMap(answer => answer.recommendations);
+
+      // Store in agentAnalyses table exactly like Financial
+      await db.insert(agentAnalyses).values({
+        dealId: dealId,
+        agentType: 'IP',  // Use capital 'IP' like Financial uses 'Financial'
+        status: 'completed',
+        findings: allFindings,
+        recommendations: allRecommendations,
+        ipAnswers: ipAnswers  // Store structured answers
+      });
+
+      console.log(`✅ Saved IP analysis with ${allFindings.length} findings and ${allRecommendations.length} recommendations`);
+    } catch (error) {
+      console.error(`Error saving IP analysis for deal ${dealId}:`, error);
       throw error;
     }
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  getProgressData(dealId: number) {
+    return {
+      isRunning: this.isRunning,
+      progress: this.progress,
+      message: this.currentStep || 'No IP analysis running',
+      currentStep: this.currentStep,
+      currentQuestion: this.currentQuestion
+    };
   }
 }
 
+// Export singleton instance exactly like Financial
 export const comprehensiveIpAnalysisService = new ComprehensiveIpAnalysisService();
-
-// Simple wrapper function that matches the pattern used by other analysis services
-export async function startComprehensiveAnalysis(dealId: number) {
-  const jobId = `ip_analysis_${dealId}_${Date.now()}`;
-  
-  // Create background job
-  const job = {
-    jobId,
-    dealId,
-    jobType: 'comprehensive_ip_analysis',
-    agentType: 'IP' as const,
-    status: 'processing' as const,
-    progress: 0,
-    startTime: new Date(),
-    metadata: {
-      agentType: 'IP',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString()
-    }
-  };
-
-  await storage.createBackgroundJob(job);
-
-  // Progress callback function
-  const progressCallback = async (progress: number, step: string) => {
-    try {
-      await storage.updateBackgroundJob(jobId, {
-        progress,
-        currentStep: step,
-        metadata: {
-          ...job.metadata,
-          lastUpdate: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      console.error(`Error updating IP job progress:`, error);
-    }
-  };
-
-  // Run the analysis
-  return await comprehensiveIpAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId, progressCallback);
-}
