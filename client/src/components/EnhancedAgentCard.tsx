@@ -108,7 +108,14 @@ export default function EnhancedAgentCard({
     refetchInterval: 2000, // Refresh every 2 seconds
   });
 
-  // Use comprehensive analysis data if this is an HR, IP, Research, or Clinical agent and we have the data
+  // Fetch comprehensive Financial analysis data directly for Financial agents
+  const { data: financialAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
+    enabled: agentType.toLowerCase() === 'financial',
+    refetchInterval: 2000, // Refresh every 2 seconds
+  });
+
+  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, or Financial agent and we have the data
   const actualAnalysisData = (() => {
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
@@ -121,6 +128,9 @@ export default function EnhancedAgentCard({
     }
     if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
       return clinicalAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
+      return financialAnalysisData.analysis;
     }
     return analysis || {};
   })();
