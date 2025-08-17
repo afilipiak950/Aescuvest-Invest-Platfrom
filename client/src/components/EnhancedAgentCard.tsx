@@ -4127,10 +4127,16 @@ function PersistentFinancialButton({ dealId }: { dealId: number }) {
         const data = await response.json();
         console.log(`✅ Persistent financial analysis started:`, data);
         
-        // Invalidate queries to refresh data - EXACTLY like Clinical button
+        // CRITICAL FIX: Use removeQueries() for complete cache purging like other agents
+        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
+        
+        // Also invalidate for immediate UI refresh
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
         queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       } else {
         const errorData = await response.json();
         console.error(`❌ Persistent financial analysis failed:`, errorData);
@@ -4156,9 +4162,16 @@ function PersistentFinancialButton({ dealId }: { dealId: number }) {
         const data = await response.json();
         console.log(`✅ Persistent financial analysis stopped:`, data);
         
-        // Invalidate queries to refresh data - EXACTLY like Clinical button
+        // CRITICAL FIX: Use removeQueries() for complete cache purging like other agents
+        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
+        
+        // Also invalidate for immediate UI refresh
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
         queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       } else {
         const errorData = await response.json();
         console.error(`❌ Failed to stop persistent financial analysis:`, errorData);
