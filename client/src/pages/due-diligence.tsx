@@ -1272,7 +1272,11 @@ function DueDiligenceContent() {
                     const currentProgress = completedAnalysis?.status === 'completed' 
                       ? 100 
                       : (matchingJob?.progress || 0);
-                    const isCurrentlyRunning = matchingJob?.status === 'processing';
+                    
+                    // CRITICAL FIX: Don't show "Currently Running" if analysis is completed
+                    const isCurrentlyRunning = completedAnalysis?.status === 'completed' 
+                      ? false 
+                      : (matchingJob?.status === 'processing');
                     const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
                     const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
                     
