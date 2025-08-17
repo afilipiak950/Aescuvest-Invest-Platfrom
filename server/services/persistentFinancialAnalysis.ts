@@ -46,16 +46,17 @@ export class PersistentFinancialAnalysisService {
       }
     }
 
-    // Create new background job record
+    // Create new background job record - EXACTLY like Clinical
     await storage.createBackgroundJob({
       jobId,
-      jobType: 'agent_analysis',
+      jobType: 'comprehensive_financial_analysis',
       dealId,
       agentType: 'financial',
       status: 'processing',
       progress: 0,
       totalDocuments: 0,
       processedDocuments: 0,
+      currentStep: 'Initializing financial analysis...',
       startedAt: new Date()
     });
 
@@ -95,44 +96,9 @@ export class PersistentFinancialAnalysisService {
   private async runFinancialAnalysisInBackground(dealId: number, jobId: string): Promise<void> {
     try {
       console.log(`🚀 Running financial analysis in background for deal ${dealId}, job ${jobId}`);
-
-      // Get documents for progress tracking
-      const documents = await storage.getDocumentsByDealId(dealId);
-      const totalDocuments = documents.length;
-
-      // Update job with total documents
-      await storage.updateBackgroundJob(jobId, {
-        totalDocuments,
-        progress: 0,
-        updatedAt: new Date()
-      });
-
-      // Track in memory
-      this.activeJobs.set(jobId, {
-        dealId,
-        agentType: 'financial',
-        status: 'processing',
-        progress: 0,
-        totalDocuments,
-        processedDocuments: 0,
-        startTime: new Date()
-      });
-
-      // Set up progress monitoring interval - EXACTLY like Clinical
-      const monitoringInterval = setInterval(async () => {
-        await this.monitorJobProgress(jobId, dealId);
-      }, 5000); // Check every 5 seconds
-
-      this.jobIntervals.set(jobId, monitoringInterval);
-
-      // Start the comprehensive financial analysis
-      const analysisService = new EnhancedComprehensiveAnalysisService();
       
-      console.log(`📊 Starting comprehensive financial analysis for deal ${dealId}...`);
-      await analysisService.runComprehensiveFinancialAnalysis(dealId);
-
-      // Complete the job
-      await this.completeJob(jobId, { message: 'Financial analysis completed successfully' });
+      // Start the analysis process using Clinical's exact pattern
+      await this.processFinancialAnalysis(dealId, jobId);
 
     } catch (error) {
       console.error(`❌ Financial analysis failed for deal ${dealId}:`, error);
@@ -144,6 +110,95 @@ export class PersistentFinancialAnalysisService {
         clearInterval(interval);
         this.jobIntervals.delete(jobId);
       }
+    }
+  }
+
+  /**
+   * Process financial analysis with persistent state tracking - EXACTLY like Clinical
+   */
+  private async processFinancialAnalysis(dealId: number, jobId: string, startProgress: number = 0): Promise<void> {
+    try {
+      // Track job in memory for real-time updates - EXACTLY like Clinical
+      const jobState: JobData = {
+        dealId,
+        agentType: 'financial',
+        status: 'processing',
+        progress: startProgress,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        startTime: new Date(),
+        lastUpdate: new Date()
+      };
+
+      this.activeJobs.set(jobId, jobState);
+
+      // Set up progress monitoring interval - EXACTLY like Clinical
+      const progressInterval = setInterval(async () => {
+        await this.monitorJobProgress(jobId, dealId);
+      }, 2000); // Every 2 seconds like Clinical
+
+      this.jobIntervals.set(jobId, progressInterval);
+
+      // Delegate to comprehensive financial analysis service but with persistence - EXACTLY like Clinical
+      console.log(`💰 Delegating to comprehensive financial analysis service...`);
+      
+      // Hook into the existing service but with persistent tracking - EXACTLY like Clinical
+      await this.runPersistentFinancialAnalysis(dealId, jobId, jobState);
+
+    } catch (error) {
+      console.error(`❌ Financial analysis failed for deal ${dealId}:`, error);
+      
+      // Clean up - EXACTLY like Clinical
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+      this.activeJobs.delete(jobId);
+      
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        updatedAt: new Date()
+      });
+    }
+  }
+
+  /**
+   * Run persistent financial analysis - EXACTLY like Clinical's runPersistentAnalysis
+   */
+  private async runPersistentFinancialAnalysis(dealId: number, jobId: string, jobState: JobData): Promise<void> {
+    try {
+      console.log(`💰 Starting persistent financial analysis for deal ${dealId}`);
+      
+      // Use the existing comprehensive financial analysis service
+      const analysisService = new EnhancedComprehensiveAnalysisService();
+      
+      console.log(`📊 Starting comprehensive financial analysis for deal ${dealId}...`);
+      await analysisService.runComprehensiveFinancialAnalysis(dealId);
+      
+      // Mark job as completed - EXACTLY like Clinical
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: 'Financial analysis completed',
+        completedAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // Clean up - EXACTLY like Clinical
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+      this.activeJobs.delete(jobId);
+
+      console.log(`✅ Financial analysis completed for deal ${dealId}`);
+
+    } catch (error) {
+      console.error(`❌ Persistent financial analysis failed:`, error);
+      throw error;
     }
   }
 
@@ -268,7 +323,7 @@ export class PersistentFinancialAnalysisService {
           const dealJobs = await storage.getBackgroundJobsByDealId(dealId);
           const financialJobsForDeal = dealJobs.filter(job => 
             job.agentType === 'financial' && 
-            job.jobType === 'agent_analysis' &&
+            job.jobType === 'comprehensive_financial_analysis' &&
             (job.status === 'processing' || job.status === 'completed')
           );
           
