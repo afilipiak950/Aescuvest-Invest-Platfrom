@@ -3868,77 +3868,16 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // First try comprehensive results
+    // First try comprehensive results - fresh analysis data only
     if (comprehensiveResults?.analysis?.financialAnswers?.[questionId]) {
       return comprehensiveResults.analysis.financialAnswers[questionId];
     }
     
-    // Fallback to existing analysis data structure for backward compatibility
-    if (analysisData?.financialAnswers?.[questionId]) {
-      return analysisData.financialAnswers[questionId];
-    }
+    // CRITICAL FIX: Remove stale data fallback and synthetic content generation
+    // Only show results from actual completed analysis, never generate placeholder content
+    // This matches Clinical and Legal agent behavior exactly
     
-    // Generate intelligent answers from available financial documents
-    const financialDocs = documents?.filter(doc => 
-      doc.aiSummary && 
-      (doc.name?.toLowerCase().includes('financial') || 
-       doc.name?.toLowerCase().includes('balance') ||
-       doc.name?.toLowerCase().includes('income') ||
-       doc.name?.toLowerCase().includes('revenue') ||
-       doc.name?.toLowerCase().includes('cash') ||
-       doc.name?.toLowerCase().includes('profit') ||
-       doc.name?.toLowerCase().includes('statement') ||
-       doc.assignment === 'Financial')
-    ) || [];
-
-    if (financialDocs.length > 0) {
-      // Extract specific insights based on question type
-      const getQuestionSpecificAnswer = (qId: string) => {
-        const summary = typeof financialDocs[0].aiSummary === 'object' ? 
-          financialDocs[0].aiSummary.executiveSummary : financialDocs[0].aiSummary;
-        
-        switch(qId) {
-          case 'income_1':
-            if (summary?.includes('loss') || summary?.includes('revenue')) {
-              return `Based on financial documents: ${summary}. Company shows financial challenges with documented losses.`;
-            }
-            return `Revenue trends analysis needed - ${financialDocs.length} financial documents available for review.`;
-          
-          case 'balance_1':
-            if (summary?.includes('cash') || summary?.includes('retained')) {
-              return `Cash position analysis: ${summary}. Significant attention needed on cash management.`;
-            }
-            return `Cash position requires detailed analysis - financial statements available.`;
-          
-          case 'cashflow_1':
-            if (summary?.includes('burn') || summary?.includes('cash flow')) {
-              return `Operating cash flow: ${summary}. Requires careful monitoring.`;
-            }
-            return `Operating cash flow analysis needed - multiple financial documents available.`;
-          
-          default:
-            return `${summary || 'Financial analysis available in supporting documents'}`;
-        }
-      };
-
-      return {
-        answer: getQuestionSpecificAnswer(questionId),
-        confidence: 0.75,
-        sources: financialDocs.map(doc => doc.name),
-        quotes: [],
-        keyFindings: [`${financialDocs.length} financial documents analyzed`, 'Key insights extracted from available data'],
-        evidenceSummary: `Analysis based on ${financialDocs.length} financial documents including statements and budgets`,
-        financialAssessment: 'Based on available financial documentation and AI analysis',
-        recommendations: ['Detailed comprehensive analysis recommended', 'Review all financial metrics systematically'],
-        detailedEvidence: financialDocs.map(doc => ({
-          documentName: doc.name,
-          relevantContent: [typeof doc.aiSummary === 'object' ? doc.aiSummary.executiveSummary : doc.aiSummary],
-          documentSummary: typeof doc.aiSummary === 'object' ? doc.aiSummary.executiveSummary : doc.aiSummary
-        }))
-      };
-    }
-    
-    return null;
+    return null; // Return null to show empty state until real analysis is available
   };
 
   return (
