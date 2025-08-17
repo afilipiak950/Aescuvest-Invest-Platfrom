@@ -1,43 +1,260 @@
 /**
  * Persistent Financial Analysis Service
- * EXACT COPY of Clinical micro-step architecture for perfect parity
- * Ensures financial analysis jobs continue running regardless of server restarts or user sessions
+ * Matches Clinical architecture exactly for consistent behavior
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import { storage } from '../storage';
-import { comprehensiveFinancialAnalysisService, COMPREHENSIVE_FINANCIAL_QUESTIONS } from '../comprehensiveFinancialAnalysisService';
-import { websocketManager } from './websocketManager';
+import { EnhancedComprehensiveAnalysisService } from '../enhancedComprehensiveAnalysisService';
 
-interface FinancialJobState {
+interface JobData {
   dealId: number;
-  jobId: string;
+  agentType: string;
+  status: string;
   progress: number;
-  currentQuestionIndex: number;
-  totalQuestions: number;
-  currentBatch: number;
-  totalBatches: number;
-  currentStep: string;
-  documentsAnalyzed: number;
   totalDocuments: number;
+  processedDocuments: number;
   startTime: Date;
-  lastUpdate: Date;
+  lastUpdate?: Date;
+  currentDocumentName?: string;
 }
 
 export class PersistentFinancialAnalysisService {
-  private static instance: PersistentFinancialAnalysisService;
-  private activeJobs = new Map<string, FinancialJobState>();
+  private activeJobs = new Map<string, JobData>();
   private jobIntervals = new Map<string, NodeJS.Timeout>();
 
-  static getInstance(): PersistentFinancialAnalysisService {
-    if (!PersistentFinancialAnalysisService.instance) {
-      PersistentFinancialAnalysisService.instance = new PersistentFinancialAnalysisService();
+  async startFinancialAnalysis(dealId: number): Promise<string> {
+    const jobId = `financial-analysis-${dealId}`;
+    
+    console.log(`💰 Starting FRESH persistent financial analysis for deal ${dealId}`);
+
+    // ALWAYS delete existing job to force fresh start - EXACT Clinical behavior
+    const existingJob = await storage.getBackgroundJobById(jobId);
+    if (existingJob) {
+      console.log(`🧹 FORCE DELETING existing job for deal ${dealId} with status ${existingJob.status} to start fresh...`);
+      await storage.deleteBackgroundJob(jobId);
+      
+      // Also clear from memory if running
+      if (this.activeJobs.has(jobId)) {
+        this.activeJobs.delete(jobId);
+      }
+      
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
     }
-    return PersistentFinancialAnalysisService.instance;
+
+    // Create new background job record
+    await storage.createBackgroundJob({
+      jobId,
+      jobType: 'agent_analysis',
+      dealId,
+      agentType: 'financial',
+      status: 'processing',
+      progress: 0,
+      totalDocuments: 0,
+      processedDocuments: 0,
+      startedAt: new Date()
+    });
+
+    // Start the analysis in the background
+    this.runFinancialAnalysisInBackground(dealId, jobId);
+
+    return jobId;
   }
 
-  /**
-   * Initialize and restore any incomplete financial analysis jobs
-   */
+  async stopFinancialAnalysis(dealId: number): Promise<boolean> {
+    const jobId = `financial-analysis-${dealId}`;
+    
+    console.log(`🛑 Stopping financial analysis job ${jobId} for deal ${dealId}`);
+
+    try {
+      // Remove from active jobs
+      this.activeJobs.delete(jobId);
+      
+      // Clear any intervals
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+
+      // Update database to stopped status
+      await storage.failBackgroundJob(jobId, 'Stopped by user');
+
+      console.log(`✅ Successfully stopped financial analysis job ${jobId}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error stopping financial analysis job ${jobId}:`, error);
+      return false;
+    }
+  }
+
+  private async runFinancialAnalysisInBackground(dealId: number, jobId: string): Promise<void> {
+    try {
+      console.log(`🚀 Running financial analysis in background for deal ${dealId}, job ${jobId}`);
+
+      // Get documents for progress tracking
+      const documents = await storage.getDocumentsByDealId(dealId);
+      const totalDocuments = documents.length;
+
+      // Update job with total documents
+      await storage.updateBackgroundJob(jobId, {
+        totalDocuments,
+        progress: 0,
+        updatedAt: new Date()
+      });
+
+      // Track in memory
+      this.activeJobs.set(jobId, {
+        dealId,
+        agentType: 'financial',
+        status: 'processing',
+        progress: 0,
+        totalDocuments,
+        processedDocuments: 0,
+        startTime: new Date()
+      });
+
+      // Set up progress monitoring interval - EXACTLY like Clinical
+      const monitoringInterval = setInterval(async () => {
+        await this.monitorJobProgress(jobId, dealId);
+      }, 5000); // Check every 5 seconds
+
+      this.jobIntervals.set(jobId, monitoringInterval);
+
+      // Start the comprehensive financial analysis
+      const analysisService = new EnhancedComprehensiveAnalysisService();
+      
+      console.log(`📊 Starting comprehensive financial analysis for deal ${dealId}...`);
+      await analysisService.runComprehensiveFinancialAnalysis(dealId);
+
+      // Complete the job
+      await this.completeJob(jobId, { message: 'Financial analysis completed successfully' });
+
+    } catch (error) {
+      console.error(`❌ Financial analysis failed for deal ${dealId}:`, error);
+      await storage.failBackgroundJob(jobId, error instanceof Error ? error.message : 'Unknown error');
+      this.activeJobs.delete(jobId);
+      
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+    }
+  }
+
+  private async monitorJobProgress(jobId: string, dealId: number): Promise<void> {
+    try {
+      // Get current job from database to see real progress
+      const currentJob = await storage.getBackgroundJobById(jobId);
+      if (!currentJob) {
+        console.log(`⚠️ Job ${jobId} not found in database, stopping monitoring`);
+        const interval = this.jobIntervals.get(jobId);
+        if (interval) {
+          clearInterval(interval);
+          this.jobIntervals.delete(jobId);
+        }
+        this.activeJobs.delete(jobId);
+        return;
+      }
+
+      // Update memory with real database values - EXACTLY like Clinical
+      if (currentJob && this.activeJobs.has(jobId)) {
+        const jobData = this.activeJobs.get(jobId);
+        if (jobData) {
+          jobData.lastUpdate = new Date();
+          
+          // Use REAL progress from database, not our stale memory
+          const realProgress = currentJob.progress || 0;
+          const realCurrentStep = currentJob.currentStep || '';
+          const realCurrentDocumentName = currentJob.currentDocumentName || '';
+          const realProcessedDocuments = currentJob.processedDocuments || 0;
+          const realTotalDocuments = currentJob.totalDocuments || 0;
+          
+          // Update our memory with real values from comprehensive service
+          jobData.progress = realProgress;
+          jobData.processedDocuments = realProcessedDocuments;
+          jobData.totalDocuments = realTotalDocuments;
+          jobData.currentDocumentName = realCurrentDocumentName;
+
+          console.log(`📊 Financial monitoring progress: ${realProgress}% (${realProcessedDocuments}/${realTotalDocuments}) - ${realCurrentStep} - ${realCurrentDocumentName}`);
+        }
+      }
+
+      // Check if job is completed or failed
+      if (currentJob.status === 'completed' || currentJob.status === 'failed') {
+        console.log(`✅ Financial analysis job ${jobId} finished with status: ${currentJob.status}`);
+        const interval = this.jobIntervals.get(jobId);
+        if (interval) {
+          clearInterval(interval);
+          this.jobIntervals.delete(jobId);
+        }
+        this.activeJobs.delete(jobId);
+      }
+
+    } catch (error) {
+      console.error(`❌ Error monitoring financial job progress ${jobId}:`, error);
+    }
+  }
+
+  private async completeJob(jobId: string, results: any): Promise<void> {
+    try {
+      // Mark as completed in database
+      await storage.completeBackgroundJob(jobId, results);
+
+      // Remove from active tracking
+      this.activeJobs.delete(jobId);
+      
+      // Clear any intervals
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+
+      console.log(`✅ Completed financial background job ${jobId}`);
+    } catch (error) {
+      console.error(`❌ Failed to complete financial job ${jobId}:`, error);
+    }
+  }
+
+  async getJobStatus(dealId: number): Promise<any> {
+    const jobId = `financial-analysis-${dealId}`;
+    
+    // Get from database
+    const dbJob = await storage.getBackgroundJobById(jobId);
+    
+    // Get from memory
+    const memoryJob = this.activeJobs.get(jobId);
+    
+    if (dbJob) {
+      return {
+        jobId,
+        dealId,
+        agentType: 'financial',
+        status: dbJob.status,
+        progress: dbJob.progress || 0,
+        totalDocuments: dbJob.totalDocuments || 0,
+        processedDocuments: dbJob.processedDocuments || 0,
+        currentDocumentName: dbJob.currentDocumentName || '',
+        currentStep: dbJob.currentStep || '',
+        startedAt: dbJob.startedAt,
+        updatedAt: dbJob.updatedAt || dbJob.startedAt,
+        isActive: memoryJob ? true : false
+      };
+    }
+    
+    return null;
+  }
+
+  getActiveJobs(): Map<string, JobData> {
+    return this.activeJobs;
+  }
+
   async initialize(): Promise<void> {
     try {
       console.log('💰 Initializing Persistent Financial Analysis Service...');
@@ -51,338 +268,55 @@ export class PersistentFinancialAnalysisService {
           const dealJobs = await storage.getBackgroundJobsByDealId(dealId);
           const financialJobsForDeal = dealJobs.filter(job => 
             job.agentType === 'financial' && 
+            job.jobType === 'agent_analysis' &&
             (job.status === 'processing' || job.status === 'completed')
           );
           
-          // For each job, check if it's really complete or just marked as complete incorrectly
+          // For each job, check if it's really complete
           for (const job of financialJobsForDeal) {
             const existingAnalysis = await storage.getAgentAnalysis(dealId, 'financial');
-            const expectedQuestions = this.getFinancialQuestions();
-            const answeredQuestions = existingAnalysis?.financialAnswers ? Object.keys(existingAnalysis.financialAnswers).length : 0;
             
-            if (answeredQuestions < expectedQuestions.length) {
-              console.log(`🔄 Job ${job.jobId} marked complete but only ${answeredQuestions}/${expectedQuestions.length} questions done. Adding to resume list.`);
+            if (!existingAnalysis || !existingAnalysis.findings || existingAnalysis.findings.length === 0) {
+              console.log(`🔄 Job ${job.jobId} marked complete but no findings. Adding to resume list.`);
               financialJobs.push(job);
             }
           }
         } catch (error) {
-          console.log(`Skipping deal ${dealId} during initialization`);
+          console.log(`Skipping deal ${dealId} during financial initialization`);
         }
       }
 
       console.log(`🔄 Found ${financialJobs.length} incomplete financial analysis jobs`);
 
       for (const job of financialJobs) {
-        console.log(`🔄 Restoring financial analysis job ${job.jobId} for deal ${job.dealId}`);
         await this.resumeFinancialAnalysis(job.dealId, job.jobId);
       }
 
       console.log('✅ Persistent Financial Analysis Service initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize persistent financial analysis service:', error);
+      console.error('❌ Failed to initialize Persistent Financial Analysis Service:', error);
     }
   }
 
-  private getFinancialQuestions(): typeof COMPREHENSIVE_FINANCIAL_QUESTIONS {
-    return COMPREHENSIVE_FINANCIAL_QUESTIONS;
-  }
-
-  /**
-   * Start a new financial analysis or resume an existing one
-   */
-  async startFinancialAnalysis(dealId: number): Promise<string> {
-    console.log(`💰 Starting financial analysis for deal ${dealId}`);
-    
-    try {
-      // Check if there's already a running job  
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const runningJob = existingJobs.find(job => job.agentType === 'financial' && job.status === 'processing');
-      
-      if (runningJob) {
-        console.log(`🔄 Found existing financial analysis job ${runningJob.jobId}, resuming...`);
-        await this.resumeFinancialAnalysis(dealId, runningJob.jobId);
-        return runningJob.jobId;
-      }
-
-      // Create new job
-      const jobId = `financial-analysis-${dealId}`;
-      
-      const jobData = {
-        jobId,
-        jobType: 'comprehensive_financial_analysis' as const,
-        dealId,
-        agentType: 'financial' as const,
-        status: 'processing' as const,
-        progress: 0,
-        currentStep: 'Initializing financial analysis',
-        totalDocuments: 0,
-        processedDocuments: 0,
-        currentDocumentName: 'Starting analysis...',
-        startedAt: new Date()
-      };
-      
-      console.log(`📝 Creating background job for financial:`, jobData);
-      await storage.createBackgroundJob(jobData);
-      
-      // Start the actual analysis
-      await this.runFinancialAnalysis(dealId, jobId);
-      
-      return jobId;
-    } catch (error) {
-      console.error(`❌ Failed to start financial analysis for deal ${dealId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Manually take over an existing financial analysis job and transition it to persistent architecture
-   */
-  async takeOverFinancialAnalysis(dealId: number, oldJobId: string): Promise<void> {
-    console.log(`💰 Taking over financial analysis job ${oldJobId} for deal ${dealId}`);
-    
-    try {
-      // Update the old job to indicate it's being handled by persistent service
-      const existingJob = await storage.getBackgroundJobById(oldJobId);
-      await storage.updateBackgroundJob(oldJobId, {
-        status: 'processing',
-        metadata: {
-          ...existingJob?.metadata || {},
-          takenOverByPersistentService: true,
-          transitionTime: new Date().toISOString()
-        }
-      });
-
-      // Start the persistent micro-step process
-      await this.runFinancialAnalysis(dealId, oldJobId);
-    } catch (error) {
-      console.error(`❌ Failed to take over financial analysis ${oldJobId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Resume an existing financial analysis
-   */
   private async resumeFinancialAnalysis(dealId: number, jobId: string): Promise<void> {
-    console.log(`🔄 Resuming financial analysis for deal ${dealId}, job ${jobId}`);
-    
     try {
-      // Get existing progress
-      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'financial');
-      const expectedQuestions = this.getFinancialQuestions();
-      const answeredQuestions = existingAnalysis?.financialAnswers ? Object.keys(existingAnalysis.financialAnswers).length : 0;
+      console.log(`🔄 Resuming financial analysis for deal ${dealId}, job ${jobId}`);
       
-      console.log(`📊 Resuming from ${answeredQuestions}/${expectedQuestions.length} questions completed`);
-      
-      // Continue the analysis from where we left off
-      await this.runFinancialAnalysis(dealId, jobId, answeredQuestions);
-    } catch (error) {
-      console.error(`❌ Failed to resume financial analysis:`, error);
-    }
-  }
-
-  /**
-   * Run the comprehensive financial analysis with proper micro-step progression
-   */
-  private async runFinancialAnalysis(dealId: number, jobId: string, startFromQuestion: number = 0): Promise<void> {
-    console.log(`💰 Running financial analysis for deal ${dealId}, starting from question ${startFromQuestion}`);
-    
-    try {
-      const questions = this.getFinancialQuestions();
-      const totalQuestions = questions.length;
-      
-      // Create job state
-      const jobState: FinancialJobState = {
-        dealId,
-        jobId,
-        progress: Math.floor((startFromQuestion / totalQuestions) * 100),
-        currentQuestionIndex: startFromQuestion,
-        totalQuestions,
-        currentBatch: 0,
-        totalBatches: 3,
-        currentStep: `Starting financial analysis...`,
-        documentsAnalyzed: 0,
-        totalDocuments: 0,
-        startTime: new Date(),
-        lastUpdate: new Date()
-      };
-      
-      this.activeJobs.set(jobId, jobState);
-      
-      // Start progress updates
-      this.startProgressUpdates(jobId);
-      
-      // Run the actual comprehensive analysis
-      const progressCallback = async (progress: number, step: string, currentDoc?: string) => {
-        const state = this.activeJobs.get(jobId);
-        if (state) {
-          state.progress = Math.min(progress, 100);
-          state.currentStep = step;
-          state.lastUpdate = new Date();
-          
-          await this.updateJobProgress(jobId, state);
-        }
-      };
-      
-      // Run the comprehensive financial analysis using the existing service
-      console.log(`🔄 Starting comprehensive financial analysis for deal ${dealId}`);
-      await comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(
-        dealId, 
-        storage, 
-        jobId, 
-        progressCallback
-      );
-      
-      // Mark as completed
-      await this.completeFinancialAnalysis(jobId);
-      
-    } catch (error) {
-      console.error(`❌ Financial analysis failed for deal ${dealId}:`, error);
-      await this.failFinancialAnalysis(jobId, error);
-    }
-  }
-
-  /**
-   * Start periodic progress updates
-   */
-  private startProgressUpdates(jobId: string): void {
-    const interval = setInterval(async () => {
-      const state = this.activeJobs.get(jobId);
-      if (!state) {
-        clearInterval(interval);
+      // Check if job exists and is incomplete
+      const job = await storage.getBackgroundJobById(jobId);
+      if (!job || job.status === 'completed') {
+        console.log(`Job ${jobId} already completed, skipping resume`);
         return;
       }
-      
-      await this.updateJobProgress(jobId, state);
-    }, 5000); // Update every 5 seconds
-    
-    this.jobIntervals.set(jobId, interval);
-  }
 
-  /**
-   * Update job progress in database and websocket
-   */
-  private async updateJobProgress(jobId: string, state: FinancialJobState): Promise<void> {
-    try {
-      await storage.updateBackgroundJob(jobId, {
-        progress: state.progress,
-        currentStep: state.currentStep,
-        processedDocuments: state.documentsAnalyzed,
-        updatedAt: new Date()
-      });
+      // Start monitoring and processing
+      this.runFinancialAnalysisInBackground(dealId, jobId);
       
-      // Broadcast progress via websocket
-      websocketManager.broadcastToRoom(`deal-${state.dealId}`, 'analysisProgress', {
-        agentType: 'financial',
-        progress: state.progress,
-        currentStep: state.currentStep,
-        jobId
-      });
-      
-      console.log(`📈 Financial Analysis Progress: ${state.progress}% - ${state.currentStep}`);
     } catch (error) {
-      console.error('❌ Failed to update job progress:', error);
+      console.error(`❌ Failed to resume financial analysis ${jobId}:`, error);
     }
-  }
-
-  /**
-   * Complete the financial analysis
-   */
-  private async completeFinancialAnalysis(jobId: string): Promise<void> {
-    console.log(`✅ Completing financial analysis job ${jobId}`);
-    
-    try {
-      const state = this.activeJobs.get(jobId);
-      if (!state) return;
-      
-      await storage.updateBackgroundJob(jobId, {
-        status: 'completed',
-        progress: 100,
-        completedAt: new Date(),
-        currentStep: 'Financial analysis completed'
-      });
-      
-      // Broadcast completion
-      websocketManager.broadcastToRoom(`deal-${state.dealId}`, 'analysisComplete', {
-        agentType: 'financial',
-        jobId
-      });
-      
-      // Clean up
-      this.cleanupJob(jobId);
-      
-      console.log(`✅ Financial analysis completed for deal ${state.dealId}`);
-    } catch (error) {
-      console.error('❌ Failed to complete financial analysis:', error);
-    }
-  }
-
-  /**
-   * Mark financial analysis as failed
-   */
-  private async failFinancialAnalysis(jobId: string, error: any): Promise<void> {
-    console.log(`❌ Failing financial analysis job ${jobId}`);
-    
-    try {
-      const state = this.activeJobs.get(jobId);
-      if (!state) return;
-      
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        currentStep: 'Financial analysis failed'
-      });
-      
-      // Broadcast failure
-      websocketManager.broadcastToRoom(`deal-${state.dealId}`, 'analysisError', {
-        agentType: 'financial',
-        jobId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Clean up
-      this.cleanupJob(jobId);
-      
-    } catch (cleanupError) {
-      console.error('❌ Failed to cleanup failed financial analysis:', cleanupError);
-    }
-  }
-
-  /**
-   * Clean up job resources
-   */
-  private cleanupJob(jobId: string): void {
-    const interval = this.jobIntervals.get(jobId);
-    if (interval) {
-      clearInterval(interval);
-      this.jobIntervals.delete(jobId);
-    }
-    this.activeJobs.delete(jobId);
-  }
-
-  /**
-   * Stop a financial analysis job
-   */
-  async stopFinancialAnalysis(jobId: string): Promise<void> {
-    console.log(`🛑 Stopping financial analysis job ${jobId}`);
-    
-    const state = this.activeJobs.get(jobId);
-    if (!state) return;
-    
-    await storage.updateBackgroundJob(jobId, {
-      status: 'stopped',
-      currentStep: 'Financial analysis stopped'
-    });
-    
-    this.cleanupJob(jobId);
-  }
-
-  /**
-   * Get current status of all active jobs
-   */
-  getActiveJobs(): FinancialJobState[] {
-    return Array.from(this.activeJobs.values());
   }
 }
 
-export const persistentFinancialAnalysisService = PersistentFinancialAnalysisService.getInstance();
+// Export singleton instance
+export const persistentFinancialAnalysisService = new PersistentFinancialAnalysisService();

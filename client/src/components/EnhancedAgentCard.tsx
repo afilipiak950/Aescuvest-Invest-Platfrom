@@ -13,7 +13,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap } from 'lucide-react';
+import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap, Square, PlayCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -3925,7 +3925,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             Analyze {assignedDocuments} financial documents across 4 categories with 12 detailed questions
           </p>
         </div>
-        <ComprehensiveFinancialAnalysisButton dealId={dealId} />
+        <PersistentFinancialButton dealId={dealId} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -4127,127 +4127,125 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   );
 }
 
-// Comprehensive Financial Analysis Button
-function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
-  const [isRunning, setIsRunning] = useState(false);
+// Persistent Financial Analysis Button - matches Clinical button architecture exactly
+function PersistentFinancialButton({ dealId }: { dealId: number }) {
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
+  // Check for existing background jobs - EXACTLY like Clinical button
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: false, // Disable auto-polling to match Clinical behavior
+    refetchInterval: 1000, // Only poll for job status like Clinical
   });
 
-  const { data: progressData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
-    refetchInterval: false, // Disable auto-polling to match Clinical behavior
-  });
-
-  const { data: resultsData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
-    refetchInterval: false, // Disable auto-polling to match Clinical behavior
-  });
-
-  const isAlreadyRunning = progressData?.isRunning || 
-    jobProgress?.jobs?.some((job: any) => 
-      job.jobType === 'comprehensive_financial_analysis' && job.status === 'processing'
-    );
-
-  const isCompleted = resultsData?.success && resultsData?.results && 
-    (resultsData.results.status === 'completed' || 
-     (resultsData.results.financialAnswers && Object.keys(resultsData.results.financialAnswers).length > 0));
-
-  // Stop all polling when analysis is completed
-  const shouldStopPolling = isCompleted || !isRunning;
+  // Check if financial analysis is already running - EXACTLY like Clinical button
+  const isAnalysisRunning = (() => {
+    if (jobProgress?.jobs) {
+      const financialJob = jobProgress.jobs.find((job: any) => job.agentType === 'financial');
+      return !!financialJob && financialJob.status === 'processing';
+    }
+    return false;
+  })();
 
   const queryClient = useQueryClient();
-  
-  const comprehensiveAnalysisMutation = useMutation({
-    mutationFn: async () => {
-      console.log('Starting comprehensive financial analysis for deal', dealId);
-      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/comprehensive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return response;
-    },
-    onSuccess: () => {
-      console.log('✅ Comprehensive financial analysis started successfully');
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-      setIsRunning(false);
-    },
-    onError: (error) => {
-      console.error('❌ Failed to start comprehensive financial analysis:', error);
-      setIsRunning(false);
-    }
-  });
 
-  const handleRunAnalysis = async () => {
-    setIsRunning(true);
-    console.log('Starting comprehensive financial analysis for deal', dealId);
-    
+  const handleStartPersistentAnalysis = async () => {
+    setIsStarting(true);
     try {
-      await comprehensiveAnalysisMutation.mutateAsync();
+      console.log(`💰 Starting persistent financial analysis for deal ${dealId}...`);
       
-      let attempts = 0;
-      const maxAttempts = 60;
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/persistent/start`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
       
-      const checkForResults = async () => {
-        attempts++;
-        console.log(`📊 Checking for financial analysis results (attempt ${attempts})`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Persistent financial analysis started:`, data);
         
-        if (attempts >= maxAttempts) {
-          console.log('⏰ Max attempts reached for financial analysis');
-          setIsRunning(false);
-          return;
-        }
-
-        try {
-          const response = await fetch(`/api/deals/${dealId}/financial-analysis/comprehensive/results`);
-          const data = await response.json();
-          
-          console.log('📊 Financial analysis status:', data);
-          
-          if (data && data.results && data.results.status === 'completed') {
-            console.log('✅ Financial analysis completed successfully');
-            queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
-            setIsRunning(false);
-            return;
-          }
-        } catch (error) {
-          console.log('⚠️ Error checking financial analysis results:', error);
-        }
-        
-        setTimeout(checkForResults, 5000);
-      };
-      
-      setTimeout(checkForResults, 5000);
-      
+        // Invalidate queries to refresh data - EXACTLY like Clinical button
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ Persistent financial analysis failed:`, errorData);
+      }
     } catch (error) {
-      console.error('Error starting financial analysis:', error);
-      setIsRunning(false);
+      console.error(`❌ Error starting persistent financial analysis:`, error);
+    } finally {
+      setIsStarting(false);
     }
   };
 
+  const handleStopPersistentAnalysis = async () => {
+    setIsStopping(true);
+    try {
+      console.log(`🛑 Stopping persistent financial analysis for deal ${dealId}...`);
+      
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/persistent/stop`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Persistent financial analysis stopped:`, data);
+        
+        // Invalidate queries to refresh data - EXACTLY like Clinical button
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ Failed to stop persistent financial analysis:`, errorData);
+      }
+    } catch (error) {
+      console.error(`❌ Error stopping persistent financial analysis:`, error);
+    } finally {
+      setIsStopping(false);
+    }
+  };
+
+  // EXACTLY like Clinical button render logic
+  if (isAnalysisRunning) {
+    return (
+      <Button
+        onClick={handleStopPersistentAnalysis}
+        disabled={isStopping}
+        size="sm"
+        variant="destructive"
+        className="bg-red-600 hover:bg-red-700 text-white"
+      >
+        {isStopping ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Stopping...
+          </>
+        ) : (
+          <>
+            <Square className="h-4 w-4 mr-2" />
+            Stop Financial Analysis
+          </>
+        )}
+      </Button>
+    );
+  }
+
   return (
     <Button
-      onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      onClick={handleStartPersistentAnalysis}
+      disabled={isStarting}
       size="sm"
-      className={isCompleted ? "bg-green-500 text-white border-green-400" : "bg-green-600 hover:bg-green-700 text-white border-green-500"}
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
     >
-      {isCompleted ? (
-        <>
-          <CheckCircle className="h-4 w-4 mr-2" />
-          Re-run Financial Analysis
-        </>
-      ) : isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+      {isStarting ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          {isAlreadyRunning ? 'Financial Analysis Running...' : isRunning ? 'Financial Analysis Running...' : 'Starting Analysis...'}
+          Starting...
         </>
       ) : (
         <>
-          <Zap className="h-4 w-4 mr-2" />
+          <PlayCircle className="h-4 w-4 mr-2" />
           Run Financial Analysis
         </>
       )}
