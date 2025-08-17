@@ -21,21 +21,21 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     question: 'What patents are owned or pending?', 
     category: 'Patent Portfolio',
     analysisPrompt: 'Identify owned patents, pending patent applications, and intellectual property portfolio details.',
-    keywords: ['patent', 'patent application', 'intellectual property', 'patent pending', 'patent portfolio']
+    keywords: ['patent', 'application', 'intellectual', 'property', 'pending', 'portfolio', 'invention', 'innovation', 'technology', 'system', 'method', 'device', 'process', 'design', 'product', 'solution', 'development', 'research']
   },
   { 
     id: 'patents_2', 
     question: 'Are core technologies protected?', 
     category: 'Patent Portfolio',
     analysisPrompt: 'Find technology protection strategies, core technology patents, and proprietary technology coverage.',
-    keywords: ['technology protection', 'core technology', 'proprietary technology', 'patent protection']
+    keywords: ['technology', 'protection', 'core', 'proprietary', 'patent', 'system', 'method', 'process', 'device', 'innovation', 'product', 'solution', 'development', 'design', 'technical', 'engineering']
   },
   { 
     id: 'patents_3', 
     question: 'What is the patent landscape analysis?', 
     category: 'Patent Portfolio',
     analysisPrompt: 'Look for patent landscape analyses, prior art searches, and freedom to operate assessments.',
-    keywords: ['patent landscape', 'prior art', 'patent search', 'freedom to operate']
+    keywords: ['patent', 'landscape', 'prior', 'art', 'search', 'freedom', 'operate', 'analysis', 'competitive', 'market', 'technology', 'review', 'assessment', 'study', 'evaluation']
   },
   // Trademarks & Branding
   { 
@@ -43,14 +43,14 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     question: 'Are trademarks registered and protected?', 
     category: 'Trademarks & Branding',
     analysisPrompt: 'Identify trademark registrations, service marks, and brand protection measures.',
-    keywords: ['trademark', 'service mark', 'brand protection', 'trademark registration']
+    keywords: ['trademark', 'service', 'mark', 'brand', 'protection', 'registration', 'logo', 'name', 'identity', 'commercial', 'business', 'product', 'marketing', 'legal']
   },
   { 
     id: 'trademarks_2', 
     question: 'Is brand identity legally secure?', 
     category: 'Trademarks & Branding',
     analysisPrompt: 'Find brand identity protection, logo protection, and brand security measures.',
-    keywords: ['brand identity', 'brand protection', 'logo protection', 'brand security']
+    keywords: ['brand', 'identity', 'protection', 'logo', 'security', 'trademark', 'name', 'commercial', 'business', 'marketing', 'product', 'legal', 'registration']
   },
   // Technology Licensing
   { 
@@ -58,14 +58,14 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     question: 'What licensing agreements are in place?', 
     category: 'Technology Licensing',
     analysisPrompt: 'Identify licensing agreements, technology licenses, and IP licensing deals.',
-    keywords: ['licensing agreement', 'technology license', 'ip license', 'licensing deal']
+    keywords: ['licensing', 'agreement', 'technology', 'license', 'deal', 'contract', 'legal', 'business', 'commercial', 'terms', 'conditions', 'transfer', 'intellectual', 'property']
   },
   { 
     id: 'licensing_2', 
     question: 'Are there any IP infringement risks?', 
     category: 'Technology Licensing',
     analysisPrompt: 'Look for IP infringement risks, patent infringement issues, and IP risk assessments.',
-    keywords: ['ip infringement', 'patent infringement', 'trademark infringement', 'ip risk']
+    keywords: ['infringement', 'risk', 'patent', 'trademark', 'intellectual', 'property', 'legal', 'litigation', 'compliance', 'analysis', 'assessment', 'evaluation', 'review']
   },
   // IP Strategy & Valuation
   { 
@@ -73,14 +73,14 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     question: 'What is the IP strategy and roadmap?', 
     category: 'IP Strategy & Valuation',
     analysisPrompt: 'Find IP strategy documents, intellectual property roadmaps, and IP development plans.',
-    keywords: ['ip strategy', 'intellectual property strategy', 'ip roadmap', 'ip development', 'patent strategy']
+    keywords: ['strategy', 'intellectual', 'property', 'roadmap', 'development', 'patent', 'plan', 'innovation', 'technology', 'business', 'commercial', 'research', 'product']
   },
   { 
     id: 'strategy_2', 
     question: 'How is IP valued and monetized?', 
     category: 'IP Strategy & Valuation',
     analysisPrompt: 'Analyze IP valuation methods, IP monetization strategies, and intellectual property value.',
-    keywords: ['ip valuation', 'ip value', 'ip monetization', 'intellectual property value', 'patent value']
+    keywords: ['valuation', 'value', 'monetization', 'intellectual', 'property', 'patent', 'financial', 'revenue', 'commercial', 'business', 'assessment', 'analysis', 'evaluation']
   },
   // Trade Secrets & Confidentiality
   { 
@@ -88,14 +88,14 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     question: 'What trade secrets are protected?', 
     category: 'Trade Secrets & Confidentiality',
     analysisPrompt: 'Identify trade secrets, confidential information protection, and proprietary know-how.',
-    keywords: ['trade secret', 'confidential information', 'proprietary information', 'know-how', 'confidentiality']
+    keywords: ['trade', 'secret', 'confidential', 'information', 'proprietary', 'know-how', 'confidentiality', 'technology', 'process', 'method', 'business', 'commercial', 'data']
   },
   { 
     id: 'secrets_2', 
     question: 'Are confidentiality measures adequate?', 
     category: 'Trade Secrets & Confidentiality',
     analysisPrompt: 'Assess confidentiality agreements, non-disclosure agreements, and information security measures.',
-    keywords: ['confidentiality agreement', 'nda', 'non-disclosure', 'information security', 'data protection']
+    keywords: ['confidentiality', 'agreement', 'nda', 'non-disclosure', 'information', 'security', 'data', 'protection', 'legal', 'contract', 'terms', 'business', 'commercial']
   },
   // Competitive IP Position
   { 
@@ -103,7 +103,7 @@ export const COMPREHENSIVE_IP_QUESTIONS = [
     question: 'What is the competitive IP landscape?', 
     category: 'Competitive IP Position',
     analysisPrompt: 'Analyze competitive patent landscape, competitor IP positions, and market IP dynamics.',
-    keywords: ['competitive landscape', 'competitor patents', 'market analysis', 'ip competition', 'patent analysis']
+    keywords: ['competitive', 'landscape', 'competitor', 'market', 'analysis', 'patent', 'technology', 'business', 'commercial', 'industry', 'product', 'innovation', 'research', 'development']
   }
 ];
 
@@ -276,15 +276,30 @@ export class ComprehensiveIpAnalysisService {
         const docContent = (doc.ocrText || '').toLowerCase();
         const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : '';
         
-        // IP document keywords - EXACTLY matching Financial's approach
+        // IP document keywords - EXPANDED to match Financial's broad coverage approach
         const ipKeywords = [
+          // Core IP terms
           'patent', 'trademark', 'copyright', 'intellectual property', 'ip', 'license',
           'licensing', 'infringement', 'prior art', 'patent application', 'patent pending',
           'trade secret', 'confidential', 'proprietary', 'nda', 'non-disclosure',
           'technology transfer', 'ip assignment', 'invention', 'innovation', 'know-how',
           'technology', 'software', 'algorithm', 'technical', 'research', 'development',
           'freedom to operate', 'patent landscape', 'ip strategy', 'brand', 'logo',
-          'service mark', 'domain', 'url', 'technology licensing', 'ip valuation'
+          'service mark', 'domain', 'url', 'technology licensing', 'ip valuation',
+          
+          // Expanded technology and legal terms (like Financial uses broad terms)
+          'design', 'system', 'method', 'process', 'device', 'apparatus', 'product',
+          'solution', 'platform', 'framework', 'architecture', 'implementation',
+          'feature', 'functionality', 'capability', 'specification', 'standard',
+          'protocol', 'interface', 'module', 'component', 'equipment', 'instrument',
+          'machine', 'tool', 'application', 'software', 'hardware', 'firmware',
+          'data', 'database', 'information', 'content', 'document', 'file',
+          'code', 'program', 'script', 'library', 'api', 'sdk', 'framework',
+          'analysis', 'evaluation', 'assessment', 'review', 'study', 'report',
+          'legal', 'agreement', 'contract', 'terms', 'conditions', 'compliance',
+          'regulatory', 'regulation', 'requirement', 'standard', 'guideline',
+          'medical', 'device', 'clinical', 'health', 'safety', 'quality',
+          'manufacturing', 'production', 'distribution', 'commercial', 'business'
         ];
         
         // Check document name, OCR content, and AI summary for IP keywords
