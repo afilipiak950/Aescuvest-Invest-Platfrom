@@ -327,14 +327,22 @@ export class ComprehensiveIpAnalysisService {
       console.log(`📄 Auto-identified IP documents: ${ipDocuments.length}`);
     }
 
-    // If still no documents found, use all documents with OCR text
+    // If still no documents found, use all documents with content (EXACTLY like Financial)
     if (ipDocuments.length === 0) {
-      console.log('📄 No IP-related documents found, using all documents with OCR text...');
-      ipDocuments = allDocuments.filter(doc => doc.ocrText || doc.aiSummary);
+      console.log('📄 No IP-related documents found, using all documents with OCR text or AI summaries...');
+      ipDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.trim().length > 100) ||
+        (doc.aiSummary && typeof doc.aiSummary === 'string' && doc.aiSummary.trim().length > 50)
+      );
+      console.log(`📄 Documents with content available: ${ipDocuments.length}`);
     }
-
-    console.log(`📄 Documents with content available: ${ipDocuments.length}`);
+    
     console.log(`📄 Found ${ipDocuments.length} documents for IP analysis`);
+    
+    if (ipDocuments.length === 0) {
+      console.log('⚠️ No documents found for IP analysis');
+      return [];
+    }
     
     return ipDocuments;
   }
