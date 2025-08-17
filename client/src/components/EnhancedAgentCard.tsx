@@ -1005,14 +1005,30 @@ export default function EnhancedAgentCard({
                         <div className="flex items-start gap-3">
                           <TrendingUp className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
                           <div>
-                            <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
-                            <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
+                            <h4 className="font-medium text-white mb-2">
+                              {typeof (finding.title || finding.content) === 'string' 
+                                ? (finding.title || finding.content || 'Finding')
+                                : typeof (finding.title || finding.content) === 'object' 
+                                  ? JSON.stringify(finding.title || finding.content, null, 2)
+                                  : String(finding.title || finding.content || 'Finding')}
+                            </h4>
+                            <p className="text-gray-400 text-sm mb-2">
+                              {typeof (finding.description || finding.content) === 'string' 
+                                ? (finding.description || finding.content || 'No description available')
+                                : typeof (finding.description || finding.content) === 'object' 
+                                  ? JSON.stringify(finding.description || finding.content, null, 2)
+                                  : String(finding.description || finding.content || 'No description available')}
+                            </p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-green-400 border-green-400">
                                 Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                {finding.type || finding.category || 'analysis'}
+                                {typeof (finding.type || finding.category) === 'string' 
+                                  ? (finding.type || finding.category || 'analysis')
+                                  : typeof (finding.type || finding.category) === 'object' 
+                                    ? JSON.stringify(finding.type || finding.category, null, 2)
+                                    : String(finding.type || finding.category || 'analysis')}
                               </Badge>
                             </div>
                           </div>
@@ -1033,14 +1049,30 @@ export default function EnhancedAgentCard({
                         <div className="flex items-start gap-3">
                           <AlertCircle className="h-5 w-5 text-gray-400 mt-1 flex-shrink-0" />
                           <div>
-                            <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
-                            <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
+                            <h4 className="font-medium text-white mb-2">
+                              {typeof (finding.title || finding.content) === 'string' 
+                                ? (finding.title || finding.content || 'Finding')
+                                : typeof (finding.title || finding.content) === 'object' 
+                                  ? JSON.stringify(finding.title || finding.content, null, 2)
+                                  : String(finding.title || finding.content || 'Finding')}
+                            </h4>
+                            <p className="text-gray-400 text-sm mb-2">
+                              {typeof (finding.description || finding.content) === 'string' 
+                                ? (finding.description || finding.content || 'No description available')
+                                : typeof (finding.description || finding.content) === 'object' 
+                                  ? JSON.stringify(finding.description || finding.content, null, 2)
+                                  : String(finding.description || finding.content || 'No description available')}
+                            </p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                {finding.type || finding.category || 'analysis'}
+                                {typeof (finding.type || finding.category) === 'string' 
+                                  ? (finding.type || finding.category || 'analysis')
+                                  : typeof (finding.type || finding.category) === 'object' 
+                                    ? JSON.stringify(finding.type || finding.category, null, 2)
+                                    : String(finding.type || finding.category || 'analysis')}
                               </Badge>
                             </div>
                           </div>
@@ -1061,14 +1093,30 @@ export default function EnhancedAgentCard({
                         <div className="flex items-start gap-3">
                           <AlertTriangle className="h-5 w-5 text-red-400 mt-1 flex-shrink-0" />
                           <div>
-                            <h4 className="font-medium text-white mb-2">{finding.title || finding.content || 'Finding'}</h4>
-                            <p className="text-gray-400 text-sm mb-2">{finding.description || finding.content || 'No description available'}</p>
+                            <h4 className="font-medium text-white mb-2">
+                              {typeof (finding.title || finding.content) === 'string' 
+                                ? (finding.title || finding.content || 'Finding')
+                                : typeof (finding.title || finding.content) === 'object' 
+                                  ? JSON.stringify(finding.title || finding.content, null, 2)
+                                  : String(finding.title || finding.content || 'Finding')}
+                            </h4>
+                            <p className="text-gray-400 text-sm mb-2">
+                              {typeof (finding.description || finding.content) === 'string' 
+                                ? (finding.description || finding.content || 'No description available')
+                                : typeof (finding.description || finding.content) === 'object' 
+                                  ? JSON.stringify(finding.description || finding.content, null, 2)
+                                  : String(finding.description || finding.content || 'No description available')}
+                            </p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-red-400 border-red-400">
                                 Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                {finding.type || finding.category || 'analysis'}
+                                {typeof (finding.type || finding.category) === 'string' 
+                                  ? (finding.type || finding.category || 'analysis')
+                                  : typeof (finding.type || finding.category) === 'object' 
+                                    ? JSON.stringify(finding.type || finding.category, null, 2)
+                                    : String(finding.type || finding.category || 'analysis')}
                               </Badge>
                             </div>
                           </div>
