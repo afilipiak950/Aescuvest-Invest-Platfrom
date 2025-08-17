@@ -5040,7 +5040,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           confidence: Math.round((relevantFinding.confidence || 0.5) * 100),
           sources: relevantFinding.sources || [],
           category: relevantFinding.category || 'IP Analysis',
-          severity: relevantFinding.severity
+          severity: typeof relevantFinding.severity === 'string' ? relevantFinding.severity : 
+                   typeof relevantFinding.severity === 'object' ? JSON.stringify(relevantFinding.severity, null, 2) :
+                   String(relevantFinding.severity || 'Medium')
         };
       }
       
@@ -5058,7 +5060,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             confidence: Math.round((patentFinding.confidence || 0.5) * 100),
             sources: patentFinding.sources || [],
             category: patentFinding.category || 'IP Analysis',
-            severity: patentFinding.severity
+            severity: typeof patentFinding.severity === 'string' ? patentFinding.severity : 
+                     typeof patentFinding.severity === 'object' ? JSON.stringify(patentFinding.severity, null, 2) :
+                     String(patentFinding.severity || 'Medium')
           };
         }
       }
