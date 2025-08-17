@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 ### Key Features
 - **Investment Pipeline Management**: Kanban-style deal flow across 7 stages with AI-driven transitions.
 - **AI-Powered Document Processing**: OCR and AI analysis for document summarization from various formats, with batch processing and WebSocket progress updates.
-- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. All agents share consistent architectural patterns for reliable progress tracking.
+- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. All agents share consistent architectural patterns for reliable progress tracking with immediate deletion of previous analysis when starting fresh analysis to prevent stale data persistence.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration (web scraping), financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment, with persistent background processing.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
@@ -47,6 +47,9 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Configuration**: Environment variables, modular service architecture.
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced .dockerignore, automated cleanup scripts, Node modules optimization, and production build pipeline for minification and tree-shaking, ensuring deployment size under 2GB.
+
+## Recent Changes (August 2025)
+- **CRITICAL ARCHITECTURAL FIX**: Fixed Financial agent deletion behavior to match Clinical template exactly. Deletion now occurs immediately when analysis starts (not at completion) to prevent JSON parsing errors from leaving stale analysis data. This ensures fresh analysis results every time users click "Re-run Analysis".
 
 ## External Dependencies
 
