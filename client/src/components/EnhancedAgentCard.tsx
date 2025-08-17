@@ -3834,6 +3834,8 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   console.log('💰 Financial Analysis Available:', !!financialData);
   console.log('💰 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
   console.log('💰 Financial Data from Comprehensive:', !!financialData?.financialAnswers);
+  console.log('💰 Financial Answers Keys:', financialData?.financialAnswers ? Object.keys(financialData.financialAnswers) : 'No answers');
+  console.log('💰 DEBUGGING: Full financialData structure:', JSON.stringify(financialData, null, 2));
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -3845,26 +3847,25 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     setExpandedCategories(newExpanded);
   };
 
-  // Financial questions structure matching the backend service
+  // CRITICAL FIX: Use EXACT same question IDs as backend comprehensiveFinancialAnalysisService.ts
   const FINANCIAL_QUESTIONS = [
-    { id: 'income_1', question: 'What are the revenue trends over the last 3 years?', category: 'Income Statements' },
-    { id: 'income_2', question: 'How have gross margins evolved?', category: 'Income Statements' },
-    { id: 'income_3', question: 'What are the main cost drivers and their trends?', category: 'Income Statements' },
-    { id: 'balance_1', question: 'What is the current cash position?', category: 'Balance Sheets' },
-    { id: 'balance_2', question: 'How much debt does the company carry?', category: 'Balance Sheets' },
-    { id: 'balance_3', question: 'Are there any significant off-balance sheet items?', category: 'Balance Sheets' },
-    { id: 'cashflow_1', question: 'What is the operating cash flow trend?', category: 'Cash Flow Statements' },
-    { id: 'cashflow_2', question: 'How much is being invested in capex and R&D?', category: 'Cash Flow Statements' },
-    { id: 'cashflow_3', question: 'What is the current burn rate and runway?', category: 'Cash Flow Statements' },
-    { id: 'forecast_1', question: 'What are the key assumptions in financial projections?', category: 'Financial Model/Forecasts' },
-    { id: 'forecast_2', question: 'How realistic are the growth projections?', category: 'Financial Model/Forecasts' },
-    { id: 'forecast_3', question: 'What sensitivity analysis has been conducted?', category: 'Financial Model/Forecasts' },
-    { id: 'captable_1', question: 'Who are the current shareholders and their ownership?', category: 'Cap Table' },
-    { id: 'captable_2', question: 'What liquidation preferences exist?', category: 'Cap Table' },
-    { id: 'captable_3', question: 'Are there any option pools or warrants outstanding?', category: 'Cap Table' },
-    { id: 'tax_1', question: 'Are there any significant tax liabilities or benefits?', category: 'Tax Documentation' },
-    { id: 'tax_2', question: 'What is the effective tax rate?', category: 'Tax Documentation' },
-    { id: 'tax_3', question: 'Are there any transfer pricing or international tax issues?', category: 'Tax Documentation' }
+    // Financial Performance & KPIs
+    { id: 'performance_1', question: 'What are the key financial performance metrics and KPIs?', category: 'Financial Performance & KPIs' },
+    { id: 'performance_2', question: 'How has financial performance trended over time?', category: 'Financial Performance & KPIs' },
+    { id: 'performance_3', question: 'What are the unit economics and scalability metrics?', category: 'Financial Performance & KPIs' },
+    // Cash Flow & Burn Rate
+    { id: 'cashflow_1', question: 'What is the current cash position and runway?', category: 'Cash Flow & Burn Rate' },
+    { id: 'cashflow_2', question: 'How is working capital managed?', category: 'Cash Flow & Burn Rate' },
+    { id: 'cashflow_3', question: 'What are the seasonal or cyclical cash flow patterns?', category: 'Cash Flow & Burn Rate' },
+    // Funding & Investment History
+    { id: 'funding_1', question: 'What is the funding history and investment rounds?', category: 'Funding & Investment History' },
+    { id: 'funding_2', question: 'How are funds allocated and what is the use of proceeds?', category: 'Funding & Investment History' },
+    // Financial Controls & Reporting
+    { id: 'controls_1', question: 'What financial controls and reporting systems are in place?', category: 'Financial Controls & Reporting' },
+    { id: 'controls_2', question: 'Are there any audit findings or compliance issues?', category: 'Financial Controls & Reporting' },
+    // Revenue Model & Monetization
+    { id: 'revenue_1', question: 'What is the revenue model and monetization strategy?', category: 'Revenue Model & Monetization' },
+    { id: 'revenue_2', question: 'How predictable and recurring is the revenue?', category: 'Revenue Model & Monetization' }
   ];
 
   const categorizedQuestions = FINANCIAL_QUESTIONS.reduce((acc, question) => {
