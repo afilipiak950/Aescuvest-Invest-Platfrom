@@ -4982,38 +4982,31 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     return acc;
   }, {} as Record<string, typeof IP_QUESTIONS>);
 
-  // Get findings and recommendations from IP analysis
-  const findings = (comprehensiveResults as any)?.analysis?.findings || [];
-  const recommendations = (comprehensiveResults as any)?.analysis?.recommendations || [];
+  // Get findings and recommendations from IP analysis - FIXED: Backend returns them in results, not analysis
+  const findings = (comprehensiveResults as any)?.results?.findings || [];
+  const recommendations = (comprehensiveResults as any)?.results?.recommendations || [];
 
   const getAnswerForQuestion = (questionId: string) => {
-    // CRITICAL FIX: Check multiple data structures for IP answers - match backend logs
+    // CRITICAL FIX: Backend returns ipAnswers in comprehensiveResults.results.ipAnswers (line 5089 in server/routes.ts)
     console.log(`🔍 Looking for IP answer for question: ${questionId}`);
-    console.log(`🔍 Available IP data keys:`, ipData ? Object.keys(ipData) : 'No ipData');
     console.log(`🔍 Comprehensive results structure:`, comprehensiveResults ? Object.keys(comprehensiveResults) : 'No comprehensive results');
+    console.log(`🔍 Results structure:`, comprehensiveResults?.results ? Object.keys(comprehensiveResults.results) : 'No results');
+    console.log(`🔍 IP Answers available:`, !!comprehensiveResults?.results?.ipAnswers);
+    console.log(`🔍 IP Answers keys:`, comprehensiveResults?.results?.ipAnswers ? Object.keys(comprehensiveResults.results.ipAnswers) : 'No ipAnswers');
     
-    // Try different data paths based on backend structure
-    const analysisData = comprehensiveResults?.analysis || ipData?.analysis || ipData;
-    
-    // Check if answers are directly in the analysis object (matching backend logs)
-    if (analysisData && analysisData[questionId]) {
-      console.log(`✅ Found IP answer for ${questionId} in analysis data`);
-      return analysisData[questionId];
+    // EXACT MATCH: Backend returns ipAnswers at comprehensiveResults.results.ipAnswers (server/routes.ts line 5089)
+    if (comprehensiveResults?.results?.ipAnswers && comprehensiveResults.results.ipAnswers[questionId]) {
+      console.log(`✅ Found IP answer for ${questionId} in comprehensiveResults.results.ipAnswers`);
+      return comprehensiveResults.results.ipAnswers[questionId];
     }
     
-    // Check if answers are in ipAnswers structure  
+    // Fallback: Check if ipData has ipAnswers directly
     if (ipData?.ipAnswers && ipData.ipAnswers[questionId]) {
-      console.log(`✅ Found IP answer for ${questionId} in ipAnswers`);
+      console.log(`✅ Found IP answer for ${questionId} in ipData.ipAnswers fallback`);
       return ipData.ipAnswers[questionId];
     }
     
-    // Check comprehensiveResults.analysis structure
-    if (comprehensiveResults?.analysis && comprehensiveResults.analysis[questionId]) {
-      console.log(`✅ Found IP answer for ${questionId} in comprehensive results`);
-      return comprehensiveResults.analysis[questionId];
-    }
-    
-    console.log(`❌ No IP answer found for ${questionId}`);
+    console.log(`❌ No IP answer found for ${questionId} - checked comprehensiveResults.results.ipAnswers and ipData.ipAnswers`);
     return null;
 
     // Fallback: Try to map findings to questions based on content similarity
