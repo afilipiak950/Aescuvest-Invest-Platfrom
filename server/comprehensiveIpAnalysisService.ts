@@ -208,41 +208,55 @@ export class ComprehensiveIpAnalysisService {
           });
         }
 
-        // Process question with assigned documents
-        const answer = await this.processQuestionWithDocuments(question, assignedDocuments);
+        // Extract evidence for this specific question
+        console.log(`📊 Extracting IP evidence for: ${question.question}`);
+        const evidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
+        
+        // Compile comprehensive answer
+        console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${evidence.length} pieces of evidence`);
+        const answer = await this.compileComprehensiveAnswer(question, evidence);
+        
         ipAnswers[question.id] = answer;
-
-        console.log(`✅ Question ${questionNumber} completed: ${answer.answer.slice(0, 100)}...`);
+        console.log(`✅ Completed question ${questionNumber}/${totalQuestions}: ${question.question}`);
       }
 
-      // Step 3: Save complete analysis exactly like Financial
-      await this.saveCompleteAnalysis(dealId, ipAnswers, assignedDocuments.length);
+      // Step 3: Store results with EXACT same pattern as Financial
+      console.log(`💾 Storing comprehensive IP analysis results for deal ${dealId}`);
+      
+      if (jobId) {
+        await storage.updateBackgroundJob(jobId, {
+          progress: 95,
+          currentStep: 'Finalizing IP analysis'
+        });
+      }
 
-      this.isRunning = false;
+      await this.storeComprehensiveResultsWithoutDeletion(dealId, ipAnswers, assignedDocuments);
+
+      // Final completion
       this.progress = 100;
       this.currentStep = 'IP analysis completed';
-
+      
       if (jobId) {
         await storage.updateBackgroundJob(jobId, {
           status: 'completed',
           progress: 100,
-          currentStep: 'IP analysis completed successfully'
+          currentStep: this.currentStep
         });
       }
 
       console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
 
     } catch (error) {
-      console.error(`💥 Error in IP analysis for deal ${dealId}:`, error);
+      console.error('Error in comprehensive IP analysis:', error);
       this.isRunning = false;
       
       if (jobId) {
         await storage.updateBackgroundJob(jobId, {
           status: 'failed',
-          progress: 0,
-          currentStep: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          currentStep: `IP analysis failed: ${(error as any)?.message || error}`
         });
       }
+      
       throw error;
     } finally {
       this.isRunning = false;
@@ -325,17 +339,7 @@ export class ComprehensiveIpAnalysisService {
     return ipDocuments;
   }
 
-  private async processQuestionWithDocuments(question: any, documents: any[]): Promise<IpAnswer> {
-    console.log(`🔍 Processing IP question: ${question.question} with ${documents.length} documents`);
-    
-    // Extract evidence for this specific question
-    const evidence = await this.extractEvidenceFromAllDocuments(documents, question);
-    
-    // Compile comprehensive answer
-    const answer = await this.compileComprehensiveAnswer(question, evidence);
-    
-    return answer;
-  }
+
 
   private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<IpEvidence[]> {
     const evidence: IpEvidence[] = [];
@@ -564,38 +568,59 @@ Requirements:
     }
   }
 
-  private async saveCompleteAnalysis(dealId: number, ipAnswers: { [key: string]: IpAnswer }, documentsCount: number): Promise<void> {
+  private async storeComprehensiveResultsWithoutDeletion(dealId: number, ipAnswers: { [key: string]: IpAnswer }, assignedDocuments: any[]): Promise<void> {
     try {
-      console.log(`💾 Saving IP analysis for deal ${dealId} with ${Object.keys(ipAnswers).length} answers`);
+      // Generate findings and recommendations from all answers
+      const findings = Object.values(ipAnswers).flatMap(answer => 
+        answer.keyFindings.map((finding, index) => ({
+          id: Object.keys(ipAnswers).indexOf(Object.keys(ipAnswers).find(key => ipAnswers[key] === answer)!) * 100 + index,
+          content: finding,
+          type: 'IP Finding'
+        }))
+      );
 
-      // Extract findings and recommendations
-      const allFindings = Object.values(ipAnswers).flatMap(answer => answer.keyFindings);
-      const allRecommendations = Object.values(ipAnswers).flatMap(answer => answer.recommendations);
+      const recommendations = Object.values(ipAnswers).flatMap(answer =>
+        answer.recommendations.map((rec, index) => ({
+          title: `IP Recommendation ${index + 1}`,
+          description: rec,
+          priority: 'Medium',
+          category: 'IP',
+          impact: 'Medium'
+        }))
+      );
 
-      // Store in agentAnalyses table exactly like Financial - FIXED field name
-      await db.insert(agentAnalyses).values({
-        dealId: dealId,
-        agentType: 'IP',  // Use capital 'IP' like Financial uses 'Financial'
-        status: 'completed',
-        findings: allFindings,
-        recommendations: allRecommendations,
-        ip_answers: ipAnswers  // Fixed: Use snake_case field name to match database schema
-      });
+      // Create the new comprehensive analysis - EXACT copy of Financial structure (deletion already done in runComprehensiveAnalysis)
+      const analysisData = {
+        dealId,
+        agentType: 'IP' as const,
+        status: 'completed' as const,
+        progress: 100,
+        findings: JSON.stringify(findings),
+        recommendations: JSON.stringify(recommendations),
+        ip_answers: JSON.stringify(ipAnswers), // CRITICAL: Use snake_case field name like other agents
+        documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-      console.log(`✅ Saved IP analysis with ${allFindings.length} findings and ${allRecommendations.length} recommendations`);
+      await db.insert(agentAnalyses).values([analysisData]);
+      
+      console.log(`📊 Created fresh comprehensive IP analysis for deal ${dealId} with ${Object.keys(ipAnswers).length} questions answered`);
+
     } catch (error) {
-      console.error(`Error saving IP analysis for deal ${dealId}:`, error);
+      console.error('Error storing comprehensive IP results:', error);
       throw error;
     }
   }
 
-  getProgressData(dealId: number) {
+  getProgress(): IpAnalysisProgress {
     return {
       isRunning: this.isRunning,
       progress: this.progress,
-      message: this.currentStep || 'No IP analysis running',
+      message: this.currentStep,
       currentStep: this.currentStep,
-      currentQuestion: this.currentQuestion
+      currentQuestion: this.currentQuestion,
+      totalSteps: COMPREHENSIVE_IP_QUESTIONS.length
     };
   }
 }
