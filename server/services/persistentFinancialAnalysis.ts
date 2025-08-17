@@ -28,6 +28,10 @@ export class PersistentFinancialAnalysisService {
     
     console.log(`💰 Starting FRESH persistent financial analysis for deal ${dealId}`);
 
+    // CRITICAL FIX: Delete existing analysis data first - EXACTLY like Clinical template 
+    console.log(`🧹 DELETING existing financial analysis data for deal ${dealId} to ensure fresh start...`);
+    await comprehensiveFinancialAnalysisService.deleteExistingAnalysis(dealId);
+    
     // ALWAYS delete existing job to force fresh start - EXACT Clinical behavior
     const existingJob = await storage.getBackgroundJobById(jobId);
     if (existingJob) {
@@ -399,7 +403,9 @@ export class PersistentFinancialAnalysisService {
       console.log(`🔄 Found ${financialJobs.length} incomplete financial analysis jobs`);
 
       for (const job of financialJobs) {
-        await this.resumeFinancialAnalysis(job.dealId, job.jobId);
+        if (job.dealId) {
+          await this.resumeFinancialAnalysis(job.dealId, job.jobId);
+        }
       }
 
       console.log('✅ Persistent Financial Analysis Service initialized');

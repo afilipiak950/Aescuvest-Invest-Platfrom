@@ -794,6 +794,29 @@ export class ComprehensiveFinancialAnalysisService {
       throw error;
     }
   }
+
+  /**
+   * Delete existing analysis data - EXACTLY like Clinical template
+   * CRITICAL: This method must be called IMMEDIATELY when starting analysis to prevent stale data
+   */
+  async deleteExistingAnalysis(dealId: number): Promise<void> {
+    try {
+      console.log(`🧹 DELETING existing financial analysis for deal ${dealId}`);
+      
+      // Delete from agentAnalyses table - EXACTLY like Clinical template
+      await db.delete(agentAnalyses).where(
+        and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'Financial')
+        )
+      );
+      
+      console.log(`✅ DELETED existing financial analysis for deal ${dealId}`);
+    } catch (error) {
+      console.error(`❌ Error deleting existing financial analysis for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
