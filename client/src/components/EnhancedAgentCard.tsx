@@ -60,6 +60,13 @@ interface EnhancedAgentCardProps {
   onClinicalAnalysisStart?: () => void;
 }
 
+// Safe rendering helper to prevent React object errors
+const safeRender = (value: any, fallback: string = 'No data available'): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value !== null) return JSON.stringify(value, null, 2);
+  return String(value || fallback);
+};
+
 export default function EnhancedAgentCard({ 
   dealId, 
   agentType, 
@@ -1745,20 +1752,20 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
-                                            onClick={() => handleDocumentClick(quote.document)}
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
+                                              {safeRender(quote.relevance, 'Medium')}
                                             </Badge>
                                           )}
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
+                                          "{safeRender(quote.text, 'No quote text available')}"
                                         </blockquote>
                                       </div>
                                     ))}
@@ -2402,20 +2409,20 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
-                                            onClick={() => handleDocumentClick(quote.document)}
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
+                                              {safeRender(quote.relevance, 'Medium')}
                                             </Badge>
                                           )}
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
+                                          "{safeRender(quote.text, 'No quote text available')}"
                                         </blockquote>
                                       </div>
                                     ))}
@@ -4052,20 +4059,20 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
-                                            onClick={() => handleDocumentClick(quote.document)}
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
+                                              {safeRender(quote.relevance, 'Medium')}
                                             </Badge>
                                           )}
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
+                                          "{safeRender(quote.text, 'No quote text available')}"
                                         </blockquote>
                                       </div>
                                     ))}
@@ -4589,20 +4596,20 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
-                                            onClick={() => handleDocumentClick(quote.document)}
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
+                                              {safeRender(quote.relevance, 'Medium')}
                                             </Badge>
                                           )}
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
+                                          "{safeRender(quote.text, 'No quote text available')}"
                                         </blockquote>
                                       </div>
                                     ))}
@@ -5213,20 +5220,20 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
-                                            onClick={() => handleDocumentClick(quote.document)}
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${quote.document}`}
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
                                           >
-                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
                                           </button>
                                           {quote.relevance && (
                                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
-                                              {quote.relevance}
+                                              {safeRender(quote.relevance, 'Medium')}
                                             </Badge>
                                           )}
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{quote.text}"
+                                          "{safeRender(quote.text, 'No quote text available')}"
                                         </blockquote>
                                       </div>
                                     ))}
