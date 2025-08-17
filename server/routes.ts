@@ -4963,17 +4963,20 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Import the DIRECT comprehensive IP analysis service - EXACT Financial pattern
+      const { comprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
       
-      // Run ENHANCED comprehensive IP analysis in background with deep evidence-based processing
+      // Generate unique job ID for this analysis
+      const jobId = `ip-analysis-${dealId}`;
+      
+      // Run DIRECT comprehensive IP analysis in background - EXACT Financial approach
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED IP analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'IP');
-          console.log(`✅ Enhanced IP analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive IP analysis for deal ${dealId}`);
+          await comprehensiveIpAnalysisService.startComprehensiveAnalysis(dealId, jobId);
+          console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced IP analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive IP analysis for deal ${dealId}:`, error);
         }
       })();
       
