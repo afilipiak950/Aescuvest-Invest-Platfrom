@@ -4204,7 +4204,7 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
           
           console.log('📊 Financial analysis status:', data);
           
-          if (data && data.financialAnswers && Object.keys(data.financialAnswers).length > 0) {
+          if (data && data.results && data.results.status === 'completed') {
             console.log('✅ Financial analysis completed successfully');
             queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
             setIsRunning(false);
