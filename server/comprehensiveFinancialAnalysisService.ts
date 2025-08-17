@@ -155,7 +155,6 @@ export class ComprehensiveFinancialAnalysisService {
         await storage.updateBackgroundJob(jobId, {
           status: 'processing',
           progress: 0,
-          message: 'Starting comprehensive financial analysis',
           currentStep: this.currentStep
         });
       }
@@ -170,7 +169,7 @@ export class ComprehensiveFinancialAnalysisService {
           await storage.updateBackgroundJob(jobId, {
             status: 'completed',
             progress: 100,
-            message: 'No financial documents found for analysis'
+            currentStep: 'No financial documents found for analysis'
           });
         }
         return;
@@ -181,7 +180,6 @@ export class ComprehensiveFinancialAnalysisService {
       if (jobId) {
         await storage.updateBackgroundJob(jobId, {
           progress: 5,
-          message: `Found ${assignedDocuments.length} financial documents`,
           currentStep: `Processing ${assignedDocuments.length} financial documents`
         });
       }
@@ -205,9 +203,7 @@ export class ComprehensiveFinancialAnalysisService {
         if (jobId) {
           await storage.updateBackgroundJob(jobId, {
             progress: this.progress,
-            message: `Processing question ${questionNumber}/${totalQuestions}`,
-            currentStep: this.currentStep,
-            currentQuestion: this.currentQuestion
+            currentStep: this.currentStep
           });
         }
 
@@ -229,7 +225,6 @@ export class ComprehensiveFinancialAnalysisService {
       if (jobId) {
         await storage.updateBackgroundJob(jobId, {
           progress: 95,
-          message: 'Storing comprehensive analysis results',
           currentStep: 'Finalizing financial analysis'
         });
       }
@@ -244,7 +239,6 @@ export class ComprehensiveFinancialAnalysisService {
         await storage.updateBackgroundJob(jobId, {
           status: 'completed',
           progress: 100,
-          message: 'Comprehensive financial analysis completed successfully',
           currentStep: this.currentStep
         });
       }
@@ -258,8 +252,7 @@ export class ComprehensiveFinancialAnalysisService {
       if (jobId) {
         await storage.updateBackgroundJob(jobId, {
           status: 'failed',
-          message: `Financial analysis failed: ${error.message}`,
-          error: error.message
+          currentStep: `Financial analysis failed: ${(error as any)?.message || error}`
         });
       }
       
@@ -270,30 +263,71 @@ export class ComprehensiveFinancialAnalysisService {
   }
 
   private async getAssignedDocuments(dealId: number): Promise<any[]> {
-    // Get ALL documents for this deal with AI summaries (comprehensive approach matching Legal/Clinical)
-    console.log(`👥 Found ${await this.getTotalDocumentCount(dealId)} total documents for deal ${dealId}`);
-    
     const allDocuments = await db
       .select()
       .from(documents)
-      .where(
-        and(
-          eq(documents.dealId, dealId),
-          // Only include documents that have been processed with AI summaries
-          // This ensures we have quality content to analyze
-        )
-      );
-
-    // Filter for documents with AI summaries for quality analysis
-    const documentsWithSummaries = allDocuments.filter(doc => 
-      doc.aiSummary && 
-      typeof doc.aiSummary === 'string' && 
-      doc.aiSummary.trim().length > 0
+      .where(eq(documents.dealId, dealId));
+    
+    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // First try documents explicitly assigned to financial agent
+    let financialDocuments = allDocuments.filter(doc => 
+      (doc.assignedAgents && doc.assignedAgents.includes('financial')) && 
+      (doc.ocrText || doc.aiSummary)
     );
     
-    console.log(`👥 Financial analysis will process ALL ${documentsWithSummaries.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
+    console.log(`📄 Documents explicitly assigned to financial: ${financialDocuments.length}`);
     
-    return documentsWithSummaries;
+    // If no documents are explicitly assigned to financial, identify financial-related documents
+    if (financialDocuments.length === 0) {
+      console.log('📄 No documents explicitly assigned to financial agent, identifying financial-related documents...');
+      
+      financialDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : '';
+        
+        // Financial document keywords - EXACTLY matching Clinical's approach
+        const financialKeywords = [
+          'financial', 'revenue', 'profit', 'cost', 'budget', 'funding', 'investment',
+          'cash', 'flow', 'burn', 'runway', 'valuation', 'ebitda', 'income', 'expense',
+          'balance', 'sheet', 'statement', 'audit', 'accounting', 'finance', 'money',
+          'capital', 'equity', 'debt', 'loan', 'credit', 'payment', 'invoice', 
+          'contract', 'agreement', 'pricing', 'subscription', 'saas', 'arr', 'mrr',
+          'margin', 'kpi', 'metric', 'performance', 'roi', 'return', 'ltv', 'cac'
+        ];
+        
+        // Check document name, OCR content, and AI summary for financial keywords
+        const hasFinancialKeywords = financialKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword) || aiContent.includes(keyword)
+        );
+        
+        return hasFinancialKeywords;
+      });
+      
+      console.log(`📄 Auto-identified financial documents: ${financialDocuments.length}`);
+    }
+    
+    // If still no financial documents found, use all documents with content (EXACTLY like Clinical)
+    if (financialDocuments.length === 0) {
+      console.log('📄 No financial-related documents found, using all documents with OCR text or AI summaries...');
+      financialDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.trim().length > 100) ||
+        (doc.aiSummary && typeof doc.aiSummary === 'string' && doc.aiSummary.trim().length > 50)
+      );
+      console.log(`📄 Documents with content available: ${financialDocuments.length}`);
+    }
+    
+    console.log(`📄 Found ${financialDocuments.length} documents for financial analysis`);
+    
+    if (financialDocuments.length === 0) {
+      console.log('⚠️ No documents found for financial analysis');
+      return [];
+    }
+    
+    return financialDocuments;
   }
 
   private async getTotalDocumentCount(dealId: number): Promise<number> {
@@ -308,10 +342,10 @@ export class ComprehensiveFinancialAnalysisService {
   private async extractEvidenceFromAllDocuments(assignedDocuments: any[], question: any): Promise<FinancialEvidence[]> {
     const evidence: FinancialEvidence[] = [];
     
-    // SPEED MODE: Use only first 30 documents for faster processing (matching Clinical optimization)
-    const documentsToProcess = assignedDocuments.slice(0, 30);
-    console.log(`📄 SPEED MODE: Starting evidence extraction from ${documentsToProcess.length} documents for: ${question.question}`);
-    console.log(`🚀 SPEED OPTIMIZATION: Processing top ${documentsToProcess.length} documents (reduced from ${assignedDocuments.length} for speed)`);
+    // Process ALL assigned documents (EXACTLY matching Clinical approach - no speed limits)
+    const documentsToProcess = assignedDocuments;
+    console.log(`📄 COMPREHENSIVE MODE: Starting evidence extraction from ALL ${documentsToProcess.length} documents for: ${question.question}`);
+    console.log(`🔍 FULL ANALYSIS: Processing ALL ${documentsToProcess.length} assigned documents for thorough financial analysis`);
 
     // Process documents in batches with timeout for speed
     const batchSize = 20;
@@ -366,9 +400,9 @@ export class ComprehensiveFinancialAnalysisService {
       console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
       
       // Use AI summary if available, otherwise fall back to OCR content
-      const content = doc.aiSummary || doc.ocrText || '';
+      const content = typeof doc.aiSummary === 'string' ? doc.aiSummary : (doc.ocrText || '');
       
-      if (!content || content.trim().length === 0) {
+      if (!content || typeof content !== 'string' || content.trim().length === 0) {
         return null;
       }
 
@@ -409,11 +443,16 @@ export class ComprehensiveFinancialAnalysisService {
         max_tokens: 800
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      let rawContent = response.choices[0].message.content || '{}';
+      // Handle markdown code blocks from OpenAI response
+      if (rawContent.includes('```json')) {
+        rawContent = rawContent.replace(/```json\s*/, '').replace(/\s*```/, '');
+      }
+      const result = JSON.parse(rawContent);
       
       return {
         documentName: doc.name,
-        documentSummary: doc.aiSummary || 'No summary available',
+        documentSummary: typeof doc.aiSummary === 'string' ? doc.aiSummary : 'No summary available',
         relevantContent: result.relevantContent || [],
         keyFindings: result.keyFindings || [],
         confidence: result.confidence || 0.5
@@ -487,8 +526,13 @@ export class ComprehensiveFinancialAnalysisService {
         max_tokens: 1200
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-      
+      let rawContent = response.choices[0].message.content || '{}';
+      // Handle markdown code blocks from OpenAI response  
+      if (rawContent.includes('```json')) {
+        rawContent = rawContent.replace(/```json\s*/, '').replace(/\s*```/, '');
+      }
+      const result = JSON.parse(rawContent);
+
       return {
         question: question.question,
         answer: result.answer || "Unable to provide comprehensive analysis based on available evidence.",
@@ -503,7 +547,7 @@ export class ComprehensiveFinancialAnalysisService {
 
     } catch (error) {
       console.error('Error compiling financial answer:', error);
-      
+
       return {
         question: question.question,
         answer: "Error occurred during financial analysis compilation.",
@@ -511,7 +555,7 @@ export class ComprehensiveFinancialAnalysisService {
         sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,
         keyFindings: ["Analysis compilation failed"],
-        evidenceSummary: evidenceSummary,
+        evidenceSummary: "Analysis compilation failed",
         financialAssessment: "Assessment failed due to processing error",
         recommendations: ["Retry analysis with technical support"]
       };
