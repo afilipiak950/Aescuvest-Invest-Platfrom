@@ -51,7 +51,6 @@ export class PersistentFinancialAnalysisService {
           const dealJobs = await storage.getBackgroundJobsByDealId(dealId);
           const financialJobsForDeal = dealJobs.filter(job => 
             job.agentType === 'financial' && 
-            job.jobType === 'comprehensive_financial_analysis' &&
             (job.status === 'processing' || job.status === 'completed')
           );
           
@@ -95,9 +94,9 @@ export class PersistentFinancialAnalysisService {
     console.log(`💰 Starting financial analysis for deal ${dealId}`);
     
     try {
-      // Check if there's already a running job
-      const existingJobs = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_financial_analysis');
-      const runningJob = existingJobs.find(job => job.status === 'processing');
+      // Check if there's already a running job  
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const runningJob = existingJobs.find(job => job.agentType === 'financial' && job.status === 'processing');
       
       if (runningJob) {
         console.log(`🔄 Found existing financial analysis job ${runningJob.jobId}, resuming...`);
@@ -131,6 +130,32 @@ export class PersistentFinancialAnalysisService {
       return jobId;
     } catch (error) {
       console.error(`❌ Failed to start financial analysis for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Manually take over an existing financial analysis job and transition it to persistent architecture
+   */
+  async takeOverFinancialAnalysis(dealId: number, oldJobId: string): Promise<void> {
+    console.log(`💰 Taking over financial analysis job ${oldJobId} for deal ${dealId}`);
+    
+    try {
+      // Update the old job to indicate it's being handled by persistent service
+      const existingJob = await storage.getBackgroundJobById(oldJobId);
+      await storage.updateBackgroundJob(oldJobId, {
+        status: 'processing',
+        metadata: {
+          ...existingJob?.metadata || {},
+          takenOverByPersistentService: true,
+          transitionTime: new Date().toISOString()
+        }
+      });
+
+      // Start the persistent micro-step process
+      await this.runFinancialAnalysis(dealId, oldJobId);
+    } catch (error) {
+      console.error(`❌ Failed to take over financial analysis ${oldJobId}:`, error);
       throw error;
     }
   }
