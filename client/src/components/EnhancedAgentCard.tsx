@@ -390,6 +390,21 @@ export default function EnhancedAgentCard({
       queryClient.invalidateQueries({ queryKey: ['/api/analyses', dealId] });
     }
     
+    // CRITICAL FIX: REMOVE cached data completely for IP analysis to prevent stale data display
+    if (agentType.toLowerCase() === 'ip') {
+      console.log(`🔬 CACHE FIX: REMOVING ALL IP analysis cache data for deal ${dealId}`);
+      // Remove ALL IP-related cached data entirely
+      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+      queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
+      // Also invalidate to trigger fresh fetches
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/analyses', dealId] });
+    }
+    
     runMistralAnalysisMutation.mutate();
   };
 

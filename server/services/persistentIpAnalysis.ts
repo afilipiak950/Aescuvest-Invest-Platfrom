@@ -6,6 +6,89 @@ class PersistentIpAnalysisService {
   private jobIntervals = new Map<string, NodeJS.Timeout>();
 
   /**
+   * Start IP analysis method - EXACT Financial pattern for "Re-run Analysis" button
+   * This method is called by the /analyze endpoint to start fresh analysis
+   */
+  async startIpAnalysis(dealId: number): Promise<string> {
+    const jobId = `ip-analysis-${dealId}`;
+    
+    console.log(`🔬 Starting FRESH persistent IP analysis for deal ${dealId}`);
+
+    // CRITICAL FIX: Delete existing analysis data first - EXACTLY like Financial template 
+    console.log(`🧹 DELETING existing IP analysis data for deal ${dealId} to ensure fresh start...`);
+    await comprehensiveIpAnalysisService.deleteExistingAnalysis(dealId);
+    
+    // ALWAYS delete existing job to force fresh start - EXACT Clinical behavior
+    const existingJob = await storage.getBackgroundJobById(jobId);
+    if (existingJob) {
+      console.log(`🧹 FORCE DELETING existing job for deal ${dealId} with status ${existingJob.status} to start fresh...`);
+      await storage.deleteBackgroundJob(jobId);
+      
+      // Also clear from memory if running
+      if (this.activeJobs.has(jobId)) {
+        this.activeJobs.delete(jobId);
+      }
+      
+      const interval = this.jobIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(jobId);
+      }
+      
+      // Add small delay to ensure database deletion is committed
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Create new background job record with error handling for duplicate keys
+    try {
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_ip_analysis',
+        dealId,
+        agentType: 'IP',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        currentStep: 'Initializing IP analysis...',
+        startedAt: new Date()
+      });
+      console.log(`✅ Created background job ${jobId} for IP analysis`);
+    } catch (error) {
+      // If job already exists, try to delete and recreate once more
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log(`⚠️ Duplicate job key detected, attempting force cleanup for ${jobId}`);
+        await storage.deleteBackgroundJob(jobId);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'comprehensive_ip_analysis',
+          dealId,
+          agentType: 'IP',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 0,
+          processedDocuments: 0,
+          currentStep: 'Initializing IP analysis...',
+          startedAt: new Date()
+        });
+        console.log(`✅ Successfully created job ${jobId} after cleanup`);
+      } else {
+        throw error;
+      }
+    }
+
+    // Start the analysis in the background by calling the existing method
+    this.startAnalysis(dealId, jobId)
+      .catch(error => {
+        console.error(`💥 Error in background IP analysis for deal ${dealId}:`, error);
+      });
+
+    return jobId;
+  }
+
+  /**
    * CRITICAL: Start persistent IP analysis with EXACT Financial template behavior
    * - Delete existing analysis data FIRST (not at completion) 
    * - Delete existing job to force fresh start
