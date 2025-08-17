@@ -44,21 +44,50 @@ export class PersistentFinancialAnalysisService {
         clearInterval(interval);
         this.jobIntervals.delete(jobId);
       }
+      
+      // Add small delay to ensure database deletion is committed
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // Create new background job record - EXACTLY like Clinical
-    await storage.createBackgroundJob({
-      jobId,
-      jobType: 'comprehensive_financial_analysis',
-      dealId,
-      agentType: 'financial',
-      status: 'processing',
-      progress: 0,
-      totalDocuments: 0,
-      processedDocuments: 0,
-      currentStep: 'Initializing financial analysis...',
-      startedAt: new Date()
-    });
+    // Create new background job record with error handling for duplicate keys
+    try {
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_financial_analysis',
+        dealId,
+        agentType: 'financial',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        currentStep: 'Initializing financial analysis...',
+        startedAt: new Date()
+      });
+      console.log(`✅ Created background job ${jobId} for financial analysis`);
+    } catch (error) {
+      // If job already exists, try to delete and recreate once more
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log(`⚠️ Duplicate job key detected, attempting force cleanup for ${jobId}`);
+        await storage.deleteBackgroundJob(jobId);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'comprehensive_financial_analysis',
+          dealId,
+          agentType: 'financial',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 0,
+          processedDocuments: 0,
+          currentStep: 'Initializing financial analysis...',
+          startedAt: new Date()
+        });
+        console.log(`✅ Successfully created job ${jobId} after cleanup`);
+      } else {
+        throw error;
+      }
+    }
 
     // Start the analysis in the background
     this.runFinancialAnalysisInBackground(dealId, jobId);
