@@ -5,7 +5,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '../storage';
-import { EnhancedComprehensiveAnalysisService } from '../enhancedComprehensiveAnalysisService';
+import { comprehensiveFinancialAnalysisService } from '../comprehensiveFinancialAnalysisService';
 
 interface JobData {
   dealId: number;
@@ -171,11 +171,9 @@ export class PersistentFinancialAnalysisService {
     try {
       console.log(`💰 Starting persistent financial analysis for deal ${dealId}`);
       
-      // Use the existing comprehensive financial analysis service
-      const analysisService = new EnhancedComprehensiveAnalysisService();
-      
+      // Use the existing comprehensive financial analysis service - EXACT Clinical pattern
       console.log(`📊 Starting comprehensive financial analysis for deal ${dealId}...`);
-      await analysisService.runComprehensiveFinancialAnalysis(dealId);
+      await comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
       
       // Mark job as completed - EXACTLY like Clinical
       await storage.updateBackgroundJob(jobId, {
