@@ -89,7 +89,7 @@ export default function EnhancedAgentCard({
 
   // Fetch comprehensive IP analysis data directly for IP agents
   const { data: ipAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive`],
     enabled: agentType.toLowerCase() === 'ip',
     refetchInterval: 2000, // Refresh every 2 seconds
   });
@@ -4885,10 +4885,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 
 // IP Questions Section Component - Structured questions with Clinical-style display
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Applications/Grants"]));
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Portfolio"]));
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive`],
     refetchInterval: 2000,
   });
 
@@ -4902,31 +4902,31 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     setExpandedCategories(newExpanded);
   };
 
-  // IP questions structure matching the backend service
+  // IP questions structure EXACTLY matching the backend service - comprehensiveIpAnalysisService.ts
   const IP_QUESTIONS = [
-    // 1. Patent Applications/Grants - 4 questions
-    { id: "patents_1", question: "What jurisdictions are covered (US, EU, China, Japan)?", category: "Patent Applications/Grants" },
-    { id: "patents_2", question: "What is the legal status (granted, pending, abandoned)?", category: "Patent Applications/Grants" },
-    { id: "patents_3", question: "How long is the protection duration remaining?", category: "Patent Applications/Grants" },
-    { id: "patents_4", question: "Is there freedom to operate (FTO) analysis available?", category: "Patent Applications/Grants" },
+    // Patent Portfolio - 3 questions 
+    { id: "patents_1", question: "What patents are owned or pending?", category: "Patent Portfolio" },
+    { id: "patents_2", question: "Are core technologies protected?", category: "Patent Portfolio" },
+    { id: "patents_3", question: "What is the patent landscape analysis?", category: "Patent Portfolio" },
     
-    // 2. Trademark Registrations - 4 questions
-    { id: "trademarks_1", question: "What Nice classes are covered for trademark protection?", category: "Trademark Registrations" },
-    { id: "trademarks_2", question: "Are there any oppositions or disputes filed?", category: "Trademark Registrations" },
-    { id: "trademarks_3", question: "What renewal dates and maintenance requirements exist?", category: "Trademark Registrations" },
-    { id: "trademarks_4", question: "Are brand extensions or geographical expansions planned?", category: "Trademark Registrations" },
+    // Trademarks & Branding - 2 questions
+    { id: "trademarks_1", question: "Are trademarks registered and protected?", category: "Trademarks & Branding" },
+    { id: "trademarks_2", question: "Is brand identity legally secure?", category: "Trademarks & Branding" },
     
-    // 3. License Agreements - 4 questions
-    { id: "licenses_1", question: "Are licenses exclusive or non-exclusive?", category: "License Agreements" },
-    { id: "licenses_2", question: "What royalty rates and payment terms are defined?", category: "License Agreements" },
-    { id: "licenses_3", question: "Are sublicensing rights granted or restricted?", category: "License Agreements" },
-    { id: "licenses_4", question: "What termination clauses and conditions exist?", category: "License Agreements" },
+    // Technology Licensing - 2 questions  
+    { id: "licensing_1", question: "What licensing agreements are in place?", category: "Technology Licensing" },
+    { id: "licensing_2", question: "Are there any IP infringement risks?", category: "Technology Licensing" },
     
-    // 4. Source Code Ownership Declarations - 4 questions
-    { id: "source_code_1", question: "Is all source code developed in-house or are there third-party components?", category: "Source Code Ownership" },
-    { id: "source_code_2", question: "What open-source licenses are used (GPL, MIT, Apache)?", category: "Source Code Ownership" },
-    { id: "source_code_3", question: "Are there clear policies for employee-created IP?", category: "Source Code Ownership" },
-    { id: "source_code_4", question: "Are all code contributions properly documented and assigned?", category: "Source Code Ownership" }
+    // IP Strategy & Valuation - 2 questions
+    { id: "strategy_1", question: "What is the IP strategy and roadmap?", category: "IP Strategy & Valuation" },
+    { id: "strategy_2", question: "How is IP valued and monetized?", category: "IP Strategy & Valuation" },
+    
+    // Trade Secrets & Confidentiality - 2 questions
+    { id: "secrets_1", question: "What trade secrets are protected?", category: "Trade Secrets & Confidentiality" },
+    { id: "secrets_2", question: "Are confidentiality measures adequate?", category: "Trade Secrets & Confidentiality" },
+    
+    // Competitive IP Position - 1 question
+    { id: "competitive_1", question: "What is the competitive IP landscape?", category: "Competitive IP Position" }
   ];
 
   const categorizedQuestions = IP_QUESTIONS.reduce((acc, question) => {
@@ -4947,22 +4947,18 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       // Find the most relevant finding for this question
       const relevantFinding = findings.find((finding: any) => {
         const questionKeywords = {
-          'patents_1': ['jurisdiction', 'US', 'EU', 'China', 'Japan', 'country', 'countries', 'filed', 'application'],
-          'patents_2': ['status', 'granted', 'pending', 'abandoned', 'approved', 'allowed', 'legal'],
-          'patents_3': ['duration', 'remaining', 'expir', 'protection', 'term'],
-          'patents_4': ['freedom', 'operate', 'FTO', 'analysis'],
-          'trademarks_1': ['Nice', 'class', 'trademark', 'protection'],
-          'trademarks_2': ['opposition', 'dispute', 'filed', 'challenge'],
-          'trademarks_3': ['renewal', 'maintenance', 'requirement'],
-          'trademarks_4': ['brand', 'extension', 'geographical', 'expansion'],
-          'licenses_1': ['exclusive', 'non-exclusive', 'license'],
-          'licenses_2': ['royalty', 'payment', 'terms', 'rate'],
-          'licenses_3': ['sublicensing', 'rights', 'granted', 'restricted'],
-          'licenses_4': ['termination', 'clause', 'condition'],
-          'source_code_1': ['source', 'code', 'in-house', 'third-party', 'component', 'developed'],
-          'source_code_2': ['open-source', 'GPL', 'MIT', 'Apache', 'license', 'open source'],
-          'source_code_3': ['employee', 'policy', 'IP', 'created'],
-          'source_code_4': ['contribution', 'documented', 'assigned']
+          'patents_1': ['patent', 'patent application', 'intellectual property', 'patent pending', 'patent portfolio'],
+          'patents_2': ['technology protection', 'core technology', 'proprietary technology', 'patent protection'],
+          'patents_3': ['patent landscape', 'prior art', 'patent search', 'freedom to operate'],
+          'trademarks_1': ['trademark', 'service mark', 'brand protection', 'trademark registration'],
+          'trademarks_2': ['brand identity', 'brand protection', 'logo protection', 'brand security'],
+          'licensing_1': ['licensing agreement', 'technology license', 'ip license', 'licensing deal'],
+          'licensing_2': ['ip infringement', 'patent infringement', 'trademark infringement', 'ip risk'],
+          'strategy_1': ['ip strategy', 'intellectual property strategy', 'ip roadmap', 'ip development', 'patent strategy'],
+          'strategy_2': ['ip valuation', 'ip value', 'ip monetization', 'intellectual property value', 'patent value'],
+          'secrets_1': ['trade secret', 'confidential information', 'proprietary information', 'know-how', 'confidentiality'],
+          'secrets_2': ['confidentiality agreement', 'nda', 'non-disclosure', 'information security', 'data protection'],
+          'competitive_1': ['competitive landscape', 'competitor patents', 'market analysis', 'ip competition', 'patent analysis']
         };
         
         const keywords = questionKeywords[questionId as keyof typeof questionKeywords] || [];

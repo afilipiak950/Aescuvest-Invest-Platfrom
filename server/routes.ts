@@ -42,6 +42,7 @@ import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
+import persistentIpRoutes from './routes/persistentIpRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
@@ -182,6 +183,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('💰 Registering persistent financial analysis routes...');
   app.use(persistentFinancialRoutes);
   console.log('✅ Persistent financial analysis routes registered');
+
+  console.log('🔬 Registering persistent IP analysis routes...');
+  app.use(persistentIpRoutes);
+  console.log('✅ Persistent IP analysis routes registered');
   
   // Register persistent legal analysis routes
   console.log('🔍 Registering persistent legal analysis routes...');
