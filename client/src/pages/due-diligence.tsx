@@ -1330,10 +1330,10 @@ function DueDiligenceContent() {
                       doc.documentType?.toLowerCase() === agentType.toLowerCase()
                     ).length || 0;
                     
-                    // Realistic questions per agent (much smaller numbers)
+                    // Correct questions per agent - matching actual question counts in services
                     const questionCounts = {
-                      'Legal': 8, 'Clinical': 6, 'Commercial': 5, 
-                      'HR': 4, 'Financial': 7, 'IP': 3, 'Research': 4
+                      'Legal': 13, 'Clinical': 6, 'Commercial': 5, 
+                      'HR': 8, 'Financial': 12, 'IP': 12, 'Research': 4
                     };
                     const totalQuestions = questionCounts[agentType] || 5;
                     const totalJobs = Math.max(assignedDocs * totalQuestions, assignedDocs || 1);
