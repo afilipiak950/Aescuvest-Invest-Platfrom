@@ -1263,8 +1263,15 @@ function DueDiligenceContent() {
                       j.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
-                    // Use REAL progress from backend, default to 0 if no job exists
-                    const currentProgress = matchingJob?.progress || 0;
+                    // CRITICAL FIX: Check for completed analysis data first, then active jobs
+                    const completedAnalysis = analyses?.find(a => 
+                      a.agentType?.toLowerCase() === agentType.toLowerCase()
+                    );
+                    
+                    // Use progress from completed analysis (100%) or active job progress, default to 0
+                    const currentProgress = completedAnalysis?.status === 'completed' 
+                      ? 100 
+                      : (matchingJob?.progress || 0);
                     const isCurrentlyRunning = matchingJob?.status === 'processing';
                     const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
                     const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
