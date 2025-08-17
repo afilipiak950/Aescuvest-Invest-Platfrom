@@ -132,16 +132,18 @@ export class PersistentFinancialAnalysisService {
 
       this.activeJobs.set(jobId, jobState);
 
-      // Set up progress monitoring interval - EXACTLY like Clinical
-      const progressInterval = setInterval(async () => {
-        await this.monitorJobProgress(jobId, dealId);
-      }, 2000); // Every 2 seconds like Clinical
-
-      this.jobIntervals.set(jobId, progressInterval);
+      // Remove this duplicate interval setup - it's already done in processFinancialAnalysis
 
       // Delegate to comprehensive financial analysis service but with persistence - EXACTLY like Clinical
       console.log(`💰 Delegating to comprehensive financial analysis service...`);
       
+      // Set up progress monitoring interval - EXACTLY like Clinical
+      const progressInterval = setInterval(async () => {
+        await this.broadcastProgress(jobId, jobState);
+      }, 2000);
+
+      this.jobIntervals.set(jobId, progressInterval);
+
       // Hook into the existing service but with persistent tracking - EXACTLY like Clinical
       await this.runPersistentFinancialAnalysis(dealId, jobId, jobState);
 
@@ -165,26 +167,30 @@ export class PersistentFinancialAnalysisService {
   }
 
   /**
-   * Run persistent financial analysis - EXACTLY like Clinical's runPersistentAnalysis
+   * Run the actual analysis with persistent state updates - EXACT COPY of Clinical's runPersistentAnalysis
    */
   private async runPersistentFinancialAnalysis(dealId: number, jobId: string, jobState: JobData): Promise<void> {
     try {
-      console.log(`💰 Starting persistent financial analysis for deal ${dealId}`);
+      // Update job state
+      const currentStep = 'Running comprehensive financial analysis...';
+      await this.updateJobProgress(jobId, jobState.progress, currentStep);
+
+      // Call the existing comprehensive financial analysis service
+      const result = await comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
+
+      // Mark as completed
+      jobState.progress = 100;
+      const completedStep = 'Financial analysis completed';
       
-      // Use the existing comprehensive financial analysis service - EXACT Clinical pattern
-      console.log(`📊 Starting comprehensive financial analysis for deal ${dealId}...`);
-      await comprehensiveFinancialAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
-      
-      // Mark job as completed - EXACTLY like Clinical
       await storage.updateBackgroundJob(jobId, {
         status: 'completed',
         progress: 100,
-        currentStep: 'Financial analysis completed',
+        currentStep: completedStep,
         completedAt: new Date(),
         updatedAt: new Date()
       });
 
-      // Clean up - EXACTLY like Clinical
+      // Clean up
       const interval = this.jobIntervals.get(jobId);
       if (interval) {
         clearInterval(interval);
@@ -200,22 +206,38 @@ export class PersistentFinancialAnalysisService {
     }
   }
 
-  private async monitorJobProgress(jobId: string, dealId: number): Promise<void> {
+  /**
+   * Update job progress in database and memory - EXACT COPY of Clinical
+   */
+  private async updateJobProgress(jobId: string, progress: number, currentStep: string): Promise<void> {
     try {
-      // Get current job from database to see real progress
-      const currentJob = await storage.getBackgroundJobById(jobId);
-      if (!currentJob) {
-        console.log(`⚠️ Job ${jobId} not found in database, stopping monitoring`);
-        const interval = this.jobIntervals.get(jobId);
-        if (interval) {
-          clearInterval(interval);
-          this.jobIntervals.delete(jobId);
-        }
-        this.activeJobs.delete(jobId);
-        return;
+      // Update database
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        currentStep,
+        updatedAt: new Date()
+      });
+
+      // Update memory
+      const jobState = this.activeJobs.get(jobId);
+      if (jobState) {
+        jobState.progress = progress;
+        jobState.currentDocumentName = currentStep;
+        jobState.lastUpdate = new Date();
       }
 
-      // Update memory with real database values - EXACTLY like Clinical
+    } catch (error) {
+      console.error(`❌ Failed to update job progress for ${jobId}:`, error);
+    }
+  }
+
+  /**
+   * Broadcast progress via WebSocket - EXACT COPY of Clinical
+   */
+  private async broadcastProgress(jobId: string, jobState: JobData): Promise<void> {
+    try {
+      // Get current progress from database (the source of truth)
+      const currentJob = await storage.getBackgroundJobById(jobId);
       if (currentJob && this.activeJobs.has(jobId)) {
         const jobData = this.activeJobs.get(jobId);
         if (jobData) {
@@ -239,7 +261,7 @@ export class PersistentFinancialAnalysisService {
       }
 
       // Check if job is completed or failed
-      if (currentJob.status === 'completed' || currentJob.status === 'failed') {
+      if (currentJob?.status === 'completed' || currentJob?.status === 'failed') {
         console.log(`✅ Financial analysis job ${jobId} finished with status: ${currentJob.status}`);
         const interval = this.jobIntervals.get(jobId);
         if (interval) {
@@ -250,9 +272,11 @@ export class PersistentFinancialAnalysisService {
       }
 
     } catch (error) {
-      console.error(`❌ Error monitoring financial job progress ${jobId}:`, error);
+      console.error(`❌ Error broadcasting financial progress:`, error);
     }
   }
+
+  // Removed duplicate monitorJobProgress method - using broadcastProgress for consistency with Clinical
 
   private async completeJob(jobId: string, results: any): Promise<void> {
     try {
