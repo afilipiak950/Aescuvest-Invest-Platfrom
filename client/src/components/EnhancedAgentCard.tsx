@@ -4228,14 +4228,14 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning || isCompleted}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
       className={isCompleted ? "bg-green-500 text-white border-green-400" : "bg-green-600 hover:bg-green-700 text-white border-green-500"}
     >
       {isCompleted ? (
         <>
           <CheckCircle className="h-4 w-4 mr-2" />
-          Financial Analysis Complete
+          Re-run Financial Analysis
         </>
       ) : isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
