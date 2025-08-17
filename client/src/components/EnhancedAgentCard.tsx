@@ -4987,10 +4987,34 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const recommendations = (comprehensiveResults as any)?.analysis?.recommendations || [];
 
   const getAnswerForQuestion = (questionId: string) => {
-    // CRITICAL FIX: Use ipAnswers from comprehensive analysis like Financial agent
+    // CRITICAL FIX: Check multiple data structures for IP answers - match backend logs
+    console.log(`🔍 Looking for IP answer for question: ${questionId}`);
+    console.log(`🔍 Available IP data keys:`, ipData ? Object.keys(ipData) : 'No ipData');
+    console.log(`🔍 Comprehensive results structure:`, comprehensiveResults ? Object.keys(comprehensiveResults) : 'No comprehensive results');
+    
+    // Try different data paths based on backend structure
+    const analysisData = comprehensiveResults?.analysis || ipData?.analysis || ipData;
+    
+    // Check if answers are directly in the analysis object (matching backend logs)
+    if (analysisData && analysisData[questionId]) {
+      console.log(`✅ Found IP answer for ${questionId} in analysis data`);
+      return analysisData[questionId];
+    }
+    
+    // Check if answers are in ipAnswers structure  
     if (ipData?.ipAnswers && ipData.ipAnswers[questionId]) {
+      console.log(`✅ Found IP answer for ${questionId} in ipAnswers`);
       return ipData.ipAnswers[questionId];
     }
+    
+    // Check comprehensiveResults.analysis structure
+    if (comprehensiveResults?.analysis && comprehensiveResults.analysis[questionId]) {
+      console.log(`✅ Found IP answer for ${questionId} in comprehensive results`);
+      return comprehensiveResults.analysis[questionId];
+    }
+    
+    console.log(`❌ No IP answer found for ${questionId}`);
+    return null;
 
     // Fallback: Try to map findings to questions based on content similarity
     if (findings.length > 0) {
