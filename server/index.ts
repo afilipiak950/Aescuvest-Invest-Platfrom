@@ -11,6 +11,7 @@ import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
+import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
 
 const app = express();
@@ -362,6 +363,12 @@ app.use((req, res, next) => {
     console.log('🔍 Initializing Persistent Legal Analysis Service...');
     persistentLegalAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent legal analysis:', err);
+    });
+
+    // Initialize Persistent Financial Analysis Service
+    console.log('💰 Initializing Persistent Financial Analysis Service...');
+    persistentFinancialAnalysisService.initialize().catch(err => {
+      console.error('❌ Failed to initialize persistent financial analysis:', err);
     });
   });
 })();

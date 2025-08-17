@@ -618,4 +618,83 @@ export class ComprehensiveFinancialAnalysisService {
       return [];
     }
   }
+
+  /**
+   * CRITICAL: runComprehensiveAnalysis method to match Clinical architecture exactly
+   * This is the method that persistent services expect to call
+   */
+  async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string, progressCallback?: Function): Promise<any> {
+    console.log(`💰 runComprehensiveAnalysis called for deal ${dealId}, job ${jobId}`);
+    
+    try {
+      // Set up progress callback if provided
+      if (progressCallback) {
+        // Mock the existing startComprehensiveAnalysis method behavior but with callbacks
+        this.isRunning = true;
+        this.progress = 0;
+        this.currentStep = 'Initializing financial analysis';
+        
+        // Start processing
+        await progressCallback(8, 'Loading financial documents...');
+        
+        const assignedDocuments = await this.getAssignedDocuments(dealId);
+        console.log(`📄 Found ${assignedDocuments.length} financial documents for analysis`);
+        
+        await progressCallback(17, 'Processing document batch 1...');
+        
+        const financialAnswers: { [key: string]: FinancialAnswer } = {};
+        
+        // Process each question with micro-step progression
+        for (let i = 0; i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length; i++) {
+          const question = COMPREHENSIVE_FINANCIAL_QUESTIONS[i];
+          const questionNumber = i + 1;
+          const totalQuestions = COMPREHENSIVE_FINANCIAL_QUESTIONS.length;
+          
+          // Calculate progress with exact micro-step formula
+          const baseProgress = 17; // Starting progress after document loading
+          const questionProgress = Math.floor(((i + 1) / totalQuestions) * 75); // 75% for questions (17% to 92%)
+          const progress = baseProgress + questionProgress;
+          
+          const stepMessage = `Analyzing: ${question.question}`;
+          await progressCallback(progress, stepMessage);
+          
+          console.log(`🔍 Question ${questionNumber}/${totalQuestions}: ${question.question}`);
+          
+          // Extract evidence and compile answer
+          const evidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
+          const answer = await this.compileComprehensiveAnswer(question, evidence);
+          financialAnswers[question.id] = answer;
+          
+          console.log(`✅ Completed question ${questionNumber}/${totalQuestions}`);
+        }
+        
+        await progressCallback(92, 'Finalizing results...');
+        
+        // Store comprehensive results
+        await this.storeComprehensiveResults(dealId, financialAnswers, assignedDocuments);
+        
+        await progressCallback(100, 'Financial analysis completed');
+        
+        this.isRunning = false;
+        console.log(`✅ Financial comprehensive analysis completed for deal ${dealId}`);
+        
+        return { success: true, questionsAnswered: Object.keys(financialAnswers).length };
+        
+      } else {
+        // Fallback to original method
+        await this.startComprehensiveAnalysis(dealId, jobId);
+        return { success: true };
+      }
+    } catch (error) {
+      console.error(`❌ runComprehensiveAnalysis failed for deal ${dealId}:`, error);
+      this.isRunning = false;
+      if (progressCallback) {
+        await progressCallback(0, 'Financial analysis failed');
+      }
+      throw error;
+    }
+  }
 }
+
+// Export singleton instance
+export const comprehensiveFinancialAnalysisService = new ComprehensiveFinancialAnalysisService();
