@@ -102,4 +102,55 @@ router.get('/api/deals/:dealId/financial-analysis/persistent/status', async (req
   }
 });
 
+/**
+ * Get comprehensive financial analysis results - EXACTLY like Legal agent
+ */
+router.get('/api/deals/:dealId/financial-analysis/comprehensive/results', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    // Import storage here to avoid circular dependency
+    const { storage } = await import('../storage');
+    
+    const analysis = await storage.getAgentAnalysis(dealId, 'Financial');
+    
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: 'No financial analysis found'
+      });
+    }
+
+    console.log(`✅ Found comprehensive financial analysis - ${Object.keys(analysis.financialAnswers || {}).length} questions, ${analysis.findings?.length || 0} findings, ${analysis.recommendations?.length || 0} recommendations`);
+
+    res.json({
+      success: true,
+      analysis: {
+        dealId,
+        agentType: analysis.agentType,
+        status: analysis.status,
+        findings: analysis.findings || [],
+        recommendations: analysis.recommendations || [],
+        confidence: analysis.confidence || 0,
+        completedAt: analysis.completedAt,
+        financialAnswers: analysis.financialAnswers || {}
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting comprehensive financial analysis results:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get financial analysis results' 
+    });
+  }
+});
+
 export default router;
