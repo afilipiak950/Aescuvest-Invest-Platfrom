@@ -89,7 +89,7 @@ export default function EnhancedAgentCard({
 
   // Fetch comprehensive IP analysis data directly for IP agents
   const { data: ipAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive`],
+    queryKey: [`/api/deals/${dealId}/agents/ip/results`],
     enabled: agentType.toLowerCase() === 'ip',
     refetchInterval: 2000, // Refresh every 2 seconds
   });
