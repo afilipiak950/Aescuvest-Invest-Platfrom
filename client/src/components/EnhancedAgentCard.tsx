@@ -3817,10 +3817,14 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
+  // CRITICAL FIX: Use comprehensive results endpoint like Clinical agent
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/financial/results`],
     refetchInterval: 2000,
   });
+
+  // Use comprehensive results if available, fallback to analysisData like Clinical
+  const financialData = comprehensiveResults?.analysis || analysisData || null;
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -3863,16 +3867,28 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // First try comprehensive results - fresh analysis data only
-    if (comprehensiveResults?.analysis?.financialAnswers?.[questionId]) {
-      return comprehensiveResults.analysis.financialAnswers[questionId];
+    if (!financialData) return null;
+    
+    console.log(`💰 Looking for answer to financial question ${questionId}`);
+    console.log(`💰 Financial Answers exists:`, !!financialData.financialAnswers);
+    
+    // First try to get answer from financialAnswers structure - EXACTLY like Clinical
+    if (financialData?.financialAnswers && financialData.financialAnswers[questionId]) {
+      const answer = financialData.financialAnswers[questionId];
+      return {
+        answer: answer.answer || 'Analysis in progress...',
+        confidence: answer.confidence || 0,
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
+        quotes: answer.quotes || [],
+        keyFindings: answer.keyFindings || [],
+        evidenceSummary: answer.evidenceSummary || '',
+        financialAssessment: answer.financialAssessment || '',
+        recommendations: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || []
+      };
     }
-    
-    // CRITICAL FIX: Remove stale data fallback and synthetic content generation
-    // Only show results from actual completed analysis, never generate placeholder content
-    // This matches Clinical and Legal agent behavior exactly
-    
-    return null; // Return null to show empty state until real analysis is available
+
+    return null; // Return null for empty state like Clinical agent
   };
 
   return (
