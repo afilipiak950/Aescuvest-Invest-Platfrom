@@ -5055,64 +5055,61 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
-              {questions && Array.isArray(questions) && questions.map(question => {
+              {questions && Array.isArray(questions) && questions.map((question) => {
                 const answer = getAnswerForQuestion(question.id);
-
+                const hasAnswer = answer !== null;
+                
                 return (
-                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
-                    <div className="space-y-3">
+                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
+                    <div className="p-3">
                       <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          hasAnswer ? 'bg-green-400' : 'bg-gray-400'
+                        }`} />
                         <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          <p className="text-white font-medium text-sm">{question.question}</p>
                           
-                          {answer ? (
+                          {hasAnswer ? (
                             <div className="mt-3 space-y-3">
-                              {/* Main Analysis Response - Clinical style matching the attached image */}
+                              {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
                                 <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced IP Assessment */}
-                              {answer.severity && (
+                              {answer.ipAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
-                                  <h5 className="text-xs font-medium text-indigo-400 mb-2">IP Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">
-                                    Severity Level: <span className={`font-medium ${
-                                      answer.severity === 'high' ? 'text-red-400' :
-                                      answer.severity === 'medium' ? 'text-yellow-400' :
-                                      'text-green-400'
-                                    }`}>
-                                      {answer.severity.toUpperCase()}
-                                    </span> - This finding requires {
-                                      answer.severity === 'high' ? 'immediate attention and legal review' :
-                                      answer.severity === 'medium' ? 'careful consideration in due diligence' :
-                                      'standard documentation and filing'
-                                    }.
-                                  </p>
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">IP Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.ipAssessment}</p>
                                 </div>
                               )}
 
                               {/* Document Quotes */}
-                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0})
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
                                   </h5>
                                   <div className="space-y-2">
-                                    {answer.sources.map((source: string, index: number) => (
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
                                       <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
                                         <div className="flex items-start justify-between mb-1">
                                           <button
-                                            onClick={() => handleDocumentClick(source)}
+                                            onClick={() => handleDocumentClick(quote.document)}
                                             className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${source}`}
+                                            title={`View document: ${quote.document}`}
                                           >
-                                            📄 {source && source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                                            📄 {quote.document && quote.document.length > 25 ? `${quote.document.substring(0, 25)}...` : quote.document}
                                           </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {quote.relevance}
+                                            </Badge>
+                                          )}
                                         </div>
                                         <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{answer.answer}"
+                                          "{quote.text}"
                                         </blockquote>
                                       </div>
                                     ))}
@@ -5121,53 +5118,93 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               )}
 
                               {/* Evidence Summary */}
-                              {answer.category && (
+                              {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">
-                                    Analysis category: {answer.category}. This finding is based on comprehensive review of IP documentation 
-                                    and represents key insights for investment due diligence assessment.
-                                  </p>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
                                 </div>
                               )}
 
-                              {/* Key IP Findings */}
-                              <div className="bg-dark/30 rounded p-3">
-                                <h5 className="text-xs font-medium text-purple-400 mb-2">🔍 Key IP Findings</h5>
-                                <ul className="space-y-1">
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-purple-400 text-xs mt-1">•</span>
-                                    IP protection status: {answer.severity === 'high' ? 'Strong portfolio' : answer.severity === 'medium' ? 'Moderate coverage' : 'Basic protection'}
-                                  </li>
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-purple-400 text-xs mt-1">•</span>
-                                    Documentation quality: {answer.confidence > 80 ? 'Comprehensive' : answer.confidence > 60 ? 'Adequate' : 'Limited'} evidence available
-                                  </li>
-                                </ul>
-                              </div>
+                              {/* Key Findings */}
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-purple-400 text-xs mt-1">•</span>
+                                        {finding}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
-                              {/* IP Recommendations */}
-                              <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
-                                <h5 className="text-xs font-medium text-red-400 mb-2">💡 IP Recommendations</h5>
-                                <ul className="space-y-1">
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-red-400 text-xs mt-1">⚠</span>
-                                    {answer.severity === 'high' ? 'Immediate IP audit recommended' : 'Standard IP review sufficient'}
-                                  </li>
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-red-400 text-xs mt-1">⚠</span>
-                                    Verify all IP registrations and filing statuses before investment
-                                  </li>
-                                </ul>
-                              </div>
+                              {/* Recommendations */}
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {rec}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {answer.confidence}%
+                                  Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
                                 </Badge>
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
-                                  <Badge variant="outline" className="text-yellow-400 border-yellow-400">
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
                                     {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
                                   </Badge>
                                 )}
