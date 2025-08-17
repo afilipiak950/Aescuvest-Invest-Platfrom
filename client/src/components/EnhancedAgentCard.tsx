@@ -4133,17 +4133,17 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: false, // Disable auto-polling to match Clinical behavior
   });
 
   const { data: progressData } = useQuery({
     queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
-    refetchInterval: 1000,
+    refetchInterval: false, // Disable auto-polling to match Clinical behavior
   });
 
   const { data: resultsData } = useQuery({
     queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
-    refetchInterval: 2000,
+    refetchInterval: false, // Disable auto-polling to match Clinical behavior
   });
 
   const isAlreadyRunning = progressData?.isRunning || 
@@ -4154,6 +4154,9 @@ function ComprehensiveFinancialAnalysisButton({ dealId }: { dealId: number }) {
   const isCompleted = resultsData?.success && resultsData?.results && 
     (resultsData.results.status === 'completed' || 
      (resultsData.results.financialAnswers && Object.keys(resultsData.results.financialAnswers).length > 0));
+
+  // Stop all polling when analysis is completed
+  const shouldStopPolling = isCompleted || !isRunning;
 
   const queryClient = useQueryClient();
   
