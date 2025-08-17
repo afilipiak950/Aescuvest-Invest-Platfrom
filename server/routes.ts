@@ -4373,27 +4373,44 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
       
-      // For IP agent, get analysis with IP answers
+      // For IP agent, get analysis with IP answers - EXACT FINANCIAL APPROACH
       if (agentType === 'ip') {
         const analysis = await storage.getAgentAnalysis(dealId, 'IP');
         
-        if (analysis && analysis.ip_answers) {
-          const ipAnswers = analysis.ip_answers;
-          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
-          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+        if (analysis) {
+          let ipAnswers = {};
+          let findings = [];
+          let recommendations = [];
           
-          const answeredQuestions = Object.keys(ipAnswers).length;
-          const totalQuestions = 8;
-          
-          console.log(`✅ Found IP analysis for deal ${dealId}:`, {
-            id: analysis.id,
-            agentType: analysis.agentType,
-            status: analysis.status,
-            findingsLength: JSON.stringify(findings).length,
-            recommendationsLength: JSON.stringify(recommendations).length,
-            totalRecordsFound: 1
-          });
-          
+          // Parse stored JSON data - EXACT Financial approach with field name fallback
+          try {
+            // Use comprehensive field first, then fallback to legacy field
+            if (analysis.ipAnswers) {
+              ipAnswers = typeof analysis.ipAnswers === 'string' 
+                ? JSON.parse(analysis.ipAnswers) 
+                : analysis.ipAnswers;
+            } else if (analysis.ip_answers) {
+              ipAnswers = typeof analysis.ip_answers === 'string' 
+                ? JSON.parse(analysis.ip_answers) 
+                : analysis.ip_answers;
+            }
+            if (analysis.findings) {
+              findings = typeof analysis.findings === 'string' 
+                ? JSON.parse(analysis.findings) 
+                : analysis.findings;
+            }
+            if (analysis.recommendations) {
+              recommendations = typeof analysis.recommendations === 'string' 
+                ? JSON.parse(analysis.recommendations) 
+                : analysis.recommendations;
+            }
+          } catch (parseError) {
+            console.error('Error parsing comprehensive IP analysis data:', parseError);
+            console.error('Analysis data received:', analysis);
+          }
+
+          console.log(`✅ Found comprehensive IP analysis - ${Object.keys(ipAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
           return res.json({
             success: true,
             analysis: {
@@ -4401,9 +4418,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
               ipAnswers,
               findings,
               recommendations,
-              questionsAnswered: answeredQuestions,
-              totalQuestions,
-              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+              questionsAnswered: Object.keys(ipAnswers).length,
+              totalQuestions: 12, // IP has 12 questions like Financial
+              completionRate: Math.round((Object.keys(ipAnswers).length / 12) * 100)
             }
           });
         } else {
