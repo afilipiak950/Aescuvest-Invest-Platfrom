@@ -5080,6 +5080,15 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         parsedAnswersKeys: Object.keys(ipAnswers)
       });
       
+      console.log(`🔐 BACKEND DEBUG: Raw ipAnswers sample:`, ipAnswers.patents_1 ? 'HAS patents_1' : 'NO patents_1');
+      console.log(`🔐 BACKEND DEBUG: Full response structure will have:`, {
+        results: {
+          status: analysis.status,
+          ipAnswers: Object.keys(ipAnswers),
+          ipAnswersCount: Object.keys(ipAnswers).length
+        }
+      });
+      
       res.json({
         success: true,
         results: {
