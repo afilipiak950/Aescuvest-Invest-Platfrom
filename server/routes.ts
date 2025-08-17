@@ -4311,14 +4311,14 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       if (agentType === 'financial') {
         const analysis = await storage.getAgentAnalysis(dealId, 'Financial');
         
-        if (analysis && analysis.financial_answers) {
+        if (analysis && analysis.financialAnswers) {
           // Transform comprehensive Financial results to match the expected format - EXACT HR PATTERN
           let financialAnswers = {};
           let findings = [];
           let recommendations = [];
           
           try {
-            const financialAnswersData = analysis.financial_answers;
+            const financialAnswersData = analysis.financialAnswers;
             financialAnswers = typeof financialAnswersData === 'string' 
               ? JSON.parse(financialAnswersData) 
               : financialAnswersData;
