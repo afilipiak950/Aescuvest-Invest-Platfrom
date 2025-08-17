@@ -30,16 +30,18 @@ app.use((req, res, next) => {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Content-Length, Authorization',
-      'Access-Control-Max-Age': '86400'
+      'Access-Control-Max-Age': '86400',
+      'X-Accel-Buffering': 'no', // 🚨 CRITICAL: Disable nginx buffering for large uploads
+      'X-Content-Type-Options': 'nosniff'
     });
   }
   
   next();
 });
 
-// Configure Express to handle very large file uploads (up to 5GB)
-app.use(express.json({ limit: '5gb' }));
-app.use(express.urlencoded({ limit: '5gb', extended: true }));
+// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 50GB)
+app.use(express.json({ limit: '50gb' }));
+app.use(express.urlencoded({ limit: '50gb', extended: true }));
 
 // Setup multer for file uploads BEFORE any other middleware
 const storage = multer.diskStorage({
@@ -60,9 +62,10 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for very large files
-    fieldSize: 5 * 1024 * 1024 * 1024,
-    files: 10
+    fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
+    fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for fields
+    fields: 100, // Allow many fields
+    files: 50 // Allow many files
   },
   fileFilter: (req, file, cb) => {
     // Allow all file types for ZIP uploads
@@ -158,8 +161,8 @@ app.use((req, res, next) => {
         chunkedUpload: '/api/upload/chunk/:uploadId/:chunkIndex'
       },
       verification: {
-        currentExpressLimits: 'Configured for 5GB',
-        currentMulterLimits: 'Configured for 5GB',
+        currentExpressLimits: 'Configured for 50GB',
+        currentMulterLimits: 'Configured for 50GB',
         cloudRunHeaders: 'Enhanced for large uploads',
         errorHandling: '413 detection enabled'
       },
@@ -329,11 +332,11 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = 5000;
   
-  // Configure server timeouts for large file uploads - CRITICAL for Cloud Run
-  server.timeout = 60 * 60 * 1000; // 1 hour for very large uploads (Cloud Run max)
-  server.keepAliveTimeout = 30 * 60 * 1000; // 30 minutes
-  server.headersTimeout = 30 * 60 * 1000; // 30 minutes
-  server.requestTimeout = 60 * 60 * 1000; // 1 hour for request processing
+  // 🚨 CRITICAL: Configure MASSIVE server timeouts for huge file uploads
+  server.timeout = 2 * 60 * 60 * 1000; // 2 hours for massive uploads  
+  server.keepAliveTimeout = 2 * 60 * 60 * 1000; // 2 hours
+  server.headersTimeout = 2 * 60 * 60 * 1000; // 2 hours
+  server.requestTimeout = 2 * 60 * 60 * 1000; // 2 hours for request processing
   
   // Set max listeners to handle concurrent uploads
   server.setMaxListeners(50);

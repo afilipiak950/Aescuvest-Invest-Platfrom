@@ -140,9 +140,10 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for very large files
-    fieldSize: 5 * 1024 * 1024 * 1024,
-    files: 10
+    fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
+    fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for fields
+    fields: 100, // Allow many fields  
+    files: 50 // Allow many files
   },
   fileFilter: function (req, file, cb) {
     const allowedTypes = ['.pdf', '.docx', '.doc', '.ppt', '.pptx', '.xlsx', '.xls', '.zip'];
