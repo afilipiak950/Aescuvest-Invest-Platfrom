@@ -623,6 +623,115 @@ Requirements:
       totalSteps: COMPREHENSIVE_IP_QUESTIONS.length
     };
   }
+
+  /**
+   * CRITICAL: Delete existing analysis data - EXACT copy of Financial's method
+   */
+  async deleteExistingAnalysis(dealId: number): Promise<void> {
+    try {
+      console.log(`🗑️ DELETING existing IP analysis data for deal ${dealId} to ensure fresh start...`);
+      await db.delete(agentAnalyses).where(
+        and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'IP')
+        )
+      );
+      console.log(`✅ DELETED existing IP analysis data for deal ${dealId}`);
+    } catch (error) {
+      console.error('Error deleting existing IP analysis:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * CRITICAL: runComprehensiveAnalysis method to match Financial architecture exactly
+   * This is the method that persistent services expect to call
+   */
+  async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string, progressCallback?: Function): Promise<any> {
+    console.log(`🔬 runComprehensiveAnalysis called for deal ${dealId}, job ${jobId}`);
+    
+    try {
+      // CRITICAL FIX: Delete existing analysis IMMEDIATELY at start, not at end
+      console.log(`🗑️ IMMEDIATELY clearing existing IP analysis for deal ${dealId} to ensure fresh start...`);
+      await db.delete(agentAnalyses).where(
+        and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'IP')
+        )
+      );
+      console.log(`✅ IMMEDIATELY cleared existing IP analysis for deal ${dealId}`);
+
+      // Set up progress callback if provided
+      if (progressCallback) {
+        // Mock the existing startComprehensiveAnalysis method behavior but with callbacks
+        this.isRunning = true;
+        this.progress = 0;
+        this.currentStep = 'Initializing IP analysis';
+        
+        // Start processing
+        await progressCallback(8, 'Loading IP documents...');
+        
+        const assignedDocuments = await this.getAssignedDocuments(dealId);
+        console.log(`📄 Found ${assignedDocuments.length} IP documents for analysis`);
+        
+        await progressCallback(17, 'Processing document batch 1...');
+        
+        const ipAnswers: { [key: string]: IpAnswer } = {};
+        
+        // Process each question with micro-step progression
+        for (let i = 0; i < COMPREHENSIVE_IP_QUESTIONS.length; i++) {
+          const question = COMPREHENSIVE_IP_QUESTIONS[i];
+          const questionNumber = i + 1;
+          const totalQuestions = COMPREHENSIVE_IP_QUESTIONS.length;
+          
+          // Calculate progress with exact micro-step formula
+          const baseProgress = 17; // Starting progress after document loading
+          const questionProgress = Math.floor(((i + 1) / totalQuestions) * 75); // 75% for questions (17% to 92%)
+          const currentProgress = baseProgress + questionProgress;
+          
+          await progressCallback(currentProgress, `Analyzing IP question ${questionNumber}/${totalQuestions}: ${question.question}`);
+          
+          console.log(`🔍 Question ${questionNumber}/${totalQuestions}: ${question.question}`);
+          this.currentQuestion = question.question;
+          this.currentStep = `Analyzing: ${question.question}`;
+          this.progress = currentProgress;
+
+          // Extract evidence for this specific question
+          console.log(`📊 Extracting IP evidence for: ${question.question}`);
+          const evidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
+          
+          // Compile comprehensive answer
+          console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${evidence.length} pieces of evidence`);
+          const answer = await this.compileComprehensiveAnswer(question, evidence);
+          
+          ipAnswers[question.id] = answer;
+          console.log(`✅ Completed question ${questionNumber}/${totalQuestions}: ${question.question}`);
+        }
+
+        // Store results
+        await progressCallback(95, 'Finalizing IP analysis...');
+        await this.storeComprehensiveResultsWithoutDeletion(dealId, ipAnswers, assignedDocuments);
+
+        // Final completion
+        this.progress = 100;
+        this.currentStep = 'IP analysis completed';
+        await progressCallback(100, 'IP analysis completed successfully');
+        
+        console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
+        return ipAnswers;
+      } else {
+        // Fall back to original method if no callback provided
+        await this.startComprehensiveAnalysis(dealId, jobId);
+      }
+
+    } catch (error) {
+      console.error('Error in comprehensive IP analysis:', error);
+      this.isRunning = false;
+      throw error;
+    } finally {
+      this.isRunning = false;
+    }
+  }
 }
 
 // Export singleton instance exactly like Financial
