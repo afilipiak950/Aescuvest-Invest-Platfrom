@@ -381,12 +381,10 @@ export default function EnhancedAgentCard({
     if (agentType.toLowerCase() === 'financial') {
       console.log(`💰 CACHE FIX: REMOVING ALL financial analysis cache data for deal ${dealId}`);
       // Remove ALL financial-related cached data entirely
-      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
       queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
       queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
       queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
       // Also invalidate to trigger fresh fetches
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/analyses', dealId] });
@@ -3817,14 +3815,25 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
-  // CRITICAL FIX: Use comprehensive results endpoint like Clinical agent
-  const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
+  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
     refetchInterval: 2000,
+    staleTime: 0, // Always treat as stale to force fresh data like Legal
+    gcTime: 0, // Don't cache results like Legal
   });
 
-  // Use comprehensive results if available, fallback to analysisData like Clinical
+  // Force refetch on component mount to ensure fresh data like Legal
+  useEffect(() => {
+    refetchComprehensive();
+  }, [refetchComprehensive]);
+
+  // Use comprehensive results if available, fallback to analysisData like Legal
   const financialData = comprehensiveResults?.analysis || analysisData || null;
+
+  console.log('💰 Financial Analysis Available:', !!financialData);
+  console.log('💰 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
+  console.log('💰 Financial Data from Comprehensive:', !!financialData?.financialAnswers);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -4139,13 +4148,12 @@ function PersistentFinancialButton({ dealId }: { dealId: number }) {
         console.log(`✅ Persistent financial analysis started:`, data);
         
         // CRITICAL FIX: Use removeQueries() for complete cache purging like other agents
-        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
-        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
         
         // Also invalidate for immediate UI refresh
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
         queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       } else {
@@ -4174,13 +4182,12 @@ function PersistentFinancialButton({ dealId }: { dealId: number }) {
         console.log(`✅ Persistent financial analysis stopped:`, data);
         
         // CRITICAL FIX: Use removeQueries() for complete cache purging like other agents
-        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
-        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
         
         // Also invalidate for immediate UI refresh
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
         queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       } else {
