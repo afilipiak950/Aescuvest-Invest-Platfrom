@@ -229,7 +229,7 @@ export class ComprehensiveFinancialAnalysisService {
         });
       }
 
-      await this.storeComprehensiveResults(dealId, financialAnswers, assignedDocuments);
+      await this.storeComprehensiveResultsWithoutDeletion(dealId, financialAnswers, assignedDocuments);
 
       // Final completion
       this.progress = 100;
@@ -448,7 +448,29 @@ export class ComprehensiveFinancialAnalysisService {
       if (rawContent.includes('```json')) {
         rawContent = rawContent.replace(/```json\s*/, '').replace(/\s*```/, '');
       }
-      const result = JSON.parse(rawContent);
+      
+      // CRITICAL: Enhanced JSON parsing with fallback for malformed responses
+      let result;
+      try {
+        result = JSON.parse(rawContent);
+      } catch (parseError) {
+        console.log(`⚠️ JSON parsing failed for document ${doc.name}, attempting to extract JSON from response...`);
+        
+        // Try to extract JSON from potentially malformed response
+        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[0]);
+            console.log(`✅ Successfully extracted JSON from malformed response for ${doc.name}`);
+          } catch (extractError) {
+            console.log(`❌ Failed to extract JSON from ${doc.name}, skipping...`);
+            return null;
+          }
+        } else {
+          console.log(`❌ No JSON found in response for ${doc.name}, skipping...`);
+          return null;
+        }
+      }
       
       return {
         documentName: doc.name,
@@ -531,7 +553,41 @@ export class ComprehensiveFinancialAnalysisService {
       if (rawContent.includes('```json')) {
         rawContent = rawContent.replace(/```json\s*/, '').replace(/\s*```/, '');
       }
-      const result = JSON.parse(rawContent);
+      
+      // CRITICAL: Enhanced JSON parsing with fallback for answer compilation
+      let result;
+      try {
+        result = JSON.parse(rawContent);
+      } catch (parseError) {
+        console.log(`⚠️ JSON parsing failed for answer compilation, attempting to extract JSON...`);
+        
+        // Try to extract JSON from potentially malformed response
+        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[0]);
+            console.log(`✅ Successfully extracted JSON from malformed answer response`);
+          } catch (extractError) {
+            console.log(`❌ Failed to extract JSON from answer compilation, using fallback...`);
+            result = {
+              answer: "Analysis failed due to JSON parsing error",
+              confidence: 0.1,
+              keyFindings: ["JSON parsing error occurred"],
+              financialAssessment: "Unable to complete assessment",
+              recommendations: ["Retry analysis with improved data formatting"]
+            };
+          }
+        } else {
+          console.log(`❌ No JSON found in answer response, using fallback...`);
+          result = {
+            answer: "Analysis failed - no valid response format",
+            confidence: 0.1,
+            keyFindings: ["No valid response format"],
+            financialAssessment: "Unable to complete assessment",
+            recommendations: ["Retry analysis with improved prompting"]
+          };
+        }
+      }
 
       return {
         question: question.question,
@@ -562,7 +618,7 @@ export class ComprehensiveFinancialAnalysisService {
     }
   }
 
-  private async storeComprehensiveResults(dealId: number, financialAnswers: { [key: string]: FinancialAnswer }, assignedDocuments: any[]): Promise<void> {
+  private async storeComprehensiveResultsWithoutDeletion(dealId: number, financialAnswers: { [key: string]: FinancialAnswer }, assignedDocuments: any[]): Promise<void> {
     try {
       // Generate findings and recommendations from all answers
       const findings = Object.values(financialAnswers).flatMap(answer => 
@@ -583,17 +639,7 @@ export class ComprehensiveFinancialAnalysisService {
         }))
       );
 
-      // Clear existing financial analysis for this deal - EXACT copy of HR pattern
-      await db.delete(agentAnalyses).where(
-        and(
-          eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'Financial')
-        )
-      );
-      
-      console.log(`🗑️ Cleared existing financial analysis for deal ${dealId}`);
-      
-      // Create the new comprehensive analysis - EXACT copy of HR structure
+      // Create the new comprehensive analysis - EXACT copy of HR structure (deletion already done in runComprehensiveAnalysis)
       const analysisData = {
         dealId,
         agentType: 'Financial' as const,
@@ -671,6 +717,16 @@ export class ComprehensiveFinancialAnalysisService {
     console.log(`💰 runComprehensiveAnalysis called for deal ${dealId}, job ${jobId}`);
     
     try {
+      // CRITICAL FIX: Delete existing analysis IMMEDIATELY at start, not at end
+      console.log(`🗑️ IMMEDIATELY clearing existing financial analysis for deal ${dealId} to ensure fresh start...`);
+      await db.delete(agentAnalyses).where(
+        and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'Financial')
+        )
+      );
+      console.log(`✅ IMMEDIATELY cleared existing financial analysis for deal ${dealId}`);
+
       // Set up progress callback if provided
       if (progressCallback) {
         // Mock the existing startComprehensiveAnalysis method behavior but with callbacks
@@ -714,8 +770,8 @@ export class ComprehensiveFinancialAnalysisService {
         
         await progressCallback(92, 'Finalizing results...');
         
-        // Store comprehensive results
-        await this.storeComprehensiveResults(dealId, financialAnswers, assignedDocuments);
+        // Store comprehensive results (deletion already done above)
+        await this.storeComprehensiveResultsWithoutDeletion(dealId, financialAnswers, assignedDocuments);
         
         await progressCallback(100, 'Financial analysis completed');
         
