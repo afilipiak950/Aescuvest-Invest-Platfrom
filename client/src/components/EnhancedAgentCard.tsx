@@ -130,7 +130,13 @@ export default function EnhancedAgentCard({
       return clinicalAnalysisData.analysis;
     }
     if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
-      return financialAnalysisData.analysis;
+      // For financial agent, only use fresh data if it has completed successfully with findings/recommendations
+      const analysisData = financialAnalysisData.analysis;
+      if (analysisData && (analysisData.status === 'completed' || (analysisData.findings && analysisData.findings.length > 0))) {
+        return analysisData;
+      }
+      // Return empty data instead of falling back to potentially stale parent analysis
+      return { status: 'Failed', findings: [], recommendations: [], financialAnswers: null };
     }
     return analysis || {};
   })();
