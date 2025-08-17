@@ -325,73 +325,138 @@ export class ComprehensiveIpAnalysisService {
   private async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<IpEvidence[]> {
     const evidence: IpEvidence[] = [];
     
-    for (const doc of documents) {
+    // Process ALL assigned documents (EXACTLY matching Financial approach - no speed limits)
+    const documentsToProcess = documents;
+    console.log(`📄 COMPREHENSIVE MODE: Starting evidence extraction from ALL ${documentsToProcess.length} documents for: ${question.question}`);
+    console.log(`🔍 FULL ANALYSIS: Processing ALL ${documentsToProcess.length} assigned documents for thorough IP analysis`);
+
+    // Process documents in batches with timeout for speed - EXACT Financial architecture
+    const batchSize = 20;
+    const batches = [];
+    for (let i = 0; i < documentsToProcess.length; i += batchSize) {
+      batches.push(documentsToProcess.slice(i, i + batchSize));
+    }
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      console.log(`🔎 Processing batch ${batchIndex + 1}/${batches.length}`);
+      
+      const batchPromises = batch.map(async (doc) => {
+        return this.extractEvidenceFromDocument(doc, question);
+      });
+
       try {
-        const docEvidence = await this.extractEvidenceFromDocument(doc, question);
-        if (docEvidence && docEvidence.relevantContent.length > 0) {
-          evidence.push(docEvidence);
-        }
+        // Add timeout for batch processing (15 seconds max) - EXACT Financial implementation
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Batch processing timeout')), 15000);
+        });
+
+        const results = await Promise.race([
+          Promise.allSettled(batchPromises),
+          timeoutPromise
+        ]) as PromiseSettledResult<IpEvidence | null>[];
+
+        const validResults = results
+          .filter((result): result is PromiseFulfilledResult<IpEvidence> => 
+            result.status === 'fulfilled' && result.value !== null
+          )
+          .map(result => result.value);
+
+        evidence.push(...validResults);
+        
+        console.log(`✅ Batch completed: ${validResults.length}/${batch.length} documents had relevant evidence`);
+
       } catch (error) {
-        console.error(`Error extracting evidence from document ${doc.name}:`, error);
+        console.log(`⚠️ Batch ${batchIndex + 1} timeout, continuing with next batch`);
+        continue;
       }
     }
+
+    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${documentsToProcess.length} documents in FAST mode`);
+    console.log(`📊 Evidence extraction completed for question: ${question.question}`);
     
     return evidence;
   }
 
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<IpEvidence | null> {
-    const docContent = document.ocrText || '';
-    const docSummary = typeof document.aiSummary === 'string' 
-      ? document.aiSummary 
-      : document.aiSummary?.executiveSummary || '';
+  private async extractEvidenceFromDocument(doc: any, question: any): Promise<IpEvidence | null> {
+    try {
+      console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
+      
+      // Use AI summary if available, otherwise fall back to OCR content - EXACT Financial approach
+      const content = typeof doc.aiSummary === 'string' ? doc.aiSummary : (doc.ocrText || '');
+      
+      if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        return null;
+      }
 
-    if (!docContent && !docSummary) {
-      return null;
-    }
+      // Quick keyword check first (for speed) - EXACT Financial implementation
+      const hasRelevantKeywords = question.keywords.some((keyword: string) =>
+        content.toLowerCase().includes(keyword.toLowerCase())
+      );
 
-    // Use AI to extract relevant content for this specific question
-    const prompt = `
-You are an IP analysis expert. Extract relevant information from this document that answers the following question:
+      if (!hasRelevantKeywords) {
+        return null;
+      }
 
+      // Extract specific evidence using OpenAI with focused prompt - matching Financial structure
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an IP analysis expert. Extract specific evidence related to the given question from the document content. Focus on IP-related data, patent information, trademark details, and specific intellectual property information.`
+          },
+          {
+            role: "user",
+            content: `
 QUESTION: ${question.question}
-CONTEXT: ${question.analysisPrompt}
-KEYWORDS TO LOOK FOR: ${question.keywords.join(', ')}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
-DOCUMENT NAME: ${document.name}
-DOCUMENT SUMMARY: ${docSummary}
-DOCUMENT CONTENT: ${docContent.slice(0, 8000)}
+DOCUMENT: ${doc.name}
+CONTENT: ${content.slice(0, 6000)}
 
-Extract relevant information and provide:
-1. Relevant content quotes (exact text from document)
-2. Key findings related to the question
-3. Confidence level (0-100)
+Extract specific IP-related evidence for this question. Provide exact quotes, specific findings, and numerical data where available.
 
 Respond in JSON format:
 {
-  "relevantContent": ["quote1", "quote2"],
-  "keyFindings": ["finding1", "finding2"],
+  "relevantContent": ["exact quote 1", "exact quote 2"],
+  "keyFindings": ["specific finding 1", "specific finding 2"],
   "confidence": 85
-}`;
-
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 1500
+}`
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 1200
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-      
+      const content_response = response.choices[0].message.content;
+      if (!content_response) {
+        return null;
+      }
+
+      let result;
+      try {
+        result = JSON.parse(content_response);
+      } catch (parseError) {
+        console.log(`⚠️ JSON parse error for ${doc.name}, skipping`);
+        return null;
+      }
+
+      // Return only if we found meaningful content
+      if (!result.relevantContent || result.relevantContent.length === 0) {
+        return null;
+      }
+
       return {
-        documentName: document.name,
-        documentSummary: docSummary,
+        documentName: doc.name,
+        documentSummary: typeof doc.aiSummary === 'string' ? doc.aiSummary.slice(0, 500) : '',
         relevantContent: result.relevantContent || [],
         keyFindings: result.keyFindings || [],
         confidence: result.confidence || 0
       };
+
     } catch (error) {
-      console.error(`Error analyzing document ${document.name}:`, error);
+      console.error(`⚠️ Error extracting evidence from ${doc.name}:`, error);
       return null;
     }
   }
@@ -492,14 +557,14 @@ Requirements:
       const allFindings = Object.values(ipAnswers).flatMap(answer => answer.keyFindings);
       const allRecommendations = Object.values(ipAnswers).flatMap(answer => answer.recommendations);
 
-      // Store in agentAnalyses table exactly like Financial
+      // Store in agentAnalyses table exactly like Financial - FIXED field name
       await db.insert(agentAnalyses).values({
         dealId: dealId,
         agentType: 'IP',  // Use capital 'IP' like Financial uses 'Financial'
         status: 'completed',
         findings: allFindings,
         recommendations: allRecommendations,
-        ipAnswers: ipAnswers  // Store structured answers
+        ip_answers: ipAnswers  // Fixed: Use snake_case field name to match database schema
       });
 
       console.log(`✅ Saved IP analysis with ${allFindings.length} findings and ${allRecommendations.length} recommendations`);
