@@ -292,5 +292,154 @@ router.get('/deals/:dealId/ip-analysis/comprehensive', async (req, res) => {
   }
 });
 
+// CRITICAL MISSING ENDPOINT: Start IP agent analysis - EXACT Financial pattern
+// This is the endpoint called by the frontend "Re-run Analysis" button
+router.post('/deals/:dealId/agents/ip/analyze', async (req, res) => {
+  try {
+    const { dealId } = req.params;
+    const dealIdNum = parseInt(dealId);
+    
+    if (isNaN(dealIdNum)) {
+      return res.status(400).json({ error: 'Invalid deal ID' });
+    }
+
+    console.log(`🔬 CRITICAL: Starting FRESH IP analysis for deal ${dealId} - DELETING previous data...`);
+    
+    // CRITICAL: Start persistent IP analysis which includes deletion logic
+    const jobId = await persistentIpAnalysisService.startIpAnalysis(dealIdNum);
+    
+    res.json({
+      success: true,
+      message: 'IP analysis started successfully',
+      jobId,
+      status: 'processing'
+    });
+
+  } catch (error) {
+    console.error(`💥 Error starting IP agent analysis for deal ${req.params.dealId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to start IP analysis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get IP agent results - EXACT pattern for EnhancedAgentCard
+router.get('/deals/:dealId/agents/ip/results', async (req, res) => {
+  try {
+    const { dealId } = req.params;
+    const dealIdNum = parseInt(dealId);
+    
+    if (isNaN(dealIdNum)) {
+      return res.status(400).json({ error: 'Invalid deal ID' });
+    }
+
+    console.log(`🔐 Fetching comprehensive IP analysis results for deal ${dealId}`);
+
+    // Get latest IP analysis
+    const analysis = await db
+      .select()
+      .from(agentAnalyses)
+      .where(and(
+        eq(agentAnalyses.dealId, dealIdNum),
+        eq(agentAnalyses.agentType, 'IP')
+      ))
+      .orderBy(desc(agentAnalyses.createdAt))
+      .limit(1);
+
+    if (analysis.length === 0) {
+      console.log(`❌ No IP analysis found for deal ${dealId}`);
+      return res.json({
+        success: true,
+        analysis: {
+          hasAnswers: false,
+          status: 'not_started',
+          findings: [],
+          recommendations: [],
+          ipAnswers: {}
+        }
+      });
+    }
+
+    const ipAnalysis = analysis[0];
+    const ipAnswers = ipAnalysis.ip_answers || {};
+    
+    // Check if we have comprehensive answers
+    const hasAnswers = Object.keys(ipAnswers).length > 0;
+    const answersType = typeof ipAnswers;
+    const parsedAnswersKeys = hasAnswers ? Object.keys(ipAnswers) : [];
+    
+    console.log(`🔐 IP Analysis Data: {
+  hasAnswers: ${hasAnswers},
+  answersType: '${answersType}',
+  parsedAnswersKeys: ${JSON.stringify(parsedAnswersKeys)}
+}`);
+
+    if (hasAnswers) {
+      console.log(`✅ Found IP analysis for deal ${dealId}: {
+  id: ${ipAnalysis.id},
+  agentType: '${ipAnalysis.agentType}',
+  status: '${ipAnalysis.status}',
+  findingsLength: ${ipAnalysis.findings?.length || 0},
+  recommendationsLength: ${ipAnalysis.recommendations?.length || 0},
+  totalRecordsFound: ${analysis.length},
+  lowercaseCount: ${analysis.filter(a => a.agentType === 'ip').length},
+  capitalizedCount: ${analysis.filter(a => a.agentType === 'IP').length},
+  allRecordStatuses: ${JSON.stringify(analysis.map(a => ({ id: a.id, agentType: a.agentType, status: a.status })))}
+}`);
+      
+      // Format questions with answers for comprehensive display
+      const questionsWithAnswers = COMPREHENSIVE_IP_QUESTIONS.map(question => {
+        const answer = ipAnswers[question.id];
+        return {
+          id: question.id,
+          question: question.question,
+          category: question.category,
+          answer: answer?.answer || '',
+          confidence: answer?.confidence || 0,
+          sources: answer?.sources || [],
+          keyFindings: answer?.keyFindings || [],
+          recommendations: answer?.recommendations || []
+        };
+      });
+      
+      console.log(`✅ Found comprehensive IP analysis - ${questionsWithAnswers.length} questions, ${ipAnalysis.findings?.length || 0} findings, ${questionsWithAnswers.filter(q => q.recommendations && q.recommendations.length > 0).length} recommendations`);
+      
+      res.json({
+        success: true,
+        analysis: {
+          hasAnswers: true,
+          status: ipAnalysis.status,
+          findings: ipAnalysis.findings || [],
+          recommendations: questionsWithAnswers.flatMap(q => q.recommendations || []),
+          ipAnswers,
+          questions: questionsWithAnswers,
+          createdAt: ipAnalysis.createdAt,
+          updatedAt: ipAnalysis.updatedAt
+        }
+      });
+    } else {
+      console.log(`❌ No IP analysis found for deal ${dealId}`);
+      res.json({
+        success: true,
+        analysis: {
+          hasAnswers: false,
+          status: 'not_started',
+          findings: [],
+          recommendations: [],
+          ipAnswers: {}
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error(`💥 Error fetching IP agent results for deal ${req.params.dealId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to fetch IP agent results',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 console.log('🔬 Persistent IP analysis routes registered');
 export default router;
