@@ -9,6 +9,7 @@ import { db } from '../db';
 import { agentAnalyses, backgroundJobs, deals } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { comprehensiveIpAnalysisService, COMPREHENSIVE_IP_QUESTIONS } from '../comprehensiveIpAnalysisService';
+import { persistentIpAnalysisService } from '../services/persistentIpAnalysis';
 import { storage } from '../storage';
 
 const router = Router();
@@ -52,7 +53,7 @@ router.get('/deals/:dealId/ip-analysis', async (req, res) => {
       status: ipAnalysis.status,
       findings: ipAnalysis.findings || [],
       recommendations: ipAnalysis.recommendations || [],
-      ipAnswers: ipAnalysis.ipAnswers || {},
+      ipAnswers: ipAnalysis.ip_answers || {},
       createdAt: ipAnalysis.createdAt,
       lastUpdate: ipAnalysis.updatedAt
     });
@@ -74,7 +75,7 @@ router.get('/ip-questions', async (req, res) => {
     res.json({
       questions: COMPREHENSIVE_IP_QUESTIONS,
       totalQuestions: COMPREHENSIVE_IP_QUESTIONS.length,
-      categories: [...new Set(COMPREHENSIVE_IP_QUESTIONS.map(q => q.category))]
+      categories: Array.from(new Set(COMPREHENSIVE_IP_QUESTIONS.map(q => q.category)))
     });
   } catch (error) {
     console.error('💥 Error fetching IP questions:', error);
@@ -136,8 +137,8 @@ router.post('/deals/:dealId/start-ip-analysis', async (req, res) => {
     await storage.createBackgroundJob(job);
     console.log(`✅ Created background job ${jobId} for IP analysis`);
 
-    // Start analysis asynchronously
-    comprehensiveIpAnalysisService.startComprehensiveAnalysis(dealIdNum, jobId)
+    // Start analysis asynchronously using persistent service - EXACT Financial pattern
+    persistentIpAnalysisService.startAnalysis(dealIdNum, jobId)
       .catch(error => {
         console.error(`💥 Error in background IP analysis for deal ${dealIdNum}:`, error);
       });
@@ -182,7 +183,7 @@ router.get('/deals/:dealId/ip-analysis/progress', async (req, res) => {
     }
 
     // Get progress from service
-    const progressData = comprehensiveIpAnalysisService.getProgressData(dealIdNum);
+    const progressData = comprehensiveIpAnalysisService.getProgress();
 
     res.json({
       isRunning: ipJob.status === 'processing',
@@ -190,7 +191,7 @@ router.get('/deals/:dealId/ip-analysis/progress', async (req, res) => {
       message: ipJob.currentStep || progressData.message,
       currentStep: ipJob.currentStep,
       status: ipJob.status,
-      startTime: ipJob.startTime,
+      startTime: ipJob.createdAt,
       lastUpdate: ipJob.updatedAt,
       jobId: ipJob.jobId
     });
@@ -246,7 +247,7 @@ router.get('/deals/:dealId/ip-analysis/comprehensive', async (req, res) => {
     }
 
     const ipAnalysis = analysis[0];
-    const ipAnswers = ipAnalysis.ipAnswers || {};
+    const ipAnswers = ipAnalysis.ip_answers || {};
 
     // Format questions with answers
     const questionsWithAnswers = COMPREHENSIVE_IP_QUESTIONS.map(question => {
