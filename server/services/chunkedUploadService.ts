@@ -178,17 +178,23 @@ class ChunkedUploadService {
    */
   private async assembleFile(chunkInfo: ChunkInfo): Promise<void> {
     const writeStream = fs.createWriteStream(chunkInfo.filePath);
+    let bytesWritten = 0;
     
     try {
+      console.log(`🔧 Starting file assembly: ${chunkInfo.fileName} (${chunkInfo.totalChunks} chunks)`);
+      
       for (let i = 0; i < chunkInfo.totalChunks; i++) {
         const chunkPath = `${chunkInfo.filePath}.chunk.${i}`;
         
         if (!fs.existsSync(chunkPath)) {
-          throw new Error(`Missing chunk ${i}`);
+          throw new Error(`❌ CRITICAL: Missing chunk ${i} at ${chunkPath}`);
         }
 
         const chunkData = await fs.promises.readFile(chunkPath);
         writeStream.write(chunkData);
+        bytesWritten += chunkData.length;
+        
+        console.log(`📦 Assembled chunk ${i + 1}/${chunkInfo.totalChunks} (${(bytesWritten / 1024 / 1024).toFixed(1)}MB)`);
 
         // Clean up chunk file
         await fs.promises.unlink(chunkPath);
@@ -202,9 +208,16 @@ class ChunkedUploadService {
         writeStream.on('error', reject);
       });
 
-      console.log(`🔧 Assembled file: ${chunkInfo.fileName} (${(chunkInfo.totalSize / 1024 / 1024).toFixed(1)}MB)`);
+      // Verify final file size matches expected
+      const stats = fs.statSync(chunkInfo.filePath);
+      if (stats.size !== chunkInfo.totalSize) {
+        throw new Error(`❌ CRITICAL: File size mismatch! Expected: ${chunkInfo.totalSize}, Got: ${stats.size}`);
+      }
+
+      console.log(`✅ File assembly complete: ${chunkInfo.fileName} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
     } catch (error) {
       writeStream.destroy();
+      console.error(`❌ Error assembling file:`, error);
       throw error;
     }
   }
@@ -236,6 +249,17 @@ class ChunkedUploadService {
    * Get the file path for a completed upload
    */
   getFilePath(uploadId: string): string | null {
+    // First check if file exists from completed upload
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const possibleFiles = fs.readdirSync(uploadsDir).filter(f => f.startsWith(uploadId));
+    
+    if (possibleFiles.length > 0) {
+      const filePath = path.join(uploadsDir, possibleFiles[0]);
+      console.log(`📁 Found completed upload file: ${filePath}`);
+      return filePath;
+    }
+    
+    // Fallback to active uploads
     const chunkInfo = this.activeUploads.get(uploadId);
     return chunkInfo ? chunkInfo.filePath : null;
   }
@@ -244,8 +268,25 @@ class ChunkedUploadService {
    * Check if upload exists and is complete
    */
   isUploadComplete(uploadId: string): boolean {
-    const status = this.getUploadStatus(uploadId);
-    return status.exists && status.isComplete === true;
+    // Check if final file exists (upload was completed and removed from active uploads)
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    try {
+      const possibleFiles = fs.readdirSync(uploadsDir).filter(f => f.startsWith(uploadId));
+      
+      if (possibleFiles.length > 0) {
+        console.log(`✅ Upload ${uploadId} is complete (file exists)`);
+        return true;
+      }
+    } catch (error) {
+      console.error('Error checking uploads directory:', error);
+    }
+    
+    // Check active uploads
+    const chunkInfo = this.activeUploads.get(uploadId);
+    const isComplete = chunkInfo ? chunkInfo.uploadedChunks.size === chunkInfo.totalChunks : false;
+    
+    console.log(`🔍 Upload ${uploadId} completion check: ${isComplete} (${chunkInfo?.uploadedChunks.size}/${chunkInfo?.totalChunks})`);
+    return isComplete;
   }
 }
 
