@@ -298,23 +298,48 @@ class ChunkedUploadService {
     console.log(`📁 Initializing chunked upload: ${fileName} (${(fileSize / 1024 / 1024).toFixed(1)}MB)`);
 
     try {
+      const requestBody = {
+        fileName: fileName,
+        totalSize: fileSize,
+        chunkSize: this.defaultChunkSize,
+      };
+      
+      console.log('📤 Sending chunked upload init request:', requestBody);
+      
       const response = await fetch('/api/upload/chunk/init', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          fileName: fileName,
-          totalSize: fileSize,
-          chunkSize: this.defaultChunkSize,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+      console.log(`📥 Response headers:`, Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`Failed to initialize upload: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Upload init failed - response:', errorText);
+        throw new Error(`Failed to initialize upload: ${response.statusText} - ${errorText}`);
       }
 
-      const initResult = await response.json();
+      const responseText = await response.text();
+      console.log('📥 Raw response text:', responseText);
+      
+      let initResult;
+      try {
+        initResult = JSON.parse(responseText);
+        console.log('✅ Parsed response:', initResult);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('❌ Response was not JSON:', responseText);
+        throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 100)}...`);
+      }
+      
+      if (!initResult.uploadId) {
+        throw new Error('Server did not return uploadId');
+      }
+      
       return initResult.uploadId;
 
     } catch (error) {

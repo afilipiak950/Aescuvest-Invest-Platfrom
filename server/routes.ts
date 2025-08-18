@@ -7362,6 +7362,12 @@ export async function registerAllRoutes(app: Express) {
 
   // 🚀 CHUNKED UPLOAD ROUTES FOR LARGE FILES (up to 5GB)
   console.log('🚀 Registering chunked upload routes for large files...');
+  
+  // 🚨 CRITICAL FIX: Set proper JSON content type for all chunked upload responses
+  app.use('/api/upload/chunk', (req: Request, res: Response, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    next();
+  });
 
   // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
   app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
@@ -7497,25 +7503,33 @@ export async function registerAllRoutes(app: Express) {
 
   // Initialize chunked upload
   app.post('/api/upload/chunk/init', async (req: Request, res: Response) => {
+    console.log('🚀 CHUNKED UPLOAD INIT HIT!', req.body);
+    
     try {
       const { fileName, totalSize, chunkSize } = req.body;
 
       if (!fileName || !totalSize || !chunkSize) {
+        console.log('❌ Missing parameters:', { fileName, totalSize, chunkSize });
         return res.status(400).json({
           success: false,
           error: 'Missing required parameters: fileName, totalSize, chunkSize'
         });
       }
 
+      console.log(`📁 Initializing chunked upload: ${fileName}, ${totalSize} bytes, ${chunkSize} byte chunks`);
       const uploadId = chunkedUploadService.initializeUpload(fileName, totalSize, chunkSize);
+      console.log(`✅ Chunked upload initialized with ID: ${uploadId}`);
 
-      res.json({
+      const response = {
         success: true,
         uploadId,
         message: `Chunked upload initialized for ${fileName}`,
         maxFileSize: '5GB',
         supportedTypes: ['ZIP', 'PDF', 'DOCX', 'XLSX', 'PPT']
-      });
+      };
+      
+      console.log('📤 Sending chunked upload init response:', response);
+      res.json(response);
     } catch (error) {
       console.error('❌ Error initializing chunked upload:', error);
       res.status(500).json({

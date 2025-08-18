@@ -180,6 +180,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // 🚨 CRITICAL FIX: Add API route handler middleware BEFORE vite to ensure API calls reach backend
+  app.use('/api/*', (req: Request, res: Response, next: NextFunction) => {
+    // This middleware ensures all /api/* requests are handled by Express routes
+    // and don't get intercepted by Vite's catch-all handler
+    console.log(`🎯 API route hit: ${req.method} ${req.originalUrl}`);
+    next();
+  });
+
   // 🚨 CRITICAL: Add diagnostics route BEFORE vite middleware to prevent conflicts
   app.get('/api/upload/diagnostics', (req: Request, res: Response) => {
     const diagnostics = {
@@ -217,7 +225,9 @@ app.use((req, res, next) => {
     res.json(diagnostics);
   });
 
+  // 🚨 CRITICAL: Register API routes FIRST (before Vite middleware)
   const server = await registerRoutes(app);
+  console.log('✅ All API routes registered successfully before Vite middleware');
 
   // ZIP file upload routes - registered AFTER main routes to take priority
   console.log('🚀 REGISTERING ZIP UPLOAD ROUTES');
