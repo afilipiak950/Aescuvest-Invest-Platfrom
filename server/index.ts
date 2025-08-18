@@ -54,18 +54,32 @@ app.use(express.raw({ limit: '59055800320', type: '*/*' })); // Raw body parser 
 // 🚨 CRITICAL: Error handling middleware to catch and prevent 413 errors
 app.use((err: any, req: any, res: any, next: any) => {
   if (err.status === 413 || err.code === 'LIMIT_FILE_SIZE' || err.message.includes('413')) {
-    console.error('🚨 CAUGHT 413 ERROR - THIS SHOULD NOT HAPPEN WITH 50GB+ LIMITS!');
+    console.error('🚨 CAUGHT 413 ERROR - PRODUCTION CONFIGURATION ISSUE!');
     console.error('Error details:', err);
     console.error('Request URL:', req.url);
     console.error('Content-Length:', req.headers['content-length']);
+    console.error('User-Agent:', req.headers['user-agent']);
+    console.error('X-Forwarded-For:', req.headers['x-forwarded-for']);
+    console.error('Environment:', process.env.NODE_ENV);
+    console.error('Platform check:', {
+      isCloudRun: !!process.env.K_SERVICE,
+      isAppEngine: !!process.env.GAE_APPLICATION,
+      isReplit: !!process.env.REPL_ID
+    });
     
     return res.status(413).json({
       success: false,
-      error: 'File upload limit exceeded. The system is configured for 50GB+ uploads. This error should not occur.',
+      error: 'File upload limit exceeded in production. All layers configured for 55GB but infrastructure override detected.',
       details: {
-        configuredLimit: '53687091200 bytes (50GB+)',
+        configuredLimit: '59055800320 bytes (55GB PRODUCTION)',
         actualError: err.message,
-        suggestedAction: 'Contact support - this is a configuration issue'
+        environment: process.env.NODE_ENV,
+        platform: {
+          cloudRun: !!process.env.K_SERVICE,
+          appEngine: !!process.env.GAE_APPLICATION,
+          replit: !!process.env.REPL_ID
+        },
+        suggestedAction: 'Infrastructure-level configuration override - contact platform support'
       }
     });
   }

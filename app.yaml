@@ -1,36 +1,41 @@
-# Google App Engine configuration for large file uploads
+# Google App Engine configuration for massive file uploads
 runtime: nodejs20
 
 env_variables:
   NODE_ENV: production
+  MAX_BODY_SIZE: "59055800320"
+  NGINX_CLIENT_MAX_BODY_SIZE: "55g"
 
-instance_class: F4_1G
-
-# Critical for large file uploads
+# CRITICAL: App Engine specific settings for large uploads
 automatic_scaling:
   min_instances: 1
   max_instances: 10
-  target_cpu_utilization: 0.6
+  target_cpu_utilization: 0.8
+  target_throughput_utilization: 0.8
 
-# Request timeout for large uploads (maximum allowed)
-readiness_check:
-  timeout_sec: 240
-  check_interval_sec: 5
-
-liveness_check:
-  timeout_sec: 240
-  check_interval_sec: 30
+# Extended timeouts for large file processing
+instance_class: F4_1G
 
 # Network settings for large uploads
 network:
-  instance_tag: large-upload-enabled
-
-# Service account with storage permissions
-service_account: aescuvest-upload@PROJECT_ID.iam.gserviceaccount.com
-
+  session_affinity: true
+  
+# Request timeout extended to 2 hours
 handlers:
 - url: /.*
   script: auto
-  secure: always
-  # CRITICAL: Remove request size limit for Cloud Run
-  upload: (?!^.*/upload/.*$).*
+  upload: .*
+  # CRITICAL: No size limits at App Engine level
+  secure: optional
+  
+# Skip files for deployment optimization
+skip_files:
+- ^(.*/)?#.*#$
+- ^(.*/)?.*~$
+- ^(.*/)?.*\.py[co]$
+- ^(.*/)?.*/RCS/.*$
+- ^(.*/)?\..*$
+- node_modules/
+- uploads/
+- test-zip-office/
+- attached_assets/
