@@ -215,7 +215,12 @@ class ChunkedUploadService {
     }
 
     try {
-      const response = await fetch(`/api/upload/chunk/${uploadId}`, {
+      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' // Development: bypass Vite middleware
+        : ''; // Production: use relative URLs
+        
+      const response = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}`, {
         method: 'DELETE',
       });
       
@@ -232,7 +237,12 @@ class ChunkedUploadService {
    */
   async getUploadStatus(uploadId: string) {
     try {
-      const response = await fetch(`/api/upload/chunk/${uploadId}/status`);
+      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' // Development: bypass Vite middleware
+        : ''; // Production: use relative URLs
+        
+      const response = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`);
       return await response.json();
     } catch (error) {
       console.error('Error getting upload status:', error);
@@ -324,9 +334,12 @@ class ChunkedUploadService {
       console.log('📤 Sending chunked upload init request:', requestBody);
       
       // 🚨 CRITICAL FIX: Use absolute URL to bypass Vite dev server interference
-      const apiUrl = window.location.protocol === 'https:' ? 
-        '/api/upload/chunk/init' : // Production uses relative URLs
-        'http://localhost:5000/api/upload/chunk/init'; // Dev bypasses Vite
+      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' // Development: bypass Vite middleware
+        : ''; // Production: use relative URLs
+        
+      const apiUrl = `${baseUrl}/api/upload/chunk/init`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
