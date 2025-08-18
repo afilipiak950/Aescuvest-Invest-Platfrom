@@ -15,7 +15,7 @@ interface ChunkInfo {
 
 class ChunkedUploadService {
   private activeUploads = new Map<string, ChunkInfo>();
-  private readonly chunkTimeout = 30 * 60 * 1000; // 30 minutes
+  private readonly chunkTimeout = 60 * 60 * 1000; // 1 hour for large files (900MB+)
   private readonly uploadsDir = path.join(process.cwd(), 'uploads');
 
   constructor() {
@@ -49,7 +49,14 @@ class ChunkedUploadService {
 
     this.activeUploads.set(uploadId, chunkInfo);
 
-    console.log(`📁 Initialized chunked upload: ${fileName} (${(totalSize / 1024 / 1024).toFixed(1)}MB, ${totalChunks} chunks)`);
+    // Enhanced logging for large files
+    const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
+    if (totalSize > 500 * 1024 * 1024) { // 500MB+
+      console.log(`📁 LARGE FILE: Initialized chunked upload: ${fileName} (${sizeMB}MB, ${totalChunks} chunks of ${(chunkSize / 1024 / 1024).toFixed(1)}MB each)`);
+      console.log(`⏱️ Estimated upload time: ${Math.ceil(totalChunks * 2 / 60)} minutes (2 seconds per chunk)`);
+    } else {
+      console.log(`📁 Initialized chunked upload: ${fileName} (${sizeMB}MB, ${totalChunks} chunks)`);
+    }
 
     return uploadId;
   }
@@ -85,10 +92,18 @@ class ChunkedUploadService {
       const progress = (chunkInfo.uploadedChunks.size / chunkInfo.totalChunks) * 100;
       const isComplete = chunkInfo.uploadedChunks.size === chunkInfo.totalChunks;
 
-      console.log(`📦 Chunk ${chunkIndex + 1}/${chunkInfo.totalChunks} uploaded for ${chunkInfo.fileName} (${progress.toFixed(1)}%)`);
+      // Enhanced progress logging for large files
+      if (chunkInfo.totalSize > 500 * 1024 * 1024) { // 500MB+
+        if (chunkIndex % 10 === 0 || isComplete) { // Every 10th chunk for large files
+          console.log(`📦 LARGE FILE Progress: Chunk ${chunkIndex + 1}/${chunkInfo.totalChunks} uploaded for ${chunkInfo.fileName} (${progress.toFixed(1)}%)`);
+        }
+      } else {
+        console.log(`📦 Chunk ${chunkIndex + 1}/${chunkInfo.totalChunks} uploaded for ${chunkInfo.fileName} (${progress.toFixed(1)}%)`);
+      }
 
       if (isComplete) {
         // Assemble final file
+        console.log(`🔧 Starting assembly for ${chunkInfo.fileName} (${(chunkInfo.totalSize / 1024 / 1024).toFixed(1)}MB)`);
         await this.assembleFile(chunkInfo);
         this.activeUploads.delete(uploadId);
         console.log(`✅ File assembly complete: ${chunkInfo.fileName}`);

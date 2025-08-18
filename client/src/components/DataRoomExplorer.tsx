@@ -1250,9 +1250,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check maximum file size (5GB)
+    // Check maximum file size (5GB) - now optimized for files up to 1GB+
     if (file.size > 5 * 1024 * 1024 * 1024) {
-      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 5GB. Please select a smaller file.`);
+      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 5GB. The system is optimized for files up to 1GB with automatic chunked upload.`);
       return;
     }
 

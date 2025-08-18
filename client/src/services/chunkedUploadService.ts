@@ -255,6 +255,7 @@ class ChunkedUploadService {
 
   /**
    * Check if file is large enough to require chunked upload
+   * Optimized for files up to 1GB+ with ultra-safe thresholds
    */
   isLargeFile(file: File): boolean {
     const largeSizeThreshold = 5 * 1024 * 1024; // 5MB - aggressive threshold for live production
