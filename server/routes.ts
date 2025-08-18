@@ -4980,26 +4980,47 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the DIRECT comprehensive IP analysis service - EXACT Financial pattern
+      // Generate unique job ID for this analysis
+      const jobId = `ip-analysis-${dealId}-${Date.now()}`;
+      
+      // Create the background job FIRST - exactly like Financial analysis
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        agentType: 'IP',
+        jobType: 'comprehensive_ip_analysis',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing IP analysis',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      console.log(`📊 Created background job for IP analysis: ${jobId}`);
+      
+      // Import the comprehensive IP analysis service
       const { comprehensiveIpAnalysisService } = await import('./comprehensiveIpAnalysisService');
       
-      // Generate unique job ID for this analysis
-      const jobId = `ip-analysis-${dealId}`;
-      
-      // Run DIRECT comprehensive IP analysis in background - EXACT Financial approach
+      // Run comprehensive IP analysis in background with proper job tracking
       (async () => {
         try {
-          console.log(`🔬 Starting comprehensive IP analysis for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive IP analysis background process for deal ${dealId}`);
           await comprehensiveIpAnalysisService.startComprehensiveAnalysis(dealId, jobId);
           console.log(`✅ Comprehensive IP analysis completed for deal ${dealId}`);
         } catch (error) {
           console.error(`❌ Error in comprehensive IP analysis for deal ${dealId}:`, error);
+          // Mark job as failed
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            currentStep: `IP analysis failed: ${(error as any)?.message || error}`
+          });
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive IP analysis started - processing 12 IP categories across all assigned documents'
+        message: 'Comprehensive IP analysis started - processing 13 IP questions across all assigned documents',
+        jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive IP analysis for deal ${req.params.dealId}:`, error);
