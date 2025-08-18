@@ -4386,6 +4386,11 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
     setIsRunning(true);
     console.log('Starting comprehensive IP analysis for deal', dealId);
     
+    // Clear previous analysis data immediately to prevent stale data display
+    queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+    queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+    queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
+    
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
       
