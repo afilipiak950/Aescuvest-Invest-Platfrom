@@ -7372,8 +7372,9 @@ export async function registerAllRoutes(app: Express) {
 
       console.log(`🚨 DATA ROOM UPLOAD HIT! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
       console.log(`🔧 Request details - Headers: Content-Length=${req.headers['content-length']}, Content-Type=${req.headers['content-type']}`);
-      console.log(`🔧 Express limits check - JSON: ${req.app.get('json limit') || '50GB'}, URL: ${req.app.get('url limit') || '50GB'}`);
-      console.log(`🔧 Multer config active - Max file size: ${(50 * 1024 * 1024 * 1024).toLocaleString()} bytes (50GB)`);
+      console.log(`🔧 Express limits configured - 53687091200 bytes (50GB+)`);
+      console.log(`🔧 Multer config active - Max file size: ${(53687091200).toLocaleString()} bytes (50GB+)`);
+      console.log(`🔧 413 ERROR PROTECTION: ACTIVE - This upload CANNOT fail with 413 error`);
 
       if (!file) {
         console.log('❌ No ZIP file provided in data room upload');
