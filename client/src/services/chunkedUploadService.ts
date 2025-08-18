@@ -20,7 +20,7 @@ export interface ChunkedUploadOptions {
 }
 
 class ChunkedUploadService {
-  private readonly defaultChunkSize = 10 * 1024 * 1024; // 10MB chunks
+  private readonly defaultChunkSize = 5 * 1024 * 1024; // 5MB chunks for maximum safety
   private activeUploads = new Map<string, {
     file: File;
     options: ChunkedUploadOptions;
@@ -257,7 +257,7 @@ class ChunkedUploadService {
    * Check if file is large enough to require chunked upload
    */
   isLargeFile(file: File): boolean {
-    const largeSizeThreshold = 100 * 1024 * 1024; // 100MB
+    const largeSizeThreshold = 5 * 1024 * 1024; // 5MB - aggressive threshold for live production
     return file.size > largeSizeThreshold;
   }
 
