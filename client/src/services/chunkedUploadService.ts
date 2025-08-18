@@ -44,7 +44,12 @@ class ChunkedUploadService {
 
     try {
       // Initialize upload session
-      const response = await fetch('/api/upload/chunk/init', {
+      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' // Development: bypass Vite middleware
+        : ''; // Production: use relative URLs
+        
+      const response = await fetch(`${baseUrl}/api/upload/chunk/init`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +104,8 @@ class ChunkedUploadService {
       }
 
       // Verify upload completion
-      const statusResponse = await fetch(`/api/upload/chunk/${uploadId}/status`);
+      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      const statusResponse = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`);
       const status = await statusResponse.json();
       
       if (!status.isComplete) {
@@ -138,10 +144,12 @@ class ChunkedUploadService {
     const formData = new FormData();
     formData.append('chunk', chunk);
 
-    // 🚨 CRITICAL FIX: Use absolute URL to bypass Vite dev server interference
-    const apiUrl = window.location.protocol === 'https:' ? 
-      `/api/upload/chunk/${uploadId}/${chunkIndex}` : // Production uses relative URLs
-      `http://localhost:5000/api/upload/chunk/${uploadId}/${chunkIndex}`; // Dev bypasses Vite
+    // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' // Development: bypass Vite middleware
+      : ''; // Production: use relative URLs
+      
+    const apiUrl = `${baseUrl}/api/upload/chunk/${uploadId}/${chunkIndex}`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
