@@ -7364,8 +7364,9 @@ export async function registerAllRoutes(app: Express) {
   console.log('🚀 Registering chunked upload routes for large files...');
   
   // 🚨 CRITICAL FIX: Set proper JSON content type for all chunked upload responses
-  app.use('/api/upload/chunk', (req: Request, res: Response, next) => {
+  app.use('/api/upload/chunk*', (req: Request, res: Response, next) => {
     res.setHeader('Content-Type', 'application/json');
+    console.log(`🔧 Chunked upload route intercepted: ${req.method} ${req.originalUrl}`);
     next();
   });
 
@@ -7505,6 +7506,9 @@ export async function registerAllRoutes(app: Express) {
   app.post('/api/upload/chunk/init', async (req: Request, res: Response) => {
     console.log('🚀 CHUNKED UPLOAD INIT HIT!', req.body);
     
+    // 🚨 CRITICAL FIX: Force JSON content type explicitly 
+    res.setHeader('Content-Type', 'application/json');
+    
     try {
       const { fileName, totalSize, chunkSize } = req.body;
 
@@ -7529,7 +7533,9 @@ export async function registerAllRoutes(app: Express) {
       };
       
       console.log('📤 Sending chunked upload init response:', response);
-      res.json(response);
+      
+      // 🚨 CRITICAL FIX: Ensure JSON response with explicit end
+      res.status(200).json(response);
     } catch (error) {
       console.error('❌ Error initializing chunked upload:', error);
       res.status(500).json({
@@ -7541,9 +7547,14 @@ export async function registerAllRoutes(app: Express) {
 
   // Upload a single chunk
   app.post('/api/upload/chunk/:uploadId/:chunkIndex', upload.single('chunk'), async (req: Request, res: Response) => {
+    // 🚨 CRITICAL FIX: Force JSON content type 
+    res.setHeader('Content-Type', 'application/json');
+    
     try {
       const { uploadId, chunkIndex } = req.params;
       const file = req.file;
+
+      console.log(`📦 Chunk upload: ${uploadId}, chunk ${chunkIndex}, file size: ${file?.size}`);
 
       if (!file) {
         return res.status(400).json({
@@ -7561,7 +7572,8 @@ export async function registerAllRoutes(app: Express) {
         chunkData
       );
 
-      res.json(result);
+      console.log(`✅ Chunk ${chunkIndex} uploaded successfully`);
+      res.status(200).json(result);
     } catch (error) {
       console.error('❌ Error uploading chunk:', error);
       res.status(500).json({

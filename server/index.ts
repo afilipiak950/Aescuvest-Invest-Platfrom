@@ -185,6 +185,10 @@ app.use((req, res, next) => {
     // This middleware ensures all /api/* requests are handled by Express routes
     // and don't get intercepted by Vite's catch-all handler
     console.log(`🎯 API route hit: ${req.method} ${req.originalUrl}`);
+    
+    // 🚨 CRITICAL: Force JSON content type for ALL API responses
+    res.setHeader('Content-Type', 'application/json');
+    
     next();
   });
 
