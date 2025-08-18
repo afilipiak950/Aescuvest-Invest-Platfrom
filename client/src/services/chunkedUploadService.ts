@@ -222,6 +222,12 @@ class ChunkedUploadService {
         
       const response = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}`, {
         method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
       });
       
       const result = await response.json();
@@ -242,7 +248,14 @@ class ChunkedUploadService {
         ? 'http://localhost:5000' // Development: bypass Vite middleware
         : ''; // Production: use relative URLs
         
-      const response = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`);
+      const response = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`, {
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
+      });
       return await response.json();
     } catch (error) {
       console.error('Error getting upload status:', error);
@@ -345,8 +358,12 @@ class ChunkedUploadService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json', // 🚨 CRITICAL: Explicitly request JSON response
+          'Cache-Control': 'no-cache', // 🚨 CRITICAL: Disable caching to prevent stale responses
+          'Pragma': 'no-cache' // 🚨 CRITICAL: Additional cache prevention
         },
         body: JSON.stringify(requestBody),
+        cache: 'no-store' // 🚨 CRITICAL: Force fresh request every time
       });
 
       console.log(`📥 Response status: ${response.status} ${response.statusText}`);
@@ -360,6 +377,43 @@ class ChunkedUploadService {
 
       const responseText = await response.text();
       console.log('📥 Raw response text:', responseText);
+      
+      // 🚨 CRITICAL: Detect Vite HTML interference immediately
+      if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html')) {
+        console.error('🚨 VITE INTERFERENCE DETECTED: Received HTML instead of JSON');
+        console.error('🚨 This indicates Vite middleware is intercepting the API request');
+        console.error('🔄 Retrying with enhanced cache-busting headers...');
+        
+        // Retry with cache-busting query parameter
+        const retryApiUrl = `${apiUrl}?t=${Date.now()}&bypass=vite`;
+        console.log('🔄 Retry URL:', retryApiUrl);
+        
+        const retryResponse = await fetch(retryApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          body: JSON.stringify(requestBody),
+          cache: 'no-store'
+        });
+        
+        if (!retryResponse.ok) {
+          throw new Error(`Retry failed: ${retryResponse.statusText}`);
+        }
+        
+        const retryText = await retryResponse.text();
+        if (retryText.includes('<!DOCTYPE html>')) {
+          throw new Error('❌ CRITICAL: Vite interference persists even after retry. Manual deployment required.');
+        }
+        
+        const retryResult = JSON.parse(retryText);
+        console.log('✅ Retry successful:', retryResult);
+        return retryResult.uploadId;
+      }
       
       let initResult;
       try {
