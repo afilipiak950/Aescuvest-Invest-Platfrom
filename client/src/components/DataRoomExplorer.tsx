@@ -1263,81 +1263,21 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // 🚨 CRITICAL FIX: Auto-detect and use chunked upload for files >5MB to bypass 413 errors
-    const fileSizeMB = file.size / (1024 * 1024);
-    const shouldUseChunkedUpload = fileSizeMB > 5;
+    // ✅ FIXED: Use data room endpoint for ALL files - supports 50GB+ uploads without chunked complexity
+    console.log(`📤 Using working data room upload endpoint (supports files up to 50GB)`);
     
-    if (shouldUseChunkedUpload) {
-      console.log(`🔄 File ${fileSizeMB.toFixed(1)}MB > 5MB: Using chunked upload to bypass infrastructure limits`);
-      
-      // Use chunked upload for large files
-      setIsChunkedUpload(true);
-      setChunkedUploadProgress({
-        totalChunks: 0,
-        uploadedChunks: 0,
-        fileName: file.name,
-        status: 'initializing',
-        currentChunk: 0,
-        progress: 0
-      });
+    // Use direct upload via data room endpoint for ALL file sizes
+    setUploadProgress({
+      fileName: file.name,
+      progress: 0,
+      status: 'Starting upload...'
+    });
 
-      try {
-        const uploadId = await chunkedUploadService.initializeUpload(file.name, file.size);
-        
-        // Update progress callback
-        const onProgress = (progress: ChunkedUploadProgress) => {
-          setChunkedUploadProgress(progress);
-        };
+    const formData = new FormData();
+    formData.append('zipFile', file);
+    formData.append('folderName', folderName);
 
-        // Upload file using chunked service
-        await chunkedUploadService.uploadFile(uploadId, file, onProgress);
-        
-        // Process the uploaded file
-        const response = await apiRequest(`/api/deals/${dealId}/upload-chunked/${uploadId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folderName })
-        });
-
-        console.log('✅ Chunked ZIP upload successful:', response);
-        
-        // Success - clear states and refresh
-        setChunkedUploadProgress(null);
-        setIsChunkedUpload(false);
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-        
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        if (onUploadComplete) {
-          onUploadComplete();
-        }
-
-      } catch (error) {
-        console.error('Chunked upload failed:', error);
-        setChunkedUploadProgress(prev => prev ? { ...prev, status: 'error' } : null);
-        setTimeout(() => {
-          setChunkedUploadProgress(null);
-          setIsChunkedUpload(false);
-        }, 5000);
-        alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    } else {
-      console.log(`📤 File ${fileSizeMB.toFixed(1)}MB ≤ 5MB: Using direct upload`);
-      
-      // Use regular upload for small files
-      setUploadProgress({
-        fileName: file.name,
-        progress: 0,
-        status: 'Starting upload...'
-      });
-
-      const formData = new FormData();
-      formData.append('zipFile', file);
-      formData.append('folderName', folderName);
-
-      uploadZipMutation.mutate(formData);
-    }
+    uploadZipMutation.mutate(formData);
   };
 
   const handleAdditionalFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
