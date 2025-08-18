@@ -18,10 +18,13 @@ spec:
         run.googleapis.com/timeout: "7200s"
         run.googleapis.com/max-instances: "10"
         # CRITICAL: Body size limit for massive uploads (ELIMINATE 413 ERRORS COMPLETELY)
-        run.googleapis.com/body-size-limit: "53687091200"  # 50GB + 10% buffer in bytes
+        run.googleapis.com/body-size-limit: "59055800320"  # 55GB in bytes - PRODUCTION FIX
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/vpc-access-connector: ""
         run.googleapis.com/network-acceleration: "enabled"
+        # Additional Cloud Run optimizations for large uploads
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/network-interfaces: "[{\"network\":\"default\",\"subnetwork\":\"default\"}]"
         autoscaling.knative.dev/maxScale: "10"
         autoscaling.knative.dev/minScale: "1"
     spec:

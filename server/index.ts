@@ -46,10 +46,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 50GB) - ELIMINATE 413 ERRORS
-app.use(express.json({ limit: '53687091200' })); // 50GB + buffer in bytes
-app.use(express.urlencoded({ limit: '53687091200', extended: true })); // 50GB + buffer in bytes
-app.use(express.raw({ limit: '53687091200', type: '*/*' })); // Raw body parser for any content type
+// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 55GB) - ELIMINATE 413 ERRORS
+app.use(express.json({ limit: '59055800320' })); // 55GB in bytes for production
+app.use(express.urlencoded({ limit: '59055800320', extended: true })); // 55GB in bytes for production  
+app.use(express.raw({ limit: '59055800320', type: '*/*' })); // Raw body parser for any content type
 
 // 🚨 CRITICAL: Error handling middleware to catch and prevent 413 errors
 app.use((err: any, req: any, res: any, next: any) => {
@@ -91,8 +91,8 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 53687091200, // 🚨 50GB + buffer to ELIMINATE ALL 413 ERRORS
-    fieldSize: 53687091200, // 50GB + buffer for fields
+    fileSize: 59055800320, // 🚨 55GB to ELIMINATE ALL 413 ERRORS IN PRODUCTION
+    fieldSize: 59055800320, // 55GB for fields
     fields: 200, // Allow many fields
     files: 100, // Allow many files
     parts: 1000, // Allow many parts

@@ -1,0 +1,53 @@
+# PRODUCTION DOCKERFILE - ELIMINATES 413 ERRORS
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    curl \
+    bash \
+    && rm -rf /var/cache/apk/*
+
+# Copy package files
+COPY package*.json ./
+COPY *.js ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application files
+COPY server/ ./server/
+COPY client/ ./client/
+COPY shared/ ./shared/
+COPY *.ts ./
+COPY *.json ./
+
+# Copy nginx configuration with 55GB limits
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Create supervisor configuration for nginx + node
+RUN echo '[supervisord]' > /etc/supervisor/conf.d/app.conf && \
+    echo 'nodaemon=true' >> /etc/supervisor/conf.d/app.conf && \
+    echo '[program:nginx]' >> /etc/supervisor/conf.d/app.conf && \
+    echo 'command=nginx -g "daemon off;"' >> /etc/supervisor/conf.d/app.conf && \
+    echo 'autostart=true' >> /etc/supervisor/conf.d/app.conf && \
+    echo 'autorestart=true' >> /etc/supervisor/conf.d/app.conf && \
+    echo '[program:node]' >> /etc/supervisor/conf.d/app.conf && \
+    echo 'command=node server/index.js' >> /etc/supervisor/conf.d/app.conf && \
+    echo 'autostart=true' >> /etc/supervisor/conf.d/app.conf && \
+    echo 'autorestart=true' >> /etc/supervisor/conf.d/app.conf
+
+# Build application
+RUN npm run build
+
+# Create uploads directory
+RUN mkdir -p /app/uploads
+
+# Expose port
+EXPOSE 5000
+
+# Use supervisor to run both nginx and node
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/app.conf"]
