@@ -151,6 +151,16 @@ export class ComprehensiveIpAnalysisService {
 
       console.log(`🔬 Starting comprehensive IP analysis for deal ${dealId}`);
 
+      // CRITICAL FIX: Delete existing analysis IMMEDIATELY at start like Financial agent
+      console.log(`🗑️ IMMEDIATELY clearing existing IP analysis for deal ${dealId} to ensure fresh start...`);
+      await db.delete(agentAnalyses).where(
+        and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'IP')
+        )
+      );
+      console.log(`✅ IMMEDIATELY cleared existing IP analysis for deal ${dealId}`);
+
       // Update background job status
       if (jobId) {
         await storage.updateBackgroundJob(jobId, {
