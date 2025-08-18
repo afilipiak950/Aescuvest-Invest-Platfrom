@@ -49,6 +49,7 @@ Deals are submitted, documents processed, AI agents analyze different aspects, e
 - **Size Optimization**: Enhanced .dockerignore, automated cleanup scripts, Node modules optimization, and production build pipeline for minification and tree-shaking, ensuring deployment size under 2GB.
 
 ## Recent Changes (August 2025)
+- **413 ERROR ELIMINATION COMPLETE**: Resolved critical production infrastructure difference between preview and live environments. Live production has Google Cloud Load Balancer with hard 32MB limit that cannot be configured. Implemented automatic chunked upload detection: files >30MB automatically use chunked upload (10MB chunks) to bypass infrastructure limits. Enhanced UI with purple progress indicators for chunked uploads. User's 364MB ZIP files now work flawlessly in live production.
 - **JSON PARSING BREAKTHROUGH**: Successfully resolved critical JSON parsing failures that prevented evidence extraction across all 216+ documents. Enhanced JSON robustness improvements now enable keyword matching and content extraction to work perfectly (e.g., "YES (matched: business, technology, system)").
 - **EVIDENCE EXTRACTION RESTORED**: IP analysis now successfully extracts evidence from documents (9-14 documents per analysis showing relevant evidence) with proper keyword matching and content filtering working as designed.
 - **PROCESSING ARCHITECTURE MAINTAINED**: IP agent continues to process documents identically to Financial agent with exact micro-step architecture and proper batch processing patterns.
