@@ -4391,6 +4391,9 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
     queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
     queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
     
+    // Force clear all IP-related caches to ensure fresh data display
+    queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+    
     try {
       await comprehensiveAnalysisMutation.mutateAsync();
       
