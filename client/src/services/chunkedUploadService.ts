@@ -137,7 +137,12 @@ class ChunkedUploadService {
     const formData = new FormData();
     formData.append('chunk', chunk);
 
-    const response = await fetch(`/api/upload/chunk/${uploadId}/${chunkIndex}`, {
+    // 🚨 CRITICAL FIX: Use absolute URL to bypass Vite dev server interference
+    const apiUrl = window.location.protocol === 'https:' ? 
+      `/api/upload/chunk/${uploadId}/${chunkIndex}` : // Production uses relative URLs
+      `http://localhost:5000/api/upload/chunk/${uploadId}/${chunkIndex}`; // Dev bypasses Vite
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       body: formData,
       signal,
@@ -306,7 +311,12 @@ class ChunkedUploadService {
       
       console.log('📤 Sending chunked upload init request:', requestBody);
       
-      const response = await fetch('/api/upload/chunk/init', {
+      // 🚨 CRITICAL FIX: Use absolute URL to bypass Vite dev server interference
+      const apiUrl = window.location.protocol === 'https:' ? 
+        '/api/upload/chunk/init' : // Production uses relative URLs
+        'http://localhost:5000/api/upload/chunk/init'; // Dev bypasses Vite
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
