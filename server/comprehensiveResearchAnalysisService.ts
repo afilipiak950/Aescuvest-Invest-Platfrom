@@ -75,9 +75,43 @@ export const COMPREHENSIVE_RESEARCH_QUESTIONS = [
   }
 ];
 
+export interface ResearchAnalysisProgress {
+  isRunning: boolean;
+  progress: number;
+  message: string;
+  currentStep?: string;
+  totalSteps?: number;
+  currentQuestion?: string;
+}
+
+interface ResearchEvidence {
+  documentName: string;
+  documentSummary: string;
+  relevantContent: string[];
+  keyFindings: string[];
+  confidence: number;
+}
+
+interface ResearchAnswer {
+  question: string;
+  answer: string;
+  confidence: number;
+  sources: string[];
+  detailedEvidence: ResearchEvidence[];
+  keyFindings: string[];
+  evidenceSummary: string;
+  researchAssessment: string;
+  recommendations: string[];
+}
+
 class ComprehensiveResearchAnalysisService {
+  public isRunning = false;
+  public progress = 0;
+  public currentStep = '';
+  public currentQuestion = '';
+  private analysisId: string | null = null;
   
-  async getAssignedResearchDocuments(dealId: number) {
+  async getAssignedDocuments(dealId: number) {
     try {
       const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
       
@@ -106,8 +140,10 @@ class ComprehensiveResearchAnalysisService {
     }
   }
 
-  async extractEvidenceFromAllDocuments(documents: any[], question: any) {
-    const documentEvidence = [];
+  async extractEvidenceFromAllDocuments(documents: any[], question: any): Promise<ResearchEvidence[]> {
+    const documentEvidence: ResearchEvidence[] = [];
+    
+    console.log(`🔍 Research micro-step: Processing ${documents.length} documents for question: ${question.question}`);
     
     for (const doc of documents) {
       try {
@@ -116,114 +152,223 @@ class ComprehensiveResearchAnalysisService {
         
         if (!content || content.length < 50) continue;
         
-        // Check if document contains relevant keywords
+        // Enhanced keyword matching with partial matches
         const hasRelevantContent = question.keywords.some((keyword: string) =>
           content.toLowerCase().includes(keyword.toLowerCase())
         );
         
         if (hasRelevantContent) {
-          // Extract specific evidence using OpenAI
-          const prompt = `
-Analyze this document for research question: "${question.question}"
+          console.log(`📄 Research micro-step: Found relevant content in ${doc.name}`);
+          // Extract specific evidence using OpenAI with enhanced JSON robustness
+          const prompt = `Analyze this document for research evidence about: "${question.question}"
 
 Document: ${doc.name}
-Content: ${content}
+Content: ${content.substring(0, 3000)}
 
-${question.analysisPrompt}
+Focus: ${question.analysisPrompt}
+Keywords to look for: ${question.keywords.join(', ')}
 
-Extract specific evidence that answers the question. If no relevant information is found, respond with "No specific evidence found for this question."
+CRITICAL: You must respond with valid JSON only. No explanations, no markdown, just pure JSON.
 
-Format your response as:
-- Evidence: [specific quotes or data points]
-- Source: [document name]
-- Relevance: [how this relates to the question]
-`;
+Extract research evidence and format as JSON:
+{
+  "hasEvidence": boolean,
+  "relevantContent": ["exact quote 1", "exact quote 2"],
+  "keyFindings": ["finding 1", "finding 2"],
+  "confidence": number (0-10),
+  "documentSummary": "brief summary of document relevance"
+}
+
+If no relevant evidence found, respond with:
+{
+  "hasEvidence": false,
+  "relevantContent": [],
+  "keyFindings": [],
+  "confidence": 0,
+  "documentSummary": "No relevant research evidence found"
+}`;
 
           const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.1,
-            max_tokens: 1500
+            max_tokens: 1000
           });
 
-          const evidence = response.choices[0]?.message?.content || 'No evidence extracted';
+          let evidenceData;
+          try {
+            const responseText = response.choices[0]?.message?.content?.trim() || '';
+            
+            // Enhanced JSON parsing with multiple fallback strategies
+            let cleanedResponse = responseText;
+            if (cleanedResponse.includes('```json')) {
+              cleanedResponse = cleanedResponse.replace(/```json\s*|\s*```/g, '');
+            }
+            if (cleanedResponse.includes('```')) {
+              cleanedResponse = cleanedResponse.replace(/```[^`]*```/g, '');
+              cleanedResponse = cleanedResponse.replace(/```/g, '');
+            }
+            
+            cleanedResponse = cleanedResponse.trim();
+            
+            // Find the JSON object boundaries
+            const jsonStart = cleanedResponse.indexOf('{');
+            const jsonEnd = cleanedResponse.lastIndexOf('}');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+              cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            evidenceData = JSON.parse(cleanedResponse);
+            console.log(`✅ Research micro-step: JSON parsed successfully for ${doc.name}`);
+          } catch (parseError) {
+            console.error(`❌ Research micro-step: JSON parse failed for ${doc.name}:`, parseError);
+            console.log('Raw response:', response.choices[0]?.message?.content);
+            
+            evidenceData = {
+              hasEvidence: false,
+              relevantContent: [],
+              keyFindings: [],
+              confidence: 0,
+              documentSummary: "JSON parsing error occurred"
+            };
+          }
           
-          if (!evidence.toLowerCase().includes('no specific evidence found')) {
+          if (evidenceData.hasEvidence && evidenceData.confidence > 0) {
             documentEvidence.push({
-              document: doc.name,
-              evidence,
-              content: content.substring(0, 500)
+              documentName: doc.name,
+              documentSummary: evidenceData.documentSummary || '',
+              relevantContent: Array.isArray(evidenceData.relevantContent) ? evidenceData.relevantContent : [],
+              keyFindings: Array.isArray(evidenceData.keyFindings) ? evidenceData.keyFindings : [],
+              confidence: typeof evidenceData.confidence === 'number' ? evidenceData.confidence : 0
             });
+            console.log(`📊 Research micro-step: Added evidence from ${doc.name} (confidence: ${evidenceData.confidence})`);
           }
         }
       } catch (error) {
-        console.error(`Error extracting evidence from ${doc.name}:`, error);
+        console.error(`❌ Research micro-step: Error extracting evidence from ${doc.name}:`, error);
       }
     }
     
+    console.log(`📊 Research micro-step: Extracted evidence from ${documentEvidence.length} documents`);
     return documentEvidence;
   }
 
-  async compileComprehensiveAnswer(question: any, documentEvidence: any[]) {
+  async compileComprehensiveAnswer(question: any, documentEvidence: ResearchEvidence[]): Promise<ResearchAnswer> {
+    console.log(`🔍 Research micro-step: Compiling answer for "${question.question}" with ${documentEvidence.length} evidence sources`);
+    
     if (documentEvidence.length === 0) {
       return {
         question: question.question,
-        category: question.category,
         answer: 'No specific evidence found in the available documents for this research question.',
         confidence: 0,
         sources: [],
-        evidence: [],
-        documentCount: 0
+        detailedEvidence: [],
+        keyFindings: [],
+        evidenceSummary: 'No evidence available',
+        researchAssessment: 'Insufficient data for research analysis',
+        recommendations: ['Obtain additional research documents', 'Conduct primary market research']
       };
     }
 
     try {
       const evidenceText = documentEvidence.map(ev => 
-        `Document: ${ev.document}\nEvidence: ${ev.evidence}`
-      ).join('\n\n');
+        `Document: ${ev.documentName}
+Summary: ${ev.documentSummary}
+Key Findings: ${ev.keyFindings.join('; ')}
+Content: ${ev.relevantContent.join('; ')}
+Confidence: ${ev.confidence}/10`
+      ).join('\n\n---\n\n');
 
-      const prompt = `
-Based on the following evidence from multiple documents, provide a comprehensive answer to: "${question.question}"
+      const prompt = `Based on evidence from ${documentEvidence.length} documents, provide a comprehensive research analysis for: "${question.question}"
 
 Evidence from documents:
 ${evidenceText}
 
-Provide a detailed, well-structured answer that:
-1. Synthesizes information from all sources
-2. Identifies key findings and insights
-3. Notes any patterns or trends
-4. Highlights important data points or metrics
-5. Maintains objectivity and accuracy
+CRITICAL: You must respond with valid JSON only. No explanations, no markdown, just pure JSON.
 
-Answer:`;
+Provide comprehensive research analysis as JSON:
+{
+  "answer": "detailed research analysis addressing the question",
+  "confidence": number (1-10),
+  "keyFindings": ["key finding 1", "key finding 2", "key finding 3"],
+  "evidenceSummary": "summary of evidence quality and sources",
+  "researchAssessment": "overall assessment of research findings",
+  "recommendations": ["recommendation 1", "recommendation 2", "recommendation 3"]
+}`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
-        max_tokens: 2000
+        max_tokens: 1500
       });
+
+      // Enhanced JSON parsing for research analysis
+      let analysisData;
+      try {
+        const responseText = response.choices[0]?.message?.content?.trim() || '';
+        
+        // Enhanced JSON parsing with multiple fallback strategies (same as evidence extraction)
+        let cleanedResponse = responseText;
+        if (cleanedResponse.includes('```json')) {
+          cleanedResponse = cleanedResponse.replace(/```json\s*|\s*```/g, '');
+        }
+        if (cleanedResponse.includes('```')) {
+          cleanedResponse = cleanedResponse.replace(/```[^`]*```/g, '');
+          cleanedResponse = cleanedResponse.replace(/```/g, '');
+        }
+        
+        cleanedResponse = cleanedResponse.trim();
+        
+        // Find the JSON object boundaries
+        const jsonStart = cleanedResponse.indexOf('{');
+        const jsonEnd = cleanedResponse.lastIndexOf('}');
+        
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
+        }
+        
+        analysisData = JSON.parse(cleanedResponse);
+        console.log(`✅ Research micro-step: Analysis JSON parsed successfully`);
+      } catch (parseError) {
+        console.error(`❌ Research micro-step: Analysis JSON parse failed:`, parseError);
+        console.log('Raw response:', response.choices[0]?.message?.content);
+        
+        // Fallback to raw text analysis
+        analysisData = {
+          answer: response.choices[0]?.message?.content || 'Unable to parse analysis',
+          confidence: Math.min(documentEvidence.length * 2, 8),
+          keyFindings: ['Analysis parsing error occurred'],
+          evidenceSummary: `Based on ${documentEvidence.length} evidence sources`,
+          researchAssessment: 'JSON parsing error - raw analysis available',
+          recommendations: ['Review document sources', 'Retry analysis if needed']
+        };
+      }
 
       return {
         question: question.question,
-        category: question.category,
-        answer: response.choices[0]?.message?.content || 'Unable to compile comprehensive answer',
-        confidence: Math.min(documentEvidence.length * 20, 100),
-        sources: documentEvidence.map(ev => ev.document),
-        evidence: documentEvidence,
-        documentCount: documentEvidence.length
+        answer: analysisData.answer || 'Analysis not available',
+        confidence: typeof analysisData.confidence === 'number' ? analysisData.confidence : Math.min(documentEvidence.length * 2, 8),
+        sources: documentEvidence.map(ev => ev.documentName),
+        detailedEvidence: documentEvidence,
+        keyFindings: Array.isArray(analysisData.keyFindings) ? analysisData.keyFindings : [],
+        evidenceSummary: analysisData.evidenceSummary || `Based on ${documentEvidence.length} evidence sources`,
+        researchAssessment: analysisData.researchAssessment || 'Research assessment not available',
+        recommendations: Array.isArray(analysisData.recommendations) ? analysisData.recommendations : []
       };
     } catch (error) {
-      console.error('Error compiling comprehensive answer:', error);
+      console.error('❌ Research micro-step: Error compiling comprehensive answer:', error);
       return {
         question: question.question,
-        category: question.category,
         answer: `Error compiling answer: ${error.message}`,
         confidence: 0,
-        sources: documentEvidence.map(ev => ev.document),
-        evidence: documentEvidence,
-        documentCount: documentEvidence.length,
-        error: true
+        sources: documentEvidence.map(ev => ev.documentName),
+        detailedEvidence: documentEvidence,
+        keyFindings: [`Error: ${error.message}`],
+        evidenceSummary: 'Error occurred during analysis',
+        researchAssessment: 'Analysis failed due to processing error',
+        recommendations: ['Retry analysis', 'Check document availability', 'Review error logs']
       };
     }
   }
@@ -248,7 +393,7 @@ Answer:`;
     }
     
     // Get all documents suitable for research analysis
-    const assignedDocuments = await this.getAssignedResearchDocuments(dealId);
+    const assignedDocuments = await this.getAssignedDocuments(dealId);
     console.log(`📄 Found ${assignedDocuments.length} documents suitable for research analysis`);
     
     if (assignedDocuments.length === 0) {
@@ -383,15 +528,27 @@ Answer:`;
     }
   }
 
-  async getAnalysisResults(dealId: number) {
+  getProgress(): ResearchAnalysisProgress {
+    return {
+      isRunning: this.isRunning,
+      progress: this.progress,
+      message: this.currentStep,
+      currentStep: this.currentStep,
+      currentQuestion: this.currentQuestion,
+      totalSteps: COMPREHENSIVE_RESEARCH_QUESTIONS.length
+    };
+  }
+
+  async getStoredAnalysis(dealId: number): Promise<any> {
     try {
       const analysis = await db.select()
         .from(agentAnalyses)
         .where(and(
           eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'Research')
+          eq(agentAnalyses.agentType, 'Research'),
+          eq(agentAnalyses.status, 'completed')
         ))
-        .orderBy(agentAnalyses.createdAt)
+        .orderBy(agentAnalyses.id)
         .limit(1);
 
       if (analysis.length === 0) {
@@ -399,18 +556,21 @@ Answer:`;
       }
 
       const result = analysis[0];
+      const researchData = result.research_answers || {};
+      
+      console.log(`✅ Found Research analysis for deal ${dealId}: ${Object.keys(researchData).length} questions analyzed`);
+      
       return {
+        id: result.id,
+        researchAnswers: researchData,
+        research_answers: researchData,
         findings: result.findings || [],
         recommendations: result.recommendations || [],
-        status: result.status,
-        progress: 100,
         createdAt: result.createdAt,
-        documentSources: [],
-        research_answers: result.research_answers || null,
-        researchAnswers: result.researchAnswers || null
+        status: result.status
       };
     } catch (error) {
-      console.error(`❌ Error retrieving research analysis results:`, error);
+      console.error(`❌ Error retrieving Research analysis for deal ${dealId}:`, error);
       return null;
     }
   }
