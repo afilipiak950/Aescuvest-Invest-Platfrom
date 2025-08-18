@@ -40,9 +40,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 50GB)
-app.use(express.json({ limit: '50gb' }));
-app.use(express.urlencoded({ limit: '50gb', extended: true }));
+// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 50GB) - Fix 413 errors
+app.use(express.json({ limit: '50737418240' })); // 50GB in bytes
+app.use(express.urlencoded({ limit: '50737418240', extended: true })); // 50GB in bytes
 
 // Setup multer for file uploads BEFORE any other middleware
 const storage = multer.diskStorage({

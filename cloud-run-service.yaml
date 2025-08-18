@@ -17,8 +17,9 @@ spec:
         run.googleapis.com/cpu: "8"
         run.googleapis.com/timeout: "7200s"
         run.googleapis.com/max-instances: "10"
-        # CRITICAL: Body size limit for massive uploads
-        run.googleapis.com/body-size-limit: "50g"
+        # CRITICAL: Body size limit for massive uploads (fixing 413 errors)
+        run.googleapis.com/body-size-limit: "50737418240"  # 50GB in bytes
+        run.googleapis.com/execution-environment: gen2
         autoscaling.knative.dev/maxScale: "10"
         autoscaling.knative.dev/minScale: "1"
     spec:
