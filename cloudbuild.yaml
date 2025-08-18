@@ -29,6 +29,6 @@ steps:
       - '--port'
       - '5000'
       - '--max-body-size'
-      - '53687091200'
+      - '59055800320'  # 55GB for production deployment
       - '--service-account'
       - 'aescuvest-upload@$PROJECT_ID.iam.gserviceaccount.com'
