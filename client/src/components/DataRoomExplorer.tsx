@@ -1256,23 +1256,88 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       return;
     }
 
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      alert('Please select a ZIP file');
+      return;
+    }
+
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // TEMPORARY FIX: Always use regular upload to bypass chunked upload routing issue
-    console.log(`📤 Using regular upload for file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+    // 🚨 CRITICAL FIX: Auto-detect and use chunked upload for files >30MB to bypass 413 errors
+    const fileSizeMB = file.size / (1024 * 1024);
+    const shouldUseChunkedUpload = fileSizeMB > 30;
     
-    // Initialize upload progress
-    setUploadProgress({
-      fileName: file.name,
-      progress: 0,
-      status: 'Starting upload...'
-    });
+    if (shouldUseChunkedUpload) {
+      console.log(`🔄 File ${fileSizeMB.toFixed(1)}MB > 30MB: Using chunked upload to bypass infrastructure limits`);
+      
+      // Use chunked upload for large files
+      setIsChunkedUpload(true);
+      setChunkedUploadProgress({
+        totalChunks: 0,
+        uploadedChunks: 0,
+        fileName: file.name,
+        status: 'initializing',
+        currentChunk: 0,
+        progress: 0
+      });
 
-    const formData = new FormData();
-    formData.append('zipFile', file);
-    formData.append('folderName', folderName);
+      try {
+        const uploadId = await chunkedUploadService.initializeUpload(file.name, file.size);
+        
+        // Update progress callback
+        const onProgress = (progress: ChunkedUploadProgress) => {
+          setChunkedUploadProgress(progress);
+        };
 
-    uploadZipMutation.mutate(formData);
+        // Upload file using chunked service
+        await chunkedUploadService.uploadFile(uploadId, file, onProgress);
+        
+        // Process the uploaded file
+        const response = await apiRequest(`/api/deals/${dealId}/upload-chunked/${uploadId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folderName })
+        });
+
+        console.log('✅ Chunked ZIP upload successful:', response);
+        
+        // Success - clear states and refresh
+        setChunkedUploadProgress(null);
+        setIsChunkedUpload(false);
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        if (onUploadComplete) {
+          onUploadComplete();
+        }
+
+      } catch (error) {
+        console.error('Chunked upload failed:', error);
+        setChunkedUploadProgress(prev => prev ? { ...prev, status: 'error' } : null);
+        setTimeout(() => {
+          setChunkedUploadProgress(null);
+          setIsChunkedUpload(false);
+        }, 5000);
+        alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else {
+      console.log(`📤 File ${fileSizeMB.toFixed(1)}MB ≤ 30MB: Using direct upload`);
+      
+      // Use regular upload for small files
+      setUploadProgress({
+        fileName: file.name,
+        progress: 0,
+        status: 'Starting upload...'
+      });
+
+      const formData = new FormData();
+      formData.append('zipFile', file);
+      formData.append('folderName', folderName);
+
+      uploadZipMutation.mutate(formData);
+    }
   };
 
   const handleAdditionalFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2021,6 +2086,36 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                         <div 
                           className="bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full transition-all duration-300" 
                           style={{ width: `${uploadProgress.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chunked Upload Progress */}
+                  {chunkedUploadProgress && (
+                    <div className="space-y-3 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl backdrop-blur-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-white font-medium">{chunkedUploadProgress.fileName}</p>
+                            <p className="text-xs text-purple-300">
+                              {chunkedUploadProgress.status === 'initializing' && 'Preparing large file upload...'}
+                              {chunkedUploadProgress.status === 'uploading' && `Uploading chunk ${chunkedUploadProgress.currentChunk + 1}/${chunkedUploadProgress.totalChunks}`}
+                              {chunkedUploadProgress.status === 'assembling' && 'Assembling file on server...'}
+                              {chunkedUploadProgress.status === 'complete' && 'Upload complete!'}
+                              {chunkedUploadProgress.status === 'error' && 'Upload failed'}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-sm text-purple-300 font-medium">{chunkedUploadProgress.progress.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-purple-500 to-pink-400 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${chunkedUploadProgress.progress}%` }}
                         ></div>
                       </div>
                     </div>
