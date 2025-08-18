@@ -386,10 +386,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Use environment PORT for deployment, fallback to 5000 for local development
+  // This ensures compatibility with Cloud Run and other deployment platforms
+  const port = parseInt(process.env.PORT as string) || 5000;
   
   // 🚨 CRITICAL: Configure MASSIVE server timeouts for huge file uploads
   server.timeout = 2 * 60 * 60 * 1000; // 2 hours for massive uploads  
