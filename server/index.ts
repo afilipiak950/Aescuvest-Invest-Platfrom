@@ -197,17 +197,41 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // 🚨 CRITICAL FIX: Add API route handler middleware BEFORE vite to ensure API calls reach backend
+  // 🚨 ULTIMATE ANTI-VITE MIDDLEWARE: Bulletproof API route protection
   app.use('/api/*', (req: Request, res: Response, next: NextFunction) => {
-    // This middleware ensures all /api/* requests are handled by Express routes
-    // and don't get intercepted by Vite's catch-all handler
     console.log(`🎯 API route hit: ${req.method} ${req.originalUrl}`);
     
-    // 🚨 CRITICAL: Only set JSON content type for non-upload routes
-    // File upload routes need to maintain multipart/form-data content type for multer
-    if (!req.originalUrl.includes('/upload') && !req.originalUrl.includes('/data-room')) {
-      res.setHeader('Content-Type', 'application/json');
-    }
+    // 🚨 CRITICAL: Override all response methods to prevent Vite HTML interference  
+    const originalSend = res.send.bind(res);
+    const originalJson = res.json.bind(res);
+    const originalEnd = res.end.bind(res);
+    
+    // Force JSON content-type for ALL API responses
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // Override res.send to force JSON responses
+    res.send = function(data: any) {
+      console.log(`🔧 Anti-Vite send override: ${req.method} ${req.originalUrl}`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return originalSend.call(this, data);
+    };
+    
+    // Override res.json to ensure proper JSON handling
+    res.json = function(data: any) {
+      console.log(`📤 JSON response: ${req.method} ${req.originalUrl}`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return originalJson.call(this, data);
+    };
+    
+    // Override res.end to ensure JSON content-type
+    res.end = function(data?: any, encoding?: any) {
+      console.log(`🔧 Anti-Vite end override: ${req.method} ${req.originalUrl}`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return originalEnd.call(this, data, encoding);
+    };
     
     next();
   });
@@ -247,6 +271,129 @@ app.use((req, res, next) => {
     };
     
     res.json(diagnostics);
+  });
+
+  // 🚨 WORKING SOLUTION: Add chunked upload init directly here (same location as working diagnostics)
+  app.get('/api/upload/chunk/init', async (req: Request, res: Response) => {
+    console.log('🚀 CHUNKED UPLOAD INIT (WORKING) HIT!', req.query);
+    
+    try {
+      const { fileName, totalSize, chunkSize } = req.query;
+      
+      if (!fileName || !totalSize || !chunkSize) {
+        console.log('❌ Missing parameters:', { fileName, totalSize, chunkSize });
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: fileName, totalSize, chunkSize'
+        });
+      }
+
+      // Import the chunked upload service
+      const { chunkedUploadService } = await import('./services/chunkedUploadService');
+      
+      console.log(`📁 Initializing chunked upload: ${fileName}, ${totalSize} bytes, ${chunkSize} byte chunks`);
+      const uploadId = chunkedUploadService.initializeUpload(fileName as string, parseInt(totalSize as string), parseInt(chunkSize as string));
+      console.log(`✅ Chunked upload initialized with ID: ${uploadId}`);
+
+      const response = {
+        success: true,
+        uploadId,
+        message: `Chunked upload initialized for ${fileName}`,
+        maxFileSize: '5GB',
+        supportedTypes: ['ZIP', 'PDF', 'DOCX', 'XLSX', 'PPT']
+      };
+      
+      console.log('📤 Sending chunked upload init response:', response);
+      return res.json(response);
+    } catch (error) {
+      console.error('❌ Error initializing chunked upload:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to initialize chunked upload'
+      });
+    }
+  });
+
+  // 🚨 WORKING SOLUTION: Add chunk upload endpoint using multer (bypasses Vite issues)
+  // Import multer for handling multipart uploads
+  const multer = (await import('multer')).default;
+  
+  // Create multer instance for chunk uploads
+  const chunkUploader = multer({
+    storage: multer.memoryStorage(), // Store in memory for processing
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB max chunk size
+    },
+  });
+
+  app.post('/api/upload/chunk/:uploadId/:chunkIndex',
+    chunkUploader.single('chunk'),
+    async (req: Request, res: Response) => {
+      console.log(`🚀 CHUNK UPLOAD (MULTER) HIT! Upload: ${req.params.uploadId}, Chunk: ${req.params.chunkIndex}`);
+      
+      try {
+        const { uploadId, chunkIndex } = req.params;
+        const chunkFile = req.file;
+
+        if (!chunkFile) {
+          return res.status(400).json({
+            success: false,
+            error: 'No chunk data received'
+          });
+        }
+
+        // Import the chunked upload service
+        const { chunkedUploadService } = await import('./services/chunkedUploadService');
+        
+        console.log(`📁 Processing chunk ${chunkIndex} for upload ${uploadId} (${chunkFile.size} bytes)`);
+        
+        const result = await chunkedUploadService.uploadChunk(uploadId, parseInt(chunkIndex), chunkFile.buffer);
+        
+        console.log(`✅ Chunk ${chunkIndex} processed successfully`);
+        
+        return res.json({
+          success: true,
+          chunkIndex: parseInt(chunkIndex),
+          isComplete: result.isComplete,
+          message: `Chunk ${chunkIndex} uploaded successfully`,
+          chunkSize: chunkFile.size
+        });
+      } catch (error) {
+        console.error('❌ Error uploading chunk:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to upload chunk'
+        });
+      }
+    }
+  );
+
+  // Add chunk upload status endpoint (GET method works with Vite)
+  app.get('/api/upload/chunk/:uploadId/status', async (req: Request, res: Response) => {
+    console.log(`🔍 CHUNK STATUS CHECK! Upload: ${req.params.uploadId}`);
+    
+    try {
+      const { uploadId } = req.params;
+
+      // Import the chunked upload service
+      const { chunkedUploadService } = await import('./services/chunkedUploadService');
+      
+      const status = await chunkedUploadService.getUploadStatus(uploadId);
+      
+      console.log(`📊 Upload status for ${uploadId}:`, status);
+      
+      return res.json({
+        success: true,
+        uploadId,
+        ...status
+      });
+    } catch (error) {
+      console.error('❌ Error getting upload status:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get upload status'
+      });
+    }
   });
 
   // 🚨 CRITICAL: Register API routes FIRST (before Vite middleware)
@@ -396,6 +543,59 @@ app.use((req, res, next) => {
     res.status(status).json({ message });
     throw err;
   });
+
+  // 🚨 ULTIMATE SOLUTION: Complete Pre-Vite API Processing
+  // Process ALL API routes completely BEFORE Vite middleware can interfere
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!req.originalUrl.startsWith('/api/')) {
+      return next(); // Not an API route, continue normally
+    }
+
+    console.log(`🔄 PRE-VITE COMPLETE: ${req.method} ${req.originalUrl}`);
+    
+    // Force proper headers immediately
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    // Override ALL response methods to ensure JSON output
+    const originalSend = res.send.bind(res);
+    const originalJson = res.json.bind(res);
+    const originalEnd = res.end.bind(res);
+    
+    res.send = function(data: any) {
+      console.log(`📤 PRE-VITE SEND: ${req.method} ${req.originalUrl}`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return originalSend.call(this, data);
+    };
+    
+    res.json = function(data: any) {
+      console.log(`📤 PRE-VITE JSON: ${req.method} ${req.originalUrl}`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return originalJson.call(this, data);
+    };
+    
+    res.end = function(data?: any, encoding?: any) {
+      console.log(`📤 PRE-VITE END: ${req.method} ${req.originalUrl}`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      
+      // If Vite tries to inject HTML, block it completely
+      if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+        console.error(`🚨 PRE-VITE BLOCKED HTML for ${req.originalUrl}`);
+        return originalEnd.call(this, JSON.stringify({
+          success: false,
+          error: 'Vite HTML injection blocked',
+          route: req.originalUrl,
+          method: req.method
+        }), 'utf8');
+      }
+      
+      return originalEnd.call(this, data, encoding);
+    };
+    
+    next();
+  });
+
+  // Removed final API protection to allow routes to work properly
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

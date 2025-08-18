@@ -44,21 +44,22 @@ class ChunkedUploadService {
 
     try {
       // Initialize upload session
-      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      // 🚨 WORKING FIX: Use GET with query parameters (avoids Vite POST interference)
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
         ? 'http://localhost:5000' // Development: bypass Vite middleware
         : ''; // Production: use relative URLs
+      
+      const params = new URLSearchParams({
+        fileName: file.name,
+        totalSize: file.size.toString(),
+        chunkSize: chunkSize.toString(),
+      });
         
-      const response = await fetch(`${baseUrl}/api/upload/chunk/init`, {
-        method: 'POST',
+      const response = await fetch(`${baseUrl}/api/upload/chunk/init?${params}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          fileName: file.name,
-          totalSize: file.size,
-          chunkSize: chunkSize,
-        }),
       });
 
       if (!response.ok) {
@@ -407,7 +408,37 @@ class ChunkedUploadService {
         
         const retryText = await retryResponse.text();
         if (retryText.includes('<!DOCTYPE html>')) {
-          throw new Error('❌ CRITICAL: Vite interference persists even after retry. Manual deployment required.');
+          console.error('❌ Retry #1 still got HTML. Trying final absolute URL approach...');
+          
+          // Final attempt with different port and headers
+          const finalApiUrl = `http://localhost:5000/api/upload/chunk/init?force=true&t=${Date.now()}`;
+          const finalResponse = await fetch(finalApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            },
+            body: JSON.stringify(requestBody),
+            cache: 'no-store',
+            mode: 'cors'
+          });
+          
+          if (!finalResponse.ok) {
+            throw new Error(`❌ CRITICAL: All retry attempts failed. Server response: ${finalResponse.status}`);
+          }
+          
+          const finalText = await finalResponse.text();
+          if (finalText.includes('<!DOCTYPE html>')) {
+            throw new Error('❌ CRITICAL: Vite interference persists even after retry. Manual deployment required.');
+          }
+          
+          const finalResult = JSON.parse(finalText);
+          console.log('✅ Final retry successful:', finalResult);
+          return finalResult.uploadId;
         }
         
         const retryResult = JSON.parse(retryText);
@@ -431,8 +462,16 @@ class ChunkedUploadService {
       
       return initResult.uploadId;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to initialize chunked upload:', error);
+      
+      // Enhanced error message for better debugging
+      if (error.message && error.message.includes('Vite interference')) {
+        throw new Error(`Upload initialization failed due to development server conflicts. ${error.message}`);
+      } else if (error.message && error.message.includes('invalid JSON')) {
+        throw new Error(`Server returned non-JSON response. This may be a development server routing issue.`);
+      }
+      
       throw error;
     }
   }

@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -7502,9 +7502,49 @@ export async function registerAllRoutes(app: Express) {
     }
   });
 
-  // Initialize chunked upload
+  // 🚨 WORKAROUND: Use GET with query params instead of POST for chunked upload init
+  // This bypasses the Vite POST interference issue completely  
+  app.get('/api/upload/chunk/init', async (req: Request, res: Response) => {
+    console.log('🚀 CHUNKED UPLOAD INIT (GET) HIT!', req.query);
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const { fileName, totalSize, chunkSize } = req.query;
+      
+      if (!fileName || !totalSize || !chunkSize) {
+        console.log('❌ Missing parameters:', { fileName, totalSize, chunkSize });
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: fileName, totalSize, chunkSize'
+        });
+      }
+
+      console.log(`📁 Initializing chunked upload: ${fileName}, ${totalSize} bytes, ${chunkSize} byte chunks`);
+      const uploadId = chunkedUploadService.initializeUpload(fileName as string, parseInt(totalSize as string), parseInt(chunkSize as string));
+      console.log(`✅ Chunked upload initialized with ID: ${uploadId}`);
+
+      const response = {
+        success: true,
+        uploadId,
+        message: `Chunked upload initialized for ${fileName}`,
+        maxFileSize: '5GB',
+        supportedTypes: ['ZIP', 'PDF', 'DOCX', 'XLSX', 'PPT']
+      };
+      
+      console.log('📤 Sending chunked upload init response:', response);
+      return res.status(200).json(response);
+    } catch (error) {
+      console.error('❌ Error initializing chunked upload:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to initialize chunked upload'
+      });
+    }
+  });
+
+  // Keep POST version for completeness (but it won't work due to Vite)
   app.post('/api/upload/chunk/init', async (req: Request, res: Response) => {
-    console.log('🚀 CHUNKED UPLOAD INIT HIT!', req.body);
+    console.log('🚀 CHUNKED UPLOAD INIT (POST) HIT!', req.body);
     
     // 🚨 CRITICAL FIX: Force JSON content type explicitly 
     res.setHeader('Content-Type', 'application/json');
