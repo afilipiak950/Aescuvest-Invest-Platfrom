@@ -1263,12 +1263,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // 🚨 CRITICAL FIX: Auto-detect and use chunked upload for files >30MB to bypass 413 errors
+    // 🚨 CRITICAL FIX: Auto-detect and use chunked upload for files >5MB to bypass 413 errors
     const fileSizeMB = file.size / (1024 * 1024);
-    const shouldUseChunkedUpload = fileSizeMB > 30;
+    const shouldUseChunkedUpload = fileSizeMB > 5;
     
     if (shouldUseChunkedUpload) {
-      console.log(`🔄 File ${fileSizeMB.toFixed(1)}MB > 30MB: Using chunked upload to bypass infrastructure limits`);
+      console.log(`🔄 File ${fileSizeMB.toFixed(1)}MB > 5MB: Using chunked upload to bypass infrastructure limits`);
       
       // Use chunked upload for large files
       setIsChunkedUpload(true);
@@ -1323,7 +1323,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     } else {
-      console.log(`📤 File ${fileSizeMB.toFixed(1)}MB ≤ 30MB: Using direct upload`);
+      console.log(`📤 File ${fileSizeMB.toFixed(1)}MB ≤ 5MB: Using direct upload`);
       
       // Use regular upload for small files
       setUploadProgress({
