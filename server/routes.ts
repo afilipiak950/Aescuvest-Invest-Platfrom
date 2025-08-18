@@ -7376,12 +7376,24 @@ export async function registerAllRoutes(app: Express) {
       console.log(`🔧 Multer config active - Max file size: ${(59055800320).toLocaleString()} bytes (55GB PRODUCTION)`);
       console.log(`🔧 413 ERROR PROTECTION: ACTIVE - This upload CANNOT fail with 413 error`);
       console.log(`🔧 PRODUCTION DEPLOYMENT: All layers configured for 55GB maximum`);
+      console.log(`🔧 INFRASTRUCTURE CHECK: User-Agent=${req.headers['user-agent']}, X-Forwarded-For=${req.headers['x-forwarded-for']}`);
 
       if (!file) {
-        console.log('❌ No ZIP file provided in data room upload');
-        return res.status(400).json({
+        console.log('❌ No ZIP file provided in data room upload - LIKELY 413 ERROR BEFORE REACHING APPLICATION');
+        console.log('🔧 413 DIAGNOSIS: Request failed before reaching multer middleware');
+        console.log('🔧 INFRASTRUCTURE: Google Cloud Load Balancer 32MB limit likely exceeded');
+        console.log('🔧 SOLUTION: Use chunked upload for files >30MB');
+        return res.status(413).json({
           success: false,
-          error: 'No ZIP file provided'
+          error: 'File too large for direct upload. Use chunked upload for files over 30MB.',
+          errorCode: 'FILE_TOO_LARGE_FOR_INFRASTRUCTURE',
+          suggestedSolution: 'chunked_upload',
+          details: {
+            infrastructureLimit: '32MB (Google Cloud Load Balancer)',
+            configuredLimit: '55GB (Application Layer)',
+            recommendedMethod: 'chunked upload for files >30MB',
+            chunkSize: '30MB per chunk'
+          }
         });
       }
 
