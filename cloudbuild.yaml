@@ -29,6 +29,6 @@ steps:
       - '--port'
       - '5000'
       - '--max-body-size'
-      - '50737418240'
+      - '53687091200'
       - '--service-account'
       - 'aescuvest-upload@$PROJECT_ID.iam.gserviceaccount.com'

@@ -16,7 +16,7 @@ import { cloudRunUploadService } from "./services/cloudRunUploadService";
 
 const app = express();
 
-// CRITICAL: Configure for Google Cloud Run large file uploads
+// CRITICAL: Configure for Google Cloud Run large file uploads - ELIMINATE ALL 413 ERRORS
 app.use((req, res, next) => {
   // Set headers to handle large uploads in production
   res.set({
@@ -25,24 +25,52 @@ app.use((req, res, next) => {
     'X-XSS-Protection': '1; mode=block'
   });
   
-  // For upload routes, set specific headers
+  // For upload routes, set specific headers to prevent 413 errors
   if (req.path.includes('/upload') || req.path.includes('/data-room')) {
     res.set({
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Content-Length, Authorization',
       'Access-Control-Max-Age': '86400',
-      'X-Accel-Buffering': 'no', // 🚨 CRITICAL: Disable nginx buffering for large uploads
-      'X-Content-Type-Options': 'nosniff'
+      'X-Accel-Buffering': 'no', // CRITICAL: Disable nginx buffering 
+      'X-Content-Type-Options': 'nosniff',
+      'Transfer-Encoding': 'chunked', // Enable chunked transfer
+      'Connection': 'keep-alive'
     });
+    
+    // Set timeout for large uploads
+    req.setTimeout(7200000); // 2 hours
+    res.setTimeout(7200000); // 2 hours
   }
   
   next();
 });
 
-// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 50GB) - Fix 413 errors
-app.use(express.json({ limit: '50737418240' })); // 50GB in bytes
-app.use(express.urlencoded({ limit: '50737418240', extended: true })); // 50GB in bytes
+// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 50GB) - ELIMINATE 413 ERRORS
+app.use(express.json({ limit: '53687091200' })); // 50GB + buffer in bytes
+app.use(express.urlencoded({ limit: '53687091200', extended: true })); // 50GB + buffer in bytes
+app.use(express.raw({ limit: '53687091200', type: '*/*' })); // Raw body parser for any content type
+
+// 🚨 CRITICAL: Error handling middleware to catch and prevent 413 errors
+app.use((err: any, req: any, res: any, next: any) => {
+  if (err.status === 413 || err.code === 'LIMIT_FILE_SIZE' || err.message.includes('413')) {
+    console.error('🚨 CAUGHT 413 ERROR - THIS SHOULD NOT HAPPEN WITH 50GB+ LIMITS!');
+    console.error('Error details:', err);
+    console.error('Request URL:', req.url);
+    console.error('Content-Length:', req.headers['content-length']);
+    
+    return res.status(413).json({
+      success: false,
+      error: 'File upload limit exceeded. The system is configured for 50GB+ uploads. This error should not occur.',
+      details: {
+        configuredLimit: '53687091200 bytes (50GB+)',
+        actualError: err.message,
+        suggestedAction: 'Contact support - this is a configuration issue'
+      }
+    });
+  }
+  next(err);
+});
 
 // Setup multer for file uploads BEFORE any other middleware
 const storage = multer.diskStorage({
@@ -63,13 +91,15 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
-    fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for fields
-    fields: 100, // Allow many fields
-    files: 50 // Allow many files
+    fileSize: 53687091200, // 🚨 50GB + buffer to ELIMINATE ALL 413 ERRORS
+    fieldSize: 53687091200, // 50GB + buffer for fields
+    fields: 200, // Allow many fields
+    files: 100, // Allow many files
+    parts: 1000, // Allow many parts
+    headerPairs: 2000 // Allow many header pairs
   },
   fileFilter: (req, file, cb) => {
-    // Allow all file types for ZIP uploads
+    // Allow all file types for ZIP uploads - NO RESTRICTIONS
     cb(null, true);
   }
 });
