@@ -46,10 +46,27 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚨 CRITICAL: Configure Express to handle MASSIVE file uploads (up to 55GB) - ELIMINATE 413 ERRORS
-app.use(express.json({ limit: '59055800320' })); // 55GB in bytes for production
-app.use(express.urlencoded({ limit: '59055800320', extended: true })); // 55GB in bytes for production  
-app.use(express.raw({ limit: '59055800320', type: '*/*' })); // Raw body parser for any content type
+// 🚨 CRITICAL: Configure Express body parsers - EXCLUDE upload routes to prevent multer conflicts
+app.use((req, res, next) => {
+  // Skip body parsing for upload routes to allow multer to handle multipart data
+  if (req.path.includes('/upload') || req.path.includes('/data-room')) {
+    return next();
+  }
+  // Apply body parsers only for non-upload routes
+  express.json({ limit: '59055800320' })(req, res, next); // 55GB in bytes for production
+});
+
+app.use((req, res, next) => {
+  // Skip body parsing for upload routes to allow multer to handle multipart data
+  if (req.path.includes('/upload') || req.path.includes('/data-room')) {
+    return next();
+  }
+  // Apply URL-encoded parser only for non-upload routes
+  express.urlencoded({ limit: '59055800320', extended: true })(req, res, next); // 55GB in bytes for production  
+});
+
+// Raw parser should only be used for specific routes that need it
+app.use('/api/webhooks', express.raw({ limit: '59055800320', type: '*/*' })); // Raw body parser for webhooks only
 
 // 🚨 CRITICAL: Error handling middleware to catch and prevent 413 errors
 app.use((err: any, req: any, res: any, next: any) => {
@@ -186,8 +203,11 @@ app.use((req, res, next) => {
     // and don't get intercepted by Vite's catch-all handler
     console.log(`🎯 API route hit: ${req.method} ${req.originalUrl}`);
     
-    // 🚨 CRITICAL: Force JSON content type for ALL API responses
-    res.setHeader('Content-Type', 'application/json');
+    // 🚨 CRITICAL: Only set JSON content type for non-upload routes
+    // File upload routes need to maintain multipart/form-data content type for multer
+    if (!req.originalUrl.includes('/upload') && !req.originalUrl.includes('/data-room')) {
+      res.setHeader('Content-Type', 'application/json');
+    }
     
     next();
   });

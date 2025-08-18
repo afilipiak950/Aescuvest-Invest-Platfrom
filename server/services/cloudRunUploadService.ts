@@ -103,6 +103,28 @@ export class CloudRunUploadService {
       return true;
     }
     
+    // Handle multer form parsing errors
+    if (error.message?.includes('Unexpected end of form') || error.message?.includes('Part terminated early')) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid multipart form data',
+        details: 'The file upload form was not properly formatted or was interrupted',
+        recommendedAction: 'Please try uploading the file again'
+      });
+      return true;
+    }
+    
+    // Handle general multer errors
+    if (error.message?.includes('form') || error.code?.startsWith('LIMIT_')) {
+      res.status(400).json({
+        success: false,
+        error: 'File upload error',
+        details: error.message,
+        multerError: true
+      });
+      return true;
+    }
+    
     return false; // Let other error handlers process
   }
   
