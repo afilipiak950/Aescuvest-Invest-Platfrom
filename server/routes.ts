@@ -7363,7 +7363,78 @@ export async function registerAllRoutes(app: Express) {
   // 🚀 CHUNKED UPLOAD ROUTES FOR LARGE FILES (up to 5GB)
   console.log('🚀 Registering chunked upload routes for large files...');
 
-  // Regular ZIP upload route for files under 100MB
+  // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
+  app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const file = req.file;
+      const { folderName } = req.body;
+
+      console.log(`🚨 DATA ROOM UPLOAD HIT! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
+      console.log(`🔧 Request details - Headers: Content-Length=${req.headers['content-length']}, Content-Type=${req.headers['content-type']}`);
+      console.log(`🔧 Express limits check - JSON: ${req.app.get('json limit') || '50GB'}, URL: ${req.app.get('url limit') || '50GB'}`);
+      console.log(`🔧 Multer config active - Max file size: ${(50 * 1024 * 1024 * 1024).toLocaleString()} bytes (50GB)`);
+
+      if (!file) {
+        console.log('❌ No ZIP file provided in data room upload');
+        return res.status(400).json({
+          success: false,
+          error: 'No ZIP file provided'
+        });
+      }
+
+      if (!file.originalname.toLowerCase().endsWith('.zip')) {
+        return res.status(400).json({
+          success: false,
+          error: 'File must be a ZIP archive'
+        });
+      }
+
+      console.log(`📦 Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+
+      // Process the ZIP file using zipProcessor
+      const zipResult = await zipProcessor.processZipFile(file.path, dealId, folderName || 'Data Room');
+
+      // Clean up uploaded file
+      fs.unlinkSync(file.path);
+
+      console.log(`✅ Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
+
+      res.json({
+        success: true,
+        message: `Data room ZIP file processed successfully`,
+        fileName: file.originalname,
+        documentsProcessed: zipResult.documentsProcessed,
+        errors: zipResult.errors,
+        uploadSize: `${(file.size / 1024 / 1024).toFixed(1)}MB`
+      });
+
+    } catch (error) {
+      console.error('❌ Error processing data room ZIP upload:', error);
+      
+      // Check for specific 413 errors and provide better feedback
+      if (error.message && error.message.includes('413')) {
+        console.error('🚨 413 ERROR DETECTED! This should not happen with 50GB limits configured');
+        return res.status(413).json({
+          success: false,
+          error: '413 - File upload limit exceeded. The system now supports files up to 50GB. If you are still seeing this error, please contact support as this should not occur with our enhanced configuration.',
+          debugInfo: {
+            configuredLimits: '50GB',
+            suggestedAction: 'Try using chunked upload for files over 100MB',
+            chunkEndpoint: '/api/upload/chunk/init'
+          }
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process data room ZIP file upload',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Regular ZIP upload route for files under 100MB (fallback)
   app.post('/api/deals/:dealId/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
