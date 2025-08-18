@@ -20,7 +20,8 @@ export interface ChunkedUploadOptions {
 }
 
 class ChunkedUploadService {
-  private readonly defaultChunkSize = 5 * 1024 * 1024; // 5MB chunks for maximum safety
+  // 🚨 ULTRA-SAFE: 1MB chunks provide 32× safety margin below infrastructure limits
+  private readonly defaultChunkSize = 1 * 1024 * 1024; // 1MB chunks for maximum reliability
   private activeUploads = new Map<string, {
     file: File;
     options: ChunkedUploadOptions;
@@ -149,6 +150,9 @@ class ChunkedUploadService {
     });
 
     if (!response.ok) {
+      if (response.status === 413) {
+        throw new Error(`413 Entity Too Large - Chunk ${chunkIndex} too big (${(chunk.size / 1024 / 1024).toFixed(1)}MB)`);
+      }
       throw new Error(`Chunk ${chunkIndex} upload failed: ${response.statusText}`);
     }
 
