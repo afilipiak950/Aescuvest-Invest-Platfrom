@@ -291,35 +291,186 @@ class ChunkedUploadService {
   }
 
   /**
-   * Upload a file with smart size detection (wrapper method for compatibility)
+   * Initialize upload - creates upload session and returns uploadId
+   */
+  async initializeUpload(fileName: string, fileSize: number): Promise<string> {
+    console.log(`📁 Initializing chunked upload: ${fileName} (${(fileSize / 1024 / 1024).toFixed(1)}MB)`);
+
+    try {
+      const response = await fetch('/api/upload/chunk/init', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileName: fileName,
+          totalSize: fileSize,
+          chunkSize: this.defaultChunkSize,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to initialize upload: ${response.statusText}`);
+      }
+
+      const initResult = await response.json();
+      return initResult.uploadId;
+
+    } catch (error) {
+      console.error('❌ Failed to initialize chunked upload:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload file in chunks using existing uploadId
    */
   async uploadFile(
+    uploadId: string,
+    file: File,
+    onProgress?: (progress: ChunkedUploadProgress) => void
+  ): Promise<void> {
+    const chunkSize = this.defaultChunkSize;
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    
+    console.log(`📁 Starting chunked upload: ${file.name} (${totalChunks} chunks)`);
+
+    try {
+      // Create abort controller for cancellation
+      const abortController = new AbortController();
+
+      // Track upload state
+      const uploadState = {
+        file,
+        options: { onProgress },
+        startTime: Date.now(),
+        uploadedBytes: 0,
+        abortController,
+      };
+      this.activeUploads.set(uploadId, uploadState);
+
+      // Update initial progress
+      if (onProgress) {
+        onProgress({
+          fileName: file.name,
+          progress: 0,
+          speed: 0,
+          eta: 0,
+          status: 'initializing',
+          uploadId: uploadId,
+          totalSize: file.size,
+          uploadedBytes: 0,
+          isComplete: false,
+          currentChunk: 0,
+          totalChunks: totalChunks
+        });
+      }
+
+      // Upload chunks sequentially for reliability
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        if (abortController.signal.aborted) {
+          throw new Error('Upload cancelled');
+        }
+
+        const start = chunkIndex * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        // Upload chunk
+        await this.uploadChunk(uploadId, chunkIndex, chunk, abortController.signal);
+
+        // Update progress
+        uploadState.uploadedBytes = end;
+        
+        if (onProgress) {
+          const now = Date.now();
+          const elapsedSeconds = (now - uploadState.startTime) / 1000;
+          const speed = elapsedSeconds > 0 ? uploadState.uploadedBytes / elapsedSeconds : 0;
+          const remainingBytes = file.size - uploadState.uploadedBytes;
+          const estimatedTimeRemaining = speed > 0 ? remainingBytes / speed : 0;
+
+          onProgress({
+            fileName: file.name,
+            progress: (uploadState.uploadedBytes / file.size) * 100,
+            speed: speed,
+            eta: estimatedTimeRemaining,
+            status: chunkIndex + 1 === totalChunks ? 'assembling' : 'uploading',
+            uploadId: uploadId,
+            totalSize: file.size,
+            uploadedBytes: uploadState.uploadedBytes,
+            isComplete: chunkIndex + 1 === totalChunks,
+            currentChunk: chunkIndex,
+            totalChunks: totalChunks
+          });
+        }
+      }
+
+      // Verify upload completion
+      const statusResponse = await fetch(`/api/upload/chunk/${uploadId}/status`);
+      const status = await statusResponse.json();
+      
+      if (!status.isComplete) {
+        throw new Error('Upload verification failed');
+      }
+
+      console.log(`✅ Chunked upload complete: ${file.name}`);
+      
+      if (onProgress) {
+        onProgress({
+          fileName: file.name,
+          progress: 100,
+          speed: 0,
+          eta: 0,
+          status: 'complete',
+          uploadId: uploadId,
+          totalSize: file.size,
+          uploadedBytes: file.size,
+          isComplete: true,
+          currentChunk: totalChunks,
+          totalChunks: totalChunks
+        });
+      }
+
+      this.activeUploads.delete(uploadId);
+
+    } catch (error) {
+      console.error('❌ Chunked upload failed:', error);
+      this.activeUploads.delete(uploadId);
+      
+      if (onProgress) {
+        onProgress({
+          fileName: file.name,
+          progress: 0,
+          speed: 0,
+          eta: 0,
+          status: 'error',
+          uploadId: uploadId,
+          totalSize: file.size,
+          uploadedBytes: 0,
+          isComplete: false,
+          currentChunk: 0,
+          totalChunks: totalChunks
+        });
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Upload a file with smart size detection (legacy wrapper method)
+   */
+  async uploadFileComplete(
     file: File,
     dealId: number,
     folderName?: string,
     onProgress?: (progress: ChunkedUploadProgress) => void
   ): Promise<any> {
-    // Use chunked upload for large files
-    const uploadId = await this.uploadLargeFile(file, {
-      onProgress: (originalProgress) => {
-        // Convert to expected format
-        const convertedProgress: ChunkedUploadProgress = {
-          fileName: originalProgress.fileName,
-          progress: originalProgress.progress,
-          speed: originalProgress.speed || 0,
-          eta: originalProgress.eta || 0,
-          status: originalProgress.isComplete ? 'Upload complete' : 
-                  `Uploading chunk ${originalProgress.currentChunk || 0} of ${originalProgress.totalChunks || 0}...`,
-          uploadId: originalProgress.uploadId,
-          totalSize: originalProgress.totalSize,
-          uploadedBytes: originalProgress.uploadedBytes,
-          isComplete: originalProgress.isComplete,
-          currentChunk: originalProgress.currentChunk,
-          totalChunks: originalProgress.totalChunks
-        };
-        onProgress?.(convertedProgress);
-      }
-    });
+    // Initialize upload session
+    const uploadId = await this.initializeUpload(file.name, file.size);
+    
+    // Upload file in chunks
+    await this.uploadFile(uploadId, file, onProgress);
 
     // Process the completed upload
     return await this.processCompletedUpload(uploadId, dealId, folderName);
