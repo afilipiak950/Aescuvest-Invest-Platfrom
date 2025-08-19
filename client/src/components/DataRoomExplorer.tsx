@@ -30,7 +30,6 @@ import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
-import { StreamingUploadButton } from './StreamingUploadButton';
 
 interface DataRoomExplorerProps {
   dealId: number;
@@ -1092,13 +1091,30 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           reject(new Error('Upload timed out'));
         });
 
-        // Regular upload for normal files
-        const directServerUrl = getDirectServerUrl();
-        const uploadUrl = `${directServerUrl}/api/deals/${dealId}/data-room/upload-zip`;
+        // 🚨 PRODUCTION BYPASS: Use streaming endpoint for large files
+        const fileSize = formData.get('zipFile') instanceof File ? 
+          (formData.get('zipFile') as File).size : 0;
+        
+        let uploadUrl: string;
+        
+        if (fileSize > 50 * 1024 * 1024) { // 50MB+ - use production bypass
+          console.log(`🚨 Large file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB) - using production bypass`);
+          const directServerUrl = getDirectServerUrl();
+          uploadUrl = `${directServerUrl}/api/production/bypass-upload/${dealId}`;
+        } else {
+          // Use normal data room endpoint for smaller files
+          const directServerUrl = getDirectServerUrl();
+          uploadUrl = `${directServerUrl}/api/deals/${dealId}/data-room/upload-zip`;
+        }
         
         xhr.open('POST', uploadUrl);
-        xhr.timeout = 600000; // 10 minutes
-        xhr.withCredentials = true;
+        xhr.timeout = 7200000; // 2 hours for large files
+        xhr.withCredentials = true; // Include cookies for auth
+        
+        // 🚨 PRODUCTION BYPASS HEADERS
+        xhr.setRequestHeader('X-Direct-Upload', '1');
+        xhr.setRequestHeader('X-Bypass-Proxy-Limits', '1');
+        xhr.setRequestHeader('X-Large-File-Upload', '1');
         xhr.send(formData);
       });
     },
@@ -1520,15 +1536,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   <UploadIcon className="h-4 w-4" />
                 )}
               </Button>
-              
-              {/* 🔥 STREAMING UPLOAD - WORKS WITH FILES UP TO 50GB */}
-              <StreamingUploadButton 
-                dealId={dealId}
-                onUploadComplete={() => {
-                  refetchDocuments();
-                }}
-                disabled={uploadZipMutation.isPending}
-              />
             </div>
           </div>
 
