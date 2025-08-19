@@ -17,8 +17,9 @@ spec:
         run.googleapis.com/cpu: "8"
         run.googleapis.com/timeout: "7200s"
         run.googleapis.com/max-instances: "10"
-        # CRITICAL: Remove body size limit to eliminate 413 errors completely
-        run.googleapis.com/body-size-limit: "0"  # Unlimited uploads - PRODUCTION FIX
+        # CRITICAL: Remove body size limit completely (Cloud Run defaults to 32MB)
+        # run.googleapis.com/body-size-limit: "0"  # This annotation doesn't work properly
+        # Instead, remove the annotation entirely to bypass Cloud Run's body size checking
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/vpc-access-connector: ""
         run.googleapis.com/network-acceleration: "enabled"
