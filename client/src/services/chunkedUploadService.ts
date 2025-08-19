@@ -355,16 +355,26 @@ class ChunkedUploadService {
         
       const apiUrl = `${baseUrl}/api/upload/chunk/init`;
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
+      // 🚨 CRITICAL FIX: Use GET method with query params to bypass Vite interference
+      const params = new URLSearchParams({
+        fileName: fileName,
+        totalSize: fileSize.toString(),
+        chunkSize: this.defaultChunkSize.toString(),
+        t: Date.now().toString() // Cache busting
+      });
+      
+      const getApiUrl = `${apiUrl}?${params.toString()}`;
+      console.log('🔄 Using GET method to bypass Vite interference:', getApiUrl);
+      
+      const response = await fetch(getApiUrl, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json', // 🚨 CRITICAL: Explicitly request JSON response
-          'Cache-Control': 'no-cache', // 🚨 CRITICAL: Disable caching to prevent stale responses
-          'Pragma': 'no-cache' // 🚨 CRITICAL: Additional cache prevention
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
-        body: JSON.stringify(requestBody),
-        cache: 'no-store' // 🚨 CRITICAL: Force fresh request every time
+        cache: 'no-store'
       });
 
       console.log(`📥 Response status: ${response.status} ${response.statusText}`);
