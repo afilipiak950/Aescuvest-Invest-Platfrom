@@ -46,23 +46,24 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚨 CRITICAL: Configure Express body parsers - EXCLUDE upload routes to prevent multer conflicts
+// 🚨 CRITICAL: Completely skip Express body parsers for upload routes
 app.use((req, res, next) => {
-  // Skip body parsing for upload routes to allow multer to handle multipart data
-  if (req.path.includes('/upload') || req.path.includes('/data-room')) {
+  // PRODUCTION FIX: Completely skip ALL body parsing for upload routes
+  if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
+    console.log(`🔧 BYPASSING body parsing for upload route: ${req.path}`);
     return next();
   }
-  // Apply body parsers only for non-upload routes
-  express.json({ limit: '59055800320' })(req, res, next); // 55GB in bytes for production
+  // Apply minimal body parsers for non-upload routes only
+  express.json({ limit: '10mb' })(req, res, next); // Small limit for API routes
 });
 
 app.use((req, res, next) => {
-  // Skip body parsing for upload routes to allow multer to handle multipart data
-  if (req.path.includes('/upload') || req.path.includes('/data-room')) {
+  // PRODUCTION FIX: Completely skip ALL body parsing for upload routes  
+  if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
     return next();
   }
-  // Apply URL-encoded parser only for non-upload routes
-  express.urlencoded({ limit: '59055800320', extended: true })(req, res, next); // 55GB in bytes for production  
+  // Apply minimal URL-encoded parser for non-upload routes only
+  express.urlencoded({ limit: '10mb', extended: true })(req, res, next); // Small limit for forms
 });
 
 // Raw parser should only be used for specific routes that need it
@@ -122,14 +123,15 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 59055800320, // 🚨 55GB to ELIMINATE ALL 413 ERRORS IN PRODUCTION
-    fieldSize: 59055800320, // 55GB for fields
-    fields: 200, // Allow many fields
-    files: 100, // Allow many files
-    parts: 1000, // Allow many parts
-    headerPairs: 2000 // Allow many header pairs
+    fileSize: Infinity, // 🚨 UNLIMITED - ELIMINATE ALL 413 ERRORS IN PRODUCTION
+    fieldSize: Infinity, // Unlimited for fields
+    fields: Infinity, // Allow unlimited fields
+    files: Infinity, // Allow unlimited files
+    parts: Infinity, // Allow unlimited parts
+    headerPairs: Infinity // Allow unlimited header pairs
   },
   fileFilter: (req, file, cb) => {
+    console.log(`🔧 MULTER: Processing file ${file.originalname} (${file.size || 'unknown'} bytes)`);
     // Allow all file types for ZIP uploads - NO RESTRICTIONS
     cb(null, true);
   }
