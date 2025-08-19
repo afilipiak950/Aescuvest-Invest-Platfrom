@@ -71,8 +71,17 @@ app.use((req, res, next) => {
   express.urlencoded({ limit: '10mb', extended: true })(req, res, next); // Small limit for forms
 });
 
-// Raw parser should only be used for specific routes that need it
-app.use('/api/webhooks', express.raw({ limit: '59055800320', type: '*/*' })); // Raw body parser for webhooks only
+// COMPLETELY SKIP raw parser for upload routes
+app.use((req, res, next) => {
+  if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
+    return next(); // Skip raw parsing too
+  }
+  if (req.path.includes('/api/webhooks')) {
+    express.raw({ limit: '10mb', type: '*/*' })(req, res, next);
+  } else {
+    next();
+  }
+});
 
 // 🚨 CRITICAL: Error handling middleware to catch and prevent 413 errors
 app.use((err: any, req: any, res: any, next: any) => {
