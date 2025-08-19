@@ -980,12 +980,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const { data: documents, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
     staleTime: 0, // CRITICAL FIX: No cache staleness - always fetch fresh data
-    gcTime: 30000, // Keep in cache for 30 seconds
-    refetchInterval: 3000, // Poll every 3 seconds for real-time updates
-    refetchIntervalInBackground: false, // Don't poll in background
+    gcTime: 0, // CRITICAL FIX: No cache at all - always fresh
+    refetchInterval: 2000, // Poll every 2 seconds for IMMEDIATE updates
+    refetchIntervalInBackground: true, // CRITICAL FIX: Keep polling in background
     refetchOnWindowFocus: true, // CRITICAL FIX: Refetch when window gains focus
-    retry: 3, // More retries for reliability
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
+    refetchOnMount: true, // CRITICAL FIX: Always refetch on mount
+    refetchOnReconnect: true, // CRITICAL FIX: Refetch on network reconnect
+    retry: 5, // More retries for reliability  
+    retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 10000)
   });
 
   // Real-time WebSocket listener for immediate AI summary updates
@@ -1144,15 +1146,23 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       
       console.log(`🔄 MICROSTEP 3: Invalidating cache for dealId ${dealId}...`);
       
-      // CRITICAL FIX: Force immediate cache invalidation AND refetch
+      // CRITICAL FIX: Complete cache purge + force refetch with multiple methods
+      await queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       
-      console.log(`🔄 MICROSTEP 3: Forcing immediate refetch...`);
+      console.log(`🔄 MICROSTEP 3: Forcing IMMEDIATE refetch with cache bypass...`);
       
-      // Force immediate refetch to update UI instantly
+      // Force immediate refetch with cache bypass
+      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       await refetch();
       
-      console.log(`🔄 MICROSTEP 3: Cache invalidated and refetched`);
+      // Add a small delay then force another refetch to ensure UI updates
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        console.log(`🔄 MICROSTEP 3: Secondary refetch completed - UI should now show documents`);
+      }, 1000);
+      
+      console.log(`🔄 MICROSTEP 3: Cache completely cleared and refetched`);
       
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
