@@ -131,7 +131,7 @@ export class ZipProcessor {
                 : null;
 
               await storage.createDocument({
-                dealId,
+                dealId: dealId,
                 name: fileName,
                 type: fileType,
                 path: filePath,
@@ -139,13 +139,13 @@ export class ZipProcessor {
                 status: 'Analyzed',
                 ocrText: cleanOcrText,
                 analyses: JSON.stringify(analysisResult),
-                folderPath: folderPath,
+                folderPath: folderPath || '',
                 isFolder: false,
                 category: analysisResult.analysis?.category || 'General',
                 documentType: analysisResult.analysis?.documentType || fileType,
-                summary: analysisResult.analysis?.summary,
-                insights: analysisResult.analysis?.insights,
-                riskFactors: analysisResult.analysis?.riskFactors
+                summary: analysisResult.analysis?.summary || null,
+                insights: analysisResult.analysis?.insights || null,
+                riskFactors: analysisResult.analysis?.riskFactors || null
               });
             } catch (dbError) {
               console.error(`Database save error for ${fileName}:`, dbError);
@@ -158,7 +158,7 @@ export class ZipProcessor {
             // Save document with error status - still save every file to database
             try {
               await storage.createDocument({
-                dealId,
+                dealId: dealId,
                 name: fileName,
                 type: fileType,
                 path: filePath,
@@ -169,7 +169,10 @@ export class ZipProcessor {
                 folderPath: '',
                 isFolder: false,
                 category: 'General',
-                documentType: fileType
+                documentType: fileType,
+                summary: null,
+                insights: null,
+                riskFactors: null
               });
             } catch (dbError) {
               console.error(`Database save error for failed ${fileName}:`, dbError);
@@ -217,11 +220,11 @@ export class ZipProcessor {
 
       // ✅ FIXED: Return proper format expected by server route
       return {
-        documentsProcessed: processedCount,
-        errors: [], // No errors if we reached this point
-        totalFiles: allFiles.length,
         connection,
-        processedFiles
+        processedFiles,
+        totalFiles: allFiles.length,
+        documentsProcessed: processedCount,
+        errors: [] // No errors if we reached this point
       };
 
     } catch (error) {
