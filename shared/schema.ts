@@ -603,36 +603,6 @@ export const insertBackgroundJobSchema = createInsertSchema(backgroundJobs).omit
 export type BackgroundJob = typeof backgroundJobs.$inferSelect;
 export type InsertBackgroundJob = z.infer<typeof insertBackgroundJobSchema>;
 
-// Background Upload Sessions for persistent uploads
-export const backgroundUploads = pgTable("background_uploads", {
-  id: serial("id").primaryKey(),
-  uploadId: text("upload_id").notNull().unique(), // UUID for tracking
-  dealId: integer("deal_id").references(() => deals.id),
-  fileName: text("file_name").notNull(),
-  fileSize: bigint("file_size", { mode: "number" }).notNull(),
-  folderPath: text("folder_path").default(""),
-  status: text("status").notNull().default("uploading"), // 'uploading', 'processing', 'completed', 'failed'
-  progress: integer("progress").default(0), // 0-100 upload progress
-  currentChunk: integer("current_chunk").default(0),
-  totalChunks: integer("total_chunks").notNull(),
-  chunkSize: integer("chunk_size").notNull(),
-  uploadedBytes: bigint("uploaded_bytes", { mode: "number" }).default(0),
-  lastActivity: timestamp("last_activity").defaultNow().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  error: text("error"),
-  // Session persistence data
-  sessionData: json("session_data"), // Store chunked upload state
-});
-
-export const insertBackgroundUploadSchema = createInsertSchema(backgroundUploads).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type BackgroundUpload = typeof backgroundUploads.$inferSelect;
-export type InsertBackgroundUpload = z.infer<typeof insertBackgroundUploadSchema>;
-
 // Comprehensive Analysis for investment decision making
 export const comprehensiveAnalysis = pgTable("comprehensive_analysis", {
   id: serial("id").primaryKey(),

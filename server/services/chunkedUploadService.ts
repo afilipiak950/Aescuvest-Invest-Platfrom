@@ -264,43 +264,19 @@ class ChunkedUploadService {
    * Get the file path for a completed upload
    */
   getFilePath(uploadId: string): string | null {
-    console.log(`🔍 MICROSTEP: Getting file path for upload ${uploadId}`);
-    
     // First check if file exists from completed upload
     const uploadsDir = path.join(process.cwd(), 'uploads');
+    const possibleFiles = fs.readdirSync(uploadsDir).filter(f => f.startsWith(uploadId));
     
-    try {
-      if (!fs.existsSync(uploadsDir)) {
-        console.log(`⚠️ Uploads directory does not exist: ${uploadsDir}`);
-        return null;
-      }
-      
-      const allFiles = fs.readdirSync(uploadsDir);
-      console.log(`📁 Found ${allFiles.length} files in uploads directory`);
-      
-      const possibleFiles = allFiles.filter(f => f.startsWith(uploadId));
-      console.log(`🎯 Found ${possibleFiles.length} files matching uploadId: ${uploadId}`);
-      
-      if (possibleFiles.length > 0) {
-        const filePath = path.join(uploadsDir, possibleFiles[0]);
-        console.log(`✅ MICROSTEP: Found completed upload file: ${filePath}`);
-        console.log(`📊 File size: ${fs.statSync(filePath).size} bytes`);
-        return filePath;
-      }
-    } catch (error) {
-      console.error(`❌ MICROSTEP: Error reading uploads directory:`, error);
+    if (possibleFiles.length > 0) {
+      const filePath = path.join(uploadsDir, possibleFiles[0]);
+      console.log(`📁 Found completed upload file: ${filePath}`);
+      return filePath;
     }
     
     // Fallback to active uploads
     const chunkInfo = this.activeUploads.get(uploadId);
-    if (chunkInfo) {
-      console.log(`📋 MICROSTEP: Found active upload - ${chunkInfo.uploadedChunks.size}/${chunkInfo.totalChunks} chunks`);
-      console.log(`🎯 MICROSTEP: Active upload file path: ${chunkInfo.filePath}`);
-      return chunkInfo.filePath;
-    } else {
-      console.log(`❌ MICROSTEP: No active upload found for ${uploadId}`);
-      return null;
-    }
+    return chunkInfo ? chunkInfo.filePath : null;
   }
 
   /**

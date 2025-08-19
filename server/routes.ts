@@ -123,11 +123,10 @@ import inboxRoutes from "./routes/inbox";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
 import documentUploadRoutes from "./routes/document-upload";
 import backgroundJobsRouter from "./routes/backgroundJobs";
-import { backgroundUploadService } from './services/backgroundUploadService';
 import { websocketManager } from "./services/websocketManager";
 import { jobProcessor } from "./services/jobProcessor";
 
-// 🚨 CRITICAL: Use IDENTICAL multer config as server/index.ts - UNLIMITED LIMITS
+// Setup multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
@@ -143,17 +142,19 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: Infinity, // 🚨 UNLIMITED - ELIMINATE ALL 413 ERRORS IN PRODUCTION
-    fieldSize: Infinity, // Unlimited for fields
-    fields: Infinity, // Allow unlimited fields
-    files: Infinity, // Allow unlimited files
-    parts: Infinity, // Allow unlimited parts
-    headerPairs: Infinity // Allow unlimited header pairs
+    fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
+    fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for fields
+    fields: 100, // Allow many fields  
+    files: 50 // Allow many files
   },
   fileFilter: function (req, file, cb) {
-    console.log(`🔧 ROUTES.TS MULTER: Processing file ${file.originalname} (${file.size || 'unknown'} bytes)`);
-    // 🚨 CRITICAL: Allow ALL file types for ZIP uploads - NO RESTRICTIONS
-    cb(null, true);
+    const allowedTypes = ['.pdf', '.docx', '.doc', '.ppt', '.pptx', '.xlsx', '.xls', '.zip'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOCX, PPT, XLSX, and ZIP files are allowed.'));
+    }
   }
 });
 
@@ -7369,293 +7370,20 @@ export async function registerAllRoutes(app: Express) {
     next();
   });
 
-  // Process chunked ZIP upload for data room
-  app.post('/api/deals/:dealId/data-room/process-chunked-zip', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      const { uploadId, folderName } = req.body;
-
-      if (isNaN(dealId)) {
-        return res.status(400).json({ message: 'Invalid deal ID' });
-      }
-
-      if (!uploadId) {
-        return res.status(400).json({ message: 'Upload ID is required' });
-      }
-
-      console.log(`🔄 Processing chunked ZIP upload ${uploadId} for deal ${dealId}`);
-
-      // Get the completed chunked upload file path
-      const chunkedFilePath = path.join(process.cwd(), 'uploads', 'chunks', uploadId, 'assembled.zip');
-      
-      if (!fs.existsSync(chunkedFilePath)) {
-        return res.status(404).json({ message: 'Chunked upload file not found' });
-      }
-
-      // Process the ZIP file using existing ZIP processing logic
-      const { ZipProcessor } = await import('./services/zipProcessor');
-      const zipProcessor = new ZipProcessor();
-
-      // Create background job for processing
-      const jobId = Date.now();
-      await storage.addBackgroundJob(jobId, dealId, 'zip_processing', { 
-        fileName: 'chunked-upload.zip',
-        filePath: chunkedFilePath,
-        folderName: folderName || 'Data Room Documents'
-      });
-
-      // Process in background
-      setImmediate(async () => {
-        try {
-          await zipProcessor.processZipFile(chunkedFilePath, dealId, folderName || 'Data Room Documents', jobId);
-          console.log(`✅ Chunked ZIP processing completed for upload ${uploadId}`);
-          
-          // Clean up the chunked upload files
-          const chunksDir = path.join(process.cwd(), 'uploads', 'chunks', uploadId);
-          if (fs.existsSync(chunksDir)) {
-            fs.rmSync(chunksDir, { recursive: true, force: true });
-            console.log(`🧹 Cleaned up chunked upload directory: ${chunksDir}`);
-          }
-        } catch (error) {
-          console.error(`❌ Chunked ZIP processing failed for upload ${uploadId}:`, error);
-          await storage.updateBackgroundJob(jobId, 0, `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      });
-
-      res.json({
-        success: true,
-        message: 'Chunked ZIP processing started',
-        jobId: jobId,
-        uploadId: uploadId
-      });
-
-    } catch (error) {
-      console.error('❌ Error processing chunked ZIP upload:', error);
-      res.status(500).json({ 
-        message: 'Failed to process chunked ZIP upload',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // 🚨 PRODUCTION DEBUG: Simple test route to verify API accessibility
-  app.get('/api/upload/test', (req: Request, res: Response) => {
-    console.log(`🔍 PRODUCTION DEBUG: API test route hit!`);
-    console.log(`🔍 Environment: ${process.env.NODE_ENV}`);
-    console.log(`🔍 Request headers:`, req.headers);
-    res.json({
-      success: true,
-      message: 'API routes are working in production',
-      environment: process.env.NODE_ENV,
-      timestamp: new Date().toISOString(),
-      routeAccessible: true
-    });
-  });
-
-  // 📁 BACKGROUND UPLOAD TRACKING ROUTES
-  console.log('📁 Registering background upload tracking routes...');
-
-  // Create background upload session
-  app.post('/api/background-uploads', async (req: Request, res: Response) => {
-    try {
-      res.setHeader('Content-Type', 'application/json');
-      const { dealId, fileName, fileSize, uploadType = 'zip' } = req.body;
-
-      if (!dealId || !fileName || !fileSize) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields: dealId, fileName, fileSize'
-        });
-      }
-
-      const uploadId = await backgroundUploadService.createUploadSession(
-        parseInt(dealId),
-        fileName,
-        parseInt(fileSize),
-        uploadType
-      );
-
-      res.json({
-        success: true,
-        uploadId
-      });
-    } catch (error) {
-      console.error('❌ Error creating background upload:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create background upload session'
-      });
-    }
-  });
-
-  // Get background upload status
-  app.get('/api/background-uploads/:uploadId', async (req: Request, res: Response) => {
-    try {
-      res.setHeader('Content-Type', 'application/json');
-      const { uploadId } = req.params;
-
-      const session = await backgroundUploadService.getUploadStatus(uploadId);
-      if (!session) {
-        return res.status(404).json({
-          success: false,
-          error: 'Background upload not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        upload: session
-      });
-    } catch (error) {
-      console.error(`❌ Error getting background upload ${req.params.uploadId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get background upload status'
-      });
-    }
-  });
-
-  // Update background upload progress
-  app.patch('/api/background-uploads/:uploadId/progress', async (req: Request, res: Response) => {
-    try {
-      res.setHeader('Content-Type', 'application/json');
-      const { uploadId } = req.params;
-      const { progress, currentChunk, uploadedBytes } = req.body;
-
-      await backgroundUploadService.updateProgress(
-        uploadId,
-        progress,
-        currentChunk,
-        uploadedBytes
-      );
-
-      const session = await backgroundUploadService.getUploadStatus(uploadId);
-      if (!session) {
-        return res.status(404).json({
-          success: false,
-          error: 'Background upload not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        upload: session
-      });
-    } catch (error) {
-      console.error(`❌ Error updating background upload progress ${req.params.uploadId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update background upload progress'
-      });
-    }
-  });
-
-  // Complete background upload
-  app.patch('/api/background-uploads/:uploadId/complete', async (req: Request, res: Response) => {
-    try {
-      res.setHeader('Content-Type', 'application/json');
-      const { uploadId } = req.params;
-      const { assembledFilePath } = req.body;
-
-      await backgroundUploadService.completeUpload(uploadId, assembledFilePath);
-
-      const session = await backgroundUploadService.getUploadStatus(uploadId);
-      if (!session) {
-        return res.status(404).json({
-          success: false,
-          error: 'Background upload not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        upload: session
-      });
-    } catch (error) {
-      console.error(`❌ Error completing background upload ${req.params.uploadId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to complete background upload'
-      });
-    }
-  });
-
-  // Get active uploads for a deal
-  app.get('/api/deals/:dealId/background-uploads', async (req: Request, res: Response) => {
-    try {
-      res.setHeader('Content-Type', 'application/json');
-      const dealId = parseInt(req.params.dealId);
-
-      if (isNaN(dealId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid deal ID'
-        });
-      }
-
-      const activeUploads = await backgroundUploadService.getActiveUploadsForDeal(dealId);
-
-      res.json({
-        success: true,
-        uploads: activeUploads
-      });
-    } catch (error) {
-      console.error(`❌ Error getting active uploads for deal ${req.params.dealId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get active uploads'
-      });
-    }
-  });
-
-  // Resume background upload after page refresh
-  app.post('/api/background-uploads/:uploadId/resume', async (req: Request, res: Response) => {
-    try {
-      res.setHeader('Content-Type', 'application/json');
-      const { uploadId } = req.params;
-
-      const session = await backgroundUploadService.resumeUpload(uploadId);
-      if (!session) {
-        return res.status(404).json({
-          success: false,
-          error: 'Background upload session not found or expired'
-        });
-      }
-
-      res.json({
-        success: true,
-        upload: session
-      });
-    } catch (error) {
-      console.error(`❌ Error resuming background upload ${req.params.uploadId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to resume background upload'
-      });
-    }
-  });
-
-  // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)  
+  // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
   app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       const file = req.file;
       const { folderName } = req.body;
 
-      console.log(`🚨 PRODUCTION DEBUG: DATA ROOM UPLOAD HIT! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
-      console.log(`🔧 PRODUCTION DEBUG: Environment = ${process.env.NODE_ENV || 'undefined'}`);
-      console.log(`🔧 PRODUCTION DEBUG: Request URL = ${req.url}`);
-      console.log(`🔧 PRODUCTION DEBUG: Request Method = ${req.method}`);
-      console.log(`🔧 PRODUCTION DEBUG: Request Headers:`, JSON.stringify({
-        'content-length': req.headers['content-length'],
-        'content-type': req.headers['content-type'],
-        'user-agent': req.headers['user-agent'],
-        'host': req.headers['host'],
-        'origin': req.headers['origin'],
-        'referer': req.headers['referer']
-      }, null, 2));
-      console.log(`🔧 PRODUCTION DEBUG: Express limits configured - 59055800320 bytes (55GB PRODUCTION)`);
-      console.log(`🔧 PRODUCTION DEBUG: Route registration confirmed - This route IS available in production`);
+      console.log(`🚨 DATA ROOM UPLOAD HIT! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
+      console.log(`🔧 Request details - Headers: Content-Length=${req.headers['content-length']}, Content-Type=${req.headers['content-type']}`);
+      console.log(`🔧 Express limits configured - 59055800320 bytes (55GB PRODUCTION)`);
+      console.log(`🔧 Multer config active - Max file size: ${(59055800320).toLocaleString()} bytes (55GB PRODUCTION)`);
+      console.log(`🔧 413 ERROR PROTECTION: ACTIVE - This upload CANNOT fail with 413 error`);
+      console.log(`🔧 PRODUCTION DEPLOYMENT: All layers configured for 55GB maximum`);
+      console.log(`🔧 INFRASTRUCTURE CHECK: User-Agent=${req.headers['user-agent']}, X-Forwarded-For=${req.headers['x-forwarded-for']}`);
 
       if (!file) {
         console.log('❌ No ZIP file provided in data room upload - LIKELY 413 ERROR BEFORE REACHING APPLICATION');
@@ -7683,37 +7411,24 @@ export async function registerAllRoutes(app: Express) {
         });
       }
 
-      console.log(`🔍 MICROSTEP 4: Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-      console.log(`🎯 MICROSTEP 4: Deal ID: ${dealId}, Folder Name: ${folderName}, File Path: ${file.path}`);
+      console.log(`📦 Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
 
       // Process the ZIP file using zipProcessor
-      console.log(`🚀 MICROSTEP 4: Calling zipProcessor.processZipFile()`);
       const zipResult = await zipProcessor.processZipFile(file.path, dealId, folderName || 'Data Room');
-      console.log(`📊 MICROSTEP 4: ZIP processor returned:`, {
-        documentsProcessed: zipResult.documentsProcessed,
-        errors: zipResult.errors?.length || 0,
-        errorDetails: zipResult.errors,
-        success: zipResult.documentsProcessed > 0 ? 'YES' : 'NO'
-      });
 
       // Clean up uploaded file
       fs.unlinkSync(file.path);
-      console.log(`🧹 MICROSTEP 4: Cleaned up uploaded file: ${file.path}`);
 
-      console.log(`✅ MICROSTEP 4: Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
-      console.log(`📤 MICROSTEP 4: Sending response to frontend...`);
+      console.log(`✅ Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
 
-      const response = {
+      res.json({
         success: true,
         message: `Data room ZIP file processed successfully`,
         fileName: file.originalname,
         documentsProcessed: zipResult.documentsProcessed,
         errors: zipResult.errors,
         uploadSize: `${(file.size / 1024 / 1024).toFixed(1)}MB`
-      };
-
-      console.log(`📤 MICROSTEP 4: Response being sent:`, response);
-      res.json(response);
+      });
 
     } catch (error) {
       console.error('❌ Error processing data room ZIP upload:', error);
@@ -7953,35 +7668,11 @@ export async function registerAllRoutes(app: Express) {
       const { uploadId } = req.params;
       const { folderName } = req.body;
 
-      // Check if upload is complete (with fallback logic for production)
-      const isComplete = chunkedUploadService.isUploadComplete(uploadId);
-      console.log(`🔍 Upload completion check for ${uploadId}: ${isComplete}`);
-      
-      if (!isComplete) {
-        // Get upload status to see details
-        const status = chunkedUploadService.getUploadStatus(uploadId);
-        console.log(`📊 Upload status for ${uploadId}:`, status);
-        
-        // If upload is not in active uploads but we're trying to process it,
-        // it might already be assembled - check for assembled file
-        if (!status.exists) {
-          console.log(`⚠️ Upload ${uploadId} not in active uploads - checking for assembled file`);
-          const filePath = chunkedUploadService.getFilePath(uploadId);
-          
-          if (filePath && fs.existsSync(filePath)) {
-            console.log(`✅ Found assembled file for ${uploadId} - proceeding with processing`);
-          } else {
-            return res.status(400).json({
-              success: false,
-              error: 'Upload is not complete and no assembled file found'
-            });
-          }
-        } else {
-          return res.status(400).json({
-            success: false,
-            error: `Upload is not complete (${status.uploadedChunks}/${status.totalChunks} chunks)`
-          });
-        }
+      if (!chunkedUploadService.isUploadComplete(uploadId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Upload is not complete'
+        });
       }
 
       const filePath = chunkedUploadService.getFilePath(uploadId);

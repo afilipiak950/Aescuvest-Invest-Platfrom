@@ -31,220 +31,6 @@ class ChunkedUploadService {
   }>();
 
   /**
-   * Start background upload that persists across page refreshes
-   */
-  async startBackgroundUpload(
-    dealId: number,
-    file: File,
-    options: ChunkedUploadOptions = {}
-  ): Promise<string> {
-    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : '';
-    
-    console.log(`📁 Starting background upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-
-    try {
-      // Create background upload session
-      const response = await fetch(`${baseUrl}/api/background-uploads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dealId,
-          fileName: file.name,
-          fileSize: file.size,
-          uploadType: 'zip'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create background upload session: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const uploadId = result.uploadId;
-
-      // Store in localStorage for persistence across page refreshes
-      localStorage.setItem(`background_upload_${uploadId}`, JSON.stringify({
-        uploadId,
-        dealId,
-        fileName: file.name,
-        fileSize: file.size,
-        startTime: Date.now()
-      }));
-
-      // Start the actual chunked upload in background
-      this.performBackgroundUpload(uploadId, file, options);
-
-      return uploadId;
-    } catch (error) {
-      console.error('❌ Failed to start background upload:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Resume background upload after page refresh
-   */
-  async resumeBackgroundUpload(uploadId: string): Promise<boolean> {
-    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : '';
-
-    try {
-      // Check if upload session exists on server
-      const response = await fetch(`${baseUrl}/api/background-uploads/${uploadId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Session expired or not found
-          localStorage.removeItem(`background_upload_${uploadId}`);
-          return false;
-        }
-        throw new Error(`Failed to get upload status: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const session = result.upload;
-
-      console.log(`📁 Resuming background upload: ${session.fileName} (${session.progress}% complete)`);
-      
-      // If upload is already completed, no need to resume
-      if (session.status === 'completed') {
-        console.log('✅ Background upload already completed');
-        localStorage.removeItem(`background_upload_${uploadId}`);
-        return true;
-      }
-
-      // Resume upload by calling the backend resume endpoint
-      const resumeResponse = await fetch(`${baseUrl}/api/background-uploads/${uploadId}/resume`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!resumeResponse.ok) {
-        throw new Error(`Failed to resume upload: ${resumeResponse.statusText}`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to resume background upload ${uploadId}:`, error);
-      localStorage.removeItem(`background_upload_${uploadId}`);
-      return false;
-    }
-  }
-
-  /**
-   * Get list of active background uploads from localStorage
-   */
-  getActiveBackgroundUploads(): any[] {
-    const uploads = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('background_upload_')) {
-        try {
-          const upload = JSON.parse(localStorage.getItem(key) || '{}');
-          uploads.push(upload);
-        } catch (e) {
-          // Remove invalid entries
-          localStorage.removeItem(key);
-        }
-      }
-    }
-    return uploads;
-  }
-
-  /**
-   * Perform the actual chunked upload with background progress tracking
-   */
-  private async performBackgroundUpload(
-    uploadId: string,
-    file: File,
-    options: ChunkedUploadOptions
-  ): Promise<any> {
-    // This continues with the existing chunked upload logic but updates background session
-    // For now, integrate with existing uploadLargeFile method
-    return this.uploadLargeFile(file, {
-      ...options,
-      onProgress: (progress) => {
-        // Update background upload progress
-        this.updateBackgroundProgress(uploadId, progress);
-        options.onProgress?.(progress);
-      },
-      onComplete: (chunkUploadId) => {
-        // Mark background upload as complete
-        this.completeBackgroundUpload(uploadId);
-        options.onComplete?.(chunkUploadId);
-      },
-      onError: (error) => {
-        console.error(`❌ Background upload ${uploadId} failed:`, error);
-        options.onError?.(error);
-      }
-    });
-  }
-
-  /**
-   * Update background upload progress
-   */
-  private async updateBackgroundProgress(uploadId: string, progress: ChunkedUploadProgress): Promise<void> {
-    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : '';
-
-    try {
-      await fetch(`${baseUrl}/api/background-uploads/${uploadId}/progress`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          progress: progress.progress,
-          currentChunk: progress.currentChunk || 0,
-          uploadedBytes: progress.uploadedBytes || 0
-        }),
-      });
-    } catch (error) {
-      console.error(`❌ Failed to update background progress for ${uploadId}:`, error);
-    }
-  }
-
-  /**
-   * Mark background upload as complete
-   */
-  private async completeBackgroundUpload(uploadId: string): Promise<void> {
-    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : '';
-
-    try {
-      await fetch(`${baseUrl}/api/background-uploads/${uploadId}/complete`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          assembledFilePath: null // Will be set by server
-        }),
-      });
-
-      // Remove from localStorage
-      localStorage.removeItem(`background_upload_${uploadId}`);
-      console.log(`✅ Background upload ${uploadId} completed`);
-    } catch (error) {
-      console.error(`❌ Failed to complete background upload ${uploadId}:`, error);
-    }
-  }
-
-  /**
    * Upload a large file using chunked upload
    */
   async uploadLargeFile(
@@ -569,26 +355,16 @@ class ChunkedUploadService {
         
       const apiUrl = `${baseUrl}/api/upload/chunk/init`;
 
-      // 🚨 CRITICAL FIX: Use GET method with query params to bypass Vite interference
-      const params = new URLSearchParams({
-        fileName: fileName,
-        totalSize: fileSize.toString(),
-        chunkSize: this.defaultChunkSize.toString(),
-        t: Date.now().toString() // Cache busting
-      });
-      
-      const getApiUrl = `${apiUrl}?${params.toString()}`;
-      console.log('🔄 Using GET method to bypass Vite interference:', getApiUrl);
-      
-      const response = await fetch(getApiUrl, {
-        method: 'GET',
+      const response = await fetch(apiUrl, {
+        method: 'POST',
         headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json', // 🚨 CRITICAL: Explicitly request JSON response
+          'Cache-Control': 'no-cache', // 🚨 CRITICAL: Disable caching to prevent stale responses
+          'Pragma': 'no-cache' // 🚨 CRITICAL: Additional cache prevention
         },
-        cache: 'no-store'
+        body: JSON.stringify(requestBody),
+        cache: 'no-store' // 🚨 CRITICAL: Force fresh request every time
       });
 
       console.log(`📥 Response status: ${response.status} ${response.statusText}`);
@@ -701,26 +477,19 @@ class ChunkedUploadService {
   }
 
   /**
-   * Upload ZIP file to data room using chunked upload
+   * Upload file in chunks using existing uploadId
    */
   async uploadFile(
-    dealId: string,
+    uploadId: string,
     file: File,
     onProgress?: (progress: ChunkedUploadProgress) => void
-  ): Promise<any> {
-    console.log(`🔄 Starting chunked upload for data room: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-
-    let uploadId: string = '';
-    let totalChunks: number = 0;
+  ): Promise<void> {
+    const chunkSize = this.defaultChunkSize;
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    
+    console.log(`📁 Starting chunked upload: ${file.name} (${totalChunks} chunks)`);
 
     try {
-      // Initialize chunked upload session
-      uploadId = await this.initializeUpload(file.name, file.size);
-      console.log(`✅ Upload session initialized: ${uploadId}`);
-
-      const chunkSize = this.defaultChunkSize;
-      totalChunks = Math.ceil(file.size / chunkSize);
-      
       // Create abort controller for cancellation
       const abortController = new AbortController();
 
@@ -790,31 +559,15 @@ class ChunkedUploadService {
         }
       }
 
-      // Skip verification in production - trust chunk completion
-      console.log(`✅ All ${totalChunks} chunks uploaded successfully, proceeding with processing`);
+      // Verify upload completion
+      const statusResponse = await fetch(`/api/upload/chunk/${uploadId}/status`);
+      const status = await statusResponse.json();
       
-      // Optional: Verify upload completion only if needed (for debugging)
-      try {
-        const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-          ? 'http://localhost:5000' 
-          : '';
-          
-        const statusResponse = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`);
-        const status = await statusResponse.json();
-        
-        if (status && status.isComplete) {
-          console.log(`✅ Upload verification successful: ${uploadId}`);
-        } else {
-          console.log(`⚠️ Upload verification inconclusive, but all chunks completed - proceeding anyway`);
-        }
-      } catch (verificationError) {
-        console.log(`⚠️ Upload verification failed but chunks completed - proceeding anyway:`, verificationError);
+      if (!status.isComplete) {
+        throw new Error('Upload verification failed');
       }
 
-      console.log(`✅ Chunked upload complete, now processing as data room ZIP: ${file.name}`);
-      
-      // CRITICAL: Process the uploaded file as a data room ZIP
-      const processResult = await this.processAsDataRoomZip(uploadId, dealId);
+      console.log(`✅ Chunked upload complete: ${file.name}`);
       
       if (onProgress) {
         onProgress({
@@ -832,10 +585,11 @@ class ChunkedUploadService {
         });
       }
 
-      return processResult;
+      this.activeUploads.delete(uploadId);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Chunked upload failed:', error);
+      this.activeUploads.delete(uploadId);
       
       if (onProgress) {
         onProgress({
@@ -844,63 +598,15 @@ class ChunkedUploadService {
           speed: 0,
           eta: 0,
           status: 'error',
-          uploadId: uploadId || '',
+          uploadId: uploadId,
           totalSize: file.size,
           uploadedBytes: 0,
           isComplete: false,
           currentChunk: 0,
-          totalChunks: totalChunks || 0
+          totalChunks: totalChunks
         });
       }
       
-      throw error;
-    } finally {
-      // Clean up
-      if (uploadId) {
-        this.activeUploads.delete(uploadId);
-      }
-    }
-  }
-
-  /**
-   * Process uploaded chunks as data room ZIP file
-   */
-  private async processAsDataRoomZip(uploadId: string, dealId: string): Promise<any> {
-    try {
-      console.log(`🔄 Processing chunked upload ${uploadId} as data room ZIP for deal ${dealId}`);
-      
-      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : '';
-        
-      const response = await fetch(`${baseUrl}/api/deals/${dealId}/upload-chunked/${uploadId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          folderName: 'Data Room Documents'
-        }),
-      });
-
-      if (!response.ok) {
-        // Enhanced error handling - capture full server response
-        let errorDetails = `HTTP ${response.status}: ${response.statusText}`;
-        try {
-          const errorBody = await response.text();
-          console.error(`❌ Server processing error response:`, errorBody);
-          errorDetails += ` - ${errorBody}`;
-        } catch (parseError) {
-          console.error(`❌ Failed to parse error response:`, parseError);
-        }
-        throw new Error(`Processing failed: ${errorDetails}`);
-      }
-
-      const result = await response.json();
-      console.log(`✅ Data room ZIP processing initiated:`, result);
-      return result;
-    } catch (error) {
-      console.error('❌ Error processing chunked upload as data room ZIP:', error);
       throw error;
     }
   }
