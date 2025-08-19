@@ -6,10 +6,6 @@ const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'l
   ? 'http://localhost:5000' // Development: bypass Vite middleware
   : ''; // Production: use relative URLs
 
-console.log(`🔍 API Base URL: ${baseUrl || 'relative URLs'}, hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}`);
-console.log(`🔍 Environment: ${typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'DEVELOPMENT' : 'PRODUCTION'}`);
-console.log(`🔍 Full location:`, typeof window !== 'undefined' ? window.location.href : 'N/A');
-
 // Create a client
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,18 +19,7 @@ export const queryClient = new QueryClient({
 
 // Function to handle API responses
 export async function handleApiResponse(response: Response) {
-  console.log(`🔍 API Response: ${response.status} ${response.statusText} for ${response.url}`);
-  console.log(`🔍 Content-Type: ${response.headers.get('content-type')}`);
-  
   if (!response.ok) {
-    // Check if response is HTML (error page)
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('text/html')) {
-      const htmlText = await response.text();
-      console.error('🚨 PRODUCTION ERROR: Received HTML instead of JSON:', htmlText.substring(0, 200));
-      throw new Error(`Production API error: ${response.status} - Server returned HTML error page instead of JSON. This indicates the API route is not found or server crashed.`);
-    }
-    
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `API error: ${response.status}`);
   }
@@ -85,9 +70,7 @@ export const apiRequest = async <T = any>(
     
     // Debug logging for FormData requests
     if (options.body instanceof FormData) {
-      console.log('🔍 PRODUCTION DEBUG: Sending FormData request to:', `${baseUrl}${url}`);
-      console.log('🔍 Full URL will be:', `${baseUrl}${url}`);
-      console.log('🔍 Current origin:', typeof window !== 'undefined' ? window.location.origin : 'N/A');
+      console.log('🔍 Sending FormData request to:', `${baseUrl}${url}`);
       console.log('🔍 FormData entries:');
       for (const [key, value] of options.body.entries()) {
         if (value instanceof File) {

@@ -72,16 +72,6 @@ export class ZipProcessor {
       // Find all files recursively
       const allFiles = this.getAllFiles(extractPath);
       console.log(`📄 Found ${allFiles.length} files - ALL WILL BE ANALYZED WITH OCR`);
-      
-      // 🚨 CRITICAL DEBUG: Log first 10 files to debug ZIP extraction
-      console.log(`🔍 CRITICAL DEBUG - First 10 files found in ZIP:`);
-      allFiles.slice(0, 10).forEach((file, index) => {
-        console.log(`  ${index + 1}. ${path.basename(file)} (${path.extname(file)})`);
-      });
-      if (allFiles.length > 10) {
-        console.log(`  ... and ${allFiles.length - 10} more files`);
-      }
-      console.log(`🔍 CRITICAL DEBUG - Total files to process: ${allFiles.length}`);
 
       // Update connection with file count
       connection.totalFiles = allFiles.length;
@@ -141,7 +131,7 @@ export class ZipProcessor {
                 : null;
 
               await storage.createDocument({
-                dealId: dealId,
+                dealId,
                 name: fileName,
                 type: fileType,
                 path: filePath,
@@ -149,13 +139,13 @@ export class ZipProcessor {
                 status: 'Analyzed',
                 ocrText: cleanOcrText,
                 analyses: JSON.stringify(analysisResult),
-                folderPath: folderPath || '',
+                folderPath: folderPath,
                 isFolder: false,
                 category: analysisResult.analysis?.category || 'General',
                 documentType: analysisResult.analysis?.documentType || fileType,
-                summary: analysisResult.analysis?.summary || null,
-                insights: analysisResult.analysis?.insights || null,
-                riskFactors: analysisResult.analysis?.riskFactors || null
+                summary: analysisResult.analysis?.summary,
+                insights: analysisResult.analysis?.insights,
+                riskFactors: analysisResult.analysis?.riskFactors
               });
             } catch (dbError) {
               console.error(`Database save error for ${fileName}:`, dbError);
@@ -168,7 +158,7 @@ export class ZipProcessor {
             // Save document with error status - still save every file to database
             try {
               await storage.createDocument({
-                dealId: dealId,
+                dealId,
                 name: fileName,
                 type: fileType,
                 path: filePath,
@@ -179,10 +169,7 @@ export class ZipProcessor {
                 folderPath: '',
                 isFolder: false,
                 category: 'General',
-                documentType: fileType,
-                summary: null,
-                insights: null,
-                riskFactors: null
+                documentType: fileType
               });
             } catch (dbError) {
               console.error(`Database save error for failed ${fileName}:`, dbError);
@@ -228,13 +215,10 @@ export class ZipProcessor {
       console.log(`🎉 Completed processing ZIP file for deal ${dealId}`);
       console.log(`📈 Final stats: ${processedCount}/${allFiles.length} files processed`);
 
-      // ✅ FIXED: Return proper format expected by server route
       return {
         connection,
         processedFiles,
-        totalFiles: allFiles.length,
-        documentsProcessed: processedCount,
-        errors: [] // No errors if we reached this point
+        totalFiles: allFiles.length
       };
 
     } catch (error) {

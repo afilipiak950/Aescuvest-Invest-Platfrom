@@ -13,7 +13,6 @@ import { persistentClinicalAnalysisService } from "./services/persistentClinical
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
-import { backgroundUploadService } from "./services/backgroundUploadService";
 
 const app = express();
 
@@ -460,15 +459,6 @@ app.use((req, res, next) => {
 
       console.log(`📦 Processing ZIP file: ${zipFile.originalname} for deal ${dealId} with folder name: ${folderName}`);
 
-      // Create background upload session for persistent tracking
-      const uploadId = await backgroundUploadService.createUploadSession(
-        dealId, 
-        zipFile.originalname, 
-        zipFile.size, 
-        'zip'
-      );
-      console.log(`📁 Created background upload session: ${uploadId}`);
-
       // Create background job for ZIP processing with real-time progress
       const jobId = await backgroundJobManager.createJob({
         jobType: 'zip_processing',
@@ -477,35 +467,25 @@ app.use((req, res, next) => {
         jobData: {
           zipPath: zipFile.path,
           folderName: folderName,
-          fileName: zipFile.originalname,
-          uploadId: uploadId  // Link the upload session to the job
+          fileName: zipFile.originalname
         }
       });
 
       // Process ZIP file in background
       zipProcessor.processZipFile(zipFile.path, dealId, folderName, jobId)
-        .then(async result => {
+        .then(result => {
           console.log(`✅ ZIP processing completed for job ${jobId}`);
           backgroundJobManager.completeJob(jobId, result);
-          
-          // Complete the background upload session
-          await backgroundUploadService.completeUpload(uploadId, zipFile.path);
-          console.log(`📁 Completed background upload session: ${uploadId}`);
         })
-        .catch(async error => {
+        .catch(error => {
           console.error(`❌ ZIP processing failed for job ${jobId}:`, error);
           backgroundJobManager.completeJob(jobId, null, error.message);
-          
-          // Mark upload session as failed
-          await backgroundUploadService.markUploadFailed(uploadId, error.message);
-          console.log(`❌ Marked background upload session as failed: ${uploadId}`);
         });
 
       res.json({
         success: true,
         message: 'ZIP file upload started. Processing in background...',
         jobId: jobId,
-        uploadId: uploadId,  // Include upload session ID in response
         fileName: zipFile.originalname
       });
 
@@ -647,16 +627,6 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port} with extended timeouts for large uploads`);
-    console.log(`🚀 PRODUCTION READY: Server listening on port ${port}`);
-    console.log(`🚀 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🚀 Database configured: ${process.env.DATABASE_URL ? 'YES' : 'NO'}`);
-    console.log(`🚀 55GB Upload limit active - ZERO 413 errors guaranteed`);
-    console.log(`🚀 Infrastructure: Google Cloud Run + PostgreSQL + Node.js ${process.version}`);
-    console.log(`🚀 Large file system: ZIP processor + Chunked upload + WebSocket progress`);
-    console.log(`🚀 AI Analysis: Multi-agent processing system operational`);
-    console.log(`🚀 Security: Session-based auth + CORS configured`);
-    console.log(`🚀 PRODUCTION DEBUG: API routes registered and accessible`);
-    console.log(`🚀 NGINX COMPATIBILITY: Server configured for proxy_pass from nginx`);
     
     // Start AI Processing Timeout Service
     console.log('🚀 Starting AI Processing Timeout Service...');
@@ -679,8 +649,5 @@ app.use((req, res, next) => {
     persistentFinancialAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent financial analysis:', err);
     });
-    
-    // Background Upload Service is ready (no initialization required)
-    console.log('📁 Background Upload Service ready for background processing');
   });
 })();
