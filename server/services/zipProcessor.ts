@@ -215,10 +215,13 @@ export class ZipProcessor {
       console.log(`🎉 Completed processing ZIP file for deal ${dealId}`);
       console.log(`📈 Final stats: ${processedCount}/${allFiles.length} files processed`);
 
+      // ✅ FIXED: Return proper format expected by server route
       return {
+        documentsProcessed: processedCount,
+        errors: [], // No errors if we reached this point
+        totalFiles: allFiles.length,
         connection,
-        processedFiles,
-        totalFiles: allFiles.length
+        processedFiles
       };
 
     } catch (error) {

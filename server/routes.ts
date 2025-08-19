@@ -7478,15 +7478,19 @@ export async function registerAllRoutes(app: Express) {
         });
       }
 
-      console.log(`📦 Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      console.log(`🔍 MICROSTEP 4: Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      console.log(`🎯 MICROSTEP 4: Deal ID: ${dealId}, Folder Name: ${folderName}, File Path: ${file.path}`);
 
       // Process the ZIP file using zipProcessor
+      console.log(`🚀 MICROSTEP 4: Calling zipProcessor.processZipFile()`);
       const zipResult = await zipProcessor.processZipFile(file.path, dealId, folderName || 'Data Room');
+      console.log(`📊 MICROSTEP 4: ZIP processor returned:`, zipResult);
 
       // Clean up uploaded file
       fs.unlinkSync(file.path);
+      console.log(`🧹 MICROSTEP 4: Cleaned up uploaded file: ${file.path}`);
 
-      console.log(`✅ Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
+      console.log(`✅ MICROSTEP 4: Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
 
       res.json({
         success: true,
