@@ -1982,9 +1982,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           )
         )}
 
-        {/* No documents message or upload interface when only email attachments exist */}
+        {/* 🚨 DEBUG: Show deal context when no documents found */}
         {folderTree.children.size === 0 && folderTree.documents.length === 0 && (
           <div className="p-6">
+            {/* Deal Context Info */}
+            <div className="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+              <div className="text-sm text-blue-200">
+                <strong>Data Room:</strong> Deal {dealId} - No documents found
+              </div>
+              <div className="text-xs text-blue-300 mt-1">
+                Upload a ZIP file below to add documents to this deal's data room.
+              </div>
+            </div>
+            
             {emailAttachments.length > 0 ? (
               // Show upload interface when email attachments exist but no regular documents
               <div className="relative">
