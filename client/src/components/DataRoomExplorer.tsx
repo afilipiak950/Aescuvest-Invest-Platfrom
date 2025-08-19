@@ -1347,6 +1347,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     });
 
     console.log(`🚀 MICROSTEP 2: About to call uploadZipMutation.mutate()`);
+    
+    // PRODUCTION DEBUG: Test API accessibility first
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      console.log(`🔍 PRODUCTION DEBUG: Testing API accessibility...`);
+      fetch('/api/upload/test')
+        .then(response => response.json())
+        .then(data => console.log(`🔍 PRODUCTION DEBUG: API test result:`, data))
+        .catch(error => console.error(`🔍 PRODUCTION DEBUG: API test failed:`, error));
+    }
+    
     uploadZipMutation.mutate(formData);
   };
 

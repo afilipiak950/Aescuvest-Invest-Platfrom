@@ -7437,20 +7437,41 @@ export async function registerAllRoutes(app: Express) {
     }
   });
 
-  // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
+  // 🚨 PRODUCTION DEBUG: Simple test route to verify API accessibility
+  app.get('/api/upload/test', (req: Request, res: Response) => {
+    console.log(`🔍 PRODUCTION DEBUG: API test route hit!`);
+    console.log(`🔍 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🔍 Request headers:`, req.headers);
+    res.json({
+      success: true,
+      message: 'API routes are working in production',
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      routeAccessible: true
+    });
+  });
+
+  // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)  
   app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       const file = req.file;
       const { folderName } = req.body;
 
-      console.log(`🚨 DATA ROOM UPLOAD HIT! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
-      console.log(`🔧 Request details - Headers: Content-Length=${req.headers['content-length']}, Content-Type=${req.headers['content-type']}`);
-      console.log(`🔧 Express limits configured - 59055800320 bytes (55GB PRODUCTION)`);
-      console.log(`🔧 Multer config active - Max file size: ${(59055800320).toLocaleString()} bytes (55GB PRODUCTION)`);
-      console.log(`🔧 413 ERROR PROTECTION: ACTIVE - This upload CANNOT fail with 413 error`);
-      console.log(`🔧 PRODUCTION DEPLOYMENT: All layers configured for 55GB maximum`);
-      console.log(`🔧 INFRASTRUCTURE CHECK: User-Agent=${req.headers['user-agent']}, X-Forwarded-For=${req.headers['x-forwarded-for']}`);
+      console.log(`🚨 PRODUCTION DEBUG: DATA ROOM UPLOAD HIT! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
+      console.log(`🔧 PRODUCTION DEBUG: Environment = ${process.env.NODE_ENV || 'undefined'}`);
+      console.log(`🔧 PRODUCTION DEBUG: Request URL = ${req.url}`);
+      console.log(`🔧 PRODUCTION DEBUG: Request Method = ${req.method}`);
+      console.log(`🔧 PRODUCTION DEBUG: Request Headers:`, JSON.stringify({
+        'content-length': req.headers['content-length'],
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent'],
+        'host': req.headers['host'],
+        'origin': req.headers['origin'],
+        'referer': req.headers['referer']
+      }, null, 2));
+      console.log(`🔧 PRODUCTION DEBUG: Express limits configured - 59055800320 bytes (55GB PRODUCTION)`);
+      console.log(`🔧 PRODUCTION DEBUG: Route registration confirmed - This route IS available in production`);
 
       if (!file) {
         console.log('❌ No ZIP file provided in data room upload - LIKELY 413 ERROR BEFORE REACHING APPLICATION');
