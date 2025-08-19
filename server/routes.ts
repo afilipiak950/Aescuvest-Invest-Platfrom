@@ -126,7 +126,7 @@ import backgroundJobsRouter from "./routes/backgroundJobs";
 import { websocketManager } from "./services/websocketManager";
 import { jobProcessor } from "./services/jobProcessor";
 
-// Setup multer for file uploads
+// 🚨 CRITICAL: Use IDENTICAL multer config as server/index.ts - UNLIMITED LIMITS
 const upload = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
@@ -142,19 +142,17 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
-    fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for fields
-    fields: 100, // Allow many fields  
-    files: 50 // Allow many files
+    fileSize: Infinity, // 🚨 UNLIMITED - ELIMINATE ALL 413 ERRORS IN PRODUCTION
+    fieldSize: Infinity, // Unlimited for fields
+    fields: Infinity, // Allow unlimited fields
+    files: Infinity, // Allow unlimited files
+    parts: Infinity, // Allow unlimited parts
+    headerPairs: Infinity // Allow unlimited header pairs
   },
   fileFilter: function (req, file, cb) {
-    const allowedTypes = ['.pdf', '.docx', '.doc', '.ppt', '.pptx', '.xlsx', '.xls', '.zip'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, DOCX, PPT, XLSX, and ZIP files are allowed.'));
-    }
+    console.log(`🔧 ROUTES.TS MULTER: Processing file ${file.originalname} (${file.size || 'unknown'} bytes)`);
+    // 🚨 CRITICAL: Allow ALL file types for ZIP uploads - NO RESTRICTIONS
+    cb(null, true);
   }
 });
 

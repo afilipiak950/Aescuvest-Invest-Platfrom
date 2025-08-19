@@ -1045,9 +1045,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               resolve({ success: true, message: 'Upload completed' });
             }
           } else if (xhr.status === 413) {
-            // 413 "Request Entity Too Large" - Cloud Run infrastructure limit
-            console.log('⚠️ 413 error detected (Cloud Run limit), falling back to chunked upload');
-            reject(new Error('Upload failed: 413 - File upload limit exceeded. The system now supports files up to 50GB. If you are still seeing this error, please contact support as this should not occur with our enhanced configuration.'));
+            // 413 "Request Entity Too Large" - This should no longer occur with unlimited multer config
+            console.log('⚠️ 413 error detected - This indicates a configuration issue that needs investigation');
+            reject(new Error(`Upload failed: Server returned 413 error. This should not occur with the current unlimited configuration. Status: ${xhr.status} ${xhr.statusText}`));
           } else {
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }
