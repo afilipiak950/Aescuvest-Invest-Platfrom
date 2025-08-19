@@ -13,8 +13,13 @@ import { persistentClinicalAnalysisService } from "./services/persistentClinical
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
+import { debug413Middleware, bypass413Middleware } from "./debug-413";
 
 const app = express();
+
+// 🔍 ULTRA-DEBUG: Add comprehensive 413 debugging
+app.use(debug413Middleware);
+app.use(bypass413Middleware);
 
 // CRITICAL: Configure for Google Cloud Run large file uploads - ELIMINATE ALL 413 ERRORS
 app.use((req, res, next) => {

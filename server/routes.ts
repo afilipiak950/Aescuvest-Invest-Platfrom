@@ -198,6 +198,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/', persistentAnalysisRoutes);
   console.log('✅ Persistent analysis routes registered');
   
+  // 🚨 CRITICAL: Register 413 bypass routes
+  console.log('🔧 Registering 413 bypass test routes...');
+  const testUploadLimits = await import('./routes/test-upload-limits');
+  app.use(testUploadLimits.default);
+  const streamUpload = await import('./routes/stream-upload');
+  app.use(streamUpload.default);
+  console.log('✅ 413 bypass routes registered');
+  
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
   app.get('/api/test-route', (req: Request, res: Response) => {
