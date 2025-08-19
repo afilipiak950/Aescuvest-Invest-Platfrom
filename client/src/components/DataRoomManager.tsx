@@ -109,28 +109,51 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       const { sessionId } = await initResponse.json();
       console.log(`✅ Session created: ${sessionId}`);
       
-      // Step 2: Upload chunks
+      // Step 2: Upload chunks with retry logic
       for (let i = 0; i < totalChunks; i++) {
         const start = i * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, file.size);
         const chunk = file.slice(start, end);
         
-        const chunkResponse = await fetch(`/api/deals/${dealId}/chunked-upload/chunk`, {
-          method: 'POST',
-          headers: {
-            'X-Session-Id': sessionId,
-            'X-Chunk-Index': i.toString()
-          },
-          body: chunk
-        });
+        // Retry logic for failed chunks
+        let retries = 3;
+        let success = false;
         
-        if (!chunkResponse.ok) {
-          throw new Error(`Chunk ${i} failed: ${chunkResponse.status}`);
+        while (retries > 0 && !success) {
+          try {
+            const chunkResponse = await fetch(`/api/deals/${dealId}/chunked-upload/chunk`, {
+              method: 'POST',
+              headers: {
+                'X-Session-Id': sessionId,
+                'X-Chunk-Index': i.toString()
+              },
+              body: chunk
+            });
+            
+            if (!chunkResponse.ok) {
+              const errorText = await chunkResponse.text();
+              console.warn(`⚠️ Chunk ${i} failed (attempt ${4 - retries}/3): ${errorText}`);
+              if (retries === 1) {
+                throw new Error(`Chunk ${i} failed after 3 attempts: ${chunkResponse.status}`);
+              }
+              retries--;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+              continue;
+            }
+            
+            success = true;
+            const progress = ((i + 1) / totalChunks) * 100;
+            setUploadProgress(Math.round(progress));
+            console.log(`📦 Uploaded chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`);
+          } catch (networkError) {
+            console.error(`Network error uploading chunk ${i}:`, networkError);
+            retries--;
+            if (retries === 0) {
+              throw networkError;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
-        
-        const progress = ((i + 1) / totalChunks) * 100;
-        setUploadProgress(Math.round(progress));
-        console.log(`📦 Uploaded chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`);
       }
       
       // Step 3: Complete upload
