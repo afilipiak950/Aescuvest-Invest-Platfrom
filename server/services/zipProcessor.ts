@@ -72,6 +72,16 @@ export class ZipProcessor {
       // Find all files recursively
       const allFiles = this.getAllFiles(extractPath);
       console.log(`📄 Found ${allFiles.length} files - ALL WILL BE ANALYZED WITH OCR`);
+      
+      // 🚨 CRITICAL DEBUG: Log first 10 files to debug ZIP extraction
+      console.log(`🔍 CRITICAL DEBUG - First 10 files found in ZIP:`);
+      allFiles.slice(0, 10).forEach((file, index) => {
+        console.log(`  ${index + 1}. ${path.basename(file)} (${path.extname(file)})`);
+      });
+      if (allFiles.length > 10) {
+        console.log(`  ... and ${allFiles.length - 10} more files`);
+      }
+      console.log(`🔍 CRITICAL DEBUG - Total files to process: ${allFiles.length}`);
 
       // Update connection with file count
       connection.totalFiles = allFiles.length;
