@@ -460,6 +460,15 @@ app.use((req, res, next) => {
 
       console.log(`📦 Processing ZIP file: ${zipFile.originalname} for deal ${dealId} with folder name: ${folderName}`);
 
+      // Create background upload session for persistent tracking
+      const uploadId = await backgroundUploadService.createUploadSession(
+        dealId, 
+        zipFile.originalname, 
+        zipFile.size, 
+        'zip'
+      );
+      console.log(`📁 Created background upload session: ${uploadId}`);
+
       // Create background job for ZIP processing with real-time progress
       const jobId = await backgroundJobManager.createJob({
         jobType: 'zip_processing',
@@ -468,25 +477,35 @@ app.use((req, res, next) => {
         jobData: {
           zipPath: zipFile.path,
           folderName: folderName,
-          fileName: zipFile.originalname
+          fileName: zipFile.originalname,
+          uploadId: uploadId  // Link the upload session to the job
         }
       });
 
       // Process ZIP file in background
       zipProcessor.processZipFile(zipFile.path, dealId, folderName, jobId)
-        .then(result => {
+        .then(async result => {
           console.log(`✅ ZIP processing completed for job ${jobId}`);
           backgroundJobManager.completeJob(jobId, result);
+          
+          // Complete the background upload session
+          await backgroundUploadService.completeUpload(uploadId, zipFile.path);
+          console.log(`📁 Completed background upload session: ${uploadId}`);
         })
-        .catch(error => {
+        .catch(async error => {
           console.error(`❌ ZIP processing failed for job ${jobId}:`, error);
           backgroundJobManager.completeJob(jobId, null, error.message);
+          
+          // Mark upload session as failed
+          await backgroundUploadService.markUploadFailed(uploadId, error.message);
+          console.log(`❌ Marked background upload session as failed: ${uploadId}`);
         });
 
       res.json({
         success: true,
         message: 'ZIP file upload started. Processing in background...',
         jobId: jobId,
+        uploadId: uploadId,  // Include upload session ID in response
         fileName: zipFile.originalname
       });
 
