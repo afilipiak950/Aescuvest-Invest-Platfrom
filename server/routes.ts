@@ -7735,11 +7735,35 @@ export async function registerAllRoutes(app: Express) {
       const { uploadId } = req.params;
       const { folderName } = req.body;
 
-      if (!chunkedUploadService.isUploadComplete(uploadId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Upload is not complete'
-        });
+      // Check if upload is complete (with fallback logic for production)
+      const isComplete = chunkedUploadService.isUploadComplete(uploadId);
+      console.log(`🔍 Upload completion check for ${uploadId}: ${isComplete}`);
+      
+      if (!isComplete) {
+        // Get upload status to see details
+        const status = chunkedUploadService.getUploadStatus(uploadId);
+        console.log(`📊 Upload status for ${uploadId}:`, status);
+        
+        // If upload is not in active uploads but we're trying to process it,
+        // it might already be assembled - check for assembled file
+        if (!status.exists) {
+          console.log(`⚠️ Upload ${uploadId} not in active uploads - checking for assembled file`);
+          const filePath = chunkedUploadService.getFilePath(uploadId);
+          
+          if (filePath && fs.existsSync(filePath)) {
+            console.log(`✅ Found assembled file for ${uploadId} - proceeding with processing`);
+          } else {
+            return res.status(400).json({
+              success: false,
+              error: 'Upload is not complete and no assembled file found'
+            });
+          }
+        } else {
+          return res.status(400).json({
+            success: false,
+            error: `Upload is not complete (${status.uploadedChunks}/${status.totalChunks} chunks)`
+          });
+        }
       }
 
       const filePath = chunkedUploadService.getFilePath(uploadId);
