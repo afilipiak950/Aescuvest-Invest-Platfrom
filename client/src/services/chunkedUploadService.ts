@@ -170,7 +170,7 @@ class ChunkedUploadService {
     uploadId: string,
     file: File,
     options: ChunkedUploadOptions
-  ): Promise<void> {
+  ): Promise<any> {
     // This continues with the existing chunked upload logic but updates background session
     // For now, integrate with existing uploadLargeFile method
     return this.uploadLargeFile(file, {
