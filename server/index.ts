@@ -15,6 +15,9 @@ import { persistentFinancialAnalysisService } from "./services/persistentFinanci
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
 import { debug413Middleware, bypass413Middleware } from "./debug-413";
 
+// Import chunked upload router
+import chunkedUploadRouter from './routes/chunked-upload';
+
 const app = express();
 
 // 🔍 ULTRA-DEBUG: Add comprehensive 413 debugging
@@ -415,6 +418,10 @@ app.use((req, res, next) => {
   // 🚨 CRITICAL: Register API routes FIRST (before Vite middleware)
   const server = await registerRoutes(app);
   console.log('✅ All API routes registered successfully before Vite middleware');
+  
+  // 🚀 REGISTER CHUNKED UPLOAD ROUTES
+  app.use(chunkedUploadRouter);
+  console.log('✅ Chunked upload routes registered');
 
   // ZIP file upload routes - registered AFTER main routes to take priority
   console.log('🚀 REGISTERING ZIP UPLOAD ROUTES');

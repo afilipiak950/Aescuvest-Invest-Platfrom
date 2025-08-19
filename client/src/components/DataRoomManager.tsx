@@ -83,6 +83,78 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
     }
   });
 
+  // Chunked upload function
+  const uploadChunked = async (file: File) => {
+    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (safe under Cloud Run limits)
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    
+    console.log(`🚀 Starting CHUNKED upload: ${file.name} (${totalChunks} chunks)`);
+    
+    try {
+      // Step 1: Initialize upload session
+      const initResponse = await fetch(`/api/deals/${dealId}/chunked-upload/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          totalChunks,
+          fileSize: file.size
+        })
+      });
+      
+      if (!initResponse.ok) {
+        throw new Error(`Init failed: ${initResponse.status}`);
+      }
+      
+      const { sessionId } = await initResponse.json();
+      console.log(`✅ Session created: ${sessionId}`);
+      
+      // Step 2: Upload chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        
+        const chunkResponse = await fetch(`/api/deals/${dealId}/chunked-upload/chunk`, {
+          method: 'POST',
+          headers: {
+            'X-Session-Id': sessionId,
+            'X-Chunk-Index': i.toString()
+          },
+          body: chunk
+        });
+        
+        if (!chunkResponse.ok) {
+          throw new Error(`Chunk ${i} failed: ${chunkResponse.status}`);
+        }
+        
+        const progress = ((i + 1) / totalChunks) * 100;
+        setUploadProgress(Math.round(progress));
+        console.log(`📦 Uploaded chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`);
+      }
+      
+      // Step 3: Complete upload
+      const completeResponse = await fetch(`/api/deals/${dealId}/chunked-upload/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+      
+      if (!completeResponse.ok) {
+        throw new Error(`Complete failed: ${completeResponse.status}`);
+      }
+      
+      console.log('🎉 Chunked upload complete!');
+      return await completeResponse.json();
+      
+    } catch (error) {
+      console.error('❌ Chunked upload failed:', error);
+      throw error;
+    } finally {
+      setUploadProgress(0);
+    }
+  };
+
   const handleZipUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -92,63 +164,34 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       return;
     }
 
-    // Remove size limit for production
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
-    // 🚨 USE ULTRA-BYPASS FOR FILES > 30MB IN PRODUCTION
-    const USE_ULTRA_BYPASS = file.size > 30 * 1024 * 1024; // 30MB threshold
+    // 🚨 ALWAYS USE CHUNKED UPLOAD FOR FILES > 10MB
+    const USE_CHUNKED = file.size > 10 * 1024 * 1024; // 10MB threshold
     
-    if (USE_ULTRA_BYPASS && window.location.hostname !== 'localhost') {
-      console.log('🚨 Using ULTRA-BYPASS upload for large file in production');
+    if (USE_CHUNKED) {
+      console.log('🚀 Using CHUNKED upload for large file');
       
-      // Create XMLHttpRequest for ultra-bypass
-      const xhr = new XMLHttpRequest();
-      
-      // Track progress
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = (event.loaded / event.total) * 100;
-          setUploadProgress(Math.round(percentComplete));
-          console.log(`Upload progress: ${Math.round(percentComplete)}%`);
+      try {
+        const result = await uploadChunked(file);
+        console.log('✅ Upload successful:', result);
+        
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
         }
-      };
-      
-      // Handle completion
-      xhr.onloadend = () => {
-        if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText);
-          console.log('✅ Ultra-bypass upload successful:', response);
-          setUploadProgress(100);
-          
-          // Invalidate queries to refresh data
-          queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
-          queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-          
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-          
-          if (onUploadComplete) {
-            onUploadComplete();
-          }
-        } else if (xhr.status === 413) {
-          console.error('❌ 413 error even with ultra-bypass');
-          alert('File too large. The system is being updated to handle larger files. Please contact support.');
-        } else {
-          console.error('❌ Upload failed:', xhr.status, xhr.responseText);
-          alert(`Upload failed: ${xhr.responseText || 'Unknown error'}`);
+        
+        if (onUploadComplete) {
+          onUploadComplete();
         }
-        setUploadProgress(0);
-      };
-      
-      // Send raw file to ultra-bypass endpoint
-      xhr.open('POST', `/api/deals/${dealId}/ultra-bypass-upload`);
-      xhr.setRequestHeader('X-File-Name', file.name);
-      xhr.setRequestHeader('X-Folder-Name', folderName);
-      xhr.send(file); // Send raw file, not FormData
-      
+      } catch (error) {
+        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      }
     } else {
-      // Regular upload for smaller files or development
+      // Regular upload for small files
       const formData = new FormData();
       formData.append('zipFile', file);
       formData.append('folderName', folderName);
@@ -312,10 +355,22 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
             <Alert>
               <FileText className="h-4 w-4" />
               <AlertDescription>
-                Upload a ZIP file containing your deal documents. All files will be automatically 
-                analyzed using AI-powered OCR for document intelligence and insights.
+                Upload a ZIP file containing your deal documents. Files larger than 10MB will be 
+                automatically chunked for reliable upload. All files will be processed using 
+                AI-powered OCR for document intelligence and insights.
               </AlertDescription>
             </Alert>
+            
+            {/* Upload Progress Bar */}
+            {uploadProgress > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="w-full" />
+              </div>
+            )}
           </div>
         )}
 
