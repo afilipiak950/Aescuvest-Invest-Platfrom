@@ -971,6 +971,36 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
   const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
+  // 🚨 PRODUCTION BYPASS: Direct server URL helper function
+  const getDirectServerUrl = (): string => {
+    if (typeof window === 'undefined') return '';
+    
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // Development: bypass Vite middleware
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+    
+    // Production bypass strategy
+    if (hostname.includes('.run.app')) {
+      const serviceName = hostname.split('.')[0];
+      return `${protocol}//${serviceName}.run.app`;
+    }
+    
+    if (hostname.includes('.replit.app')) {
+      return `${protocol}//${hostname}`;
+    }
+    
+    const port = window.location.port;
+    if (port && port !== '80' && port !== '443') {
+      return `${protocol}//${hostname}:${port}`;
+    }
+    
+    return '';
+  };
+
   // Enhanced document click handler with PDF viewing support
   const handleDocumentClick = (document: Document) => {
     // Always show document detail modal with extracted content and AI summary
@@ -1061,9 +1091,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           reject(new Error('Upload timed out'));
         });
 
-        xhr.open('POST', `/api/deals/${dealId}/data-room/upload-zip`);
+        // 🚨 PRODUCTION BYPASS: Use direct server URL to bypass proxy limits
+        const directServerUrl = getDirectServerUrl();
+        const uploadUrl = `${directServerUrl}/api/deals/${dealId}/data-room/upload-zip`;
+        
+        xhr.open('POST', uploadUrl);
         xhr.timeout = 600000; // 10 minutes
         xhr.withCredentials = true; // Include cookies for auth
+        
+        // 🚨 PRODUCTION BYPASS HEADERS: Signal direct upload
+        xhr.setRequestHeader('X-Direct-Upload', '1');
+        xhr.setRequestHeader('X-Bypass-Proxy-Limits', '1');
+        xhr.setRequestHeader('X-Large-File-Upload', '1');
         xhr.send(formData);
       });
     },

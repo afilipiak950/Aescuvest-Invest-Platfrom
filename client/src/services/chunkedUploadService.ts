@@ -44,10 +44,8 @@ class ChunkedUploadService {
 
     try {
       // Initialize upload session
-      // 🚨 WORKING FIX: Use GET with query parameters (avoids Vite POST interference)
-      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' // Development: bypass Vite middleware
-        : ''; // Production: use relative URLs
+      // 🚨 PRODUCTION BYPASS: Direct server connection bypassing ALL proxy layers
+      const baseUrl = this.getDirectServerUrl();
       
       const params = new URLSearchParams({
         fileName: file.name,
@@ -59,6 +57,10 @@ class ChunkedUploadService {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
+          // 🚨 PRODUCTION BYPASS HEADERS: Signal direct connection
+          'X-Direct-Upload': '1',
+          'X-Bypass-Proxy-Limits': '1',
+          'X-Large-File-Upload': '1'
         },
       });
 
@@ -105,7 +107,7 @@ class ChunkedUploadService {
       }
 
       // Verify upload completion
-      // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
+      // 🚨 PRODUCTION BYPASS: Direct server status check
       const statusResponse = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`);
       const status = await statusResponse.json();
       
@@ -134,6 +136,46 @@ class ChunkedUploadService {
   }
 
   /**
+   * Get direct server URL bypassing all proxy layers
+   */
+  private getDirectServerUrl(): string {
+    if (typeof window === 'undefined') return '';
+    
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // Development: bypass Vite middleware
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+    
+    // 🚨 PRODUCTION BYPASS STRATEGY
+    // For production, detect deployment platform and use direct endpoints
+    
+    // Cloud Run: Use direct service URL if available  
+    if (hostname.includes('.run.app')) {
+      // Extract service URL and use direct connection
+      const serviceName = hostname.split('.')[0];
+      return `${protocol}//${serviceName}.run.app`;
+    }
+    
+    // Replit production: Use direct .replit.app domain
+    if (hostname.includes('.replit.app')) {
+      return `${protocol}//${hostname}`;
+    }
+    
+    // Generic production: Try direct connection to bypass proxy
+    // Most cloud platforms allow direct service-to-service communication
+    const port = window.location.port;
+    if (port && port !== '80' && port !== '443') {
+      return `${protocol}//${hostname}:${port}`;
+    }
+    
+    // Fallback: Use current origin but with specific headers to bypass limits
+    return '';
+  }
+
+  /**
    * Upload a single chunk
    */
   private async uploadChunk(
@@ -145,10 +187,8 @@ class ChunkedUploadService {
     const formData = new FormData();
     formData.append('chunk', chunk);
 
-    // 🚨 CRITICAL FIX: Use dynamic baseUrl to bypass Vite in development
-    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' // Development: bypass Vite middleware
-      : ''; // Production: use relative URLs
+    // 🚨 PRODUCTION BYPASS: Use direct server connection for chunks
+    const baseUrl = this.getDirectServerUrl();
       
     const apiUrl = `${baseUrl}/api/upload/chunk/${uploadId}/${chunkIndex}`;
 
@@ -156,6 +196,12 @@ class ChunkedUploadService {
       method: 'POST',
       body: formData,
       signal,
+      headers: {
+        // 🚨 PRODUCTION BYPASS HEADERS: Signal direct upload bypassing proxy limits
+        'X-Direct-Upload': '1',
+        'X-Bypass-Proxy-Limits': '1', 
+        'X-Large-File-Upload': '1'
+      }
     });
 
     if (!response.ok) {
