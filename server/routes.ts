@@ -7368,6 +7368,75 @@ export async function registerAllRoutes(app: Express) {
     next();
   });
 
+  // Process chunked ZIP upload for data room
+  app.post('/api/deals/:dealId/data-room/process-chunked-zip', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { uploadId, folderName } = req.body;
+
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+
+      if (!uploadId) {
+        return res.status(400).json({ message: 'Upload ID is required' });
+      }
+
+      console.log(`🔄 Processing chunked ZIP upload ${uploadId} for deal ${dealId}`);
+
+      // Get the completed chunked upload file path
+      const chunkedFilePath = path.join(process.cwd(), 'uploads', 'chunks', uploadId, 'assembled.zip');
+      
+      if (!fs.existsSync(chunkedFilePath)) {
+        return res.status(404).json({ message: 'Chunked upload file not found' });
+      }
+
+      // Process the ZIP file using existing ZIP processing logic
+      const { ZipProcessor } = await import('./services/zipProcessor');
+      const zipProcessor = new ZipProcessor();
+
+      // Create background job for processing
+      const jobId = Date.now();
+      await storage.addBackgroundJob(jobId, dealId, 'zip_processing', { 
+        fileName: 'chunked-upload.zip',
+        filePath: chunkedFilePath,
+        folderName: folderName || 'Data Room Documents'
+      });
+
+      // Process in background
+      setImmediate(async () => {
+        try {
+          await zipProcessor.processZipFile(chunkedFilePath, dealId, folderName || 'Data Room Documents', jobId);
+          console.log(`✅ Chunked ZIP processing completed for upload ${uploadId}`);
+          
+          // Clean up the chunked upload files
+          const chunksDir = path.join(process.cwd(), 'uploads', 'chunks', uploadId);
+          if (fs.existsSync(chunksDir)) {
+            fs.rmSync(chunksDir, { recursive: true, force: true });
+            console.log(`🧹 Cleaned up chunked upload directory: ${chunksDir}`);
+          }
+        } catch (error) {
+          console.error(`❌ Chunked ZIP processing failed for upload ${uploadId}:`, error);
+          await storage.updateBackgroundJob(jobId, 0, `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      });
+
+      res.json({
+        success: true,
+        message: 'Chunked ZIP processing started',
+        jobId: jobId,
+        uploadId: uploadId
+      });
+
+    } catch (error) {
+      console.error('❌ Error processing chunked ZIP upload:', error);
+      res.status(500).json({ 
+        message: 'Failed to process chunked ZIP upload',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
   app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
     try {

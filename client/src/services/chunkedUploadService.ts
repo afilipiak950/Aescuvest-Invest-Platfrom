@@ -477,19 +477,23 @@ class ChunkedUploadService {
   }
 
   /**
-   * Upload file in chunks using existing uploadId
+   * Upload ZIP file to data room using chunked upload
    */
   async uploadFile(
-    uploadId: string,
+    dealId: string,
     file: File,
     onProgress?: (progress: ChunkedUploadProgress) => void
-  ): Promise<void> {
-    const chunkSize = this.defaultChunkSize;
-    const totalChunks = Math.ceil(file.size / chunkSize);
-    
-    console.log(`📁 Starting chunked upload: ${file.name} (${totalChunks} chunks)`);
+  ): Promise<any> {
+    console.log(`🔄 Starting chunked upload for data room: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
 
     try {
+      // Initialize chunked upload session
+      const uploadId = await this.initializeUpload(file.name, file.size);
+      console.log(`✅ Upload session initialized: ${uploadId}`);
+
+      const chunkSize = this.defaultChunkSize;
+      const totalChunks = Math.ceil(file.size / chunkSize);
+      
       // Create abort controller for cancellation
       const abortController = new AbortController();
 
@@ -560,14 +564,21 @@ class ChunkedUploadService {
       }
 
       // Verify upload completion
-      const statusResponse = await fetch(`/api/upload/chunk/${uploadId}/status`);
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '';
+        
+      const statusResponse = await fetch(`${baseUrl}/api/upload/chunk/${uploadId}/status`);
       const status = await statusResponse.json();
       
       if (!status.isComplete) {
         throw new Error('Upload verification failed');
       }
 
-      console.log(`✅ Chunked upload complete: ${file.name}`);
+      console.log(`✅ Chunked upload complete, now processing as data room ZIP: ${file.name}`);
+      
+      // CRITICAL: Process the uploaded file as a data room ZIP
+      const processResult = await this.processAsDataRoomZip(uploadId, dealId);
       
       if (onProgress) {
         onProgress({
@@ -585,11 +596,10 @@ class ChunkedUploadService {
         });
       }
 
-      this.activeUploads.delete(uploadId);
+      return processResult;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Chunked upload failed:', error);
-      this.activeUploads.delete(uploadId);
       
       if (onProgress) {
         onProgress({
@@ -598,7 +608,7 @@ class ChunkedUploadService {
           speed: 0,
           eta: 0,
           status: 'error',
-          uploadId: uploadId,
+          uploadId: uploadId || '',
           totalSize: file.size,
           uploadedBytes: 0,
           isComplete: false,
@@ -607,6 +617,46 @@ class ChunkedUploadService {
         });
       }
       
+      throw error;
+    } finally {
+      // Clean up
+      if (uploadId) {
+        this.activeUploads.delete(uploadId);
+      }
+    }
+  }
+
+  /**
+   * Process uploaded chunks as data room ZIP file
+   */
+  private async processAsDataRoomZip(uploadId: string, dealId: string): Promise<any> {
+    try {
+      console.log(`🔄 Processing chunked upload ${uploadId} as data room ZIP for deal ${dealId}`);
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '';
+        
+      const response = await fetch(`${baseUrl}/api/deals/${dealId}/data-room/process-chunked-zip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uploadId: uploadId,
+          folderName: 'Data Room Documents'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Processing failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ Data room ZIP processing initiated:`, result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error processing chunked upload as data room ZIP:', error);
       throw error;
     }
   }
