@@ -111,7 +111,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     // Use the assignedAgents field populated by the intelligent assignment system
     if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
       console.log(`📋 Document "${document.name}" assigned to agents:`, document.assignedAgents);
-      return document.assignedAgents.map(agentType => {
+      return document.assignedAgents.map((agentType: string) => {
         // Capitalize the agent type for display
         const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
         return getAgentInfo(capitalizedType);
@@ -1069,16 +1069,28 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.addEventListener('load', async () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
+              console.log(`🔍 MICROSTEP 3: Server response:`, xhr.responseText.substring(0, 500));
               const response = JSON.parse(xhr.responseText);
+              console.log(`✅ MICROSTEP 3: Parsed JSON response:`, response);
               resolve(response);
             } catch (e) {
-              resolve({ success: true, message: 'Upload completed' });
+              console.error(`❌ MICROSTEP 3: JSON parsing failed:`, e);
+              console.error(`❌ MICROSTEP 3: Raw response:`, xhr.responseText);
+              
+              // Check if server returned HTML instead of JSON
+              if (xhr.responseText.includes('<!DOCTYPE html>') || xhr.responseText.includes('<html')) {
+                console.error(`❌ MICROSTEP 3: Server returned HTML instead of JSON - API routing issue`);
+                reject(new Error('Server returned HTML instead of JSON. This indicates an API routing issue.'));
+              } else {
+                console.error(`❌ MICROSTEP 3: Server returned malformed JSON`);
+                reject(new Error('Server returned malformed JSON response'));
+              }
             }
           } else if (xhr.status === 413) {
             // 413 "Request Entity Too Large" - Cloud Run 32MB limit reached, fallback to chunked upload
             console.log('⚠️ MICROSTEP 3: 413 error detected - Cloud Run 32MB limit reached, retrying with chunked upload...');
             try {
-              const result = await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+              const result = await chunkedUploadService.uploadFile(dealId.toString(), zipFile, (progress) => {
                 console.log(`📊 MICROSTEP 3: Fallback chunked upload progress: ${progress.progress.toFixed(1)}%`);
                 setUploadProgress(prev => prev ? {
                   ...prev,
