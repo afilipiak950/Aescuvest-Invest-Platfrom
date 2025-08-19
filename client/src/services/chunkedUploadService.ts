@@ -136,6 +136,49 @@ class ChunkedUploadService {
   }
 
   /**
+   * 🚨 PRODUCTION BYPASS: Direct streaming upload for very large files  
+   */
+  async uploadViaProductionBypass(
+    file: File,
+    dealId: number,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    const baseUrl = this.getDirectServerUrl();
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percentComplete = (event.loaded / event.total) * 100;
+          onProgress(percentComplete);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log('✅ Production bypass upload completed');
+          resolve();
+        } else {
+          reject(new Error(`Production bypass failed: ${xhr.status} ${xhr.statusText}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Production bypass network error'));
+      });
+
+      xhr.open('POST', `${baseUrl}/api/production/bypass-upload/${dealId}`);
+      xhr.setRequestHeader('X-Direct-Upload', '1');
+      xhr.setRequestHeader('X-Bypass-Proxy-Limits', '1'); 
+      xhr.setRequestHeader('X-Large-File-Upload', '1');
+      
+      console.log(`🚨 Starting production bypass upload: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+      xhr.send(file);
+    });
+  }
+
+  /**
    * Get direct server URL bypassing all proxy layers
    */
   private getDirectServerUrl(): string {
