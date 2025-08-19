@@ -17,8 +17,8 @@ spec:
         run.googleapis.com/cpu: "8"
         run.googleapis.com/timeout: "7200s"
         run.googleapis.com/max-instances: "10"
-        # CRITICAL: Body size limit for massive uploads (ELIMINATE 413 ERRORS COMPLETELY)
-        run.googleapis.com/body-size-limit: "59055800320"  # 55GB in bytes - PRODUCTION FIX
+        # CRITICAL: Remove body size limit to eliminate 413 errors completely
+        run.googleapis.com/body-size-limit: "0"  # Unlimited uploads - PRODUCTION FIX
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/vpc-access-connector: ""
         run.googleapis.com/network-acceleration: "enabled"
