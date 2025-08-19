@@ -65,20 +65,52 @@ router.post('/api/deals/:dealId/chunked-upload/chunk', async (req: Request, res:
     const sessionId = req.headers['x-session-id'] as string;
     const chunkIndex = parseInt(req.headers['x-chunk-index'] as string);
     
+    // Validate inputs
+    if (!sessionId || isNaN(chunkIndex) || chunkIndex < 0) {
+      return res.status(400).json({ error: 'Invalid session or chunk index' });
+    }
+    
     const session = uploadSessions.get(sessionId);
     if (!session) {
-      return res.status(400).json({ error: 'Invalid session' });
+      return res.status(400).json({ error: 'Invalid or expired session' });
+    }
+    
+    // Validate chunk index
+    if (chunkIndex >= session.totalChunks) {
+      return res.status(400).json({ error: 'Chunk index out of range' });
+    }
+    
+    // Check if chunk already exists (avoid duplicates)
+    if (session.receivedChunks.has(chunkIndex)) {
+      console.log(`⚠️ Chunk ${chunkIndex} already received, skipping`);
+      return res.json({
+        success: true,
+        received: session.receivedChunks.size,
+        total: session.totalChunks,
+        progress: (session.receivedChunks.size / session.totalChunks) * 100
+      });
     }
     
     // Save chunk to temp file
     const chunkPath = path.join(session.tempDir, `chunk-${chunkIndex}`);
     const writeStream = fs.createWriteStream(chunkPath);
     
+    let chunkSize = 0;
+    req.on('data', (data) => {
+      chunkSize += data.length;
+      // Validate chunk size (max 10MB per chunk for safety)
+      if (chunkSize > 10 * 1024 * 1024) {
+        writeStream.destroy();
+        throw new Error('Chunk size exceeds maximum allowed');
+      }
+    });
+    
     req.pipe(writeStream);
     
-    await new Promise((resolve, reject) => {
-      writeStream.on('finish', resolve);
+    await new Promise<void>((resolve, reject) => {
+      writeStream.on('finish', () => resolve());
       writeStream.on('error', reject);
+      req.on('error', reject);
     });
     
     // Mark chunk as received
@@ -93,9 +125,9 @@ router.post('/api/deals/:dealId/chunked-upload/chunk', async (req: Request, res:
       total: session.totalChunks,
       progress
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Chunk upload failed:', error);
-    res.status(500).json({ error: 'Failed to upload chunk' });
+    res.status(500).json({ error: error.message || 'Failed to upload chunk' });
   }
 });
 
@@ -129,16 +161,27 @@ router.post('/api/deals/:dealId/chunked-upload/complete', async (req: Request, r
     const finalPath = path.join(uploadDir, `${Date.now()}-${session.fileName}`);
     const writeStream = fs.createWriteStream(finalPath);
     
-    // Write chunks in order
+    // Write chunks in order using streams (avoid memory issues)
     for (let i = 0; i < session.totalChunks; i++) {
       const chunkPath = path.join(session.tempDir, `chunk-${i}`);
-      const chunkData = fs.readFileSync(chunkPath);
-      writeStream.write(chunkData);
+      
+      // Verify chunk exists
+      if (!fs.existsSync(chunkPath)) {
+        throw new Error(`Missing chunk ${i}`);
+      }
+      
+      // Use streaming to avoid memory issues
+      const chunkStream = fs.createReadStream(chunkPath);
+      await new Promise<void>((resolve, reject) => {
+        chunkStream.on('end', () => resolve());
+        chunkStream.on('error', reject);
+        chunkStream.pipe(writeStream, { end: false });
+      });
     }
     
     writeStream.end();
     
-    await new Promise((resolve) => writeStream.on('finish', resolve));
+    await new Promise<void>((resolve) => writeStream.on('finish', () => resolve()));
     
     // Get file size
     const stats = fs.statSync(finalPath);
@@ -149,7 +192,7 @@ router.post('/api/deals/:dealId/chunked-upload/complete', async (req: Request, r
     uploadSessions.delete(sessionId);
     
     // Create document record
-    const [document] = await db.insert(documentsTable).values({
+    const documentResult = await db.insert(documentsTable).values({
       dealId: session.dealId,
       name: session.fileName,
       content: finalPath,
@@ -160,14 +203,24 @@ router.post('/api/deals/:dealId/chunked-upload/complete', async (req: Request, r
       fileSize: stats.size
     }).returning();
     
+    const document = Array.isArray(documentResult) ? documentResult[0] : documentResult;
     console.log(`📄 Document created with ID: ${document.id}`);
     
     // Process ZIP in background
     if (session.fileName.endsWith('.zip')) {
       console.log('🗂️ Starting ZIP processing...');
-      zipProcessor.processDataRoomZip(session.dealId, finalPath, document.id).catch(err => {
-        console.error('❌ ZIP processing failed:', err);
-      });
+      // Check if method exists before calling
+      if (typeof zipProcessor.processDataRoomZip === 'function') {
+        zipProcessor.processDataRoomZip(session.dealId, finalPath, document.id).catch((err: Error) => {
+          console.error('❌ ZIP processing failed:', err);
+        });
+      } else if (typeof zipProcessor.processZipFile === 'function') {
+        zipProcessor.processZipFile(session.dealId, finalPath, 'dataroom', document.id).catch((err: Error) => {
+          console.error('❌ ZIP processing failed:', err);
+        });
+      } else {
+        console.warn('⚠️ ZIP processor method not found, skipping processing');
+      }
     }
     
     const duration = (Date.now() - session.startTime) / 1000;
@@ -190,11 +243,18 @@ setInterval(() => {
   const now = Date.now();
   const timeout = 30 * 60 * 1000; // 30 minutes
   
-  for (const [sessionId, session] of uploadSessions.entries()) {
+  // Convert to array to iterate properly
+  const sessions = Array.from(uploadSessions.entries());
+  
+  for (const [sessionId, session] of sessions) {
     if (now - session.startTime > timeout) {
       console.log(`🧹 Cleaning up expired session: ${sessionId}`);
-      if (fs.existsSync(session.tempDir)) {
-        fs.rmSync(session.tempDir, { recursive: true, force: true });
+      try {
+        if (fs.existsSync(session.tempDir)) {
+          fs.rmSync(session.tempDir, { recursive: true, force: true });
+        }
+      } catch (err) {
+        console.error(`Failed to clean up session ${sessionId}:`, err);
       }
       uploadSessions.delete(sessionId);
     }
