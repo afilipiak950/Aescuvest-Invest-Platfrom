@@ -670,7 +670,16 @@ class ChunkedUploadService {
       });
 
       if (!response.ok) {
-        throw new Error(`Processing failed: ${response.statusText}`);
+        // Enhanced error handling - capture full server response
+        let errorDetails = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorBody = await response.text();
+          console.error(`❌ Server processing error response:`, errorBody);
+          errorDetails += ` - ${errorBody}`;
+        } catch (parseError) {
+          console.error(`❌ Failed to parse error response:`, parseError);
+        }
+        throw new Error(`Processing failed: ${errorDetails}`);
       }
 
       const result = await response.json();
