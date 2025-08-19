@@ -30,6 +30,7 @@ import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
+import { StreamingUploadButton } from './StreamingUploadButton';
 
 interface DataRoomExplorerProps {
   dealId: number;
@@ -1519,6 +1520,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   <UploadIcon className="h-4 w-4" />
                 )}
               </Button>
+              
+              {/* 🔥 STREAMING UPLOAD - WORKS WITH FILES UP TO 50GB */}
+              <StreamingUploadButton 
+                dealId={dealId}
+                onUploadComplete={() => {
+                  refetchDocuments();
+                }}
+                disabled={uploadZipMutation.isPending}
+              />
             </div>
           </div>
 
