@@ -979,12 +979,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const { data: documents, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
-    staleTime: 10000, // Cache for 10 seconds to improve performance
-    refetchInterval: 5000, // Reduced polling frequency
+    staleTime: 0, // CRITICAL FIX: No cache staleness - always fetch fresh data
+    cacheTime: 30000, // Keep in cache for 30 seconds
+    refetchInterval: 3000, // Poll every 3 seconds for real-time updates
     refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: false, // Don't refetch on focus to prevent delays
-    retry: 2, // Limit retries
-    retryDelay: 1000 // Faster retry
+    refetchOnWindowFocus: true, // CRITICAL FIX: Refetch when window gains focus
+    retry: 3, // More retries for reliability
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   // Real-time WebSocket listener for immediate AI summary updates
@@ -1026,14 +1027,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       
       // PRODUCTION FIX: Use chunked upload for files >30MB to bypass Cloud Run 32MB limit
       if (fileSizeMB > 30) {
-        console.log(`🔄 File ${fileSizeMB.toFixed(1)}MB > 30MB threshold, using chunked upload to bypass Cloud Run limits`);
-        return await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+        console.log(`🔄 MICROSTEP 3: File ${fileSizeMB.toFixed(1)}MB > 30MB threshold, using chunked upload to bypass Cloud Run limits`);
+        const result = await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+          console.log(`📊 MICROSTEP 3: Chunked upload progress: ${progress.progress.toFixed(1)}%`);
           setUploadProgress(prev => prev ? {
             ...prev,
             progress: progress.progress,
             status: progress.progress < 100 ? 'Uploading...' : 'Processing...'
           } : null);
         });
+        console.log(`✅ MICROSTEP 3: Chunked upload completed, result:`, result);
+        return result;
       }
       
       console.log(`📦 File ${fileSizeMB.toFixed(1)}MB <= 30MB, using direct upload`);
@@ -1062,17 +1066,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             }
           } else if (xhr.status === 413) {
             // 413 "Request Entity Too Large" - Cloud Run 32MB limit reached, fallback to chunked upload
-            console.log('⚠️ 413 error detected - Cloud Run 32MB limit reached, retrying with chunked upload...');
+            console.log('⚠️ MICROSTEP 3: 413 error detected - Cloud Run 32MB limit reached, retrying with chunked upload...');
             try {
               const result = await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+                console.log(`📊 MICROSTEP 3: Fallback chunked upload progress: ${progress.progress.toFixed(1)}%`);
                 setUploadProgress(prev => prev ? {
                   ...prev,
                   progress: progress.progress,
                   status: progress.progress < 100 ? 'Uploading via chunked service...' : 'Processing...'
                 } : null);
               });
+              console.log(`✅ MICROSTEP 3: Fallback chunked upload completed, result:`, result);
               resolve(result);
             } catch (chunkedError) {
+              console.error(`❌ MICROSTEP 3: Both uploads failed:`, { directError: '413', chunkedError });
               reject(new Error(`Both direct and chunked upload failed. Direct: 413 error, Chunked: ${chunkedError}`));
             }
           } else {
@@ -1094,20 +1101,44 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      console.log(`🎉 MICROSTEP 3: Upload SUCCESS! Response data:`, data);
+      
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
       setTimeout(() => setUploadProgress(null), 3000); // Clear after 3 seconds
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      console.log(`🔄 MICROSTEP 3: Invalidating cache for dealId ${dealId}...`);
+      
+      // CRITICAL FIX: Force immediate cache invalidation AND refetch
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      console.log(`🔄 MICROSTEP 3: Forcing immediate refetch...`);
+      
+      // Force immediate refetch to update UI instantly
+      await refetch();
+      
+      console.log(`🔄 MICROSTEP 3: Cache invalidated and refetched`);
+      
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
       // Call the callback to hide the data room after successful upload
       if (onUploadComplete) {
+        console.log(`🔄 MICROSTEP 3: Calling onUploadComplete callback`);
         onUploadComplete();
       }
+      
+      console.log(`✅ MICROSTEP 3: Upload success handling complete`);
     },
     onError: (error) => {
-      console.error('ZIP upload failed:', error);
+      console.error(`❌ MICROSTEP 3: ZIP upload FAILED:`, error);
+      console.error(`❌ MICROSTEP 3: Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        dealId,
+        name: error.name
+      });
       setUploadProgress(prev => prev ? { ...prev, status: 'Failed', progress: 0 } : null);
       setTimeout(() => setUploadProgress(null), 5000); // Clear after 5 seconds
     }
@@ -1315,6 +1346,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       fileSize: file.size
     });
 
+    console.log(`🚀 MICROSTEP 2: About to call uploadZipMutation.mutate()`);
     uploadZipMutation.mutate(formData);
   };
 
@@ -1457,13 +1489,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   // Note: Auto force complete functionality temporarily disabled due to component lifecycle issues
   // The AI processing timeout service handles stuck processing automatically
 
-  console.log('📊 DataRoomExplorer debug:', { 
+  console.log('📊 MICROSTEP 1: DataRoomExplorer render state:', { 
     dealId,
     documents: Array.isArray(documents) ? documents.length : 'undefined', 
     isLoading, 
     isArray: Array.isArray(documents),
     firstDoc: Array.isArray(documents) && documents.length > 0 ? documents[0]?.name : 'none',
-    queryKey: `/api/deals/${dealId}/documents`
+    lastDoc: Array.isArray(documents) && documents.length > 0 ? documents[documents.length - 1]?.name : 'none',
+    queryKey: `/api/deals/${dealId}/documents`,
+    timestamp: new Date().toISOString()
   });
   
   if (isLoading) {
@@ -1589,10 +1623,21 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           {/* Background Job Progress */}
           <BackgroundJobProgress 
             dealId={dealId} 
-            onJobComplete={() => {
-              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-              refetch(); // Refresh documents immediately
-              if (onUploadComplete) onUploadComplete();
+            onJobComplete={async () => {
+              console.log(`🎯 MICROSTEP 4: BackgroundJobProgress onJobComplete triggered for dealId ${dealId}`);
+              
+              console.log(`🔄 MICROSTEP 4: Invalidating queries...`);
+              await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+              
+              console.log(`🔄 MICROSTEP 4: Force refetching documents...`);
+              await refetch(); // Refresh documents immediately
+              
+              console.log(`✅ MICROSTEP 4: Documents refreshed after background job completion`);
+              
+              if (onUploadComplete) {
+                console.log(`🔄 MICROSTEP 4: Calling onUploadComplete`);
+                onUploadComplete();
+              }
             }}
           />
 
