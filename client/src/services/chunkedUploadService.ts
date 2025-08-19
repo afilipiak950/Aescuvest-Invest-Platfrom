@@ -486,13 +486,16 @@ class ChunkedUploadService {
   ): Promise<any> {
     console.log(`🔄 Starting chunked upload for data room: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
 
+    let uploadId: string = '';
+    let totalChunks: number = 0;
+
     try {
       // Initialize chunked upload session
-      const uploadId = await this.initializeUpload(file.name, file.size);
+      uploadId = await this.initializeUpload(file.name, file.size);
       console.log(`✅ Upload session initialized: ${uploadId}`);
 
       const chunkSize = this.defaultChunkSize;
-      const totalChunks = Math.ceil(file.size / chunkSize);
+      totalChunks = Math.ceil(file.size / chunkSize);
       
       // Create abort controller for cancellation
       const abortController = new AbortController();
@@ -613,7 +616,7 @@ class ChunkedUploadService {
           uploadedBytes: 0,
           isComplete: false,
           currentChunk: 0,
-          totalChunks: totalChunks
+          totalChunks: totalChunks || 0
         });
       }
       
