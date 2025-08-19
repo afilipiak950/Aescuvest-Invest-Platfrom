@@ -1091,15 +1091,27 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           reject(new Error('Upload timed out'));
         });
 
-        // 🚨 PRODUCTION BYPASS: Use direct server URL to bypass proxy limits
-        const directServerUrl = getDirectServerUrl();
-        const uploadUrl = `${directServerUrl}/api/deals/${dealId}/data-room/upload-zip`;
+        // 🚨 PRODUCTION BYPASS: Use streaming endpoint for large files
+        const fileSize = formData.get('zipFile') instanceof File ? 
+          (formData.get('zipFile') as File).size : 0;
+        
+        let uploadUrl: string;
+        
+        if (fileSize > 50 * 1024 * 1024) { // 50MB+ - use production bypass
+          console.log(`🚨 Large file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB) - using production bypass`);
+          const directServerUrl = getDirectServerUrl();
+          uploadUrl = `${directServerUrl}/api/production/bypass-upload/${dealId}`;
+        } else {
+          // Use normal data room endpoint for smaller files
+          const directServerUrl = getDirectServerUrl();
+          uploadUrl = `${directServerUrl}/api/deals/${dealId}/data-room/upload-zip`;
+        }
         
         xhr.open('POST', uploadUrl);
-        xhr.timeout = 600000; // 10 minutes
+        xhr.timeout = 7200000; // 2 hours for large files
         xhr.withCredentials = true; // Include cookies for auth
         
-        // 🚨 PRODUCTION BYPASS HEADERS: Signal direct upload
+        // 🚨 PRODUCTION BYPASS HEADERS
         xhr.setRequestHeader('X-Direct-Upload', '1');
         xhr.setRequestHeader('X-Bypass-Proxy-Limits', '1');
         xhr.setRequestHeader('X-Large-File-Upload', '1');
