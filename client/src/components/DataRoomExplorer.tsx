@@ -1631,7 +1631,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
           {/* Chunked Upload Progress Display for Large Files */}
           {chunkedUploadProgress && (
-            <div className="space-y-3 p-4 bg-dark border border-green-600 rounded-lg">
+            <div className="space-y-4 p-4 bg-dark border border-green-600 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Loader2 className="h-4 w-4 animate-spin text-green-400" />
@@ -1656,6 +1656,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   {chunkedUploadProgress.eta > 0 && (
                     <span>ETA: {Math.ceil(chunkedUploadProgress.eta / 60)}min</span>
                   )}
+                </div>
+              </div>
+              
+              {/* Document Processing Explanation */}
+              <div className="mt-3 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-blue-200">
+                    <strong>Documents will appear after upload completes.</strong>
+                    <br />
+                    The system processes and extracts documents from the ZIP file once the upload finishes. 
+                    All documents will then appear in the data room with full OCR and AI analysis.
+                  </div>
                 </div>
               </div>
             </div>
