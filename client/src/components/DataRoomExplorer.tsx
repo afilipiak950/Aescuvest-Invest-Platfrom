@@ -1018,9 +1018,25 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     };
   }, [dealId, queryClient, refetch]);
 
-  // ZIP upload mutation with streaming progress
+  // ZIP upload mutation with intelligent size-based routing
   const uploadZipMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      const zipFile = formData.get('zipFile') as File;
+      const fileSizeMB = zipFile ? zipFile.size / (1024 * 1024) : 0;
+      
+      // PRODUCTION FIX: Use chunked upload for files >30MB to bypass Cloud Run 32MB limit
+      if (fileSizeMB > 30) {
+        console.log(`🔄 File ${fileSizeMB.toFixed(1)}MB > 30MB threshold, using chunked upload to bypass Cloud Run limits`);
+        return await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+          setUploadProgress(prev => prev ? {
+            ...prev,
+            progress: progress.progress,
+            status: progress.progress < 100 ? 'Uploading...' : 'Processing...'
+          } : null);
+        });
+      }
+      
+      console.log(`📦 File ${fileSizeMB.toFixed(1)}MB <= 30MB, using direct upload`);
       const xhr = new XMLHttpRequest();
       
       return new Promise((resolve, reject) => {
@@ -1036,7 +1052,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           }
         });
 
-        xhr.addEventListener('load', () => {
+        xhr.addEventListener('load', async () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
@@ -1045,9 +1061,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               resolve({ success: true, message: 'Upload completed' });
             }
           } else if (xhr.status === 413) {
-            // 413 "Request Entity Too Large" - This should no longer occur with unlimited multer config
-            console.log('⚠️ 413 error detected - This indicates a configuration issue that needs investigation');
-            reject(new Error(`Upload failed: Server returned 413 error. This should not occur with the current unlimited configuration. Status: ${xhr.status} ${xhr.statusText}`));
+            // 413 "Request Entity Too Large" - Cloud Run 32MB limit reached, fallback to chunked upload
+            console.log('⚠️ 413 error detected - Cloud Run 32MB limit reached, retrying with chunked upload...');
+            try {
+              const result = await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+                setUploadProgress(prev => prev ? {
+                  ...prev,
+                  progress: progress.progress,
+                  status: progress.progress < 100 ? 'Uploading via chunked service...' : 'Processing...'
+                } : null);
+              });
+              resolve(result);
+            } catch (chunkedError) {
+              reject(new Error(`Both direct and chunked upload failed. Direct: 413 error, Chunked: ${chunkedError}`));
+            }
           } else {
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }
@@ -2043,7 +2070,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                             <p className="text-sm text-white font-medium">{chunkedUploadProgress.fileName}</p>
                             <p className="text-xs text-purple-300">
                               {chunkedUploadProgress.status === 'initializing' && 'Preparing large file upload...'}
-                              {chunkedUploadProgress.status === 'uploading' && `Uploading chunk ${chunkedUploadProgress.currentChunk + 1}/${chunkedUploadProgress.totalChunks}`}
+                              {chunkedUploadProgress.status === 'uploading' && `Uploading chunk ${(chunkedUploadProgress.currentChunk || 0) + 1}/${chunkedUploadProgress.totalChunks}`}
                               {chunkedUploadProgress.status === 'assembling' && 'Assembling file on server...'}
                               {chunkedUploadProgress.status === 'complete' && 'Upload complete!'}
                               {chunkedUploadProgress.status === 'error' && 'Upload failed'}

@@ -32,11 +32,18 @@ gcloud run deploy aescuvest-platform \
   --no-traffic \
   --tag micro-fix
 
-echo "🔧 CRITICAL: Removing ALL body size and upload restrictions..."
+echo "🔧 CRITICAL: Cloud Run 32MB body size limit cannot be bypassed!"
+echo "🚨 PRODUCTION SOLUTION: Deploy with Cloud Run Gen2 + Custom Service Configuration"
+
+# Apply service configuration that explicitly handles large uploads
+kubectl apply -f cloud-run-service.yaml
+
+echo "🔧 Alternative: Use Cloud Run with request size override..."
 gcloud run services update aescuvest-platform \
   --region us-central1 \
   --remove-annotations run.googleapis.com/body-size-limit \
-  --clear-env-vars
+  --update-annotations run.googleapis.com/ingress=all \
+  --update-annotations run.googleapis.com/execution-environment=gen2
 
 echo "🔧 Adding request timeout and memory optimizations..."
 gcloud run services update aescuvest-platform \
