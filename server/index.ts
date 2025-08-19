@@ -13,20 +13,8 @@ import { persistentClinicalAnalysisService } from "./services/persistentClinical
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
-import { largeFileHandler } from "./middleware/largeFileHandler";
-import { productionUploadRouter } from "./routes/production-upload";
-import { multipartUploadRouter } from "./routes/multipart-upload";
 
 const app = express();
-
-// 🚨 CRITICAL: Production bypass routes MUST come first (before any body parsers)
-app.use('/api/production', productionUploadRouter);
-
-// 🚀 MULTIPART: Direct-to-storage upload routes (JSON body parsing enabled)
-app.use('/api/multipart', express.json(), multipartUploadRouter);
-
-// 🚨 CRITICAL: Large file streaming handler MUST come first
-app.use(largeFileHandler);
 
 // CRITICAL: Configure for Google Cloud Run large file uploads - ELIMINATE ALL 413 ERRORS
 app.use((req, res, next) => {

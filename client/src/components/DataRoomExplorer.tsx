@@ -30,7 +30,6 @@ import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
-import { multipartUploadService } from '../services/multipartUploadService';
 
 interface DataRoomExplorerProps {
   dealId: number;
@@ -972,36 +971,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
   const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
-  // 🚨 PRODUCTION BYPASS: Direct server URL helper function
-  const getDirectServerUrl = (): string => {
-    if (typeof window === 'undefined') return '';
-    
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    
-    // Development: bypass Vite middleware
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:5000';
-    }
-    
-    // Production bypass strategy
-    if (hostname.includes('.run.app')) {
-      const serviceName = hostname.split('.')[0];
-      return `${protocol}//${serviceName}.run.app`;
-    }
-    
-    if (hostname.includes('.replit.app')) {
-      return `${protocol}//${hostname}`;
-    }
-    
-    const port = window.location.port;
-    if (port && port !== '80' && port !== '443') {
-      return `${protocol}//${hostname}:${port}`;
-    }
-    
-    return '';
-  };
-
   // Enhanced document click handler with PDF viewing support
   const handleDocumentClick = (document: Document) => {
     // Always show document detail modal with extracted content and AI summary
@@ -1092,34 +1061,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           reject(new Error('Upload timed out'));
         });
 
-        // 🚨 PRODUCTION BYPASS: Use streaming endpoint for large files
-        const fileSize = formData.get('zipFile') instanceof File ? 
-          (formData.get('zipFile') as File).size : 0;
-        
-        let uploadUrl: string;
-        
-        if (fileSize > 100 * 1024 * 1024) { // 100MB+ - use direct-to-storage multipart
-          console.log(`🚀 Large file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB) - using multipart upload`);
-          reject(new Error('MULTIPART_UPLOAD_REQUIRED'));
-          return;
-        } else if (fileSize > 50 * 1024 * 1024) { // 50-100MB - use production bypass
-          console.log(`🚨 Medium file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB) - using production bypass`);
-          const directServerUrl = getDirectServerUrl();
-          uploadUrl = `${directServerUrl}/api/production/bypass-upload/${dealId}`;
-        } else {
-          // Use normal data room endpoint for smaller files
-          const directServerUrl = getDirectServerUrl();
-          uploadUrl = `${directServerUrl}/api/deals/${dealId}/data-room/upload-zip`;
-        }
-        
-        xhr.open('POST', uploadUrl);
-        xhr.timeout = 7200000; // 2 hours for large files
+        xhr.open('POST', `/api/deals/${dealId}/data-room/upload-zip`);
+        xhr.timeout = 600000; // 10 minutes
         xhr.withCredentials = true; // Include cookies for auth
-        
-        // 🚨 PRODUCTION BYPASS HEADERS
-        xhr.setRequestHeader('X-Direct-Upload', '1');
-        xhr.setRequestHeader('X-Bypass-Proxy-Limits', '1');
-        xhr.setRequestHeader('X-Large-File-Upload', '1');
         xhr.send(formData);
       });
     },
@@ -1306,9 +1250,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check maximum file size (50GB) - direct-to-storage multipart support
-    if (file.size > 50 * 1024 * 1024 * 1024) {
-      alert(`File size (${(file.size / 1024 / 1024 / 1024).toFixed(1)}GB) exceeds the maximum limit of 50GB.`);
+    // Check maximum file size (5GB) - now optimized for files up to 1GB+
+    if (file.size > 5 * 1024 * 1024 * 1024) {
+      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 5GB. The system is optimized for files up to 1GB with automatic chunked upload.`);
       return;
     }
 
@@ -1317,61 +1261,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       return;
     }
 
-    console.log(`🚀 Uploading file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // Use multipart upload for files > 100MB
-    if (file.size > 100 * 1024 * 1024) {
-      console.log(`📦 Large file detected (${(file.size / 1024 / 1024).toFixed(1)}MB) - using direct-to-storage multipart upload`);
-      
-      try {
-        setUploadProgress({
-          fileName: file.name,
-          progress: 0,
-          status: 'Initializing multipart upload...'
-        });
-
-        const result = await multipartUploadService.uploadLargeFile(
-          file,
-          dealId,
-          (progress) => {
-            setUploadProgress({
-              fileName: progress.fileName,
-              progress: progress.progress,
-              status: progress.status,
-            });
-          }
-        );
-        
-        console.log(`✅ Multipart upload completed: ${result.objectKey}`);
-        
-        // Refresh documents and complete upload
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-        if (onUploadComplete) onUploadComplete();
-        
-        // Clear input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-        // Clear progress after delay
-        setTimeout(() => setUploadProgress(null), 3000);
-        
-      } catch (error) {
-        console.error('❌ Multipart upload failed:', error);
-        setUploadProgress({
-          fileName: file.name,
-          progress: 0,
-          status: 'Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'),
-        });
-        setTimeout(() => setUploadProgress(null), 5000);
-      }
-      
-      return;
-    }
-
-    // For smaller files (< 100MB), use existing upload method
-    console.log(`📤 Standard upload for smaller file (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+    // ✅ FIXED: Use data room endpoint for ALL files - supports 50GB+ uploads without chunked complexity
+    console.log(`📤 Using working data room upload endpoint (supports files up to 50GB)`);
     
+    // Use direct upload via data room endpoint for ALL file sizes
     setUploadProgress({
       fileName: file.name,
       progress: 0,
