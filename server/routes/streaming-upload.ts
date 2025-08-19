@@ -38,6 +38,7 @@ router.post('/init/:dealId', async (req: Request, res: Response) => {
   });
   
   console.log(`🔥 Initialized streaming upload: ${filename} (${(totalSize / 1024 / 1024).toFixed(1)}MB)`);
+  console.log(`📊 Active uploads: ${streamingUploads.size}, Upload ID: ${uploadId}`);
   
   res.json({
     success: true,
@@ -114,8 +115,12 @@ router.post('/complete/:uploadId', async (req: Request, res: Response) => {
       // Process ZIP file
       try {
         const zipProcessorModule = await import('../services/zipProcessor');
-        const zipProcessor = zipProcessorModule.zipProcessor;
-        await zipProcessor.processZipFile(filepath, upload.dealId);
+        const zipProcessor = zipProcessorModule.zipProcessor || zipProcessorModule.default;
+        if (zipProcessor && zipProcessor.processZipFile) {
+          await zipProcessor.processZipFile(filepath, upload.dealId);
+        } else {
+          throw new Error('ZIP processor not available');
+        }
         
         res.json({
           success: true,
