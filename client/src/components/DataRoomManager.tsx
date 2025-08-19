@@ -92,24 +92,73 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       return;
     }
 
-    // Check file size (500MB = 524,288,000 bytes)
-    const maxSize = 500 * 1024 * 1024; // 500MB
-    if (file.size > maxSize) {
-      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 500MB. Please select a smaller file.`);
-      return;
-    }
-
+    // Remove size limit for production
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
-    const formData = new FormData();
-    formData.append('zipFile', file);
-    formData.append('folderName', folderName);
+    // 🚨 USE ULTRA-BYPASS FOR FILES > 30MB IN PRODUCTION
+    const USE_ULTRA_BYPASS = file.size > 30 * 1024 * 1024; // 30MB threshold
+    
+    if (USE_ULTRA_BYPASS && window.location.hostname !== 'localhost') {
+      console.log('🚨 Using ULTRA-BYPASS upload for large file in production');
+      
+      // Create XMLHttpRequest for ultra-bypass
+      const xhr = new XMLHttpRequest();
+      
+      // Track progress
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = (event.loaded / event.total) * 100;
+          setUploadProgress(Math.round(percentComplete));
+          console.log(`Upload progress: ${Math.round(percentComplete)}%`);
+        }
+      };
+      
+      // Handle completion
+      xhr.onloadend = () => {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText);
+          console.log('✅ Ultra-bypass upload successful:', response);
+          setUploadProgress(100);
+          
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+          
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          
+          if (onUploadComplete) {
+            onUploadComplete();
+          }
+        } else if (xhr.status === 413) {
+          console.error('❌ 413 error even with ultra-bypass');
+          alert('File too large. The system is being updated to handle larger files. Please contact support.');
+        } else {
+          console.error('❌ Upload failed:', xhr.status, xhr.responseText);
+          alert(`Upload failed: ${xhr.responseText || 'Unknown error'}`);
+        }
+        setUploadProgress(0);
+      };
+      
+      // Send raw file to ultra-bypass endpoint
+      xhr.open('POST', `/api/deals/${dealId}/ultra-bypass-upload`);
+      xhr.setRequestHeader('X-File-Name', file.name);
+      xhr.setRequestHeader('X-Folder-Name', folderName);
+      xhr.send(file); // Send raw file, not FormData
+      
+    } else {
+      // Regular upload for smaller files or development
+      const formData = new FormData();
+      formData.append('zipFile', file);
+      formData.append('folderName', folderName);
 
-    try {
-      await uploadZipMutation.mutateAsync(formData);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      try {
+        await uploadZipMutation.mutateAsync(formData);
+      } catch (error) {
+        console.error('Upload failed:', error);
+        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 

@@ -1,24 +1,28 @@
 #!/bin/bash
-# 🚨 ULTRA-DETAILED 413 FIX DEPLOYMENT
+# 🚨 ULTRA-AGGRESSIVE 413 ELIMINATION DEPLOYMENT
 
 set -e
 
-echo "🔬 ULTRA-DETAILED 413 FIX DEPLOYMENT"
-echo "======================================"
+echo "🔥 ULTRA-AGGRESSIVE 413 ELIMINATION DEPLOYMENT"
+echo "==============================================="
 echo ""
 
+# Get project ID
+PROJECT_ID=$(gcloud config get-value project)
+echo "📍 Project ID: $PROJECT_ID"
+
 # Step 1: Build with all fixes
-echo "📦 STEP 1: Building production image with all 413 fixes..."
-docker build -f Dockerfile.production -t gcr.io/PROJECT_ID/aescuvest-platform:ultra-413-fix .
+echo "📦 STEP 1: Building production image with ULTRA-BYPASS..."
+docker build -f Dockerfile.production -t gcr.io/$PROJECT_ID/aescuvest-platform:ultra-bypass-413 .
 
 # Step 2: Push to registry
 echo "🚀 STEP 2: Pushing to Google Container Registry..."
-docker push gcr.io/PROJECT_ID/aescuvest-platform:ultra-413-fix
+docker push gcr.io/$PROJECT_ID/aescuvest-platform:ultra-bypass-413
 
-# Step 3: Deploy without any body size limits
-echo "☁️ STEP 3: Deploying to Cloud Run (removing ALL size limits)..."
+# Step 3: Deploy with MAXIMUM bypass configuration
+echo "☁️ STEP 3: Deploying with ULTRA-BYPASS configuration..."
 gcloud run deploy aescuvest-platform \
-  --image gcr.io/PROJECT_ID/aescuvest-platform:ultra-413-fix \
+  --image gcr.io/$PROJECT_ID/aescuvest-platform:ultra-bypass-413 \
   --platform managed \
   --region us-central1 \
   --memory 32Gi \
@@ -28,30 +32,36 @@ gcloud run deploy aescuvest-platform \
   --min-instances 1 \
   --concurrency 1000 \
   --port 5000 \
-  --set-env-vars NODE_ENV=production,NODE_OPTIONS="--max-old-space-size=32768",BYPASS_413=true \
+  --set-env-vars NODE_ENV=production,NODE_OPTIONS="--max-old-space-size=32768",BYPASS_413=true,USE_ULTRA_BYPASS=true \
   --allow-unauthenticated \
   --no-traffic \
-  --tag ultra-fix
+  --tag ultra-bypass
 
-# Step 4: Remove ALL annotations that might limit uploads
-echo "🔧 STEP 4: Removing ALL limiting annotations..."
+# Step 4: Remove ALL possible limiting annotations
+echo "🔧 STEP 4: Aggressively removing ALL annotations..."
 gcloud run services update aescuvest-platform \
   --region us-central1 \
-  --remove-annotations run.googleapis.com/body-size-limit,run.googleapis.com/request-timeout
+  --remove-annotations \
+    run.googleapis.com/body-size-limit,\
+    run.googleapis.com/request-timeout,\
+    run.googleapis.com/cpu-throttling,\
+    run.googleapis.com/startup-cpu-boost,\
+    run.googleapis.com/execution-environment
 
-# Step 5: Update service configuration
-echo "🔧 STEP 5: Applying final configuration..."
+# Step 5: Apply maximum resources
+echo "💪 STEP 5: Applying MAXIMUM resources..."
 gcloud run services update aescuvest-platform \
   --region us-central1 \
   --timeout 7200s \
   --memory 32Gi \
   --cpu 8 \
-  --cpu-throttling=false
+  --cpu-throttling=false \
+  --cpu-boost
 
-# Step 6: Route traffic to new version
-echo "🎯 STEP 6: Routing 100% traffic to ultra-fix version..."
+# Step 6: Route ALL traffic to ultra-bypass version
+echo "🎯 STEP 6: Routing 100% traffic to ULTRA-BYPASS version..."
 gcloud run services update-traffic aescuvest-platform \
-  --to-tags ultra-fix=100 \
+  --to-tags ultra-bypass=100 \
   --region us-central1
 
 echo ""

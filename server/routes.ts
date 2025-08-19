@@ -204,7 +204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(testUploadLimits.default);
   const streamUpload = await import('./routes/stream-upload');
   app.use(streamUpload.default);
-  console.log('✅ 413 bypass routes registered');
+  const ultraBypass = await import('./routes/ultra-bypass-upload');
+  app.use(ultraBypass.default);
+  console.log('✅ 413 bypass routes registered (including ULTRA-BYPASS)');
   
   // CRITICAL TEST: Simple test route to verify Express is working
   console.log('🚀 REGISTERING TEST ROUTE');
