@@ -460,7 +460,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                 <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
                 {assignedAgents.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {assignedAgents.map((agent, index) => {
+                    {assignedAgents.map((agent: any, index: number) => {
                       const colorClasses = agent.colorClasses.split(' ');
                       return (
                         <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
@@ -980,7 +980,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const { data: documents, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
     staleTime: 0, // CRITICAL FIX: No cache staleness - always fetch fresh data
-    cacheTime: 30000, // Keep in cache for 30 seconds
+    gcTime: 30000, // Keep in cache for 30 seconds
     refetchInterval: 3000, // Poll every 3 seconds for real-time updates
     refetchIntervalInBackground: false, // Don't poll in background
     refetchOnWindowFocus: true, // CRITICAL FIX: Refetch when window gains focus
@@ -1022,13 +1022,21 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   // ZIP upload mutation with intelligent size-based routing
   const uploadZipMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      console.log(`🎯 MICROSTEP 3: ZIP Upload Mutation Function Starting...`);
       const zipFile = formData.get('zipFile') as File;
       const fileSizeMB = zipFile ? zipFile.size / (1024 * 1024) : 0;
+      
+      console.log(`🎯 MICROSTEP 3: FormData analysis:`, {
+        zipFile: zipFile ? zipFile.name : 'null',
+        fileSize: fileSizeMB,
+        folderName: formData.get('folderName'),
+        formDataKeys: Array.from(formData.keys())
+      });
       
       // PRODUCTION FIX: Use chunked upload for files >30MB to bypass Cloud Run 32MB limit
       if (fileSizeMB > 30) {
         console.log(`🔄 MICROSTEP 3: File ${fileSizeMB.toFixed(1)}MB > 30MB threshold, using chunked upload to bypass Cloud Run limits`);
-        const result = await chunkedUploadService.uploadFile(dealId, zipFile, (progress) => {
+        const result = await chunkedUploadService.uploadFile(dealId.toString(), zipFile, (progress) => {
           console.log(`📊 MICROSTEP 3: Chunked upload progress: ${progress.progress.toFixed(1)}%`);
           setUploadProgress(prev => prev ? {
             ...prev,
@@ -1040,10 +1048,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         return result;
       }
       
-      console.log(`📦 File ${fileSizeMB.toFixed(1)}MB <= 30MB, using direct upload`);
+      console.log(`📦 MICROSTEP 3: File ${fileSizeMB.toFixed(1)}MB <= 30MB, using direct upload`);
+      console.log(`🎯 MICROSTEP 3: Creating XMLHttpRequest for direct upload...`);
       const xhr = new XMLHttpRequest();
       
       return new Promise((resolve, reject) => {
+        console.log(`🎯 MICROSTEP 3: Setting up XHR event handlers...`);
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable) {
             const percentComplete = (event.loaded / event.total) * 100;
@@ -1095,10 +1105,23 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           reject(new Error('Upload timed out'));
         });
 
-        xhr.open('POST', `/api/deals/${dealId}/data-room/upload-zip`);
+        const uploadUrl = `/api/deals/${dealId}/data-room/upload-zip`;
+        console.log(`🎯 MICROSTEP 3: Opening XHR POST to: ${uploadUrl}`);
+        xhr.open('POST', uploadUrl);
         xhr.timeout = 600000; // 10 minutes
         xhr.withCredentials = true; // Include cookies for auth
+        
+        console.log(`🎯 MICROSTEP 3: XHR configured, sending FormData...`);
+        console.log(`🎯 MICROSTEP 3: Request details:`, {
+          method: 'POST',
+          url: uploadUrl,
+          timeout: '10 minutes',
+          withCredentials: true,
+          formDataSize: formData ? 'Present' : 'Missing'
+        });
+        
         xhr.send(formData);
+        console.log(`🎯 MICROSTEP 3: XHR request sent!`);
       });
     },
     onSuccess: async (data) => {
@@ -1306,11 +1329,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const handleZipUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log(`❌ MICROSTEP 1: No file selected - upload cancelled`);
+      return;
+    }
 
-    console.log(`🔍 MICROSTEP 2: Starting ZIP upload handler for file: ${file.name}`);
-    console.log(`📊 MICROSTEP 2: File size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
-    console.log(`🎯 MICROSTEP 2: Deal ID: ${dealId}`);
+    console.log(`🚨 CRITICAL DEBUG: ZIP Upload Handler Starting...`);
+    console.log(`🔍 MICROSTEP 1: Starting ZIP upload handler for file: ${file.name}`);
+    console.log(`📊 MICROSTEP 1: File size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`🎯 MICROSTEP 1: Deal ID: ${dealId}`);
+    console.log(`🎯 MICROSTEP 1: File type: ${file.type}`);
+    console.log(`🎯 MICROSTEP 1: Last modified: ${new Date(file.lastModified)}`);
+    console.log(`🎯 MICROSTEP 1: Upload mutation available: ${!!uploadZipMutation}`);
+    console.log(`🎯 MICROSTEP 1: Upload mutation loading: ${uploadZipMutation.isPending}`);
 
     // Check maximum file size (5GB) - now optimized for files up to 1GB+
     if (file.size > 5 * 1024 * 1024 * 1024) {
