@@ -28,7 +28,6 @@ steps:
       - 'NODE_ENV=production'
       - '--port'
       - '5000'
-      - '--max-body-size'
-      - '59055800320'  # 55GB for production deployment
+      # REMOVED: --max-body-size is not a valid Cloud Run flag and causes deployment issues
       - '--service-account'
       - 'aescuvest-upload@$PROJECT_ID.iam.gserviceaccount.com'
