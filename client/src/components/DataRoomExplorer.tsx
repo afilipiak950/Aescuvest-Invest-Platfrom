@@ -1277,21 +1277,25 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log(`🔍 MICROSTEP 2: Starting ZIP upload handler for file: ${file.name}`);
+    console.log(`📊 MICROSTEP 2: File size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`🎯 MICROSTEP 2: Deal ID: ${dealId}`);
+
     // Check maximum file size (5GB) - now optimized for files up to 1GB+
     if (file.size > 5 * 1024 * 1024 * 1024) {
+      console.log(`❌ MICROSTEP 2: File too large - ${(file.size / 1024 / 1024).toFixed(1)}MB`);
       alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 5GB. The system is optimized for files up to 1GB with automatic chunked upload.`);
       return;
     }
 
     if (!file.name.toLowerCase().endsWith('.zip')) {
+      console.log(`❌ MICROSTEP 2: Not a ZIP file - ${file.name}`);
       alert('Please select a ZIP file');
       return;
     }
 
-    console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
-    
-    // ✅ FIXED: Use data room endpoint for ALL files - supports 50GB+ uploads without chunked complexity
-    console.log(`📤 Using working data room upload endpoint (supports files up to 50GB)`);
+    console.log(`✅ MICROSTEP 2: File validation passed`);
+    console.log(`📤 MICROSTEP 2: Using data room upload mutation`);
     
     // Use direct upload via data room endpoint for ALL file sizes
     setUploadProgress({
@@ -1303,6 +1307,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const formData = new FormData();
     formData.append('zipFile', file);
     formData.append('folderName', folderName);
+
+    console.log(`🚀 MICROSTEP 2: Calling uploadZipMutation.mutate() with FormData`);
+    console.log(`📋 MICROSTEP 2: FormData contents:`, {
+      zipFile: file.name,
+      folderName: folderName,
+      fileSize: file.size
+    });
 
     uploadZipMutation.mutate(formData);
   };
