@@ -13,6 +13,7 @@ import { persistentClinicalAnalysisService } from "./services/persistentClinical
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
+import { backgroundUploadService } from "./services/backgroundUploadService";
 
 const app = express();
 
@@ -659,5 +660,8 @@ app.use((req, res, next) => {
     persistentFinancialAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent financial analysis:', err);
     });
+    
+    // Background Upload Service is ready (no initialization required)
+    console.log('📁 Background Upload Service ready for background processing');
   });
 })();

@@ -12,6 +12,7 @@ import {
   dataRoomConnections, DataRoomConnection, InsertDataRoomConnection,
   microsoftEmailConnections, MicrosoftEmailConnection, InsertMicrosoftEmailConnection,
   backgroundJobs, BackgroundJob, InsertBackgroundJob,
+  backgroundUploads, BackgroundUpload, InsertBackgroundUpload,
   comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult,
@@ -159,6 +160,15 @@ export interface IStorage {
   getResearchJobById(id: number): Promise<ResearchJob | undefined>;
   getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined>;
   getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined>;
+  
+  // Background uploads methods
+  createBackgroundUpload(upload: any): Promise<any>;
+  getBackgroundUploadById(uploadId: string): Promise<any | undefined>;
+  updateBackgroundUpload(uploadId: string, data: any): Promise<any | undefined>;
+  updateBackgroundUploadProgress(uploadId: string, progress: number, currentChunk: number, uploadedBytes: number): Promise<any | undefined>;
+  getActiveUploadsByDealId(dealId: number): Promise<any[]>;
+  completeBackgroundUpload(uploadId: string): Promise<any | undefined>;
+  failBackgroundUpload(uploadId: string, error: string): Promise<any | undefined>;
 }
 
 // Database storage implementation
@@ -1992,6 +2002,115 @@ export class DatabaseStorage implements IStorage {
       return result || undefined;
     } catch (error) {
       console.error(`Error fetching research job progress for deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
+
+  // Background uploads methods
+  async createBackgroundUpload(upload: InsertBackgroundUpload): Promise<BackgroundUpload> {
+    try {
+      const [result] = await db.insert(backgroundUploads).values(upload).returning();
+      console.log(`📁 Created background upload ${result.uploadId} for deal ${upload.dealId}`);
+      return result;
+    } catch (error) {
+      console.error('Error creating background upload:', error);
+      throw error;
+    }
+  }
+
+  async getBackgroundUploadById(uploadId: string): Promise<BackgroundUpload | undefined> {
+    try {
+      const [result] = await db.select().from(backgroundUploads)
+        .where(eq(backgroundUploads.uploadId, uploadId));
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error fetching background upload ${uploadId}:`, error);
+      return undefined;
+    }
+  }
+
+  async updateBackgroundUpload(uploadId: string, data: Partial<BackgroundUpload>): Promise<BackgroundUpload | undefined> {
+    try {
+      const [result] = await db.update(backgroundUploads)
+        .set({ ...data, lastActivity: new Date() })
+        .where(eq(backgroundUploads.uploadId, uploadId))
+        .returning();
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error updating background upload ${uploadId}:`, error);
+      return undefined;
+    }
+  }
+
+  async updateBackgroundUploadProgress(uploadId: string, progress: number, currentChunk: number, uploadedBytes: number): Promise<BackgroundUpload | undefined> {
+    try {
+      const [result] = await db.update(backgroundUploads)
+        .set({ 
+          progress, 
+          currentChunk, 
+          uploadedBytes,
+          lastActivity: new Date() 
+        })
+        .where(eq(backgroundUploads.uploadId, uploadId))
+        .returning();
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error updating background upload progress ${uploadId}:`, error);
+      return undefined;
+    }
+  }
+
+  async getActiveUploadsByDealId(dealId: number): Promise<BackgroundUpload[]> {
+    try {
+      const results = await db.select().from(backgroundUploads)
+        .where(and(
+          eq(backgroundUploads.dealId, dealId),
+          or(
+            eq(backgroundUploads.status, 'uploading'),
+            eq(backgroundUploads.status, 'processing')
+          )
+        ))
+        .orderBy(desc(backgroundUploads.createdAt));
+      return results;
+    } catch (error) {
+      console.error(`Error fetching active uploads for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
+  async completeBackgroundUpload(uploadId: string): Promise<BackgroundUpload | undefined> {
+    try {
+      const [result] = await db.update(backgroundUploads)
+        .set({ 
+          status: 'completed', 
+          progress: 100,
+          completedAt: new Date(),
+          lastActivity: new Date() 
+        })
+        .where(eq(backgroundUploads.uploadId, uploadId))
+        .returning();
+      console.log(`✅ Completed background upload ${uploadId}`);
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error completing background upload ${uploadId}:`, error);
+      return undefined;
+    }
+  }
+
+  async failBackgroundUpload(uploadId: string, error: string): Promise<BackgroundUpload | undefined> {
+    try {
+      const [result] = await db.update(backgroundUploads)
+        .set({ 
+          status: 'failed', 
+          error,
+          lastActivity: new Date() 
+        })
+        .where(eq(backgroundUploads.uploadId, uploadId))
+        .returning();
+      console.log(`❌ Failed background upload ${uploadId}: ${error}`);
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error failing background upload ${uploadId}:`, error);
       return undefined;
     }
   }

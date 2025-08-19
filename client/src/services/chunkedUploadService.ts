@@ -31,6 +31,220 @@ class ChunkedUploadService {
   }>();
 
   /**
+   * Start background upload that persists across page refreshes
+   */
+  async startBackgroundUpload(
+    dealId: number,
+    file: File,
+    options: ChunkedUploadOptions = {}
+  ): Promise<string> {
+    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : '';
+    
+    console.log(`📁 Starting background upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+
+    try {
+      // Create background upload session
+      const response = await fetch(`${baseUrl}/api/background-uploads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dealId,
+          fileName: file.name,
+          fileSize: file.size,
+          uploadType: 'zip'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create background upload session: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const uploadId = result.uploadId;
+
+      // Store in localStorage for persistence across page refreshes
+      localStorage.setItem(`background_upload_${uploadId}`, JSON.stringify({
+        uploadId,
+        dealId,
+        fileName: file.name,
+        fileSize: file.size,
+        startTime: Date.now()
+      }));
+
+      // Start the actual chunked upload in background
+      this.performBackgroundUpload(uploadId, file, options);
+
+      return uploadId;
+    } catch (error) {
+      console.error('❌ Failed to start background upload:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resume background upload after page refresh
+   */
+  async resumeBackgroundUpload(uploadId: string): Promise<boolean> {
+    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : '';
+
+    try {
+      // Check if upload session exists on server
+      const response = await fetch(`${baseUrl}/api/background-uploads/${uploadId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Session expired or not found
+          localStorage.removeItem(`background_upload_${uploadId}`);
+          return false;
+        }
+        throw new Error(`Failed to get upload status: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const session = result.upload;
+
+      console.log(`📁 Resuming background upload: ${session.fileName} (${session.progress}% complete)`);
+      
+      // If upload is already completed, no need to resume
+      if (session.status === 'completed') {
+        console.log('✅ Background upload already completed');
+        localStorage.removeItem(`background_upload_${uploadId}`);
+        return true;
+      }
+
+      // Resume upload by calling the backend resume endpoint
+      const resumeResponse = await fetch(`${baseUrl}/api/background-uploads/${uploadId}/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!resumeResponse.ok) {
+        throw new Error(`Failed to resume upload: ${resumeResponse.statusText}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to resume background upload ${uploadId}:`, error);
+      localStorage.removeItem(`background_upload_${uploadId}`);
+      return false;
+    }
+  }
+
+  /**
+   * Get list of active background uploads from localStorage
+   */
+  getActiveBackgroundUploads(): any[] {
+    const uploads = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('background_upload_')) {
+        try {
+          const upload = JSON.parse(localStorage.getItem(key) || '{}');
+          uploads.push(upload);
+        } catch (e) {
+          // Remove invalid entries
+          localStorage.removeItem(key);
+        }
+      }
+    }
+    return uploads;
+  }
+
+  /**
+   * Perform the actual chunked upload with background progress tracking
+   */
+  private async performBackgroundUpload(
+    uploadId: string,
+    file: File,
+    options: ChunkedUploadOptions
+  ): Promise<void> {
+    // This continues with the existing chunked upload logic but updates background session
+    // For now, integrate with existing uploadLargeFile method
+    return this.uploadLargeFile(file, {
+      ...options,
+      onProgress: (progress) => {
+        // Update background upload progress
+        this.updateBackgroundProgress(uploadId, progress);
+        options.onProgress?.(progress);
+      },
+      onComplete: (chunkUploadId) => {
+        // Mark background upload as complete
+        this.completeBackgroundUpload(uploadId);
+        options.onComplete?.(chunkUploadId);
+      },
+      onError: (error) => {
+        console.error(`❌ Background upload ${uploadId} failed:`, error);
+        options.onError?.(error);
+      }
+    });
+  }
+
+  /**
+   * Update background upload progress
+   */
+  private async updateBackgroundProgress(uploadId: string, progress: ChunkedUploadProgress): Promise<void> {
+    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : '';
+
+    try {
+      await fetch(`${baseUrl}/api/background-uploads/${uploadId}/progress`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          progress: progress.progress,
+          currentChunk: progress.currentChunk || 0,
+          uploadedBytes: progress.uploadedBytes || 0
+        }),
+      });
+    } catch (error) {
+      console.error(`❌ Failed to update background progress for ${uploadId}:`, error);
+    }
+  }
+
+  /**
+   * Mark background upload as complete
+   */
+  private async completeBackgroundUpload(uploadId: string): Promise<void> {
+    const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : '';
+
+    try {
+      await fetch(`${baseUrl}/api/background-uploads/${uploadId}/complete`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assembledFilePath: null // Will be set by server
+        }),
+      });
+
+      // Remove from localStorage
+      localStorage.removeItem(`background_upload_${uploadId}`);
+      console.log(`✅ Background upload ${uploadId} completed`);
+    } catch (error) {
+      console.error(`❌ Failed to complete background upload ${uploadId}:`, error);
+    }
+  }
+
+  /**
    * Upload a large file using chunked upload
    */
   async uploadLargeFile(

@@ -123,6 +123,7 @@ import inboxRoutes from "./routes/inbox";
 import microsoftAuthRoutes from "./routes/microsoftAuth";
 import documentUploadRoutes from "./routes/document-upload";
 import backgroundJobsRouter from "./routes/backgroundJobs";
+import { backgroundUploadService } from './services/backgroundUploadService';
 import { websocketManager } from "./services/websocketManager";
 import { jobProcessor } from "./services/jobProcessor";
 
@@ -7449,6 +7450,189 @@ export async function registerAllRoutes(app: Express) {
       timestamp: new Date().toISOString(),
       routeAccessible: true
     });
+  });
+
+  // 📁 BACKGROUND UPLOAD TRACKING ROUTES
+  console.log('📁 Registering background upload tracking routes...');
+
+  // Create background upload session
+  app.post('/api/background-uploads', async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { dealId, fileName, fileSize, uploadType = 'zip' } = req.body;
+
+      if (!dealId || !fileName || !fileSize) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: dealId, fileName, fileSize'
+        });
+      }
+
+      const uploadId = await backgroundUploadService.createUploadSession(
+        parseInt(dealId),
+        fileName,
+        parseInt(fileSize),
+        uploadType
+      );
+
+      res.json({
+        success: true,
+        uploadId
+      });
+    } catch (error) {
+      console.error('❌ Error creating background upload:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create background upload session'
+      });
+    }
+  });
+
+  // Get background upload status
+  app.get('/api/background-uploads/:uploadId', async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { uploadId } = req.params;
+
+      const session = await backgroundUploadService.getUploadStatus(uploadId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          error: 'Background upload not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        upload: session
+      });
+    } catch (error) {
+      console.error(`❌ Error getting background upload ${req.params.uploadId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get background upload status'
+      });
+    }
+  });
+
+  // Update background upload progress
+  app.patch('/api/background-uploads/:uploadId/progress', async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { uploadId } = req.params;
+      const { progress, currentChunk, uploadedBytes } = req.body;
+
+      await backgroundUploadService.updateProgress(
+        uploadId,
+        progress,
+        currentChunk,
+        uploadedBytes
+      );
+
+      const session = await backgroundUploadService.getUploadStatus(uploadId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          error: 'Background upload not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        upload: session
+      });
+    } catch (error) {
+      console.error(`❌ Error updating background upload progress ${req.params.uploadId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update background upload progress'
+      });
+    }
+  });
+
+  // Complete background upload
+  app.patch('/api/background-uploads/:uploadId/complete', async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { uploadId } = req.params;
+      const { assembledFilePath } = req.body;
+
+      await backgroundUploadService.completeUpload(uploadId, assembledFilePath);
+
+      const session = await backgroundUploadService.getUploadStatus(uploadId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          error: 'Background upload not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        upload: session
+      });
+    } catch (error) {
+      console.error(`❌ Error completing background upload ${req.params.uploadId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to complete background upload'
+      });
+    }
+  });
+
+  // Get active uploads for a deal
+  app.get('/api/deals/:dealId/background-uploads', async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const dealId = parseInt(req.params.dealId);
+
+      if (isNaN(dealId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid deal ID'
+        });
+      }
+
+      const activeUploads = await backgroundUploadService.getActiveUploadsForDeal(dealId);
+
+      res.json({
+        success: true,
+        uploads: activeUploads
+      });
+    } catch (error) {
+      console.error(`❌ Error getting active uploads for deal ${req.params.dealId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get active uploads'
+      });
+    }
+  });
+
+  // Resume background upload after page refresh
+  app.post('/api/background-uploads/:uploadId/resume', async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { uploadId } = req.params;
+
+      const session = await backgroundUploadService.resumeUpload(uploadId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          error: 'Background upload session not found or expired'
+        });
+      }
+
+      res.json({
+        success: true,
+        upload: session
+      });
+    } catch (error) {
+      console.error(`❌ Error resuming background upload ${req.params.uploadId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to resume background upload'
+      });
+    }
   });
 
   // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)  
