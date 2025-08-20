@@ -1341,6 +1341,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             });
 
             try {
+              console.log('🔔 Attempting to notify server about completed upload...');
+              console.log('📍 Notification URL:', `/api/gcs/upload-complete/${dealId}`);
+              console.log('📦 Notification payload:', {
+                gcsFileName,
+                uploadId,
+                fileName: file.name
+              });
+
               const completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
                 method: 'POST',
                 headers: {
@@ -1353,8 +1361,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 })
               });
 
+              console.log('📡 Server response status:', completeResponse.status);
+              console.log('📡 Server response ok:', completeResponse.ok);
+
               if (!completeResponse.ok) {
                 const errorData = await completeResponse.json().catch(() => ({}));
+                console.error('❌ Server error response:', errorData);
                 throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
               }
 
@@ -1371,19 +1383,28 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               setTimeout(() => {
                 setUploadProgress(null);
                 refetch();
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
               }, 2000);
               
-            } catch (notifyError) {
+            } catch (notifyError: any) {
               console.error('❌ Failed to notify server:', notifyError);
+              console.error('❌ Error details:', {
+                message: notifyError.message,
+                stack: notifyError.stack,
+                name: notifyError.name
+              });
+              
+              // Still try to refresh documents in case they were partially processed
               setUploadProgress({
                 fileName: file.name,
                 progress: 100,
-                status: 'Upload complete but processing may be delayed'
+                status: 'Upload complete - refreshing documents...'
               });
               
               setTimeout(() => {
                 setUploadProgress(null);
                 refetch();
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
               }, 3000);
             }
             
