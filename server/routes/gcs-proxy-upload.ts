@@ -68,42 +68,74 @@ router.post('/api/gcs/proxy-upload/:dealId',
       const gcsPath = `gs://${(gcsService as any).bucketName}/${gcsFileName}`;
       console.log(`✅ Proxy upload successful: ${gcsPath}`);
       
-      // Create document record
-      const document = await dbStorage.createDocument({
-        dealId: dealId,
-        name: file.originalname,
-        type: file.originalname.split('.').pop() || '',
-        path: gcsPath,
-        size: file.size,
-        status: 'Pending',
-        folderPath: '',
-        isFolder: false
-      } as any);
+      // Check if file is a ZIP that needs extraction
+      const isZipFile = file.originalname.toLowerCase().endsWith('.zip');
       
-      console.log(`✅ Document registered: ${document.id}`);
-      
-      // Create background job for OCR processing
-      const jobId = await backgroundJobManager.createJob({
-        jobType: 'document_ocr',
-        dealId: dealId,
-        documentId: document.id,
-        jobData: {
-          filePath: gcsPath,
-          fileName: file.originalname,
+      if (isZipFile) {
+        console.log(`📦 ZIP file detected - creating extraction job`);
+        
+        // For ZIP files, create a background job to extract and process
+        const jobId = await backgroundJobManager.createJob({
+          jobType: 'process_zip',
+          dealId: dealId,
+          documentId: null,
+          jobData: {
+            zipPath: gcsPath,
+            dealId: dealId,
+            folderName: file.originalname.replace('.zip', ''),
+            fileName: file.originalname
+          }
+        });
+        
+        console.log(`✅ ZIP extraction job created: ${jobId}`);
+        
+        return res.json({
+          success: true,
+          message: 'ZIP file uploaded successfully and will be extracted',
+          jobId,
+          gcsPath,
+          isZip: true,
+          extractionStarted: true
+        });
+        
+      } else {
+        // For non-ZIP files, create document record as before
+        const document = await dbStorage.createDocument({
+          dealId: dealId,
+          name: file.originalname,
+          type: file.originalname.split('.').pop() || '',
+          path: gcsPath,
+          size: file.size,
+          status: 'Pending',
+          folderPath: '',
+          isFolder: false
+        } as any);
+        
+        console.log(`✅ Document registered: ${document.id}`);
+        
+        // Create background job for OCR processing
+        const jobId = await backgroundJobManager.createJob({
+          jobType: 'document_ocr',
+          dealId: dealId,
           documentId: document.id,
-          documentName: file.originalname
-        }
-      });
-      
-      console.log(`✅ Processing job created: ${jobId}`);
-      
-      return res.json({
-        success: true,
-        message: 'File uploaded successfully via proxy',
-        document,
-        jobId,
-        gcsPath
-      });
+          jobData: {
+            filePath: gcsPath,
+            fileName: file.originalname,
+            documentId: document.id,
+            documentName: file.originalname
+          }
+        });
+        
+        console.log(`✅ Processing job created: ${jobId}`);
+        
+        return res.json({
+          success: true,
+          message: 'File uploaded successfully via proxy',
+          document,
+          jobId,
+          gcsPath
+        });
+      }
       
     } catch (error: any) {
       console.error('❌ Proxy upload failed:', error);

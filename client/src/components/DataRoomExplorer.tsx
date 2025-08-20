@@ -1302,13 +1302,22 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           if (xhr.status === 200) {
             try {
               const response = JSON.parse(xhr.responseText);
-              console.log(`✅ Proxy upload successful! Document ID: ${response.document?.id}, Job ID: ${response.jobId}`);
               
-              setUploadProgress({
-                fileName: file.name,
-                progress: 100,
-                status: 'Upload complete! Processing will begin shortly...'
-              });
+              if (response.isZip) {
+                console.log(`📦 ZIP upload successful! Extraction job: ${response.jobId}`);
+                setUploadProgress({
+                  fileName: file.name,
+                  progress: 100,
+                  status: 'ZIP uploaded! Extracting files...'
+                });
+              } else {
+                console.log(`✅ Proxy upload successful! Document ID: ${response.document?.id}, Job ID: ${response.jobId}`);
+                setUploadProgress({
+                  fileName: file.name,
+                  progress: 100,
+                  status: 'Upload complete! Processing will begin shortly...'
+                });
+              }
               
               // Clear progress and refresh after delay
               setTimeout(() => {
