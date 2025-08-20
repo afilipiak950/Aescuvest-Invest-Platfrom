@@ -20,6 +20,7 @@ import chunkedUploadRouter from './routes/chunked-upload';
 import productionChunkedRouter, { rawBodyHandler } from './routes/production-chunked-upload';
 import gcsDirectUploadRouter from './routes/gcs-direct-upload';
 import gcsProxyUploadRouter from './routes/gcs-proxy-upload';
+import gcsSignedUploadRouter from './routes/gcs-signed-upload';
 
 const app = express();
 
@@ -432,6 +433,10 @@ app.use((req, res, next) => {
   
   app.use(gcsProxyUploadRouter);
   console.log('✅ GCS proxy upload routes registered (bypasses CORS entirely)');
+  
+  // 🚀 REGISTER GCS SIGNED UPLOAD ROUTES (TRUE 413 BYPASS)
+  app.use(gcsSignedUploadRouter);
+  console.log('✅ GCS signed upload routes registered (TRUE 413 bypass - direct to GCS)');
   
   // 🚨 PRODUCTION CHUNKED UPLOAD WITH RAW BODY HANDLING
   // Register production routes with special middleware for Cloud Run

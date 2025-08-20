@@ -33,6 +33,87 @@ export class ZipProcessor {
     }
   }
 
+  /**
+   * Process ZIP file downloaded from GCS for direct upload solution
+   * Bypasses 413 errors by processing files already in GCS
+   */
+  async processZipFromGCS(
+    tempFilePath: string,
+    dealId: number,
+    parentDocumentId: number,
+    gcsPath: string
+  ): Promise<any[]> {
+    console.log('📦 MICRO-STEP: Processing ZIP from GCS direct upload', {
+      tempFile: tempFilePath,
+      dealId,
+      parentId: parentDocumentId,
+      gcsPath
+    });
+
+    try {
+      const yauzl = require('yauzl');
+      const util = require('util');
+      const openZip = util.promisify(yauzl.open);
+      
+      // Open the ZIP file
+      const zipFile = await openZip(tempFilePath, { lazyEntries: true });
+      const documents: any[] = [];
+      
+      return new Promise((resolve, reject) => {
+        zipFile.on('entry', async (entry: any) => {
+          const fileName = entry.fileName;
+          
+          // Skip directories and system files
+          if (/\/$/.test(fileName) || fileName.startsWith('__MACOSX/') || fileName.startsWith('.')) {
+            zipFile.readEntry();
+            return;
+          }
+
+          console.log(`📄 Processing entry: ${fileName}`);
+          
+          // Create document entry using storage
+          try {
+            const doc = await storage.createDocument({
+              dealId,
+              name: path.basename(fileName),
+              parentId: parentDocumentId,
+              uploadedAt: new Date(),
+              metadata: {
+                originalPath: fileName,
+                extractedFrom: gcsPath,
+                compressed: true,
+                extractedAt: new Date().toISOString()
+              }
+            } as any);
+            
+            documents.push(doc);
+            console.log(`✅ Created document ${doc.id} for ${fileName}`);
+          } catch (error) {
+            console.error(`❌ Failed to process ${fileName}:`, error);
+          }
+
+          zipFile.readEntry();
+        });
+
+        zipFile.on('end', () => {
+          console.log(`✅ ZIP processing complete: ${documents.length} documents`);
+          resolve(documents);
+        });
+
+        zipFile.on('error', (error: any) => {
+          console.error('❌ ZIP processing error:', error);
+          reject(error);
+        });
+
+        zipFile.readEntry();
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to process ZIP from GCS:', error);
+      throw error;
+    }
+  }
+
   async processZipFile(zipPath: string, dealId: number, folderName: string, jobId?: number): Promise<{
     connection: any;
     processedFiles: ProcessedFile[];

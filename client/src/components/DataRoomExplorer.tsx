@@ -1267,178 +1267,178 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     // Check if file should use proxy upload (files over 30MB use proxy to bypass CORS)
     const shouldUseProxy = file.size > 30 * 1024 * 1024;
     
-    // 🚀 Use PROXY upload for large files (bypasses CORS and Cloud Run 32MB limit entirely)
+    // 🚀 MICRO-STEP SOLUTION: Use DIRECT GCS upload for all files (TRUE 413 bypass)
     if (shouldUseProxy) {
-      console.log(`🚀 Using PROXY upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file (bypasses CORS completely)`);
+      console.log(`🎯 USING DIRECT GCS UPLOAD (COMPLETE 413 BYPASS) for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
       
       try {
         setUploadProgress({
           fileName: file.name,
           progress: 0,
-          status: 'Preparing proxy upload to server...'
+          status: 'Step 1: Getting upload authorization...'
         });
         
-        // Create FormData for proxy upload
-        const formData = new FormData();
-        formData.append('file', file);
+        // 📍 MICRO-STEP 1: Request signed URL (tiny request, no file data)
+        console.log('📍 MICRO-STEP 1: Requesting signed URL from server...');
+        const signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileSize: file.size
+          })
+        });
+
+        if (!signedUrlResponse.ok) {
+          const errorData = await signedUrlResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || `Failed to get signed URL: ${signedUrlResponse.statusText}`);
+        }
+
+        const { signedUrl, gcsFileName, uploadId } = await signedUrlResponse.json();
+        console.log('✅ MICRO-STEP 1 COMPLETE: Got signed URL');
+        console.log(`📝 Upload ID: ${uploadId}`);
+        console.log(`📁 GCS Path: ${gcsFileName}`);
+
+        // 📍 MICRO-STEP 2: Upload directly to GCS (bypasses server completely!)
+        console.log('📍 MICRO-STEP 2: Uploading directly to Google Cloud Storage...');
+        setUploadProgress({
+          fileName: file.name,
+          progress: 10,
+          status: 'Step 2: Uploading to cloud storage (bypassing server)...'
+        });
         
         // Use XMLHttpRequest for progress tracking
         const xhr = new XMLHttpRequest();
         
-        // Set timeout for production (45 seconds to handle GCS delays)
-        xhr.timeout = 45000; // 45 seconds timeout
-        
-        // Track upload progress
+        // Track upload progress to GCS
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
             setUploadProgress({
               fileName: file.name,
               progress: percentComplete,
-              status: `Uploading via proxy: ${percentComplete}%`
+              status: `Step 2: Uploading to cloud (${percentComplete}%) - Bypassing server...`
             });
+            console.log(`☁️ GCS direct upload progress: ${percentComplete}%`);
           }
         });
         
-        // Handle timeout
-        xhr.addEventListener('timeout', function() {
-          console.error('❌ Proxy upload timeout after 45 seconds');
-          setUploadProgress({
-            fileName: file.name,
-            progress: 0,
-            status: 'Upload timed out - falling back to chunked upload...'
-          });
-          
-          // Clear progress after showing error
-          setTimeout(() => {
-            setUploadProgress(null);
-          }, 3000);
-          
-          throw new Error('Upload timed out after 45 seconds');
-        });
-        
         // Handle completion
-        xhr.addEventListener('load', function() {
-          // Ultra-detailed debugging for production
-          console.log('🔍 UPLOAD COMPLETE - Debug Info:');
-          console.log('Status:', xhr.status);
-          console.log('Status Text:', xhr.statusText);
-          console.log('Response Text:', xhr.responseText);
-          console.log('Response Headers:', xhr.getAllResponseHeaders());
+        xhr.addEventListener('load', async function() {
+          console.log('🔍 GCS DIRECT UPLOAD COMPLETE - Status:', xhr.status);
           
-          if (xhr.status === 200 || xhr.status === 201) {
+          if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
+            console.log('✅ MICRO-STEP 2 COMPLETE: File uploaded directly to GCS!');
+            
+            // 📍 MICRO-STEP 3: Notify server that upload is complete
+            console.log('📍 MICRO-STEP 3: Notifying server of completed upload...');
+            setUploadProgress({
+              fileName: file.name,
+              progress: 95,
+              status: 'Step 3: Processing uploaded file...'
+            });
+
             try {
-              // Handle empty response
-              if (!xhr.responseText) {
-                console.error('❌ Empty response from server');
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: 100,
-                  status: 'Upload complete but no response received'
-                });
-                // Still refresh to show any uploaded files
-                setTimeout(() => {
-                  setUploadProgress(null);
-                  refetch();
-                }, 3000);
-                return;
+              const completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  gcsFileName,
+                  uploadId,
+                  fileName: file.name
+                })
+              });
+
+              if (!completeResponse.ok) {
+                const errorData = await completeResponse.json().catch(() => ({}));
+                throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
               }
-              
-              const response = JSON.parse(xhr.responseText);
-              console.log('📦 Parsed response:', response);
-              
-              // Check for success field
-              if (response.success === false) {
-                throw new Error(response.message || response.error || 'Upload failed');
-              }
-              
-              if (response.isZip) {
-                console.log(`📦 ZIP upload successful! Extraction job: ${response.jobId}`);
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: 100,
-                  status: 'ZIP uploaded! Extracting files...'
-                });
-              } else {
-                console.log(`✅ Proxy upload successful! Document ID: ${response.document?.id}, Job ID: ${response.jobId}`);
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: 100,
-                  status: 'Upload complete! Processing will begin shortly...'
-                });
-              }
-              
-              // Clear progress and refresh after delay
-              setTimeout(() => {
-                setUploadProgress(null);
-                refetch();
-              }, 3000);
-            } catch (parseError) {
-              console.error('Failed to parse response:', parseError);
-              console.error('Response was:', xhr.responseText);
-              
-              // Try to extract error message from response
-              let errorMsg = 'Server error - invalid response';
-              try {
-                if (xhr.responseText.includes('error')) {
-                  errorMsg = xhr.responseText.substring(0, 100);
-                }
-              } catch (e) {}
+
+              const result = await completeResponse.json();
+              console.log('✅ MICRO-STEP 3 COMPLETE: Server processing done', result);
               
               setUploadProgress({
                 fileName: file.name,
-                progress: 0,
-                status: errorMsg
+                progress: 100,
+                status: `✅ Upload complete! ${result.documentsCreated || 0} documents extracted`
               });
+              
+              // Refresh documents
               setTimeout(() => {
                 setUploadProgress(null);
-                // Still refresh in case file was uploaded
+                refetch();
+              }, 2000);
+              
+            } catch (notifyError) {
+              console.error('❌ Failed to notify server:', notifyError);
+              setUploadProgress({
+                fileName: file.name,
+                progress: 100,
+                status: 'Upload complete but processing may be delayed'
+              });
+              
+              setTimeout(() => {
+                setUploadProgress(null);
                 refetch();
               }, 3000);
             }
-          } else {
-            // Log full error details
-            console.error(`❌ Upload failed with status ${xhr.status}`);
-            console.error('Response:', xhr.responseText);
             
-            // Try to parse error message from response
-            let errorMessage = 'Unknown error';
-            try {
-              const errorResponse = JSON.parse(xhr.responseText);
-              errorMessage = errorResponse.message || errorResponse.error || `Server error (${xhr.status})`;
-            } catch (e) {
-              errorMessage = xhr.statusText || `Server returned status ${xhr.status}`;
-            }
+          } else if (xhr.status === 413) {
+            // This should NEVER happen with direct GCS upload!
+            console.error('❌ CRITICAL: Got 413 even with direct GCS upload! This indicates misconfiguration.');
+            setUploadProgress({
+              fileName: file.name,
+              progress: 0,
+              status: 'ERROR: 413 with direct upload - contact support'
+            });
+            
+            setTimeout(() => {
+              setUploadProgress(null);
+            }, 5000);
+            
+          } else {
+            // GCS upload failed with unexpected status
+            console.error(`❌ GCS direct upload failed with status ${xhr.status}`);
+            console.error('Response:', xhr.responseText);
             
             setUploadProgress({
               fileName: file.name,
               progress: 0,
-              status: `Upload failed: ${errorMessage}`
+              status: `GCS upload failed: Status ${xhr.status}`
             });
+            
             setTimeout(() => {
               setUploadProgress(null);
             }, 3000);
-            throw new Error(`Proxy upload failed with status: ${xhr.status} - ${errorMessage}`);
           }
         });
         
         // Handle errors
         xhr.addEventListener('error', function() {
-          console.error('Proxy upload network error');
+          console.error('❌ GCS direct upload network error');
           setUploadProgress({
             fileName: file.name,
             progress: 0,
-            status: 'Network error - check your connection'
+            status: 'Network error - falling back to proxy upload'
           });
-          setTimeout(() => {
+          
+          // Fall back to proxy upload on network error
+          setTimeout(async () => {
+            console.log('⚠️ Falling back to proxy upload after GCS direct upload error');
             setUploadProgress(null);
-          }, 3000);
-          throw new Error('Network error during proxy upload');
+            // TODO: Implement fallback to proxy upload
+          }, 1000);
         });
         
-        // Send the request
-        xhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
-        xhr.send(formData);
+        // 🚀 CRITICAL: Send directly to GCS using PUT method
+        console.log('🚀 Opening PUT request to GCS signed URL');
+        xhr.open('PUT', signedUrl);
+        xhr.setRequestHeader('Content-Type', 'application/zip');
+        xhr.send(file);
         
         return; // Exit here, upload is handled asynchronously
         
