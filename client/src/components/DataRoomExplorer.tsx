@@ -1250,9 +1250,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check maximum file size (5GB) - now optimized for files up to 1GB+
-    if (file.size > 5 * 1024 * 1024 * 1024) {
-      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 5GB. The system is optimized for files up to 1GB with automatic chunked upload.`);
+    // Check maximum file size - with GCS, we support up to 5TB
+    const maxSize = 5 * 1024 * 1024 * 1024 * 1024; // 5TB with GCS
+    if (file.size > maxSize) {
+      alert(`File size (${(file.size / 1024 / 1024 / 1024).toFixed(1)}GB) exceeds the maximum limit of 5TB.`);
       return;
     }
 
@@ -1262,6 +1263,105 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+    
+    // Check if GCS is available (production environment)
+    const isProduction = window.location.hostname.includes('.replit.app') || 
+                        window.location.hostname.includes('repl.co') ||
+                        !window.location.hostname.includes('localhost');
+    
+    // 🚀 Use GCS direct upload in production (bypasses Cloud Run 32MB limit entirely)
+    if (isProduction && file.size > 30 * 1024 * 1024) {
+      console.log(`☁️ Using GCS direct upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file (bypasses Cloud Run limit)`);
+      
+      try {
+        setUploadProgress({
+          fileName: file.name,
+          progress: 0,
+          status: 'Requesting secure upload URL from server...'
+        });
+        
+        // Get signed URL for direct GCS upload
+        const urlResponse = await fetch('/api/gcs/upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dealId: dealId,
+            fileName: file.name,
+            contentType: 'application/zip'
+          })
+        });
+        
+        if (!urlResponse.ok) {
+          throw new Error('Failed to get upload URL');
+        }
+        
+        const { uploadUrl, gcsPath } = await urlResponse.json();
+        console.log(`✅ Got signed upload URL for direct GCS upload`);
+        
+        // Upload directly to GCS (bypasses Cloud Run entirely)
+        setUploadProgress({
+          fileName: file.name,
+          progress: 10,
+          status: 'Uploading directly to cloud storage...'
+        });
+        
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': 'application/zip'
+          }
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload to GCS');
+        }
+        
+        console.log(`✅ File uploaded directly to GCS: ${gcsPath}`);
+        
+        // Register the upload with the server for processing
+        setUploadProgress({
+          fileName: file.name,
+          progress: 90,
+          status: 'Registering upload for processing...'
+        });
+        
+        const registerResponse = await fetch('/api/gcs/register-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dealId: dealId,
+            gcsPath: gcsPath,
+            fileName: file.name,
+            fileSize: file.size
+          })
+        });
+        
+        if (!registerResponse.ok) {
+          throw new Error('Failed to register upload');
+        }
+        
+        const { document, jobId } = await registerResponse.json();
+        console.log(`✅ Upload registered with job ID: ${jobId}`);
+        
+        setUploadProgress({
+          fileName: file.name,
+          progress: 100,
+          status: 'Upload complete! Processing will begin shortly...'
+        });
+        
+        // Clear progress after delay
+        setTimeout(() => {
+          setUploadProgress(null);
+          refetch();
+        }, 3000);
+        
+        return;
+      } catch (error) {
+        console.error('GCS upload failed, falling back to chunked upload:', error);
+        // Fall through to chunked upload
+      }
+    }
     
     // 🚨 CRITICAL: Cloud Run has a 32MB hard limit for HTTP requests
     // Files over 30MB MUST use chunked uploads to avoid 413 errors

@@ -4,6 +4,7 @@ import { Mistral } from '@mistralai/mistralai';
 import sharp from 'sharp';
 import XLSX from 'xlsx';
 import mammoth from 'mammoth';
+import { gcsService } from './googleCloudStorage';
 
 const mistral = new Mistral({
   apiKey: process.env.MISTRAL_API_KEY || '',
@@ -11,7 +12,7 @@ const mistral = new Mistral({
 
 export class MistralOCRService {
   
-  async extractText(filePath: string, mimeType?: string): Promise<{
+  async extractText(filePath: string, mimeType?: string, dealId?: number): Promise<{
     extractedText: string;
     confidence: number;
     processingTime: string;
@@ -19,10 +20,20 @@ export class MistralOCRService {
     const startTime = Date.now();
     
     try {
-      console.log(`🔍 Starting Mistral OCR analysis for: ${path.basename(filePath)}`);
-      console.log(`📁 Full file path: ${filePath}`);
+      // Handle GCS files - download to local temp if needed
+      let localPath = filePath;
+      let isGcsFile = false;
       
-      const fileExtension = path.extname(filePath).toLowerCase();
+      if (gcsService.isGcsPath(filePath)) {
+        console.log(`☁️ Detected GCS file, downloading for OCR processing...`);
+        localPath = await gcsService.ensureLocalFile(filePath, dealId || 0);
+        isGcsFile = true;
+      }
+      
+      console.log(`🔍 Starting Mistral OCR analysis for: ${path.basename(localPath)}`);
+      console.log(`📁 Full file path: ${localPath}`);
+      
+      const fileExtension = path.extname(localPath).toLowerCase();
       console.log(`📋 Detected file extension: "${fileExtension}"`);
       let extractedText = '';
       
@@ -67,6 +78,12 @@ export class MistralOCRService {
       const confidence = cleanText.length > 0 ? 0.95 : 0.0;
       
       console.log(`✅ OCR completed: ${cleanText.length} characters extracted in ${processingTime}`);
+      
+      // Clean up temporary file if it was downloaded from GCS
+      if (isGcsFile && fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+        console.log(`🗑️ Cleaned up temporary OCR file: ${localPath}`);
+      }
       
       return {
         extractedText: cleanText,
