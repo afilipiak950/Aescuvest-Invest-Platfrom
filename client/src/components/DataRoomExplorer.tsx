@@ -1264,110 +1264,83 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // Check if file should use GCS (files over 30MB always use GCS now that it's configured)
-    const shouldUseGCS = file.size > 30 * 1024 * 1024;
+    // Check if file should use proxy upload (files over 30MB use proxy to bypass CORS)
+    const shouldUseProxy = file.size > 30 * 1024 * 1024;
     
-    // 🚀 Use GCS direct upload for large files (bypasses Cloud Run 32MB limit entirely)
-    if (shouldUseGCS) {
-      console.log(`☁️ Using GCS direct upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file (bypasses Cloud Run limit)`);
+    // 🚀 Use PROXY upload for large files (bypasses CORS and Cloud Run 32MB limit entirely)
+    if (shouldUseProxy) {
+      console.log(`🚀 Using PROXY upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file (bypasses CORS completely)`);
       
       try {
         setUploadProgress({
           fileName: file.name,
           progress: 0,
-          status: 'Requesting secure upload URL from server...'
+          status: 'Preparing proxy upload to server...'
         });
         
-        // Get signed URL for direct GCS upload
-        const urlResponse = await fetch('/api/gcs/upload-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dealId: dealId,
-            fileName: file.name,
-            contentType: 'application/zip'
-          })
+        // Create FormData for proxy upload
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            setUploadProgress({
+              fileName: file.name,
+              progress: percentComplete,
+              status: `Uploading via proxy: ${percentComplete}%`
+            });
+          }
         });
         
-        if (!urlResponse.ok) {
-          throw new Error('Failed to get upload URL');
-        }
-        
-        const { uploadUrl, gcsPath, method, headers } = await urlResponse.json();
-        console.log(`✅ Got signed upload URL for direct GCS upload`);
-        console.log('Upload URL:', uploadUrl);
-        console.log('Method:', method || 'PUT');
-        console.log('Headers:', headers || { 'Content-Type': 'application/zip' });
-        
-        // Upload directly to GCS (bypasses Cloud Run entirely)
-        setUploadProgress({
-          fileName: file.name,
-          progress: 10,
-          status: 'Uploading directly to cloud storage...'
+        // Handle completion
+        xhr.addEventListener('load', function() {
+          if (xhr.status === 200) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              console.log(`✅ Proxy upload successful! Document ID: ${response.document?.id}, Job ID: ${response.jobId}`);
+              
+              setUploadProgress({
+                fileName: file.name,
+                progress: 100,
+                status: 'Upload complete! Processing will begin shortly...'
+              });
+              
+              // Clear progress and refresh after delay
+              setTimeout(() => {
+                setUploadProgress(null);
+                refetch();
+              }, 3000);
+            } catch (parseError) {
+              console.error('Failed to parse response:', parseError);
+              throw new Error('Invalid server response');
+            }
+          } else {
+            throw new Error(`Proxy upload failed with status: ${xhr.status}`);
+          }
         });
         
-        const uploadResponse = await fetch(uploadUrl, {
-          method: method || 'PUT',
-          body: file,
-          headers: headers || {
-            'Content-Type': 'application/zip'
-          },
-          mode: 'cors' // Explicitly set CORS mode
+        // Handle errors
+        xhr.addEventListener('error', function() {
+          console.error('Proxy upload network error');
+          throw new Error('Network error during proxy upload');
         });
         
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text().catch(() => 'No error details');
-          console.error(`GCS upload failed with status ${uploadResponse.status}: ${errorText}`);
-          throw new Error(`Failed to upload to GCS: ${uploadResponse.status} - ${errorText}`);
-        }
+        // Send the request
+        xhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
+        xhr.send(formData);
         
-        console.log(`✅ File uploaded directly to GCS: ${gcsPath}`);
+        return; // Exit here, upload is handled asynchronously
         
-        // Register the upload with the server for processing
-        setUploadProgress({
-          fileName: file.name,
-          progress: 90,
-          status: 'Registering upload for processing...'
-        });
-        
-        const registerResponse = await fetch('/api/gcs/register-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dealId: dealId,
-            gcsPath: gcsPath,
-            fileName: file.name,
-            fileSize: file.size
-          })
-        });
-        
-        if (!registerResponse.ok) {
-          throw new Error('Failed to register upload');
-        }
-        
-        const { document, jobId } = await registerResponse.json();
-        console.log(`✅ Upload registered with job ID: ${jobId}`);
-        
-        setUploadProgress({
-          fileName: file.name,
-          progress: 100,
-          status: 'Upload complete! Processing will begin shortly...'
-        });
-        
-        // Clear progress after delay
-        setTimeout(() => {
-          setUploadProgress(null);
-          refetch();
-        }, 3000);
-        
-        return;
       } catch (error: any) {
-        console.error('GCS upload failed with error:', error);
+        console.error('Proxy upload failed with error:', error);
         console.error('Error message:', error?.message);
-        console.error('Error status:', error?.status);
-        console.error('Error details:', error);
-        // Fall through to chunked upload
-        console.log('📤 Falling back to chunked upload due to GCS error');
+        // Fall through to chunked upload as last resort
+        console.log('📤 Falling back to chunked upload due to proxy error');
       }
     }
     
