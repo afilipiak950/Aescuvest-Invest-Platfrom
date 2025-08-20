@@ -41,6 +41,9 @@ export function GCSUploader({ dealId, onUploadComplete }: GCSUploaderProps) {
       
       if (!urlResponse.ok) {
         const error = await urlResponse.json();
+        if (error.error?.includes('not available in development')) {
+          throw new Error('Google Cloud Storage is not configured in the development environment. This feature requires production deployment.');
+        }
         throw new Error(error.error || 'Failed to get upload URL');
       }
       

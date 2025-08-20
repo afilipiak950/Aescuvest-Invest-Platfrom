@@ -69,7 +69,11 @@ router.post('/api/deals/:dealId/gcs-upload/generate-url', async (req: Request, r
     const { fileName, fileType, fileSize } = req.body;
     
     if (!bucket) {
-      throw new Error('Google Cloud Storage not configured');
+      console.warn('⚠️ Google Cloud Storage not configured in development environment');
+      return res.status(503).json({ 
+        error: 'Google Cloud Storage not available in development',
+        details: 'GCS requires production environment configuration' 
+      });
     }
     
     // Generate unique file name
@@ -166,7 +170,7 @@ router.post('/api/deals/:dealId/gcs-upload/confirm', async (req: Request, res: R
       
       // Process the ZIP file
       if (typeof zipProcessor.processZipFile === 'function') {
-        zipProcessor.processZipFile(dealId, tempPath, 'dataroom', document.id).catch((err: Error) => {
+        zipProcessor.processZipFile(dealId, tempPath, 'dataroom', document.id.toString()).catch((err: Error) => {
           console.error('❌ ZIP processing failed:', err);
         });
       } else {
