@@ -1270,40 +1270,99 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     if (file.size > CLOUD_RUN_LIMIT) {
       console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using CHUNKED upload to avoid Cloud Run 32MB limit`);
       
-      // Import chunked upload utility
-      const { uploadChunked } = await import('../lib/chunkedUpload');
-      
       try {
+        // Inline chunked upload implementation
+        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        
         setUploadProgress({
           fileName: file.name,
           progress: 0,
-          status: 'Using chunked upload for large file...'
+          status: `Preparing chunked upload (${totalChunks} chunks)...`
         });
         
-        const result = await uploadChunked(file, dealId, folderName, (progress) => {
+        // Initialize chunked upload
+        const initResponse = await fetch(`/api/upload/chunk/init`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            totalSize: file.size,
+            chunkSize: CHUNK_SIZE
+          })
+        });
+        
+        if (!initResponse.ok) {
+          throw new Error('Failed to initialize chunked upload');
+        }
+        
+        const { uploadId } = await initResponse.json();
+        console.log(`✅ Upload initialized with ID: ${uploadId}`);
+        
+        // Upload chunks
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end);
+          
+          const formData = new FormData();
+          formData.append('chunk', chunk);
+          
+          const chunkResponse = await fetch(`/api/upload/chunk/${uploadId}/${i}`, {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!chunkResponse.ok) {
+            throw new Error(`Failed to upload chunk ${i + 1}/${totalChunks}`);
+          }
+          
+          const progress = ((i + 1) / totalChunks) * 100;
           setUploadProgress({
             fileName: file.name,
             progress: Math.round(progress),
-            status: `Uploading chunks: ${Math.round(progress)}%`
+            status: `Uploading chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`
           });
+        }
+        
+        // Complete upload and process
+        setUploadProgress({
+          fileName: file.name,
+          progress: 100,
+          status: 'Processing uploaded file...'
         });
         
-        console.log('✅ Chunked upload successful:', result);
+        const completeResponse = await fetch(`/api/deals/${dealId}/upload-chunked/${uploadId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folderName })
+        });
+        
+        if (!completeResponse.ok) {
+          throw new Error('Failed to process uploaded file');
+        }
+        
+        const result = await completeResponse.json();
+        console.log('✅ Upload complete:', result);
         
         // Refresh data
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
         queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         
         setUploadProgress(null);
-        
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-      } catch (error) {
+        
+      } catch (error: any) {
         console.error('Chunked upload failed:', error);
-        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+        alert(`Upload failed: ${error.message || 'Unknown error'}\n\nPlease split your file into parts smaller than 30MB and upload them separately.`);
         setUploadProgress(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
+      return;
     } else {
       console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using direct upload (under 30MB limit)`);
       
