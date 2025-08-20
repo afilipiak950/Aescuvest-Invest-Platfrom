@@ -13,13 +13,36 @@ class GoogleCloudStorageService {
   private bucket: any;
 
   constructor() {
-    // Initialize GCS client
-    this.storage = new Storage({
-      projectId: process.env.GCP_PROJECT_ID,
-      keyFilename: process.env.GCS_KEY_FILE || undefined, // Use ADC if no key file
-    });
+    // Initialize GCS client with base64 encoded credentials
+    let storageConfig: any = {};
     
-    this.bucketName = process.env.GCS_BUCKET_NAME || 'aescuvest-documents';
+    // Check for base64 encoded credentials
+    if (process.env.GOOGLE_CLOUD_STORAGE_KEY) {
+      try {
+        // Decode base64 credentials
+        const keyJson = Buffer.from(process.env.GOOGLE_CLOUD_STORAGE_KEY, 'base64').toString('utf-8');
+        const credentials = JSON.parse(keyJson);
+        
+        storageConfig = {
+          projectId: credentials.project_id,
+          credentials: credentials
+        };
+        
+        console.log(`🔐 GCS initialized with credentials for project: ${credentials.project_id}`);
+      } catch (error) {
+        console.error('❌ Failed to parse GCS credentials:', error);
+        throw new Error('Invalid Google Cloud Storage credentials');
+      }
+    } else {
+      console.log('⚠️ No GCS credentials found, using default');
+      storageConfig = {
+        projectId: process.env.GCP_PROJECT_ID,
+        keyFilename: process.env.GCS_KEY_FILE || undefined,
+      };
+    }
+    
+    this.storage = new Storage(storageConfig);
+    this.bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || process.env.GCS_BUCKET_NAME || 'aescuvest-documents';
     this.bucket = this.storage.bucket(this.bucketName);
     
     console.log(`📁 GCS initialized with bucket: ${this.bucketName}`);
