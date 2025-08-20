@@ -342,10 +342,13 @@ app.use((req, res, next) => {
       console.log(`🔍 Initial path from database: ${document.path}`);
       
       if (document.path.startsWith('extracted/')) {
+        // Handle nested folder structures in extracted ZIP files
+        const pathWithoutExtracted = document.path.substring('extracted/'.length);
         const fileName = path.basename(document.path);
         console.log(`🔍 Extracted file name: ${fileName}`);
+        console.log(`🔍 Path within extraction: ${pathWithoutExtracted}`);
         
-        // Look for the file in uploads/extracted directories - prioritize correct deal ID
+        // Look for the file in uploads/extracted directories - handle nested paths
         const uploadsDir = path.join(process.cwd(), 'uploads', 'extracted');
         console.log(`🔍 Searching in: ${uploadsDir}`);
         
@@ -354,31 +357,69 @@ app.use((req, res, next) => {
             .filter(dirent => dirent.isDirectory())
             .map(dirent => dirent.name);
           
-          console.log(`🔍 Found subdirectories:`, subDirs);
+          console.log(`🔍 Found subdirectories:`, subDirs.slice(0, 3), `... (total: ${subDirs.length})`);
           
-          // First try to find the file in the correct deal directory
+          // First try to find the file in the correct deal directory with full nested path
           const correctDealDirs = subDirs.filter(subDir => subDir.includes(`deal-${dealId}-`));
           console.log(`🎯 Looking for correct deal dirs for deal ${dealId}:`, correctDealDirs);
           
           for (const subDir of correctDealDirs) {
-            const possiblePath = path.join(uploadsDir, subDir, fileName);
-            console.log(`🔍 Checking path: ${possiblePath}`);
-            if (fs.existsSync(possiblePath)) {
-              actualFilePath = possiblePath;
-              console.log(`✅ Found extracted file at: ${actualFilePath}`);
+            // Try full nested path first
+            const fullNestedPath = path.join(uploadsDir, subDir, pathWithoutExtracted);
+            console.log(`🔍 Checking nested path: ${fullNestedPath}`);
+            if (fs.existsSync(fullNestedPath)) {
+              actualFilePath = fullNestedPath;
+              console.log(`✅ Found extracted file at nested path: ${actualFilePath}`);
+              break;
+            }
+            
+            // Try just filename in root of extraction directory
+            const rootPath = path.join(uploadsDir, subDir, fileName);
+            console.log(`🔍 Checking root path: ${rootPath}`);
+            if (fs.existsSync(rootPath)) {
+              actualFilePath = rootPath;
+              console.log(`✅ Found extracted file at root: ${actualFilePath}`);
               break;
             }
           }
           
-          // If not found in correct deal directory, search all directories as fallback
-          if (!fs.existsSync(actualFilePath) || actualFilePath === document.path) {
-            console.log(`⚠️ File not found in correct deal directory, searching all directories...`);
+          // If not found in correct deal directory, search all directories with recursive search
+          if (!actualFilePath || !fs.existsSync(actualFilePath) || actualFilePath === document.path) {
+            console.log(`⚠️ File not found in correct deal directory, performing recursive search...`);
+            
+            function findFileRecursively(dir: string, targetFileName: string): string | null {
+              try {
+                const items = fs.readdirSync(dir, { withFileTypes: true });
+                
+                // Check files in current directory
+                for (const item of items) {
+                  if (item.isFile() && item.name === targetFileName) {
+                    return path.join(dir, item.name);
+                  }
+                }
+                
+                // Search subdirectories recursively
+                for (const item of items) {
+                  if (item.isDirectory()) {
+                    const result = findFileRecursively(path.join(dir, item.name), targetFileName);
+                    if (result) return result;
+                  }
+                }
+              } catch (error) {
+                // Skip directories that can't be read
+                console.log(`⚠️ Error reading directory ${dir}: ${error}`);
+              }
+              return null;
+            }
+            
+            // Search in all extraction directories
             for (const subDir of subDirs) {
-              const possiblePath = path.join(uploadsDir, subDir, fileName);
-              console.log(`🔍 Checking fallback path: ${possiblePath}`);
-              if (fs.existsSync(possiblePath)) {
-                actualFilePath = possiblePath;
-                console.log(`⚠️ Found extracted file in different deal directory: ${actualFilePath}`);
+              const extractionRoot = path.join(uploadsDir, subDir);
+              console.log(`🔍 Recursively searching in: ${extractionRoot}`);
+              const foundPath = findFileRecursively(extractionRoot, fileName);
+              if (foundPath && fs.existsSync(foundPath)) {
+                actualFilePath = foundPath;
+                console.log(`✅ Found extracted file via recursive search: ${actualFilePath}`);
                 break;
               }
             }
