@@ -18,6 +18,7 @@ import { debug413Middleware, bypass413Middleware } from "./debug-413";
 // Import chunked upload router
 import chunkedUploadRouter from './routes/chunked-upload';
 import productionChunkedRouter, { rawBodyHandler } from './routes/production-chunked-upload';
+import gcsDirectUploadRouter from './routes/gcs-direct-upload';
 
 const app = express();
 
@@ -423,6 +424,10 @@ app.use((req, res, next) => {
   // 🚀 REGISTER CHUNKED UPLOAD ROUTES
   app.use(chunkedUploadRouter);
   console.log('✅ Chunked upload routes registered');
+  
+  // 🚀 REGISTER GCS DIRECT UPLOAD ROUTES
+  app.use(gcsDirectUploadRouter);
+  console.log('✅ GCS direct upload routes registered');
   
   // 🚨 PRODUCTION CHUNKED UPLOAD WITH RAW BODY HANDLING
   // Register production routes with special middleware for Cloud Run
