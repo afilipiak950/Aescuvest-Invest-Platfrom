@@ -16,6 +16,20 @@ const upload = multer({
 });
 
 /**
+ * Test endpoint to verify proxy upload is accessible
+ */
+router.get('/api/gcs/proxy-upload/test', (req, res) => {
+  console.log('🔍 Proxy upload test endpoint hit');
+  res.status(200).json({
+    success: true,
+    message: 'Proxy upload endpoint is accessible',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    gcsInitialized: !!(gcsService as any).bucket
+  });
+});
+
+/**
  * Proxy upload endpoint - handles upload server-side to bypass CORS
  * This is the ultimate solution for production 413 and CORS issues
  */
@@ -170,7 +184,7 @@ router.post('/api/gcs/proxy-upload/:dealId',
         }
         
         // ALWAYS send response, even if job creation failed
-        return res.json({
+        const response = {
           success: true,
           message: jobId 
             ? 'ZIP file uploaded successfully and will be extracted'
@@ -180,7 +194,10 @@ router.post('/api/gcs/proxy-upload/:dealId',
           isZip: true,
           extractionStarted: !!jobId,
           jobError: jobCreationError || undefined
-        });
+        };
+        
+        console.log('📤 Sending ZIP upload response:', JSON.stringify(response));
+        return res.status(200).json(response);
         
       } else {
         // For non-ZIP files, create document record
@@ -240,7 +257,7 @@ router.post('/api/gcs/proxy-upload/:dealId',
         }
         
         // ALWAYS send response
-        return res.json({
+        const response = {
           success: true,
           message: jobId 
             ? 'File uploaded successfully via proxy'
@@ -249,16 +266,26 @@ router.post('/api/gcs/proxy-upload/:dealId',
           jobId: jobId || undefined,
           gcsPath,
           processingError: processingError || undefined
-        });
+        };
+        
+        console.log('📤 Sending document upload response:', JSON.stringify(response));
+        return res.status(200).json(response);
       }
       
     } catch (error: any) {
       console.error('❌ Proxy upload failed:', error);
-      return res.status(500).json({
+      console.error('Error stack:', error.stack);
+      
+      // Ensure we always send a proper JSON response
+      const errorResponse = {
         success: false,
         message: 'Proxy upload failed',
-        error: error.message
-      });
+        error: error.message || 'Unknown server error',
+        details: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      };
+      
+      console.log('📤 Sending error response:', JSON.stringify(errorResponse));
+      return res.status(500).json(errorResponse);
     }
   }
 );

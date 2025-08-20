@@ -1319,9 +1319,38 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         
         // Handle completion
         xhr.addEventListener('load', function() {
-          if (xhr.status === 200) {
+          // Ultra-detailed debugging for production
+          console.log('🔍 UPLOAD COMPLETE - Debug Info:');
+          console.log('Status:', xhr.status);
+          console.log('Status Text:', xhr.statusText);
+          console.log('Response Text:', xhr.responseText);
+          console.log('Response Headers:', xhr.getAllResponseHeaders());
+          
+          if (xhr.status === 200 || xhr.status === 201) {
             try {
+              // Handle empty response
+              if (!xhr.responseText) {
+                console.error('❌ Empty response from server');
+                setUploadProgress({
+                  fileName: file.name,
+                  progress: 100,
+                  status: 'Upload complete but no response received'
+                });
+                // Still refresh to show any uploaded files
+                setTimeout(() => {
+                  setUploadProgress(null);
+                  refetch();
+                }, 3000);
+                return;
+              }
+              
               const response = JSON.parse(xhr.responseText);
+              console.log('📦 Parsed response:', response);
+              
+              // Check for success field
+              if (response.success === false) {
+                throw new Error(response.message || response.error || 'Upload failed');
+              }
               
               if (response.isZip) {
                 console.log(`📦 ZIP upload successful! Extraction job: ${response.jobId}`);
@@ -1346,26 +1375,50 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               }, 3000);
             } catch (parseError) {
               console.error('Failed to parse response:', parseError);
+              console.error('Response was:', xhr.responseText);
+              
+              // Try to extract error message from response
+              let errorMsg = 'Server error - invalid response';
+              try {
+                if (xhr.responseText.includes('error')) {
+                  errorMsg = xhr.responseText.substring(0, 100);
+                }
+              } catch (e) {}
+              
               setUploadProgress({
                 fileName: file.name,
                 progress: 0,
-                status: 'Server error - invalid response'
+                status: errorMsg
               });
               setTimeout(() => {
                 setUploadProgress(null);
+                // Still refresh in case file was uploaded
+                refetch();
               }, 3000);
-              throw new Error('Invalid server response');
             }
           } else {
+            // Log full error details
+            console.error(`❌ Upload failed with status ${xhr.status}`);
+            console.error('Response:', xhr.responseText);
+            
+            // Try to parse error message from response
+            let errorMessage = 'Unknown error';
+            try {
+              const errorResponse = JSON.parse(xhr.responseText);
+              errorMessage = errorResponse.message || errorResponse.error || `Server error (${xhr.status})`;
+            } catch (e) {
+              errorMessage = xhr.statusText || `Server returned status ${xhr.status}`;
+            }
+            
             setUploadProgress({
               fileName: file.name,
               progress: 0,
-              status: `Upload failed: ${xhr.statusText || 'Unknown error'}`
+              status: `Upload failed: ${errorMessage}`
             });
             setTimeout(() => {
               setUploadProgress(null);
             }, 3000);
-            throw new Error(`Proxy upload failed with status: ${xhr.status}`);
+            throw new Error(`Proxy upload failed with status: ${xhr.status} - ${errorMessage}`);
           }
         });
         
