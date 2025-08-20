@@ -41,9 +41,27 @@ export class ZipProcessor {
     try {
       console.log(`🔄 Processing ZIP file for deal ${dealId}: ${zipPath}`);
       
-      // Handle database-stored files in production
+      // Handle different storage types
       let actualZipPath = zipPath;
-      if (zipPath.startsWith('db://')) {
+      
+      // Handle Google Cloud Storage paths
+      if (zipPath.startsWith('gs://')) {
+        console.log(`☁️ Downloading ZIP from Google Cloud Storage: ${zipPath}`);
+        const { gcsService } = await import('./googleCloudStorage');
+        const tempPath = path.join(this.uploadDir, `temp-gcs-${Date.now()}.zip`);
+        
+        // Create temp directory if it doesn't exist
+        if (!fs.existsSync(this.uploadDir)) {
+          fs.mkdirSync(this.uploadDir, { recursive: true });
+        }
+        
+        // Download from GCS to temp file
+        await gcsService.downloadFile(zipPath, tempPath);
+        actualZipPath = tempPath;
+        console.log(`📥 Downloaded ZIP from GCS to: ${tempPath}`);
+      }
+      // Handle database-stored files
+      else if (zipPath.startsWith('db://')) {
         const { dbFileStorage } = await import('./databaseFileStorage');
         const tempPath = path.join(this.uploadDir, `temp-${Date.now()}.zip`);
         await dbFileStorage.retrieveFileToPath(zipPath, tempPath);
@@ -77,8 +95,8 @@ export class ZipProcessor {
       const zip = new AdmZip(actualZipPath);
       zip.extractAllTo(extractPath, true);
       
-      // Clean up temp file if it was from database
-      if (zipPath.startsWith('db://') && fs.existsSync(actualZipPath)) {
+      // Clean up temp file if it was from GCS or database
+      if ((zipPath.startsWith('gs://') || zipPath.startsWith('db://')) && fs.existsSync(actualZipPath)) {
         fs.unlinkSync(actualZipPath);
         console.log(`🗑️ Cleaned up temporary ZIP file`);
       }
