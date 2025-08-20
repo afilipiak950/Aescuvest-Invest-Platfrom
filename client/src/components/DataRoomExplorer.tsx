@@ -1263,21 +1263,63 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // ✅ FIXED: Use data room endpoint for ALL files - supports 50GB+ uploads without chunked complexity
-    console.log(`📤 Using working data room upload endpoint (supports files up to 50GB)`);
+    // 🚨 CRITICAL: Cloud Run has a 32MB hard limit for HTTP requests
+    // Files over 30MB MUST use chunked uploads to avoid 413 errors
+    const CLOUD_RUN_LIMIT = 30 * 1024 * 1024; // 30MB (below 32MB limit)
     
-    // Use direct upload via data room endpoint for ALL file sizes
-    setUploadProgress({
-      fileName: file.name,
-      progress: 0,
-      status: 'Starting upload...'
-    });
+    if (file.size > CLOUD_RUN_LIMIT) {
+      console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using CHUNKED upload to avoid Cloud Run 32MB limit`);
+      
+      // Import chunked upload utility
+      const { uploadChunked } = await import('../lib/chunkedUpload');
+      
+      try {
+        setUploadProgress({
+          fileName: file.name,
+          progress: 0,
+          status: 'Using chunked upload for large file...'
+        });
+        
+        const result = await uploadChunked(file, dealId, folderName, (progress) => {
+          setUploadProgress({
+            fileName: file.name,
+            progress: Math.round(progress),
+            status: `Uploading chunks: ${Math.round(progress)}%`
+          });
+        });
+        
+        console.log('✅ Chunked upload successful:', result);
+        
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        
+        setUploadProgress(null);
+        
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } catch (error) {
+        console.error('Chunked upload failed:', error);
+        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+        setUploadProgress(null);
+      }
+    } else {
+      console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using direct upload (under 30MB limit)`);
+      
+      // Use direct upload for files under 30MB
+      setUploadProgress({
+        fileName: file.name,
+        progress: 0,
+        status: 'Starting upload...'
+      });
 
-    const formData = new FormData();
-    formData.append('zipFile', file);
-    formData.append('folderName', folderName);
+      const formData = new FormData();
+      formData.append('zipFile', file);
+      formData.append('folderName', folderName);
 
-    uploadZipMutation.mutate(formData);
+      uploadZipMutation.mutate(formData);
+    }
   };
 
   const handleAdditionalFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
