@@ -188,17 +188,25 @@ class GoogleCloudStorageService {
       
       console.log(`🔐 Generating signed upload URL for: ${gcsFileName}`);
       
-      // Generate a signed URL for direct upload
+      // Generate a signed URL for direct upload with CORS support
       const [url] = await this.bucket.file(gcsFileName).getSignedUrl({
         version: 'v4',
         action: 'write',
         expires: Date.now() + 15 * 60 * 1000, // 15 minutes
         contentType,
+        // Add extension headers for CORS
+        extensionHeaders: {
+          'x-goog-content-type': contentType,
+        },
+        // Use resumable upload for better CORS support
+        virtualHostedStyle: false,
+        cname: undefined,
       });
       
       const gcsPath = `gs://${this.bucketName}/${gcsFileName}`;
       
       console.log(`✅ Generated upload URL for: ${gcsPath}`);
+      console.log(`📝 Content-Type: ${contentType}`);
       
       return {
         uploadUrl: url,
