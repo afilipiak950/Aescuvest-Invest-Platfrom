@@ -1358,9 +1358,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         }, 3000);
         
         return;
-      } catch (error) {
-        console.error('GCS upload failed, falling back to chunked upload:', error);
+      } catch (error: any) {
+        console.error('GCS upload failed with error:', error);
+        console.error('Error message:', error?.message);
+        console.error('Error status:', error?.status);
+        console.error('Error details:', error);
         // Fall through to chunked upload
+        console.log('📤 Falling back to chunked upload due to GCS error');
       }
     }
     
