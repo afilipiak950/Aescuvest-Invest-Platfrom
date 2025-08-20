@@ -41,9 +41,6 @@ export function GCSUploader({ dealId, onUploadComplete }: GCSUploaderProps) {
       
       if (!urlResponse.ok) {
         const error = await urlResponse.json();
-        if (error.error?.includes('not available in development') || error.error?.includes('not configured')) {
-          throw new Error('⚠️ Development Environment: Google Cloud Storage requires production deployment with proper credentials. This method will work perfectly in production to handle 50GB+ files.');
-        }
         throw new Error(error.error || 'Failed to get upload URL');
       }
       
