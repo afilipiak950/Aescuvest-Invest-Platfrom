@@ -76,7 +76,7 @@ router.post('/api/gcs/proxy-upload/:dealId',
         
         // For ZIP files, create a background job to extract and process
         const jobId = await backgroundJobManager.createJob({
-          jobType: 'process_zip',
+          jobType: 'zip_processing',  // MUST match the job processor case
           dealId: dealId,
           documentId: null,
           jobData: {
