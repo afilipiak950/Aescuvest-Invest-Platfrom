@@ -301,6 +301,78 @@ class GoogleCloudStorageService {
       // Don't throw - bucket might already exist
     }
   }
+
+  /**
+   * Generate a signed URL for direct upload to GCS
+   */
+  async generateSignedUploadUrl(
+    fileName: string, 
+    fileSize: number,
+    dealId: number
+  ): Promise<{ signedUrl: string; gcsFileName: string; uploadId: string }> {
+    try {
+      // Generate unique file path
+      const timestamp = Date.now();
+      const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const gcsFileName = `uploads/deal-${dealId}/${timestamp}-${sanitizedFileName}`;
+      
+      console.log(`📁 Generating signed URL for: ${gcsFileName}`);
+      
+      // Generate signed URL options
+      const options = {
+        version: 'v4' as const,
+        action: 'write' as const,
+        expires: Date.now() + 60 * 60 * 1000, // 1 hour
+        contentType: 'application/zip',
+        extensionHeaders: {
+          'x-goog-content-length-range': `0,${5 * 1024 * 1024 * 1024 * 1024}` // Up to 5TB
+        }
+      };
+      
+      // Generate the signed URL
+      const [signedUrl] = await this.bucket.file(gcsFileName).getSignedUrl(options);
+      
+      console.log(`✅ Signed URL generated for file: ${gcsFileName}`);
+      
+      return {
+        signedUrl,
+        gcsFileName,
+        uploadId: `upload-${timestamp}`
+      };
+    } catch (error) {
+      console.error('❌ Failed to generate signed URL:', error);
+      throw new Error(`Failed to generate signed URL: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get bucket instance (for direct access when needed)
+   */
+  getBucket() {
+    return this.bucket;
+  }
+
+  /**
+   * Apply CORS configuration to the bucket
+   */
+  async configureCORS(): Promise<void> {
+    try {
+      const corsConfiguration = [
+        {
+          origin: ['*'],
+          method: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+          responseHeader: ['*'],
+          maxAgeSeconds: 3600
+        }
+      ];
+
+      await this.bucket.setCorsConfiguration(corsConfiguration);
+      console.log('✅ CORS configuration applied to bucket:', this.bucketName);
+    } catch (error) {
+      console.error('❌ Failed to apply CORS configuration:', error);
+      throw new Error(`Failed to apply CORS: ${error.message}`);
+    }
+  }
 }
 
 // Export singleton instance

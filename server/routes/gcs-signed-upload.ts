@@ -50,17 +50,14 @@ router.post('/api/gcs/signed-url/:dealId', async (req: Request, res: Response) =
       }
     };
 
-    console.log('🔑 Generating signed URL with options:', options);
+    console.log('🔑 Requesting signed URL from GCS service...');
     
-    // Initialize GCS if needed
-    if (!(gcsService as any).bucket) {
-      console.log('🔧 Initializing GCS service...');
-      await gcsService.initialize();
-    }
-
-    const [signedUrl] = await (gcsService as any).bucket
-      .file(gcsFileName)
-      .getSignedUrl(options);
+    // Use the new generateSignedUploadUrl method
+    const { 
+      signedUrl, 
+      gcsFileName: generatedFileName, 
+      uploadId 
+    } = await gcsService.generateSignedUploadUrl(fileName, fileSize, parseInt(dealId));
 
     console.log('✅ Signed URL generated successfully');
     console.log(`📍 URL length: ${signedUrl.length} characters`);
@@ -69,8 +66,8 @@ router.post('/api/gcs/signed-url/:dealId', async (req: Request, res: Response) =
     const response = {
       success: true,
       signedUrl,
-      gcsFileName,
-      uploadId: `upload-${timestamp}`,
+      gcsFileName: generatedFileName,
+      uploadId,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       instructions: {
         method: 'PUT',
