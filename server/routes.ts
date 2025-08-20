@@ -7423,11 +7423,22 @@ export async function registerAllRoutes(app: Express) {
 
       console.log(`📦 Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
 
-      // Process the ZIP file using zipProcessor
-      const zipResult = await zipProcessor.processZipFile(file.path, dealId, folderName || 'Data Room');
+      // Store ZIP file in database for production
+      const { dbFileStorage } = await import('./services/databaseFileStorage');
+      const storagePath = await dbFileStorage.storeFile(
+        file.path,
+        dealId,
+        file.originalname
+      );
+      
+      console.log(`💾 ZIP file stored at: ${storagePath}`);
 
-      // Clean up uploaded file
-      fs.unlinkSync(file.path);
+      // Process the ZIP file using zipProcessor
+      // In production, zipProcessor will retrieve from database if needed
+      const zipResult = await zipProcessor.processZipFile(storagePath, dealId, folderName || 'Data Room');
+
+      // File cleanup already handled by dbFileStorage.storeFile()
+      // No need to manually unlink - it's done automatically
 
       console.log(`✅ Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
 
