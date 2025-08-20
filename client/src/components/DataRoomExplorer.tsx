@@ -1285,6 +1285,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         // Use XMLHttpRequest for progress tracking
         const xhr = new XMLHttpRequest();
         
+        // Set timeout for production (45 seconds to handle GCS delays)
+        xhr.timeout = 45000; // 45 seconds timeout
+        
         // Track upload progress
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
@@ -1295,6 +1298,23 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               status: `Uploading via proxy: ${percentComplete}%`
             });
           }
+        });
+        
+        // Handle timeout
+        xhr.addEventListener('timeout', function() {
+          console.error('❌ Proxy upload timeout after 45 seconds');
+          setUploadProgress({
+            fileName: file.name,
+            progress: 0,
+            status: 'Upload timed out - falling back to chunked upload...'
+          });
+          
+          // Clear progress after showing error
+          setTimeout(() => {
+            setUploadProgress(null);
+          }, 3000);
+          
+          throw new Error('Upload timed out after 45 seconds');
         });
         
         // Handle completion
@@ -1326,9 +1346,25 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               }, 3000);
             } catch (parseError) {
               console.error('Failed to parse response:', parseError);
+              setUploadProgress({
+                fileName: file.name,
+                progress: 0,
+                status: 'Server error - invalid response'
+              });
+              setTimeout(() => {
+                setUploadProgress(null);
+              }, 3000);
               throw new Error('Invalid server response');
             }
           } else {
+            setUploadProgress({
+              fileName: file.name,
+              progress: 0,
+              status: `Upload failed: ${xhr.statusText || 'Unknown error'}`
+            });
+            setTimeout(() => {
+              setUploadProgress(null);
+            }, 3000);
             throw new Error(`Proxy upload failed with status: ${xhr.status}`);
           }
         });
@@ -1336,6 +1372,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         // Handle errors
         xhr.addEventListener('error', function() {
           console.error('Proxy upload network error');
+          setUploadProgress({
+            fileName: file.name,
+            progress: 0,
+            status: 'Network error - check your connection'
+          });
+          setTimeout(() => {
+            setUploadProgress(null);
+          }, 3000);
           throw new Error('Network error during proxy upload');
         });
         

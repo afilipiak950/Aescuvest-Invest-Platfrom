@@ -42,30 +42,78 @@ router.post('/api/gcs/proxy-upload/:dealId',
       // Upload directly to GCS from memory buffer
       console.log(`📤 Uploading to GCS via proxy: ${gcsFileName}`);
       
-      const bucket = (gcsService as any).bucket;
-      const gcsFile = bucket.file(gcsFileName);
+      let gcsPath: string;
+      let useLocalFallback = false;
       
-      // Create a stream from the buffer
-      const stream = Readable.from(file.buffer);
-      
-      // Upload to GCS
-      await new Promise((resolve, reject) => {
-        stream
-          .pipe(gcsFile.createWriteStream({
-            metadata: {
-              contentType: file.mimetype,
+      try {
+        // Check if GCS is properly initialized
+        if (!(gcsService as any).bucket) {
+          console.error('❌ GCS bucket not initialized, using local fallback');
+          throw new Error('GCS not initialized');
+        }
+        
+        const bucket = (gcsService as any).bucket;
+        const gcsFile = bucket.file(gcsFileName);
+        
+        // Create a stream from the buffer
+        const stream = Readable.from(file.buffer);
+        
+        // Upload to GCS with timeout
+        await Promise.race([
+          new Promise((resolve, reject) => {
+            const uploadStream = gcsFile.createWriteStream({
               metadata: {
-                dealId: dealId.toString(),
-                originalName: file.originalname,
-                uploadedAt: new Date().toISOString()
+                contentType: file.mimetype,
+                metadata: {
+                  dealId: dealId.toString(),
+                  originalName: file.originalname,
+                  uploadedAt: new Date().toISOString()
+                }
               }
-            }
-          }))
-          .on('error', reject)
-          .on('finish', resolve);
-      });
-      
-      const gcsPath = `gs://${(gcsService as any).bucketName}/${gcsFileName}`;
+            });
+            
+            uploadStream.on('error', (error) => {
+              console.error('❌ GCS upload stream error:', error);
+              reject(error);
+            });
+            
+            uploadStream.on('finish', () => {
+              console.log('✅ GCS upload stream finished');
+              resolve(true);
+            });
+            
+            stream.pipe(uploadStream);
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => {
+              console.error('❌ GCS upload timeout after 30 seconds');
+              reject(new Error('GCS upload timeout'));
+            }, 30000)
+          )
+        ]);
+        
+        gcsPath = `gs://${(gcsService as any).bucketName}/${gcsFileName}`;
+      } catch (gcsError) {
+        console.error('⚠️ GCS upload failed, using local storage fallback:', gcsError);
+        useLocalFallback = true;
+        
+        // Fallback to local storage
+        const fs = await import('fs');
+        const path = await import('path');
+        const uploadDir = path.join(process.cwd(), 'uploads', 'extracted', `deal-${dealId}`);
+        
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        // Save file locally
+        const localPath = path.join(uploadDir, file.originalname);
+        fs.writeFileSync(localPath, file.buffer);
+        
+        gcsPath = localPath;
+        console.log(`✅ File saved locally as fallback: ${localPath}`);
+      }
       console.log(`✅ Proxy upload successful: ${gcsPath}`);
       
       // Check if file is a ZIP that needs extraction
