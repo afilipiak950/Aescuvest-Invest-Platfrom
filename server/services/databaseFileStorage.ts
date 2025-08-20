@@ -33,7 +33,7 @@ export class DatabaseFileStorage {
         INSERT INTO file_storage (deal_id, file_name, file_content, file_size, created_at)
         VALUES (${dealId}, ${fileName}, ${base64Content}, ${fileBuffer.length}, NOW())
         RETURNING id
-      `);
+      `) as any;
       
       // Delete local file after storing in DB
       try {
@@ -42,7 +42,8 @@ export class DatabaseFileStorage {
         console.warn('Failed to delete local file:', err);
       }
       
-      const fileId = result[0]?.id;
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      const fileId = rows[0]?.id;
       const dbPath = `db://file_storage/${fileId}`;
       console.log(`💾 File stored in database: ${dbPath}`);
       
@@ -80,14 +81,16 @@ export class DatabaseFileStorage {
       // Retrieve from database
       const result = await db.execute(sql`
         SELECT file_content FROM file_storage WHERE id = ${fileId}
-      `);
+      `) as any;
       
-      if (!result[0]?.file_content) {
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      
+      if (!rows[0]?.file_content) {
         throw new Error('File not found in database');
       }
       
       // Convert base64 back to buffer
-      const buffer = Buffer.from(result[0].file_content, 'base64');
+      const buffer = Buffer.from(rows[0].file_content, 'base64');
       console.log(`💾 Retrieved file from database: ${storagePath}`);
       
       return buffer;
@@ -154,9 +157,10 @@ export class DatabaseFileStorage {
       
       const result = await db.execute(sql`
         SELECT id FROM file_storage WHERE id = ${fileId} LIMIT 1
-      `);
+      `) as any;
       
-      return result.length > 0;
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      return rows.length > 0;
     } catch {
       return false;
     }

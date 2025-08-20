@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { dbFileStorage } from '../services/databaseFileStorage';
 
 const router = express.Router();
 
@@ -168,12 +169,22 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
         isFolder: false
       };
       
+      // Store file in database for production (or keep local for development)
+      const storagePath = await dbFileStorage.storeFile(
+        file.path,
+        dealId ? parseInt(dealId) : 0,
+        file.originalname
+      );
+      
+      // Update document data with storage path
+      documentData.path = storagePath;
+      
       // Create document in database
       const document = await storage.createDocument(documentData);
       
       // Create background OCR job for progress tracking
       const jobData = { 
-        filePath: file.path, 
+        filePath: storagePath, // Use storage path instead of local path
         fileName: file.originalname,
         documentId: document.id,
         documentName: file.originalname
