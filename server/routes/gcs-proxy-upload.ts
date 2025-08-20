@@ -76,9 +76,13 @@ router.post('/api/gcs/proxy-upload/:dealId',
         
         // For ZIP files, create a background job to extract and process
         // CRITICAL: Use jobProcessor to actually trigger processing, not just create DB entry
+        console.log(`🔍 ZIP UPLOAD MICRO-STEP 1: Loading jobProcessor module...`);
         const { jobProcessor } = await import('../services/jobProcessor');
+        
         const uniqueJobId = `zip_${dealId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const jobId = await jobProcessor.createJob({
+        console.log(`🔍 ZIP UPLOAD MICRO-STEP 2: Creating job with ID: ${uniqueJobId}`);
+        
+        const jobData = {
           jobId: uniqueJobId,  // Required unique identifier
           jobType: 'zip_processing',  // MUST match the job processor case
           dealId: dealId,
@@ -92,7 +96,13 @@ router.post('/api/gcs/proxy-upload/:dealId',
             folderName: file.originalname.replace('.zip', ''),
             fileName: file.originalname
           }
-        });
+        };
+        
+        console.log(`🔍 ZIP UPLOAD MICRO-STEP 3: Job data:`, JSON.stringify(jobData, null, 2));
+        
+        const jobId = await jobProcessor.createJob(jobData);
+        
+        console.log(`🔍 ZIP UPLOAD MICRO-STEP 4: Job created with ID: ${jobId}`);
         
         console.log(`✅ ZIP extraction job created: ${jobId}`);
         

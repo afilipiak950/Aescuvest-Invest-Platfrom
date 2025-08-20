@@ -11,17 +11,28 @@ class JobProcessor {
   private isProcessing = false;
 
   async createJob(jobData: InsertBackgroundJob): Promise<number> {
+    console.log(`🔍 JOB CREATE MICRO-STEP 1: Inserting job to database...`);
     const [job] = await db.insert(backgroundJobs).values(jobData).returning();
     console.log(`📋 Created background job ${job.id}: ${job.jobType}`);
+    console.log(`🔍 JOB CREATE MICRO-STEP 2: Job details:`, {
+      id: job.id,
+      jobType: job.jobType,
+      dealId: job.dealId,
+      status: job.status
+    });
     
     // Add to queue and start processing asynchronously
     this.jobQueue.push(job);
+    console.log(`🔍 JOB CREATE MICRO-STEP 3: Added to queue. Queue length: ${this.jobQueue.length}`);
     
     // Process the job immediately in the background
+    console.log(`🔍 JOB CREATE MICRO-STEP 4: Scheduling processQueue with setImmediate...`);
     setImmediate(() => {
+      console.log(`🔍 JOB CREATE MICRO-STEP 5: setImmediate callback triggered!`);
       this.processQueue();
     });
     
+    console.log(`🔍 JOB CREATE MICRO-STEP 6: Returning job ID: ${job.id}`);
     return job.id;
   }
 
@@ -304,15 +315,28 @@ class JobProcessor {
   private async processZipFile(job: BackgroundJob) {
     const { zipPath, dealId, folderName } = job.jobData as any;
     
+    console.log(`🔍 MICRO-STEP 1: processZipFile called with:`, {
+      jobId: job.id,
+      zipPath,
+      dealId,
+      folderName
+    });
+    
     await this.updateJobProgress(job.id, 10, 'Extracting ZIP file...', 'processing');
 
+    console.log(`🔍 MICRO-STEP 2: Loading zipProcessor module...`);
     // Import and use zip processor
     const { zipProcessor } = await import('./zipProcessor');
     
+    console.log(`🔍 MICRO-STEP 3: Calling zipProcessor.processZipFile...`);
     const result = await zipProcessor.processZipFile(zipPath, dealId, folderName);
+    
+    console.log(`🔍 MICRO-STEP 4: ZIP processing result:`, result);
     
     await this.updateJobProgress(job.id, 100, 'ZIP processing completed');
     await this.completeJob(job.id, result);
+    
+    console.log(`🔍 MICRO-STEP 5: ZIP job completed successfully`);
   }
 
   private async performAIAnalysis(document: any, analysisTypes: string[]) {
