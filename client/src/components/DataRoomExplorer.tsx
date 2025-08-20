@@ -1417,21 +1417,126 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           }
         });
         
-        // Handle errors
-        xhr.addEventListener('error', function() {
-          console.error('❌ GCS direct upload network error');
+        // Handle errors and implement proper fallback
+        xhr.addEventListener('error', async function() {
+          console.error('❌ GCS direct upload network error - implementing fallback');
           setUploadProgress({
             fileName: file.name,
             progress: 0,
-            status: 'Network error - falling back to proxy upload'
+            status: 'GCS failed - trying proxy upload...'
           });
           
-          // Fall back to proxy upload on network error
-          setTimeout(async () => {
-            console.log('⚠️ Falling back to proxy upload after GCS direct upload error');
-            setUploadProgress(null);
-            // TODO: Implement fallback to proxy upload
-          }, 1000);
+          // Wait a moment then try proxy upload
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // FALLBACK: Try proxy upload (server handles GCS)
+          console.log('🔄 FALLBACK: Attempting proxy upload through server...');
+          
+          try {
+            const proxyFormData = new FormData();
+            proxyFormData.append('file', file);
+            
+            setUploadProgress({
+              fileName: file.name,
+              progress: 10,
+              status: 'Using proxy upload (server will handle GCS)...'
+            });
+            
+            const proxyXhr = new XMLHttpRequest();
+            
+            // Track proxy upload progress
+            proxyXhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                setUploadProgress({
+                  fileName: file.name,
+                  progress: percentComplete,
+                  status: `Proxy upload: ${percentComplete}%`
+                });
+              }
+            });
+            
+            // Handle proxy completion
+            proxyXhr.addEventListener('load', function() {
+              if (proxyXhr.status === 200 || proxyXhr.status === 201) {
+                try {
+                  const result = JSON.parse(proxyXhr.responseText);
+                  console.log('✅ Proxy upload successful:', result);
+                  setUploadProgress({
+                    fileName: file.name,
+                    progress: 100,
+                    status: 'Upload complete via proxy!'
+                  });
+                  
+                  setTimeout(() => {
+                    setUploadProgress(null);
+                    refetch();
+                  }, 2000);
+                } catch (e) {
+                  console.error('Proxy response parse error:', e);
+                  setUploadProgress({
+                    fileName: file.name,
+                    progress: 0,
+                    status: 'Proxy upload failed - response error'
+                  });
+                }
+              } else {
+                console.error('Proxy upload failed:', proxyXhr.status);
+                setUploadProgress({
+                  fileName: file.name,
+                  progress: 0,
+                  status: `Proxy failed: ${proxyXhr.statusText}`
+                });
+                
+                // Last resort: fall back to chunked upload
+                setTimeout(() => {
+                  console.log('🔄 FINAL FALLBACK: Using chunked upload...');
+                  setUploadProgress(null);
+                  // Trigger chunked upload by simulating file selection with chunked flag
+                  const chunkedEvent = new Event('change');
+                  Object.defineProperty(chunkedEvent, 'target', {
+                    value: { files: [file] },
+                    enumerable: true
+                  });
+                  // Force chunked upload path
+                  handleZipUpload(chunkedEvent as any);
+                }, 2000);
+              }
+            });
+            
+            // Handle proxy error
+            proxyXhr.addEventListener('error', function() {
+              console.error('❌ Proxy upload also failed');
+              setUploadProgress({
+                fileName: file.name,
+                progress: 0,
+                status: 'Both GCS and proxy failed - trying chunked upload...'
+              });
+              
+              // Last resort: chunked upload
+              setTimeout(() => {
+                console.log('🔄 FINAL FALLBACK: Using chunked upload...');
+                setUploadProgress(null);
+                alert('Direct and proxy uploads failed. Please try again with a smaller file or contact support.');
+              }, 2000);
+            });
+            
+            // Send proxy request
+            proxyXhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
+            proxyXhr.send(proxyFormData);
+            
+          } catch (proxyError) {
+            console.error('Proxy upload setup failed:', proxyError);
+            setUploadProgress({
+              fileName: file.name,
+              progress: 0,
+              status: 'All upload methods failed'
+            });
+            setTimeout(() => {
+              setUploadProgress(null);
+              alert('Upload failed. Please try a smaller file or contact support.');
+            }, 3000);
+          }
         });
         
         // 🚀 CRITICAL: Send directly to GCS using PUT method
