@@ -1264,13 +1264,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // Check if GCS is available (production environment)
-    const isProduction = window.location.hostname.includes('.replit.app') || 
-                        window.location.hostname.includes('repl.co') ||
-                        !window.location.hostname.includes('localhost');
+    // Check if file should use GCS (files over 30MB always use GCS now that it's configured)
+    const shouldUseGCS = file.size > 30 * 1024 * 1024;
     
-    // 🚀 Use GCS direct upload in production (bypasses Cloud Run 32MB limit entirely)
-    if (isProduction && file.size > 30 * 1024 * 1024) {
+    // 🚀 Use GCS direct upload for large files (bypasses Cloud Run 32MB limit entirely)
+    if (shouldUseGCS) {
       console.log(`☁️ Using GCS direct upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file (bypasses Cloud Run limit)`);
       
       try {
