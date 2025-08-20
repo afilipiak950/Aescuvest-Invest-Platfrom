@@ -1748,8 +1748,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('🗂️ Building folder tree with', docs.length, 'documents');
     
     // Separate email attachments from regular documents
-    const emailAttachments = docs.filter(doc => doc.folderPath?.includes('email-attachments'));
-    const regularDocs = docs.filter(doc => !doc.folderPath?.includes('email-attachments'));
+    const emailAttachments = docs.filter(doc => 
+      doc.folderPath?.includes('email-attachments') || 
+      doc.path?.includes('email-attachments')
+    );
+    const regularDocs = docs.filter(doc => 
+      !doc.folderPath?.includes('email-attachments') && 
+      !doc.path?.includes('email-attachments')
+    );
     
     const root: FolderNode = {
       name: '',
@@ -1760,7 +1766,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     };
 
     regularDocs.forEach((doc) => {
-      const folderPath = doc.folderPath || '';
+      // 🔧 CRITICAL FIX: Use both folderPath and path fields to build hierarchy
+      let folderPath = doc.folderPath || doc.path || '';
+      
+      // Handle extracted documents - remove filename from path to get folder structure
+      if (folderPath.includes('extracted/') || folderPath.includes('/')) {
+        const pathSegments = folderPath.split('/');
+        // Remove the filename (last segment) to get the folder path
+        if (pathSegments.length > 1 && pathSegments[pathSegments.length - 1].includes('.')) {
+          pathSegments.pop(); // Remove filename
+          folderPath = pathSegments.join('/');
+        }
+      }
+      
       const pathParts = folderPath ? folderPath.split('/').filter(Boolean) : [];
       
       let currentNode = root;
@@ -1786,10 +1804,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       currentNode.documents.push(doc);
     });
 
+    const totalFolders = Array.from(root.children.keys()).length;
+    const extractedFolder = root.children.get('extracted');
+    const extractedDocCount = extractedFolder ? extractedFolder.documents.length : 0;
+
     console.log('🗂️ Folder tree built:', {
       rootDocuments: root.documents.length,
       rootFolders: root.children.size,
       folderNames: Array.from(root.children.keys()),
+      extractedDocuments: extractedDocCount,
       emailAttachments: emailAttachments.length
     });
 

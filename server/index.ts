@@ -301,6 +301,144 @@ app.use((req, res, next) => {
     res.json(diagnostics);
   });
 
+  // 🚨 CRITICAL: AI PROCESSING ROUTES - Added BEFORE Vite middleware to prevent blocking
+  app.post('/api/deals/:dealId/documents/:documentId/mistral-ocr', async (req: Request, res: Response) => {
+    console.log('🔍 [OCR ENDPOINT] Direct OCR endpoint hit - bypassing Vite!');
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const documentId = parseInt(req.params.documentId);
+      
+      if (isNaN(dealId) || isNaN(documentId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID or document ID' 
+        });
+      }
+      
+      // Import storage to get document
+      const { storage } = await import('./storage');
+      
+      // Get document
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Document not found' 
+        });
+      }
+      
+      if (!document.filePath) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Document has no file path' 
+        });
+      }
+      
+      console.log('📝 Starting Mistral OCR processing for document', documentId, 'at path', document.filePath);
+      
+      // Import OCR service dynamically
+      const { mistralOCRService } = await import('./services/mistralOCR');
+      const fileExtension = document.name.split('.').pop()?.toLowerCase() || 'pdf';
+      
+      try {
+        const ocrResult = await mistralOCRService.extractText(document.filePath, fileExtension);
+        await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
+        
+        console.log('✅ Mistral OCR completed for document', documentId, 'extracted', ocrResult.extractedText?.length || 0, 'characters');
+        
+        return res.status(200).json({
+          success: true,
+          message: 'OCR processing completed',
+          documentId,
+          dealId,
+          extractedLength: ocrResult.extractedText?.length || 0
+        });
+      } catch (ocrError) {
+        console.error('❌ Mistral OCR failed:', ocrError);
+        await storage.updateDocumentWithOCR(documentId, '', 'Failed');
+        
+        return res.status(500).json({ 
+          success: false, 
+          error: 'OCR processing failed', 
+          details: String(ocrError) 
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error processing Mistral OCR:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to process OCR' 
+      });
+    }
+  });
+
+  app.post('/api/deals/:dealId/documents/:documentId/ai-summary', async (req: Request, res: Response) => {
+    console.log('🔍 [AI SUMMARY ENDPOINT] Direct AI summary endpoint hit - bypassing Vite!');
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const documentId = parseInt(req.params.documentId);
+      
+      if (isNaN(dealId) || isNaN(documentId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID or document ID' 
+        });
+      }
+      
+      // Import storage to get document
+      const { storage } = await import('./storage');
+      
+      // Get document
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Document not found' 
+        });
+      }
+      
+      // If no OCR text, start OCR first
+      if (!document.ocrText) {
+        console.log('📝 Starting OCR processing first for document', documentId);
+        // Import OCR service dynamically
+        const { mistralOCRService } = await import('./services/mistralOCR');
+        
+        if (document.filePath) {
+          const fileExtension = document.name.split('.').pop()?.toLowerCase() || 'pdf';
+          try {
+            const ocrResult = await mistralOCRService.extractText(document.filePath, fileExtension);
+            await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
+            console.log('✅ OCR completed for document', documentId);
+          } catch (ocrError) {
+            console.error('❌ OCR failed:', ocrError);
+          }
+        }
+      }
+      
+      // Start AI summary processing
+      console.log('🤖 Starting AI summary for document', documentId);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'AI summary processing started',
+        documentId,
+        dealId
+      });
+      
+    } catch (error) {
+      console.error('Error processing AI summary:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to process AI summary' 
+      });
+    }
+  });
+
   // 🚨 WORKING SOLUTION: Add chunked upload init directly here (same location as working diagnostics)
   app.get('/api/upload/chunk/init', async (req: Request, res: Response) => {
     console.log('🚀 CHUNKED UPLOAD INIT (WORKING) HIT!', req.query);
