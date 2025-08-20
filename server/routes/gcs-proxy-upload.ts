@@ -1,0 +1,228 @@
+import express from 'express';
+import multer from 'multer';
+import { gcsService } from '../services/googleCloudStorage';
+import { storage as dbStorage } from '../storage';
+import { backgroundJobManager } from '../services/backgroundJobManager';
+import { Readable } from 'stream';
+
+const router = express.Router();
+
+// Configure multer for memory storage (stream directly to GCS)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 * 1024 * 1024, // 5TB limit
+  }
+});
+
+/**
+ * Proxy upload endpoint - handles upload server-side to bypass CORS
+ * This is the ultimate solution for production 413 and CORS issues
+ */
+router.post('/api/gcs/proxy-upload/:dealId', 
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const file = req.file;
+      
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file provided'
+        });
+      }
+      
+      console.log(`🚀 Proxy upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB) for deal ${dealId}`);
+      
+      // Generate GCS path
+      const timestamp = Date.now();
+      const gcsFileName = `deals/${dealId}/documents/${timestamp}_${file.originalname}`;
+      
+      // Upload directly to GCS from memory buffer
+      console.log(`📤 Uploading to GCS via proxy: ${gcsFileName}`);
+      
+      const bucket = (gcsService as any).bucket;
+      const gcsFile = bucket.file(gcsFileName);
+      
+      // Create a stream from the buffer
+      const stream = Readable.from(file.buffer);
+      
+      // Upload to GCS
+      await new Promise((resolve, reject) => {
+        stream
+          .pipe(gcsFile.createWriteStream({
+            metadata: {
+              contentType: file.mimetype,
+              metadata: {
+                dealId: dealId.toString(),
+                originalName: file.originalname,
+                uploadedAt: new Date().toISOString()
+              }
+            }
+          }))
+          .on('error', reject)
+          .on('finish', resolve);
+      });
+      
+      const gcsPath = `gs://${(gcsService as any).bucketName}/${gcsFileName}`;
+      console.log(`✅ Proxy upload successful: ${gcsPath}`);
+      
+      // Create document record
+      const document = await dbStorage.createDocument({
+        dealId: dealId,
+        name: file.originalname,
+        type: file.originalname.split('.').pop() || '',
+        path: gcsPath,
+        size: file.size,
+        status: 'Pending',
+        folderPath: '',
+        isFolder: false
+      } as any);
+      
+      console.log(`✅ Document registered: ${document.id}`);
+      
+      // Create background job for OCR processing
+      const jobId = await backgroundJobManager.createJob({
+        jobType: 'document_ocr',
+        dealId: dealId,
+        documentId: document.id,
+        jobData: {
+          filePath: gcsPath,
+          fileName: file.originalname,
+          documentId: document.id,
+          documentName: file.originalname
+        }
+      });
+      
+      console.log(`✅ Processing job created: ${jobId}`);
+      
+      return res.json({
+        success: true,
+        message: 'File uploaded successfully via proxy',
+        document,
+        jobId,
+        gcsPath
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Proxy upload failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Proxy upload failed',
+        error: error.message
+      });
+    }
+  }
+);
+
+/**
+ * Stream upload endpoint for very large files
+ * Handles streaming directly to GCS without loading into memory
+ */
+router.post('/api/gcs/stream-upload/:dealId', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const fileName = req.headers['x-file-name'] as string;
+    const fileSize = parseInt(req.headers['x-file-size'] as string || '0');
+    
+    if (!fileName) {
+      return res.status(400).json({
+        success: false,
+        message: 'fileName header required'
+      });
+    }
+    
+    console.log(`🌊 Stream upload: ${fileName} (${(fileSize / 1024 / 1024).toFixed(1)}MB) for deal ${dealId}`);
+    
+    // Generate GCS path
+    const timestamp = Date.now();
+    const gcsFileName = `deals/${dealId}/documents/${timestamp}_${fileName}`;
+    
+    // Stream directly to GCS
+    const bucket = (gcsService as any).bucket;
+    const gcsFile = bucket.file(gcsFileName);
+    
+    const stream = gcsFile.createWriteStream({
+      metadata: {
+        contentType: req.headers['content-type'] || 'application/octet-stream',
+        metadata: {
+          dealId: dealId.toString(),
+          originalName: fileName,
+          uploadedAt: new Date().toISOString()
+        }
+      }
+    });
+    
+    // Pipe request directly to GCS
+    req.pipe(stream)
+      .on('error', (error) => {
+        console.error('❌ Stream upload failed:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: 'Stream upload failed',
+            error: error.message
+          });
+        }
+      })
+      .on('finish', async () => {
+        try {
+          const gcsPath = `gs://${(gcsService as any).bucketName}/${gcsFileName}`;
+          console.log(`✅ Stream upload successful: ${gcsPath}`);
+          
+          // Create document record
+          const document = await dbStorage.createDocument({
+            dealId: dealId,
+            name: fileName,
+            type: fileName.split('.').pop() || '',
+            path: gcsPath,
+            size: fileSize,
+            status: 'Pending',
+            folderPath: '',
+            isFolder: false
+          } as any);
+          
+          // Create background job
+          const jobId = await backgroundJobManager.createJob({
+            jobType: 'document_ocr',
+            dealId: dealId,
+            documentId: document.id,
+            jobData: {
+              filePath: gcsPath,
+              fileName: fileName,
+              documentId: document.id,
+              documentName: fileName
+            }
+          });
+          
+          res.json({
+            success: true,
+            message: 'File streamed successfully',
+            document,
+            jobId,
+            gcsPath
+          });
+        } catch (error: any) {
+          console.error('❌ Post-stream processing failed:', error);
+          if (!res.headersSent) {
+            res.status(500).json({
+              success: false,
+              message: 'Post-stream processing failed',
+              error: error.message
+            });
+          }
+        }
+      });
+      
+  } catch (error: any) {
+    console.error('❌ Stream upload setup failed:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Stream upload setup failed',
+      error: error.message
+    });
+  }
+});
+
+export default router;
