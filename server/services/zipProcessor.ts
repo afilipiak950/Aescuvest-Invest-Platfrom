@@ -41,6 +41,16 @@ export class ZipProcessor {
     try {
       console.log(`🔄 Processing ZIP file for deal ${dealId}: ${zipPath}`);
       
+      // Handle database-stored files in production
+      let actualZipPath = zipPath;
+      if (zipPath.startsWith('db://')) {
+        const { dbFileStorage } = await import('./databaseFileStorage');
+        const tempPath = path.join(this.uploadDir, `temp-${Date.now()}.zip`);
+        await dbFileStorage.retrieveFileToPath(zipPath, tempPath);
+        actualZipPath = tempPath;
+        console.log(`📥 Retrieved ZIP from database to: ${tempPath}`);
+      }
+      
       // Create data room connection
       const connection = {
         id: Date.now(),
@@ -48,7 +58,7 @@ export class ZipProcessor {
         connectionType: 'zip_upload',
         folderName,
         connectionData: { 
-          zipPath,
+          zipPath: actualZipPath,
           extractPath: path.join(this.extractDir, `deal-${dealId}-${Date.now()}`)
         },
         status: 'syncing',
@@ -64,8 +74,14 @@ export class ZipProcessor {
       const extractPath = connection.connectionData.extractPath;
       fs.mkdirSync(extractPath, { recursive: true });
       
-      const zip = new AdmZip(zipPath);
+      const zip = new AdmZip(actualZipPath);
       zip.extractAllTo(extractPath, true);
+      
+      // Clean up temp file if it was from database
+      if (zipPath.startsWith('db://') && fs.existsSync(actualZipPath)) {
+        fs.unlinkSync(actualZipPath);
+        console.log(`🗑️ Cleaned up temporary ZIP file`);
+      }
       
       console.log(`📁 Extracted ZIP to: ${extractPath}`);
 
