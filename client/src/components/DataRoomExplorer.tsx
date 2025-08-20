@@ -30,6 +30,7 @@ import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
+import { GCSUploader } from './GCSUploader';
 
 interface DataRoomExplorerProps {
   dealId: number;
@@ -1495,6 +1496,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               analyzed using AI-powered OCR for document intelligence and insights.
             </AlertDescription>
           </Alert>
+          
+          {/* Google Cloud Storage Direct Upload Option */}
+          <div className="mt-6 border-t border-gray-600 pt-6">
+            <h3 className="text-white text-lg font-semibold mb-4">Alternative Upload Method</h3>
+            <GCSUploader dealId={dealId} onUploadComplete={onUploadComplete} />
+          </div>
 
           {/* Upload Progress Display */}
           {uploadProgress && (
