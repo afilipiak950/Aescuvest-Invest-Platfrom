@@ -86,7 +86,7 @@ router.post('/api/gcs/proxy-upload/:dealId',
               }
             });
             
-            uploadStream.on('error', (error) => {
+            uploadStream.on('error', (error: any) => {
               console.error('❌ GCS upload stream error:', error);
               reject(error);
             });
