@@ -1489,25 +1489,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             </div>
           </div>
 
-          <Alert className="bg-red-900/20 border-red-600">
-            <AlertTriangleIcon className="h-4 w-4" />
-            <AlertDescription className="text-red-300">
-              <strong>⚠️ OLD METHOD (413 Errors in Production):</strong> The upload above still uses the old chunked system that fails with 413 errors in production. Use the NEW method below instead.
+          <Alert className="bg-dark border-gray-600">
+            <UploadIcon className="h-4 w-4" />
+            <AlertDescription className="text-gray-300">
+              Upload a ZIP file containing your deal documents. All files will be automatically 
+              analyzed using AI-powered OCR for document intelligence and insights.
             </AlertDescription>
           </Alert>
           
-          {/* Google Cloud Storage Direct Upload - NOW PRIMARY METHOD */}
-          <div className="mt-6 border-t border-green-600 pt-6">
-            <h3 className="text-white text-lg font-semibold mb-4 flex items-center">
-              ✅ NEW: Google Cloud Storage Direct Upload (Recommended)
-              <span className="text-xs bg-green-600 text-white px-2 py-1 rounded ml-2">50GB+ Support</span>
-            </h3>
-            <div className="mb-4 p-3 bg-amber-900/20 border border-amber-600 rounded">
-              <p className="text-amber-300 text-sm">
-                <strong>⚠️ Development Environment:</strong> GCS upload will show an error in development - this is expected! 
-                <br/><strong>✅ Production Ready:</strong> Once deployed, this method handles 50GB+ files with zero 413 errors by uploading directly to Google Cloud Storage, completely bypassing server limits.
-              </p>
-            </div>
+          {/* Google Cloud Storage Direct Upload Option */}
+          <div className="mt-6 border-t border-gray-600 pt-6">
+            <h3 className="text-white text-lg font-semibold mb-4">Alternative Upload Method</h3>
             <GCSUploader dealId={dealId} onUploadComplete={onUploadComplete} />
           </div>
 
