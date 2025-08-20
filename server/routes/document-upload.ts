@@ -3,8 +3,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { dbFileStorage } from '../services/databaseFileStorage';
+import { gcsService } from '../services/googleCloudStorage';
 
 const router = express.Router();
+
+// Check if GCS is enabled (production always uses GCS)
+const useGCS = process.env.USE_GCS === 'true' || process.env.NODE_ENV === 'production';
 
 // Setup multer for file uploads with proper file storage
 const storage = multer.diskStorage({
@@ -82,6 +86,25 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
         console.log(`❌ File not found on disk: ${file.path}`);
       }
       
+      let finalPath = file.path;
+      
+      // Upload to GCS if enabled (production always uses GCS)
+      if (useGCS && dealId) {
+        try {
+          console.log(`☁️ Uploading to Google Cloud Storage...`);
+          const gcsPath = await gcsService.uploadFile(
+            file.path,
+            parseInt(dealId),
+            file.originalname
+          );
+          console.log(`✅ Uploaded to GCS: ${gcsPath}`);
+          finalPath = gcsPath;
+        } catch (error) {
+          console.error(`❌ GCS upload failed, using local path:`, error);
+          // Fall back to local storage if GCS fails
+        }
+      }
+      
       // Ensure we return the correct file information for OCR processing
       return {
         id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -89,9 +112,9 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
         size: file.size,
         type: file.mimetype,
         status: 'uploaded',
-        path: file.path,
+        path: finalPath,
         filename: file.filename,
-        diskPath: file.path // Full path to the file on disk
+        diskPath: file.path // Keep local path for compatibility
       };
     }));
 
