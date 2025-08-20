@@ -60,6 +60,11 @@ app.use((req, res, next) => {
 
 // 🚨 CRITICAL: Completely skip Express body parsers for upload routes
 app.use((req, res, next) => {
+  // Special case: Allow JSON parsing for upload-complete endpoint
+  if (req.path.includes('/upload-complete')) {
+    console.log(`📋 Allowing JSON parsing for upload-complete: ${req.path}`);
+    return express.json({ limit: '10mb' })(req, res, next);
+  }
   // PRODUCTION FIX: Completely skip ALL body parsing for upload routes
   if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
     console.log(`🔧 BYPASSING body parsing for upload route: ${req.path}`);
