@@ -1308,11 +1308,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           body: file,
           headers: {
             'Content-Type': 'application/zip'
-          }
+          },
+          mode: 'cors' // Explicitly set CORS mode
         });
         
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload to GCS');
+          const errorText = await uploadResponse.text().catch(() => 'No error details');
+          console.error(`GCS upload failed with status ${uploadResponse.status}: ${errorText}`);
+          throw new Error(`Failed to upload to GCS: ${uploadResponse.status} - ${errorText}`);
         }
         
         console.log(`✅ File uploaded directly to GCS: ${gcsPath}`);
