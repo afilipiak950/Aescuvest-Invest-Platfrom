@@ -329,21 +329,94 @@ app.use((req, res, next) => {
         });
       }
       
-      if (!document.filePath) {
+      // Use path for file location - construct actual file path from document name and deal extraction directory
+      if (!document.path) {
         return res.status(400).json({ 
           success: false, 
-          error: 'Document has no file path' 
+          error: 'Document has no path' 
         });
       }
       
-      console.log('📝 Starting Mistral OCR processing for document', documentId, 'at path', document.filePath);
+      // Convert database path to actual file path
+      let actualFilePath = document.path;
+      console.log(`🔍 Initial path from database: ${document.path}`);
+      
+      if (document.path.startsWith('extracted/')) {
+        const fileName = path.basename(document.path);
+        console.log(`🔍 Extracted file name: ${fileName}`);
+        
+        // Look for the file in uploads/extracted directories - prioritize correct deal ID
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'extracted');
+        console.log(`🔍 Searching in: ${uploadsDir}`);
+        
+        if (fs.existsSync(uploadsDir)) {
+          const subDirs = fs.readdirSync(uploadsDir, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+          
+          console.log(`🔍 Found subdirectories:`, subDirs);
+          
+          // First try to find the file in the correct deal directory
+          const correctDealDirs = subDirs.filter(subDir => subDir.includes(`deal-${dealId}-`));
+          console.log(`🎯 Looking for correct deal dirs for deal ${dealId}:`, correctDealDirs);
+          
+          for (const subDir of correctDealDirs) {
+            const possiblePath = path.join(uploadsDir, subDir, fileName);
+            console.log(`🔍 Checking path: ${possiblePath}`);
+            if (fs.existsSync(possiblePath)) {
+              actualFilePath = possiblePath;
+              console.log(`✅ Found extracted file at: ${actualFilePath}`);
+              break;
+            }
+          }
+          
+          // If not found in correct deal directory, search all directories as fallback
+          if (!fs.existsSync(actualFilePath) || actualFilePath === document.path) {
+            console.log(`⚠️ File not found in correct deal directory, searching all directories...`);
+            for (const subDir of subDirs) {
+              const possiblePath = path.join(uploadsDir, subDir, fileName);
+              console.log(`🔍 Checking fallback path: ${possiblePath}`);
+              if (fs.existsSync(possiblePath)) {
+                actualFilePath = possiblePath;
+                console.log(`⚠️ Found extracted file in different deal directory: ${actualFilePath}`);
+                break;
+              }
+            }
+          }
+        } else {
+          console.log(`❌ Uploads directory does not exist: ${uploadsDir}`);
+        }
+      }
+      
+      console.log(`🎯 Final file path for OCR: ${actualFilePath}`);
+      
+      if (!actualFilePath || !fs.existsSync(actualFilePath)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'File not found for OCR processing',
+          searchedPath: actualFilePath,
+          originalPath: document.path
+        });
+      }
+      
+      console.log('📝 Starting Mistral OCR processing for document', documentId, 'at path', actualFilePath);
+      
+      // Double check the actualFilePath value before OCR
+      if (!actualFilePath) {
+        console.error('❌ actualFilePath is undefined right before OCR call!');
+        return res.status(500).json({
+          success: false,
+          error: 'File path resolution failed'
+        });
+      }
       
       // Import OCR service dynamically
       const { mistralOCRService } = await import('./services/mistralOCR');
       const fileExtension = document.name.split('.').pop()?.toLowerCase() || 'pdf';
       
       try {
-        const ocrResult = await mistralOCRService.extractText(document.filePath, fileExtension);
+        console.log('🎯 About to call OCR with path:', actualFilePath);
+        const ocrResult = await mistralOCRService.extractText(actualFilePath, fileExtension);
         await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
         
         console.log('✅ Mistral OCR completed for document', documentId, 'extracted', ocrResult.extractedText?.length || 0, 'characters');
@@ -408,10 +481,10 @@ app.use((req, res, next) => {
         // Import OCR service dynamically
         const { mistralOCRService } = await import('./services/mistralOCR');
         
-        if (document.filePath) {
+        if (actualFilePath) {
           const fileExtension = document.name.split('.').pop()?.toLowerCase() || 'pdf';
           try {
-            const ocrResult = await mistralOCRService.extractText(document.filePath, fileExtension);
+            const ocrResult = await mistralOCRService.extractText(actualFilePath, fileExtension);
             await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
             console.log('✅ OCR completed for document', documentId);
           } catch (ocrError) {

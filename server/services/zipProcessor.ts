@@ -252,7 +252,8 @@ export class ZipProcessor {
                 dealId,
                 name: fileName,
                 type: fileType,
-                path: filePath,
+                path: `extracted/${fileName}`, // User-friendly path for UI
+                filePath: filePath, // Actual file path for OCR processing
                 size: fileStats.size,
                 status: 'Analyzed',
                 ocrText: cleanOcrText,

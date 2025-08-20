@@ -45,8 +45,38 @@ export class MistralOCRService {
       let ocrPromise: Promise<string>;
       
       if (['.txt', '.md', '.json', '.csv'].includes(fileExtension)) {
-        console.log(`📝 Reading text file: ${path.basename(filePath)}`);
-        ocrPromise = Promise.resolve(fs.readFileSync(filePath, 'utf8'));
+        console.log(`📝 Reading text file: ${path.basename(localPath)}`);
+        
+        // Handle path resolution for extracted files
+        let actualPath = localPath;
+        if (localPath.startsWith('extracted/')) {
+          // Look for the file in uploads/extracted directories
+          const fileName = path.basename(localPath);
+          console.log(`🔍 Searching for extracted file: ${fileName}`);
+          
+          // Search in uploads/extracted subdirectories
+          const uploadsDir = path.join(process.cwd(), 'uploads', 'extracted');
+          if (fs.existsSync(uploadsDir)) {
+            const subDirs = fs.readdirSync(uploadsDir, { withFileTypes: true })
+              .filter(dirent => dirent.isDirectory())
+              .map(dirent => dirent.name);
+            
+            for (const subDir of subDirs) {
+              const possiblePath = path.join(uploadsDir, subDir, fileName);
+              if (fs.existsSync(possiblePath)) {
+                actualPath = possiblePath;
+                console.log(`✅ Found file at: ${actualPath}`);
+                break;
+              }
+            }
+          }
+        }
+        
+        if (!fs.existsSync(actualPath)) {
+          throw new Error(`File not found: ${actualPath}`);
+        }
+        
+        ocrPromise = Promise.resolve(fs.readFileSync(actualPath, 'utf8'));
       } else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {
         console.log(`🖼️ Processing image file with Mistral Vision: ${path.basename(filePath)}`);
         ocrPromise = this.extractTextFromImage(filePath);
