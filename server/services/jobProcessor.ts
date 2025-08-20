@@ -253,6 +253,15 @@ class JobProcessor {
     };
 
     await this.completeJob(job.id, result);
+    
+    // Clean up temporary file if it was created
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        await fs.promises.unlink(tempFilePath);
+      } catch (err) {
+        console.warn('Failed to cleanup temp file:', err);
+      }
+    }
   }
 
   private async processDocumentAnalysis(job: BackgroundJob) {
