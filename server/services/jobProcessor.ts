@@ -158,9 +158,33 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 10, 'Initializing OCR processing...', 'processing');
 
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
+    // Handle database-stored files
+    let actualFilePath = filePath;
+    let tempFilePath: string | null = null;
+    
+    if (filePath.startsWith('db://')) {
+      // File is stored in database, retrieve it
+      const { dbFileStorage } = await import('./databaseFileStorage');
+      await this.updateJobProgress(job.id, 15, 'Retrieving file from database storage...');
+      
+      const fileBuffer = await dbFileStorage.retrieveFile(filePath);
+      
+      // Create temporary file for OCR processing
+      const tempDir = path.join(process.cwd(), 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      tempFilePath = path.join(tempDir, `temp_${Date.now()}_${fileName}`);
+      await fs.promises.writeFile(tempFilePath, fileBuffer);
+      actualFilePath = tempFilePath;
+      
+      await this.updateJobProgress(job.id, 18, 'File retrieved from database, starting OCR...');
+    } else {
+      // Check if local file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+      }
     }
 
     await this.updateJobProgress(job.id, 20, 'Loading Mistral OCR service...');
@@ -170,7 +194,7 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
-    const ocrResult = await mistralOCRService.extractText(filePath, fileType);
+    const ocrResult = await mistralOCRService.extractText(actualFilePath, fileType);
     
     await this.updateJobProgress(job.id, 60, 'OCR extraction completed, generating AI summary...');
 
