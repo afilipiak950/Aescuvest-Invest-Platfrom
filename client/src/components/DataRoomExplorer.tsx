@@ -1293,8 +1293,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           throw new Error('Failed to get upload URL');
         }
         
-        const { uploadUrl, gcsPath } = await urlResponse.json();
+        const { uploadUrl, gcsPath, method, headers } = await urlResponse.json();
         console.log(`✅ Got signed upload URL for direct GCS upload`);
+        console.log('Upload URL:', uploadUrl);
+        console.log('Method:', method || 'PUT');
+        console.log('Headers:', headers || { 'Content-Type': 'application/zip' });
         
         // Upload directly to GCS (bypasses Cloud Run entirely)
         setUploadProgress({
@@ -1304,9 +1307,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         });
         
         const uploadResponse = await fetch(uploadUrl, {
-          method: 'PUT',
+          method: method || 'PUT',
           body: file,
-          headers: {
+          headers: headers || {
             'Content-Type': 'application/zip'
           },
           mode: 'cors' // Explicitly set CORS mode
