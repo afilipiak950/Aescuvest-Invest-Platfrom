@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP Upload Debug Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        #status { margin: 20px 0; padding: 10px; background: #f0f0f0; }
+        .log { margin: 5px 0; font-family: monospace; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>ZIP Upload Debug Test</h1>
+    <p>Testing ZIP extraction with micro-step debugging</p>
+    
+    <input type="file" id="fileInput" accept=".zip">
+    <button onclick="uploadZip()">Upload ZIP to Deal 23</button>
+    
+    <div id="status"></div>
+    
+    <script>
+        function log(msg, type = '') {
+            const status = document.getElementById('status');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            status.appendChild(div);
+            console.log(msg);
+        }
+        
+        async function uploadZip() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('Please select a ZIP file', 'error');
+                return;
+            }
+            
+            log(`Starting upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            
+            const formData = new FormData();
+            formData.append('files', file);
+            
+            try {
+                log('Uploading to proxy endpoint...');
+                const response = await fetch('/api/gcs-proxy-upload/23', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log(`Upload successful! Job created: ${JSON.stringify(result)}`, 'success');
+                    
+                    // Start polling for job status
+                    setTimeout(() => checkJobStatus(23), 2000);
+                } else {
+                    log(`Upload failed: ${result.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                log(`Upload error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkJobStatus(dealId) {
+            try {
+                const response = await fetch(`/api/background-jobs/${dealId}`);
+                const data = await response.json();
+                
+                if (data.jobs && data.jobs.length > 0) {
+                    const job = data.jobs[0];
+                    log(`Job status: ${job.status} - Progress: ${job.progress}% - ${job.currentStep}`);
+                    
+                    if (job.status === 'processing') {
+                        setTimeout(() => checkJobStatus(dealId), 3000);
+                    } else if (job.status === 'completed') {
+                        log('ZIP extraction completed!', 'success');
+                        checkDocuments(dealId);
+                    } else if (job.status === 'failed') {
+                        log(`Job failed: ${job.error}`, 'error');
+                    }
+                }
+            } catch (error) {
+                log(`Status check error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkDocuments(dealId) {
+            try {
+                const response = await fetch(`/api/deals/${dealId}/documents`);
+                const documents = await response.json();
+                
+                log(`Found ${documents.length} documents after extraction:`, 'success');
+                documents.forEach(doc => {
+                    log(`  - ${doc.name} (${doc.type}) - ${(doc.size / 1024).toFixed(1)} KB`);
+                });
+            } catch (error) {
+                log(`Document check error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
