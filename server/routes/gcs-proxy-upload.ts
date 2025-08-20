@@ -75,10 +75,17 @@ router.post('/api/gcs/proxy-upload/:dealId',
         console.log(`📦 ZIP file detected - creating extraction job`);
         
         // For ZIP files, create a background job to extract and process
-        const jobId = await backgroundJobManager.createJob({
+        // CRITICAL: Use jobProcessor to actually trigger processing, not just create DB entry
+        const { jobProcessor } = await import('../services/jobProcessor');
+        const uniqueJobId = `zip_${dealId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const jobId = await jobProcessor.createJob({
+          jobId: uniqueJobId,  // Required unique identifier
           jobType: 'zip_processing',  // MUST match the job processor case
           dealId: dealId,
           documentId: null,
+          status: 'processing',
+          progress: 0,
+          currentStep: 'Starting ZIP extraction...',
           jobData: {
             zipPath: gcsPath,
             dealId: dealId,
