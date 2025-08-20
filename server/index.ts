@@ -17,8 +17,6 @@ import { debug413Middleware, bypass413Middleware } from "./debug-413";
 
 // Import chunked upload router
 import chunkedUploadRouter from './routes/chunked-upload';
-// Import Google Cloud Storage direct upload router
-import gcsUploadRouter from './routes/gcs-upload';
 
 const app = express();
 
@@ -424,10 +422,6 @@ app.use((req, res, next) => {
   // 🚀 REGISTER CHUNKED UPLOAD ROUTES
   app.use(chunkedUploadRouter);
   console.log('✅ Chunked upload routes registered');
-  
-  // Register Google Cloud Storage direct upload routes
-  app.use(gcsUploadRouter);
-  console.log('✅ GCS direct upload routes registered');
 
   // ZIP file upload routes - registered AFTER main routes to take priority
   console.log('🚀 REGISTERING ZIP UPLOAD ROUTES');
