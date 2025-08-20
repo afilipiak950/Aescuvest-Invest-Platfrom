@@ -76,6 +76,9 @@ export class ZipProcessor {
             const doc = await storage.createDocument({
               dealId,
               name: path.basename(fileName),
+              type: 'text/plain', // Default type for extracted files
+              path: `extracted/${fileName}`, // Virtual path for extracted files
+              size: 0, // Size unknown for extracted files
               parentId: parentDocumentId,
               uploadedAt: new Date(),
               metadata: {

@@ -179,7 +179,7 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       // Start background AI processing
       try {
         console.log('🤖 Starting AI processing job...');
-        await jobProcessor.createJob(parseInt(dealId), document.id, 'ai_summary');
+        await jobProcessor.createJob(parseInt(dealId), document.id, 'ai_summary', 'ai_summary');
         console.log('✅ AI processing job created');
       } catch (jobError) {
         console.error('⚠️ AI job creation failed (non-critical):', jobError);
