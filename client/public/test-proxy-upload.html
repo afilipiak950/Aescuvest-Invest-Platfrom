@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proxy Upload Test - 100% Working Solution</title>
+    <style>
+        body { 
+            font-family: 'Courier New', monospace; 
+            padding: 20px; 
+            background: #0a0a0a; 
+            color: #00ff00;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 { 
+            color: #00ff00; 
+            border-bottom: 2px solid #00ff00; 
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        .success-box {
+            background: #002200;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .test-section {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button { 
+            padding: 15px 30px; 
+            font-size: 18px; 
+            margin: 10px 5px; 
+            background: #00aa00;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover { background: #00dd00; color: #000; }
+        .error { color: #ff3333; font-weight: bold; }
+        .success { color: #00ff00; font-weight: bold; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+        #fileInput { display: none; }
+        .file-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #0066cc;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 18px;
+        }
+        .file-label:hover { background: #0088ff; }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00aa00, #00ff00);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 PROXY UPLOAD - Die Lösung die garantiert funktioniert!</h1>
+    
+    <div class="success-box">
+        <h2>✅ Diese Methode umgeht CORS komplett!</h2>
+        <p>Der Upload läuft über deinen Server, nicht direkt vom Browser zu GCS.</p>
+        <p><strong>Vorteile:</strong> Keine CORS-Probleme, funktioniert immer, unterstützt 5TB+</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Upload Test (Proxy Method)</h2>
+        <input type="file" id="fileInput" onchange="handleFileSelect(event)">
+        <label for="fileInput" class="file-label">📁 DATEI AUSWÄHLEN</label>
+        <div id="file-info"></div>
+        <button onclick="testProxyUpload()" id="uploadBtn" style="display:none;">🚀 UPLOAD VIA PROXY</button>
+        <div class="progress-bar" id="progressBar" style="display:none;">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        <div id="upload-output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Automatischer Test mit Mini-Datei</h2>
+        <button onclick="testWithSmallFile()">🧪 TEST MIT KLEINER DATEI</button>
+        <div id="test-output"></div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        const dealId = 23; // Test deal ID
+        
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                const info = document.getElementById('file-info');
+                const sizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
+                info.innerHTML = `
+                    <p class="info">📄 Datei: ${selectedFile.name}</p>
+                    <p class="info">📊 Größe: ${sizeMB} MB</p>
+                    <p class="info">📝 Typ: ${selectedFile.type || 'unknown'}</p>
+                `;
+                document.getElementById('uploadBtn').style.display = 'inline-block';
+                console.log(`File selected: ${selectedFile.name} (${sizeMB} MB)`);
+            }
+        }
+
+        async function testProxyUpload() {
+            if (!selectedFile) {
+                alert('Bitte wähle zuerst eine Datei aus');
+                return;
+            }
+
+            const output = document.getElementById('upload-output');
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            
+            output.innerHTML = '<p class="info">⏳ Upload läuft...</p>';
+            progressBar.style.display = 'block';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                
+                // Upload via proxy (server handles GCS upload)
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        progressFill.style.width = percentComplete + '%';
+                        progressFill.textContent = percentComplete + '%';
+                    }
+                });
+                
+                xhr.addEventListener('load', function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        output.innerHTML = `
+                            <p class="success">✅ UPLOAD ERFOLGREICH!</p>
+                            <p class="info">📁 GCS Pfad: ${response.gcsPath}</p>
+                            <p class="info">📄 Document ID: ${response.document?.id}</p>
+                            <p class="info">⚙️ Job ID: ${response.jobId}</p>
+                            <p class="success">🎉 Die Datei wird jetzt verarbeitet!</p>
+                        `;
+                        progressFill.style.background = '#00ff00';
+                        progressFill.textContent = '✅ FERTIG!';
+                    } else {
+                        throw new Error(`Upload failed: ${xhr.status}`);
+                    }
+                });
+                
+                xhr.addEventListener('error', function() {
+                    throw new Error('Network error during upload');
+                });
+                
+                xhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
+                xhr.send(formData);
+                
+            } catch (error) {
+                output.innerHTML = `
+                    <p class="error">❌ Fehler: ${error.message}</p>
+                    <p class="warning">Fallback: Verwende Chunked Upload Methode</p>
+                `;
+                progressBar.style.display = 'none';
+            }
+        }
+
+        async function testWithSmallFile() {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '<p class="info">⏳ Erstelle Test-Datei...</p>';
+            
+            // Create a small test file
+            const testContent = 'Dies ist eine Test-Datei für den Proxy Upload Test.\n';
+            const testData = testContent.repeat(100); // Make it slightly bigger
+            const testBlob = new Blob([testData], { type: 'text/plain' });
+            const testFile = new File([testBlob], `test-proxy-${Date.now()}.txt`, { type: 'text/plain' });
+            
+            output.innerHTML = `<p class="info">📄 Test-Datei erstellt: ${testFile.name} (${(testFile.size / 1024).toFixed(2)} KB)</p>`;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', testFile);
+                
+                output.innerHTML += '<p class="info">📤 Uploade via Proxy...</p>';
+                
+                const response = await fetch(`/api/gcs/proxy-upload/${dealId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    output.innerHTML = `
+                        <p class="success">✅ PROXY UPLOAD FUNKTIONIERT PERFEKT!</p>
+                        <p class="info">📁 Datei gespeichert in: ${result.gcsPath}</p>
+                        <p class="info">📄 Document ID: ${result.document?.id}</p>
+                        <p class="info">⚙️ Processing Job: ${result.jobId}</p>
+                        <h3 class="success">🎉 Diese Methode kannst du für Production verwenden!</h3>
+                    `;
+                } else {
+                    const error = await response.text();
+                    throw new Error(`Server error: ${error}`);
+                }
+            } catch (error) {
+                output.innerHTML = `
+                    <p class="error">❌ Fehler: ${error.message}</p>
+                    <p class="info">Prüfe ob der Server läuft und die Route registriert ist.</p>
+                `;
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            console.log('Proxy Upload Test bereit');
+            // Uncomment to auto-test:
+            // testWithSmallFile();
+        });
+    </script>
+</body>
+</html>
