@@ -1381,15 +1381,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           status: `Preparing chunked upload (${totalChunks} chunks)...`
         });
         
-        // Initialize chunked upload
-        const initResponse = await fetch(`/api/upload/chunk/init`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: file.name,
-            totalSize: file.size,
-            chunkSize: CHUNK_SIZE
-          })
+        // Initialize chunked upload using GET to bypass Vite interference
+        const params = new URLSearchParams({
+          fileName: file.name,
+          totalSize: file.size.toString(),
+          chunkSize: CHUNK_SIZE.toString()
+        });
+        
+        const initResponse = await fetch(`/api/upload/chunk/init?${params.toString()}`, {
+          method: 'GET'
         });
         
         if (!initResponse.ok) {

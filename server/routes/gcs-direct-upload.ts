@@ -7,7 +7,7 @@ const router = express.Router();
  * Generate a signed URL for direct upload to GCS
  * This bypasses Cloud Run entirely, eliminating 413 errors
  */
-router.post('/api/gcs/upload-url', async (req, res) => {
+router.post('/api/gcs/upload-url', express.json(), async (req, res) => {
   try {
     const { dealId, fileName, contentType } = req.body;
     
