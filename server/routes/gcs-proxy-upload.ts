@@ -122,83 +122,133 @@ router.post('/api/gcs/proxy-upload/:dealId',
       if (isZipFile) {
         console.log(`📦 ZIP file detected - creating extraction job`);
         
-        // For ZIP files, create a background job to extract and process
-        // CRITICAL: Use jobProcessor to actually trigger processing, not just create DB entry
-        console.log(`🔍 ZIP UPLOAD MICRO-STEP 1: Loading jobProcessor module...`);
-        const { jobProcessor } = await import('../services/jobProcessor');
+        let jobId: string | null = null;
+        let jobCreationError: string | null = null;
         
-        const uniqueJobId = `zip_${dealId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        console.log(`🔍 ZIP UPLOAD MICRO-STEP 2: Creating job with ID: ${uniqueJobId}`);
-        
-        const jobData = {
-          jobId: uniqueJobId,  // Required unique identifier
-          jobType: 'zip_processing',  // MUST match the job processor case
-          dealId: dealId,
-          documentId: null,
-          status: 'processing',
-          progress: 0,
-          currentStep: 'Starting ZIP extraction...',
-          jobData: {
-            zipPath: gcsPath,
+        try {
+          // For ZIP files, create a background job to extract and process
+          // CRITICAL: Use jobProcessor to actually trigger processing, not just create DB entry
+          console.log(`🔍 ZIP UPLOAD MICRO-STEP 1: Loading jobProcessor module...`);
+          const { jobProcessor } = await import('../services/jobProcessor');
+          
+          const uniqueJobId = `zip_${dealId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          console.log(`🔍 ZIP UPLOAD MICRO-STEP 2: Creating job with ID: ${uniqueJobId}`);
+          
+          const jobData = {
+            jobId: uniqueJobId,  // Required unique identifier
+            jobType: 'zip_processing',  // MUST match the job processor case
             dealId: dealId,
-            folderName: file.originalname.replace('.zip', ''),
-            fileName: file.originalname
-          }
-        };
+            documentId: null,
+            status: 'processing',
+            progress: 0,
+            currentStep: 'Starting ZIP extraction...',
+            jobData: {
+              zipPath: gcsPath,
+              dealId: dealId,
+              folderName: file.originalname.replace('.zip', ''),
+              fileName: file.originalname
+            }
+          };
+          
+          console.log(`🔍 ZIP UPLOAD MICRO-STEP 3: Job data:`, JSON.stringify(jobData, null, 2));
+          
+          // Wrap job creation with timeout to prevent hanging
+          jobId = await Promise.race([
+            jobProcessor.createJob(jobData),
+            new Promise<string>((_, reject) => 
+              setTimeout(() => reject(new Error('Job creation timeout')), 5000)
+            )
+          ]);
+          
+          console.log(`🔍 ZIP UPLOAD MICRO-STEP 4: Job created with ID: ${jobId}`);
+          console.log(`✅ ZIP extraction job created: ${jobId}`);
+          
+        } catch (jobError: any) {
+          console.error('⚠️ Failed to create extraction job:', jobError);
+          jobCreationError = jobError?.message || 'Unknown job creation error';
+          // Continue - file is uploaded, just job creation failed
+        }
         
-        console.log(`🔍 ZIP UPLOAD MICRO-STEP 3: Job data:`, JSON.stringify(jobData, null, 2));
-        
-        const jobId = await jobProcessor.createJob(jobData);
-        
-        console.log(`🔍 ZIP UPLOAD MICRO-STEP 4: Job created with ID: ${jobId}`);
-        
-        console.log(`✅ ZIP extraction job created: ${jobId}`);
-        
+        // ALWAYS send response, even if job creation failed
         return res.json({
           success: true,
-          message: 'ZIP file uploaded successfully and will be extracted',
-          jobId,
+          message: jobId 
+            ? 'ZIP file uploaded successfully and will be extracted'
+            : 'ZIP file uploaded but extraction job failed - manual processing required',
+          jobId: jobId || undefined,
           gcsPath,
           isZip: true,
-          extractionStarted: true
+          extractionStarted: !!jobId,
+          jobError: jobCreationError || undefined
         });
         
       } else {
-        // For non-ZIP files, create document record as before
-        const document = await dbStorage.createDocument({
-          dealId: dealId,
-          name: file.originalname,
-          type: file.originalname.split('.').pop() || '',
-          path: gcsPath,
-          size: file.size,
-          status: 'Pending',
-          folderPath: '',
-          isFolder: false
-        } as any);
+        // For non-ZIP files, create document record
+        let document: any = null;
+        let jobId: string | null = null;
+        let processingError: string | null = null;
         
-        console.log(`✅ Document registered: ${document.id}`);
-        
-        // Create background job for OCR processing
-        const jobId = await backgroundJobManager.createJob({
-          jobType: 'document_ocr',
-          dealId: dealId,
-          documentId: document.id,
-          jobData: {
-            filePath: gcsPath,
-            fileName: file.originalname,
-            documentId: document.id,
-            documentName: file.originalname
+        try {
+          document = await dbStorage.createDocument({
+            dealId: dealId,
+            name: file.originalname,
+            type: file.originalname.split('.').pop() || '',
+            path: gcsPath,
+            size: file.size,
+            status: 'Pending',
+            folderPath: '',
+            isFolder: false
+          } as any);
+          
+          console.log(`✅ Document registered: ${document.id}`);
+          
+          try {
+            // Create background job for OCR processing with timeout
+            jobId = await Promise.race([
+              backgroundJobManager.createJob({
+                jobType: 'document_ocr',
+                dealId: dealId,
+                documentId: document.id,
+                jobData: {
+                  filePath: gcsPath,
+                  fileName: file.originalname,
+                  documentId: document.id,
+                  documentName: file.originalname
+                }
+              }),
+              new Promise<string>((_, reject) => 
+                setTimeout(() => reject(new Error('OCR job creation timeout')), 5000)
+              )
+            ]);
+            
+            console.log(`✅ Processing job created: ${jobId}`);
+          } catch (jobError: any) {
+            console.error('⚠️ Failed to create OCR job:', jobError);
+            processingError = jobError?.message || 'OCR job creation failed';
+            // Continue - document is saved, just OCR job failed
           }
-        });
+          
+        } catch (dbError: any) {
+          console.error('❌ Failed to save document to database:', dbError);
+          // Still return success as file is uploaded to storage
+          return res.json({
+            success: true,
+            message: 'File uploaded to storage but database save failed',
+            error: dbError?.message || 'Database error',
+            gcsPath
+          });
+        }
         
-        console.log(`✅ Processing job created: ${jobId}`);
-        
+        // ALWAYS send response
         return res.json({
           success: true,
-          message: 'File uploaded successfully via proxy',
+          message: jobId 
+            ? 'File uploaded successfully via proxy'
+            : 'File uploaded but OCR processing failed - manual processing required',
           document,
-          jobId,
-          gcsPath
+          jobId: jobId || undefined,
+          gcsPath,
+          processingError: processingError || undefined
         });
       }
       
