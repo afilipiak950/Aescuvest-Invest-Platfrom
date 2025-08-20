@@ -1502,10 +1502,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               ✅ NEW: Google Cloud Storage Direct Upload (Recommended)
               <span className="text-xs bg-green-600 text-white px-2 py-1 rounded ml-2">50GB+ Support</span>
             </h3>
-            <div className="mb-4 p-3 bg-green-900/20 border border-green-600 rounded">
-              <p className="text-green-300 text-sm">
-                <strong>✅ Production Ready:</strong> Direct upload to cloud storage bypasses all server limits. 
-                Supports files up to 50GB+ with zero 413 errors.
+            <div className="mb-4 p-3 bg-amber-900/20 border border-amber-600 rounded">
+              <p className="text-amber-300 text-sm">
+                <strong>⚠️ Development Note:</strong> Google Cloud Storage requires production environment configuration. 
+                In development, use this to test the interface. <strong>In production, this method supports 50GB+ with zero 413 errors.</strong>
               </p>
             </div>
             <GCSUploader dealId={dealId} onUploadComplete={onUploadComplete} />
