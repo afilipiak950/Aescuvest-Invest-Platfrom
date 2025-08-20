@@ -135,6 +135,9 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
     const [document] = await db.insert(documents).values({
       dealId: parseInt(dealId),
       name: fileName,
+      type: metadata.contentType || 'application/zip', // Fix: Add required type field
+      path: gcsFileName, // Fix: Add required path field pointing to GCS location
+      size: parseInt(metadata.size),
       uploadedAt: new Date(),
       metadata: {
         originalName: fileName,
@@ -169,8 +172,8 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted`);
 
       // Clean up temp file
-      const fs = require('fs').promises;
-      await fs.unlink(tempFilePath);
+      const fs = await import('fs');
+      await fs.promises.unlink(tempFilePath);
       console.log('🧹 Temp file cleaned up');
 
       // Start background AI processing

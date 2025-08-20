@@ -51,8 +51,8 @@ export class ZipProcessor {
     });
 
     try {
-      const yauzl = require('yauzl');
-      const util = require('util');
+      const yauzl = await import('yauzl');
+      const util = await import('util');
       const openZip = util.promisify(yauzl.open);
       
       // Open the ZIP file
