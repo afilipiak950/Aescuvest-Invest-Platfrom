@@ -323,10 +323,8 @@ class GoogleCloudStorageService {
         version: 'v4' as const,
         action: 'write' as const,
         expires: Date.now() + 60 * 60 * 1000, // 1 hour
-        contentType: 'application/zip',
-        extensionHeaders: {
-          'x-goog-content-length-range': `0,${5 * 1024 * 1024 * 1024 * 1024}` // Up to 5TB
-        }
+        contentType: 'application/zip'
+        // Removed x-goog-content-length-range from headers - it's a constraint, not a header
       };
       
       // Generate the signed URL
