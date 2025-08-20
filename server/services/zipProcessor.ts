@@ -241,7 +241,17 @@ export class ZipProcessor {
             try {
               // Extract folder path relative to extraction directory
               const relativePath = path.relative(this.extractDir, path.dirname(filePath));
-              const folderPath = relativePath === '.' ? '' : relativePath;
+              let folderPath = relativePath === '.' ? '' : relativePath;
+              
+              // Remove deal-specific prefix from folder path to show clean hierarchy
+              const dealPrefix = `deal-${dealId}-`;
+              const dealDirRegex = new RegExp(`^${dealPrefix}\\d+[\\\\/]?`, 'g');
+              folderPath = folderPath.replace(dealDirRegex, '');
+              
+              // Normalize folder path separators for consistent display
+              folderPath = folderPath.replace(/\\/g, '/');
+              
+              console.log(`📁 Folder path calculation: ${filePath} -> ${folderPath}`);
               
               // Clean OCR text to remove null bytes and non-UTF8 characters
               const cleanOcrText = analysisResult.ocrText
@@ -252,7 +262,7 @@ export class ZipProcessor {
                 dealId,
                 name: fileName,
                 type: fileType,
-                path: `extracted/${fileName}`, // User-friendly path for UI
+                path: `extracted/${relativePath}`, // Full nested path for OCR processing
                 filePath: filePath, // Actual file path for OCR processing
                 size: fileStats.size,
                 status: 'Analyzed',
