@@ -2120,11 +2120,35 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     );
                   } else if (docsWithSummaries === totalDocs) {
                     return (
-                      <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
-                        <Brain className="w-4 h-4 text-green-300" />
-                        <span className="text-sm text-green-300 font-medium">
-                          AI Complete: {docsWithSummaries}/{totalDocs} (100%)
-                        </span>
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
+                          <Brain className="w-4 h-4 text-green-300" />
+                          <span className="text-sm text-green-300 font-medium">
+                            AI Complete: {docsWithSummaries}/{totalDocs} (100%)
+                          </span>
+                        </div>
+                        {/* Show Generate button if no docs have summaries (edge case for when auto-processing didn't work) */}
+                        {totalDocs > 0 && docsWithSummaries === 0 && (
+                          <Button
+                            onClick={() => processAISummariesMutation.mutate()}
+                            size="sm"
+                            variant="outline"
+                            disabled={processAISummariesMutation.isPending || processingCooldown}
+                            className="border-blue-600 text-blue-300 hover:bg-blue-700"
+                          >
+                            {processAISummariesMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="w-4 h-4 mr-1" />
+                                Generate AI Summaries ({totalDocs})
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     );
                   } else if (docsWithSummaries > 0) {
