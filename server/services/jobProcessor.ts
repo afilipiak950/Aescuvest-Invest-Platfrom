@@ -202,7 +202,7 @@ class JobProcessor {
     await this.updateJobProgress(job.id, 20, 'Loading Mistral OCR service...');
 
     // Import and use Mistral OCR service
-    const { mistralOCRService } = await import('./mistralOCR.js');
+    const { mistralOCRService } = await import('./mistralOCR');
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
@@ -444,9 +444,9 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
       return result;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('OpenAI API error during summary generation:', error);
-      throw new Error(`Failed to generate AI summary: ${error.message}`);
+      throw new Error(`Failed to generate AI summary: ${error?.message || 'Unknown error'}`);
     }
   }
 
