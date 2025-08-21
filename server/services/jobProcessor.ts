@@ -15,6 +15,16 @@ class JobProcessor {
     setInterval(() => {
       this.cleanupStuckJobs();
     }, 5 * 60 * 1000); // 5 minutes
+    
+    // 🚀 LOAD PENDING JOBS: Check database every 5 seconds for pending jobs to enable parallel processing
+    setInterval(() => {
+      this.loadPendingJobsFromDatabase();
+    }, 5 * 1000); // 5 seconds
+    
+    // Load pending jobs immediately on startup
+    setTimeout(() => {
+      this.loadPendingJobsFromDatabase();
+    }, 1000);
   }
 
   async createJob(jobData: InsertBackgroundJob): Promise<number> {
@@ -128,6 +138,41 @@ class JobProcessor {
 
     this.processingJobs.delete(jobId);
     console.log(`✅ Job ${jobId} ${status}: ${error || 'Success'}`);
+  }
+
+  async loadPendingJobsFromDatabase() {
+    try {
+      // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
+      const pendingJobs = await db.select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.status, 'pending'))
+        .limit(50); // Load up to 50 pending jobs at a time
+      
+      if (pendingJobs.length > 0) {
+        console.log(`🚀 LOADING ${pendingJobs.length} pending jobs from database into memory queue for parallel processing!`);
+        
+        // Add jobs that aren't already in the queue
+        let newJobs = 0;
+        for (const job of pendingJobs) {
+          const alreadyQueued = this.jobQueue.some(qJob => qJob.id === job.id);
+          if (!alreadyQueued && !this.processingJobs.has(job.id)) {
+            this.jobQueue.push(job);
+            newJobs++;
+          }
+        }
+        
+        if (newJobs > 0) {
+          console.log(`✅ Added ${newJobs} new jobs to queue. Total queue length: ${this.jobQueue.length}`);
+          
+          // Trigger parallel processing immediately
+          setImmediate(() => {
+            this.processQueue();
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading pending jobs from database:', error);
+    }
   }
 
   async cleanupStuckJobs() {
