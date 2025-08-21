@@ -12,6 +12,14 @@ import { storage } from '../storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Cache for pre-loaded contexts to avoid reloading
+const contextCache = new Map<number, {
+  documentContext: DocumentContext[];
+  agentContext: AgentContext[];
+  companyContext: CompanyContext | null;
+  loadedAt: Date;
+}>();
+
 interface DocumentContext {
   name: string;
   ocrText: string;
@@ -49,9 +57,20 @@ export class AescuvestAIAssistant {
   private agentContext: AgentContext[] = [];
   private companyContext: CompanyContext | null = null;
   private systemPrompt: string;
+  private isContextLoaded: boolean = false;
 
   constructor(dealId: number) {
     this.dealId = dealId;
+    
+    // Check if we have cached context (less than 5 minutes old)
+    const cached = contextCache.get(dealId);
+    if (cached && (Date.now() - cached.loadedAt.getTime()) < 5 * 60 * 1000) {
+      console.log(`🚀 Using cached context for deal ${dealId}`);
+      this.documentContext = cached.documentContext;
+      this.agentContext = cached.agentContext;
+      this.companyContext = cached.companyContext;
+      this.isContextLoaded = true;
+    }
     this.systemPrompt = `You are the Aescuvest AI Assistant, an ultra-intelligent investment analysis assistant with comprehensive knowledge of all deal documents, due diligence reports, and agent analyses.
 
 You have access to:
@@ -74,18 +93,33 @@ Always be specific, cite sources when possible, and provide actionable insights.
   }
 
   async loadCompleteContext(): Promise<void> {
+    // Skip if already loaded from cache
+    if (this.isContextLoaded) {
+      console.log(`✅ Context already loaded from cache`);
+      return;
+    }
+    
     console.log(`🤖 Loading complete context for deal ${this.dealId}...`);
+    const startTime = Date.now();
     
-    // Load all documents with OCR and AI summaries
-    await this.loadDocumentContext();
+    // Load all in parallel for speed
+    await Promise.all([
+      this.loadDocumentContext(),
+      this.loadAgentContext(),
+      this.loadCompanyContext()
+    ]);
     
-    // Load all agent analyses
-    await this.loadAgentContext();
+    // Cache the loaded context
+    contextCache.set(this.dealId, {
+      documentContext: this.documentContext,
+      agentContext: this.agentContext,
+      companyContext: this.companyContext,
+      loadedAt: new Date()
+    });
     
-    // Load company and deal information
-    await this.loadCompanyContext();
-    
-    console.log(`✅ Context loaded: ${this.documentContext.length} documents, ${this.agentContext.length} agent analyses`);
+    this.isContextLoaded = true;
+    const loadTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`✅ Context loaded in ${loadTime}s: ${this.documentContext.length} documents, ${this.agentContext.length} agent analyses`);
   }
 
   private async loadDocumentContext(): Promise<void> {
@@ -265,8 +299,8 @@ Always be specific, cite sources when possible, and provide actionable insights.
   }
 
   async processQuery(query: string): Promise<string> {
-    // Load complete context if not already loaded
-    if (this.documentContext.length === 0) {
+    // Ensure context is loaded (will use cache if available)
+    if (!this.isContextLoaded) {
       await this.loadCompleteContext();
     }
     
@@ -302,8 +336,8 @@ Always be specific, cite sources when possible, and provide actionable insights.
   }
 
   async streamQuery(query: string): Promise<AsyncIterable<string>> {
-    // Load complete context if not already loaded
-    if (this.documentContext.length === 0) {
+    // Ensure context is loaded (will use cache if available)
+    if (!this.isContextLoaded) {
       await this.loadCompleteContext();
     }
     

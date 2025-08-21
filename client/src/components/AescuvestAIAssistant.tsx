@@ -48,6 +48,8 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const [input, setInput] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isContextLoaded, setIsContextLoaded] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +63,32 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     },
     enabled: !!dealId
   });
+  
+  // Pre-load context when component mounts for instant responses
+  useEffect(() => {
+    if (dealId && !isContextLoaded && !isPreloading) {
+      setIsPreloading(true);
+      
+      // Pre-load context in the background
+      fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          console.log('🚀 AI Assistant context pre-loaded:', data.contextStats);
+          setIsContextLoaded(true);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to pre-load context:', err);
+      })
+      .finally(() => {
+        setIsPreloading(false);
+      });
+    }
+  }, [dealId, isContextLoaded, isPreloading]);
 
   // Mutation for sending queries
   const sendQueryMutation = useMutation({
@@ -188,7 +216,18 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Aescuvest AI Assistant
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Ultra-intelligent investment analysis powered by complete document context</p>
+                <p className="text-sm text-muted-foreground">
+                  {isPreloading ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading AI context...
+                    </span>
+                  ) : isContextLoaded ? (
+                    <span className="text-green-600">✓ Ready - Instant responses</span>
+                  ) : (
+                    'Ultra-intelligent investment analysis powered by complete document context'
+                  )}
+                </p>
               </div>
             </div>
             
@@ -288,11 +327,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                                 : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
                             )}
                           >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                            {message.role === 'assistant' && message.content === '' && (
+                            {message.content ? (
+                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            ) : (
                               <div className="flex items-center gap-2">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="text-xs text-muted-foreground">Analyzing context...</span>
+                                <span className="text-xs text-muted-foreground">Thinking...</span>
                               </div>
                             )}
                           </div>
@@ -318,9 +358,9 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about documents, analyses, regulatory status, financials, IP, clinical data..."
+                placeholder={isPreloading ? "Loading AI context..." : "Ask about documents, analyses, regulatory status, financials, IP, clinical data..."}
                 className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500"
-                disabled={isStreaming}
+                disabled={isStreaming || isPreloading}
               />
             </div>
             <Button
