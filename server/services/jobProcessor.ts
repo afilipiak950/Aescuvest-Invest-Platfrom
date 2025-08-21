@@ -442,6 +442,47 @@ class JobProcessor {
       await db.update(documents)
         .set(updateData)
         .where(eq(documents.id, documentId));
+      
+      // 🚀 AUTOMATICALLY EMBED DOCUMENT FOR RAG SYSTEM
+      if ((ocrResult.extractedText && ocrResult.extractedText.length > 100) || aiSummary) {
+        try {
+          await this.updateJobProgress(job.id, 95, 'Adding to RAG system for instant search...');
+          
+          // Import embedding service
+          const { EmbeddingService } = await import('./embeddingService');
+          
+          // Get document details for embedding
+          const [doc] = await db.select()
+            .from(documents)
+            .where(eq(documents.id, documentId));
+          
+          if (doc) {
+            // Combine OCR text and AI summary for comprehensive embedding
+            let textToEmbed = '';
+            if (ocrResult.extractedText) {
+              textToEmbed += 'OCR TEXT:\n' + ocrResult.extractedText + '\n\n';
+            }
+            if (aiSummary) {
+              const summaryText = typeof aiSummary === 'string' ? aiSummary : JSON.stringify(aiSummary);
+              textToEmbed += 'AI SUMMARY:\n' + summaryText;
+            }
+            
+            // Generate embeddings for RAG
+            await EmbeddingService.embedDocument(
+              documentId,
+              doc.dealId,
+              doc.name,
+              textToEmbed,
+              doc.type || 'general'
+            );
+            
+            console.log(`✅ Document ${doc.name} added to RAG system for instant search`);
+          }
+        } catch (error) {
+          console.error('Failed to embed document for RAG:', error);
+          // Don't fail the job if embedding fails
+        }
+      }
     }
 
     await this.updateJobProgress(job.id, 100, 'OCR processing and AI analysis completed successfully');
