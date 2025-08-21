@@ -929,7 +929,8 @@ const FolderTree: React.FC<{
                   {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
                   {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                   {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
-                  {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                  {((doc as any).aiSummaryStatus === 'processing' || (doc as any).aiSummaryStatus === 'analyzing') && <Brain className="w-3 h-3 text-blue-400 animate-pulse" />}
+                  {(doc as any).aiSummaryStatus === 'extracting' && <Loader2 className="w-3 h-3 text-yellow-400 animate-spin" />}
                   <AlertCircle className="w-3 h-3 text-amber-500" />
                   <EyeIcon className="w-3 h-3 text-gray-500" />
                   <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
@@ -1020,12 +1021,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         
         // Handle AI summary processing start
         if (data.type === 'ai_summary_start' && data.dealId === dealId) {
-          console.log('🔄 AI summary started, updating status...', data);
+          console.log('🧠 AI summary started, updating status...', data);
           queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
             if (!oldData || !Array.isArray(oldData)) return oldData;
             return oldData.map(doc => 
               doc.id === data.documentId 
-                ? { ...doc, aiSummaryStatus: 'processing' }
+                ? { ...doc, aiSummaryStatus: 'analyzing' }
                 : doc
             );
           });
@@ -1033,6 +1034,46 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             queryKey: [`/api/deals/${dealId}/documents`],
             exact: true 
           });
+        }
+        
+        // Handle OCR/text extraction start
+        if (data.type === 'ocr_start' && data.dealId === dealId) {
+          console.log('📄 OCR extraction started...', data);
+          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+            if (!oldData || !Array.isArray(oldData)) return oldData;
+            return oldData.map(doc => 
+              doc.id === data.documentId 
+                ? { ...doc, aiSummaryStatus: 'extracting' }
+                : doc
+            );
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/deals/${dealId}/documents`],
+            exact: true 
+          });
+        }
+        
+        // Handle job progress updates to show which documents are being processed
+        if (data.type === 'job_progress' && data.dealId === dealId) {
+          console.log('🔄 Job progress update:', data);
+          // If there's an active processing step, show visual feedback
+          if (data.currentStep && data.currentStep.includes('summary')) {
+            // Find recently uploaded documents and mark them as processing
+            queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+              if (!oldData || !Array.isArray(oldData)) return oldData;
+              return oldData.map((doc, index) => {
+                // Mark first few documents without AI summaries as processing
+                const shouldProcess = !doc.aiSummary && 
+                                    doc.ocrContent && 
+                                    doc.ocrContent.length > 0 && 
+                                    !doc.aiSummaryStatus &&
+                                    index < 3; // Process first 3 eligible documents
+                return shouldProcess 
+                  ? { ...doc, aiSummaryStatus: 'analyzing' }
+                  : doc;
+              });
+            });
+          }
         }
         
         // Handle any document status updates
@@ -2446,17 +2487,22 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                       )}
                       
                       {/* AI Summary Status */}
-                      {doc.aiSummary && (
+                      {doc.aiSummary && doc.aiSummaryStatus !== 'processing' && (
                         <div title="AI summary completed">
                           <Brain className="w-3 h-3 text-purple-400" />
                         </div>
                       )}
-                      {doc.aiSummaryStatus === 'processing' && (
-                        <div title="AI summary processing">
-                          <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />
+                      {(doc.aiSummaryStatus === 'processing' || doc.aiSummaryStatus === 'analyzing') && (
+                        <div title="AI summary processing - analyzing document">
+                          <Brain className="w-3 h-3 text-blue-400 animate-pulse" />
                         </div>
                       )}
-                      {!doc.aiSummary && doc.ocrContent && doc.ocrContent.length > 0 && (
+                      {doc.aiSummaryStatus === 'extracting' && (
+                        <div title="Extracting text from document">
+                          <Loader2 className="w-3 h-3 text-yellow-400 animate-spin" />
+                        </div>
+                      )}
+                      {!doc.aiSummary && !doc.aiSummaryStatus && doc.ocrContent && doc.ocrContent.length > 0 && (
                         <div title="AI summary pending">
                           <Brain className="w-3 h-3 text-gray-400" />
                         </div>
