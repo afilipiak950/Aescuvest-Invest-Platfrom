@@ -13,6 +13,7 @@ import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
+import { AescuvestAIAssistant } from '@/components/AescuvestAIAssistant';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -744,6 +745,9 @@ function DueDiligenceContent() {
         </div>
       ) : currentDeal ? (
         <>
+          {/* Aescuvest AI Assistant */}
+          <AescuvestAIAssistant dealId={parseInt(selectedDeal)} className="mb-6" />
+          
           {/* Company Information */}
           <Card className="bg-dark-light border-dark-lighter mb-6">
             <CardHeader>
