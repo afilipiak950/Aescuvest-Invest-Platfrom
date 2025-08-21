@@ -78,6 +78,13 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     enabled: isOpen && !!dealId,
     refetchInterval: 2000
   });
+  
+  // Monitor background jobs for AI summary progress
+  const { data: aiSummaryJobs } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    enabled: !!dealId,
+    refetchInterval: 1000 // More frequent polling for progress
+  });
 
   // Auto-refresh when document processing completes
   useEffect(() => {
@@ -2191,7 +2198,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                         <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
                           <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
                           <span className="text-sm text-blue-300 font-medium">
-                            AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
+                            AI Analyzing: {docsWithSummaries}/{totalDocs} analyzed ({completionPercentage}%)
                           </span>
                           {completionPercentage > 85 && (
                             <span className="text-xs text-yellow-300 ml-2">
@@ -2208,7 +2215,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                         <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
                           <Brain className="w-4 h-4 text-green-300" />
                           <span className="text-sm text-green-300 font-medium">
-                            AI Complete: {docsWithSummaries}/{totalDocs} (100%)
+                            AI Complete: {docsWithSummaries}/{totalDocs} analyzed (100%)
                           </span>
                         </div>
                         {/* Show Generate button if no docs have summaries (edge case for when auto-processing didn't work) */}
@@ -2240,7 +2247,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                       <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
                         <Brain className="w-4 h-4 text-green-300" />
                         <span className="text-sm text-green-300 font-medium">
-                          AI Summaries: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
+                          AI Summaries: {docsWithSummaries}/{totalDocs} analyzed ({completionPercentage}%)
                         </span>
                       </div>
                     );
