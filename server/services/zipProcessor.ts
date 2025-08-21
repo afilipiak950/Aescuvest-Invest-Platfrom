@@ -252,6 +252,9 @@ export class ZipProcessor {
             jobType: 'document_ocr',
             dealId: dealId,
             documentId: document.id,
+            status: 'pending',
+            progress: 0,
+            currentStep: 'Queued for OCR processing',
             jobData: {
               filePath: filePath, // Actual file path for OCR processing
               fileName: fileName,
