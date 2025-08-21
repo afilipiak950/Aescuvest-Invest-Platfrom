@@ -788,21 +788,28 @@ app.use((req, res, next) => {
             console.log(`📚 Found ${documents.length} total documents for deal ${dealId}`);
             
             // Get documents that need processing
-            const needsOCR = documents.filter(doc => 
-              doc.path && (doc.path.includes('.pdf') || doc.path.includes('.PDF')) &&
-              !doc.ocrText
+            // Note: getDocumentsByDealId doesn't return ocrText field, so we need to fetch it separately
+            const allExtractedDocs = documents.filter(doc => 
+              doc.path && doc.path.startsWith('extracted/')
             );
             
-            const needsAISummary = documents.filter(doc => 
-              !doc.aiSummary && doc.path
+            // For OCR: Only PDFs need OCR processing
+            const pdfDocs = allExtractedDocs.filter(doc => 
+              doc.path && (doc.path.toLowerCase().includes('.pdf'))
             );
             
-            console.log(`🔍 Documents needing OCR: ${needsOCR.length}`);
+            // For AI Summary: All documents need AI summaries
+            const needsAISummary = allExtractedDocs.filter(doc => 
+              !doc.aiSummary
+            );
+            
+            console.log(`📚 Found ${allExtractedDocs.length} extracted documents`);
+            console.log(`📄 PDFs for OCR processing: ${pdfDocs.length}`);
             console.log(`🤖 Documents needing AI Summary: ${needsAISummary.length}`);
             
-            // Process OCR first (for PDFs)
+            // Process OCR first (for PDFs only)
             let ocrCount = 0;
-            for (const doc of needsOCR) {
+            for (const doc of pdfDocs) {
               console.log(`🔤 Starting automatic OCR for document ${doc.id}: ${doc.name}`);
               try {
                 const response = await fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/mistral-ocr`, {
