@@ -394,8 +394,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(documents)
       .where(eq(documents.dealId, dealId))
-      .orderBy(documents.name)
-      .limit(500); // Reduce initial load size
+      .orderBy(documents.name); // Remove limit to get all documents
     
     const queryTime = Date.now() - startTime;
     console.log(`📄 DB: Optimized query completed in ${queryTime}ms, found ${result.length} documents`);
