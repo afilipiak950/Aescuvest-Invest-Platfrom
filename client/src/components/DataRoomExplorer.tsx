@@ -79,12 +79,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     refetchInterval: 2000
   });
   
-  // Monitor background jobs for AI summary progress
-  const { data: aiSummaryJobs } = useQuery({
-    queryKey: [`/api/background-jobs/${dealId}`],
-    enabled: !!dealId,
-    refetchInterval: 1000 // More frequent polling for progress
-  });
 
   // Auto-refresh when document processing completes
   useEffect(() => {
@@ -1003,109 +997,150 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(wsUrl);
-
-    socket.onmessage = (event) => {
+    
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    
+    const connect = () => {
       try {
-        const data = JSON.parse(event.data);
-        
-        // Handle AI summary completion
-        if (data.type === 'ai_summary_complete' && data.dealId === dealId) {
-          console.log('🔄 AI summary completed, updating cached document...', data);
-          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-            if (!oldData || !Array.isArray(oldData)) return oldData;
-            return oldData.map(doc => 
-              doc.id === data.documentId 
-                ? { ...doc, aiSummaryStatus: 'completed', ...data.updates }
-                : doc
-            );
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/deals/${dealId}/documents`],
-            exact: true 
-          });
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          console.log('Max WebSocket reconnection attempts reached');
+          return;
         }
         
-        // Handle AI summary processing start
-        if (data.type === 'ai_summary_start' && data.dealId === dealId) {
-          console.log('🧠 AI summary started, updating status...', data);
-          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-            if (!oldData || !Array.isArray(oldData)) return oldData;
-            return oldData.map(doc => 
-              doc.id === data.documentId 
-                ? { ...doc, aiSummaryStatus: 'analyzing' }
-                : doc
-            );
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/deals/${dealId}/documents`],
-            exact: true 
-          });
-        }
+        socket = new WebSocket(wsUrl);
         
-        // Handle OCR/text extraction start
-        if (data.type === 'ocr_start' && data.dealId === dealId) {
-          console.log('📄 OCR extraction started...', data);
-          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-            if (!oldData || !Array.isArray(oldData)) return oldData;
-            return oldData.map(doc => 
-              doc.id === data.documentId 
-                ? { ...doc, aiSummaryStatus: 'extracting' }
-                : doc
-            );
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/deals/${dealId}/documents`],
-            exact: true 
-          });
-        }
-        
-        // Handle job progress updates to show which documents are being processed
-        if (data.type === 'job_progress' && data.dealId === dealId) {
-          console.log('🔄 Job progress update:', data);
-          // If there's an active processing step, show visual feedback
-          if (data.currentStep && data.currentStep.includes('summary')) {
-            // Find recently uploaded documents and mark them as processing
-            queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-              if (!oldData || !Array.isArray(oldData)) return oldData;
-              return oldData.map((doc, index) => {
-                // Mark first few documents without AI summaries as processing
-                const shouldProcess = !doc.aiSummary && 
-                                    doc.ocrContent && 
-                                    doc.ocrContent.length > 0 && 
-                                    !doc.aiSummaryStatus &&
-                                    index < 3; // Process first 3 eligible documents
-                return shouldProcess 
-                  ? { ...doc, aiSummaryStatus: 'analyzing' }
-                  : doc;
+        socket.onopen = () => {
+          console.log('WebSocket connected');
+          reconnectAttempts = 0;
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Handle AI summary completion
+            if (data.type === 'ai_summary_complete' && data.dealId === dealId) {
+              console.log('🔄 AI summary completed, updating cached document...', data);
+              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+                if (!oldData || !Array.isArray(oldData)) return oldData;
+                return oldData.map(doc => 
+                  doc.id === data.documentId 
+                    ? { ...doc, aiSummaryStatus: 'completed', ...data.updates }
+                    : doc
+                );
               });
-            });
+              queryClient.invalidateQueries({ 
+                queryKey: [`/api/deals/${dealId}/documents`],
+                exact: true 
+              });
+            }
+            
+            // Handle AI summary processing start
+            if (data.type === 'ai_summary_start' && data.dealId === dealId) {
+              console.log('🧠 AI summary started, updating status...', data);
+              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+                if (!oldData || !Array.isArray(oldData)) return oldData;
+                return oldData.map(doc => 
+                  doc.id === data.documentId 
+                    ? { ...doc, aiSummaryStatus: 'analyzing' }
+                    : doc
+                );
+              });
+              queryClient.invalidateQueries({ 
+                queryKey: [`/api/deals/${dealId}/documents`],
+                exact: true 
+              });
+            }
+            
+            // Handle OCR/text extraction start
+            if (data.type === 'ocr_start' && data.dealId === dealId) {
+              console.log('📄 OCR extraction started...', data);
+              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+                if (!oldData || !Array.isArray(oldData)) return oldData;
+                return oldData.map(doc => 
+                  doc.id === data.documentId 
+                    ? { ...doc, aiSummaryStatus: 'extracting' }
+                    : doc
+                );
+              });
+              queryClient.invalidateQueries({ 
+                queryKey: [`/api/deals/${dealId}/documents`],
+                exact: true 
+              });
+            }
+            
+            // Handle job progress updates to show which documents are being processed
+            if (data.type === 'job_progress' && data.dealId === dealId) {
+              console.log('🔄 Job progress update:', data);
+              // If there's an active processing step, show visual feedback
+              if (data.currentStep && data.currentStep.includes('summary')) {
+                // Find recently uploaded documents and mark them as processing
+                queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+                  if (!oldData || !Array.isArray(oldData)) return oldData;
+                  return oldData.map((doc, index) => {
+                    // Mark first few documents without AI summaries as processing
+                    const shouldProcess = !doc.aiSummary && 
+                                        doc.ocrContent && 
+                                        doc.ocrContent.length > 0 && 
+                                        !doc.aiSummaryStatus &&
+                                        index < 3; // Process first 3 eligible documents
+                    return shouldProcess 
+                      ? { ...doc, aiSummaryStatus: 'analyzing' }
+                      : doc;
+                  });
+                });
+              }
+            }
+            
+            // Handle any document status updates
+            if (data.type === 'document_status_update' && data.dealId === dealId) {
+              console.log('🔄 Document status updated...', data);
+              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+                if (!oldData || !Array.isArray(oldData)) return oldData;
+                return oldData.map(doc => 
+                  doc.id === data.documentId 
+                    ? { ...doc, ...data.updates }
+                    : doc
+                );
+              });
+              queryClient.invalidateQueries({ 
+                queryKey: [`/api/deals/${dealId}/documents`],
+                exact: true 
+              });
+            }
+          } catch (error) {
+            // Ignore non-JSON messages
           }
-        }
+            };
         
-        // Handle any document status updates
-        if (data.type === 'document_status_update' && data.dealId === dealId) {
-          console.log('🔄 Document status updated...', data);
-          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-            if (!oldData || !Array.isArray(oldData)) return oldData;
-            return oldData.map(doc => 
-              doc.id === data.documentId 
-                ? { ...doc, ...data.updates }
-                : doc
-            );
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/deals/${dealId}/documents`],
-            exact: true 
-          });
-        }
+        socket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+        };
+        
+        socket.onclose = () => {
+          console.log(`WebSocket closed, attempting reconnect in ${Math.min(5 * (reconnectAttempts + 1), 30)}s...`);
+          reconnectAttempts++;
+          const delay = Math.min(5000 * (reconnectAttempts), 30000);
+          reconnectTimeout = setTimeout(connect, delay);
+        };
       } catch (error) {
-        // Ignore non-JSON messages
+        console.error('Failed to create WebSocket:', error);
+        reconnectAttempts++;
+        const delay = Math.min(5000 * (reconnectAttempts), 30000);
+        reconnectTimeout = setTimeout(connect, delay);
       }
     };
+    
+    connect();
 
     return () => {
-      socket.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
     };
   }, [dealId, queryClient, refetch]);
 
@@ -2181,24 +2216,34 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   
                   const totalDocs = analyzedDocs.length;
                   const docsWithSummaries = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
-                  const processingDocs = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'processing').length;
+                  const processingDocs = analyzedDocs.filter((doc: any) => 
+                    doc.aiSummaryStatus === 'processing' || 
+                    doc.aiSummaryStatus === 'analyzing' || 
+                    doc.aiSummaryStatus === 'extracting'
+                  ).length;
                   const docsWithOCR = analyzedDocs.length;
                   const docsNeedingSummaries = analyzedDocs.filter((doc: any) => 
                     (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
                   ).length;
                   
-                  // Calculate completion percentage and remaining time
+                  // Calculate completion percentage and check for active processing
                   const completionPercentage = totalDocs > 0 ? Math.round((docsWithSummaries / totalDocs) * 100) : 0;
                   const pendingDocs = totalDocs - docsWithSummaries - processingDocs;
                   const estimatedMinutes = Math.ceil(pendingDocs / 3); // 3 docs per 20-second batch
                   
-                  if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0)) {
+                  // Check for active background jobs
+                  const hasActiveJobs = backgroundJobs?.jobs?.some((job: any) => 
+                    job.status === 'processing' && 
+                    (job.jobType === 'ai_summary_generation' || job.jobType === 'document_ocr')
+                  ) || false;
+                  
+                  if (processingDocs > 0 || hasActiveJobs || (docsWithSummaries > 0 && pendingDocs > 0 && docsWithSummaries < totalDocs)) {
                     return (
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
                           <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
                           <span className="text-sm text-blue-300 font-medium">
-                            AI Analyzing: {docsWithSummaries}/{totalDocs} analyzed ({completionPercentage}%)
+                            AI Analyzing: {docsWithSummaries + processingDocs}/{totalDocs} documents ({completionPercentage}%)
                           </span>
                           {completionPercentage > 85 && (
                             <span className="text-xs text-yellow-300 ml-2">
@@ -2209,7 +2254,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
                       </div>
                     );
-                  } else if (docsWithSummaries === totalDocs) {
+                  } else if (docsWithSummaries === totalDocs && totalDocs > 0) {
                     return (
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
