@@ -14,7 +14,6 @@ export const pool = new Pool({
   // Performance optimizations
   max: 20, // Maximum number of connections in the pool
   min: 5, // Minimum number of connections in the pool
-  acquireTimeoutMillis: 5000, // Wait up to 5 seconds for connection
   idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
   connectionTimeoutMillis: 5000, // Connection timeout
   // Enable connection pooling optimizations
