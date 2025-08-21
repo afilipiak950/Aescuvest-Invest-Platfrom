@@ -774,8 +774,47 @@ app.use((req, res, next) => {
 
       // Process ZIP file in background
       zipProcessor.processZipFile(zipFile.path, dealId, folderName, jobId)
-        .then(result => {
+        .then(async result => {
           console.log(`✅ ZIP processing completed for job ${jobId}`);
+          console.log(`📊 Processing ${result.totalFiles} files for OCR and AI analysis`);
+          
+          // Trigger automatic OCR and AI summary for all extracted documents
+          try {
+            const documents = await storage.getDocumentsByDealId(dealId);
+            const extractedDocs = documents.filter(doc => 
+              doc.path.startsWith('extracted/') && 
+              (!doc.ocrText || !doc.aiSummary)
+            );
+            
+            console.log(`🔍 Found ${extractedDocs.length} documents needing OCR/AI processing`);
+            
+            for (const doc of extractedDocs) {
+              // Trigger OCR if missing
+              if (!doc.ocrText) {
+                console.log(`🔤 Starting automatic OCR for document ${doc.id}: ${doc.name}`);
+                fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/mistral-ocr`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' }
+                }).catch(err => console.error(`OCR failed for ${doc.id}:`, err));
+              }
+              
+              // Trigger AI summary if missing (after a delay to allow OCR to complete)
+              if (!doc.aiSummary) {
+                setTimeout(() => {
+                  console.log(`🤖 Starting automatic AI summary for document ${doc.id}: ${doc.name}`);
+                  fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/ai-summary`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                  }).catch(err => console.error(`AI summary failed for ${doc.id}:`, err));
+                }, 5000); // Wait 5 seconds for OCR to complete
+              }
+            }
+            
+            console.log(`✨ Automatic processing initiated for ${extractedDocs.length} documents`);
+          } catch (autoProcessError) {
+            console.error('❌ Error triggering automatic processing:', autoProcessError);
+          }
+          
           backgroundJobManager.completeJob(jobId, result);
         })
         .catch(error => {
