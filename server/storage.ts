@@ -366,7 +366,7 @@ export class DatabaseStorage implements IStorage {
     const startTime = Date.now();
     console.log(`📄 DB: Starting optimized documents query for deal ${dealId}...`);
     
-    // Optimized query: include aiSummary for functionality, exclude only heaviest fields
+    // Optimized query: include aiSummary and OCR content for functionality, exclude only heaviest fields
     const result = await db
       .select({
         id: documents.id,
@@ -379,6 +379,7 @@ export class DatabaseStorage implements IStorage {
         uploadedAt: documents.uploadedAt,
         folderPath: documents.folderPath,
         isFolder: documents.isFolder,
+        ocrContent: documents.ocrText, // Map ocr_text to ocrContent for frontend
         parentId: documents.parentId,
         category: documents.category,
         documentType: documents.documentType,
