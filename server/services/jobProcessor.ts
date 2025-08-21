@@ -721,6 +721,18 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
         })
         .where(eq(documents.id, documentId));
 
+      // CRITICAL: Embed document in RAG system after AI summary generation
+      try {
+        console.log(`🎯 EMBEDDING document ${documentId} in RAG system...`);
+        const { EmbeddingService } = await import('./embeddingService');
+        const embeddingService = new EmbeddingService();
+        await embeddingService.embedDocument(documentId);
+        console.log(`✅ Document ${documentId} successfully embedded in RAG system`);
+      } catch (embedError) {
+        console.error(`⚠️ Failed to embed document ${documentId}, will retry later:`, embedError);
+        // Don't fail the job if embedding fails - it can be retried
+      }
+
       await this.updateJobProgress(job.id, 100, 'AI summary generation completed');
       await this.completeJob(job.id, { 
         success: true, 
