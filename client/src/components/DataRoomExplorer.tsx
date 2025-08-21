@@ -2231,13 +2231,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   const pendingDocs = totalDocs - docsWithSummaries - processingDocs;
                   const estimatedMinutes = Math.ceil(pendingDocs / 3); // 3 docs per 20-second batch
                   
-                  // Check for active background jobs
-                  const hasActiveJobs = backgroundJobs?.jobs?.some((job: any) => 
-                    job.status === 'processing' && 
-                    (job.jobType === 'ai_summary_generation' || job.jobType === 'document_ocr')
-                  ) || false;
-                  
-                  if (processingDocs > 0 || hasActiveJobs || (docsWithSummaries > 0 && pendingDocs > 0 && docsWithSummaries < totalDocs)) {
+                  if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0 && docsWithSummaries < totalDocs)) {
                     return (
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
