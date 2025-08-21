@@ -8483,6 +8483,37 @@ export async function registerAllRoutes(app: Express) {
   console.log('✅ Chunked upload routes registered - supports up to 5GB files');
 
   // AI Assistant endpoints
+  
+  // Preload context endpoint for faster queries
+  app.post('/api/deals/:dealId/ai-assistant/preload', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`🚀 Pre-loading AI Assistant context for deal ${dealId}...`);
+      
+      // Import the AI Assistant service
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      
+      // Create assistant instance and preload context
+      const assistant = new AescuvestAIAssistant(dealId);
+      await assistant.loadCompleteContext();
+      
+      const stats = assistant.getContextStats();
+      
+      res.json({
+        success: true,
+        message: 'Context pre-loaded successfully',
+        contextStats: stats
+      });
+    } catch (error) {
+      console.error('❌ AI Assistant preload error:', error);
+      res.status(500).json({ 
+        error: 'Failed to preload AI context',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
   app.post('/api/deals/:dealId/ai-assistant/query', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
