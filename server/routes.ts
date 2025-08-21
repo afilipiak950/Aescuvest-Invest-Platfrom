@@ -3437,9 +3437,81 @@ ${document.ocrText}`
         // Get file extension
         const fileExtension = doc.name.split('.').pop()?.toLowerCase() || 'pdf';
         
+        // Construct the file path if it's missing
+        let filePath = doc.filePath;
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        
+        if (!filePath) {
+          // Try to find the file in the extracted directory
+          console.log(`🔍 Searching for file: ${doc.name} for document ${doc.id}`);
+          
+          // Get all extracted directories for this deal
+          const extractedBasePath = 'uploads/extracted';
+          let extractedDirs = [];
+          try {
+            const dirs = await fs.readdir(extractedBasePath);
+            extractedDirs = dirs.filter(dir => dir.startsWith(`deal-${doc.dealId}-`));
+          } catch (error) {
+            console.log(`📁 No extracted directories found for deal ${doc.dealId}`);
+          }
+          
+          // Search for the file in extracted directories
+          let foundPath = null;
+          for (const dir of extractedDirs) {
+            const searchPath = path.join(extractedBasePath, dir);
+            
+            // Use find command to search for the file
+            const { exec } = await import('child_process');
+            const { promisify } = await import('util');
+            const execAsync = promisify(exec);
+            
+            try {
+              // Search for the exact filename
+              const { stdout } = await execAsync(`find "${searchPath}" -type f -name "${doc.name}" | head -1`);
+              if (stdout.trim()) {
+                foundPath = stdout.trim();
+                console.log(`✅ Found file at: ${foundPath}`);
+                break;
+              }
+            } catch (error) {
+              console.log(`⚠️ Error searching in ${searchPath}:`, error.message);
+            }
+          }
+          
+          if (foundPath) {
+            filePath = foundPath;
+          } else {
+            console.error(`❌ File not found anywhere for document ${doc.id}: ${doc.name}`);
+            await storage.updateDocument(doc.id, {
+              ocrStatus: 'failed',
+              status: 'Failed Analysis',
+              processingStatus: 'failed',
+              error: 'Source file not found in any location',
+              updatedAt: new Date()
+            });
+            return;
+          }
+        }
+        
+        // Verify the file exists
+        try {
+          await fs.access(filePath);
+        } catch (error) {
+          console.error(`❌ File not accessible at ${filePath}, skipping OCR for document ${doc.id}`);
+          await storage.updateDocument(doc.id, {
+            ocrStatus: 'failed',
+            status: 'Failed Analysis',
+            processingStatus: 'failed',
+            error: 'File not accessible',
+            updatedAt: new Date()
+          });
+          return;
+        }
+        
         // Import OCR service and process
         const { mistralOCRService } = await import('./services/mistralOCR');
-        const ocrResult = await mistralOCRService.extractText(doc.filePath, fileExtension);
+        const ocrResult = await mistralOCRService.extractText(filePath, fileExtension);
         
         if (ocrResult.success && ocrResult.text) {
           // Update document with OCR text
