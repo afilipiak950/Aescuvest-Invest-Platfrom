@@ -37,9 +37,24 @@ export class MistralOCRService {
       console.log(`📋 Detected file extension: "${fileExtension}"`);
       let extractedText = '';
       
-      // Add timeout wrapper for OCR operations
+      // Add progressive timeout wrapper for OCR operations based on file type
+      let timeoutDuration = 60000; // Default 60 seconds
+      
+      // Adjust timeout based on file type complexity
+      if (fileExtension === '.pdf') {
+        timeoutDuration = 180000; // 3 minutes for PDFs (multiple pages + image conversion)
+      } else if (['.pptx', '.ppt'].includes(fileExtension)) {
+        timeoutDuration = 120000; // 2 minutes for PowerPoint (multiple slides)
+      } else if (['.docx', '.doc', '.xlsx', '.xls'].includes(fileExtension)) {
+        timeoutDuration = 90000; // 1.5 minutes for Office documents
+      } else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {
+        timeoutDuration = 60000; // 1 minute for images
+      }
+      
+      console.log(`⏱️ Setting OCR timeout to ${timeoutDuration/1000} seconds for ${fileExtension} file`);
+      
       const timeoutPromise = new Promise<string>((_, reject) => {
-        setTimeout(() => reject(new Error('OCR timeout after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error(`OCR timeout after ${timeoutDuration/1000} seconds for ${fileExtension} file. This may indicate the document is too complex or the file is corrupted.`)), timeoutDuration);
       });
       
       let ocrPromise: Promise<string>;
@@ -97,8 +112,46 @@ export class MistralOCRService {
         ocrPromise = Promise.resolve(`File type ${fileExtension} is not supported for text extraction.`);
       }
       
-      // Race between OCR and timeout
-      extractedText = await Promise.race([ocrPromise, timeoutPromise]);
+      // Race between OCR and timeout with retry logic
+      let attempts = 0;
+      const maxRetries = 2;
+      
+      while (attempts < maxRetries) {
+        try {
+          extractedText = await Promise.race([ocrPromise, timeoutPromise]);
+          break; // Success, exit retry loop
+        } catch (error) {
+          attempts++;
+          if (attempts >= maxRetries) {
+            throw error; // Re-throw on final attempt
+          }
+          
+          // Only retry on timeout or temporary errors
+          if (error instanceof Error && (
+            error.message.includes('timeout') || 
+            error.message.includes('ECONNRESET') || 
+            error.message.includes('ETIMEDOUT')
+          )) {
+            console.log(`⚠️ OCR attempt ${attempts} failed (${error.message}), retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+            
+            // Recreate promises for retry
+            if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {
+              ocrPromise = this.extractTextFromImage(filePath);
+            } else if (fileExtension === '.pdf') {
+              ocrPromise = this.extractTextFromPDF(filePath);
+            } else if (['.xlsx', '.xls', '.csv'].includes(fileExtension)) {
+              ocrPromise = this.extractTextFromSpreadsheet(filePath);
+            } else if (['.docx', '.doc'].includes(fileExtension)) {
+              ocrPromise = this.extractTextFromDocument(filePath);
+            } else if (['.pptx', '.ppt'].includes(fileExtension)) {
+              ocrPromise = this.extractTextFromPowerPoint(filePath);
+            }
+          } else {
+            throw error; // Don't retry non-timeout errors
+          }
+        }
+      }
       
       // Clean text to remove null bytes and invalid UTF-8 characters
       const cleanText = extractedText
@@ -127,8 +180,20 @@ export class MistralOCRService {
       console.error(`❌ OCR extraction failed for ${filePath}:`, error);
       const processingTime = `${((Date.now() - startTime) / 1000).toFixed(2)}s`;
       
+      // Provide specific error messages for timeout vs other errors
+      let errorMessage = '';
+      if (error instanceof Error && error.message.includes('timeout')) {
+        errorMessage = `Unable to extract text due to OCR timeout. The document may be too complex, too large, or contain non-standard formatting. Try converting to a simpler format or reducing file size.`;
+      } else if (error instanceof Error && error.message.includes('not found')) {
+        errorMessage = `File not found during OCR processing. The file may have been moved or deleted.`;
+      } else if (error instanceof Error && error.message.includes('API key')) {
+        errorMessage = `OCR service configuration error. Please check API key settings.`;
+      } else {
+        errorMessage = `Unable to extract text from document: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      }
+      
       return {
-        extractedText: `Error extracting text from ${path.basename(filePath)}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        extractedText: errorMessage,
         confidence: 0.0,
         processingTime
       };
@@ -144,7 +209,8 @@ export class MistralOCRService {
       
       const base64Image = imageBuffer.toString('base64');
       
-      const response = await mistral.chat.complete({
+      // Add timeout wrapper for Mistral API call
+      const mistralPromise = mistral.chat.complete({
         model: 'pixtral-12b-2409',
         messages: [
           {
@@ -161,9 +227,15 @@ export class MistralOCRService {
             ]
           }
         ],
-        maxTokens: 4000
+        maxTokens: 4000,
+        // Note: Mistral client doesn't support timeout parameter directly
       });
-
+      
+      const mistralTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Mistral API timeout after 45 seconds')), 45000);
+      });
+      
+      const response = await Promise.race([mistralPromise, mistralTimeout]);
       const content = response.choices[0]?.message?.content;
       return typeof content === 'string' ? content : '';
     } catch (error) {
@@ -214,13 +286,33 @@ export class MistralOCRService {
         console.log(`📑 Generated ${imageFiles.length} page images for OCR processing`);
         let fullText = '';
         
-        for (let i = 0; i < imageFiles.length; i++) {
+        // Limit number of pages to process to prevent timeouts
+        const maxPages = Math.min(imageFiles.length, 20); // Process max 20 pages
+        if (imageFiles.length > maxPages) {
+          console.log(`⚠️ Large PDF detected (${imageFiles.length} pages), processing first ${maxPages} pages to prevent timeout`);
+        }
+        
+        for (let i = 0; i < maxPages; i++) {
           const imagePath = imageFiles[i];
-          console.log(`🔍 Processing PDF page ${i + 1}/${imageFiles.length}`);
+          console.log(`🔍 Processing PDF page ${i + 1}/${maxPages}`);
           
-          // Process image with Mistral OCR
-          const pageText = await this.extractTextFromImage(imagePath);
-          fullText += `--- Page ${i + 1} ---\n${pageText}\n\n`;
+          try {
+            // Process image with Mistral OCR with individual page timeout
+            const pagePromise = this.extractTextFromImage(imagePath);
+            const pageTimeoutPromise = new Promise<string>((_, reject) => {
+              setTimeout(() => reject(new Error(`Page ${i + 1} OCR timeout`)), 30000); // 30s per page
+            });
+            
+            const pageText = await Promise.race([pagePromise, pageTimeoutPromise]);
+            fullText += `--- Page ${i + 1} ---\n${pageText}\n\n`;
+          } catch (pageError) {
+            console.warn(`⚠️ Failed to process page ${i + 1}, skipping:`, pageError);
+            fullText += `--- Page ${i + 1} ---\n[Page processing failed: ${pageError instanceof Error ? pageError.message : 'Unknown error'}]\n\n`;
+          }
+        }
+        
+        if (imageFiles.length > maxPages) {
+          fullText += `\n--- Note: PDF contained ${imageFiles.length} pages, but only first ${maxPages} pages were processed to prevent timeout ---\n`;
         }
         
         console.log(`✅ OCR completed for ${imageFiles.length} pages, total text length: ${fullText.length}`);
