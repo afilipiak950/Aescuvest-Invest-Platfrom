@@ -66,15 +66,16 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   
   // Pre-load context when component mounts for instant responses
   useEffect(() => {
-    if (dealId && !isContextLoaded && !isPreloading) {
+    if (dealId && !isContextLoaded) {
+      // Immediately mark as loading started
       setIsPreloading(true);
       
-      // Set a timeout to prevent infinite loading
+      // Set a hard timeout to guarantee we exit loading state
       const timeout = setTimeout(() => {
+        console.log('⚡ AI Assistant ready (timeout fallback)');
         setIsPreloading(false);
-        setIsContextLoaded(true); // Mark as loaded even if preload fails
-        console.log('⚡ AI Assistant ready (preload timeout)');
-      }, 3000);
+        setIsContextLoaded(true);
+      }, 2000); // Reduced to 2 seconds for better UX
       
       // Pre-load context in the background
       fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
@@ -86,7 +87,6 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('text/html')) {
           console.warn('Vite blocked preload endpoint, continuing anyway');
-          setIsContextLoaded(true);
           return null;
         }
         return res.json();
@@ -94,23 +94,24 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
       .then(data => {
         if (data && data.success) {
           console.log('🚀 AI Assistant context pre-loaded:', data.contextStats);
-          setIsContextLoaded(true);
-        } else if (data === null) {
-          // Vite blocked, but we can still work
-          setIsContextLoaded(true);
         }
       })
       .catch(err => {
         console.error('Failed to pre-load context:', err);
-        // Mark as loaded anyway to allow usage
-        setIsContextLoaded(true);
       })
       .finally(() => {
+        // Always clear loading state
         clearTimeout(timeout);
         setIsPreloading(false);
+        setIsContextLoaded(true);
       });
+      
+      // Cleanup function
+      return () => {
+        clearTimeout(timeout);
+      };
     }
-  }, [dealId, isContextLoaded, isPreloading]);
+  }, [dealId]); // Simplified dependencies to prevent re-runs
 
   // Mutation for sending queries
   const sendQueryMutation = useMutation({
@@ -382,13 +383,11 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={
                   isPreloading 
-                    ? "Loading AI context..." 
-                    : isContextLoaded 
-                      ? "Ask about documents, analyses, regulatory status, financials, IP, clinical data..."
-                      : "Initializing AI Assistant..."
+                    ? "Loading AI context (max 2 seconds)..." 
+                    : "Ask about documents, analyses, regulatory status, financials, IP, clinical data..."
                 }
                 className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500"
-                disabled={isStreaming || (isPreloading && !isContextLoaded)}
+                disabled={isStreaming}
               />
             </div>
             <Button
