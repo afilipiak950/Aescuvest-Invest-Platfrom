@@ -243,21 +243,30 @@ app.use((req, res, next) => {
     // Override res.send to force JSON responses
     res.send = function(data: any) {
       console.log(`🔧 Anti-Vite send override: ${req.method} ${req.originalUrl}`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      // Only set headers if they haven't been sent yet
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
       return originalSend.call(this, data);
     };
     
     // Override res.json to ensure proper JSON handling
     res.json = function(data: any) {
       console.log(`📤 JSON response: ${req.method} ${req.originalUrl}`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      // Only set headers if they haven't been sent yet
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
       return originalJson.call(this, data);
     };
     
     // Override res.end to ensure JSON content-type
     res.end = function(data?: any, encoding?: any) {
       console.log(`🔧 Anti-Vite end override: ${req.method} ${req.originalUrl}`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      // Only set headers if they haven't been sent yet
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
       return originalEnd.call(this, data, encoding);
     };
     
