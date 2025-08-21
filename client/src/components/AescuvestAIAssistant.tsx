@@ -69,22 +69,44 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     if (dealId && !isContextLoaded && !isPreloading) {
       setIsPreloading(true);
       
+      // Set a timeout to prevent infinite loading
+      const timeout = setTimeout(() => {
+        setIsPreloading(false);
+        setIsContextLoaded(true); // Mark as loaded even if preload fails
+        console.log('⚡ AI Assistant ready (preload timeout)');
+      }, 3000);
+      
       // Pre-load context in the background
       fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
-      .then(res => res.json())
+      .then(res => {
+        // Check if response is HTML (Vite blocking)
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          console.warn('Vite blocked preload endpoint, continuing anyway');
+          setIsContextLoaded(true);
+          return null;
+        }
+        return res.json();
+      })
       .then(data => {
-        if (data.success) {
+        if (data && data.success) {
           console.log('🚀 AI Assistant context pre-loaded:', data.contextStats);
+          setIsContextLoaded(true);
+        } else if (data === null) {
+          // Vite blocked, but we can still work
           setIsContextLoaded(true);
         }
       })
       .catch(err => {
         console.error('Failed to pre-load context:', err);
+        // Mark as loaded anyway to allow usage
+        setIsContextLoaded(true);
       })
       .finally(() => {
+        clearTimeout(timeout);
         setIsPreloading(false);
       });
     }
@@ -358,9 +380,15 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={isPreloading ? "Loading AI context..." : "Ask about documents, analyses, regulatory status, financials, IP, clinical data..."}
+                placeholder={
+                  isPreloading 
+                    ? "Loading AI context..." 
+                    : isContextLoaded 
+                      ? "Ask about documents, analyses, regulatory status, financials, IP, clinical data..."
+                      : "Initializing AI Assistant..."
+                }
                 className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500"
-                disabled={isStreaming || isPreloading}
+                disabled={isStreaming || (isPreloading && !isContextLoaded)}
               />
             </div>
             <Button
