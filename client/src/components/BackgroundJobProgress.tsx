@@ -28,8 +28,10 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
 
   // Mutation to cancel a job
   const cancelJobMutation = useMutation({
-    mutationFn: async (jobId: number) => {
-      return apiRequest(`/api/background-jobs/${jobId}/cancel`, {
+    mutationFn: async (jobId: string | number) => {
+      // Use the correct endpoint based on job ID format
+      const endpoint = typeof jobId === 'string' ? 'stop' : 'cancel';
+      return apiRequest(`/api/background-jobs/${jobId}/${endpoint}`, {
         method: 'POST',
       });
     },
