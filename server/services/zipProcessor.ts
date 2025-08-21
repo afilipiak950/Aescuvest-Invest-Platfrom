@@ -56,8 +56,13 @@ export class ZipProcessor {
       const util = await import('util');
       const openZip = util.promisify(yauzl.open);
       
-      // Open the ZIP file
-      const zipFile = await openZip(tempFilePath);
+      // Open the ZIP file with lazyEntries option
+      const zipFile = await new Promise<any>((resolve, reject) => {
+        yauzl.open(tempFilePath, { lazyEntries: true }, (err, zipFile) => {
+          if (err) reject(err);
+          else resolve(zipFile);
+        });
+      });
       const documents: any[] = [];
       
       return new Promise((resolve, reject) => {
