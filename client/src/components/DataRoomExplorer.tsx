@@ -2231,117 +2231,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             </div>
           
           <div className="flex items-center space-x-2">
+            {/* AI Progress Indicator - Always Visible */}
+            {documents && Array.isArray(documents) && documents.length > 0 && (
+              <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
+                <Brain className="w-4 h-4 text-blue-300" />
+                <span className="text-sm text-blue-300 font-medium">
+                  AI Complete: {documents.filter((doc: any) => doc.aiSummaryStatus === 'completed').length}/{documents.length} analyzed
+                </span>
+              </div>
+            )}
+            
             {!isSelectionMode ? (
               <>
-                {/* Smart AI Summary Status Indicator */}
-                {documents && Array.isArray(documents) && (() => {
-                  // Use total document count for progress display
-                  const totalDocs = documents.length;
-                  const docsWithSummaries = documents.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
-                  const processingDocs = documents.filter((doc: any) => 
-                    doc.aiSummaryStatus === 'processing' || 
-                    doc.aiSummaryStatus === 'analyzing' || 
-                    doc.aiSummaryStatus === 'extracting'
-                  ).length;
-                  
-                  // Only count documents that have been analyzed and can have AI summaries
-                  const analyzedDocs = documents.filter((doc: any) => 
-                    doc.status === 'Analyzed'
-                  );
-                  const docsWithOCR = analyzedDocs.length;
-                  const docsNeedingSummaries = analyzedDocs.filter((doc: any) => 
-                    (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
-                  ).length;
-                  
-                  // Calculate completion percentage and check for active processing
-                  const completionPercentage = totalDocs > 0 ? Math.round((docsWithSummaries / totalDocs) * 100) : 0;
-                  const pendingDocs = totalDocs - docsWithSummaries - processingDocs;
-                  const estimatedMinutes = Math.ceil(pendingDocs / 3); // 3 docs per 20-second batch
-                  
-                  if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0 && docsWithSummaries < totalDocs)) {
-                    return (
-                      <div className="flex items-center space-x-2">
-                        <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
-                          <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
-                          <span className="text-sm text-blue-300 font-medium">
-                            AI Analyzing: {docsWithSummaries + processingDocs}/{totalDocs} analyzed
-                          </span>
-                          {completionPercentage > 85 && (
-                            <span className="text-xs text-yellow-300 ml-2">
-                              (Auto-timeout: 5min)
-                            </span>
-                          )}
-                        </div>
-
-                      </div>
-                    );
-                  } else if (docsWithSummaries === analyzedDocs.length && analyzedDocs.length > 0) {
-                    return (
-                      <div className="flex items-center space-x-2">
-                        <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
-                          <Brain className="w-4 h-4 text-green-300" />
-                          <span className="text-sm text-green-300 font-medium">
-                            AI Complete: {docsWithSummaries}/{totalDocs} analyzed
-                          </span>
-                        </div>
-                        {/* Show Generate button if no docs have summaries (edge case for when auto-processing didn't work) */}
-                        {totalDocs > 0 && docsWithSummaries === 0 && (
-                          <Button
-                            onClick={() => processAISummariesMutation.mutate()}
-                            size="sm"
-                            variant="outline"
-                            disabled={processAISummariesMutation.isPending || processingCooldown}
-                            className="border-blue-600 text-blue-300 hover:bg-blue-700"
-                          >
-                            {processAISummariesMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                                <Brain className="w-4 h-4 mr-1" />
-                                Generate AI Summaries ({totalDocs})
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  } else if (docsWithSummaries > 0) {
-                    return (
-                      <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
-                        <Brain className="w-4 h-4 text-green-300" />
-                        <span className="text-sm text-green-300 font-medium">
-                          AI Summaries: {docsWithSummaries}/{totalDocs} analyzed
-                        </span>
-                      </div>
-                    );
-                  } else if (docsNeedingSummaries > 0) {
-                    return (
-                      <Button
-                        onClick={() => processAISummariesMutation.mutate()}
-                        size="sm"
-                        variant="outline"
-                        disabled={processAISummariesMutation.isPending || processingCooldown}
-                        className="border-blue-600 text-blue-300 hover:bg-blue-700"
-                      >
-                        {processAISummariesMutation.isPending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="w-4 h-4 mr-1" />
-                            Generate AI Summaries ({docsNeedingSummaries})
-                          </>
-                        )}
-                      </Button>
-                    );
-                  }
-                  return null;
-                })()}
 
                 {/* AI Agent Assignment Button */}
                 {documents && Array.isArray(documents) && documents.length > 0 && (
