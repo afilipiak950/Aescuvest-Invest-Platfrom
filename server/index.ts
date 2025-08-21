@@ -778,41 +778,81 @@ app.use((req, res, next) => {
           console.log(`✅ ZIP processing completed for job ${jobId}`);
           console.log(`📊 Processing ${result.totalFiles} files for OCR and AI analysis`);
           
+          // Wait a bit for database to settle
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
           // Trigger automatic OCR and AI summary for all extracted documents
           try {
+            console.log(`🔄 Fetching documents for automatic processing...`);
             const documents = await storage.getDocumentsByDealId(dealId);
-            const extractedDocs = documents.filter(doc => 
-              doc.path.startsWith('extracted/') && 
-              (!doc.ocrText || !doc.aiSummary)
+            console.log(`📚 Found ${documents.length} total documents for deal ${dealId}`);
+            
+            // Get documents that need processing
+            const needsOCR = documents.filter(doc => 
+              doc.path && (doc.path.includes('.pdf') || doc.path.includes('.PDF')) &&
+              !doc.ocrText
             );
             
-            console.log(`🔍 Found ${extractedDocs.length} documents needing OCR/AI processing`);
+            const needsAISummary = documents.filter(doc => 
+              !doc.aiSummary && doc.path
+            );
             
-            for (const doc of extractedDocs) {
-              // Trigger OCR if missing
-              if (!doc.ocrText) {
-                console.log(`🔤 Starting automatic OCR for document ${doc.id}: ${doc.name}`);
-                fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/mistral-ocr`, {
+            console.log(`🔍 Documents needing OCR: ${needsOCR.length}`);
+            console.log(`🤖 Documents needing AI Summary: ${needsAISummary.length}`);
+            
+            // Process OCR first (for PDFs)
+            let ocrCount = 0;
+            for (const doc of needsOCR) {
+              console.log(`🔤 Starting automatic OCR for document ${doc.id}: ${doc.name}`);
+              try {
+                const response = await fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/mistral-ocr`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' }
-                }).catch(err => console.error(`OCR failed for ${doc.id}:`, err));
-              }
-              
-              // Trigger AI summary if missing (after a delay to allow OCR to complete)
-              if (!doc.aiSummary) {
-                setTimeout(() => {
-                  console.log(`🤖 Starting automatic AI summary for document ${doc.id}: ${doc.name}`);
-                  fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/ai-summary`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                  }).catch(err => console.error(`AI summary failed for ${doc.id}:`, err));
-                }, 5000); // Wait 5 seconds for OCR to complete
+                });
+                if (response.ok) {
+                  ocrCount++;
+                  console.log(`✅ OCR triggered for ${doc.name}`);
+                } else {
+                  console.error(`❌ OCR failed for ${doc.name}: ${response.status}`);
+                }
+                // Small delay between OCR requests
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } catch (err) {
+                console.error(`❌ OCR error for ${doc.id}:`, err);
               }
             }
             
-            console.log(`✨ Automatic processing initiated for ${extractedDocs.length} documents`);
+            // Wait for OCR to complete before AI summaries
+            if (ocrCount > 0) {
+              console.log(`⏳ Waiting 10 seconds for OCR to complete...`);
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+            
+            // Process AI summaries
+            let aiCount = 0;
+            for (const doc of needsAISummary) {
+              console.log(`🤖 Starting automatic AI summary for document ${doc.id}: ${doc.name}`);
+              try {
+                const response = await fetch(`http://localhost:5000/api/deals/${dealId}/documents/${doc.id}/ai-summary`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                  aiCount++;
+                  console.log(`✅ AI summary triggered for ${doc.name}`);
+                } else {
+                  console.error(`❌ AI summary failed for ${doc.name}: ${response.status}`);
+                }
+                // Small delay between AI requests to avoid rate limits
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              } catch (err) {
+                console.error(`❌ AI summary error for ${doc.id}:`, err);
+              }
+            }
+            
+            console.log(`✨ Automatic processing completed: ${ocrCount} OCR, ${aiCount} AI summaries initiated`);
           } catch (autoProcessError) {
-            console.error('❌ Error triggering automatic processing:', autoProcessError);
+            console.error('❌ Error in automatic processing:', autoProcessError);
           }
           
           backgroundJobManager.completeJob(jobId, result);
