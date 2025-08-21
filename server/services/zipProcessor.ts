@@ -149,7 +149,8 @@ export class ZipProcessor {
       else if (zipPath.startsWith('db://')) {
         const { dbFileStorage } = await import('./databaseFileStorage');
         const tempPath = path.join(this.uploadDir, `temp-${Date.now()}.zip`);
-        await dbFileStorage.retrieveFile(zipPath, tempPath);
+        const fileBuffer = await dbFileStorage.retrieveFile(zipPath);
+        fs.writeFileSync(tempPath, fileBuffer);
         actualZipPath = tempPath;
         console.log(`📥 Retrieved ZIP from database to: ${tempPath}`);
       }
@@ -204,8 +205,8 @@ export class ZipProcessor {
       const processedFiles: ProcessedFile[] = [];
       let processedCount = 0;
       
-      // Import backgroundJobManager for creating automatic OCR jobs (UI compatibility)
-      const { backgroundJobManager } = await import('./backgroundJobManager');
+      // Import jobProcessor for creating and automatically processing OCR jobs
+      const { jobProcessor } = await import('./jobProcessor');
 
       for (const filePath of allFiles) {
         try {
@@ -247,7 +248,7 @@ export class ZipProcessor {
           console.log(`✅ Created document ${document.id}: ${fileName}`);
 
           // Create OCR job for automatic processing (OCR + AI Summary)
-          const ocrJobId = await backgroundJobManager.createJob({
+          const ocrJobId = await jobProcessor.createJob({
             jobType: 'document_ocr',
             dealId: dealId,
             documentId: document.id,
