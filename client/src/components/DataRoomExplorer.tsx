@@ -449,7 +449,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
               <TabsTrigger value="pdf" disabled={!document.type?.toLowerCase().includes('pdf')}>
-                PDF Viewer
+                PDF Viewer {!document.type?.toLowerCase().includes('pdf') && '(PDF only)'}
               </TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
             </TabsList>
