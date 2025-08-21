@@ -2390,12 +2390,39 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     )}
                     <span className="text-gray-300 text-sm flex-1">{doc.name}</span>
                     <div className="flex items-center space-x-2">
-                      {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
-                      {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
-                      {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
-                      {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
-                      <AlertCircle className="w-3 h-3 text-amber-500" />
-                      <EyeIcon className="w-3 h-3 text-gray-500" />
+                      {/* OCR Completion Status */}
+                      {doc.ocrContent && doc.ocrContent.length > 0 && (
+                        <div title="OCR completed">
+                          <CheckCircleIcon className="w-3 h-3 text-green-500" />
+                        </div>
+                      )}
+                      {(!doc.ocrContent || doc.ocrContent.length === 0) && !doc.name.endsWith('.zip') && (
+                        <div title="OCR pending">
+                          <ClockIcon className="w-3 h-3 text-yellow-500" />
+                        </div>
+                      )}
+                      
+                      {/* AI Summary Status */}
+                      {doc.aiSummary && (
+                        <div title="AI summary completed">
+                          <Brain className="w-3 h-3 text-purple-400" />
+                        </div>
+                      )}
+                      {doc.aiSummaryStatus === 'processing' && (
+                        <div title="AI summary processing">
+                          <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />
+                        </div>
+                      )}
+                      {!doc.aiSummary && doc.ocrContent && doc.ocrContent.length > 0 && (
+                        <div title="AI summary pending">
+                          <Brain className="w-3 h-3 text-gray-400" />
+                        </div>
+                      )}
+                      
+                      {/* File Actions */}
+                      <div title="View document">
+                        <EyeIcon className="w-3 h-3 text-gray-500" />
+                      </div>
                       <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                     </div>
                   </div>
