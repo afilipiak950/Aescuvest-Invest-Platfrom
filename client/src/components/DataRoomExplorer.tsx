@@ -2235,18 +2235,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               <>
                 {/* Smart AI Summary Status Indicator */}
                 {documents && Array.isArray(documents) && (() => {
-                  // Only count documents that have been analyzed and can have AI summaries
-                  const analyzedDocs = documents.filter((doc: any) => 
-                    doc.status === 'Analyzed'
-                  );
-                  
-                  const totalDocs = analyzedDocs.length;
-                  const docsWithSummaries = analyzedDocs.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
-                  const processingDocs = analyzedDocs.filter((doc: any) => 
+                  // Use total document count for progress display
+                  const totalDocs = documents.length;
+                  const docsWithSummaries = documents.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
+                  const processingDocs = documents.filter((doc: any) => 
                     doc.aiSummaryStatus === 'processing' || 
                     doc.aiSummaryStatus === 'analyzing' || 
                     doc.aiSummaryStatus === 'extracting'
                   ).length;
+                  
+                  // Only count documents that have been analyzed and can have AI summaries
+                  const analyzedDocs = documents.filter((doc: any) => 
+                    doc.status === 'Analyzed'
+                  );
                   const docsWithOCR = analyzedDocs.length;
                   const docsNeedingSummaries = analyzedDocs.filter((doc: any) => 
                     (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
