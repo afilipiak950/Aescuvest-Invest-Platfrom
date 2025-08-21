@@ -97,6 +97,7 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
         const viewport = page.getViewport({ scale });
         
         const canvas = canvasRef.current;
+        if (!canvas) return;
         const context = canvas.getContext('2d');
         
         canvas.height = viewport.height;
@@ -335,6 +336,7 @@ export function InlinePDFPreview({ document: pdfDocument, dealId, className = ""
         const viewport = page.getViewport({ scale });
         
         const canvas = canvasRef.current;
+        if (!canvas) return;
         const context = canvas.getContext('2d');
         
         canvas.height = viewport.height;

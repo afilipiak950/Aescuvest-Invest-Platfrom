@@ -111,7 +111,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     // Use the assignedAgents field populated by the intelligent assignment system
     if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
       console.log(`📋 Document "${document.name}" assigned to agents:`, document.assignedAgents);
-      return document.assignedAgents.map(agentType => {
+      return document.assignedAgents.map((agentType: string) => {
         // Capitalize the agent type for display
         const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
         return getAgentInfo(capitalizedType);
@@ -460,7 +460,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                 <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
                 {assignedAgents.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {assignedAgents.map((agent, index) => {
+                    {assignedAgents.map((agent: any, index: number) => {
                       const colorClasses = agent.colorClasses.split(' ');
                       return (
                         <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
@@ -2480,7 +2480,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                             <p className="text-sm text-white font-medium">{chunkedUploadProgress.fileName}</p>
                             <p className="text-xs text-purple-300">
                               {chunkedUploadProgress.status === 'initializing' && 'Preparing large file upload...'}
-                              {chunkedUploadProgress.status === 'uploading' && `Uploading chunk ${chunkedUploadProgress.currentChunk + 1}/${chunkedUploadProgress.totalChunks}`}
+                              {chunkedUploadProgress.status === 'uploading' && `Uploading chunk ${(chunkedUploadProgress.currentChunk ?? 0) + 1}/${chunkedUploadProgress.totalChunks}`}
                               {chunkedUploadProgress.status === 'assembling' && 'Assembling file on server...'}
                               {chunkedUploadProgress.status === 'complete' && 'Upload complete!'}
                               {chunkedUploadProgress.status === 'error' && 'Upload failed'}
