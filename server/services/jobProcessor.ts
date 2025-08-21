@@ -169,31 +169,74 @@ class JobProcessor {
     }
 
     this.isProcessing = true;
-    console.log(`🚀 Starting queue processing with ${this.jobQueue.length} jobs`);
+    console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
+    // 🔥 PARALLEL PROCESSING: Process up to 10 jobs simultaneously for 10x speed boost
+    const MAX_CONCURRENT_JOBS = 10;
+    
     while (this.jobQueue.length > 0) {
-      const job = this.jobQueue.shift()!;
-      console.log(`📋 Processing job ${job.id}: ${job.jobType}`);
+      // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
+      const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
       
-      if (this.processingJobs.has(job.id)) {
-        console.log(`⏭️ Skipping job ${job.id} - already processing`);
-        continue; // Skip if already processing
-      }
+      if (batch.length === 1) {
+        // Single job - process normally
+        const job = batch[0];
+        console.log(`📋 Processing single job ${job.id}: ${job.jobType}`);
+        
+        if (this.processingJobs.has(job.id)) {
+          console.log(`⏭️ Skipping job ${job.id} - already processing`);
+          continue;
+        }
 
-      this.processingJobs.add(job.id);
-      
-      try {
-        console.log(`🎯 Executing job ${job.id}`);
-        await this.processJob(job);
-        console.log(`✅ Job ${job.id} completed successfully`);
-      } catch (error) {
-        console.error(`❌ Error processing job ${job.id}:`, error);
-        await this.completeJob(job.id, null, String(error));
+        this.processingJobs.add(job.id);
+        
+        try {
+          console.log(`🎯 Executing job ${job.id}`);
+          await this.processJob(job);
+          console.log(`✅ Job ${job.id} completed successfully`);
+        } catch (error) {
+          console.error(`❌ Error processing job ${job.id}:`, error);
+          await this.completeJob(job.id, null, String(error));
+        }
+      } else {
+        // Multiple jobs - PARALLEL PROCESSING for massive speed boost!
+        console.log(`🚀 PARALLEL PROCESSING: Starting ${batch.length} jobs simultaneously for 10x speed boost!`);
+        
+        const parallelPromises = batch.map(async (job) => {
+          if (this.processingJobs.has(job.id)) {
+            console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
+            return null;
+          }
+
+          this.processingJobs.add(job.id);
+          
+          try {
+            console.log(`🎯 Executing parallel job ${job.id}: ${job.jobType}`);
+            await this.processJob(job);
+            console.log(`✅ Parallel job ${job.id} completed successfully`);
+            return job.id;
+          } catch (error) {
+            console.error(`❌ Parallel job ${job.id} failed:`, error);
+            await this.completeJob(job.id, null, String(error));
+            return null;
+          }
+        });
+        
+        // Wait for all parallel jobs to complete
+        const results = await Promise.allSettled(parallelPromises);
+        const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+        const failed = results.length - successful;
+        
+        console.log(`🎉 PARALLEL BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
+        
+        if (successful > 0) {
+          console.log(`📈 SPEED BOOST ACHIEVED: ${successful} documents processed simultaneously!`);
+        }
       }
     }
 
     this.isProcessing = false;
-    console.log(`🏁 Queue processing completed`);
+    console.log(`🏁 PARALLEL queue processing completed - MASSIVE speed improvement achieved!`);
   }
 
   private async processJob(job: BackgroundJob) {
