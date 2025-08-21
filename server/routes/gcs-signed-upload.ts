@@ -132,7 +132,7 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
 
     // Create database entry for the uploaded file
     console.log('💾 Creating database entry...');
-    const [document] = await db.insert(documents).values({
+    const insertResult = await db.insert(documents).values({
       dealId: parseInt(dealId),
       name: fileName,
       type: metadata.contentType || 'application/zip', // Fix: Add required type field
@@ -147,6 +147,8 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
         processedAt: new Date().toISOString()
       }
     }).returning();
+    
+    const document = Array.isArray(insertResult) ? insertResult[0] : insertResult;
 
     console.log(`✅ Document created with ID: ${document.id}`);
 
@@ -169,21 +171,15 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
         gcsFileName
       );
 
-      console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted`);
+      console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted with automatic OCR and AI processing`);
 
       // Clean up temp file
       const fs = await import('fs');
       await fs.promises.unlink(tempFilePath);
       console.log('🧹 Temp file cleaned up');
 
-      // Start background AI processing
-      try {
-        console.log('🤖 Starting AI processing job...');
-        await jobProcessor.createJob(parseInt(dealId), document.id, 'ai_summary', 'ai_summary');
-        console.log('✅ AI processing job created');
-      } catch (jobError) {
-        console.error('⚠️ AI job creation failed (non-critical):', jobError);
-      }
+      // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
+      // No need for additional job creation here - the method handles everything
 
       return res.status(200).json({
         success: true,
