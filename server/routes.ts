@@ -2165,9 +2165,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`📄 Found document: ${document.name} at path: ${document.path}`);
 
-      // Check if file exists
-      if (!fs.existsSync(document.path)) {
-        console.log(`❌ File not found on server: ${document.path}`);
+      // Convert database path to actual file path
+      let actualFilePath = document.path;
+      console.log(`🔍 Initial path from database: ${document.path}`);
+      
+      // Handle extracted ZIP files with nested paths
+      if (document.path.startsWith('extracted/')) {
+        const pathWithoutExtracted = document.path.substring('extracted/'.length);
+        const fileName = path.basename(document.path);
+        console.log(`🔍 Extracted file name: ${fileName}`);
+        console.log(`🔍 Path within extraction: ${pathWithoutExtracted}`);
+        
+        // Look for the file in uploads/extracted directories - handle nested paths
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'extracted');
+        console.log(`🔍 Searching in: ${uploadsDir}`);
+        
+        if (fs.existsSync(uploadsDir)) {
+          const subDirs = fs.readdirSync(uploadsDir, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+          
+          console.log(`🔍 Found ${subDirs.length} extraction directories`);
+          
+          // First try to find the file with full nested path
+          for (const subDir of subDirs) {
+            // Try full nested path first
+            const fullNestedPath = path.join(uploadsDir, subDir, pathWithoutExtracted);
+            console.log(`🔍 Checking nested path: ${fullNestedPath}`);
+            if (fs.existsSync(fullNestedPath)) {
+              actualFilePath = fullNestedPath;
+              console.log(`✅ Found extracted file at nested path: ${actualFilePath}`);
+              break;
+            }
+            
+            // Try just filename in root of extraction directory
+            const rootPath = path.join(uploadsDir, subDir, fileName);
+            if (fs.existsSync(rootPath)) {
+              actualFilePath = rootPath;
+              console.log(`✅ Found extracted file at root: ${actualFilePath}`);
+              break;
+            }
+          }
+          
+          // If still not found, do recursive search
+          if (actualFilePath === document.path || !fs.existsSync(actualFilePath)) {
+            console.log(`⚠️ File not found with direct path, performing recursive search...`);
+            
+            function findFileRecursively(dir: string, targetFileName: string): string | null {
+              try {
+                const items = fs.readdirSync(dir, { withFileTypes: true });
+                
+                // Check files in current directory
+                for (const item of items) {
+                  if (item.isFile() && item.name === targetFileName) {
+                    return path.join(dir, item.name);
+                  }
+                }
+                
+                // Search subdirectories recursively
+                for (const item of items) {
+                  if (item.isDirectory()) {
+                    const result = findFileRecursively(path.join(dir, item.name), targetFileName);
+                    if (result) return result;
+                  }
+                }
+              } catch (error) {
+                // Skip directories that can't be read
+                console.log(`⚠️ Error reading directory ${dir}: ${error}`);
+              }
+              return null;
+            }
+            
+            // Search in all extraction directories
+            for (const subDir of subDirs) {
+              const extractionRoot = path.join(uploadsDir, subDir);
+              console.log(`🔍 Recursively searching in: ${extractionRoot}`);
+              const foundPath = findFileRecursively(extractionRoot, fileName);
+              if (foundPath && fs.existsSync(foundPath)) {
+                actualFilePath = foundPath;
+                console.log(`✅ Found extracted file via recursive search: ${actualFilePath}`);
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Check if file exists at the resolved path
+      if (!fs.existsSync(actualFilePath)) {
+        console.log(`❌ File not found on server: ${actualFilePath}`);
+        console.log(`❌ Original path was: ${document.path}`);
         return res.status(404).json({ 
           message: 'Document file not available', 
           details: 'This document appears to have been removed during system maintenance. Please re-upload the file if needed.',
@@ -2175,13 +2262,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           documentId: documentId
         });
       }
+      
+      console.log(`✅ File found at: ${actualFilePath}`);
 
       const ext = path.extname(document.name).toLowerCase();
       
       // Special handling for data URL requests (Chrome bypass solution)
       if (isDataUrl && ext === '.pdf') {
         try {
-          const fileBuffer = fs.readFileSync(document.path);
+          const fileBuffer = fs.readFileSync(actualFilePath);
           const base64Data = fileBuffer.toString('base64');
           const dataUrl = `data:application/pdf;base64,${base64Data}`;
           
@@ -2200,7 +2289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get file stats
-      const stats = fs.statSync(document.path);
+      const stats = fs.statSync(actualFilePath);
       console.log(`📊 File stats - Size: ${stats.size} bytes`);
       
       // Set appropriate headers for download
@@ -2284,7 +2373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Stream the file
-      const fileStream = fs.createReadStream(document.path);
+      const fileStream = fs.createReadStream(actualFilePath);
       
       fileStream.on('error', (error) => {
         console.error('❌ File stream error:', error);
