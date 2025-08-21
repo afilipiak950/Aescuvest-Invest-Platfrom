@@ -126,7 +126,7 @@ router.post('/api/background-jobs/:jobId/stop', async (req: Request, res: Respon
     // Update job status to cancelled
     await db.update(backgroundJobs)
       .set({ 
-        status: 'cancelled',
+        status: 'cancelled' as any,
         currentStep: 'Cancelled by user',
         completedAt: new Date(),
         updatedAt: new Date()
@@ -172,8 +172,19 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
 
     console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
     
-    // Get all active jobs for this deal
-    const activeJobs = await storage.getBackgroundJobs(dealId);
+    // Get all active jobs for this deal from database
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { eq, and, or } = await import('drizzle-orm');
+    
+    const activeJobs = await db.select().from(backgroundJobs)
+      .where(and(
+        eq(backgroundJobs.dealId, dealId),
+        or(
+          eq(backgroundJobs.status, 'processing'),
+          eq(backgroundJobs.status, 'queued')
+        )
+      ));
     const processingJobs = activeJobs.filter((job: any) => job.status === 'processing');
     
     let stoppedCount = 0;
@@ -181,12 +192,14 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
     for (const job of processingJobs) {
       try {
         // Update job status to cancelled
-        await storage.updateBackgroundJob(job.jobId, {
-          status: 'cancelled',
-          currentStep: 'Cancelled by user',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        });
+        await db.update(backgroundJobs)
+          .set({ 
+            status: 'cancelled' as any,
+            currentStep: 'Cancelled by user',
+            completedAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(backgroundJobs.jobId, job.jobId));
         
         stoppedCount++;
         console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
