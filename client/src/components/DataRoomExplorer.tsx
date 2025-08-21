@@ -448,8 +448,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           <Tabs defaultValue="analysis" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-              <TabsTrigger value="pdf" disabled={!document.type?.toLowerCase().includes('pdf')}>
-                PDF Viewer {!document.type?.toLowerCase().includes('pdf') && '(PDF only)'}
+              <TabsTrigger value="pdf" disabled={!document.name?.toLowerCase().endsWith('.pdf')}>
+                PDF Viewer {!document.name?.toLowerCase().endsWith('.pdf') && '(PDF only)'}
               </TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
             </TabsList>
@@ -715,7 +715,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
             </TabsContent>
             
             <TabsContent value="pdf" className="mt-4">
-              {document.type?.toLowerCase().includes('pdf') ? (
+              {document.name?.toLowerCase().endsWith('.pdf') ? (
                 <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
                   <InlinePDFPreview 
                     document={document} 
@@ -915,7 +915,7 @@ const FolderTree: React.FC<{
                 className="flex items-center flex-1 cursor-pointer"
                 onClick={() => !isSelectionMode && onDocumentClick(doc)}
               >
-                {doc.type.includes('pdf') ? (
+                {doc.name.toLowerCase().endsWith('.pdf') ? (
                   <FileTextIcon className="w-4 h-4 text-red-400 mr-2" />
                 ) : (
                   <FileIcon className="w-4 h-4 text-gray-400 mr-2" />
