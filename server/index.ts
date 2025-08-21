@@ -396,7 +396,7 @@ app.use((req, res, next) => {
           if (!actualFilePath || !fs.existsSync(actualFilePath) || actualFilePath === document.path) {
             console.log(`⚠️ File not found in correct deal directory, performing recursive search...`);
             
-            function findFileRecursively(dir: string, targetFileName: string): string | null {
+            const findFileRecursively = (dir: string, targetFileName: string): string | null => {
               try {
                 const items = fs.readdirSync(dir, { withFileTypes: true });
                 
@@ -419,7 +419,7 @@ app.use((req, res, next) => {
                 console.log(`⚠️ Error reading directory ${dir}: ${error}`);
               }
               return null;
-            }
+            };
             
             // Search in all extraction directories
             for (const subDir of subDirs) {
@@ -531,6 +531,8 @@ app.use((req, res, next) => {
         // Import OCR service dynamically
         const { mistralOCRService } = await import('./services/mistralOCR');
         
+        // Get the actual file path for processing
+        const actualFilePath = document.path;
         if (actualFilePath) {
           const fileExtension = document.name.split('.').pop()?.toLowerCase() || 'pdf';
           try {
@@ -769,8 +771,9 @@ app.use((req, res, next) => {
 
       console.log(`📦 Processing ZIP file: ${zipFile.originalname} for deal ${dealId} with folder name: ${folderName}`);
 
-      // Create background job for ZIP processing with real-time progress
-      const jobId = await backgroundJobManager.createJob({
+      // Create background job for ZIP processing with real-time progress using jobProcessor
+      const { jobProcessor } = await import('./services/jobProcessor');
+      const jobId = await jobProcessor.createJob({
         jobType: 'zip_processing',
         dealId: dealId,
         documentId: null,
@@ -793,22 +796,22 @@ app.use((req, res, next) => {
           // Trigger automatic OCR and AI summary for all extracted documents
           try {
             console.log(`🔄 Fetching documents for automatic processing...`);
-            const documents = await storage.getDocumentsByDealId(dealId);
+            const documents = await (storage as any).getDocumentsByDealId(dealId);
             console.log(`📚 Found ${documents.length} total documents for deal ${dealId}`);
             
             // Get documents that need processing
             // Note: getDocumentsByDealId doesn't return ocrText field, so we need to fetch it separately
-            const allExtractedDocs = documents.filter(doc => 
+            const allExtractedDocs = documents.filter((doc: any) => 
               doc.path && doc.path.startsWith('extracted/')
             );
             
             // For OCR: Only PDFs need OCR processing
-            const pdfDocs = allExtractedDocs.filter(doc => 
+            const pdfDocs = allExtractedDocs.filter((doc: any) => 
               doc.path && (doc.path.toLowerCase().includes('.pdf'))
             );
             
             // For AI Summary: All documents need AI summaries
-            const needsAISummary = allExtractedDocs.filter(doc => 
+            const needsAISummary = allExtractedDocs.filter((doc: any) => 
               !doc.aiSummary
             );
             
