@@ -5146,27 +5146,44 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         }
       }
 
-      // For Research agent, get analysis with research answers
+      // For Research agent, get analysis with research answers - EXACT FINANCIAL APPROACH
       if (agentType === 'research') {
         const analysis = await storage.getAgentAnalysis(dealId, 'Research');
         
-        if (analysis && analysis.research_answers) {
-          const researchAnswers = analysis.research_answers;
-          const findings = Array.isArray(analysis.findings) ? analysis.findings : [];
-          const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+        if (analysis) {
+          let researchAnswers = {};
+          let findings = [];
+          let recommendations = [];
           
-          const answeredQuestions = Object.keys(researchAnswers).length;
-          const totalQuestions = 8;
-          
-          console.log(`✅ Found research analysis for deal ${dealId}:`, {
-            id: analysis.id,
-            agentType: analysis.agentType,
-            status: analysis.status,
-            findingsLength: JSON.stringify(findings).length,
-            recommendationsLength: JSON.stringify(recommendations).length,
-            totalRecordsFound: 1
-          });
-          
+          // Parse stored JSON data - EXACT Financial approach with field name fallback
+          try {
+            // Use comprehensive field first, then fallback to legacy field
+            if (analysis.researchAnswers) {
+              researchAnswers = typeof analysis.researchAnswers === 'string' 
+                ? JSON.parse(analysis.researchAnswers) 
+                : analysis.researchAnswers;
+            } else if (analysis.research_answers) {
+              researchAnswers = typeof analysis.research_answers === 'string' 
+                ? JSON.parse(analysis.research_answers) 
+                : analysis.research_answers;
+            }
+            if (analysis.findings) {
+              findings = typeof analysis.findings === 'string' 
+                ? JSON.parse(analysis.findings) 
+                : analysis.findings;
+            }
+            if (analysis.recommendations) {
+              recommendations = typeof analysis.recommendations === 'string' 
+                ? JSON.parse(analysis.recommendations) 
+                : analysis.recommendations;
+            }
+          } catch (parseError) {
+            console.error('Error parsing comprehensive Research analysis data:', parseError);
+            console.error('Analysis data received:', analysis);
+          }
+
+          console.log(`✅ Found comprehensive Research analysis - ${Object.keys(researchAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
           return res.json({
             success: true,
             analysis: {
@@ -5174,9 +5191,9 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
               researchAnswers,
               findings,
               recommendations,
-              questionsAnswered: answeredQuestions,
-              totalQuestions,
-              completionRate: Math.round((answeredQuestions / totalQuestions) * 100)
+              questionsAnswered: Object.keys(researchAnswers).length,
+              totalQuestions: 8, // Research has 8 questions in comprehensive service
+              completionRate: Math.round((Object.keys(researchAnswers).length / 8) * 100)
             }
           });
         } else {
