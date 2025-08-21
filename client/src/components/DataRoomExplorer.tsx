@@ -985,10 +985,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const { data: documents = [], isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
-    staleTime: 10000, // Cache for 10 seconds to improve performance
-    refetchInterval: 5000, // Reduced polling frequency
+    staleTime: 2000, // Shorter cache time for faster updates 
+    refetchInterval: 2000, // More frequent polling during processing
     refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: false, // Don't refetch on focus to prevent delays
+    refetchOnWindowFocus: true, // Refetch on focus to show latest data
     retry: 2, // Limit retries
     retryDelay: 1000, // Faster retry
     // Custom queryFn to handle large responses properly
@@ -2141,8 +2141,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           <BackgroundJobProgress 
             dealId={dealId} 
             onJobComplete={() => {
+              console.log('🔄 ZIP extraction completed, refreshing document list...');
+              // Force immediate refresh with multiple strategies
               queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-              refetch(); // Refresh documents immediately
+              queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] }); // Clear cache completely
+              setTimeout(() => {
+                refetch(); // Refresh documents immediately after cache clear
+              }, 100);
+              // Second refresh to ensure all documents are loaded
+              setTimeout(() => {
+                refetch();
+                console.log('🔄 Second refresh completed');
+              }, 2000);
               if (onUploadComplete) onUploadComplete();
             }}
           />
@@ -2226,7 +2236,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         <div className="p-4 border-b border-dark">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
+                {isLoading && (
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                )}
+              </div>
               <p className="text-sm text-gray-400 mt-1">{(documents?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
             </div>
           
