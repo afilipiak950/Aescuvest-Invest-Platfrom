@@ -20,11 +20,13 @@ router.get('/api/background-jobs/:dealId', async (req: Request, res: Response) =
         eq(backgroundJobs.dealId, dealId),
         or(
           eq(backgroundJobs.status, 'processing'),
-          eq(backgroundJobs.status, 'queued')
+          eq(backgroundJobs.status, 'queued'),
+          eq(backgroundJobs.status, 'pending')
         )
       ));
     
     console.log(`📊 Found ${dbJobs.length} background jobs for deal ${dealId}`);
+    console.log('🔍 Raw database jobs:', JSON.stringify(dbJobs.slice(0, 2), null, 2));
     
     // Transform database jobs to expected format
     const jobs = dbJobs.map(job => ({
