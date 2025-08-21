@@ -1366,6 +1366,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const [processingComplete, setProcessingComplete] = useState(false);
   const [processingCooldown, setProcessingCooldown] = useState(false);
 
+  // Monitor background jobs for the main component
+  const { data: backgroundJobs } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    enabled: !!dealId,
+    refetchInterval: processingComplete ? false : 2000
+  });
+
   // Disabled automatic AI processing to prevent infinite loops
   // Users can manually trigger AI processing when needed
   // React.useEffect(() => {
