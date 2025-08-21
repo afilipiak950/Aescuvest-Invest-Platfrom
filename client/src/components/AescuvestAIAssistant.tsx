@@ -7,6 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   Bot, 
   Send, 
@@ -20,7 +22,9 @@ import {
   ChevronUp,
   MessageSquare,
   Database,
-  CheckCircle2
+  CheckCircle2,
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { queryClient } from '@/lib/queryClient';
@@ -199,13 +203,16 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     }
   };
 
-  // Example queries
+  // Example queries - enhanced for analyst-quality responses
   const exampleQueries = [
-    "What are the key regulatory milestones?",
-    "Summarize the financial analysis findings",
-    "What are the main IP concerns?",
-    "Explain the clinical trial results",
-    "What risks were identified by the legal analysis?"
+    "Provide a comprehensive financial analysis including revenue projections, burn rate, and path to profitability",
+    "Analyze the regulatory pathway and key milestones for FDA approval or CE marking",
+    "Assess the intellectual property portfolio and competitive positioning",
+    "Evaluate the clinical data quality and statistical significance of key endpoints", 
+    "Identify critical legal and compliance risks with severity assessment",
+    "Compare our investment thesis against competitive landscape analysis",
+    "Quantify the total addressable market and revenue opportunity",
+    "Assess management team capabilities and track record"
   ];
 
   const handleExampleQuery = (query: string) => {
@@ -246,9 +253,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                       Loading AI context...
                     </span>
                   ) : isContextLoaded ? (
-                    <span className="text-green-600">✓ Ready - Instant responses</span>
+                    <span className="text-green-600 flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      Ready - Institutional-grade analysis
+                    </span>
                   ) : (
-                    'Ultra-intelligent investment analysis powered by complete document context'
+                    'Elite investment analysis with Wall Street-quality reporting and comprehensive due diligence insights'
                   )}
                 </p>
               </div>
@@ -307,9 +317,9 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <Sparkles className="h-12 w-12 text-blue-500 mb-4 animate-pulse" />
-                      <h3 className="text-lg font-semibold mb-2">Ask me anything!</h3>
+                      <h3 className="text-lg font-semibold mb-2">Investment Analysis Ready!</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        I have complete access to all OCR text, AI summaries, and agent analyses
+                        Elite institutional-grade analysis with access to 1,300+ documents, agent reports, and RAG-powered insights
                       </p>
                       <div className="flex flex-wrap gap-2 justify-center">
                         {exampleQueries.slice(0, 3).map((query, idx) => (
@@ -344,18 +354,66 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                           )}
                           <div
                             className={cn(
-                              "max-w-[80%] rounded-lg p-3 shadow-sm",
+                              "max-w-[85%] rounded-lg p-4 shadow-sm",
                               message.role === 'user'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
                             )}
                           >
                             {message.content ? (
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              message.role === 'assistant' ? (
+                                <div className="prose prose-sm max-w-none dark:prose-invert">
+                                  <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      h1: ({ children }) => <h1 className="text-lg font-bold text-blue-900 dark:text-blue-100 mb-2">{children}</h1>,
+                                      h2: ({ children }) => <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 border-b border-gray-200 dark:border-gray-600 pb-1">{children}</h2>,
+                                      h3: ({ children }) => <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{children}</h3>,
+                                      p: ({ children }) => <p className="text-sm leading-relaxed mb-2 text-gray-700 dark:text-gray-300">{children}</p>,
+                                      ul: ({ children }) => <ul className="text-sm list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                                      ol: ({ children }) => <ol className="text-sm list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                                      li: ({ children }) => <li className="text-gray-700 dark:text-gray-300">{children}</li>,
+                                      strong: ({ children }) => <strong className="font-semibold text-blue-900 dark:text-blue-200">{children}</strong>,
+                                      em: ({ children }) => <em className="italic text-gray-600 dark:text-gray-400">{children}</em>,
+                                      code: ({ children }) => (
+                                        <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">
+                                          {children}
+                                        </code>
+                                      ),
+                                      blockquote: ({ children }) => (
+                                        <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-r">
+                                          {children}
+                                        </blockquote>
+                                      ),
+                                      table: ({ children }) => (
+                                        <div className="overflow-x-auto">
+                                          <table className="min-w-full border border-gray-200 dark:border-gray-700">
+                                            {children}
+                                          </table>
+                                        </div>
+                                      ),
+                                      th: ({ children }) => (
+                                        <th className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                          {children}
+                                        </th>
+                                      ),
+                                      td: ({ children }) => (
+                                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
+                                          {children}
+                                        </td>
+                                      )
+                                    }}
+                                  >
+                                    {message.content}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : (
+                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              )
                             ) : (
                               <div className="flex items-center gap-2">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="text-xs text-muted-foreground">Thinking...</span>
+                                <span className="text-xs text-muted-foreground">Analyzing context and generating institutional-grade report...</span>
                               </div>
                             )}
                           </div>
@@ -384,7 +442,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                 placeholder={
                   isPreloading 
                     ? "Loading AI context (max 2 seconds)..." 
-                    : "Ask about documents, analyses, regulatory status, financials, IP, clinical data..."
+                    : "Request institutional-grade analysis: financial projections, regulatory pathway, IP assessment, clinical data..."
                 }
                 className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500"
                 disabled={isStreaming}

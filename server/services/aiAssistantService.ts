@@ -72,25 +72,49 @@ export class AescuvestAIAssistant {
       this.companyContext = cached.companyContext;
       this.isContextLoaded = true;
     }
-    this.systemPrompt = `You are the Aescuvest AI Assistant, an ultra-intelligent investment analysis assistant with comprehensive knowledge of all deal documents, due diligence reports, and agent analyses.
+    this.systemPrompt = `You are the Aescuvest AI Assistant, an elite institutional investment analyst with access to comprehensive due diligence data. You provide investment-grade analysis that rivals the best Wall Street research reports.
 
-You have access to:
-1. Complete OCR text from all documents
-2. AI-generated summaries for each document
-3. Specialized agent analyses (Legal, Clinical, Commercial, Financial, IP, HR, Research)
-4. Company information and competitive intelligence
-5. Investment recommendations and risk assessments
+## YOUR ANALYTICAL FRAMEWORK:
 
-Your capabilities:
-- Answer ANY question about the company, documents, or analyses
-- Provide specific quotes and references from documents
-- Synthesize information across multiple sources
-- Identify patterns, risks, and opportunities
-- Offer investment insights based on comprehensive data
-- Compare findings across different agent analyses
-- Highlight critical information for investment decisions
+**Data Sources Available:**
+• Complete OCR text from 1,300+ due diligence documents
+• Multi-agent AI analyses (Legal, Clinical, Financial, IP, Commercial, HR, Research)
+• Company intelligence and competitive landscape data
+• Regulatory filings and compliance documentation
+• Financial models and projections
 
-Always be specific, cite sources when possible, and provide actionable insights.`;
+**Response Quality Standards:**
+1. **EXECUTIVE SUMMARY FIRST**: Lead with 2-3 sentence key takeaway
+2. **STRUCTURED ANALYSIS**: Use clear headers and bullet points
+3. **QUANTITATIVE DATA**: Include specific numbers, percentages, dates
+4. **RISK ASSESSMENT**: Highlight critical concerns with severity levels
+5. **SOURCE ATTRIBUTION**: Cite specific documents when referencing data
+6. **CONFIDENCE INDICATORS**: Rate your confidence level (High/Medium/Low)
+7. **ACTIONABLE INSIGHTS**: Provide clear investment implications
+
+**Formatting Requirements:**
+• Use markdown formatting for professional presentation
+• Bold key findings and critical data points
+• Use bullet points and numbered lists for clarity
+• Include headers (##) for section organization
+• Highlight risks with ⚠️ and opportunities with 🟢
+• Use tables for financial data comparison when applicable
+
+**Analysis Depth:**
+• Cross-reference multiple sources for validation
+• Identify contradictions or gaps in data
+• Synthesize complex information into actionable insights
+• Benchmark against industry standards when relevant
+• Provide context for all financial metrics and projections
+
+**Investment Lens:**
+• Focus on material impact to investment decision
+• Assess scalability and market opportunity
+• Evaluate management team capabilities
+• Analyze competitive positioning and differentiation
+• Consider regulatory and reimbursement pathways
+
+**CRITICAL**: Every response must be institutional-grade quality that a Managing Director would present to an Investment Committee. No generic or superficial answers.`;
   }
 
   async loadCompleteContext(): Promise<void> {
@@ -350,7 +374,17 @@ Always be specific, cite sources when possible, and provide actionable insights.
       },
       {
         role: 'user',
-        content: `${contextPrompt}\n\nUSER QUESTION: ${query}\n\nProvide a comprehensive answer based on the relevant data. Be specific and cite document names when referencing information.`
+        content: `${contextPrompt}\n\nINVESTMENT ANALYSIS REQUEST: ${query}\n\nProvide an institutional-grade investment analysis response following these requirements:
+
+1. **EXECUTIVE SUMMARY** (2-3 sentences summarizing key findings)
+2. **DETAILED ANALYSIS** (structured with clear headers)
+3. **KEY METRICS & DATA** (specific numbers from documents)
+4. **RISK ASSESSMENT** (critical concerns with severity levels)
+5. **INVESTMENT IMPLICATIONS** (actionable insights for decision-making)
+6. **CONFIDENCE LEVEL** (High/Medium/Low based on data quality)
+7. **SOURCE CITATIONS** (specific document names for key claims)
+
+Format using markdown with professional structure. Focus on material information that impacts investment decisions. Cross-reference multiple sources for validation.`
       }
     ];
     
@@ -360,8 +394,8 @@ Always be specific, cite sources when possible, and provide actionable insights.
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages,
-        temperature: 0.3,
-        max_tokens: 2000
+        temperature: 0.1, // Lower temperature for more consistent, analytical responses
+        max_tokens: 3000 // Increased for comprehensive analyst reports
       });
       
       const answer = response.choices[0].message.content || 'I was unable to generate a response.';
@@ -420,7 +454,17 @@ Always be specific, cite sources when possible, and provide actionable insights.
       },
       {
         role: 'user',
-        content: `${contextPrompt}\n\nUSER QUESTION: ${query}\n\nProvide a comprehensive answer based on all available data. Be specific and cite document names or agent analyses when referencing information.`
+        content: `${contextPrompt}\n\nINVESTMENT ANALYSIS REQUEST: ${query}\n\nProvide an institutional-grade investment analysis response following these requirements:
+
+1. **EXECUTIVE SUMMARY** (2-3 sentences summarizing key findings)
+2. **DETAILED ANALYSIS** (structured with clear headers)
+3. **KEY METRICS & DATA** (specific numbers from documents)
+4. **RISK ASSESSMENT** (critical concerns with severity levels)
+5. **INVESTMENT IMPLICATIONS** (actionable insights for decision-making)
+6. **CONFIDENCE LEVEL** (High/Medium/Low based on data quality)
+7. **SOURCE CITATIONS** (specific document names for key claims)
+
+Format using markdown with professional structure. Focus on material information that impacts investment decisions. Cross-reference multiple sources for validation.`
       }
     ];
     
@@ -430,8 +474,8 @@ Always be specific, cite sources when possible, and provide actionable insights.
       const stream = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages,
-        temperature: 0.3,
-        max_tokens: 2000,
+        temperature: 0.1, // Lower temperature for more consistent, analytical responses
+        max_tokens: 3000, // Increased for comprehensive analyst reports
         stream: true
       });
       
