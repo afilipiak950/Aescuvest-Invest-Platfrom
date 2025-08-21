@@ -3317,10 +3317,292 @@ ${document.ocrText}`
   const aiProcessingLimiter = new Map<number, number>();
   const AI_PROCESSING_COOLDOWN = 300000; // 5 minutes cooldown
 
+  // Batch process OCR for all pending documents in a deal
+  app.post('/api/deals/:dealId/process-pending-ocr', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Get all documents that need OCR processing
+      const dealDocuments = await storage.getDocumentsByDealIdFresh(dealId);
+      const pendingDocuments = dealDocuments.filter(doc => 
+        doc.status === 'Pending' && 
+        (!doc.ocrText || doc.ocrText.trim().length === 0)
+      );
+      
+      if (pendingDocuments.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No documents require OCR processing',
+          processed: 0,
+          total: dealDocuments.length
+        });
+      }
+      
+      console.log(`🔍 Starting batch OCR processing for ${pendingDocuments.length} documents in deal ${dealId}`);
+      
+      // Create a background job for tracking
+      const jobId = `ocr-batch-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'ocr-batch-processing',
+        status: 'processing',
+        progress: 0,
+        currentStep: `Processing OCR for ${pendingDocuments.length} documents`,
+        metadata: {
+          totalDocuments: pendingDocuments.length,
+          processedDocuments: 0,
+          currentBatch: 0
+        }
+      });
+      
+      // Process documents in batches
+      const BATCH_SIZE = 5; // Smaller batches for OCR due to higher processing time
+      const batches = [];
+      for (let i = 0; i < pendingDocuments.length; i += BATCH_SIZE) {
+        batches.push(pendingDocuments.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`📦 Processing ${pendingDocuments.length} documents in ${batches.length} batches`);
+      
+      // Start batch processing in background
+      processOCRBatchesInBackground(dealId, jobId, batches, 0);
+      
+      res.json({
+        success: true,
+        message: `Started OCR processing for ${pendingDocuments.length} documents`,
+        processed: 0,
+        total: pendingDocuments.length,
+        jobId: jobId
+      });
+      
+    } catch (error) {
+      console.error('Error starting batch OCR processing:', error);
+      res.status(500).json({ 
+        error: 'Failed to start OCR processing',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // Process OCR batches in background
+  async function processOCRBatchesInBackground(dealId: number, jobId: string, batches: any[][], batchIndex: number) {
+    if (batchIndex >= batches.length) {
+      console.log(`✅ All OCR batches completed for deal ${dealId}`);
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: 'All documents processed',
+        completedAt: new Date()
+      });
+      
+      // After OCR is complete, trigger AI summary processing
+      console.log(`🤖 Triggering AI summary processing after OCR completion`);
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`http://localhost:5000/api/deals/${dealId}/process-ai-summaries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const result = await response.json();
+          console.log(`🤖 AI summary processing triggered:`, result);
+        } catch (error) {
+          console.error('Failed to trigger AI summary processing:', error);
+        }
+      }, 5000);
+      
+      return;
+    }
+    
+    const batch = batches[batchIndex];
+    const progress = Math.round((batchIndex / batches.length) * 100);
+    
+    console.log(`📦 Processing OCR batch ${batchIndex + 1}/${batches.length} with ${batch.length} documents`);
+    
+    await storage.updateBackgroundJob(jobId, {
+      progress,
+      currentStep: `Processing OCR batch ${batchIndex + 1}/${batches.length}`,
+      metadata: {
+        totalDocuments: batches.flat().length,
+        processedDocuments: batchIndex * 5,
+        currentBatch: batchIndex + 1
+      }
+    });
+    
+    // Process all documents in the current batch
+    const batchPromises = batch.map(async (doc) => {
+      try {
+        console.log(`🔍 Processing OCR for document ${doc.id}: ${doc.name}`);
+        
+        // Get file extension
+        const fileExtension = doc.name.split('.').pop()?.toLowerCase() || 'pdf';
+        
+        // Import OCR service and process
+        const { mistralOCRService } = await import('./services/mistralOCR');
+        const ocrResult = await mistralOCRService.extractText(doc.filePath, fileExtension);
+        
+        if (ocrResult.success && ocrResult.text) {
+          // Update document with OCR text
+          await storage.updateDocument(doc.id, {
+            ocrText: ocrResult.text,
+            ocrStatus: 'completed',
+            status: 'Analyzed',
+            processingStatus: 'completed',
+            updatedAt: new Date()
+          });
+          console.log(`✅ OCR completed for document ${doc.id}: ${doc.name}`);
+        } else {
+          // Mark as failed
+          await storage.updateDocument(doc.id, {
+            ocrStatus: 'failed',
+            status: 'Failed Analysis',
+            processingStatus: 'failed',
+            error: ocrResult.error || 'OCR extraction failed',
+            updatedAt: new Date()
+          });
+          console.error(`❌ OCR failed for document ${doc.id}: ${doc.name}`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to process OCR for document ${doc.id}:`, error);
+        await storage.updateDocument(doc.id, {
+          ocrStatus: 'failed',
+          status: 'Failed Analysis',
+          processingStatus: 'failed',
+          error: error instanceof Error ? error.message : 'OCR processing failed',
+          updatedAt: new Date()
+        });
+      }
+    });
+    
+    // Wait for all documents in batch to complete
+    await Promise.allSettled(batchPromises);
+    
+    // Process next batch after a delay
+    setTimeout(() => {
+      processOCRBatchesInBackground(dealId, jobId, batches, batchIndex + 1).catch(error => {
+        console.error(`Failed to process OCR batch ${batchIndex + 1}:`, error);
+        storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          error: `OCR batch processing failed at batch ${batchIndex + 1}: ${error.message}`,
+          completedAt: new Date()
+        });
+      });
+    }, 3000); // 3 second delay between batches
+  }
+
+  // Resume AI summary processing if stuck
+  app.post('/api/deals/:dealId/resume-ai-summaries', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check for existing incomplete job
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const incompleteJob = existingJobs.find(job => 
+        job.jobType === 'ai-summary-processing' && 
+        job.status === 'processing'
+      );
+      
+      if (incompleteJob) {
+        console.log(`📍 Found incomplete AI summary job ${incompleteJob.jobId}, marking as failed to allow restart`);
+        await storage.updateBackgroundJob(incompleteJob.jobId, {
+          status: 'failed',
+          error: 'Job was stuck and manually restarted',
+          completedAt: new Date()
+        });
+      }
+      
+      // Clear any existing rate limit
+      aiProcessingLimiter.delete(dealId);
+      
+      // Get all documents that still need processing
+      const dealDocuments = await storage.getDocumentsByDealIdFresh(dealId);
+      const documentsToProcess = dealDocuments.filter(doc => 
+        doc.ocrText && 
+        doc.ocrText.trim().length > 0 && 
+        (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed' || doc.aiSummaryStatus === 'processing')
+      );
+      
+      if (documentsToProcess.length === 0) {
+        return res.json({
+          success: true,
+          message: 'All documents already have AI summaries',
+          remaining: 0
+        });
+      }
+      
+      // Reset any stuck documents from 'processing' to 'pending'
+      for (const doc of documentsToProcess) {
+        if (doc.aiSummaryStatus === 'processing') {
+          await storage.updateDocument(doc.id, { aiSummaryStatus: 'pending' });
+        }
+      }
+      
+      console.log(`🔄 Resuming AI summary processing for ${documentsToProcess.length} remaining documents`);
+      
+      // Create new job and start processing
+      const jobId = `ai-summary-resume-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'ai-summary-processing',
+        status: 'processing',
+        progress: 0,
+        currentStep: `Resuming processing of ${documentsToProcess.length} documents`,
+        metadata: {
+          totalDocuments: documentsToProcess.length,
+          processedDocuments: 0,
+          currentBatch: 0,
+          isResume: true
+        }
+      });
+      
+      // Process in batches
+      const BATCH_SIZE = 10;
+      const batches = [];
+      for (let i = 0; i < documentsToProcess.length; i += BATCH_SIZE) {
+        batches.push(documentsToProcess.slice(i, i + BATCH_SIZE));
+      }
+      
+      processBatchesInBackground(dealId, jobId, batches, 0);
+      
+      res.json({
+        success: true,
+        message: `Resumed AI summary processing for ${documentsToProcess.length} documents`,
+        remaining: documentsToProcess.length,
+        jobId: jobId
+      });
+      
+    } catch (error) {
+      console.error('Error resuming AI summary processing:', error);
+      res.status(500).json({ 
+        error: 'Failed to resume processing',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Batch process AI summaries for all documents in a deal
   app.post('/api/deals/:dealId/process-ai-summaries', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
+      
+      // Check for existing incomplete job first
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const activeJob = existingJobs.find(job => 
+        job.jobType === 'ai-summary-processing' && 
+        job.status === 'processing'
+      );
+      
+      if (activeJob) {
+        console.log(`⚠️ AI summary processing already in progress for deal ${dealId}`);
+        return res.json({
+          success: true,
+          message: `AI summary processing already in progress`,
+          jobId: activeJob.jobId,
+          progress: activeJob.progress,
+          inProgress: true
+        });
+      }
       
       // Check rate limiting - prevent duplicate requests
       const lastProcessing = aiProcessingLimiter.get(dealId);
@@ -3361,28 +3643,40 @@ ${document.ocrText}`
       // Set rate limiting timestamp only if we're actually processing
       aiProcessingLimiter.set(dealId, now);
 
-      // Process documents in background with proper queuing
-      let processedCount = 0;
-      
-      // Start processing documents one by one with proper delays
-      for (let i = 0; i < documentsToProcess.length; i++) {
-        const doc = documentsToProcess[i];
-        
-        // Process with delay to prevent rate limiting
-        setTimeout(() => {
-          processDocumentAISummaryInBackground(doc.id, doc).catch(error => {
-            console.error(`Background processing failed for document ${doc.id}:`, error);
-          });
-        }, i * 5000); // 5 second delay between each document
-        
-        processedCount++;
+      // Create a proper background job for tracking
+      const jobId = `ai-summary-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'ai-summary-processing',
+        status: 'processing',
+        progress: 0,
+        currentStep: `Processing ${documentsToProcess.length} documents`,
+        metadata: {
+          totalDocuments: documentsToProcess.length,
+          processedDocuments: 0,
+          currentBatch: 0
+        }
+      });
+
+      // Process documents in batches of 10 with proper error handling
+      const BATCH_SIZE = 10;
+      const batches = [];
+      for (let i = 0; i < documentsToProcess.length; i += BATCH_SIZE) {
+        batches.push(documentsToProcess.slice(i, i + BATCH_SIZE));
       }
+
+      console.log(`📦 Processing ${documentsToProcess.length} documents in ${batches.length} batches`);
+
+      // Process batches with proper timing and error recovery
+      processBatchesInBackground(dealId, jobId, batches, 0);
 
       res.json({
         success: true,
-        message: `Started AI summary processing for ${processedCount} documents`,
-        processed: processedCount,
-        total: documentsToProcess.length
+        message: `Started AI summary processing for ${documentsToProcess.length} documents`,
+        processed: 0,
+        total: documentsToProcess.length,
+        jobId: jobId
       });
 
     } catch (error) {
@@ -3393,6 +3687,70 @@ ${document.ocrText}`
       });
     }
   });
+
+  // Process batches of documents in background with proper error recovery
+  async function processBatchesInBackground(dealId: number, jobId: string, batches: any[][], batchIndex: number) {
+    if (batchIndex >= batches.length) {
+      // All batches completed
+      console.log(`✅ All batches completed for deal ${dealId}`);
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: 'All documents processed',
+        completedAt: new Date()
+      });
+      
+      // Clear rate limiter
+      aiProcessingLimiter.delete(dealId);
+      return;
+    }
+
+    const batch = batches[batchIndex];
+    const progress = Math.round((batchIndex / batches.length) * 100);
+    
+    console.log(`📦 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} documents`);
+    
+    // Update job progress
+    await storage.updateBackgroundJob(jobId, {
+      progress,
+      currentStep: `Processing batch ${batchIndex + 1}/${batches.length}`,
+      metadata: {
+        totalDocuments: batches.flat().length,
+        processedDocuments: batchIndex * 10,
+        currentBatch: batchIndex + 1
+      }
+    });
+
+    // Process all documents in the current batch
+    const batchPromises = batch.map(async (doc, index) => {
+      // Add small delay between documents in the batch to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, index * 1000));
+      
+      try {
+        await processDocumentAISummaryInBackground(doc.id, doc);
+        console.log(`✅ Processed document ${doc.id}: ${doc.name}`);
+      } catch (error) {
+        console.error(`❌ Failed to process document ${doc.id}: ${doc.name}`, error);
+        // Continue with other documents even if one fails
+      }
+    });
+
+    // Wait for all documents in batch to complete
+    await Promise.allSettled(batchPromises);
+    
+    // Process next batch after a delay
+    setTimeout(() => {
+      processBatchesInBackground(dealId, jobId, batches, batchIndex + 1).catch(error => {
+        console.error(`Failed to process batch ${batchIndex + 1}:`, error);
+        // Try to mark job as failed
+        storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          error: `Batch processing failed at batch ${batchIndex + 1}: ${error.message}`,
+          completedAt: new Date()
+        });
+      });
+    }, 5000); // 5 second delay between batches
+  }
 
   // Advanced OpenAI rate limiter with conservative settings
   class OpenAIRateLimiter {
