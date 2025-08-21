@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json, bigint, vector, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -66,6 +66,41 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// Document Embeddings for RAG system
+export const documentEmbeddings = pgTable("document_embeddings", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull(),
+  dealId: integer("deal_id").notNull(),
+  chunkIndex: integer("chunk_index").notNull(),
+  chunkText: text("chunk_text").notNull(),
+  embedding: json("embedding").notNull(), // Store as JSON array for now
+  tokenCount: integer("token_count").notNull(),
+  metadata: json("metadata"), // Store document name, type, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDocumentEmbeddingSchema = createInsertSchema(documentEmbeddings).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Query Cache for semantic caching
+export const queryCache = pgTable("query_cache", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull(),
+  queryText: text("query_text").notNull(),
+  queryEmbedding: json("query_embedding").notNull(),
+  response: text("response").notNull(),
+  similarity: real("similarity"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertQueryCacheSchema = createInsertSchema(queryCache).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Login schema for validation

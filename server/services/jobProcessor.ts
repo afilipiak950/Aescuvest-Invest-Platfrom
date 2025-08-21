@@ -781,6 +781,66 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           })
         })
         .where(eq(documents.id, documentId));
+        
+      // Generate embeddings for RAG system (non-blocking)
+      if (ocrResult.extractedText && ocrResult.extractedText.length > 0 && documentId) {
+        // Import dynamically to avoid circular dependencies
+        import('./embeddingService').then(({ EmbeddingService }) => {
+          // Get document details for metadata
+          db.select().from(documents).where(eq(documents.id, documentId)).then(docs => {
+            if (docs && docs[0]) {
+              const doc = docs[0];
+              // Generate embeddings in background
+              EmbeddingService.generateAndStoreEmbeddings(
+                ocrResult.extractedText,
+                {
+                  dealId: doc.dealId,
+                  documentId: doc.id,
+                  documentName: doc.name,
+                  documentType: doc.agentType || 'general'
+                }
+              ).then(() => {
+                console.log(`✅ Embeddings generated for document ${doc.name}`);
+              }).catch(error => {
+                console.error(`❌ Failed to generate embeddings for ${doc.name}:`, error);
+              });
+            }
+          });
+        }).catch(error => {
+          console.error('Failed to load embedding service:', error);
+        });
+      }
+
+      await this.updateJobProgress(jobId, 85, 'Generating embeddings for RAG...');
+      
+      // Generate embeddings for RAG system (non-blocking)
+      if (ocrResult.extractedText && ocrResult.extractedText.length > 0) {
+        // Import dynamically to avoid circular dependencies
+        import('./embeddingService').then(({ EmbeddingService }) => {
+          // Get document details for metadata
+          db.select().from(documents).where(eq(documents.id, documentId)).then(docs => {
+            if (docs && docs[0]) {
+              const doc = docs[0];
+              // Generate embeddings in background
+              EmbeddingService.generateAndStoreEmbeddings(
+                ocrResult.extractedText,
+                {
+                  dealId: doc.dealId,
+                  documentId: doc.id,
+                  documentName: doc.name,
+                  documentType: doc.agentType || 'general'
+                }
+              ).then(() => {
+                console.log(`✅ Embeddings generated for document ${doc.name}`);
+              }).catch(error => {
+                console.error(`❌ Failed to generate embeddings for ${doc.name}:`, error);
+              });
+            }
+          });
+        }).catch(error => {
+          console.error('Failed to load embedding service:', error);
+        });
+      }
 
       await this.updateJobProgress(jobId, 100, 'OCR processing completed successfully');
 

@@ -8633,6 +8633,157 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ AI Assistant endpoints registered');
 
+  // ========================================
+  // RAG / Embedding Processing Endpoints
+  // ========================================
+  
+  // Process all existing documents into embeddings for a deal
+  app.post('/api/deals/:dealId/embeddings/process-all', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      console.log(`🚀 Starting bulk embedding processing for deal ${dealId}`);
+      
+      // Import the embedding service
+      const { EmbeddingService } = await import('./services/embeddingService');
+      
+      // Get all documents for this deal
+      const documents = await storage.getDocuments(dealId);
+      
+      if (!documents || documents.length === 0) {
+        return res.json({
+          success: false,
+          message: 'No documents found for this deal'
+        });
+      }
+      
+      console.log(`📄 Found ${documents.length} documents to process`);
+      
+      let processed = 0;
+      let failed = 0;
+      const errors: string[] = [];
+      
+      // Process documents in batches to avoid overwhelming the API
+      const batchSize = 5;
+      for (let i = 0; i < documents.length; i += batchSize) {
+        const batch = documents.slice(i, i + batchSize);
+        
+        await Promise.all(batch.map(async (doc) => {
+          try {
+            // Only process documents with OCR text
+            if (doc.ocrText) {
+              await EmbeddingService.generateAndStoreEmbeddings(
+                doc.ocrText,
+                {
+                  dealId,
+                  documentId: doc.id,
+                  documentName: doc.name,
+                  documentType: doc.agentType || 'general'
+                }
+              );
+              processed++;
+              console.log(`✅ Processed embeddings for document ${doc.name}`);
+            }
+          } catch (error) {
+            failed++;
+            const errorMsg = `Failed to process ${doc.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            errors.push(errorMsg);
+            console.error(errorMsg);
+          }
+        }));
+        
+        // Progress update
+        console.log(`📊 Progress: ${i + batch.length}/${documents.length} documents`);
+      }
+      
+      res.json({
+        success: true,
+        message: `Embedding processing complete`,
+        stats: {
+          total: documents.length,
+          processed,
+          failed,
+          errors: errors.slice(0, 10) // Limit error messages
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Embedding processing error:', error);
+      res.status(500).json({ 
+        error: 'Failed to process embeddings',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // Get embedding stats for a deal
+  app.get('/api/deals/:dealId/embeddings/stats', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      // Import the embedding service
+      const { EmbeddingService } = await import('./services/embeddingService');
+      
+      // Get stats
+      const stats = await EmbeddingService.getEmbeddingStats(dealId);
+      
+      res.json({
+        success: true,
+        stats
+      });
+      
+    } catch (error) {
+      console.error('❌ Embedding stats error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get embedding stats',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // Search for similar documents using RAG
+  app.post('/api/deals/:dealId/embeddings/search', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { query, limit = 10 } = req.body;
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      if (!query) {
+        return res.status(400).json({ message: 'Query is required' });
+      }
+      
+      // Import the embedding service
+      const { EmbeddingService } = await import('./services/embeddingService');
+      
+      // Search for similar chunks
+      const results = await EmbeddingService.searchSimilarChunks(query, dealId, limit);
+      
+      res.json({
+        success: true,
+        query,
+        results
+      });
+      
+    } catch (error) {
+      console.error('❌ Embedding search error:', error);
+      res.status(500).json({ 
+        error: 'Failed to search embeddings',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  console.log('✅ RAG/Embedding endpoints registered');
+
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
   try {
