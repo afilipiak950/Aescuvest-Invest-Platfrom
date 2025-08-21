@@ -24,7 +24,8 @@ import {
   Database,
   CheckCircle2,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Square
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { queryClient } from '@/lib/queryClient';
@@ -56,6 +57,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const [isPreloading, setIsPreloading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch context stats
   const { data: contextStats, isLoading: statsLoading } = useQuery({
@@ -120,6 +122,9 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   // Mutation for sending queries
   const sendQueryMutation = useMutation({
     mutationFn: async (query: string) => {
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
+      
       // Add user message immediately
       const userMessage: Message = {
         id: `user-${Date.now()}`,
@@ -141,51 +146,78 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Stream the response
-      const response = await fetch(`/api/deals/${dealId}/ai-assistant/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
-      });
+      try {
+        // Stream the response with abort signal
+        const response = await fetch(`/api/deals/${dealId}/ai-assistant/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+          signal: abortControllerRef.current.signal
+        });
 
-      if (!response.ok) throw new Error('Failed to send query');
+        if (!response.ok) throw new Error('Failed to send query');
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
 
-      if (reader) {
-        let fullContent = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        if (reader) {
+          let fullContent = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data) {
-                try {
-                  const parsed = JSON.parse(data);
-                  if (parsed.type === 'content') {
-                    fullContent += parsed.content;
-                    setMessages(prev => prev.map(msg => 
-                      msg.id === assistantId 
-                        ? { ...msg, content: fullContent }
-                        : msg
-                    ));
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data) {
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.type === 'content') {
+                      fullContent += parsed.content;
+                      setMessages(prev => prev.map(msg => 
+                        msg.id === assistantId 
+                          ? { ...msg, content: fullContent }
+                          : msg
+                      ));
+                    }
+                  } catch (e) {
+                    console.error('Failed to parse SSE data:', e);
                   }
-                } catch (e) {
-                  console.error('Failed to parse SSE data:', e);
                 }
               }
             }
           }
         }
+        
+        setIsStreaming(false);
+        abortControllerRef.current = null;
+      } catch (error: any) {
+        console.log('🛑 AI Assistant request aborted or failed:', error.message);
+        
+        // Handle abort vs other errors
+        if (error.name === 'AbortError') {
+          console.log('✅ Request cancelled by user');
+        } else {
+          console.error('❌ AI Assistant request failed:', error);
+        }
+        
+        // Clean up state in all cases
+        setIsStreaming(false);
+        abortControllerRef.current = null;
+        
+        // Remove incomplete assistant messages on error
+        setMessages(prev => {
+          const filteredMessages = prev.filter(msg => {
+            return msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim());
+          });
+          return filteredMessages;
+        });
+        
+        throw error; // Re-throw so mutation can handle it
       }
-      
-      setIsStreaming(false);
     }
   });
 
@@ -218,6 +250,31 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const handleExampleQuery = (query: string) => {
     setInput(query);
     setIsExpanded(true);
+  };
+
+  // Stop function to cancel ongoing AI processing
+  const stopProcessing = () => {
+    console.log('🛑 Stopping AI Assistant processing...');
+    
+    // Abort the ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Reset streaming state immediately
+    setIsStreaming(false);
+    
+    // Remove any incomplete assistant messages (messages without content)
+    setMessages(prev => {
+      const filteredMessages = prev.filter(msg => {
+        // Keep user messages and complete assistant messages
+        return msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim());
+      });
+      return filteredMessages;
+    });
+    
+    console.log('✅ AI Assistant processing stopped');
   };
 
   return (
@@ -448,6 +505,21 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                 disabled={isStreaming}
               />
             </div>
+            
+            {/* Stop button when streaming */}
+            {isStreaming && (
+              <Button
+                type="button"
+                onClick={stopProcessing}
+                variant="destructive"
+                className="bg-red-500 hover:bg-red-600 text-white shadow-lg"
+                title="Stop AI processing"
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            )}
+            
+            {/* Send button */}
             <Button
               type="submit"
               disabled={!input.trim() || isStreaming}
