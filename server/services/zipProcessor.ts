@@ -57,7 +57,7 @@ export class ZipProcessor {
       const openZip = util.promisify(yauzl.open);
       
       // Open the ZIP file
-      const zipFile = await openZip(tempFilePath, { lazyEntries: true });
+      const zipFile = await openZip(tempFilePath);
       const documents: any[] = [];
       
       return new Promise((resolve, reject) => {
@@ -149,7 +149,7 @@ export class ZipProcessor {
       else if (zipPath.startsWith('db://')) {
         const { dbFileStorage } = await import('./databaseFileStorage');
         const tempPath = path.join(this.uploadDir, `temp-${Date.now()}.zip`);
-        await dbFileStorage.retrieveFileToPath(zipPath, tempPath);
+        await dbFileStorage.retrieveFile(zipPath, tempPath);
         actualZipPath = tempPath;
         console.log(`📥 Retrieved ZIP from database to: ${tempPath}`);
       }
@@ -204,8 +204,8 @@ export class ZipProcessor {
       const processedFiles: ProcessedFile[] = [];
       let processedCount = 0;
       
-      // Import jobProcessor for creating automatic OCR jobs
-      const { jobProcessor } = await import('./jobProcessor');
+      // Import backgroundJobManager for creating automatic OCR jobs (UI compatibility)
+      const { backgroundJobManager } = await import('./backgroundJobManager');
 
       for (const filePath of allFiles) {
         try {
@@ -247,7 +247,7 @@ export class ZipProcessor {
           console.log(`✅ Created document ${document.id}: ${fileName}`);
 
           // Create OCR job for automatic processing (OCR + AI Summary)
-          const ocrJobId = await jobProcessor.createJob({
+          const ocrJobId = await backgroundJobManager.createJob({
             jobType: 'document_ocr',
             dealId: dealId,
             documentId: document.id,
