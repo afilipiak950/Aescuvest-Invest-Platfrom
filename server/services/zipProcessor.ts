@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
-import { backgroundJobManager } from './backgroundJobManager';
+// Import jobProcessor for creating OCR jobs
+// backgroundJobManager removed - using jobProcessor for automatic processing
 import { storage } from '../storage';
 
 interface ProcessedFile {
@@ -195,14 +196,16 @@ export class ZipProcessor {
       connection.totalFiles = allFiles.length;
       connection.status = 'processing';
 
-      // Update job progress
-      if (jobId) {
-        await backgroundJobManager.updateProgress(jobId, 5, `Extracted ${allFiles.length} files, starting OCR analysis...`);
-      }
+      // Note: jobId parameter is for legacy compatibility
+      // Individual OCR jobs will be created for each file below
+      console.log(`📄 Extracted ${allFiles.length} files, creating OCR jobs for automatic processing...`);
 
-      // Process files with OCR and analysis
+      // Create documents and OCR jobs for automatic processing
       const processedFiles: ProcessedFile[] = [];
       let processedCount = 0;
+      
+      // Import jobProcessor for creating automatic OCR jobs
+      const { jobProcessor } = await import('./jobProcessor');
 
       for (const filePath of allFiles) {
         try {
@@ -211,124 +214,88 @@ export class ZipProcessor {
           const fileStats = fs.statSync(filePath);
           const fileType = this.getFileType(fileName);
 
-          console.log(`🔍 MANDATORY OCR ANALYSIS for: ${fileName} (Type: ${fileType})`);
+          console.log(`📄 Creating document and OCR job for: ${fileName} (Type: ${fileType})`);
 
-          let processedFile: ProcessedFile = {
+          // Extract folder path relative to extraction directory
+          const relativeDir = path.relative(this.extractDir, path.dirname(filePath));
+          let folderPath = relativeDir === '.' ? '' : relativeDir;
+          
+          // Remove deal-specific prefix from folder path to show clean hierarchy
+          const dealPrefix = `deal-${dealId}-`;
+          const dealDirRegex = new RegExp(`^${dealPrefix}\\d+[\\\\/]?`, 'g');
+          folderPath = folderPath.replace(dealDirRegex, '');
+          
+          // Normalize folder path separators for consistent display
+          folderPath = folderPath.replace(/\\/g, '/');
+          
+          console.log(`📁 Folder path calculation: ${filePath} -> ${folderPath}`);
+
+          // Create document in database first
+          const document = await storage.createDocument({
+            dealId,
+            name: fileName,
+            type: fileType,
+            path: `extracted/${relativePath}`, // Virtual path for display
+            size: fileStats.size,
+            status: 'Pending', // Will be updated by OCR job
+            folderPath: folderPath,
+            isFolder: false,
+            category: 'General',
+            documentType: fileType
+          } as any);
+          
+          console.log(`✅ Created document ${document.id}: ${fileName}`);
+
+          // Create OCR job for automatic processing (OCR + AI Summary)
+          const ocrJobId = await jobProcessor.createJob({
+            jobType: 'document_ocr',
+            dealId: dealId,
+            documentId: document.id,
+            jobData: {
+              filePath: filePath, // Actual file path for OCR processing
+              fileName: fileName,
+              fileType: fileType,
+              documentId: document.id,
+              documentName: fileName
+            }
+          });
+          
+          console.log(`🚀 Created OCR job ${ocrJobId} for document ${document.id}: ${fileName}`);
+
+          const processedFile: ProcessedFile = {
             name: fileName,
             path: relativePath,
             size: fileStats.size,
             type: fileType
           };
-
-          // Process EVERY file with OCR - no file type restrictions
-          try {
-            console.log(`⏱️ Starting OCR with 30-second timeout for: ${fileName}`);
-            
-            // Force OCR analysis on ALL files regardless of type with timeout
-            const analysisResult = await Promise.race([
-              this.analyzeWithMistralOCR(filePath),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error(`OCR timeout for ${fileName}`)), 30000)
-              )
-            ]);
-            
-            processedFile.ocrText = analysisResult.ocrText;
-            processedFile.analysisResult = analysisResult;
-            
-            console.log(`✅ OCR SUCCESS for ${fileName}: ${analysisResult.ocrText?.length || 0} characters extracted`);
-
-            // Save document to database with folder structure
-            try {
-              // Extract folder path relative to extraction directory
-              const relativePath = path.relative(this.extractDir, path.dirname(filePath));
-              let folderPath = relativePath === '.' ? '' : relativePath;
-              
-              // Remove deal-specific prefix from folder path to show clean hierarchy
-              const dealPrefix = `deal-${dealId}-`;
-              const dealDirRegex = new RegExp(`^${dealPrefix}\\d+[\\\\/]?`, 'g');
-              folderPath = folderPath.replace(dealDirRegex, '');
-              
-              // Normalize folder path separators for consistent display
-              folderPath = folderPath.replace(/\\/g, '/');
-              
-              console.log(`📁 Folder path calculation: ${filePath} -> ${folderPath}`);
-              
-              // Clean OCR text to remove null bytes and non-UTF8 characters
-              const cleanOcrText = analysisResult.ocrText
-                ? analysisResult.ocrText.replace(/\0/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-                : null;
-
-              await storage.createDocument({
-                dealId,
-                name: fileName,
-                type: fileType,
-                path: `extracted/${relativePath}`, // Full nested path for OCR processing
-                filePath: filePath, // Actual file path for OCR processing
-                size: fileStats.size,
-                status: 'Analyzed',
-                ocrText: cleanOcrText,
-                analyses: JSON.stringify(analysisResult),
-                folderPath: folderPath,
-                isFolder: false,
-                category: analysisResult.analysis?.category || 'General',
-                documentType: analysisResult.analysis?.documentType || fileType,
-                summary: analysisResult.analysis?.summary,
-                insights: analysisResult.analysis?.insights,
-                riskFactors: analysisResult.analysis?.riskFactors
-              });
-            } catch (dbError) {
-              console.error(`Database save error for ${fileName}:`, dbError);
-            }
-
-            console.log(`✅ Analyzed: ${fileName}`);
-          } catch (error: any) {
-            console.error(`❌ Error analyzing ${fileName}:`, error);
-            
-            // Save document with error status - still save every file to database
-            try {
-              await storage.createDocument({
-                dealId,
-                name: fileName,
-                type: fileType,
-                path: filePath,
-                size: fileStats.size,
-                status: 'Failed Analysis',
-                ocrText: null,
-                analyses: JSON.stringify({ error: error.message }),
-                folderPath: '',
-                isFolder: false,
-                category: 'General',
-                documentType: fileType
-              });
-            } catch (dbError) {
-              console.error(`Database save error for failed ${fileName}:`, dbError);
-            }
-          }
-
+          
           processedFiles.push(processedFile);
           processedCount++;
           
-          // Update progress
-          connection.processedFiles = processedCount;
+          console.log(`📊 Progress: ${processedCount}/${allFiles.length} files queued for processing`);
 
-          // Calculate progress percentage (5% for extraction + 95% for processing)
-          const progressPercent = Math.round(5 + (processedCount / allFiles.length) * 95);
+        } catch (error: any) {
+          console.error(`❌ Error creating document/job for ${path.basename(filePath)}:`, error);
           
-          // Update job progress with current file
-          if (jobId) {
-            console.log(`📊 Updating job ${jobId} progress: ${progressPercent}% - ${fileName}`);
-            await backgroundJobManager.updateProgress(
-              jobId, 
-              progressPercent, 
-              `Analyzing document ${processedCount}/${allFiles.length}`, 
-              fileName
-            );
+          // Still create a basic document entry even if job creation fails
+          try {
+            await storage.createDocument({
+              dealId,
+              name: path.basename(filePath),
+              type: this.getFileType(path.basename(filePath)),
+              path: path.relative(extractPath, filePath),
+              size: fs.statSync(filePath).size,
+              status: 'Failed',
+              folderPath: '',
+              isFolder: false,
+              category: 'General',
+              documentType: 'Unknown'
+            } as any);
+            console.log(`⚠️ Created basic document entry for ${path.basename(filePath)}`);
+          } catch (dbError) {
+            console.error(`❌ Failed to create document entry:`, dbError);
           }
 
-          console.log(`📊 Progress: ${processedCount}/${allFiles.length} files processed`);
-
-        } catch (fileError) {
-          console.error(`❌ Error processing file ${filePath}:`, fileError);
         }
       }
 
