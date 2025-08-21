@@ -184,22 +184,22 @@ export class AescuvestAIAssistant {
       for (const analysis of analyses) {
         const agentType = analysis.agentType.toLowerCase();
         if (!agentMap.has(agentType) && analysis.status === 'completed') {
-          // Parse all the different answer fields
+          // Parse all the different answer fields (using correct camelCase column names)
           let answers = {};
-          if (analysis.legal_answers) answers = analysis.legal_answers;
-          else if (analysis.clinical_answers) answers = { clinicalAnswers: analysis.clinical_answers };
-          else if (analysis.commercial_answers) answers = analysis.commercial_answers;
-          else if (analysis.financial_answers) answers = analysis.financial_answers;
-          else if (analysis.ip_answers) answers = analysis.ip_answers;
-          else if (analysis.hr_answers) answers = analysis.hr_answers;
-          else if (analysis.research_answers) answers = analysis.research_answers;
+          if (analysis.legalAnswers) answers = analysis.legalAnswers;
+          else if (analysis.clinicalAnswers) answers = { clinicalAnswers: analysis.clinicalAnswers };
+          else if (analysis.commercialAnswers) answers = analysis.commercialAnswers;
+          else if (analysis.financialAnswers) answers = analysis.financialAnswers;
+          else if (analysis.ipAnswers) answers = analysis.ipAnswers;
+          else if (analysis.hrAnswers) answers = analysis.hrAnswers;
+          else if (analysis.researchAnswers) answers = analysis.researchAnswers;
           
           agentMap.set(agentType, {
             agentType: analysis.agentType,
             findings: analysis.findings || [],
             recommendations: analysis.recommendations || [],
             answers: answers,
-            completionRate: analysis.completion_rate || 0
+            completionRate: analysis.completionRate || 0
           });
         }
       }
@@ -353,7 +353,7 @@ export class AescuvestAIAssistant {
         documentGroups.get(docName)!.push(chunk.chunk);
       }
       
-      for (const [docName, chunks] of documentGroups) {
+      for (const [docName, chunks] of Array.from(documentGroups)) {
         ragContext += `\nDocument: ${docName}\n`;
         ragContext += `Content: ${chunks.join(' ... ')}\n`;
       }
@@ -433,7 +433,7 @@ Format using markdown with professional structure. Focus on material information
         documentGroups.get(docName)!.push(chunk.chunk);
       }
       
-      for (const [docName, chunks] of documentGroups) {
+      for (const [docName, chunks] of Array.from(documentGroups)) {
         ragContext += `\nDocument: ${docName}\n`;
         ragContext += `Content: ${chunks.join(' ... ')}\n`;
       }
