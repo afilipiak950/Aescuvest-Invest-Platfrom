@@ -9,6 +9,7 @@ import { documents, agentAnalyses, deals } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from '../storage';
+import { EmbeddingService } from './embeddingService';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -93,25 +94,25 @@ Always be specific, cite sources when possible, and provide actionable insights.
   }
 
   async loadCompleteContext(): Promise<void> {
-    // Skip if already loaded from cache
+    // For RAG, we only need to load agent context and company context
+    // Documents will be retrieved on-demand based on the query
     if (this.isContextLoaded) {
       console.log(`✅ Context already loaded from cache`);
       return;
     }
     
-    console.log(`🤖 Loading complete context for deal ${this.dealId}...`);
+    console.log(`🤖 Loading lightweight context for deal ${this.dealId}...`);
     const startTime = Date.now();
     
-    // Load all in parallel for speed
+    // Only load agent and company context (not documents)
     await Promise.all([
-      this.loadDocumentContext(),
       this.loadAgentContext(),
       this.loadCompanyContext()
     ]);
     
     // Cache the loaded context
     contextCache.set(this.dealId, {
-      documentContext: this.documentContext,
+      documentContext: [], // Empty for RAG
       agentContext: this.agentContext,
       companyContext: this.companyContext,
       loadedAt: new Date()
@@ -119,7 +120,7 @@ Always be specific, cite sources when possible, and provide actionable insights.
     
     this.isContextLoaded = true;
     const loadTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`✅ Context loaded in ${loadTime}s: ${this.documentContext.length} documents, ${this.agentContext.length} agent analyses`);
+    console.log(`✅ RAG context loaded in ${loadTime}s: ${this.agentContext.length} agent analyses`);
   }
 
   private async loadDocumentContext(): Promise<void> {
@@ -299,12 +300,47 @@ Always be specific, cite sources when possible, and provide actionable insights.
   }
 
   async processQuery(query: string): Promise<string> {
-    // Ensure context is loaded (will use cache if available)
+    // Check for cached response first
+    const cachedResponse = await EmbeddingService.getCachedResponse(query, this.dealId);
+    if (cachedResponse) {
+      console.log(`💾 Using cached response for query`);
+      return cachedResponse;
+    }
+    
+    // Ensure lightweight context is loaded (agent analyses only)
     if (!this.isContextLoaded) {
       await this.loadCompleteContext();
     }
     
-    const contextPrompt = this.buildContextPrompt();
+    // Use RAG to find relevant document chunks
+    console.log(`🔍 Searching for relevant document chunks using RAG...`);
+    const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
+    
+    // Build context with only relevant information
+    let ragContext = 'RELEVANT DOCUMENT CONTEXT:\n\n';
+    if (relevantChunks.length > 0) {
+      const documentGroups = new Map<string, string[]>();
+      
+      for (const chunk of relevantChunks) {
+        const docName = chunk.metadata.documentName;
+        if (!documentGroups.has(docName)) {
+          documentGroups.set(docName, []);
+        }
+        documentGroups.get(docName)!.push(chunk.chunk);
+      }
+      
+      for (const [docName, chunks] of documentGroups) {
+        ragContext += `\nDocument: ${docName}\n`;
+        ragContext += `Content: ${chunks.join(' ... ')}\n`;
+      }
+      
+      console.log(`✅ Found ${relevantChunks.length} relevant chunks from ${documentGroups.size} documents`);
+    } else {
+      ragContext += 'No directly relevant document content found for this query.\n';
+    }
+    
+    // Add agent and company context
+    const contextPrompt = this.buildContextPrompt() + '\n' + ragContext;
     
     // Build the messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -314,12 +350,12 @@ Always be specific, cite sources when possible, and provide actionable insights.
       },
       {
         role: 'user',
-        content: `${contextPrompt}\n\nUSER QUESTION: ${query}\n\nProvide a comprehensive answer based on all available data. Be specific and cite document names or agent analyses when referencing information.`
+        content: `${contextPrompt}\n\nUSER QUESTION: ${query}\n\nProvide a comprehensive answer based on the relevant data. Be specific and cite document names when referencing information.`
       }
     ];
     
     try {
-      console.log(`🤖 Processing query with ${this.documentContext.length} documents and ${this.agentContext.length} agent analyses`);
+      console.log(`🤖 Processing RAG query with ${relevantChunks.length} relevant chunks and ${this.agentContext.length} agent analyses`);
       
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -328,7 +364,12 @@ Always be specific, cite sources when possible, and provide actionable insights.
         max_tokens: 2000
       });
       
-      return response.choices[0].message.content || 'I was unable to generate a response.';
+      const answer = response.choices[0].message.content || 'I was unable to generate a response.';
+      
+      // Cache the response for future use
+      await EmbeddingService.cacheResponse(query, answer, this.dealId);
+      
+      return answer;
     } catch (error) {
       console.error('Error processing AI query:', error);
       throw error;
@@ -336,12 +377,40 @@ Always be specific, cite sources when possible, and provide actionable insights.
   }
 
   async streamQuery(query: string): Promise<AsyncIterable<string>> {
-    // Ensure context is loaded (will use cache if available)
+    // Ensure lightweight context is loaded (agent analyses only)
     if (!this.isContextLoaded) {
       await this.loadCompleteContext();
     }
     
-    const contextPrompt = this.buildContextPrompt();
+    // Use RAG to find relevant document chunks
+    console.log(`🔍 Searching for relevant document chunks using RAG...`);
+    const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
+    
+    // Build context with only relevant information
+    let ragContext = 'RELEVANT DOCUMENT CONTEXT:\n\n';
+    if (relevantChunks.length > 0) {
+      const documentGroups = new Map<string, string[]>();
+      
+      for (const chunk of relevantChunks) {
+        const docName = chunk.metadata.documentName;
+        if (!documentGroups.has(docName)) {
+          documentGroups.set(docName, []);
+        }
+        documentGroups.get(docName)!.push(chunk.chunk);
+      }
+      
+      for (const [docName, chunks] of documentGroups) {
+        ragContext += `\nDocument: ${docName}\n`;
+        ragContext += `Content: ${chunks.join(' ... ')}\n`;
+      }
+      
+      console.log(`✅ Found ${relevantChunks.length} relevant chunks from ${documentGroups.size} documents`);
+    } else {
+      ragContext += 'No directly relevant document content found for this query.\n';
+    }
+    
+    // Add agent and company context
+    const contextPrompt = this.buildContextPrompt() + '\n' + ragContext;
     
     // Build the messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -356,7 +425,7 @@ Always be specific, cite sources when possible, and provide actionable insights.
     ];
     
     try {
-      console.log(`🤖 Streaming query with ${this.documentContext.length} documents and ${this.agentContext.length} agent analyses`);
+      console.log(`🤖 Streaming RAG query with ${relevantChunks.length} relevant chunks and ${this.agentContext.length} agent analyses`);
       
       const stream = await openai.chat.completions.create({
         model: 'gpt-4o',
