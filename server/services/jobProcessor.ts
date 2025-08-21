@@ -62,12 +62,13 @@ class JobProcessor {
       .where(eq(backgroundJobs.id, jobId));
 
     if (updatedJob) {
+      const jobData = updatedJob.jobData as any || {};
       websocketManager.broadcastJobProgress({
         jobId,
         progress,
         status: status || updatedJob.status,
         currentStep,
-        documentName: updatedJob.jobData?.documentName || updatedJob.jobData?.fileName || 'Unknown document'
+        documentName: jobData?.documentName || jobData?.fileName || 'Unknown document'
       }, updatedJob.dealId || undefined);
     }
 
@@ -201,7 +202,7 @@ class JobProcessor {
     await this.updateJobProgress(job.id, 20, 'Loading Mistral OCR service...');
 
     // Import and use Mistral OCR service
-    const { mistralOCRService } = await import('./mistralOCR');
+    const { mistralOCRService } = await import('./mistralOCR.js');
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
@@ -373,9 +374,9 @@ class JobProcessor {
           eq(backgroundJobs.dealId, dealId),
           eq(backgroundJobs.status, 'processing')
         )
-      );
+      ) as any;
     } else {
-      query = query.where(eq(backgroundJobs.status, 'processing'));
+      query = query.where(eq(backgroundJobs.status, 'processing')) as any;
     }
 
     return await query;
@@ -497,7 +498,7 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
       console.log(`✅ AI summary generated successfully for document ${documentId}`);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ AI summary generation failed for job ${job.id}:`, error);
       
       // Update document status to failed
