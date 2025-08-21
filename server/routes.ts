@@ -8482,6 +8482,126 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ Chunked upload routes registered - supports up to 5GB files');
 
+  // AI Assistant endpoints
+  app.post('/api/deals/:dealId/ai-assistant/query', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { query } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({ error: 'Query is required' });
+      }
+      
+      console.log(`🤖 AI Assistant query for deal ${dealId}: ${query}`);
+      
+      // Import the AI Assistant service
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      
+      // Create assistant instance for this deal
+      const assistant = new AescuvestAIAssistant(dealId);
+      
+      // Process the query
+      const response = await assistant.processQuery(query);
+      const stats = assistant.getContextStats();
+      
+      res.json({
+        success: true,
+        response,
+        contextStats: stats
+      });
+    } catch (error) {
+      console.error('❌ AI Assistant error:', error);
+      res.status(500).json({ 
+        error: 'Failed to process AI query',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // AI Assistant streaming endpoint
+  app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { query } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({ error: 'Query is required' });
+      }
+      
+      console.log(`🤖 AI Assistant streaming query for deal ${dealId}: ${query}`);
+      
+      // Import the AI Assistant service
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      
+      // Create assistant instance for this deal
+      const assistant = new AescuvestAIAssistant(dealId);
+      
+      // Set up SSE headers for streaming
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+      
+      // Send initial context stats
+      const stats = assistant.getContextStats();
+      res.write(`data: ${JSON.stringify({ type: 'stats', stats })}\n\n`);
+      
+      try {
+        // Get the streaming response
+        const stream = await assistant.streamQuery(query);
+        
+        // Stream the response chunks
+        for await (const chunk of stream) {
+          res.write(`data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`);
+        }
+        
+        // Send completion event
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
+      } catch (streamError) {
+        res.write(`data: ${JSON.stringify({ type: 'error', error: streamError.message })}\n\n`);
+        res.end();
+      }
+    } catch (error) {
+      console.error('❌ AI Assistant streaming error:', error);
+      res.status(500).json({ 
+        error: 'Failed to stream AI response',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Get AI Assistant context stats
+  app.get('/api/deals/:dealId/ai-assistant/stats', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`📊 Getting AI Assistant stats for deal ${dealId}`);
+      
+      // Import the AI Assistant service
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      
+      // Create assistant instance
+      const assistant = new AescuvestAIAssistant(dealId);
+      await assistant.loadCompleteContext();
+      
+      const stats = assistant.getContextStats();
+      
+      res.json({
+        success: true,
+        stats
+      });
+    } catch (error) {
+      console.error('❌ AI Assistant stats error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get AI Assistant stats',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  console.log('✅ AI Assistant endpoints registered');
+
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
   try {
