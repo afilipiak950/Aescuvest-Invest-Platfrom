@@ -40,15 +40,15 @@ export class MistralOCRService {
       // Add progressive timeout wrapper for OCR operations based on file type
       let timeoutDuration = 60000; // Default 60 seconds
       
-      // Adjust timeout based on file type complexity
+      // Optimized timeouts for faster processing
       if (fileExtension === '.pdf') {
-        timeoutDuration = 180000; // 3 minutes for PDFs (multiple pages + image conversion)
+        timeoutDuration = 90000; // 1.5 minutes for PDFs (optimized)
       } else if (['.pptx', '.ppt'].includes(fileExtension)) {
-        timeoutDuration = 120000; // 2 minutes for PowerPoint (multiple slides)
+        timeoutDuration = 60000; // 1 minute for PowerPoint (optimized)
       } else if (['.docx', '.doc', '.xlsx', '.xls'].includes(fileExtension)) {
-        timeoutDuration = 90000; // 1.5 minutes for Office documents
+        timeoutDuration = 45000; // 45 seconds for Office documents (optimized)
       } else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {
-        timeoutDuration = 60000; // 1 minute for images
+        timeoutDuration = 30000; // 30 seconds for images (optimized)
       }
       
       console.log(`⏱️ Setting OCR timeout to ${timeoutDuration/1000} seconds for ${fileExtension} file`);
@@ -133,7 +133,7 @@ export class MistralOCRService {
             error.message.includes('ETIMEDOUT')
           )) {
             console.log(`⚠️ OCR attempt ${attempts} failed (${error.message}), retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay (faster retry)
             
             // Recreate promises for retry
             if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {
@@ -286,10 +286,10 @@ export class MistralOCRService {
         console.log(`📑 Generated ${imageFiles.length} page images for OCR processing`);
         let fullText = '';
         
-        // Limit number of pages to process to prevent timeouts
-        const maxPages = Math.min(imageFiles.length, 20); // Process max 20 pages
+        // Optimized page limit for faster processing
+        const maxPages = Math.min(imageFiles.length, 10); // Process max 10 pages for speed
         if (imageFiles.length > maxPages) {
-          console.log(`⚠️ Large PDF detected (${imageFiles.length} pages), processing first ${maxPages} pages to prevent timeout`);
+          console.log(`⚠️ Large PDF detected (${imageFiles.length} pages), processing first ${maxPages} pages for faster processing`);
         }
         
         for (let i = 0; i < maxPages; i++) {
@@ -300,7 +300,7 @@ export class MistralOCRService {
             // Process image with Mistral OCR with individual page timeout
             const pagePromise = this.extractTextFromImage(imagePath);
             const pageTimeoutPromise = new Promise<string>((_, reject) => {
-              setTimeout(() => reject(new Error(`Page ${i + 1} OCR timeout`)), 30000); // 30s per page
+              setTimeout(() => reject(new Error(`Page ${i + 1} OCR timeout`)), 20000); // 20s per page (optimized)
             });
             
             const pageText = await Promise.race([pagePromise, pageTimeoutPromise]);

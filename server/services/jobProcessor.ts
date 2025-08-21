@@ -20,13 +20,7 @@ class JobProcessor {
   async createJob(jobData: InsertBackgroundJob): Promise<number> {
     console.log(`🔍 JOB CREATE MICRO-STEP 1: Inserting job to database...`);
     
-    // Add jobId to the data to ensure proper tracking
-    const jobDataWithId = {
-      ...jobData,
-      jobId: `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    };
-    
-    const [job] = await db.insert(backgroundJobs).values(jobDataWithId).returning();
+    const [job] = await db.insert(backgroundJobs).values(jobData).returning();
     console.log(`📋 Created background job ${job.id}: ${job.jobType}`);
     console.log(`🔍 JOB CREATE MICRO-STEP 2: Job details:`, {
       id: job.id,
@@ -134,7 +128,7 @@ class JobProcessor {
         ));
 
       const now = new Date();
-      const stuckThreshold = 10 * 60 * 1000; // 10 minutes
+      const stuckThreshold = 5 * 60 * 1000; // 5 minutes (faster cleanup)
 
       for (const job of stuckJobs) {
         const lastUpdate = job.updatedAt || job.startedAt || job.createdAt;
@@ -273,9 +267,9 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
-    // Add timeout wrapper for OCR processing to prevent hangs
+    // Optimized timeout wrapper for faster processing
     const ocrTimeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('OCR processing timeout after 5 minutes')), 300000); // 5 minutes max
+      setTimeout(() => reject(new Error('OCR processing timeout after 2 minutes')), 120000); // 2 minutes max (optimized)
     });
 
     let ocrResult;
@@ -299,11 +293,20 @@ class JobProcessor {
     let aiSummary = null;
     let aiSummaryStatus = 'failed';
 
-    // Generate AI summary automatically if we have extracted text
+    // Generate AI summary automatically if we have extracted text (optimized)
     if (ocrResult.extractedText && ocrResult.extractedText.trim().length > 50) {
       try {
         await this.updateJobProgress(job.id, 70, 'Generating intelligent document summary...');
-        aiSummary = await this.generateAISummary(ocrResult.extractedText);
+        
+        // Add timeout for AI summary generation (30 seconds max)
+        const summaryTimeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('AI summary generation timeout after 30 seconds')), 30000);
+        });
+        
+        aiSummary = await Promise.race([
+          this.generateAISummary(ocrResult.extractedText),
+          summaryTimeoutPromise
+        ]);
         aiSummaryStatus = 'completed';
         await this.updateJobProgress(job.id, 90, 'AI summary generated successfully...');
       } catch (error) {
@@ -638,9 +641,9 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       
       await this.updateJobProgress(jobId, 30, 'Starting text extraction...');
 
-      // Add timeout for ZIP processing OCR
+      // Optimized timeout for ZIP processing OCR
       const zipOcrTimeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('ZIP OCR processing timeout after 3 minutes')), 180000); // 3 minutes
+        setTimeout(() => reject(new Error('ZIP OCR processing timeout after 90 seconds')), 90000); // 90 seconds (optimized)
       });
 
       // Determine file type from extension
