@@ -1000,9 +1000,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        
+        // Handle AI summary completion
         if (data.type === 'ai_summary_complete' && data.dealId === dealId) {
           console.log('🔄 AI summary completed, updating cached document...', data);
-          // Use setQueryData for instant updates instead of invalidating cache
           queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
             if (!oldData || !Array.isArray(oldData)) return oldData;
             return oldData.map(doc => 
@@ -1010,6 +1011,44 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 ? { ...doc, aiSummaryStatus: 'completed', ...data.updates }
                 : doc
             );
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/deals/${dealId}/documents`],
+            exact: true 
+          });
+        }
+        
+        // Handle AI summary processing start
+        if (data.type === 'ai_summary_start' && data.dealId === dealId) {
+          console.log('🔄 AI summary started, updating status...', data);
+          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+            if (!oldData || !Array.isArray(oldData)) return oldData;
+            return oldData.map(doc => 
+              doc.id === data.documentId 
+                ? { ...doc, aiSummaryStatus: 'processing' }
+                : doc
+            );
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/deals/${dealId}/documents`],
+            exact: true 
+          });
+        }
+        
+        // Handle any document status updates
+        if (data.type === 'document_status_update' && data.dealId === dealId) {
+          console.log('🔄 Document status updated...', data);
+          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+            if (!oldData || !Array.isArray(oldData)) return oldData;
+            return oldData.map(doc => 
+              doc.id === data.documentId 
+                ? { ...doc, ...data.updates }
+                : doc
+            );
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/deals/${dealId}/documents`],
+            exact: true 
           });
         }
       } catch (error) {
