@@ -2275,7 +2275,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
                       </div>
                     );
-                  } else if (docsWithSummaries === totalDocs && totalDocs > 0) {
+                  } else if (docsWithSummaries === analyzedDocs.length && analyzedDocs.length > 0) {
                     return (
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
