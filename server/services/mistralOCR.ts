@@ -89,6 +89,9 @@ export class MistralOCRService {
       } else if (['.docx', '.doc'].includes(fileExtension)) {
         console.log(`📝 Processing document file: ${path.basename(filePath)}`);
         ocrPromise = this.extractTextFromDocument(filePath);
+      } else if (['.pptx', '.ppt'].includes(fileExtension)) {
+        console.log(`📊 Processing PowerPoint file: ${path.basename(filePath)}`);
+        ocrPromise = this.extractTextFromPowerPoint(filePath);
       } else {
         console.log(`⚠️ Unsupported file type for OCR: ${fileExtension}`);
         ocrPromise = Promise.resolve(`File type ${fileExtension} is not supported for text extraction.`);
@@ -301,6 +304,122 @@ export class MistralOCRService {
       throw new Error(`Failed to process document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+  /**
+   * Extract text from PowerPoint files (.pptx, .ppt)
+   */
+  async extractTextFromPowerPoint(filePath: string): Promise<string> {
+    try {
+      console.log(`📊 Starting PowerPoint text extraction: ${path.basename(filePath)}`);
+      
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`PowerPoint file not found: ${filePath}`);
+      }
+
+      const fileExtension = path.extname(filePath).toLowerCase();
+      
+      if (fileExtension === '.pptx') {
+        // Handle .pptx files (XML-based format)
+        return await this.extractTextFromPptx(filePath);
+      } else if (fileExtension === '.ppt') {
+        // Handle legacy .ppt files (binary format)
+        console.log(`⚠️ Legacy .ppt format detected. Limited text extraction available.`);
+        return `Legacy PowerPoint format (.ppt) detected. For better text extraction, please convert to .pptx format.`;
+      } else {
+        throw new Error(`Unsupported PowerPoint file extension: ${fileExtension}`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ PowerPoint text extraction failed for ${filePath}:`, error);
+      return `Error extracting text from PowerPoint file: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  /**
+   * Extract text from .pptx files by reading XML content
+   */
+  async extractTextFromPptx(filePath: string): Promise<string> {
+    try {
+      console.log(`📄 Extracting text from .pptx file: ${path.basename(filePath)}`);
+      
+      // Use adm-zip which is already installed and more reliable
+      const AdmZip = await import('adm-zip');
+      const zip = new AdmZip.default(filePath);
+      
+      const entries = zip.getEntries();
+      console.log(`🔍 Found ${entries.length} entries in PowerPoint file`);
+      
+      const slides: string[] = [];
+      
+      // Find all slide XML files using adm-zip API
+      const slideFiles = entries.filter(entry => {
+        if (!entry || !entry.entryName) return false;
+        return entry.entryName.startsWith('ppt/slides/slide') && entry.entryName.endsWith('.xml');
+      });
+      
+      console.log(`📊 Found ${slideFiles.length} slides to process`);
+      
+      // Extract text from each slide
+      for (const slideEntry of slideFiles.sort((a, b) => a.entryName.localeCompare(b.entryName))) {
+        try {
+          console.log(`📄 Processing slide: ${slideEntry.entryName}`);
+          const slideXmlBuffer = zip.readFile(slideEntry);
+          const slideText = this.extractTextFromSlideXml(slideXmlBuffer.toString('utf8'));
+          if (slideText.trim()) {
+            slides.push(slideText.trim());
+            console.log(`✅ Extracted ${slideText.length} characters from ${slideEntry.entryName}`);
+          }
+        } catch (slideError) {
+          console.warn(`⚠️ Failed to extract text from ${slideEntry.entryName}:`, slideError);
+        }
+      }
+      
+      const extractedText = slides.join('\n\n--- Slide Break ---\n\n');
+      console.log(`✅ PowerPoint text extraction complete: ${extractedText.length} characters from ${slides.length} slides`);
+      
+      if (extractedText.length === 0) {
+        return 'PowerPoint file processed but no text content was found in the slides.';
+      }
+      
+      return extractedText;
+      
+    } catch (error) {
+      console.error(`❌ Failed to extract text from .pptx file:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract text from slide XML content
+   */
+  private extractTextFromSlideXml(xmlContent: string): string {
+    try {
+      // Simple regex-based text extraction from PowerPoint XML
+      // Look for text content within <a:t> tags (text runs)
+      const textMatches = xmlContent.match(/<a:t[^>]*>(.*?)<\/a:t>/g);
+      
+      if (!textMatches) {
+        return '';
+      }
+      
+      const texts = textMatches.map(match => {
+        // Extract text content and decode XML entities
+        return match.replace(/<a:t[^>]*>(.*?)<\/a:t>/, '$1')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+          .trim();
+      }).filter(text => text.length > 0);
+      
+      return texts.join(' ');
+      
+    } catch (error) {
+      console.warn(`⚠️ Failed to parse slide XML:`, error);
+      return '';
+    }
+  }
+
 }
 
 export const mistralOCRService = new MistralOCRService();

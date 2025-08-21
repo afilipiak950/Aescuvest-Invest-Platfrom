@@ -193,9 +193,32 @@ class JobProcessor {
       
       await this.updateJobProgress(job.id, 18, 'File retrieved from database, starting OCR...');
     } else {
-      // Check if local file exists
+      // Check if local file exists, with fallback path resolution
       if (!fs.existsSync(filePath)) {
-        throw new Error(`File not found: ${filePath}`);
+        // Try to resolve the path by searching in uploads/extracted directories
+        const fileName = path.basename(filePath);
+        console.log(`🔍 File not found at ${filePath}, searching for: ${fileName}`);
+        
+        // Search in uploads/extracted subdirectories
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'extracted');
+        if (fs.existsSync(uploadsDir)) {
+          const subDirs = fs.readdirSync(uploadsDir, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+          
+          for (const subDir of subDirs) {
+            const possiblePath = path.join(uploadsDir, subDir, fileName);
+            if (fs.existsSync(possiblePath)) {
+              actualFilePath = possiblePath;
+              console.log(`✅ Found file at: ${actualFilePath}`);
+              break;
+            }
+          }
+        }
+        
+        if (!fs.existsSync(actualFilePath)) {
+          throw new Error(`File not found: ${filePath}. Searched in uploads/extracted directories.`);
+        }
       }
     }
 

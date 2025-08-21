@@ -4107,6 +4107,58 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Manual OCR re-processing endpoint for failed documents
+  app.post('/api/documents/:documentId/reprocess-ocr', async (req: Request, res: Response) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      if (isNaN(documentId)) {
+        return res.status(400).json({ success: false, message: 'Invalid document ID' });
+      }
+
+      // Get the document details
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ success: false, message: 'Document not found' });
+      }
+
+      console.log(`🔄 Manual OCR reprocessing requested for document ${documentId}: ${document.name}`);
+
+      // Create a new OCR job for this document
+      const jobId = await jobProcessor.createJob({
+        jobId: `reprocess_${documentId}_${Date.now()}`,
+        jobType: 'document_ocr',
+        dealId: document.dealId,
+        jobData: {
+          documentId: document.id,
+          filePath: document.path,
+          fileName: document.name,
+          mimeType: document.type,
+          isReprocessing: true
+        },
+        status: 'pending',
+        progress: 0,
+        createdAt: new Date()
+      });
+
+      console.log(`✅ Created reprocessing job ${jobId} for document ${documentId}`);
+
+      return res.status(200).json({
+        success: true,
+        message: `OCR reprocessing started for ${document.name}`,
+        jobId: jobId,
+        documentId: documentId
+      });
+
+    } catch (error) {
+      console.error('Error starting OCR reprocessing:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to start OCR reprocessing',
+        error: String(error)
+      });
+    }
+  });
+
   // Mount background job routes
   app.use('/', backgroundJobsRouter);
 
