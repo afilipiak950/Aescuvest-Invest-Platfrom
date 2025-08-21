@@ -99,26 +99,30 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
   
   if (!isOpen) return null;
 
-  const analysis = document.analyses ? JSON.parse(document.analyses) : null;
+  // Get the latest document data from cache to ensure real-time updates
+  const documentsData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]) as Document[] | undefined;
+  const latestDocument = documentsData?.find(doc => doc.id === document.id) || document;
+  
+  const analysis = latestDocument.analyses ? JSON.parse(latestDocument.analyses) : null;
   const analysisData = analysis?.analysis || analysis;
   
-  // Get AI summary from document data (automatically generated during upload)
-  const aiSummary = document.aiSummary as AIDocumentSummary | null;
-  const aiSummaryStatus = document.aiSummaryStatus || 'pending';
+  // Get AI summary from latest document data (with real-time updates)
+  const aiSummary = latestDocument.aiSummary as AIDocumentSummary | null;
+  const aiSummaryStatus = latestDocument.aiSummaryStatus || 'pending';
 
   // Intelligent document-to-agent assignment based on weighted analysis
   const getAssignedAgents = () => {
     // Use the assignedAgents field populated by the intelligent assignment system
-    if (document.assignedAgents && Array.isArray(document.assignedAgents) && document.assignedAgents.length > 0) {
-      console.log(`📋 Document "${document.name}" assigned to agents:`, document.assignedAgents);
-      return document.assignedAgents.map((agentType: string) => {
+    if (latestDocument.assignedAgents && Array.isArray(latestDocument.assignedAgents) && latestDocument.assignedAgents.length > 0) {
+      console.log(`📋 Document "${latestDocument.name}" assigned to agents:`, latestDocument.assignedAgents);
+      return latestDocument.assignedAgents.map((agentType: string) => {
         // Capitalize the agent type for display
         const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
         return getAgentInfo(capitalizedType);
       });
     }
     
-    console.log(`⚠️ Document "${document.name}" has no intelligent assignments - showing as unassigned`);
+    console.log(`⚠️ Document "${latestDocument.name}" has no intelligent assignments - showing as unassigned`);
     return [];
   };
 
@@ -428,11 +432,11 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
         <div className="p-6 border-b border-dark">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-semibold text-white mb-2">{document.name}</h2>
+              <h2 className="text-xl font-semibold text-white mb-2">{latestDocument.name}</h2>
               <div className="flex items-center space-x-4 text-sm text-gray-400">
-                <span>Type: {document.documentType || document.type}</span>
-                <span>Category: {document.category || 'General'}</span>
-                <span>Size: {(document.size / 1024).toFixed(1)} KB</span>
+                <span>Type: {latestDocument.documentType || latestDocument.type}</span>
+                <span>Category: {latestDocument.category || 'General'}</span>
+                <span>Size: {(latestDocument.size / 1024).toFixed(1)} KB</span>
               </div>
             </div>
             <button
@@ -617,15 +621,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           </div>
 
           {/* OCR Text - Enhanced formatting for better readability */}
-          {document.ocrText && (
+          {latestDocument.ocrText && (
             <div className="mb-6">
               <details className={aiSummary ? '' : 'open'}>
                 <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors flex items-center">
                   <span className="mr-2">📄</span>
                   Extracted Document Text 
-                  {document.ocrText.length > 1000 && (
+                  {latestDocument.ocrText.length > 1000 && (
                     <span className="ml-2 text-sm bg-blue-500/20 px-2 py-1 rounded text-blue-300">
-                      {Math.round(document.ocrText.length / 1000)}k characters
+                      {Math.round(latestDocument.ocrText.length / 1000)}k characters
                     </span>
                   )}
                 </summary>
@@ -635,20 +639,20 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                       <span className="text-sm text-gray-400">Document Content</span>
                       <div className="flex items-center space-x-2">
                         <button 
-                          onClick={() => navigator.clipboard.writeText(document.ocrText)}
+                          onClick={() => navigator.clipboard.writeText(latestDocument.ocrText)}
                           className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-white transition-colors"
                         >
                           Copy Text
                         </button>
                         <span className="text-xs text-gray-500">
-                          {document.ocrText.split('\n').length} lines
+                          {latestDocument.ocrText.split('\n').length} lines
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="p-4 max-h-96 overflow-y-auto">
                     <div className="text-sm text-gray-200 leading-relaxed">
-                      {document.ocrText.split('\n').map((line: string, index: number) => (
+                      {latestDocument.ocrText.split('\n').map((line: string, index: number) => (
                         <div key={index} className="mb-2">
                           {line.trim() ? (
                             <p className="text-gray-200">{line}</p>
@@ -671,9 +675,9 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                     <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors flex items-center">
                       <span className="mr-2">📄</span>
                       Extracted Document Text 
-                      {document.ocrText.length > 1000 && (
+                      {latestDocument.ocrText.length > 1000 && (
                         <span className="ml-2 text-sm bg-blue-500/20 px-2 py-1 rounded text-blue-300">
-                          {Math.round(document.ocrText.length / 1000)}k characters
+                          {Math.round(latestDocument.ocrText.length / 1000)}k characters
                         </span>
                       )}
                     </summary>
@@ -683,20 +687,20 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                           <span className="text-sm text-gray-400">Document Content</span>
                           <div className="flex items-center space-x-2">
                             <button 
-                              onClick={() => navigator.clipboard.writeText(document.ocrText)}
+                              onClick={() => navigator.clipboard.writeText(latestDocument.ocrText)}
                               className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-white transition-colors"
                             >
                               Copy Text
                             </button>
                             <span className="text-xs text-gray-500">
-                              {document.ocrText.split('\n').length} lines
+                              {latestDocument.ocrText.split('\n').length} lines
                             </span>
                           </div>
                         </div>
                       </div>
                       <div className="p-4 max-h-96 overflow-y-auto">
                         <div className="text-sm text-gray-200 leading-relaxed">
-                          {document.ocrText.split('\n').map((line: string, index: number) => (
+                          {latestDocument.ocrText.split('\n').map((line: string, index: number) => (
                             <div key={index} className="mb-2">
                               {line.trim() ? (
                                 <p className="text-gray-200">{line}</p>
@@ -792,7 +796,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                       <div className="text-xs text-gray-200 space-y-2">
                         <div><span className="text-orange-300">Has ocrText:</span> {document.ocrText ? 'Yes' : 'No'}</div>
                         <div><span className="text-orange-300">OCR Text type:</span> {typeof document.ocrText}</div>
-                        <div><span className="text-orange-300">OCR Text length:</span> {document.ocrText ? document.ocrText.length : 'N/A'}</div>
+                        <div><span className="text-orange-300">OCR Text length:</span> {document.ocrText ? latestDocument.ocrText.length : 'N/A'}</div>
                         <div><span className="text-orange-300">OCR Text preview:</span> {document.ocrText ? `"${document.ocrText.substring(0, 100)}..."` : 'No text'}</div>
                       </div>
                     </div>
