@@ -18,9 +18,23 @@ class JobProcessor {
   }
 
   async createJob(jobData: InsertBackgroundJob): Promise<number> {
-    console.log(`🔍 JOB CREATE MICRO-STEP 1: Inserting job to database...`);
+    console.log(`🔍 JOB CREATE MICRO-STEP 1: Validating job data...`);
     
-    const [job] = await db.insert(backgroundJobs).values(jobData).returning();
+    // Ensure jobId is properly set with fallback
+    const safeJobData = {
+      ...jobData,
+      jobId: jobData.jobId || `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      status: jobData.status || 'pending'
+    };
+    
+    console.log(`🔍 JOB CREATE MICRO-STEP 2: Inserting job to database with safe data...`);
+    console.log(`🔍 Safe job data:`, safeJobData);
+    
+    const [job] = await db.insert(backgroundJobs).values(safeJobData).returning();
+    
+    if (!job || !job.id) {
+      throw new Error('Failed to create job - no job ID returned from database');
+    }
     console.log(`📋 Created background job ${job.id}: ${job.jobType}`);
     console.log(`🔍 JOB CREATE MICRO-STEP 2: Job details:`, {
       id: job.id,
