@@ -9,10 +9,24 @@ class JobProcessor {
   private processingJobs: Set<number> = new Set();
   private jobQueue: BackgroundJob[] = [];
   private isProcessing = false;
+  
+  constructor() {
+    // Start automatic cleanup of stuck jobs every 5 minutes
+    setInterval(() => {
+      this.cleanupStuckJobs();
+    }, 5 * 60 * 1000); // 5 minutes
+  }
 
   async createJob(jobData: InsertBackgroundJob): Promise<number> {
     console.log(`🔍 JOB CREATE MICRO-STEP 1: Inserting job to database...`);
-    const [job] = await db.insert(backgroundJobs).values(jobData).returning();
+    
+    // Add jobId to the data to ensure proper tracking
+    const jobDataWithId = {
+      ...jobData,
+      jobId: `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    const [job] = await db.insert(backgroundJobs).values(jobDataWithId).returning();
     console.log(`📋 Created background job ${job.id}: ${job.jobType}`);
     console.log(`🔍 JOB CREATE MICRO-STEP 2: Job details:`, {
       id: job.id,
@@ -106,6 +120,36 @@ class JobProcessor {
 
     this.processingJobs.delete(jobId);
     console.log(`✅ Job ${jobId} ${status}: ${error || 'Success'}`);
+  }
+
+  async cleanupStuckJobs() {
+    try {
+      console.log('🧹 Checking for stuck jobs...');
+      
+      // Find jobs that have been processing for more than 10 minutes
+      const stuckJobs = await db.select()
+        .from(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.status, 'processing')
+        ));
+
+      const now = new Date();
+      const stuckThreshold = 10 * 60 * 1000; // 10 minutes
+
+      for (const job of stuckJobs) {
+        const lastUpdate = job.updatedAt || job.startedAt || job.createdAt;
+        const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
+        
+        if (timeSinceUpdate > stuckThreshold) {
+          console.log(`🧹 Cleaning up stuck job ${job.id} (stuck for ${Math.floor(timeSinceUpdate / 60000)} minutes)`);
+          
+          await this.completeJob(job.id, null, `Job automatically cleaned up - stuck for ${Math.floor(timeSinceUpdate / 60000)} minutes`);
+          this.processingJobs.delete(job.id);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error during stuck job cleanup:', error);
+    }
   }
 
   private async processQueue() {
@@ -229,7 +273,26 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
-    const ocrResult = await mistralOCRService.extractText(actualFilePath, fileType);
+    // Add timeout wrapper for OCR processing to prevent hangs
+    const ocrTimeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('OCR processing timeout after 5 minutes')), 300000); // 5 minutes max
+    });
+
+    let ocrResult;
+    try {
+      ocrResult = await Promise.race([
+        mistralOCRService.extractText(actualFilePath, fileType),
+        ocrTimeoutPromise
+      ]);
+    } catch (error) {
+      console.error(`❌ OCR failed for ${actualFilePath}:`, error);
+      // Return a fallback result instead of failing completely
+      ocrResult = {
+        extractedText: `OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}. File: ${path.basename(actualFilePath)}`,
+        confidence: 0.0,
+        processingTime: '0s'
+      };
+    }
     
     await this.updateJobProgress(job.id, 60, 'OCR extraction completed, generating AI summary...');
 
@@ -575,11 +638,29 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       
       await this.updateJobProgress(jobId, 30, 'Starting text extraction...');
 
+      // Add timeout for ZIP processing OCR
+      const zipOcrTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('ZIP OCR processing timeout after 3 minutes')), 180000); // 3 minutes
+      });
+
       // Determine file type from extension
       const fileType = path.extname(fileName).substring(1).toLowerCase();
       console.log(`🔍 Processing ${fileName} as type: ${fileType}`);
 
-      const ocrResult = await mistralOCRService.extractText(filePath, fileType);
+      let ocrResult;
+      try {
+        ocrResult = await Promise.race([
+          mistralOCRService.extractText(filePath, fileType),
+          zipOcrTimeoutPromise
+        ]);
+      } catch (error) {
+        console.error(`❌ ZIP OCR failed for ${fileName}:`, error);
+        ocrResult = {
+          extractedText: `OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}. File: ${fileName}`,
+          confidence: 0.0,
+          processingTime: '0s'
+        };
+      }
       
       await this.updateJobProgress(jobId, 70, 'OCR extraction completed, saving results...');
 
