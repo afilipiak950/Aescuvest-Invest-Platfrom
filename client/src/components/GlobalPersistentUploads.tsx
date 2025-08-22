@@ -53,9 +53,14 @@ export function GlobalPersistentUploadMonitor({
   });
 
   const uploads: PersistentUploadSession[] = uploadsData?.uploads || [];
+  console.log(`🔍 GLOBAL WIDGET: Total uploads from API:`, uploads.length);
   
   // 🎯 CRITICAL: Sync with real-time localStorage progress like DataRoomExplorer
-  const activeUploads = uploads.filter(u => u.status === 'uploading' || u.status === 'processing').map(upload => {
+  const filteredUploads = uploads.filter(u => u.status === 'uploading' || u.status === 'processing');
+  console.log(`🔍 GLOBAL WIDGET: Filtered active uploads:`, filteredUploads.length);
+  
+  const activeUploads = filteredUploads.map(upload => {
+    console.log(`🔍 GLOBAL WIDGET: Processing upload:`, upload.fileName, upload.uploadType);
     // Get real-time progress from localStorage for GCS uploads
     if (upload.uploadType === 'gcs_direct') {
       try {
