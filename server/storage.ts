@@ -291,8 +291,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDeal(id: number): Promise<boolean> {
     try {
-      const result = await db.delete(deals).where(eq(deals.id, id));
-      return (result.rowCount || 0) > 0;
+      console.log(`🗑️ DatabaseStorage: Attempting to delete deal ${id}`);
+      
+      // First check if deal exists
+      const existingDeal = await this.getDealById(id);
+      if (!existingDeal) {
+        console.log(`🗑️ Deal ${id} not found - cannot delete`);
+        return false;
+      }
+      
+      // Delete the deal using returning() to confirm deletion
+      const deletedDeals = await db
+        .delete(deals)
+        .where(eq(deals.id, id))
+        .returning({ id: deals.id });
+      
+      const wasDeleted = deletedDeals.length > 0;
+      console.log(`🗑️ DatabaseStorage: Deal ${id} deletion ${wasDeleted ? 'successful' : 'failed'}`);
+      
+      // Invalidate deals cache after successful deletion
+      if (wasDeleted) {
+        dealsCache.delete('all_deals');
+        console.log('💨 Invalidated deals cache after deletion');
+      }
+      
+      return wasDeleted;
     } catch (error) {
       console.error(`Error deleting deal ${id}:`, error);
       return false;
