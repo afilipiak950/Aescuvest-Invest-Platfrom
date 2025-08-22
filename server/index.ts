@@ -885,9 +885,31 @@ app.use((req, res, next) => {
   let zipProcessor: any;
   
   try {
-    // Dynamic import to get the configured multer instance
-    const multerModule = await import('./services/fileUpload');
-    upload = multerModule.upload;
+    // Create inline multer configuration instead of importing missing fileUpload service
+    const storage = multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadDir = path.join(process.cwd(), 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+      }
+    });
+    
+    upload = multer({ 
+      storage,
+      limits: { fileSize: Infinity },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed') {
+          cb(null, true);
+        } else {
+          cb(new Error('Only ZIP files are allowed'), false);
+        }
+      }
+    });
     
     const zipModule = await import('./services/zipProcessor');
     zipProcessor = zipModule.zipProcessor;
