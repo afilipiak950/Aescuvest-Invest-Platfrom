@@ -28,13 +28,18 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   });
 
   const handleRunAnalysis = async () => {
+    console.log('🚀 ACTUAL Research button clicked! Deal:', dealId);
+    console.log('🔍 Button state before:', { isRunning, isPending: comprehensiveAnalysisMutation.isPending });
+    
     setIsRunning(true);
     console.log('Starting comprehensive research analysis for deal', dealId);
     
     try {
+      console.log('🔥 About to call mutateAsync...');
       await comprehensiveAnalysisMutation.mutateAsync();
+      console.log('✅ Research mutation completed successfully');
     } catch (error) {
-      console.error('Error starting research analysis:', error);
+      console.error('❌ Error starting research analysis:', error);
       setIsRunning(false);
     }
   };
