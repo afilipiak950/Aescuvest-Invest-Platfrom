@@ -992,14 +992,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       console.log(`🎯 RESTORING progress bar from persistent session: ${activeUpload.fileName}`);
       
       if (activeUpload.uploadType === 'gcs_direct') {
-        // Show progress bar with at least the database progress, will be updated by real-time polling
-        const displayProgress = Math.max(activeUpload.progress || 0, 1); // Show at least 1% if active
+        // 🎯 CRITICAL FIX: Don't force minimum 1% - use real progress from persistent upload system
+        const realProgress = activeUpload.progress || 0;
         setUploadProgress({
           fileName: activeUpload.fileName,
-          progress: displayProgress,
+          progress: realProgress,
           status: activeUpload.currentStep || 'Uploading to Google Cloud Storage...'
         });
-        console.log(`✅ Progress bar restored: ${activeUpload.fileName} - showing ${displayProgress}%`);
+        console.log(`✅ Progress bar restored: ${activeUpload.fileName} - showing ${realProgress}%`);
       }
     } else if (uploadsData?.uploads) {
       console.log('🎯 No active uploads found, clearing progress bars');
