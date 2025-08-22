@@ -8543,40 +8543,7 @@ export async function registerAllRoutes(app: Express) {
     }
   });
   
-  app.post('/api/deals/:dealId/ai-assistant/query', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      const { query } = req.body;
-      
-      if (!query) {
-        return res.status(400).json({ error: 'Query is required' });
-      }
-      
-      console.log(`🤖 AI Assistant query for deal ${dealId}: ${query}`);
-      
-      // Import the AI Assistant service
-      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
-      
-      // Create assistant instance for this deal
-      const assistant = new AescuvestAIAssistant(dealId);
-      
-      // Process the query
-      const response = await assistant.processQuery(query);
-      const stats = assistant.getContextStats();
-      
-      res.json({
-        success: true,
-        response,
-        contextStats: stats
-      });
-    } catch (error) {
-      console.error('❌ AI Assistant error:', error);
-      res.status(500).json({ 
-        error: 'Failed to process AI query',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
+  // ✅ AI Assistant query endpoint moved to server/index.ts to bypass Vite blocking
 
   // AI Assistant streaming endpoint - REMOVED (now in index.ts for priority)
 
