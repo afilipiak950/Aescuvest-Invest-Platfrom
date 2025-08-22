@@ -635,6 +635,33 @@ export const insertBackgroundJobSchema = createInsertSchema(backgroundJobs).omit
   updatedAt: true,
 });
 
+// 🎯 CRITICAL: Persistent Upload Sessions for Complete Background Processing
+export const persistentUploadSessions = pgTable("persistent_upload_sessions", {
+  id: serial("id").primaryKey(),
+  sessionId: text("session_id").notNull().unique(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  fileName: text("file_name").notNull(),
+  fileSize: bigint("file_size", { mode: "number" }).notNull(),
+  uploadType: text("upload_type").notNull(), // 'gcs_direct', 'chunked', 'zip_processing'
+  status: text("status").notNull().default("uploading"), // 'uploading', 'processing', 'completed', 'failed'
+  progress: integer("progress").default(0),
+  uploadedBytes: bigint("uploaded_bytes", { mode: "number" }).default(0),
+  gcsPath: text("gcs_path"),
+  jobId: text("job_id"), // Links to background_jobs for processing
+  currentStep: text("current_step"),
+  errorMessage: text("error_message"),
+  metadata: json("metadata"), // JSON for additional data like chunk info, retry count, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at")
+});
+
+export const insertPersistentUploadSessionSchema = createInsertSchema(persistentUploadSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type BackgroundJob = typeof backgroundJobs.$inferSelect;
 export type InsertBackgroundJob = z.infer<typeof insertBackgroundJobSchema>;
 
