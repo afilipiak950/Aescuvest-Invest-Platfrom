@@ -71,6 +71,11 @@ export default function AllDealsPage() {
   // Delete deal mutation with optimistic updates
   const deleteDealMutation = useMutation({
     mutationFn: async (dealId: number) => {
+      // Prevent deletion of demo deals (IDs 1-8)
+      if (dealId <= 8 && apiDeals.length === 0) {
+        throw new Error('Cannot delete demo deals. Please refresh the page to load real deals from the database.');
+      }
+      
       return apiRequest(`/api/deals/${dealId}`, {
         method: 'DELETE',
       });
@@ -96,9 +101,19 @@ export default function AllDealsPage() {
         queryClient.setQueryData(['/api/deals'], context.previousDeals);
       }
       
+      // Show appropriate error message
+      let errorMessage = "Failed to delete deal. Please try again.";
+      if (error.message?.includes('Cannot delete demo deals')) {
+        errorMessage = error.message;
+      } else if (error.message?.includes('Deal not found')) {
+        errorMessage = "Deal not found. It may have been already deleted.";
+      } else if (error.message?.includes('API error')) {
+        errorMessage = "Unable to connect to server. Please check your connection.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to delete deal. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -235,7 +250,9 @@ export default function AllDealsPage() {
   });
 
   // Use demo data if API returns empty or if there's an issue
+  // Show a warning when using demo data
   const deals = apiDeals.length > 0 ? apiDeals : demoDeals;
+  const isUsingDemoData = apiDeals.length === 0;
 
   const filteredDeals = deals.filter(deal => {
     const matchesSearch = deal.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -256,6 +273,18 @@ export default function AllDealsPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Recent Deals</h1>
+            {isUsingDemoData && (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
+                <p className="text-yellow-400 text-sm">
+                  ⚠️ Showing demo data. <button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/deals'] })}
+                    className="underline hover:text-yellow-300"
+                  >
+                    Click here to refresh and load real deals
+                  </button>
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
