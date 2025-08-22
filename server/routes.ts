@@ -8549,68 +8549,7 @@ export async function registerAllRoutes(app: Express) {
     }
   });
 
-  // AI Assistant streaming endpoint
-  app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
-    console.log('🚨 STREAMING ENDPOINT HIT! Body:', req.body);
-    console.log('🚨 Headers:', req.headers);
-    
-    try {
-      const dealId = parseInt(req.params.dealId);
-      const { query } = req.body;
-      
-      if (!query) {
-        return res.status(400).json({ error: 'Query is required' });
-      }
-      
-      console.log(`🤖 AI Assistant streaming query for deal ${dealId}: ${query}`);
-      
-      // Import the AI Assistant service
-      console.log('📦 Importing AI Assistant service...');
-      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
-      
-      // Create assistant instance for this deal
-      console.log('🔧 Creating AI Assistant instance...');
-      const assistant = new AescuvestAIAssistant(dealId);
-      
-      // Set up SSE headers for streaming
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-      
-      // Send initial context stats
-      console.log('📊 Getting context stats...');
-      const stats = assistant.getContextStats();
-      res.write(`data: ${JSON.stringify({ type: 'stats', stats })}\n\n`);
-      
-      try {
-        // Get the streaming response
-        console.log('🌊 Starting stream query...');
-        const stream = await assistant.streamQuery(query);
-        
-        console.log('📝 Streaming response chunks...');
-        // Stream the response chunks
-        for await (const chunk of stream) {
-          res.write(`data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`);
-        }
-        
-        // Send completion event
-        console.log('✅ Stream completed successfully');
-        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-        res.end();
-      } catch (streamError: any) {
-        console.error('❌ Stream error:', streamError);
-        res.write(`data: ${JSON.stringify({ type: 'error', error: streamError.message })}\n\n`);
-        res.end();
-      }
-    } catch (error) {
-      console.error('❌ AI Assistant streaming error:', error);
-      res.status(500).json({ 
-        error: 'Failed to stream AI response',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
+  // AI Assistant streaming endpoint - REMOVED (now in index.ts for priority)
 
   // Get AI Assistant context stats
   app.get('/api/deals/:dealId/ai-assistant/stats', async (req: Request, res: Response) => {

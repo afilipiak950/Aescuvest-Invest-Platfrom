@@ -26,24 +26,54 @@ import gcsSignedUploadRouter from './routes/gcs-signed-upload';
 const app = express();
 
 // 🚨🚨🚨 CRITICAL: Register streaming endpoint FIRST before ANY middleware to bypass Vite
-app.post('/api/deals/:dealId/ai-assistant/stream', express.json(), async (req: Request, res: Response) => {
-  console.log('🚨🚨🚨 STREAMING ENDPOINT HIT FIRST! Body:', req.body);
+app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
+  console.log('🚨🚨🚨 STREAMING ENDPOINT HIT FIRST!');
+  console.log('🚨🚨🚨 Raw body type:', typeof req.body);
+  console.log('🚨🚨🚨 Headers:', req.headers['content-type']);
   
   try {
+    // Parse body manually if needed
+    let body = req.body;
+    if (!body || typeof body === 'string') {
+      console.log('🔧 Parsing body manually...');
+      // Read raw body
+      let rawBody = '';
+      req.on('data', chunk => rawBody += chunk);
+      await new Promise((resolve) => req.on('end', resolve));
+      
+      try {
+        body = JSON.parse(rawBody || '{}');
+        console.log('✅ Body parsed:', body);
+      } catch (e) {
+        console.error('❌ Failed to parse body:', e);
+        body = {};
+      }
+    }
+    
     const dealId = parseInt(req.params.dealId);
-    const { query } = req.body;
+    const { query } = body;
+    
+    console.log('📝 Query received:', query);
     
     if (!query) {
-      return res.status(400).json({ error: 'Query is required' });
+      console.error('❌ No query provided');
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Query is required' })}\n\n`);
+      res.end();
+      return;
     }
     
     console.log(`🤖 AI Assistant streaming query for deal ${dealId}: ${query}`);
     
     // Import the AI Assistant service
+    console.log('📦 Importing AI Assistant service...');
     const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+    console.log('✅ Service imported');
     
     // Create assistant instance for this deal
+    console.log('🔧 Creating AI Assistant instance...');
     const assistant = new AescuvestAIAssistant(dealId);
+    console.log('✅ Instance created');
     
     // Set up SSE headers for streaming
     res.setHeader('Content-Type', 'text/event-stream');
@@ -52,32 +82,45 @@ app.post('/api/deals/:dealId/ai-assistant/stream', express.json(), async (req: R
     res.setHeader('X-Accel-Buffering', 'no');
     
     // Send initial context stats
+    console.log('📊 Getting context stats...');
     const stats = assistant.getContextStats();
+    console.log('📊 Stats:', stats);
     res.write(`data: ${JSON.stringify({ type: 'stats', stats })}\n\n`);
     
     try {
       // Get the streaming response
+      console.log('🌊 Starting stream query...');
       const stream = await assistant.streamQuery(query);
+      console.log('✅ Stream started');
       
       // Stream the response chunks
+      let chunkCount = 0;
       for await (const chunk of stream) {
+        chunkCount++;
+        console.log(`📝 Chunk ${chunkCount}:`, chunk.substring(0, 50));
         res.write(`data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`);
       }
       
       // Send completion event
+      console.log(`✅ Stream completed with ${chunkCount} chunks`);
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
       res.end();
     } catch (streamError: any) {
       console.error('❌ Stream error:', streamError);
+      console.error('❌ Stack:', streamError.stack);
       res.write(`data: ${JSON.stringify({ type: 'error', error: streamError.message })}\n\n`);
       res.end();
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ AI Assistant streaming error:', error);
-    res.status(500).json({ 
-      error: 'Failed to stream AI response',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.error('❌ Stack:', error.stack);
+    
+    // Still try to send as SSE if possible
+    if (!res.headersSent) {
+      res.setHeader('Content-Type', 'text/event-stream');
+    }
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error.message || 'Unknown error' })}\n\n`);
+    res.end();
   }
 });
 
