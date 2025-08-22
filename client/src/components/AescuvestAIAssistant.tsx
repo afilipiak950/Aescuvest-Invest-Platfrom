@@ -25,7 +25,20 @@ import {
   CheckCircle2,
   TrendingUp,
   AlertTriangle,
-  Square
+  Square,
+  Zap,
+  Clock,
+  Target,
+  Lightbulb,
+  Gauge,
+  Brain,
+  BarChart3,
+  Users,
+  Shield,
+  DollarSign,
+  Eye,
+  History,
+  Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { queryClient } from '@/lib/queryClient';
@@ -41,6 +54,25 @@ interface Message {
     hasCompanyInfo: boolean;
     totalContextSize: number;
   };
+  responseTime?: number;
+  confidence?: 'High' | 'Medium' | 'Low';
+  queryType?: 'simple' | 'complex' | 'analytical' | 'cross-document';
+}
+
+interface SmartSuggestion {
+  id: string;
+  text: string;
+  category: 'financial' | 'legal' | 'clinical' | 'commercial' | 'general';
+  icon: any;
+  priority: number;
+}
+
+interface PerformanceMetrics {
+  averageResponseTime: number;
+  totalQueries: number;
+  cacheHitRate: number;
+  dealEmbeddingCoverage: number;
+  conversationLength: number;
 }
 
 interface AescuvestAIAssistantProps {
@@ -55,6 +87,10 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const [isStreaming, setIsStreaming] = useState(false);
   const [isContextLoaded, setIsContextLoaded] = useState(false);
   const [isPreloading, setIsPreloading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showMetrics, setShowMetrics] = useState(false);
+  const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>([]);
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -69,7 +105,85 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     },
     enabled: !!dealId
   });
+
+  // Fetch smart suggestions
+  const { data: suggestions } = useQuery({
+    queryKey: ['/api/deals', dealId, 'ai-assistant/suggestions'],
+    queryFn: async () => {
+      const response = await fetch(`/api/deals/${dealId}/ai-assistant/suggestions`);
+      if (!response.ok) return generateDefaultSuggestions();
+      return response.json();
+    },
+    enabled: !!dealId && isContextLoaded
+  });
+
+  // Fetch performance metrics
+  const { data: metrics } = useQuery({
+    queryKey: ['/api/deals', dealId, 'ai-assistant/metrics'],
+    queryFn: async () => {
+      const response = await fetch(`/api/deals/${dealId}/ai-assistant/metrics`);
+      if (!response.ok) throw new Error('Failed to fetch performance metrics');
+      return response.json();
+    },
+    enabled: !!dealId && showMetrics,
+    refetchInterval: 5000 // Update every 5 seconds when visible
+  });
+
+  // Generate default smart suggestions
+  const generateDefaultSuggestions = (): SmartSuggestion[] => [
+    {
+      id: '1',
+      text: "What is the company's primary business model and revenue streams?",
+      category: 'general',
+      icon: DollarSign,
+      priority: 1
+    },
+    {
+      id: '2', 
+      text: "Analyze the competitive landscape and market positioning",
+      category: 'commercial',
+      icon: Target,
+      priority: 2
+    },
+    {
+      id: '3',
+      text: "Assess the key regulatory risks and compliance requirements", 
+      category: 'legal',
+      icon: Shield,
+      priority: 3
+    },
+    {
+      id: '4',
+      text: "Evaluate the financial projections and path to profitability",
+      category: 'financial', 
+      icon: TrendingUp,
+      priority: 4
+    },
+    {
+      id: '5',
+      text: "Review the management team capabilities and track record",
+      category: 'general',
+      icon: Users,
+      priority: 5
+    }
+  ];
   
+  // Update smart suggestions when data changes
+  useEffect(() => {
+    if (suggestions) {
+      setSmartSuggestions(suggestions);
+    } else {
+      setSmartSuggestions(generateDefaultSuggestions());
+    }
+  }, [suggestions]);
+
+  // Update performance metrics
+  useEffect(() => {
+    if (metrics) {
+      setPerformanceMetrics(metrics);
+    }
+  }, [metrics]);
+
   // Pre-load context when component mounts for instant responses
   useEffect(() => {
     if (dealId && !isContextLoaded) {
@@ -120,6 +234,54 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   }, [dealId]); // Simplified dependencies to prevent re-runs
 
   // Mutation for sending queries
+  // Handle smart suggestion click
+  const handleSuggestionClick = (suggestion: SmartSuggestion) => {
+    setInput(suggestion.text);
+    setShowSuggestions(false);
+    // Auto-submit the suggestion
+    setTimeout(() => {
+      handleSendMessage(suggestion.text);
+    }, 100);
+  };
+
+  // Handle sending messages with enhanced tracking
+  const handleSendMessage = async (messageText?: string) => {
+    const queryText = messageText || input;
+    if (!queryText.trim() || isStreaming) return;
+
+    const startTime = Date.now();
+    const messageId = Date.now().toString();
+    
+    // Add user message
+    const userMessage: Message = {
+      id: messageId + '_user',
+      role: 'user',
+      content: queryText,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setShowSuggestions(false);
+    
+    // Send query with performance tracking
+    sendQueryMutation.mutate(queryText, {
+      onSuccess: (response) => {
+        const responseTime = Date.now() - startTime;
+        const assistantMessage: Message = {
+          id: messageId + '_assistant',
+          role: 'assistant',
+          content: response.response,
+          timestamp: new Date(),
+          responseTime,
+          confidence: response.confidence || 'Medium',
+          queryType: response.queryType || 'complex'
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      }
+    });
+  };
+
   const sendQueryMutation = useMutation({
     mutationFn: async (query: string) => {
       // Create new AbortController for this request
@@ -488,6 +650,129 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Revolutionary Smart Suggestions */}
+          {showSuggestions && smartSuggestions.length > 0 && messages.length === 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Smart Investment Analysis Suggestions</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSuggestions(false)}
+                  className="text-xs"
+                >
+                  Hide
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                {smartSuggestions.slice(0, 6).map((suggestion) => {
+                  const IconComponent = suggestion.icon;
+                  const categoryColor = {
+                    financial: 'bg-green-100 text-green-800 border-green-200',
+                    legal: 'bg-red-100 text-red-800 border-red-200', 
+                    clinical: 'bg-blue-100 text-blue-800 border-blue-200',
+                    commercial: 'bg-purple-100 text-purple-800 border-purple-200',
+                    general: 'bg-gray-100 text-gray-800 border-gray-200'
+                  }[suggestion.category];
+                  
+                  return (
+                    <motion.button
+                      key={suggestion.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-md",
+                        categoryColor,
+                        "hover:bg-opacity-80"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <IconComponent className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium leading-tight">{suggestion.text}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {suggestion.category}
+                            </Badge>
+                            <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Performance Metrics Dashboard */}
+          {showMetrics && performanceMetrics && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">AI Performance Metrics</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowMetrics(false)}
+                  className="text-xs"
+                >
+                  Hide
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <Zap className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Avg Response</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                    {performanceMetrics.averageResponseTime?.toFixed(0) || 0}ms
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <BarChart3 className="h-5 w-5 text-green-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Cache Hit Rate</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                    {(performanceMetrics.cacheHitRate * 100)?.toFixed(1) || 0}%
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <Database className="h-5 w-5 text-blue-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Embedding Coverage</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                    {performanceMetrics.dealEmbeddingCoverage?.toFixed(1) || 0}%
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <History className="h-5 w-5 text-purple-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Conversation</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                    {performanceMetrics.conversationLength || 0} msg
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* Input Area */}
           <form onSubmit={handleSubmit} className="flex gap-2">

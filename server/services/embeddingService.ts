@@ -245,6 +245,55 @@ export class EmbeddingService {
     console.log(`💾 Cached response for query (expires in ${ttlMinutes} minutes)`);
   }
 
+  // New method for auto-embedding missing documents for specific deal
+  static async embedMissingDocuments(dealId: number): Promise<void> {
+    try {
+      console.log(`🚀 Auto-embedding missing documents for deal ${dealId}...`);
+      
+      // Get documents for this deal that don't have embeddings
+      const documentsToEmbed = await db.execute(sql`
+        SELECT d.id, d.deal_id, d.name, d.ocr_text, d.agent_type
+        FROM documents d
+        LEFT JOIN document_embeddings de ON d.id = de.document_id
+        WHERE d.deal_id = ${dealId}
+        AND de.document_id IS NULL 
+        AND d.ocr_text IS NOT NULL 
+        AND LENGTH(d.ocr_text) > 100
+        ORDER BY d.id
+      `);
+      
+      console.log(`Found ${documentsToEmbed.rows.length} documents to embed for deal ${dealId}`);
+      
+      if (documentsToEmbed.rows.length === 0) {
+        console.log(`✅ All documents already embedded for deal ${dealId}`);
+        return;
+      }
+
+      // Process documents in batches to avoid rate limits
+      for (const doc of documentsToEmbed.rows) {
+        try {
+          await this.embedDocument(
+            doc.id as number,
+            doc.deal_id as number,
+            doc.name as string,
+            doc.ocr_text as string,
+            doc.agent_type as string
+          );
+          
+          // Small delay to respect rate limits
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`❌ Failed to embed document ${doc.id}:`, error);
+        }
+      }
+      
+      console.log(`✅ Completed auto-embedding for deal ${dealId}`);
+    } catch (error) {
+      console.error(`❌ Auto-embedding failed for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
   // Get embedding statistics for a deal
   static async getEmbeddingStats(dealId: number) {
     const embeddings = await db
