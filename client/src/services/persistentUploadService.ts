@@ -1,6 +1,9 @@
 // 🎯 CRITICAL: Frontend Persistent Upload Service
 // Creates sessions immediately when uploads start, not when they complete
 
+// Track active upload controllers for cancellation
+const activeUploadControllers = new Map<string, AbortController>();
+
 export interface PersistentUploadSession {
   id?: number;
   sessionId: string;
@@ -166,6 +169,53 @@ export class FrontendPersistentUploadService {
       console.error('❌ Failed to get global uploads:', error);
       return [];
     }
+  }
+
+  /**
+   * Register an abort controller for an upload session
+   */
+  registerUploadController(sessionId: string, controller: AbortController): void {
+    console.log(`🎯 Registering abort controller for session: ${sessionId}`);
+    activeUploadControllers.set(sessionId, controller);
+  }
+
+  /**
+   * Cancel an active upload by sessionId
+   */
+  async cancelUpload(sessionId: string): Promise<void> {
+    console.log(`🛑 Canceling upload session: ${sessionId}`);
+    
+    // Abort the ongoing upload
+    const controller = activeUploadControllers.get(sessionId);
+    if (controller) {
+      console.log(`🛑 Aborting active upload controller for: ${sessionId}`);
+      controller.abort();
+      activeUploadControllers.delete(sessionId);
+    } else {
+      console.log(`⚠️ No active controller found for session: ${sessionId}`);
+    }
+
+    // Delete the database record
+    try {
+      const response = await fetch(`/api/persistent-uploads/${sessionId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        console.log(`✅ Upload session deleted: ${sessionId}`);
+      } else {
+        console.error(`❌ Failed to delete upload session: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to cancel upload:', error);
+    }
+  }
+
+  /**
+   * Clean up completed uploads
+   */
+  cleanupCompletedUpload(sessionId: string): void {
+    activeUploadControllers.delete(sessionId);
   }
 }
 

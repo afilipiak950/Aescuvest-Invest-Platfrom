@@ -92,25 +92,27 @@ export function GlobalPersistentUploadMonitor({
 
   // Cancel all active uploads
   const handleCancelAll = async () => {
-    console.log('🗑️ Canceling all active uploads...');
-    for (const upload of activeUploads) {
-      try {
-        console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
-        const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
+    console.log('🛑 Canceling all active uploads...');
+    
+    try {
+      // Import and use the cancel service  
+      const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
+      
+      const cancelPromises = activeUploads.map(async (upload) => {
+        try {
+          console.log(`🛑 Canceling upload: ${upload.fileName} (${upload.sessionId})`);
+          await frontendPersistentUploadService.cancelUpload(upload.sessionId);
           console.log(`✅ Upload canceled: ${upload.fileName}`);
-        } else {
-          console.error('❌ Failed to cancel upload:', response.status, response.statusText);
+        } catch (error) {
+          console.error('❌ Error canceling upload:', upload.fileName, error);
         }
-      } catch (error) {
-        console.error('❌ Network error canceling upload:', error);
-      }
+      });
+      
+      await Promise.all(cancelPromises);
+      console.log('✅ All uploads canceled');
+      
+    } catch (error) {
+      console.error('❌ Error canceling all uploads:', error);
     }
     
     // Refresh the upload list
@@ -309,25 +311,14 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
     console.log(`🔴 INDIVIDUAL CANCEL CLICKED! File: ${upload.fileName} (${upload.sessionId})`);
     
     try {
-      console.log('🗑️ Making DELETE request...');
-      const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('🛑 Using new cancel service to stop upload process...');
+      // Import and use the cancel service
+      const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
+      await frontendPersistentUploadService.cancelUpload(upload.sessionId);
       
-      console.log('📡 DELETE response status:', response.status);
-      if (response.ok) {
-        console.log(`✅ Upload canceled successfully: ${upload.fileName}`);
-        // Instead of reloading, just force a query refresh
-        window.location.reload();
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to cancel upload:', response.status, errorText);
-      }
+      console.log('✅ Upload canceled successfully:', upload.fileName);
     } catch (error) {
-      console.error('❌ Network error canceling upload:', error);
+      console.error('❌ Error canceling upload:', error);
     }
   };
 
