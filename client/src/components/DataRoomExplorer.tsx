@@ -1522,6 +1522,28 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         // 🎯 CRITICAL: Create persistent upload session FIRST
         console.log(`🎯 Creating persistent upload session for: ${file.name}`);
         const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
+        
+        // 🛠️ RECOVERY: Check for existing stuck sessions and clean them up
+        try {
+          console.log('🔍 Checking for stuck upload sessions...');
+          const existingUploads = await fetch(`/api/deals/${dealId}/persistent-uploads`);
+          if (existingUploads.ok) {
+            const { uploads } = await existingUploads.json();
+            const stuckUploads = uploads.all?.filter((u: any) => 
+              u.status === 'uploading' && u.progress === 0 && u.fileName === file.name
+            ) || [];
+            
+            if (stuckUploads.length > 0) {
+              console.log(`🧹 Found ${stuckUploads.length} stuck uploads for this file, cleaning up...`);
+              for (const stuckUpload of stuckUploads) {
+                await fetch(`/api/persistent-uploads/${stuckUpload.sessionId}`, { method: 'DELETE' }).catch(() => {});
+              }
+            }
+          }
+        } catch (error) {
+          console.log('🔍 Stuck session cleanup failed (non-critical):', error);
+        }
+        
         const sessionId = await frontendPersistentUploadService.createUploadSession(
           dealId,
           file.name,
@@ -1531,6 +1553,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         
         // 📍 MICRO-STEP 1: Request signed URL (tiny request, no file data)
         console.log('📍 MICRO-STEP 1: Requesting signed URL from server...');
+        console.log(`🔗 Request URL: /api/gcs/signed-url/${dealId}`);
+        console.log(`📦 Request payload:`, { fileName: file.name, fileSize: file.size });
+        
         const signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
           method: 'POST',
           headers: {
@@ -1540,10 +1565,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             fileName: file.name,
             fileSize: file.size
           })
+        }).catch(error => {
+          console.error('❌ FETCH ERROR - Request never reached server:', error);
+          throw new Error(`Network request failed: ${error.message}`);
         });
+        
+        console.log('📡 Signed URL response received:', signedUrlResponse.status, signedUrlResponse.statusText);
 
         if (!signedUrlResponse.ok) {
           const errorData = await signedUrlResponse.json().catch(() => ({}));
+          console.error('❌ SIGNED URL ERROR:', errorData);
           throw new Error(errorData.message || `Failed to get signed URL: ${signedUrlResponse.statusText}`);
         }
 
