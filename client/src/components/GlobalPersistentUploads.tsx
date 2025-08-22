@@ -228,17 +228,27 @@ export function GlobalPersistentUploadMonitor({
               <Button
                 size="sm"
                 variant="ghost"
+                onMouseDown={() => console.log('🚨🚨🚨 HEADER BUTTON MOUSE DOWN DETECTED!')}
+                onMouseUp={() => console.log('🚨🚨🚨 HEADER BUTTON MOUSE UP DETECTED!')}
+                onPointerDown={() => console.log('🚨🚨🚨 HEADER BUTTON POINTER DOWN!')}
                 onClick={(e) => {
-                  console.log('🚨 HEADER CANCEL ALL CLICKED!');
-                  console.log('🚨 Event:', e);
-                  console.log('🚨 Active uploads count:', activeUploads.length);
+                  console.log('🚨🚨🚨 HEADER CANCEL ALL CLICKED!');
+                  console.log('🚨🚨🚨 Event:', e);
+                  console.log('🚨🚨🚨 Active uploads count:', activeUploads.length);
+                  e.preventDefault();
+                  e.stopPropagation();
                   handleCancelAll();
                 }}
-                className="h-6 w-6 p-0 relative z-10"
+                className="h-8 w-8 p-0 relative z-50 bg-red-500 hover:bg-red-600 text-white"
                 title="Cancel all uploads"
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                  position: 'relative',
+                  zIndex: 9999
+                }}
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -345,19 +355,31 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
           {/* Cancel button for stuck/active uploads */}
           {(upload.status === 'uploading' || upload.status === 'processing') && (
             <button
+              onMouseDown={() => console.log('🚨🚨🚨 INDIVIDUAL BUTTON MOUSE DOWN DETECTED!')}
+              onMouseUp={() => console.log('🚨🚨🚨 INDIVIDUAL BUTTON MOUSE UP DETECTED!')}
+              onPointerDown={() => console.log('🚨🚨🚨 INDIVIDUAL BUTTON POINTER DOWN!')}
               onClick={(e) => {
-                console.log('🚨 BUTTON CLICK DETECTED! Starting debug trace...');
-                console.log('🚨 Event target:', e.target);
-                console.log('🚨 Event type:', e.type);
-                console.log('🚨 Upload details:', upload.fileName, upload.sessionId);
-                console.log('🚨 Calling handleCancel...');
+                console.log('🚨🚨🚨 INDIVIDUAL BUTTON CLICK DETECTED! Starting debug trace...');
+                console.log('🚨🚨🚨 Event target:', e.target);
+                console.log('🚨🚨🚨 Event type:', e.type);
+                console.log('🚨🚨🚨 Upload details:', upload.fileName, upload.sessionId);
+                console.log('🚨🚨🚨 Calling handleCancel...');
+                e.preventDefault();
+                e.stopPropagation();
                 handleCancel(e);
               }}
-              className="text-gray-400 hover:text-red-400 transition-colors p-1 rounded bg-red-500/20 hover:bg-red-500/40 relative z-10"
+              className="text-white hover:text-red-400 transition-colors p-1 rounded bg-red-500 hover:bg-red-600 relative z-50"
               title="Cancel upload"
-              style={{ minWidth: '24px', minHeight: '24px', cursor: 'pointer' }}
+              style={{ 
+                minWidth: '30px', 
+                minHeight: '30px', 
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                position: 'relative',
+                zIndex: 9999
+              }}
             >
-              <XCircle className="h-4 w-4" />
+              <XCircle className="h-5 w-5" />
             </button>
           )}
         </div>
