@@ -391,9 +391,15 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isStreaming) {
-      sendQueryMutation.mutate(input);
+      // Force clear any stuck state
+      setIsPreloading(false);
+      setIsContextLoaded(true);
+      setIsStreaming(false);
+      
+      const query = input;
       setInput('');
       setIsExpanded(true);
+      sendQueryMutation.mutate(query);
     }
   };
 
@@ -415,16 +421,13 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     
     // Force clear any stuck state
     setIsStreaming(false);
-    setInput(query);
+    setIsPreloading(false);
+    setIsContextLoaded(true);
     setIsExpanded(true);
     
-    // Automatically submit the query
-    console.log('🚀 Forcing submission of example query');
-    // Use setTimeout to ensure state updates have propagated
-    setTimeout(() => {
-      sendQueryMutation.mutate(query);
-      setInput('');
-    }, 10);
+    // Directly submit without setting input first
+    console.log('🚀 Direct submission of example query');
+    sendQueryMutation.mutate(query);
   };
 
   // Stop function to cancel ongoing AI processing
@@ -650,7 +653,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                             ) : (
                               <div className="flex items-center gap-2">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="text-xs text-muted-foreground">Analyzing context and generating institutional-grade report...</span>
+                                <span className="text-xs text-muted-foreground">Generating response...</span>
                               </div>
                             )}
                           </div>
