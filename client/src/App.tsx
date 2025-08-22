@@ -154,7 +154,8 @@ function AppContent() {
         )}
         
         {/* 🎯 CRITICAL: Global Persistent Upload Monitor - Shows across ALL pages */}
-        {isAuthenticated && showMonitor && (
+        {/* TEMP FIX: Force component to render to test hook */}
+        {isAuthenticated && (
           <GlobalPersistentUploadMonitor
             isMinimized={isMinimized}
             onToggleMinimize={toggleMinimize}
