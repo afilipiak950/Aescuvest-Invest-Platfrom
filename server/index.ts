@@ -81,11 +81,8 @@ app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Res
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     
-    // Send initial context stats
-    console.log('📊 Getting context stats...');
-    const stats = assistant.getContextStats();
-    console.log('📊 Stats:', stats);
-    res.write(`data: ${JSON.stringify({ type: 'stats', stats })}\n\n`);
+    // Skip stats for now - method doesn't exist
+    console.log('📊 Skipping stats - starting stream directly...');
     
     try {
       // Get the streaming response
