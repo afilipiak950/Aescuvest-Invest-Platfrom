@@ -8144,31 +8144,32 @@ export async function registerAllRoutes(app: Express) {
 
       console.log(`📦 Processing data room ZIP upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
 
-      // Store ZIP file in database for production
-      const { dbFileStorage } = await import('./services/databaseFileStorage');
-      const storagePath = await dbFileStorage.storeFile(
-        file.path,
-        dealId,
-        file.originalname
-      );
+      // 🚀 ALWAYS USE GCS FOR ALL ZIP FILES - No more database storage inconsistencies!
+      console.log(`☁️ Using Google Cloud Storage for ZIP file (ALL files use GCS now)`);
+      const { gcsService } = await import('./services/googleCloudStorage');
       
-      console.log(`💾 ZIP file stored at: ${storagePath}`);
+      // Upload to GCS with proper path structure
+      const gcsPath = `deals/${dealId}/zip-uploads/${Date.now()}-${file.originalname}`;
+      const gcsStoragePath = await gcsService.uploadFile(file.path, gcsPath);
+      
+      console.log(`☁️ ZIP file stored in GCS at: ${gcsStoragePath}`);
 
-      // Process the ZIP file using zipProcessor
-      // In production, zipProcessor will retrieve from database if needed
-      const zipResult = await zipProcessor.processZipFile(storagePath, dealId, folderName || 'Data Room');
+      // Process the ZIP file directly from GCS
+      const zipResult = await zipProcessor.processZipFile(gcsStoragePath, dealId, folderName || 'Data Room');
 
-      // File cleanup already handled by dbFileStorage.storeFile()
-      // No need to manually unlink - it's done automatically
+      // Clean up temporary file
+      fs.unlinkSync(file.path);
 
-      console.log(`✅ Data room ZIP upload successful: ${zipResult.documentsProcessed} documents processed`);
+      console.log(`✅ Data room ZIP upload successful: ${zipResult.processedFiles.length} documents processed`);
 
       res.json({
         success: true,
-        message: `Data room ZIP file processed successfully`,
+        message: `ZIP file uploaded to GCS and processed successfully`,
         fileName: file.originalname,
-        documentsProcessed: zipResult.documentsProcessed,
-        errors: zipResult.errors,
+        documentsProcessed: zipResult.processedFiles.length,
+        totalFiles: zipResult.totalFiles,
+        connectionId: zipResult.connection.id,
+        storageLocation: 'gcs',
         uploadSize: `${(file.size / 1024 / 1024).toFixed(1)}MB`
       });
 
