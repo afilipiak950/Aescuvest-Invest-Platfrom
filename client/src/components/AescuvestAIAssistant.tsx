@@ -310,14 +310,16 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
 
       try {
         // Stream the response with abort signal
+        console.log(`🚀 Sending AI query to backend: "${query}" for deal ${dealId}`);
         const response = await fetch(`/api/deals/${dealId}/ai-assistant/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query }),
           signal: abortControllerRef.current.signal
         });
-
-        if (!response.ok) throw new Error('Failed to send query');
+        
+        console.log('📡 Response received:', response.status, response.statusText);
+        if (!response.ok) throw new Error(`Failed to send query: ${response.status} ${response.statusText}`);
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -357,26 +359,40 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
         setIsStreaming(false);
         abortControllerRef.current = null;
       } catch (error: any) {
-        console.log('🛑 AI Assistant request aborted or failed:', error.message);
+        console.error('🛑 AI Assistant request failed:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
         
         // Handle abort vs other errors
         if (error.name === 'AbortError') {
           console.log('✅ Request cancelled by user');
         } else {
-          console.error('❌ AI Assistant request failed:', error);
+          console.error('❌ Critical AI Assistant error:', error);
+          // Show error to user
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantId 
+              ? { ...msg, content: `Error: ${error.message}. Please try again.` }
+              : msg
+          ));
         }
         
         // Clean up state in all cases
         setIsStreaming(false);
         abortControllerRef.current = null;
         
-        // Remove incomplete assistant messages on error
-        setMessages(prev => {
-          const filteredMessages = prev.filter(msg => {
-            return msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim());
+        // Don't remove messages on error - show the error instead
+        if (error.name === 'AbortError') {
+          // Remove incomplete assistant messages on abort
+          setMessages(prev => {
+            const filteredMessages = prev.filter(msg => {
+              return msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim());
+            });
+            return filteredMessages;
           });
-          return filteredMessages;
-        });
+        }
         
         throw error; // Re-throw so mutation can handle it
       }
