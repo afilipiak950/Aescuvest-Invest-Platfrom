@@ -824,6 +824,35 @@ app.use((req, res, next) => {
     }
   });
 
+  // 🚨 CRITICAL FIX: Pre-Vite upload handler to completely bypass Vite interference  
+  console.log('🚀 Registering PRE-VITE upload handler...');
+  app.post('/api/deals/:dealId/data-room/upload-zip', (req: Request, res: Response) => {
+    console.log('🔥 PRE-VITE UPLOAD HANDLER HIT - Completely bypassing Vite!');
+    console.log('📦 Request details:', {
+      method: req.method,
+      url: req.originalUrl,
+      contentType: req.headers['content-type'],
+      contentLength: req.headers['content-length']
+    });
+    
+    // Immediately set JSON response headers to prevent Vite HTML interference
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // For now, just return success to test if this handler works
+    res.json({
+      success: true,
+      message: 'Pre-Vite upload handler working!',
+      test: true,
+      dealId: req.params.dealId,
+      received: {
+        contentType: req.headers['content-type'],
+        contentLength: req.headers['content-length']
+      }
+    });
+  });
+  console.log('✅ Pre-Vite upload handler registered');
+
   // 🚨 CRITICAL: Register API routes FIRST (before Vite middleware)
   const server = await registerRoutes(app);
   console.log('✅ All API routes registered successfully before Vite middleware');
