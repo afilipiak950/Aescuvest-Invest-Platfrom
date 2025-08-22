@@ -126,7 +126,9 @@ router.patch('/api/persistent-uploads/:sessionId/progress', async (req: Request,
     const { sessionId } = req.params;
     const { progress, uploadedBytes, currentStep } = req.body;
     
-    console.log(`📈 Updating upload progress: ${sessionId} -> ${progress}%`);
+    console.log(`📈 ROUTE DEBUG: Updating upload progress: ${sessionId} -> ${progress}%`);
+    console.log(`📈 ROUTE DEBUG: Request body:`, req.body);
+    console.log(`📈 ROUTE DEBUG: Service instance:`, !!persistentUploadService);
     
     await persistentUploadService.updateProgress(
       sessionId, 
@@ -135,13 +137,16 @@ router.patch('/api/persistent-uploads/:sessionId/progress', async (req: Request,
       currentStep
     );
     
+    console.log(`✅ ROUTE DEBUG: Progress update completed successfully`);
+    
     res.json({
       success: true,
       message: 'Progress updated successfully'
     });
     
   } catch (error) {
-    console.error('❌ Error updating upload progress:', error);
+    console.error('❌ ROUTE ERROR updating upload progress:', error);
+    console.error('❌ ROUTE ERROR stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Failed to update progress'

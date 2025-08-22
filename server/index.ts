@@ -257,7 +257,9 @@ app.use((req, res, next) => {
     return express.json({ limit: '10mb' })(req, res, next);
   }
   // PRODUCTION FIX: Completely skip ALL body parsing for upload routes
-  if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
+  // EXCEPT for PATCH progress/status routes which need body parsing
+  if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
+      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
     console.log(`🔧 BYPASSING body parsing for upload route: ${req.path}`);
     return next();
   }
@@ -267,7 +269,9 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   // PRODUCTION FIX: Completely skip ALL body parsing for upload routes  
-  if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
+  // EXCEPT for PATCH progress/status routes which need body parsing
+  if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
+      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
     return next();
   }
   // Apply minimal URL-encoded parser for non-upload routes only
@@ -276,7 +280,9 @@ app.use((req, res, next) => {
 
 // COMPLETELY SKIP raw parser for upload routes
 app.use((req, res, next) => {
-  if (req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip')) {
+  // Skip raw parsing for upload routes but allow PATCH persistent-upload routes
+  if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
+      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
     return next(); // Skip raw parsing too
   }
   if (req.path.includes('/api/webhooks')) {

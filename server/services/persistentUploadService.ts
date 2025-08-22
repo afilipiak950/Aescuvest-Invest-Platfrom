@@ -64,17 +64,26 @@ export class PersistentUploadService {
   ): Promise<void> {
     console.log(`📊 Updating upload progress: ${sessionId} -> ${progress}%`);
     
-    await db.update(persistentUploadSessions)
-      .set({
-        progress,
-        uploadedBytes: uploadedBytes || undefined,
-        currentStep,
-        updatedAt: new Date()
-      })
-      .where(eq(persistentUploadSessions.sessionId, sessionId));
+    try {
+      const updateResult = await db.update(persistentUploadSessions)
+        .set({
+          progress,
+          uploadedBytes: uploadedBytes || undefined,
+          currentStep,
+          updatedAt: new Date()
+        })
+        .where(eq(persistentUploadSessions.sessionId, sessionId));
 
-    // Broadcast progress to all connected clients
-    this.broadcastProgress(sessionId, progress, currentStep);
+      console.log(`✅ Progress update successful for ${sessionId}: ${progress}%`);
+      console.log(`📊 Update result:`, updateResult);
+
+      // Broadcast progress to all connected clients
+      this.broadcastProgress(sessionId, progress, currentStep);
+      
+    } catch (error) {
+      console.error(`❌ PROGRESS UPDATE ERROR for ${sessionId}:`, error);
+      throw error;
+    }
   }
 
   /**

@@ -56,6 +56,32 @@ class WebSocketManager {
     console.log('📡 WebSocket manager initialized for background job progress tracking');
   }
 
+  // Generic broadcast method for any message type
+  broadcast(type: string, data: any, dealId?: number) {
+    if (!this.wss) {
+      console.log('❌ WebSocket server not initialized');
+      return;
+    }
+
+    const message = JSON.stringify({
+      type,
+      data
+    });
+
+    let sentCount = 0;
+    this.clients.forEach((clientData, ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        // Send to all clients or filter by dealId
+        if (!dealId || clientData.dealId === dealId) {
+          ws.send(message);
+          sentCount++;
+        }
+      }
+    });
+
+    console.log(`📡 Broadcast ${type}: sent to ${sentCount} clients`);
+  }
+
   broadcastJobProgress(progress: JobProgress, dealId?: number) {
     if (!this.wss) {
       console.log('❌ WebSocket server not initialized');
