@@ -969,7 +969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI Document Assignment Routes
   
-  // Assign agents to all documents for a deal
+  // Assign agents to all documents for a deal (BACKGROUND JOB VERSION)
   app.post('/api/deals/:dealId/assign-agents', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -977,31 +977,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
-      console.log(`🤖 Starting AI document assignment for deal ${dealId}`);
+      // Check for existing assignment jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingAssignmentJob = existingJobs.find(job => 
+        job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')
+      );
       
-      const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId);
+      if (existingAssignmentJob) {
+        console.log(`⚠️ Document assignment already running for deal ${dealId} (Job: ${existingAssignmentJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Document assignment already in progress`,
+          jobId: existingAssignmentJob.jobId,
+          status: existingAssignmentJob.status
+        });
+      }
+
+      // Get document count for progress tracking
+      const documents = await storage.getDocumentsByDealId(dealId);
+      const totalDocuments = documents.length;
+
+      console.log(`🤖 Creating background job for AI document assignment of ${totalDocuments} documents for deal ${dealId}`);
       
-      console.log(`✅ Assignment completed for deal ${dealId}: ${assignments.length} documents processed`);
+      // Create background job for assignment process
+      const jobId = `assignment_${dealId}_${Date.now()}`;
+      const createdJob = await jobProcessor.createJob({
+        jobId,
+        jobType: 'document_assignment',
+        dealId,
+        status: 'pending',
+        progress: 0,
+        totalDocuments,
+        processedDocuments: 0,
+        currentStep: 'Initializing document assignment',
+        jobData: { dealId, totalDocuments }
+      });
+      
+      console.log(`✅ Created assignment background job ${jobId} with ID ${createdJob}`);
       
       return res.status(200).json({
         success: true,
-        message: `Successfully assigned agents to ${assignments.length} documents`,
-        assignments,
-        summary: {
-          totalDocuments: assignments.length,
-          agentCounts: assignments.reduce((acc, assignment) => {
-            assignment.assignedAgents.forEach(agent => {
-              acc[agent] = (acc[agent] || 0) + 1;
-            });
-            return acc;
-          }, {} as Record<string, number>)
-        }
+        message: `Document assignment started in background for ${totalDocuments} documents`,
+        jobId,
+        totalDocuments,
+        status: 'pending'
       });
     } catch (error) {
-      console.error('Error in AI document assignment:', error);
+      console.error('Error creating AI document assignment job:', error);
       return res.status(500).json({ 
         success: false,
-        message: 'Failed to assign agents to documents',
+        message: 'Failed to start document assignment job',
         error: String(error)
       });
     }

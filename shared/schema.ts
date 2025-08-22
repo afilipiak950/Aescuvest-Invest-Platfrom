@@ -609,7 +609,7 @@ export type InsertMicrosoftEmailConnection = z.infer<typeof insertMicrosoftEmail
 export const backgroundJobs = pgTable("background_jobs", {
   id: serial("id").primaryKey(),
   jobId: text("job_id").notNull().unique(), // Unique job identifier
-  jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing', 'agent_analysis'
+  jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing', 'agent_analysis', 'document_assignment'
   status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
   progress: integer("progress").notNull().default(0), // 0-100 percentage
   dealId: integer("deal_id").references(() => deals.id),
