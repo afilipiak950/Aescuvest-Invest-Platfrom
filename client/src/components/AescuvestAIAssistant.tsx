@@ -303,6 +303,18 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
         });
         
         console.log('📡 Response received:', response.status, response.statusText);
+        console.log('📡 Response content-type:', response.headers.get('content-type'));
+        
+        // Check if we got a streaming response
+        const contentType = response.headers.get('content-type');
+        if (!contentType?.includes('text/event-stream')) {
+          console.error('❌ Not a streaming response! Got:', contentType);
+          // Try to read the body to see what we got
+          const text = await response.text();
+          console.error('❌ Response body:', text);
+          throw new Error('Invalid response - expected streaming but got: ' + contentType);
+        }
+        
         if (!response.ok) throw new Error(`Failed to send query: ${response.status} ${response.statusText}`);
 
         const reader = response.body?.getReader();
