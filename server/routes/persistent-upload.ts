@@ -179,6 +179,50 @@ router.patch('/api/persistent-uploads/:sessionId/status', async (req: Request, r
   }
 });
 
+// Delete/cancel a specific upload session
+router.delete('/api/persistent-uploads/:sessionId', async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    console.log(`🗑️ DELETE ENDPOINT HIT: Canceling upload session: ${sessionId}`);
+    
+    // Get session info before deleting
+    const session = await persistentUploadService.getSession(sessionId);
+    if (!session) {
+      console.log(`❌ Upload session not found: ${sessionId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Upload session not found'
+      });
+    }
+    
+    console.log(`🗑️ Deleting upload session: ${session.fileName} (${session.status})`);
+    
+    // Delete the database record
+    const deleted = await persistentUploadService.deleteSession(sessionId);
+    
+    if (deleted) {
+      console.log(`✅ Upload session deleted successfully: ${sessionId}`);
+      res.json({
+        success: true,
+        message: 'Upload session canceled and deleted successfully'
+      });
+    } else {
+      console.log(`❌ Failed to delete upload session: ${sessionId}`);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete upload session'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error deleting upload session:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel upload session'
+    });
+  }
+});
+
 // Clean up old upload sessions
 router.post('/api/persistent-uploads/cleanup', async (req: Request, res: Response) => {
   try {

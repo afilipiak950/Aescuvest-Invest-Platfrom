@@ -178,6 +178,28 @@ export class PersistentUploadService {
   }
 
   /**
+   * Delete a specific upload session
+   */
+  async deleteSession(sessionId: string): Promise<boolean> {
+    console.log(`🗑️ DELETING SESSION: ${sessionId} from database`);
+    
+    try {
+      const result = await db.delete(persistentUploadSessions)
+        .where(eq(persistentUploadSessions.sessionId, sessionId));
+
+      console.log(`✅ DATABASE DELETION RESULT:`, result);
+      
+      // Broadcast deletion to all clients
+      this.broadcastStatusUpdate(sessionId, 'failed', 'Upload canceled by user');
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to delete upload session from database:', error);
+      return false;
+    }
+  }
+
+  /**
    * Clean up old completed/failed sessions
    */
   async cleanupOldSessions(olderThanDays: number = 7): Promise<void> {
