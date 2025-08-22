@@ -300,6 +300,9 @@ class JobProcessor {
       case 'ai_summary_generation':
         await this.processAISummaryGeneration(job);
         break;
+      case 'document_assignment':
+        await this.processDocumentAssignment(job);
+        break;
       default:
         throw new Error(`Unknown job type: ${job.jobType}`);
     }
@@ -1141,6 +1144,53 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       console.error(`❌ DIRECT OCR FAILED: Job ${jobId} error:`, error);
       await this.completeJob(jobId, null, String(error));
       throw error;
+    }
+  }
+
+  /**
+   * Process document assignment background job
+   */
+  private async processDocumentAssignment(job: BackgroundJob) {
+    await this.updateJobProgress(job.id, 0, 'Starting document assignment', 'processing');
+    
+    const { aiDocumentAssignmentService } = await import('./aiDocumentAssignment');
+    const jobData = job.jobData as any;
+    const dealId = jobData?.dealId || job.dealId;
+    
+    if (!dealId) {
+      throw new Error('Missing dealId for document assignment job');
+    }
+
+    console.log(`🤖 Starting AI-powered document assignment for deal ${dealId} (Background Job: ${job.id})`);
+    
+    try {
+      // Import the service dynamically to avoid circular dependencies
+      const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId);
+      
+      await this.updateJobProgress(job.id, 100, `Assignment completed: ${assignments.length} documents processed`, 'processing');
+      
+      const summary = {
+        totalDocuments: assignments.length,
+        agentCounts: assignments.reduce((acc, assignment) => {
+          assignment.assignedAgents.forEach(agent => {
+            acc[agent] = (acc[agent] || 0) + 1;
+          });
+          return acc;
+        }, {} as Record<string, number>)
+      };
+      
+      await this.completeJob(job.id, {
+        success: true,
+        message: `Successfully assigned agents to ${assignments.length} documents`,
+        assignments,
+        summary
+      });
+      
+      console.log(`✅ Background assignment completed for deal ${dealId}: ${assignments.length} documents processed`);
+      
+    } catch (error) {
+      console.error(`❌ Background assignment failed for deal ${dealId}:`, error);
+      await this.completeJob(job.id, null, `Assignment failed: ${error.message}`);
     }
   }
 }
