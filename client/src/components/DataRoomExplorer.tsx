@@ -1182,11 +1182,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         });
 
         xhr.addEventListener('load', () => {
+          console.log(`🌐 Upload load event - Status: ${xhr.status}, Response: ${xhr.responseText?.substring(0, 200)}`);
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
+              console.log('✅ Upload successful:', response);
               resolve(response);
             } catch (e) {
+              console.log('✅ Upload completed (no JSON response)');
               resolve({ success: true, message: 'Upload completed' });
             }
           } else if (xhr.status === 413) {
@@ -1194,21 +1197,33 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             console.log('⚠️ 413 error detected (Cloud Run limit), falling back to chunked upload');
             reject(new Error('Upload failed: 413 - File upload limit exceeded. The system now supports files up to 50GB. If you are still seeing this error, please contact support as this should not occur with our enhanced configuration.'));
           } else {
+            console.error(`❌ Upload failed - Status: ${xhr.status}, StatusText: ${xhr.statusText}, Response: ${xhr.responseText}`);
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }
         });
 
-        xhr.addEventListener('error', () => {
+        xhr.addEventListener('error', (event) => {
+          console.error('❌ Upload network error:', event);
+          console.error('❌ XHR state:', { status: xhr.status, statusText: xhr.statusText, readyState: xhr.readyState });
           reject(new Error('Upload failed due to network error'));
         });
 
         xhr.addEventListener('timeout', () => {
+          console.error('❌ Upload timeout after 10 minutes');
           reject(new Error('Upload timed out'));
         });
 
+        console.log(`🚀 Starting upload to: /api/deals/${dealId}/data-room/upload-zip`);
+        console.log(`📦 FormData contents:`, Array.from(formData.entries()).map(([key, value]) => ({ 
+          key, 
+          value: value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value 
+        })));
+        
         xhr.open('POST', `/api/deals/${dealId}/data-room/upload-zip`);
         xhr.timeout = 600000; // 10 minutes
         xhr.withCredentials = true; // Include cookies for auth
+        
+        console.log(`📡 Sending XMLHttpRequest...`);
         xhr.send(formData);
       });
     },
