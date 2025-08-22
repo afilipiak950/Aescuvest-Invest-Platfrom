@@ -249,37 +249,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     const queryText = messageText || input;
     if (!queryText.trim() || isStreaming) return;
 
-    const startTime = Date.now();
-    const messageId = Date.now().toString();
-    
-    // Add user message
-    const userMessage: Message = {
-      id: messageId + '_user',
-      role: 'user',
-      content: queryText,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
+    console.log('🚀 handleSendMessage called with:', queryText);
     setInput('');
     setShowSuggestions(false);
     
-    // Send query with performance tracking
-    sendQueryMutation.mutate(queryText, {
-      onSuccess: (response) => {
-        const responseTime = Date.now() - startTime;
-        const assistantMessage: Message = {
-          id: messageId + '_assistant',
-          role: 'assistant',
-          content: response.response,
-          timestamp: new Date(),
-          responseTime,
-          confidence: response.confidence || 'Medium',
-          queryType: response.queryType || 'complex'
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-      }
-    });
+    // Send query - the mutation will handle adding messages
+    sendQueryMutation.mutate(queryText);
   };
 
   const sendQueryMutation = useMutation({
@@ -287,15 +262,17 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
       // Create new AbortController for this request
       abortControllerRef.current = new AbortController();
       
-      // Add user message immediately
+      // Add user message immediately  
+      const userId = `user-${Date.now()}`;
       const userMessage: Message = {
-        id: `user-${Date.now()}`,
+        id: userId,
         role: 'user',
         content: query,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, userMessage]);
       setIsStreaming(true);
+      console.log('🔄 Starting stream for message:', userId);
 
       // Create assistant message placeholder
       const assistantId = `assistant-${Date.now()}`;
@@ -311,6 +288,9 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
       try {
         // Stream the response with abort signal
         console.log(`🚀 Sending AI query to backend: "${query}" for deal ${dealId}`);
+        console.log('🔍 Fetch URL:', `/api/deals/${dealId}/ai-assistant/stream`);
+        console.log('📦 Request body:', JSON.stringify({ query }));
+        
         const response = await fetch(`/api/deals/${dealId}/ai-assistant/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -426,10 +406,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   ];
 
   const handleExampleQuery = (query: string) => {
+    console.log('🎯 Example query clicked:', query);
     setInput(query);
     setIsExpanded(true);
     // Automatically submit the query
     if (!isStreaming) {
+      console.log('🚀 Auto-submitting example query');
       sendQueryMutation.mutate(query);
       setInput('');
     }
