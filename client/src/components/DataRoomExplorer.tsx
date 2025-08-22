@@ -1735,6 +1735,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         // Use XMLHttpRequest for progress tracking
         const xhr = new XMLHttpRequest();
         
+        // 🎯 CRITICAL: Register abort controller so cancel buttons can stop this upload!
+        const uploadAbortController = new AbortController();
+        frontendPersistentUploadService.registerUploadController(sessionId, uploadAbortController);
+        
+        // Connect abort controller to XMLHttpRequest
+        uploadAbortController.signal.addEventListener('abort', () => {
+          console.log(`🛑 ABORTING XMLHttpRequest for session: ${sessionId}`);
+          xhr.abort();
+        });
+        
         // Track upload progress to GCS
         xhr.upload.addEventListener('progress', async (e) => {
           if (e.lengthComputable) {
@@ -1841,6 +1851,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                 setUploadProgress(null);
                 refetch();
                 queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+                // 🧹 Cleanup: Remove abort controller since upload completed
+                frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
               }, 3000);
             }
             
@@ -1855,6 +1867,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             
             setTimeout(() => {
               setUploadProgress(null);
+              // 🧹 Cleanup: Remove abort controller since upload failed
+              frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
             }, 5000);
             
           } else {
@@ -1870,6 +1884,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             
             setTimeout(() => {
               setUploadProgress(null);
+              // 🧹 Cleanup: Remove abort controller since upload failed
+              frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
             }, 3000);
           }
         });
