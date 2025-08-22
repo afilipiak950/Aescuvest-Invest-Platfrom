@@ -1431,8 +1431,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // Check if file should use proxy upload (files over 30MB use proxy to bypass CORS)
-    const shouldUseProxy = file.size > 30 * 1024 * 1024;
+    // 🚨 ALWAYS USE GCS FOR ALL FILES (as requested by user)
+    console.log('🚀 FORCING GCS UPLOAD for ALL files regardless of size (user requirement)');
+    const shouldUseProxy = true; // FORCE GCS for ALL files
     
     // 🚀 MICRO-STEP SOLUTION: Use DIRECT GCS upload for all files (TRUE 413 bypass)
     if (shouldUseProxy) {
