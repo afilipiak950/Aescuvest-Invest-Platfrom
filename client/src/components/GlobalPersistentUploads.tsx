@@ -211,12 +211,22 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
   const handleCancel = async () => {
     console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
     try {
-      await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
-        method: 'DELETE' 
+      const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      console.log(`✅ Upload canceled: ${upload.fileName}`);
+      
+      if (response.ok) {
+        console.log(`✅ Upload canceled: ${upload.fileName}`);
+        // Force refresh the upload list immediately
+        window.location.reload();
+      } else {
+        console.error('❌ Failed to cancel upload:', response.status, response.statusText);
+      }
     } catch (error) {
-      console.error('Failed to cancel upload:', error);
+      console.error('❌ Network error canceling upload:', error);
     }
   };
 
