@@ -27,6 +27,50 @@ export interface PersistentUploadSession {
 }
 
 export class PersistentUploadService {
+  private cleanupInterval?: NodeJS.Timeout;
+
+  constructor() {
+    // Start automatic stuck upload cleanup every 10 minutes
+    this.startAutomaticCleanup();
+  }
+
+  /**
+   * Start automatic periodic cleanup of stuck uploads
+   */
+  private startAutomaticCleanup(): void {
+    // Initial cleanup on startup
+    setTimeout(() => {
+      this.checkForStuckUploads().catch(error => {
+        console.error('❌ Error in initial stuck upload cleanup:', error);
+      });
+    }, 5000); // Wait 5 seconds after startup
+
+    // Periodic cleanup every 10 minutes
+    this.cleanupInterval = setInterval(async () => {
+      try {
+        const cleanedUp = await this.checkForStuckUploads();
+        if (cleanedUp > 0) {
+          console.log(`🔄 Automatic cleanup: ${cleanedUp} stuck uploads cleaned up`);
+        }
+      } catch (error) {
+        console.error('❌ Error in automatic stuck upload cleanup:', error);
+      }
+    }, 10 * 60 * 1000); // Every 10 minutes
+
+    console.log('🔄 Automatic stuck upload cleanup started (checks every 10 minutes)');
+  }
+
+  /**
+   * Stop automatic cleanup (for graceful shutdown)
+   */
+  stopAutomaticCleanup(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
+      console.log('🛑 Automatic stuck upload cleanup stopped');
+    }
+  }
+
   /**
    * Create a new persistent upload session
    */
@@ -271,35 +315,59 @@ export class PersistentUploadService {
 
   /**
    * Check for stuck uploads and mark them as failed
+   * Now checks for uploads stuck for more than 15 minutes
    */
-  async checkForStuckUploads(): Promise<void> {
+  async checkForStuckUploads(): Promise<number> {
     try {
+      console.log('🔍 Starting stuck upload check...');
+      
+      // 15 minute timeout for more aggressive cleanup
       const stuckThreshold = new Date();
-      stuckThreshold.setHours(stuckThreshold.getHours() - 2); // 2 hours timeout
+      stuckThreshold.setMinutes(stuckThreshold.getMinutes() - 15);
+      
+      console.log(`🕒 Looking for uploads stuck since before: ${stuckThreshold.toISOString()}`);
 
       const stuckSessions = await db.select()
         .from(persistentUploadSessions)
         .where(
           and(
-            eq(persistentUploadSessions.status, 'uploading')
-            // Add date filter here when implementing
+            eq(persistentUploadSessions.status, 'uploading'),
+            // Check if updated_at is older than 15 minutes
+            // Note: In development, we'll check all uploading sessions for safety
           )
         );
 
+      console.log(`🔍 Found ${stuckSessions.length} potentially stuck upload sessions`);
+
+      let cleanedUpCount = 0;
       for (const session of stuckSessions) {
-        console.log(`⚠️ Found stuck upload session: ${session.sessionId}, marking as failed`);
-        await this.updateStatus(
-          session.sessionId, 
-          'failed', 
-          'Upload timed out after 2 hours'
-        );
+        // Check if this session is truly stuck (no update for 15+ minutes)
+        const lastUpdate = new Date(session.updatedAt || session.createdAt);
+        const minutesStuck = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60);
+        
+        console.log(`📊 Session ${session.sessionId} (${session.fileName}): ${minutesStuck.toFixed(1)} minutes since last update`);
+        
+        if (minutesStuck >= 15) {
+          console.log(`⚠️ Found stuck upload session: ${session.sessionId} (${session.fileName}), stuck for ${minutesStuck.toFixed(1)} minutes`);
+          await this.updateStatus(
+            session.sessionId, 
+            'failed', 
+            `Upload timed out after ${Math.round(minutesStuck)} minutes - likely GCS upload failed`
+          );
+          cleanedUpCount++;
+        }
       }
 
-      if (stuckSessions.length > 0) {
-        console.log(`🧹 Marked ${stuckSessions.length} stuck upload sessions as failed`);
+      if (cleanedUpCount > 0) {
+        console.log(`🧹 Marked ${cleanedUpCount} stuck upload sessions as failed`);
+      } else {
+        console.log('✅ No stuck uploads found');
       }
+      
+      return cleanedUpCount;
     } catch (error) {
       console.error('❌ Failed to check for stuck uploads:', error);
+      return 0;
     }
   }
 }
