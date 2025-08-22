@@ -53,7 +53,40 @@ export function GlobalPersistentUploadMonitor({
   });
 
   const uploads: PersistentUploadSession[] = uploadsData?.uploads || [];
-  const activeUploads = uploads.filter(u => u.status === 'uploading' || u.status === 'processing');
+  
+  // 🎯 CRITICAL: Sync with real-time localStorage progress like DataRoomExplorer
+  const activeUploads = uploads.filter(u => u.status === 'uploading' || u.status === 'processing').map(upload => {
+    // Get real-time progress from localStorage for GCS uploads
+    if (upload.uploadType === 'gcs_direct') {
+      try {
+        const progressKey = `gcs_upload_progress_${upload.sessionId}`;
+        const localProgress = localStorage.getItem(progressKey);
+        if (localProgress) {
+          const progress = JSON.parse(localProgress);
+          return {
+            ...upload,
+            progress: progress.progress || upload.progress,
+            currentStep: progress.status || upload.currentStep
+          };
+        }
+      } catch (error) {
+        console.warn('Failed to sync localStorage progress:', error);
+      }
+    }
+    return upload;
+  });
+
+  // 🎯 CRITICAL: Poll localStorage for real-time progress updates
+  useEffect(() => {
+    if (activeUploads.length === 0) return;
+    
+    const interval = setInterval(() => {
+      // Force re-render to pick up localStorage changes
+      queryClient.invalidateQueries({ queryKey: ['global-persistent-uploads'] });
+    }, 1000); // Update every second for real-time sync
+    
+    return () => clearInterval(interval);
+  }, [activeUploads.length, queryClient]);
 
   // Listen for WebSocket updates
   useEffect(() => {
