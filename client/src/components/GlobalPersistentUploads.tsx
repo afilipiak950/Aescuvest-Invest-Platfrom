@@ -208,6 +208,18 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  const handleCancel = async () => {
+    console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
+    try {
+      await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
+        method: 'DELETE' 
+      });
+      console.log(`✅ Upload canceled: ${upload.fileName}`);
+    } catch (error) {
+      console.error('Failed to cancel upload:', error);
+    }
+  };
+
   return (
     <div className="border border-gray-600 rounded-lg p-3 bg-dark-lighter">
       <div className="flex items-start justify-between mb-2">
@@ -222,12 +234,24 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
             </p>
           </div>
         </div>
-        <Badge 
-          variant="secondary" 
-          className={`text-xs ${getStatusColor()} bg-dark border-gray-600`}
-        >
-          {upload.status.toUpperCase()}
-        </Badge>
+        <div className="flex items-center space-x-2">
+          <Badge 
+            variant="secondary" 
+            className={`text-xs ${getStatusColor()} bg-dark border-gray-600`}
+          >
+            {upload.status.toUpperCase()}
+          </Badge>
+          {/* Cancel button for stuck/active uploads */}
+          {(upload.status === 'uploading' || upload.status === 'processing') && (
+            <button
+              onClick={handleCancel}
+              className="text-gray-400 hover:text-red-400 transition-colors p-1 rounded"
+              title="Cancel upload"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
       
       {(upload.status === 'uploading' || upload.status === 'processing') && (

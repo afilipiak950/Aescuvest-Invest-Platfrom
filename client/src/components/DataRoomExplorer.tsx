@@ -1513,6 +1513,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       console.log(`🎯 USING DIRECT GCS UPLOAD (COMPLETE 413 BYPASS) for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
       
       try {
+        // 🐛 COMPREHENSIVE DEBUGGING: Test environment first
+        console.log('🔍 DEBUGGING ENVIRONMENT:');
+        console.log('- Window location:', window.location.href);
+        console.log('- Current origin:', window.location.origin);
+        console.log('- DealId:', dealId, typeof dealId);
+        console.log('- File details:', { name: file.name, size: file.size, type: file.type });
+        
         setUploadProgress({
           fileName: file.name,
           progress: 0,
@@ -1553,24 +1560,51 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         
         // 📍 MICRO-STEP 1: Request signed URL (tiny request, no file data)
         console.log('📍 MICRO-STEP 1: Requesting signed URL from server...');
-        console.log(`🔗 Request URL: /api/gcs/signed-url/${dealId}`);
-        console.log(`📦 Request payload:`, { fileName: file.name, fileSize: file.size });
+        const requestUrl = `/api/gcs/signed-url/${dealId}`;
+        const requestPayload = {
+          fileName: file.name,
+          fileSize: file.size
+        };
         
-        const signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fileName: file.name,
-            fileSize: file.size
-          })
-        }).catch(error => {
-          console.error('❌ FETCH ERROR - Request never reached server:', error);
-          throw new Error(`Network request failed: ${error.message}`);
-        });
+        console.log(`🔗 Full request URL: ${window.location.origin}${requestUrl}`);
+        console.log(`📦 Request payload:`, requestPayload);
+        console.log(`📝 JSON payload:`, JSON.stringify(requestPayload));
         
-        console.log('📡 Signed URL response received:', signedUrlResponse.status, signedUrlResponse.statusText);
+        // 🧪 TEST: Try a simple connectivity test first
+        console.log('🧪 Testing basic connectivity...');
+        try {
+          const testResponse = await fetch('/api/persistent-uploads/global');
+          console.log('✅ Basic API connectivity test:', testResponse.status, testResponse.ok);
+        } catch (testError) {
+          console.error('❌ Basic connectivity test failed:', testError);
+        }
+        
+        // 🚨 DETAILED REQUEST ATTEMPT
+        console.log('🚨 Making signed URL request with full debugging...');
+        let signedUrlResponse;
+        
+        try {
+          signedUrlResponse = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestPayload)
+          });
+          console.log('📡 Signed URL fetch completed successfully');
+          console.log('📡 Response details:', {
+            status: signedUrlResponse.status,
+            statusText: signedUrlResponse.statusText,
+            ok: signedUrlResponse.ok,
+            headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
+          });
+        } catch (fetchError) {
+          console.error('❌ CRITICAL: Signed URL fetch failed completely:', fetchError);
+          console.error('❌ Error name:', fetchError.name);
+          console.error('❌ Error message:', fetchError.message);
+          console.error('❌ Error stack:', fetchError.stack);
+          throw new Error(`Signed URL request failed: ${fetchError.message}`);
+        }
 
         if (!signedUrlResponse.ok) {
           const errorData = await signedUrlResponse.json().catch(() => ({}));
