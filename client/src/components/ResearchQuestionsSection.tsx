@@ -9,6 +9,18 @@ import DocumentQuoteViewer from './DocumentQuoteViewer';
 // Comprehensive Research Analysis Button Component
 function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
+
+  // RESET: Force isRunning to false to fix stuck state - AGGRESSIVE RESET
+  React.useEffect(() => {
+    console.log('🔄 AGGRESSIVE RESET: ResearchQuestionsSection button isRunning state to false');
+    setIsRunning(false);
+  }); // No dependency array = runs every render
+
+  // Also force reset when component first mounts
+  if (isRunning) {
+    console.log('🔄 FORCE RESET: ResearchQuestionsSection detected isRunning=true, forcing false');
+    setIsRunning(false);
+  }
   
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
