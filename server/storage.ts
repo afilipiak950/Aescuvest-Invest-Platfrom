@@ -153,6 +153,12 @@ export interface IStorage {
   // Comprehensive analysis methods
   getComprehensiveAnalysis(dealId: number): Promise<ComprehensiveAnalysis | undefined>;
   createOrUpdateComprehensiveAnalysis(dealId: number, data: Partial<ComprehensiveAnalysis>): Promise<ComprehensiveAnalysis>;
+  deleteComprehensiveAnalysesByDealId(dealId: number): Promise<number>;
+  deleteBackgroundUploadsByDealId(dealId: number): Promise<number>;
+  deleteInvestorMatchesByDealId(dealId: number): Promise<number>;
+  deleteInvestmentMemosByDealId(dealId: number): Promise<number>;
+  deleteAutomationExecutionsByDealId(dealId: number): Promise<number>;
+  deleteResearchBackgroundJobsByDealId(dealId: number): Promise<number>;
   
   // Research jobs methods
   createResearchJob(job: InsertResearchJob): Promise<ResearchJob>;
@@ -292,33 +298,49 @@ export class DatabaseStorage implements IStorage {
   async deleteDeal(id: number): Promise<boolean> {
     try {
       console.log(`🗑️ DatabaseStorage: Attempting to delete deal ${id}`);
+      console.log(`🔍 DatabaseStorage: Deal ID type: ${typeof id}, value: ${id}`);
       
       // First check if deal exists
+      console.log(`🔍 DatabaseStorage: Checking if deal ${id} exists...`);
       const existingDeal = await this.getDealById(id);
       if (!existingDeal) {
-        console.log(`🗑️ Deal ${id} not found - cannot delete`);
+        console.log(`❌ DatabaseStorage: Deal ${id} not found - cannot delete`);
         return false;
       }
+      console.log(`✅ DatabaseStorage: Found deal ${id}: ${existingDeal.companyName}`);
       
       // Delete the deal using returning() to confirm deletion
+      console.log(`🗑️ DatabaseStorage: Executing DELETE query for deal ${id}...`);
       const deletedDeals = await db
         .delete(deals)
         .where(eq(deals.id, id))
         .returning({ id: deals.id });
       
+      console.log(`🗑️ DatabaseStorage: DELETE query returned ${deletedDeals.length} row(s):`, deletedDeals);
       const wasDeleted = deletedDeals.length > 0;
       console.log(`🗑️ DatabaseStorage: Deal ${id} deletion ${wasDeleted ? 'successful' : 'failed'}`);
       
       // Invalidate deals cache after successful deletion
       if (wasDeleted) {
         dealsCache.delete('all_deals');
-        console.log('💨 Invalidated deals cache after deletion');
+        console.log('💨 DatabaseStorage: Invalidated deals cache after deletion');
+      } else {
+        console.log(`❌ DatabaseStorage: DELETE returned no rows - foreign key constraint or other issue?`);
       }
       
       return wasDeleted;
     } catch (error) {
-      console.error(`Error deleting deal ${id}:`, error);
-      return false;
+      console.error(`❌ DatabaseStorage: CRITICAL ERROR deleting deal ${id}:`, error);
+      console.error(`❌ DatabaseStorage: Error details:`, {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        constraint: error?.constraint,
+        detail: error?.detail,
+        stack: error?.stack
+      });
+      // Re-throw the error so the endpoint can see the actual issue
+      throw error;
     }
   }
 
@@ -1259,6 +1281,96 @@ export class DatabaseStorage implements IStorage {
       return result.rowCount || 0;
     } catch (error) {
       console.error(`Error deleting background jobs for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteComprehensiveAnalysesByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting comprehensive analysis for deal ${dealId}...`);
+      // Import comprehensiveAnalysis from schema
+      const { comprehensiveAnalysis } = await import('../shared/schema');
+      const result = await db.delete(comprehensiveAnalysis).where(eq(comprehensiveAnalysis.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} comprehensive analysis record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting comprehensive analysis for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteBackgroundUploadsByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting background uploads for deal ${dealId}...`);
+      // Import persistentUploadSessions (the correct schema name for background_uploads table)
+      const { persistentUploadSessions } = await import('../shared/schema');
+      const result = await db.delete(persistentUploadSessions).where(eq(persistentUploadSessions.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} background upload record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting background uploads for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteInvestorMatchesByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting investor matches for deal ${dealId}...`);
+      // Import investorMatches from schema
+      const { investorMatches } = await import('../shared/schema');
+      const result = await db.delete(investorMatches).where(eq(investorMatches.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} investor match record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting investor matches for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteInvestmentMemosByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting investment memos for deal ${dealId}...`);
+      // Import investmentMemos from schema
+      const { investmentMemos } = await import('../shared/schema');
+      const result = await db.delete(investmentMemos).where(eq(investmentMemos.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} investment memo record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting investment memos for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteAutomationExecutionsByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting automation executions for deal ${dealId}...`);
+      // Import automationExecutions from schema
+      const { automationExecutions } = await import('../shared/schema');
+      const result = await db.delete(automationExecutions).where(eq(automationExecutions.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} automation execution record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting automation executions for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteResearchBackgroundJobsByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting research background jobs for deal ${dealId}...`);
+      // Import researchBackgroundJobs from schema
+      const { researchBackgroundJobs } = await import('../shared/schema');
+      const result = await db.delete(researchBackgroundJobs).where(eq(researchBackgroundJobs.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} research background job record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting research background jobs for deal ${dealId}:`, error);
       return 0;
     }
   }
