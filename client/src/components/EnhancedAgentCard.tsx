@@ -2253,9 +2253,10 @@ interface ResearchQuestionsSectionProps {
   setQuoteViewerOpen: (open: boolean) => void;
   selectedQuoteData: any;
   setSelectedQuoteData: (data: any) => void;
+  onResearchAnalysisStart?: () => void;
 }
 
-function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: ResearchQuestionsSectionProps) {
+function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onResearchAnalysisStart }: ResearchQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Whitepapers"]));
 
   // Check if research analysis is available from agent endpoint
