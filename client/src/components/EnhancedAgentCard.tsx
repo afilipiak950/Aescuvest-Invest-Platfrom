@@ -2623,15 +2623,19 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       // Trigger custom event to show progress bar immediately
       window.dispatchEvent(new CustomEvent('researchAnalysisStarted'));
       
+      console.log('🚀 About to call research mutation...');
+      
       // First delete any existing research analysis data to ensure fresh start
+      console.log('🗑️ About to delete existing research data...');
       try {
         await apiRequest(`/api/deals/${dealId}/agents/research/results`, {
           method: 'DELETE'
         });
         console.log('🗑️ Cleared existing research analysis data');
       } catch (deleteError) {
-        console.log('ℹ️ No existing research data to clear (expected for first run)');
+        console.log('ℹ️ No existing research data to clear (expected for first run):', deleteError);
       }
+      console.log('✅ Delete step completed, now calling mutation...');
       
       await comprehensiveAnalysisMutation.mutateAsync();
       console.log('✅ Analysis request sent, waiting for completion...');
@@ -2707,6 +2711,14 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       setIsRunning(false);
     }
   };
+
+  // Debug disabled state
+  console.log('🔍 Research button state:', {
+    isRunning,
+    isPending: comprehensiveAnalysisMutation.isPending,
+    isAlreadyRunning,
+    disabled: isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning
+  });
 
   return (
     <Button
