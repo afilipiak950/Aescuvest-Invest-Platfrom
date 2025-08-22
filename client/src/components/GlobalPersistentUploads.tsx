@@ -40,6 +40,36 @@ export function GlobalPersistentUploadMonitor({
 }: GlobalUploadMonitorProps) {
   const queryClient = useQueryClient();
   
+  // Cancel all active uploads
+  const handleCancelAll = async () => {
+    console.log('🗑️ Canceling all active uploads...');
+    for (const upload of activeUploads) {
+      try {
+        console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
+        const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          console.log(`✅ Upload canceled: ${upload.fileName}`);
+        } else {
+          console.error('❌ Failed to cancel upload:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Network error canceling upload:', error);
+      }
+    }
+    
+    // Refresh the upload list
+    queryClient.invalidateQueries({ queryKey: ['global-persistent-uploads'] });
+    
+    // Call original onClose if provided
+    if (onClose) onClose();
+  };
+  
   console.log('🔍 GLOBAL WIDGET: Component rendering...');
   
   // Fetch global uploads every 2 seconds
@@ -136,11 +166,9 @@ export function GlobalPersistentUploadMonitor({
     }
   }, [queryClient]);
 
-  // TEMP DEBUG: Comment out early return to see debug logs
-  console.log('🎯 GLOBAL WIDGET: activeUploads.length =', activeUploads.length);
-  // if (activeUploads.length === 0) {
-  //   return null; // Don't show if no active uploads
-  // }
+  if (activeUploads.length === 0) {
+    return null; // Don't show if no active uploads
+  }
 
   if (isMinimized) {
     return (
@@ -163,8 +191,9 @@ export function GlobalPersistentUploadMonitor({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={onClose}
+                onClick={handleCancelAll}
                 className="h-6 w-6 p-0"
+                title="Cancel all uploads"
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -199,8 +228,9 @@ export function GlobalPersistentUploadMonitor({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={onClose}
+                onClick={handleCancelAll}
                 className="h-6 w-6 p-0"
+                title="Cancel all uploads"
               >
                 <X className="h-3 w-3" />
               </Button>
