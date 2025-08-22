@@ -8745,7 +8745,96 @@ export async function registerAllRoutes(app: Express) {
     }
   });
 
-  console.log('✅ AI Assistant endpoints registered (100x Enhanced)');
+  // CRITICAL STREAMING ENDPOINTS - These were missing and causing queries to fail!
+  
+  // AI Assistant streaming endpoint - the main one that was missing!
+  app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { query } = req.body;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Query is required' });
+      }
+      
+      console.log(`🚀 AI Assistant streaming query for deal ${dealId}: "${query}"`);
+      
+      // Import and create AI Assistant instance
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      const assistant = new AescuvestAIAssistant(dealId);
+      
+      // Set up streaming response
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      
+      let streamComplete = false;
+      
+      try {
+        // Stream the query response
+        const stream = await assistant.streamQuery(query);
+        
+        for await (const chunk of stream) {
+          if (streamComplete) break;
+          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        }
+        
+        streamComplete = true;
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+        
+      } catch (error) {
+        console.error('❌ Streaming error:', error);
+        if (!streamComplete) {
+          res.write(`data: ${JSON.stringify({ 
+            error: 'Failed to generate response',
+            message: error instanceof Error ? error.message : 'Unknown error'
+          })}\n\n`);
+          res.end();
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ AI Assistant stream endpoint error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Failed to process streaming query',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+  });
+
+  // AI Assistant preload endpoint - also missing!
+  app.post('/api/deals/:dealId/ai-assistant/preload', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      console.log(`🔄 AI Assistant preloading context for deal ${dealId}`);
+      
+      // Import and create AI Assistant instance
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      const assistant = new AescuvestAIAssistant(dealId);
+      
+      // Pre-load the context
+      await assistant.loadCompleteContext();
+      
+      res.json({ 
+        success: true, 
+        message: 'AI context preloaded successfully',
+        dealId 
+      });
+      
+    } catch (error) {
+      console.error('❌ AI Assistant preload error:', error);
+      res.status(500).json({ 
+        error: 'Failed to preload AI context',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  console.log('✅ AI Assistant endpoints registered (including STREAMING endpoints that were missing!)');
 
   // ========================================
   // RAG / Embedding Processing Endpoints
