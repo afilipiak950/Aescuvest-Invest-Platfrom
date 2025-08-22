@@ -1845,20 +1845,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       }
       return;
     } else {
-      console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using direct upload (under 30MB limit)`);
-      
-      // Use direct upload for files under 30MB
-      setUploadProgress({
-        fileName: file.name,
-        progress: 0,
-        status: 'Starting upload...'
-      });
-
-      const formData = new FormData();
-      formData.append('zipFile', file);
-      formData.append('folderName', folderName);
-
-      uploadZipMutation.mutate(formData);
+      // 🚨 ELIMINATED: Direct server upload path completely removed (GCS-only system)
+      // All uploads now use GCS infrastructure exclusively as requested by user
+      console.error('❌ Upload system error: All upload paths failed');
+      alert('Upload failed: All upload methods unsuccessful. Please try again or contact support.');
+      setUploadProgress(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
