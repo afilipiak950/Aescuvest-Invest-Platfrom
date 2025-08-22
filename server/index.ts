@@ -826,8 +826,26 @@ app.use((req, res, next) => {
 
   // 🚨 CRITICAL FIX: Pre-Vite upload handler to completely bypass Vite interference  
   console.log('🚀 Registering PRE-VITE upload handler...');
+  
+  // First import the multer instance and zipProcessor
+  let upload: any;
+  let zipProcessor: any;
+  
+  try {
+    // Dynamic import to get the configured multer instance
+    const multerModule = await import('./services/fileUpload');
+    upload = multerModule.upload;
+    
+    const zipModule = await import('./services/zipProcessor');
+    zipProcessor = zipModule.zipProcessor;
+    
+    console.log('✅ Multer and zipProcessor imported successfully');
+  } catch (error) {
+    console.error('❌ Failed to import dependencies:', error);
+  }
+  
   app.post('/api/deals/:dealId/data-room/upload-zip', (req: Request, res: Response) => {
-    console.log('🔥 PRE-VITE UPLOAD HANDLER HIT - Completely bypassing Vite!');
+    console.log('🔥 PRE-VITE UPLOAD HANDLER HIT - Processing ZIP file...');
     console.log('📦 Request details:', {
       method: req.method,
       url: req.originalUrl,
@@ -839,15 +857,60 @@ app.use((req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    // For now, just return success to test if this handler works
-    res.json({
-      success: true,
-      message: 'Pre-Vite upload handler working!',
-      test: true,
-      dealId: req.params.dealId,
-      received: {
-        contentType: req.headers['content-type'],
-        contentLength: req.headers['content-length']
+    // Use multer to process the multipart form data
+    upload.single('zipFile')(req, res, async (err: any) => {
+      console.log('🔥 MULTER PROCESSING COMPLETED');
+      
+      if (err) {
+        console.error('❌ MULTER ERROR:', err);
+        return res.status(400).json({
+          success: false,
+          error: `Upload failed: ${err.message}`,
+          details: err
+        });
+      }
+      
+      try {
+        const dealId = parseInt(req.params.dealId);
+        const file = req.file;
+        const { folderName } = req.body;
+
+        console.log(`🚨 DATA ROOM UPLOAD! Deal: ${dealId}, File: ${file?.originalname}, Size: ${file ? (file.size / 1024 / 1024).toFixed(1) : 'N/A'}MB`);
+
+        if (!file) {
+          console.log('❌ No ZIP file provided');
+          return res.status(400).json({
+            success: false,
+            error: 'No ZIP file provided'
+          });
+        }
+
+        console.log('📂 Starting ZIP processing...');
+        
+        // Start ZIP processing (this will handle document extraction and processing)
+        const result = await zipProcessor.processZip(file.path, dealId, {
+          folderName: folderName || 'Data Room Documents'
+        });
+
+        console.log('✅ ZIP processing completed successfully');
+        
+        res.json({
+          success: true,
+          message: `ZIP file uploaded and processing started for ${file.originalname}`,
+          dealId: dealId,
+          fileName: file.originalname,
+          fileSize: file.size,
+          documentsFound: result.documentsFound || 0,
+          processingStarted: true
+        });
+        
+      } catch (error: any) {
+        console.error('❌ ZIP processing error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to process ZIP file',
+          details: error.message
+        });
       }
     });
   });
