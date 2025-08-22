@@ -60,14 +60,21 @@ export function GlobalPersistentUploadMonitor({
     if (upload.uploadType === 'gcs_direct') {
       try {
         const progressKey = `gcs_upload_progress_${upload.sessionId}`;
+        console.log(`🔍 GLOBAL WIDGET: Checking localStorage key: ${progressKey}`);
         const localProgress = localStorage.getItem(progressKey);
+        console.log(`🔍 GLOBAL WIDGET: localStorage value:`, localProgress);
+        
         if (localProgress) {
           const progress = JSON.parse(localProgress);
+          console.log(`🔍 GLOBAL WIDGET: Parsed progress:`, progress);
+          console.log(`🎯 GLOBAL WIDGET: Syncing ${upload.fileName}: ${upload.progress}% → ${progress.progress}%`);
           return {
             ...upload,
             progress: progress.progress || upload.progress,
             currentStep: progress.status || upload.currentStep
           };
+        } else {
+          console.log(`🔍 GLOBAL WIDGET: No localStorage data found for ${upload.fileName}`);
         }
       } catch (error) {
         console.warn('Failed to sync localStorage progress:', error);
