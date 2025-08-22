@@ -1005,6 +1005,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       console.log('🎯 No active uploads found, clearing progress bars');
       setUploadProgress(null);
       setChunkedUploadProgress(null);
+      console.log('🎯 FORCE CLEARED: Both progress states set to null');
     }
   }, [persistentUploads]);
 
