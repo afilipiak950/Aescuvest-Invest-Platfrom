@@ -44,6 +44,14 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
     }
   };
 
+  // Debug disabled state for Research button
+  console.log('🔍 ACTUAL Research button state:', {
+    isRunning,
+    isPending: comprehensiveAnalysisMutation.isPending,
+    disabled: isRunning || comprehensiveAnalysisMutation.isPending,
+    dealId
+  });
+
   return (
     <Button
       onClick={handleRunAnalysis}
