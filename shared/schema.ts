@@ -169,6 +169,7 @@ export const documents: any = pgTable("documents", {
   aiSummaryGeneratedAt: timestamp("ai_summary_generated_at"),
   // Agent assignment fields
   assignedAgents: json("assigned_agents").$type<string[]>().default([]),
+  agentType: text("agent_type"), // Primary agent for UI compatibility
   assignmentReason: text("assignment_reason"), // AI explanation for assignment
   assignmentConfidence: numeric("assignment_confidence", { precision: 3, scale: 2 }), // 0.00-1.00
   manuallyAssigned: boolean("manually_assigned").default(false),

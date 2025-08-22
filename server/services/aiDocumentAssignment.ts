@@ -255,6 +255,7 @@ Respond with JSON format:
           .update(documents)
           .set({
             assignedAgents: assignment.agents,
+            agentType: assignment.agents[0], // Set primary agent as agentType for UI compatibility
             updatedAt: new Date()
           })
           .where(eq(documents.id, doc.id));
@@ -280,6 +281,7 @@ Respond with JSON format:
           .update(documents)
           .set({
             assignedAgents: ['Legal'],
+            agentType: 'Legal', // Set fallback agentType for UI compatibility
             updatedAt: new Date()
           })
           .where(eq(documents.id, doc.id));
@@ -341,6 +343,7 @@ Respond with JSON format:
       .update(documents)
       .set({
         assignedAgents: assignment.agents,
+        agentType: assignment.agents[0], // Set primary agent as agentType for UI compatibility
         updatedAt: new Date()
       })
       .where(eq(documents.id, documentId));
