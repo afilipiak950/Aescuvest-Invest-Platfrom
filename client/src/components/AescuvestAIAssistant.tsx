@@ -684,8 +684,8 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
             )}
           </AnimatePresence>
 
-          {/* Revolutionary Smart Suggestions */}
-          {showSuggestions && smartSuggestions.length > 0 && messages.length === 0 && (
+          {/* Revolutionary Smart Suggestions - HIDDEN */}
+          {false && showSuggestions && smartSuggestions.length > 0 && messages.length === 0 && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
