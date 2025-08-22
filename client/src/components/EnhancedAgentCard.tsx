@@ -966,19 +966,22 @@ export default function EnhancedAgentCard({
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
           />
-        ) : agentType.toLowerCase() === 'research' ? (
-          <ResearchQuestionsSection 
-            dealId={dealId}
-            analysisData={actualAnalysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-            onResearchAnalysisStart={onResearchAnalysisStart}
-          />
+        ) : (console.log('🔍 Checking agentType for conditional:', { agentType, lowercase: agentType.toLowerCase(), isResearch: agentType.toLowerCase() === 'research' }), agentType.toLowerCase() === 'research') ? (
+          <>
+            {console.log('🎯 RENDERING ResearchQuestionsSection for agentType:', agentType)}
+            <ResearchQuestionsSection 
+              dealId={dealId}
+              analysisData={actualAnalysisData} 
+              assignedDocuments={assignedDocuments}
+              documents={documents || []}
+              handleDocumentClick={handleDocumentClick}
+              quoteViewerOpen={quoteViewerOpen}
+              setQuoteViewerOpen={setQuoteViewerOpen}
+              selectedQuoteData={selectedQuoteData}
+              setSelectedQuoteData={setSelectedQuoteData}
+              onResearchAnalysisStart={onResearchAnalysisStart}
+            />
+          </>
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
@@ -2561,6 +2564,12 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
 function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { dealId: number; onAnalysisStart?: () => void }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
+
+  // RESET: Force isRunning to false to fix stuck state
+  React.useEffect(() => {
+    console.log('🔄 RESETTING Research button isRunning state to false');
+    setIsRunning(false);
+  }, [dealId]);
 
   // Check for existing background jobs
   const { data: jobProgress } = useQuery({
