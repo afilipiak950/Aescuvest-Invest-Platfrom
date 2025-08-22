@@ -8108,8 +8108,28 @@ export async function registerAllRoutes(app: Express) {
   });
 
   // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
-  app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
-    console.log('🔥 ROUTE HANDLER EXECUTING - THIS IS THE FIRST LINE OF THE ACTUAL HANDLER');
+  app.post('/api/deals/:dealId/data-room/upload-zip', (req: Request, res: Response) => {
+    console.log('🔥 UPLOAD ROUTE HIT - About to process with multer...');
+    
+    upload.single('zipFile')(req, res, async (err: any) => {
+      console.log('🔥 MULTER MIDDLEWARE COMPLETED');
+      
+      if (err) {
+        console.error('❌ MULTER ERROR:', err);
+        console.error('❌ Error details:', {
+          message: err.message,
+          code: err.code,
+          field: err.field,
+          stack: err.stack?.substring(0, 500)
+        });
+        return res.status(400).json({
+          success: false,
+          error: `Upload failed: ${err.message}`,
+          details: err
+        });
+      }
+      
+      console.log('🔥 ROUTE HANDLER EXECUTING - THIS IS THE FIRST LINE OF THE ACTUAL HANDLER');
     try {
       const dealId = parseInt(req.params.dealId);
       const file = req.file;
@@ -8203,7 +8223,8 @@ export async function registerAllRoutes(app: Express) {
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
-  });
+    }); // Close the async callback
+  }); // Close the main route handler
 
   // Regular ZIP upload route for files under 100MB (fallback)
   app.post('/api/deals/:dealId/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
