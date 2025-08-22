@@ -228,9 +228,15 @@ export function GlobalPersistentUploadMonitor({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={handleCancelAll}
-                className="h-6 w-6 p-0"
+                onClick={(e) => {
+                  console.log('🚨 HEADER CANCEL ALL CLICKED!');
+                  console.log('🚨 Event:', e);
+                  console.log('🚨 Active uploads count:', activeUploads.length);
+                  handleCancelAll();
+                }}
+                className="h-6 w-6 p-0 relative z-10"
                 title="Cancel all uploads"
+                style={{ cursor: 'pointer' }}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -287,7 +293,7 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  const handleCancel = async (e) => {
+  const handleCancel = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     console.log(`🔴 INDIVIDUAL CANCEL CLICKED! File: ${upload.fileName} (${upload.sessionId})`);
@@ -339,10 +345,17 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
           {/* Cancel button for stuck/active uploads */}
           {(upload.status === 'uploading' || upload.status === 'processing') && (
             <button
-              onClick={handleCancel}
-              className="text-gray-400 hover:text-red-400 transition-colors p-1 rounded bg-red-500/20 hover:bg-red-500/40"
+              onClick={(e) => {
+                console.log('🚨 BUTTON CLICK DETECTED! Starting debug trace...');
+                console.log('🚨 Event target:', e.target);
+                console.log('🚨 Event type:', e.type);
+                console.log('🚨 Upload details:', upload.fileName, upload.sessionId);
+                console.log('🚨 Calling handleCancel...');
+                handleCancel(e);
+              }}
+              className="text-gray-400 hover:text-red-400 transition-colors p-1 rounded bg-red-500/20 hover:bg-red-500/40 relative z-10"
               title="Cancel upload"
-              style={{ minWidth: '24px', minHeight: '24px' }}
+              style={{ minWidth: '24px', minHeight: '24px', cursor: 'pointer' }}
             >
               <XCircle className="h-4 w-4" />
             </button>
@@ -397,7 +410,7 @@ export function useGlobalPersistentUploads() {
 
   const allUploads = uploadsData?.uploads || [];
   console.log(`🔍 HOOK: Total uploads from API:`, allUploads.length);
-  allUploads.forEach((upload, i) => {
+  allUploads.forEach((upload: PersistentUploadSession, i: number) => {
     console.log(`🔍 HOOK: Upload ${i + 1}: ${upload.fileName} - Status: ${upload.status}`);
   });
 
