@@ -1446,6 +1446,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           status: 'Step 1: Getting upload authorization...'
         });
         
+        // 🎯 CRITICAL: Create persistent upload session FIRST
+        console.log(`🎯 Creating persistent upload session for: ${file.name}`);
+        const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
+        const sessionId = await frontendPersistentUploadService.createUploadSession(
+          dealId,
+          file.name,
+          file.size,
+          'gcs_direct'
+        );
+        
         // 📍 MICRO-STEP 1: Request signed URL (tiny request, no file data)
         console.log('📍 MICRO-STEP 1: Requesting signed URL from server...');
         const signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
@@ -1481,7 +1491,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         const xhr = new XMLHttpRequest();
         
         // Track upload progress to GCS
-        xhr.upload.addEventListener('progress', (e) => {
+        xhr.upload.addEventListener('progress', async (e) => {
           if (e.lengthComputable) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
             setUploadProgress({
@@ -1490,6 +1500,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               status: `Step 2: Uploading to cloud (${percentComplete}%) - Bypassing server...`
             });
             console.log(`☁️ GCS direct upload progress: ${percentComplete}%`);
+            
+            // Update persistent upload session with progress
+            try {
+              await frontendPersistentUploadService.updateProgress(
+                sessionId,
+                percentComplete,
+                e.loaded,
+                `Uploading to cloud (${percentComplete}%)`
+              );
+            } catch (error) {
+              // Silent fail - don't interrupt upload
+              console.log('Progress update failed (non-critical):', error);
+            }
           }
         });
         
