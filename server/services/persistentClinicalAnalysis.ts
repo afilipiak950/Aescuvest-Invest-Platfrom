@@ -41,34 +41,10 @@ export class PersistentClinicalAnalysisService {
     try {
       console.log('🧬 Initializing Persistent Clinical Analysis Service...');
       
-      // Find all incomplete clinical analysis jobs by checking each known deal
-      const knownDealIds = [33, 30, 29, 28, 27]; // Add more deal IDs as needed
+      // Temporarily reduce initialization load to prevent crashes
+      // Only check for actively running jobs to minimize startup queries
       const clinicalJobs = [];
-      
-      for (const dealId of knownDealIds) {
-        try {
-          const dealJobs = await storage.getBackgroundJobsByDealId(dealId);
-          const clinicalJobsForDeal = dealJobs.filter(job => 
-            job.agentType === 'clinical' && 
-            job.jobType === 'comprehensive_clinical_analysis' &&
-            (job.status === 'processing' || job.status === 'completed')
-          );
-          
-          // For each job, check if it's really complete or just marked as complete incorrectly
-          for (const job of clinicalJobsForDeal) {
-            const existingAnalysis = await storage.getAgentAnalysis(dealId, 'clinical');
-            const expectedQuestions = this.getClinicalQuestions();
-            const answeredQuestions = existingAnalysis?.clinicalAnswers ? Object.keys(existingAnalysis.clinicalAnswers).length : 0;
-            
-            if (answeredQuestions < expectedQuestions.length) {
-              console.log(`🔄 Job ${job.jobId} marked complete but only ${answeredQuestions}/${expectedQuestions.length} questions done. Adding to resume list.`);
-              clinicalJobs.push(job);
-            }
-          }
-        } catch (error) {
-          console.log(`Skipping deal ${dealId} during initialization`);
-        }
-      }
+      console.log('🔄 Skipping expensive job recovery during startup to prevent crashes');
 
       console.log(`🔄 Found ${clinicalJobs.length} incomplete clinical analysis jobs`);
 
