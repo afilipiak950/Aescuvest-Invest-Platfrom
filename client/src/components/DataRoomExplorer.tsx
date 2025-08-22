@@ -982,24 +982,70 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     refetchInterval: 2000, // Poll every 2 seconds
   });
 
-  // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads
+  // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads  
   useEffect(() => {
     const uploadsData = persistentUploads as any;
+    console.log('🎯 PERSISTENT UPLOADS DATA:', uploadsData);
+    
     if (uploadsData?.uploads?.active?.length > 0) {
       const activeUpload = uploadsData.uploads.active[0];
-      console.log(`🎯 RESTORING progress bar from persistent session: ${activeUpload.fileName} at ${activeUpload.progress}%`);
+      console.log(`🎯 RESTORING progress bar from persistent session: ${activeUpload.fileName}`);
       
       if (activeUpload.uploadType === 'gcs_direct') {
+        // Show progress bar with at least the database progress, will be updated by real-time polling
+        const displayProgress = Math.max(activeUpload.progress || 0, 1); // Show at least 1% if active
         setUploadProgress({
           fileName: activeUpload.fileName,
-          progress: activeUpload.progress,
-          status: activeUpload.currentStep || 'Uploading...'
+          progress: displayProgress,
+          status: activeUpload.currentStep || 'Uploading to Google Cloud Storage...'
         });
+        console.log(`✅ Progress bar restored: ${activeUpload.fileName} - showing ${displayProgress}%`);
       }
-    } else {
-      // Clear progress bars if no active uploads
+    } else if (uploadsData?.uploads) {
+      console.log('🎯 No active uploads found, clearing progress bars');
       setUploadProgress(null);
       setChunkedUploadProgress(null);
+    }
+  }, [persistentUploads]);
+
+  // 🎯 CRITICAL: Real-time progress sync from localStorage polling  
+  useEffect(() => {
+    const syncProgress = () => {
+      const uploadsData = persistentUploads as any;
+      
+      if (uploadsData?.uploads?.active?.length > 0) {
+        const activeUpload = uploadsData.uploads.active[0];
+        
+        // Check localStorage for current GCS progress
+        const allKeys = Object.keys(localStorage);
+        const progressKeys = allKeys.filter(key => key.startsWith('gcs_upload_progress_'));
+        
+        if (progressKeys.length > 0) {
+          try {
+            const latestProgressKey = progressKeys[progressKeys.length - 1];
+            const progressData = JSON.parse(localStorage.getItem(latestProgressKey) || '{}');
+            
+            if (progressData.progress !== undefined && progressData.progress > 0) {
+              console.log(`🔄 Syncing progress from localStorage: ${progressData.progress}%`);
+              
+              setUploadProgress({
+                fileName: activeUpload.fileName,
+                progress: progressData.progress,
+                status: `Uploading to Google Cloud Storage... ${progressData.progress.toFixed(1)}%`
+              });
+            }
+          } catch (error) {
+            console.error('❌ Error parsing progress from localStorage:', error);
+          }
+        }
+      }
+    };
+
+    // Sync immediately and then every second
+    if (persistentUploads) {
+      syncProgress();
+      const interval = setInterval(syncProgress, 1000);
+      return () => clearInterval(interval);
     }
   }, [persistentUploads]);
   const [isChunkedUpload, setIsChunkedUpload] = useState(false);
