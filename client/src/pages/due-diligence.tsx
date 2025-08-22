@@ -36,6 +36,7 @@ function DueDiligenceContent() {
     const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
     const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
+  const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -1790,6 +1791,7 @@ function DueDiligenceContent() {
                     isRunningAllAnalyses={isRunningAllAnalyses}
                     currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}
                     currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentStep}
+                    onResearchAnalysisStart={() => setResearchAnalysisStarted(true)}
                   />
                 </TabsContent>
                 

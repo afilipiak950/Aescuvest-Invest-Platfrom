@@ -58,6 +58,7 @@ interface EnhancedAgentCardProps {
   currentProgress?: number;
   currentDocumentName?: string;
   onClinicalAnalysisStart?: () => void;
+  onResearchAnalysisStart?: () => void;
 }
 
 // Safe rendering helper to prevent React object errors
@@ -76,7 +77,8 @@ export default function EnhancedAgentCard({
   isRunningAllAnalyses,
   currentProgress = 0,
   currentDocumentName,
-  onClinicalAnalysisStart
+  onClinicalAnalysisStart,
+  onResearchAnalysisStart
 }: EnhancedAgentCardProps) {
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [quoteViewerOpen, setQuoteViewerOpen] = useState(false);
@@ -2349,7 +2351,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
           </p>
         </div>
-        <ComprehensiveResearchAnalysisButton dealId={dealId} />
+        <ComprehensiveResearchAnalysisButton dealId={dealId} onAnalysisStart={onResearchAnalysisStart} />
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
@@ -2554,7 +2556,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
 }
 
 // Comprehensive Research Analysis Button Component
-function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
+function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { dealId: number; onAnalysisStart?: () => void }) {
   const [isRunning, setIsRunning] = useState(false);
   const queryClient = useQueryClient();
 
@@ -2610,7 +2612,25 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
     setIsRunning(true);
     console.log('🔬 Starting comprehensive research analysis for deal', dealId);
     
+    // Call the callback to trigger client-side progress state reset
+    if (onAnalysisStart) {
+      onAnalysisStart();
+    }
+    
     try {
+      // Trigger custom event to show progress bar immediately
+      window.dispatchEvent(new CustomEvent('researchAnalysisStarted'));
+      
+      // First delete any existing research analysis data to ensure fresh start
+      try {
+        await apiRequest(`/api/deals/${dealId}/agents/research/results`, {
+          method: 'DELETE'
+        });
+        console.log('🗑️ Cleared existing research analysis data');
+      } catch (deleteError) {
+        console.log('ℹ️ No existing research data to clear (expected for first run)');
+      }
+      
       await comprehensiveAnalysisMutation.mutateAsync();
       console.log('✅ Analysis request sent, waiting for completion...');
       
