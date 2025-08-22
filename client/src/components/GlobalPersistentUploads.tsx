@@ -40,36 +40,6 @@ export function GlobalPersistentUploadMonitor({
 }: GlobalUploadMonitorProps) {
   const queryClient = useQueryClient();
   
-  // Cancel all active uploads
-  const handleCancelAll = async () => {
-    console.log('🗑️ Canceling all active uploads...');
-    for (const upload of activeUploads) {
-      try {
-        console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
-        const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          console.log(`✅ Upload canceled: ${upload.fileName}`);
-        } else {
-          console.error('❌ Failed to cancel upload:', response.status, response.statusText);
-        }
-      } catch (error) {
-        console.error('❌ Network error canceling upload:', error);
-      }
-    }
-    
-    // Refresh the upload list
-    queryClient.invalidateQueries({ queryKey: ['global-persistent-uploads'] });
-    
-    // Call original onClose if provided
-    if (onClose) onClose();
-  };
-  
   console.log('🔍 GLOBAL WIDGET: Component rendering...');
   
   // Fetch global uploads every 2 seconds
@@ -119,6 +89,36 @@ export function GlobalPersistentUploadMonitor({
     }
     return upload;
   });
+
+  // Cancel all active uploads
+  const handleCancelAll = async () => {
+    console.log('🗑️ Canceling all active uploads...');
+    for (const upload of activeUploads) {
+      try {
+        console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
+        const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          console.log(`✅ Upload canceled: ${upload.fileName}`);
+        } else {
+          console.error('❌ Failed to cancel upload:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Network error canceling upload:', error);
+      }
+    }
+    
+    // Refresh the upload list
+    queryClient.invalidateQueries({ queryKey: ['global-persistent-uploads'] });
+    
+    // Call original onClose if provided
+    if (onClose) onClose();
+  };
 
   // 🎯 CRITICAL: Poll localStorage for real-time progress updates
   useEffect(() => {
