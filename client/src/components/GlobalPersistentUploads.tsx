@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Upload, CheckCircle, XCircle, AlertCircle, X, Minimize2, Maximize2 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -409,6 +410,7 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
 export function useGlobalPersistentUploads() {
   const [showMonitor, setShowMonitor] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [location] = useLocation();
 
   const { data: uploadsData } = useQuery({
     queryKey: ['global-persistent-uploads'],
@@ -427,10 +429,25 @@ export function useGlobalPersistentUploads() {
     console.log(`🔍 HOOK: Upload ${i + 1}: ${upload.fileName} - Status: ${upload.status}`);
   });
 
+  // 🎯 CRITICAL: Get current deal ID from URL to hide uploads from current deal
+  const currentDealMatch = location.match(/\/deals\/(\d+)/);
+  const currentDealId = currentDealMatch ? parseInt(currentDealMatch[1]) : null;
+  console.log(`🔍 HOOK: Current deal ID from URL:`, currentDealId);
+
+  // Filter active uploads that are NOT from the current deal page
   const activeUploads = allUploads.filter(
-    (u: PersistentUploadSession) => u.status === 'uploading' || u.status === 'processing'
+    (u: PersistentUploadSession) => {
+      const isActive = u.status === 'uploading' || u.status === 'processing';
+      const isFromCurrentDeal = currentDealId && u.dealId === currentDealId;
+      
+      // Only show uploads that are active AND not from the current deal
+      const shouldShow = isActive && !isFromCurrentDeal;
+      
+      console.log(`🔍 HOOK: Upload ${u.fileName} - Active: ${isActive}, CurrentDeal: ${isFromCurrentDeal}, Show: ${shouldShow}`);
+      return shouldShow;
+    }
   );
-  console.log(`🔍 HOOK: Active uploads after filtering:`, activeUploads.length);
+  console.log(`🔍 HOOK: Active uploads after filtering (excluding current deal):`, activeUploads.length);
 
   // Automatically show monitor when uploads are active
   useEffect(() => {
