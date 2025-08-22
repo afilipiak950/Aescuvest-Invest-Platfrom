@@ -824,8 +824,9 @@ app.use((req, res, next) => {
   });
 
   // CRITICAL: Register streaming endpoint BEFORE Vite to prevent interception
-  app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
+  app.post('/api/deals/:dealId/ai-assistant/stream', express.json(), async (req: Request, res: Response) => {
     console.log(`🚨 STREAMING ENDPOINT HIT DIRECTLY: ${req.method} ${req.originalUrl}`);
+    console.log('📦 Request body:', req.body);
     
     try {
       const dealId = parseInt(req.params.dealId);
