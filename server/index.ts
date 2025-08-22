@@ -773,6 +773,12 @@ app.use((req, res, next) => {
       return next(); // Not an API route, continue normally
     }
 
+    // Skip anti-Vite middleware for SSE streaming endpoints
+    if (req.originalUrl.includes('/ai-assistant/stream')) {
+      console.log(`🌊 STREAMING ENDPOINT - Skipping anti-Vite middleware: ${req.originalUrl}`);
+      return next();
+    }
+
     console.log(`🔄 PRE-VITE COMPLETE: ${req.method} ${req.originalUrl}`);
     
     // Force proper headers immediately
