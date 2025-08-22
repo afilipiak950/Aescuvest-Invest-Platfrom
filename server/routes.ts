@@ -712,49 +712,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/deals/:id', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.id);
+      console.log(`🗑️ DELETE /api/deals/${dealId} - Starting deletion process`);
+      
       if (isNaN(dealId)) {
+        console.log(`❌ Invalid deal ID: ${req.params.id}`);
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
       // Check if deal exists
+      console.log(`🔍 Checking if deal ${dealId} exists...`);
       const deal = await storage.getDealById(dealId);
       if (!deal) {
+        console.log(`❌ Deal ${dealId} not found`);
         return res.status(404).json({ message: 'Deal not found' });
       }
+
+      console.log(`✅ Found deal ${dealId}: ${deal.companyName}`);
 
       // Delete related data first to maintain referential integrity
       console.log(`🗑️ Deleting related data for deal ${dealId}...`);
       
-      // Delete documents
-      await storage.deleteDocumentsByDealId(dealId);
-      
-      // Delete analyses
-      await storage.deleteAnalysesByDealId(dealId);
-      
-      // Delete evaluation results
-      await storage.deleteEvaluationResultsByDealId(dealId);
-      
-      // Delete company research
-      await storage.deleteCompanyResearchByDealId(dealId);
-      
-      // Delete background jobs
-      await storage.deleteBackgroundJobsByDealId(dealId);
-      
-      // Finally delete the deal
-      const deleted = await storage.deleteDeal(dealId);
-      
-      if (!deleted) {
-        return res.status(500).json({ message: 'Failed to delete deal' });
-      }
+      try {
+        // Delete documents
+        console.log(`🗑️ Step 1: Deleting documents for deal ${dealId}...`);
+        await storage.deleteDocumentsByDealId(dealId);
+        console.log(`✅ Step 1 complete: Documents deleted for deal ${dealId}`);
+        
+        // Delete analyses
+        console.log(`🗑️ Step 2: Deleting analyses for deal ${dealId}...`);
+        await storage.deleteAnalysesByDealId(dealId);
+        console.log(`✅ Step 2 complete: Analyses deleted for deal ${dealId}`);
+        
+        // Delete evaluation results
+        console.log(`🗑️ Step 3: Deleting evaluation results for deal ${dealId}...`);
+        await storage.deleteEvaluationResultsByDealId(dealId);
+        console.log(`✅ Step 3 complete: Evaluation results deleted for deal ${dealId}`);
+        
+        // Delete company research
+        console.log(`🗑️ Step 4: Deleting company research for deal ${dealId}...`);
+        await storage.deleteCompanyResearchByDealId(dealId);
+        console.log(`✅ Step 4 complete: Company research deleted for deal ${dealId}`);
+        
+        // Delete background jobs
+        console.log(`🗑️ Step 5: Deleting background jobs for deal ${dealId}...`);
+        await storage.deleteBackgroundJobsByDealId(dealId);
+        console.log(`✅ Step 5 complete: Background jobs deleted for deal ${dealId}`);
+        
+        // Delete comprehensive analysis (THE MISSING PIECE!)
+        console.log(`🗑️ Step 6: Deleting comprehensive analysis for deal ${dealId}...`);
+        await storage.deleteComprehensiveAnalysesByDealId(dealId);
+        console.log(`✅ Step 6 complete: Comprehensive analysis deleted for deal ${dealId}`);
+        
+        // Delete background uploads
+        console.log(`🗑️ Step 7: Deleting background uploads for deal ${dealId}...`);
+        await storage.deleteBackgroundUploadsByDealId(dealId);
+        console.log(`✅ Step 7 complete: Background uploads deleted for deal ${dealId}`);
+        
+        // Delete investor matches
+        console.log(`🗑️ Step 8: Deleting investor matches for deal ${dealId}...`);
+        await storage.deleteInvestorMatchesByDealId(dealId);
+        console.log(`✅ Step 8 complete: Investor matches deleted for deal ${dealId}`);
+        
+        // Delete investment memos
+        console.log(`🗑️ Step 9: Deleting investment memos for deal ${dealId}...`);
+        await storage.deleteInvestmentMemosByDealId(dealId);
+        console.log(`✅ Step 9 complete: Investment memos deleted for deal ${dealId}`);
+        
+        // Delete automation executions
+        console.log(`🗑️ Step 10: Deleting automation executions for deal ${dealId}...`);
+        await storage.deleteAutomationExecutionsByDealId(dealId);
+        console.log(`✅ Step 10 complete: Automation executions deleted for deal ${dealId}`);
+        
+        // Delete research background jobs
+        console.log(`🗑️ Step 11: Deleting research background jobs for deal ${dealId}...`);
+        await storage.deleteResearchBackgroundJobsByDealId(dealId);
+        console.log(`✅ Step 11 complete: Research background jobs deleted for deal ${dealId}`);
+        
+        // Finally delete the deal
+        console.log(`🗑️ Step 12: Deleting the deal ${dealId} itself...`);
+        const deleted = await storage.deleteDeal(dealId);
+        
+        if (!deleted) {
+          console.log(`❌ Step 12 FAILED: storage.deleteDeal() returned false for deal ${dealId}`);
+          return res.status(500).json({ message: 'Failed to delete deal from database' });
+        }
+        
+        console.log(`✅ Step 7 complete: Deal ${dealId} deleted successfully`);
 
-      console.log(`✅ Successfully deleted deal ${dealId} and all related data`);
-      return res.status(200).json({ 
-        message: 'Deal deleted successfully',
-        dealId: dealId
-      });
+        console.log(`🎉 Successfully deleted deal ${dealId} and all related data`);
+        return res.status(200).json({ 
+          message: 'Deal deleted successfully',
+          dealId: dealId
+        });
+      } catch (stepError) {
+        console.error(`❌ Error during deletion steps for deal ${dealId}:`, stepError);
+        return res.status(500).json({ 
+          message: `Failed during deletion process: ${stepError.message}` 
+        });
+      }
     } catch (error) {
-      console.error('Error deleting deal:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      console.error(`❌ Top-level error deleting deal ${req.params.id}:`, error);
+      return res.status(500).json({ 
+        message: `Internal server error: ${error.message}` 
+      });
     }
   });
 
