@@ -1579,42 +1579,148 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           console.error('❌ Basic connectivity test failed:', testError);
         }
         
-        // 🚨 DETAILED REQUEST ATTEMPT
-        console.log('🚨 Making signed URL request with full debugging...');
+        // 🛠️ Update persistent session to show we're starting signed URL request
+        console.log('🛠️ Updating persistent session before signed URL request...');
+        try {
+          await frontendPersistentUploadService.updateProgress(
+            sessionId,
+            1,
+            0,
+            'Requesting signed URL from server...'
+          );
+          console.log('✅ Updated session to 1% before signed URL request');
+        } catch (updateError) {
+          console.error('❌ Failed to update session progress:', updateError);
+        }
+        
+        // 🚨 DETAILED REQUEST ATTEMPT WITH TIMEOUT
+        console.log('🚨 Making signed URL request with timeout and full debugging...');
         let signedUrlResponse;
         
+        // 🛠️ Create request with abort controller for timeout
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          abortController.abort();
+          console.error('❌ TIMEOUT: Signed URL request took longer than 10 seconds');
+        }, 10000);
+        
         try {
+          console.log('🔄 Starting fetch request now...');
+          const startTime = performance.now();
+          
           signedUrlResponse = await fetch(requestUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(requestPayload)
+            body: JSON.stringify(requestPayload),
+            signal: abortController.signal
           });
-          console.log('📡 Signed URL fetch completed successfully');
+          
+          clearTimeout(timeoutId);
+          const endTime = performance.now();
+          const duration = Math.round(endTime - startTime);
+          
+          console.log(`📡 Signed URL fetch completed in ${duration}ms`);
           console.log('📡 Response details:', {
             status: signedUrlResponse.status,
             statusText: signedUrlResponse.statusText,
             ok: signedUrlResponse.ok,
+            url: signedUrlResponse.url,
+            type: signedUrlResponse.type,
+            redirected: signedUrlResponse.redirected,
             headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
           });
+          
+          // 🛠️ Update persistent session after successful fetch
+          try {
+            await frontendPersistentUploadService.updateProgress(
+              sessionId,
+              5,
+              0,
+              'Received server response, processing signed URL...'
+            );
+          } catch (e) {
+            console.error('Failed to update progress after fetch:', e);
+          }
+          
         } catch (fetchError) {
+          clearTimeout(timeoutId);
           console.error('❌ CRITICAL: Signed URL fetch failed completely:', fetchError);
           console.error('❌ Error name:', fetchError.name);
           console.error('❌ Error message:', fetchError.message);
           console.error('❌ Error stack:', fetchError.stack);
+          
+          if (fetchError.name === 'AbortError') {
+            console.error('❌ Request was ABORTED due to timeout');
+          }
+          
+          // 🛠️ Update persistent session with error
+          try {
+            await frontendPersistentUploadService.updateProgress(
+              sessionId,
+              0,
+              0,
+              `Network error: ${fetchError.message}`
+            );
+          } catch (e) {
+            console.error('Failed to update error status:', e);
+          }
+          
           throw new Error(`Signed URL request failed: ${fetchError.message}`);
         }
 
         if (!signedUrlResponse.ok) {
           const errorData = await signedUrlResponse.json().catch(() => ({}));
           console.error('❌ SIGNED URL ERROR:', errorData);
+          console.error('❌ Full response details:', {
+            status: signedUrlResponse.status,
+            statusText: signedUrlResponse.statusText,
+            headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
+          });
+          
+          // 🛠️ Update persistent session with error
+          try {
+            await frontendPersistentUploadService.updateProgress(
+              sessionId,
+              0,
+              0,
+              `Signed URL failed: ${signedUrlResponse.status}`
+            );
+          } catch (e) {
+            console.error('Failed to update error status:', e);
+          }
+          
           throw new Error(errorData.message || `Failed to get signed URL: ${signedUrlResponse.statusText}`);
         }
 
-        const { signedUrl, gcsFileName, uploadId } = await signedUrlResponse.json();
+        console.log('🔍 Parsing signed URL response JSON...');
+        let signedUrlData;
+        try {
+          signedUrlData = await signedUrlResponse.json();
+          console.log('✅ JSON parsing successful:', signedUrlData);
+        } catch (jsonError) {
+          console.error('❌ Failed to parse JSON response:', jsonError);
+          throw new Error(`Invalid JSON response: ${jsonError.message}`);
+        }
+        
+        const { signedUrl, gcsFileName, uploadId } = signedUrlData;
         console.log('✅ MICRO-STEP 1 COMPLETE: Got signed URL');
         console.log(`📝 Upload ID: ${uploadId}`);
+        console.log(`📝 GCS filename: ${gcsFileName}`);
+        console.log(`📝 Signed URL length: ${signedUrl.length} characters`);
+        
+        // 🛠️ Update persistent session after successful signed URL
+        try {
+          await frontendPersistentUploadService.updateProgress(
+            sessionId,
+            10,
+            0,
+            'Starting direct GCS upload...'
+          );
+        } catch (e) {
+          console.error('Failed to update progress after signed URL:', e);
+        }
         console.log(`📁 GCS Path: ${gcsFileName}`);
 
         // 📍 MICRO-STEP 2: Upload directly to GCS (bypasses server completely!)
