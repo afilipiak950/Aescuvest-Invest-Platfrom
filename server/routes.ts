@@ -8101,8 +8101,15 @@ export async function registerAllRoutes(app: Express) {
     next();
   });
 
+  // 🔍 SIMPLE DEBUG ROUTE TO TEST IF ROUTE IS REACHABLE
+  app.post('/api/deals/:dealId/data-room/upload-zip-debug', (req: Request, res: Response) => {
+    console.log('🎯 DEBUG ROUTE HIT - This should appear if routes work');
+    res.json({ debug: 'Route is reachable', dealId: req.params.dealId });
+  });
+
   // 🚨 CRITICAL: Data room ZIP upload route (primary route causing 413 errors)
   app.post('/api/deals/:dealId/data-room/upload-zip', upload.single('zipFile'), async (req: Request, res: Response) => {
+    console.log('🔥 ROUTE HANDLER EXECUTING - THIS IS THE FIRST LINE OF THE ACTUAL HANDLER');
     try {
       const dealId = parseInt(req.params.dealId);
       const file = req.file;
