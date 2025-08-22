@@ -8551,6 +8551,9 @@ export async function registerAllRoutes(app: Express) {
 
   // AI Assistant streaming endpoint
   app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
+    console.log('🚨 STREAMING ENDPOINT HIT! Body:', req.body);
+    console.log('🚨 Headers:', req.headers);
+    
     try {
       const dealId = parseInt(req.params.dealId);
       const { query } = req.body;
