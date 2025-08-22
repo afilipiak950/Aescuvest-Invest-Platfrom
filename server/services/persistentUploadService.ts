@@ -316,6 +316,7 @@ export class PersistentUploadService {
   /**
    * Check for stuck uploads and mark them as failed
    * Now checks for uploads stuck for more than 15 minutes
+   * Also completes uploads that reached 100% but never transitioned to completed
    */
   async checkForStuckUploads(): Promise<number> {
     try {
@@ -345,9 +346,18 @@ export class PersistentUploadService {
         const lastUpdate = new Date(session.updatedAt || session.createdAt);
         const minutesStuck = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60);
         
-        console.log(`📊 Session ${session.sessionId} (${session.fileName}): ${minutesStuck.toFixed(1)} minutes since last update`);
+        console.log(`📊 Session ${session.sessionId} (${session.fileName}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${session.progress}%`);
         
-        if (minutesStuck >= 15) {
+        // 🎯 CRITICAL: If upload reached 100% but never got marked as completed, complete it now
+        if (session.progress >= 100) {
+          console.log(`✅ Upload reached 100% but never completed: ${session.sessionId} (${session.fileName}) - marking as completed`);
+          await this.updateStatus(
+            session.sessionId, 
+            'completed', 
+            'Analysis completed, upload finished'
+          );
+          cleanedUpCount++;
+        } else if (minutesStuck >= 15) {
           console.log(`⚠️ Found stuck upload session: ${session.sessionId} (${session.fileName}), stuck for ${minutesStuck.toFixed(1)} minutes`);
           await this.updateStatus(
             session.sessionId, 
@@ -359,7 +369,7 @@ export class PersistentUploadService {
       }
 
       if (cleanedUpCount > 0) {
-        console.log(`🧹 Marked ${cleanedUpCount} stuck upload sessions as failed`);
+        console.log(`🧹 Processed ${cleanedUpCount} stuck upload sessions (completed or failed)`);
       } else {
         console.log('✅ No stuck uploads found');
       }
