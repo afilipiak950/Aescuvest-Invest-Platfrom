@@ -161,6 +161,59 @@ app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Res
   }
 });
 
+// 🚀 CRITICAL FIX: Move AI Assistant query endpoint here to bypass Vite blocking
+app.post('/api/deals/:dealId/ai-assistant/query', async (req: Request, res: Response) => {
+  try {
+    // Parse body manually if needed (similar to streaming endpoint)
+    let body = req.body;
+    if (!body || typeof body === 'string') {
+      console.log('🔧 Parsing body manually...');
+      let rawBody = '';
+      req.on('data', chunk => rawBody += chunk);
+      await new Promise((resolve) => req.on('end', resolve));
+      
+      try {
+        body = JSON.parse(rawBody || '{}');
+        console.log('✅ Body parsed:', body);
+      } catch (e) {
+        console.error('❌ Failed to parse body:', e);
+        body = {};
+      }
+    }
+    
+    const dealId = parseInt(req.params.dealId);
+    const { query } = body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+    
+    console.log(`🤖 AI Assistant query for deal ${dealId}: ${query}`);
+    
+    // Import the AI Assistant service
+    const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+    
+    // Create assistant instance for this deal
+    const assistant = new AescuvestAIAssistant(dealId);
+    
+    // Process the query
+    const response = await assistant.processQuery(query);
+    const stats = assistant.getContextStats();
+    
+    res.json({
+      success: true,
+      response,
+      contextStats: stats
+    });
+  } catch (error) {
+    console.error('❌ AI Assistant error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process AI query',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // 🔍 ULTRA-DEBUG: Add comprehensive 413 debugging
 app.use(debug413Middleware);
 app.use(bypass413Middleware);
