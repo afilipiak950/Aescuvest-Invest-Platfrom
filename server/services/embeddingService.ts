@@ -147,33 +147,36 @@ export class EmbeddingService {
     
     // Generate query embedding
     const queryEmbedding = await this.generateEmbedding(query);
+    const embeddingString = `[${queryEmbedding.join(',')}]`;
     
-    // Fetch all embeddings for the deal (in production, use a vector database)
-    const allEmbeddings = await db
-      .select()
-      .from(documentEmbeddings)
-      .where(eq(documentEmbeddings.dealId, dealId));
+    // Use PostgreSQL's native vector similarity search with pgvector
+    // The <=> operator calculates L2 distance, 1 - distance gives similarity
+    // For better results, use cosine similarity operator <#> if available
+    const results = await db.execute(sql`
+      SELECT 
+        chunk_text,
+        metadata,
+        document_name,
+        1 - (embedding <=> ${embeddingString}::vector) as similarity
+      FROM document_embeddings
+      WHERE deal_id = ${dealId}
+      ORDER BY embedding <=> ${embeddingString}::vector
+      LIMIT ${topK}
+    `);
     
-    // Calculate similarities
-    const similarities = allEmbeddings.map(record => {
-      const similarity = this.cosineSimilarity(
-        queryEmbedding,
-        record.embedding as number[]
-      );
-      
-      return {
-        chunk: record.chunkText,
-        metadata: record.metadata as ChunkMetadata,
-        similarity,
-      };
-    });
-    
-    // Sort by similarity and return top K
-    similarities.sort((a, b) => b.similarity - a.similarity);
-    const topResults = similarities.slice(0, topK);
+    const topResults = results.rows.map((row: any) => ({
+      chunk: row.chunk_text,
+      metadata: row.metadata as ChunkMetadata,
+      similarity: row.similarity
+    }));
     
     console.log(`✅ Found ${topResults.length} relevant chunks`);
-    console.log(`📊 Top similarity scores: ${topResults.slice(0, 3).map(r => r.similarity.toFixed(3)).join(', ')}`);
+    if (topResults.length > 0) {
+      console.log(`📊 Top similarity scores: ${topResults.slice(0, 3).map(r => r.similarity.toFixed(3)).join(', ')}`);
+      console.log(`📄 Top documents: ${topResults.slice(0, 3).map(r => r.metadata?.documentName || 'Unknown').join(', ')}`);
+    } else {
+      console.log(`⚠️ No relevant chunks found for query`);
+    }
     
     return topResults;
   }

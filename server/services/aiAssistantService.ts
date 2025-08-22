@@ -499,7 +499,7 @@ export class AescuvestAIAssistant {
     }
     
     // Use RAG to find relevant document chunks
-    console.log(`Searching for relevant document chunks using RAG...`);
+    console.log(`🔍 Searching for relevant document chunks using RAG for query: "${query.substring(0, 100)}..."`);
     const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
     
     // Build context with only relevant information
@@ -507,8 +507,14 @@ export class AescuvestAIAssistant {
     if (relevantChunks.length > 0) {
       const documentGroups = new Map<string, string[]>();
       
+      // Log the first few chunks for debugging
+      console.log(`📄 Sample of found chunks:`);
+      for (let i = 0; i < Math.min(3, relevantChunks.length); i++) {
+        console.log(`  Chunk ${i + 1}: "${relevantChunks[i].chunk.substring(0, 100)}..." (similarity: ${relevantChunks[i].similarity.toFixed(3)})`);
+      }
+      
       for (const chunk of relevantChunks) {
-        const docName = chunk.metadata.documentName;
+        const docName = chunk.metadata?.documentName || 'Unknown Document';
         if (!documentGroups.has(docName)) {
           documentGroups.set(docName, []);
         }
@@ -520,7 +526,7 @@ export class AescuvestAIAssistant {
         ragContext += `Content: ${chunks.join(' ... ')}\n`;
       }
       
-      console.log(`Found ${relevantChunks.length} relevant chunks from ${documentGroups.size} documents`);
+      console.log(`✅ Found ${relevantChunks.length} relevant chunks from ${documentGroups.size} documents`);
     } else {
       ragContext += 'No directly relevant document content found for this query.\n';
     }
