@@ -287,15 +287,19 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
 
       try {
         // Stream the response with abort signal
-        console.log(`🚀 Sending AI query to backend: "${query}" for deal ${dealId}`);
+        console.log(`🚀 FETCH STARTING - AI query to backend: "${query}" for deal ${dealId}`);
         console.log('🔍 Fetch URL:', `/api/deals/${dealId}/ai-assistant/stream`);
         console.log('📦 Request body:', JSON.stringify({ query }));
+        console.log('🎯 AbortController exists:', !!abortControllerRef.current);
         
         const response = await fetch(`/api/deals/${dealId}/ai-assistant/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query }),
           signal: abortControllerRef.current.signal
+        }).catch(err => {
+          console.error('🔥 FETCH FAILED:', err);
+          throw err;
         });
         
         console.log('📡 Response received:', response.status, response.statusText);
@@ -407,14 +411,20 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
 
   const handleExampleQuery = (query: string) => {
     console.log('🎯 Example query clicked:', query);
+    console.log('📊 Current state:', { isStreaming, isPreloading, isContextLoaded });
+    
+    // Force clear any stuck state
+    setIsStreaming(false);
     setInput(query);
     setIsExpanded(true);
+    
     // Automatically submit the query
-    if (!isStreaming) {
-      console.log('🚀 Auto-submitting example query');
+    console.log('🚀 Forcing submission of example query');
+    // Use setTimeout to ensure state updates have propagated
+    setTimeout(() => {
       sendQueryMutation.mutate(query);
       setInput('');
-    }
+    }, 10);
   };
 
   // Stop function to cancel ongoing AI processing
@@ -549,7 +559,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                             key={idx}
                             variant="outline"
                             size="sm"
-                            onClick={() => handleExampleQuery(query)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('📱 Button clicked for query:', query);
+                              handleExampleQuery(query);
+                            }}
                             className="text-xs hover:bg-blue-100 dark:hover:bg-blue-900/50"
                           >
                             {query}
@@ -830,7 +845,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                   key={idx}
                   variant="outline"
                   size="sm"
-                  onClick={() => handleExampleQuery(query)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📱 Suggestion button clicked:', query);
+                    handleExampleQuery(query);
+                  }}
                   className="text-xs hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
