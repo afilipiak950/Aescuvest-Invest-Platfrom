@@ -37,19 +37,50 @@ export class MistralOCRService {
       console.log(`📋 Detected file extension: "${fileExtension}"`);
       let extractedText = '';
       
-      // Add progressive timeout wrapper for OCR operations based on file type
+      // Enhanced file validation before processing
+      if (!fs.existsSync(localPath)) {
+        throw new Error(`File not found: ${localPath}`);
+      }
+      
+      const fileStats = fs.statSync(localPath);
+      if (fileStats.size === 0) {
+        throw new Error(`File is empty: ${localPath}`);
+      }
+      
+      // Check for file corruption by reading first few bytes
+      try {
+        const fd = fs.openSync(localPath, 'r');
+        const buffer = Buffer.alloc(Math.min(1024, fileStats.size));
+        fs.readSync(fd, buffer, 0, buffer.length, 0);
+        fs.closeSync(fd);
+      } catch (readError) {
+        throw new Error(`File appears corrupted or inaccessible: ${localPath}`);
+      }
+      
+      // Add progressive timeout wrapper for OCR operations based on file type and size
       let timeoutDuration = 60000; // Default 60 seconds
       
-      // Optimized timeouts for faster processing
+      // Enhanced timeouts based on file size for large file handling
+      const fileSize = fs.existsSync(localPath) ? fs.statSync(localPath).size : 0;
+      const fileSizeMB = fileSize / (1024 * 1024);
+      
+      // Base timeouts by file type
       if (fileExtension === '.pdf') {
-        timeoutDuration = 90000; // 1.5 minutes for PDFs (optimized)
+        timeoutDuration = Math.max(120000, fileSizeMB * 15000); // 2 minutes minimum, +15s per MB
       } else if (['.pptx', '.ppt'].includes(fileExtension)) {
-        timeoutDuration = 60000; // 1 minute for PowerPoint (optimized)
+        timeoutDuration = Math.max(90000, fileSizeMB * 12000); // 1.5 minutes minimum, +12s per MB
       } else if (['.docx', '.doc', '.xlsx', '.xls'].includes(fileExtension)) {
-        timeoutDuration = 45000; // 45 seconds for Office documents (optimized)
+        timeoutDuration = Math.max(60000, fileSizeMB * 8000); // 1 minute minimum, +8s per MB
       } else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {
-        timeoutDuration = 30000; // 30 seconds for images (optimized)
+        timeoutDuration = Math.max(45000, fileSizeMB * 5000); // 45s minimum, +5s per MB
+      } else if (fileExtension === '.zip') {
+        timeoutDuration = Math.max(300000, fileSizeMB * 2000); // 5 minutes minimum for ZIP files
       }
+      
+      // Cap maximum timeout at 10 minutes for extremely large files
+      timeoutDuration = Math.min(timeoutDuration, 600000);
+      
+      console.log(`📏 File size: ${fileSizeMB.toFixed(2)}MB, timeout: ${(timeoutDuration/1000).toFixed(0)}s`);
       
       console.log(`⏱️ Setting OCR timeout to ${timeoutDuration/1000} seconds for ${fileExtension} file`);
       
@@ -112,9 +143,10 @@ export class MistralOCRService {
         ocrPromise = Promise.resolve(`File type ${fileExtension} is not supported for text extraction.`);
       }
       
-      // Race between OCR and timeout with retry logic
+      // Enhanced retry logic with progressive backoff
       let attempts = 0;
-      const maxRetries = 2;
+      const maxRetries = fileExtension === '.zip' ? 1 : 3; // Less retries for ZIP, more for others
+      const baseDelay = 2000; // Start with 2 second delay
       
       while (attempts < maxRetries) {
         try {
@@ -132,8 +164,9 @@ export class MistralOCRService {
             error.message.includes('ECONNRESET') || 
             error.message.includes('ETIMEDOUT')
           )) {
-            console.log(`⚠️ OCR attempt ${attempts} failed (${error.message}), retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay (faster retry)
+            const delay = baseDelay * Math.pow(2, attempts - 1); // Progressive backoff
+            console.log(`⚠️ OCR attempt ${attempts} failed (${error.message}), retrying in ${delay/1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
             
             // Recreate promises for retry
             if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'].includes(fileExtension)) {

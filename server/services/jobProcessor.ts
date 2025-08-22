@@ -308,7 +308,20 @@ class JobProcessor {
   private async processDocumentOCR(job: BackgroundJob) {
     const { filePath, fileName, fileType, documentId } = job.jobData as any;
     
-    await this.updateJobProgress(job.id, 10, 'Initializing OCR processing...', 'processing');
+    await this.updateJobProgress(job.id, 5, 'Validating job data and file paths...', 'processing');
+    
+    // Enhanced job data validation
+    if (!documentId) {
+      throw new Error('Missing documentId in job data');
+    }
+    if (!filePath) {
+      throw new Error('Missing filePath in job data');
+    }
+    if (!fileName) {
+      throw new Error('Missing fileName in job data');
+    }
+    
+    await this.updateJobProgress(job.id, 10, 'Initializing OCR processing...');
 
     // Handle database-stored files
     let actualFilePath = filePath;
@@ -333,33 +346,8 @@ class JobProcessor {
       
       await this.updateJobProgress(job.id, 18, 'File retrieved from database, starting OCR...');
     } else {
-      // Check if local file exists, with fallback path resolution
-      if (!fs.existsSync(filePath)) {
-        // Try to resolve the path by searching in uploads/extracted directories
-        const fileName = path.basename(filePath);
-        console.log(`🔍 File not found at ${filePath}, searching for: ${fileName}`);
-        
-        // Search in uploads/extracted subdirectories
-        const uploadsDir = path.join(process.cwd(), 'uploads', 'extracted');
-        if (fs.existsSync(uploadsDir)) {
-          const subDirs = fs.readdirSync(uploadsDir, { withFileTypes: true })
-            .filter(dirent => dirent.isDirectory())
-            .map(dirent => dirent.name);
-          
-          for (const subDir of subDirs) {
-            const possiblePath = path.join(uploadsDir, subDir, fileName);
-            if (fs.existsSync(possiblePath)) {
-              actualFilePath = possiblePath;
-              console.log(`✅ Found file at: ${actualFilePath}`);
-              break;
-            }
-          }
-        }
-        
-        if (!fs.existsSync(actualFilePath)) {
-          throw new Error(`File not found: ${filePath}. Searched in uploads/extracted directories.`);
-        }
-      }
+      // Enhanced file path validation and resolution
+      actualFilePath = await this.validateAndResolvePath(filePath);
     }
 
     await this.updateJobProgress(job.id, 20, 'Loading Mistral OCR service...');
@@ -369,25 +357,83 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
-    // Optimized timeout wrapper for faster processing
+    // Dynamic timeout based on file size and type
+    const fileStats = fs.statSync(actualFilePath);
+    const fileSizeMB = fileStats.size / (1024 * 1024);
+    const fileExtension = path.extname(actualFilePath).toLowerCase();
+    
+    let ocrTimeout = 120000; // 2 minutes default
+    if (fileExtension === '.zip') {
+      ocrTimeout = Math.max(300000, fileSizeMB * 3000); // 5 minutes minimum for ZIP
+    } else if (fileExtension === '.pdf') {
+      ocrTimeout = Math.max(180000, fileSizeMB * 20000); // 3 minutes minimum for PDF
+    } else if (fileSizeMB > 50) {
+      ocrTimeout = Math.max(240000, fileSizeMB * 5000); // 4 minutes for very large files
+    }
+    
+    // Cap at 15 minutes for extremely large files
+    ocrTimeout = Math.min(ocrTimeout, 900000);
+    
+    console.log(`⏱️ Setting OCR timeout to ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileSizeMB.toFixed(2)}MB ${fileExtension} file`);
+    
     const ocrTimeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('OCR processing timeout after 2 minutes')), 120000); // 2 minutes max (optimized)
+      setTimeout(() => reject(new Error(`OCR processing timeout after ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileExtension} file (${fileSizeMB.toFixed(2)}MB)`)), ocrTimeout);
     });
 
     let ocrResult;
-    try {
-      ocrResult = await Promise.race([
-        mistralOCRService.extractText(actualFilePath, fileType),
-        ocrTimeoutPromise
-      ]);
-    } catch (error) {
-      console.error(`❌ OCR failed for ${actualFilePath}:`, error);
-      // Return a fallback result instead of failing completely
-      ocrResult = {
-        extractedText: `OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}. File: ${path.basename(actualFilePath)}`,
-        confidence: 0.0,
-        processingTime: '0s'
-      };
+    let retryAttempt = 0;
+    const maxRetries = 3;
+    
+    while (retryAttempt <= maxRetries) {
+      try {
+        await this.updateJobProgress(job.id, 30 + (retryAttempt * 15), 
+          retryAttempt === 0 ? 'Starting text extraction...' : `Retry attempt ${retryAttempt}/3...`);
+        
+        ocrResult = await Promise.race([
+          mistralOCRService.extractText(actualFilePath, fileType),
+          ocrTimeoutPromise
+        ]);
+        
+        // Success - break out of retry loop
+        break;
+        
+      } catch (error) {
+        retryAttempt++;
+        console.error(`❌ OCR attempt ${retryAttempt} failed for ${actualFilePath}:`, error);
+        
+        // Log detailed error information for monitoring
+        await this.logOCRFailure(job.id, documentId, actualFilePath, error, retryAttempt);
+        
+        if (retryAttempt > maxRetries) {
+          // Final attempt failed - check if we can salvage anything
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          if (errorMessage.includes('timeout')) {
+            // Timeout error - try simplified extraction
+            ocrResult = await this.attemptSimplifiedExtraction(actualFilePath, fileType);
+          } else if (errorMessage.includes('corrupted') || errorMessage.includes('not found')) {
+            // File issue - create error record but don't retry
+            ocrResult = {
+              extractedText: `File processing failed: ${errorMessage}. File: ${path.basename(actualFilePath)}`,
+              confidence: 0.0,
+              processingTime: '0s'
+            };
+          } else {
+            // Other error - provide fallback result
+            ocrResult = {
+              extractedText: `OCR processing failed after ${maxRetries} attempts: ${errorMessage}. File: ${path.basename(actualFilePath)}`,
+              confidence: 0.0,
+              processingTime: '0s'
+            };
+          }
+          break;
+        } else {
+          // Wait before retry with exponential backoff
+          const delay = Math.min(5000 * Math.pow(2, retryAttempt - 1), 30000); // Max 30 seconds
+          console.log(`⏳ Waiting ${delay/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
     
     await this.updateJobProgress(job.id, 60, 'OCR extraction completed, generating AI summary...');
@@ -619,6 +665,190 @@ class JobProcessor {
       .where(dealId ? eq(backgroundJobs.dealId, dealId) : undefined)
       .limit(limit);
     return jobs;
+  }
+
+  /**
+   * Enhanced file path validation and resolution
+   * Handles multiple storage types and fallback paths
+   */
+  private async validateAndResolvePath(filePath: string): Promise<string> {
+    console.log(`🔍 Validating file path: ${filePath}`);
+    
+    // Check if direct path exists
+    if (fs.existsSync(filePath)) {
+      console.log(`✅ File found at direct path: ${filePath}`);
+      return filePath;
+    }
+    
+    const fileName = path.basename(filePath);
+    console.log(`🔍 File not found at ${filePath}, searching for: ${fileName}`);
+    
+    // Array of search paths in order of preference
+    const searchPaths = [
+      // Current working directory
+      path.join(process.cwd(), filePath),
+      // Uploads directory
+      path.join(process.cwd(), 'uploads', fileName),
+      path.join(process.cwd(), 'uploads', filePath),
+      // Extracted directories
+      path.join(process.cwd(), 'uploads', 'extracted'),
+      // GCS cache directory
+      path.join(process.cwd(), 'temp', fileName),
+      // Temp directory
+      path.join('/tmp', fileName)
+    ];
+    
+    // Check direct search paths
+    for (const searchPath of searchPaths) {
+      if (fs.existsSync(searchPath)) {
+        console.log(`✅ Found file at: ${searchPath}`);
+        return searchPath;
+      }
+    }
+    
+    // Search in extracted subdirectories
+    const extractedDir = path.join(process.cwd(), 'uploads', 'extracted');
+    if (fs.existsSync(extractedDir)) {
+      console.log(`🔍 Searching in extracted subdirectories...`);
+      
+      const subDirs = fs.readdirSync(extractedDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+      
+      for (const subDir of subDirs) {
+        const possiblePath = path.join(extractedDir, subDir, fileName);
+        if (fs.existsSync(possiblePath)) {
+          console.log(`✅ Found file in extracted directory: ${possiblePath}`);
+          return possiblePath;
+        }
+        
+        // Also search with original relative path
+        const relativePathInSubdir = path.join(extractedDir, subDir, filePath);
+        if (fs.existsSync(relativePathInSubdir)) {
+          console.log(`✅ Found file with relative path: ${relativePathInSubdir}`);
+          return relativePathInSubdir;
+        }
+      }
+    }
+    
+    // Final fallback: search the entire uploads directory recursively (last resort)
+    console.log(`🔍 Performing recursive search as last resort...`);
+    const foundPath = await this.recursiveFileSearch(path.join(process.cwd(), 'uploads'), fileName);
+    if (foundPath) {
+      console.log(`✅ Found file via recursive search: ${foundPath}`);
+      return foundPath;
+    }
+    
+    // File not found anywhere
+    throw new Error(`File not found: ${filePath}. Searched in uploads, extracted, temp, and recursive directories. File may have been deleted or moved.`);
+  }
+  
+  /**
+   * Recursively search for a file in a directory
+   */
+  private async recursiveFileSearch(dir: string, fileName: string): Promise<string | null> {
+    try {
+      const items = await fs.promises.readdir(dir, { withFileTypes: true });
+      
+      for (const item of items) {
+        const fullPath = path.join(dir, item.name);
+        
+        if (item.isFile() && item.name === fileName) {
+          return fullPath;
+        } else if (item.isDirectory()) {
+          const found = await this.recursiveFileSearch(fullPath, fileName);
+          if (found) return found;
+        }
+      }
+    } catch (error) {
+      // Ignore errors for inaccessible directories
+      console.warn(`⚠️ Cannot access directory ${dir}: ${error}`);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Log OCR failure for monitoring and analysis
+   */
+  private async logOCRFailure(jobId: number, documentId: number, filePath: string, error: any, attempt: number) {
+    try {
+      const errorInfo = {
+        jobId,
+        documentId,
+        filePath: path.basename(filePath),
+        errorMessage: error instanceof Error ? error.message : String(error),
+        attempt,
+        timestamp: new Date().toISOString(),
+        fileSize: fs.existsSync(filePath) ? fs.statSync(filePath).size : 0,
+        fileExtension: path.extname(filePath).toLowerCase()
+      };
+      
+      console.error(`📊 OCR Failure Log:`, errorInfo);
+      
+      // Store in database for monitoring (optional - could create a failures table)
+      // For now, just comprehensive logging
+      
+    } catch (logError) {
+      console.error('Failed to log OCR failure:', logError);
+    }
+  }
+
+  /**
+   * Attempt simplified text extraction for timeout cases
+   */
+  private async attemptSimplifiedExtraction(filePath: string, fileType: string): Promise<any> {
+    try {
+      console.log(`🔄 Attempting simplified extraction for ${path.basename(filePath)}`);
+      
+      const fileExtension = path.extname(filePath).toLowerCase();
+      
+      // For text files, try direct reading
+      if (['.txt', '.md', '.csv', '.json'].includes(fileExtension)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return {
+          extractedText: content.substring(0, 10000), // Limit to first 10KB
+          confidence: 0.8,
+          processingTime: '0.1s'
+        };
+      }
+      
+      // For PDFs, try simple pdftotext without OCR
+      if (fileExtension === '.pdf') {
+        const { execSync } = await import('child_process');
+        try {
+          const textOutput = execSync(`pdftotext "${filePath}" -`, { 
+            encoding: 'utf8', 
+            timeout: 15000 // 15 second timeout
+          });
+          
+          if (textOutput && textOutput.trim().length > 10) {
+            return {
+              extractedText: textOutput.substring(0, 10000),
+              confidence: 0.7,
+              processingTime: '0.5s'
+            };
+          }
+        } catch (pdfError) {
+          console.log(`⚠️ Simple PDF extraction also failed: ${pdfError}`);
+        }
+      }
+      
+      // Fallback: provide basic file information
+      return {
+        extractedText: `Simplified extraction attempted for ${path.basename(filePath)}. File type: ${fileType}. Original processing failed due to timeout or complexity.`,
+        confidence: 0.1,
+        processingTime: '0.1s'
+      };
+      
+    } catch (error) {
+      console.error('Simplified extraction failed:', error);
+      return {
+        extractedText: `Both standard and simplified extraction failed for ${path.basename(filePath)}.`,
+        confidence: 0.0,
+        processingTime: '0.1s'
+      };
+    }
   }
 
   private async generateAISummary(text: string): Promise<any> {
