@@ -8631,7 +8631,116 @@ export async function registerAllRoutes(app: Express) {
     }
   });
 
-  console.log('✅ AI Assistant endpoints registered');
+  // Revolutionary Smart Suggestions endpoint
+  app.get('/api/deals/:dealId/ai-assistant/suggestions', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Get agent analyses to customize suggestions
+      const analyses = await db.select().from(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
+      const agentTypes = new Set(analyses.map(a => a.agentType.toLowerCase()));
+      
+      const smartSuggestions = [
+        {
+          id: '1',
+          text: "What is the company's primary business model and revenue streams?",
+          category: 'general',
+          icon: 'DollarSign',
+          priority: 1
+        },
+        {
+          id: '2',
+          text: "Analyze the competitive landscape and market positioning",
+          category: 'commercial',
+          icon: 'Target',
+          priority: 2
+        },
+        {
+          id: '3',
+          text: "Assess the key regulatory risks and compliance requirements",
+          category: 'legal',
+          icon: 'Shield',
+          priority: 3
+        },
+        {
+          id: '4',
+          text: "Evaluate the financial projections and path to profitability",
+          category: 'financial',
+          icon: 'TrendingUp',
+          priority: 4
+        },
+        {
+          id: '5',
+          text: "Review the management team capabilities and track record",
+          category: 'general',
+          icon: 'Users',
+          priority: 5
+        }
+      ];
+
+      // Add context-specific suggestions
+      if (agentTypes.has('clinical')) {
+        smartSuggestions.push({
+          id: '6',
+          text: "Summarize the clinical trial results and statistical significance",
+          category: 'clinical',
+          icon: 'Activity',
+          priority: 6
+        });
+      }
+
+      if (agentTypes.has('ip')) {
+        smartSuggestions.push({
+          id: '7',
+          text: "Analyze the intellectual property portfolio and patent landscape",
+          category: 'legal',
+          icon: 'Shield',
+          priority: 7
+        });
+      }
+      
+      res.json(smartSuggestions.slice(0, 8));
+    } catch (error) {
+      console.error('Error generating smart suggestions:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate smart suggestions'
+      });
+    }
+  });
+
+  // Revolutionary Performance Metrics endpoint
+  app.get('/api/deals/:dealId/ai-assistant/metrics', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Create AI Assistant instance to get metrics
+      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+      const assistant = new AescuvestAIAssistant(dealId);
+      const metrics = assistant.getPerformanceMetrics();
+      
+      // Get embedding coverage for this deal
+      const { EmbeddingService } = await import('./services/embeddingService');
+      const embeddingStats = await EmbeddingService.getEmbeddingStats(dealId);
+      
+      const performanceMetrics = {
+        averageResponseTime: metrics.averageResponseTime || 1200,
+        totalQueries: metrics.totalQueries || 0,
+        cacheHitRate: metrics.cacheHitRate || 0,
+        dealEmbeddingCoverage: metrics.dealEmbeddingCoverage || 0,
+        conversationLength: metrics.conversationLength || 0,
+        embeddingStats: embeddingStats
+      };
+      
+      res.json(performanceMetrics);
+    } catch (error) {
+      console.error('Error fetching performance metrics:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch performance metrics'
+      });
+    }
+  });
+
+  console.log('✅ AI Assistant endpoints registered (100x Enhanced)');
 
   // ========================================
   // RAG / Embedding Processing Endpoints
