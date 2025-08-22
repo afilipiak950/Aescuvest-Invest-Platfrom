@@ -252,7 +252,7 @@ export class EmbeddingService {
       
       // Get documents for this deal that don't have embeddings
       const documentsToEmbed = await db.execute(sql`
-        SELECT d.id, d.deal_id, d.name, d.ocr_text, d.agent_type
+        SELECT d.id, d.deal_id, d.name, d.ocr_text, d.type as agent_type
         FROM documents d
         LEFT JOIN document_embeddings de ON d.id = de.document_id
         WHERE d.deal_id = ${dealId}

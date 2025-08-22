@@ -8708,63 +8708,25 @@ export async function registerAllRoutes(app: Express) {
       // Import the embedding service
       const { EmbeddingService } = await import('./services/embeddingService');
       
-      // Get all documents for this deal
-      const documents = await storage.getDocuments(dealId);
+      // First get current stats
+      const statsBefore = await EmbeddingService.getEmbeddingStats(dealId);
+      console.log(`📊 Current embeddings: ${statsBefore.uniqueDocuments} documents, ${statsBefore.totalChunks} chunks`);
       
-      if (!documents || documents.length === 0) {
-        return res.json({
-          success: false,
-          message: 'No documents found for this deal'
-        });
-      }
+      // Use the existing embedMissingDocuments method
+      await EmbeddingService.embedMissingDocuments(dealId);
       
-      console.log(`📄 Found ${documents.length} documents to process`);
-      
-      let processed = 0;
-      let failed = 0;
-      const errors: string[] = [];
-      
-      // Process documents in batches to avoid overwhelming the API
-      const batchSize = 5;
-      for (let i = 0; i < documents.length; i += batchSize) {
-        const batch = documents.slice(i, i + batchSize);
-        
-        await Promise.all(batch.map(async (doc) => {
-          try {
-            // Only process documents with OCR text
-            if (doc.ocrText) {
-              await EmbeddingService.generateAndStoreEmbeddings(
-                doc.ocrText,
-                {
-                  dealId,
-                  documentId: doc.id,
-                  documentName: doc.name,
-                  documentType: doc.agentType || 'general'
-                }
-              );
-              processed++;
-              console.log(`✅ Processed embeddings for document ${doc.name}`);
-            }
-          } catch (error) {
-            failed++;
-            const errorMsg = `Failed to process ${doc.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-            errors.push(errorMsg);
-            console.error(errorMsg);
-          }
-        }));
-        
-        // Progress update
-        console.log(`📊 Progress: ${i + batch.length}/${documents.length} documents`);
-      }
+      // Get stats after processing
+      const statsAfter = await EmbeddingService.getEmbeddingStats(dealId);
+      console.log(`✅ After processing: ${statsAfter.uniqueDocuments} documents, ${statsAfter.totalChunks} chunks`);
       
       res.json({
         success: true,
         message: `Embedding processing complete`,
         stats: {
-          total: documents.length,
-          processed,
-          failed,
-          errors: errors.slice(0, 10) // Limit error messages
+          before: statsBefore,
+          after: statsAfter,
+          newDocuments: statsAfter.uniqueDocuments - statsBefore.uniqueDocuments,
+          newChunks: statsAfter.totalChunks - statsBefore.totalChunks
         }
       });
       

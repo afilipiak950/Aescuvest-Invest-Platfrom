@@ -25,7 +25,47 @@ import gcsSignedUploadRouter from './routes/gcs-signed-upload';
 
 const app = express();
 
-// 🚨🚨🚨 CRITICAL: Register streaming endpoint FIRST before ANY middleware to bypass Vite
+// 🚨🚨🚨 CRITICAL: Register critical endpoints FIRST before ANY middleware to bypass Vite
+
+// Register embedding endpoint to bypass Vite
+app.post('/api/deals/:dealId/embeddings/process-all', async (req: Request, res: Response) => {
+  console.log('🚀 EMBEDDING ENDPOINT HIT - BYPASSING VITE');
+  const dealId = parseInt(req.params.dealId);
+  
+  try {
+    const { EmbeddingService } = await import('./services/embeddingService');
+    
+    // Get current stats
+    const statsBefore = await EmbeddingService.getEmbeddingStats(dealId);
+    console.log(`📊 Current embeddings: ${statsBefore.uniqueDocuments} documents, ${statsBefore.totalChunks} chunks`);
+    
+    // Process missing documents
+    await EmbeddingService.embedMissingDocuments(dealId);
+    
+    // Get stats after
+    const statsAfter = await EmbeddingService.getEmbeddingStats(dealId);
+    console.log(`✅ After processing: ${statsAfter.uniqueDocuments} documents, ${statsAfter.totalChunks} chunks`);
+    
+    res.json({
+      success: true,
+      message: `Embedding processing complete`,
+      stats: {
+        before: statsBefore,
+        after: statsAfter,
+        newDocuments: statsAfter.uniqueDocuments - statsBefore.uniqueDocuments,
+        newChunks: statsAfter.totalChunks - statsBefore.totalChunks
+      }
+    });
+  } catch (error) {
+    console.error('❌ Embedding error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process embeddings',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Register streaming endpoint to bypass Vite
 app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
   console.log('🚨🚨🚨 STREAMING ENDPOINT HIT FIRST!');
   console.log('🚨🚨🚨 Raw body type:', typeof req.body);
