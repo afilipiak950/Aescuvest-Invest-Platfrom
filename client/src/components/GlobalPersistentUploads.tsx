@@ -40,6 +40,8 @@ export function GlobalPersistentUploadMonitor({
 }: GlobalUploadMonitorProps) {
   const queryClient = useQueryClient();
   
+  console.log('🔍 GLOBAL WIDGET: Component rendering...');
+  
   // Fetch global uploads every 2 seconds
   const { data: uploadsData, isLoading } = useQuery({
     queryKey: ['global-persistent-uploads'],
@@ -134,9 +136,11 @@ export function GlobalPersistentUploadMonitor({
     }
   }, [queryClient]);
 
-  if (activeUploads.length === 0) {
-    return null; // Don't show if no active uploads
-  }
+  // TEMP DEBUG: Comment out early return to see debug logs
+  console.log('🎯 GLOBAL WIDGET: activeUploads.length =', activeUploads.length);
+  // if (activeUploads.length === 0) {
+  //   return null; // Don't show if no active uploads
+  // }
 
   if (isMinimized) {
     return (
@@ -354,9 +358,16 @@ export function useGlobalPersistentUploads() {
     refetchIntervalInBackground: true
   });
 
-  const activeUploads = (uploadsData?.uploads || []).filter(
+  const allUploads = uploadsData?.uploads || [];
+  console.log(`🔍 HOOK: Total uploads from API:`, allUploads.length);
+  allUploads.forEach((upload, i) => {
+    console.log(`🔍 HOOK: Upload ${i + 1}: ${upload.fileName} - Status: ${upload.status}`);
+  });
+
+  const activeUploads = allUploads.filter(
     (u: PersistentUploadSession) => u.status === 'uploading' || u.status === 'processing'
   );
+  console.log(`🔍 HOOK: Active uploads after filtering:`, activeUploads.length);
 
   // Automatically show monitor when uploads are active
   useEffect(() => {
