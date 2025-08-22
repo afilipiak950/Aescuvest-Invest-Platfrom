@@ -2636,7 +2636,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       
       // Wait for results since analysis takes time
       let attempts = 0;
-      const maxAttempts = 60; // 2 minutes max wait
+      const maxAttempts = 200; // 10 minutes max wait
       
       const checkForResults = async () => {
         attempts++;
@@ -2801,7 +2801,7 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
       
       // Wait for results since analysis takes time
       let attempts = 0;
-      const maxAttempts = 60; // 2 minutes max wait
+      const maxAttempts = 240; // 12 minutes max wait
       
       const checkForResults = async () => {
         attempts++;
@@ -2955,9 +2955,9 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
       
       console.log('✅ Analysis request sent, waiting for completion...');
       
-      // Wait a bit longer for results since analysis takes time
+      // Wait much longer for legal analysis as it often gets stuck
       let attempts = 0;
-      const maxAttempts = 60; // 2 minutes max wait
+      const maxAttempts = 360; // 18 minutes max wait
       
       const checkForResults = async () => {
         attempts++;
