@@ -977,6 +977,7 @@ export default function EnhancedAgentCard({
             setQuoteViewerOpen={setQuoteViewerOpen}
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
+            onResearchAnalysisStart={onResearchAnalysisStart}
           />
         ) : (
           /* Analysis Results for other agents */
