@@ -317,6 +317,12 @@ function DueDiligenceContent() {
     refetchInterval: 2000,
   });
 
+  const { data: commercialAnalysisData } = useQuery({
+    queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
+    enabled: !!selectedDeal,
+    refetchInterval: 2000,
+  });
+
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
   // Calculate document assignments for each agent type with comprehensive safety
@@ -1309,6 +1315,7 @@ function DueDiligenceContent() {
                       // Check if we have data from the agent-specific endpoints that were added
                       if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
                       if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
+                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
                       if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
                       if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
