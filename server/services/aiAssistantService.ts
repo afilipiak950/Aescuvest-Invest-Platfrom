@@ -573,14 +573,21 @@ Format using markdown with professional structure. Focus on material information
   }
 
   async streamQuery(query: string): Promise<AsyncIterable<string>> {
+    console.log(`🎯 streamQuery called for deal ${this.dealId} with query: "${query}"`);
+    
     // Ensure lightweight context is loaded (agent analyses only)
     if (!this.isContextLoaded) {
+      console.log('📚 Loading complete context...');
       await this.loadCompleteContext();
+      console.log('✅ Context loaded successfully');
+    } else {
+      console.log('✅ Context already loaded');
     }
     
     // Use RAG to find relevant document chunks
-    console.log(`Searching for relevant document chunks using RAG...`);
+    console.log(`🔍 Searching for relevant document chunks using RAG...`);
     const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
+    console.log(`📄 Found ${relevantChunks.length} relevant chunks`);
     
     // Build context with only relevant information
     let ragContext = 'RELEVANT DOCUMENT CONTEXT:\n\n';
@@ -630,6 +637,8 @@ Format using markdown with professional structure. Focus on material information
     
     try {
       console.log(`Streaming RAG query with ${relevantChunks.length} relevant chunks`);
+      console.log('🔑 OpenAI API key configured:', !!process.env.OPENAI_API_KEY);
+      console.log('🤖 Calling OpenAI API with streaming...');
       
       const stream = await openai.chat.completions.create({
         model: 'gpt-4o',

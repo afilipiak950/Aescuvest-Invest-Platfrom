@@ -8562,9 +8562,11 @@ export async function registerAllRoutes(app: Express) {
       console.log(`🤖 AI Assistant streaming query for deal ${dealId}: ${query}`);
       
       // Import the AI Assistant service
+      console.log('📦 Importing AI Assistant service...');
       const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
       
       // Create assistant instance for this deal
+      console.log('🔧 Creating AI Assistant instance...');
       const assistant = new AescuvestAIAssistant(dealId);
       
       // Set up SSE headers for streaming
@@ -8574,22 +8576,27 @@ export async function registerAllRoutes(app: Express) {
       res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
       
       // Send initial context stats
+      console.log('📊 Getting context stats...');
       const stats = assistant.getContextStats();
       res.write(`data: ${JSON.stringify({ type: 'stats', stats })}\n\n`);
       
       try {
         // Get the streaming response
+        console.log('🌊 Starting stream query...');
         const stream = await assistant.streamQuery(query);
         
+        console.log('📝 Streaming response chunks...');
         // Stream the response chunks
         for await (const chunk of stream) {
           res.write(`data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`);
         }
         
         // Send completion event
+        console.log('✅ Stream completed successfully');
         res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
         res.end();
-      } catch (streamError) {
+      } catch (streamError: any) {
+        console.error('❌ Stream error:', streamError);
         res.write(`data: ${JSON.stringify({ type: 'error', error: streamError.message })}\n\n`);
         res.end();
       }
