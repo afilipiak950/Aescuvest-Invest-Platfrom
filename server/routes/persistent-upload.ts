@@ -7,6 +7,30 @@ import type { Request, Response } from 'express';
 
 const router = Router();
 
+// Create new persistent upload session
+router.post('/api/persistent-uploads/create', async (req: Request, res: Response) => {
+  try {
+    console.log(`🎯 Creating persistent upload session from frontend`);
+    
+    const sessionData = req.body;
+    const session = await persistentUploadService.createSession(sessionData);
+    
+    console.log(`✅ Created persistent upload session: ${session.sessionId}`);
+    
+    res.json({
+      success: true,
+      session
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating persistent upload session:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create persistent upload session'
+    });
+  }
+});
+
 // Get all persistent upload sessions for a deal
 router.get('/api/deals/:dealId/persistent-uploads', async (req: Request, res: Response) => {
   try {

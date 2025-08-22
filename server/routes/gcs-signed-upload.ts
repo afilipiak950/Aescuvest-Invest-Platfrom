@@ -109,9 +109,37 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       - Upload ID: ${uploadId}
       - Original Name: ${fileName}`);
 
-    // Verify file exists in GCS
+    // 🎯 CRITICAL: Create persistent upload session immediately
+    console.log(`🎯 Creating persistent upload session for: ${fileName}`);
+    const { persistentUploadService } = await import('../services/persistentUploadService');
+    
+    const sessionId = persistentUploadService.generateSessionId();
+    
+    // Get file size from GCS
     const file = (gcsService as any).bucket.file(gcsFileName);
     const [exists] = await file.exists();
+    
+    let fileSize = 0;
+    if (exists) {
+      const [metadata] = await file.getMetadata();
+      fileSize = parseInt(metadata.size || '0');
+    }
+    
+    const sessionData = {
+      sessionId,
+      dealId: parseInt(dealId),
+      fileName,
+      fileSize,
+      uploadType: 'gcs_direct' as const,
+      status: 'completed' as const,
+      progress: 100,
+      uploadedBytes: fileSize,
+      gcsPath: gcsFileName,
+      currentStep: 'Upload completed, starting processing...'
+    };
+    
+    await persistentUploadService.createSession(sessionData);
+    console.log(`✅ Created persistent upload session: ${sessionId}`);
     
     if (!exists) {
       console.error('❌ File not found in GCS:', gcsFileName);
