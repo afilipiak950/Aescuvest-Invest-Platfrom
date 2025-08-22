@@ -287,9 +287,13 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  const handleCancel = async () => {
-    console.log(`🗑️ Canceling upload: ${upload.fileName} (${upload.sessionId})`);
+  const handleCancel = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log(`🔴 INDIVIDUAL CANCEL CLICKED! File: ${upload.fileName} (${upload.sessionId})`);
+    
     try {
+      console.log('🗑️ Making DELETE request...');
       const response = await fetch(`/api/persistent-uploads/${upload.sessionId}`, { 
         method: 'DELETE',
         headers: {
@@ -297,12 +301,14 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
         }
       });
       
+      console.log('📡 DELETE response status:', response.status);
       if (response.ok) {
-        console.log(`✅ Upload canceled: ${upload.fileName}`);
-        // Force refresh the upload list immediately
+        console.log(`✅ Upload canceled successfully: ${upload.fileName}`);
+        // Instead of reloading, just force a query refresh
         window.location.reload();
       } else {
-        console.error('❌ Failed to cancel upload:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('❌ Failed to cancel upload:', response.status, errorText);
       }
     } catch (error) {
       console.error('❌ Network error canceling upload:', error);
@@ -334,8 +340,9 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
           {(upload.status === 'uploading' || upload.status === 'processing') && (
             <button
               onClick={handleCancel}
-              className="text-gray-400 hover:text-red-400 transition-colors p-1 rounded"
+              className="text-gray-400 hover:text-red-400 transition-colors p-1 rounded bg-red-500/20 hover:bg-red-500/40"
               title="Cancel upload"
+              style={{ minWidth: '24px', minHeight: '24px' }}
             >
               <XCircle className="h-4 w-4" />
             </button>
