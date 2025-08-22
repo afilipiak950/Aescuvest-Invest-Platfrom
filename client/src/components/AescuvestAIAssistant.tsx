@@ -412,6 +412,11 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const handleExampleQuery = (query: string) => {
     setInput(query);
     setIsExpanded(true);
+    // Automatically submit the query
+    if (!isStreaming) {
+      sendQueryMutation.mutate(query);
+      setInput('');
+    }
   };
 
   // Stop function to cancel ongoing AI processing
