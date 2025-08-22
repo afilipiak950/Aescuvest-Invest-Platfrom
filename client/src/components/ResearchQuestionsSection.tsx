@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
 
   // RESET: Force isRunning to false to fix stuck state - AGGRESSIVE RESET
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('🔄 AGGRESSIVE RESET: ResearchQuestionsSection button isRunning state to false');
     setIsRunning(false);
   }); // No dependency array = runs every render

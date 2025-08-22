@@ -2566,7 +2566,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
   const queryClient = useQueryClient();
 
   // RESET: Force isRunning to false to fix stuck state - AGGRESSIVE RESET
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('🔄 AGGRESSIVE RESET: Research button isRunning state to false');
     setIsRunning(false);
   }); // No dependency array = runs every render
