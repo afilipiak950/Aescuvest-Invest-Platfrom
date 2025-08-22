@@ -975,6 +975,33 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
+
+  // 🎯 CRITICAL: Check for active persistent uploads when component loads
+  const { data: persistentUploads } = useQuery({
+    queryKey: [`/api/deals/${dealId}/persistent-uploads`],
+    refetchInterval: 2000, // Poll every 2 seconds
+  });
+
+  // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads
+  useEffect(() => {
+    const uploadsData = persistentUploads as any;
+    if (uploadsData?.uploads?.active?.length > 0) {
+      const activeUpload = uploadsData.uploads.active[0];
+      console.log(`🎯 RESTORING progress bar from persistent session: ${activeUpload.fileName} at ${activeUpload.progress}%`);
+      
+      if (activeUpload.uploadType === 'gcs_direct') {
+        setUploadProgress({
+          fileName: activeUpload.fileName,
+          progress: activeUpload.progress,
+          status: activeUpload.currentStep || 'Uploading...'
+        });
+      }
+    } else {
+      // Clear progress bars if no active uploads
+      setUploadProgress(null);
+      setChunkedUploadProgress(null);
+    }
+  }, [persistentUploads]);
   const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
   // Enhanced document click handler with PDF viewing support
