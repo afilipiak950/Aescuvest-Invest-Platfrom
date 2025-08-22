@@ -268,6 +268,8 @@ export function GlobalPersistentUploadMonitor({
 }
 
 function UploadItem({ upload }: { upload: PersistentUploadSession }) {
+  const queryClient = useQueryClient();
+
   const getStatusIcon = () => {
     switch (upload.status) {
       case 'uploading':
@@ -317,7 +319,12 @@ function UploadItem({ upload }: { upload: PersistentUploadSession }) {
       const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
       await frontendPersistentUploadService.cancelUpload(upload.sessionId);
       
-      console.log('✅ Upload canceled successfully:', upload.fileName);
+      console.log('✅ Upload canceled successfully, invalidating cache:', upload.fileName);
+      
+      // 🎯 CRITICAL: Invalidate the query cache to update the UI immediately
+      queryClient.invalidateQueries({ queryKey: ['global-persistent-uploads'] });
+      console.log('🔄 Cache invalidated, UI should update');
+      
     } catch (error) {
       console.error('❌ Error canceling upload:', error);
     }
