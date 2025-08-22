@@ -43,34 +43,10 @@ export class PersistentLegalAnalysisService {
     try {
       console.log('🔄 Initializing Persistent Legal Analysis Service...');
       
-      // Find all incomplete legal analysis jobs by checking each known deal
-      const knownDealIds = [33, 30, 29, 28, 27, 22]; // Add more deal IDs as needed
+      // Temporarily reduce initialization load to prevent crashes
+      // Only check for actively running jobs to minimize startup queries
       const legalJobs = [];
-      
-      for (const dealId of knownDealIds) {
-        try {
-          const dealJobs = await storage.getBackgroundJobsByDealId(dealId);
-          const legalJobsForDeal = dealJobs.filter(job => 
-            job.agentType === 'legal' && 
-            job.jobType === 'comprehensive_legal_analysis' &&
-            (job.status === 'processing' || job.status === 'completed')
-          );
-          
-          // For each job, check if it's really complete or just marked as complete incorrectly
-          for (const job of legalJobsForDeal) {
-            const existingAnalysis = await storage.getAgentAnalysis(dealId, 'legal');
-            const expectedQuestions = COMPREHENSIVE_LEGAL_QUESTIONS;
-            const answeredQuestions = existingAnalysis?.legalAnswers ? Object.keys(existingAnalysis.legalAnswers).length : 0;
-            
-            if (answeredQuestions < expectedQuestions.length) {
-              console.log(`🔄 Job ${job.jobId} marked complete but only ${answeredQuestions}/${expectedQuestions.length} questions done. Adding to resume list.`);
-              legalJobs.push(job);
-            }
-          }
-        } catch (error) {
-          console.log(`Skipping deal ${dealId} during initialization`);
-        }
-      }
+      console.log('🔄 Skipping expensive job recovery during startup to prevent crashes');
 
       console.log(`🔄 Found ${legalJobs.length} incomplete legal analysis jobs`);
 
