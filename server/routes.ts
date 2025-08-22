@@ -969,6 +969,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI Document Assignment Routes
   
+  // Fix stuck assignment job (temporary debug route)
+  app.post('/api/deals/:dealId/fix-stuck-assignment', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Delete any stuck assignment jobs
+      await db.delete(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.dealId, dealId),
+          eq(backgroundJobs.jobType, 'document_assignment')
+        ));
+      
+      console.log(`🔧 Cleaned up stuck assignment jobs for deal ${dealId}`);
+      
+      return res.json({ success: true, message: 'Cleaned up stuck jobs' });
+    } catch (error) {
+      console.error('Error fixing stuck assignment:', error);
+      return res.status(500).json({ success: false, error: String(error) });
+    }
+  });
+
   // Assign agents to all documents for a deal (BACKGROUND JOB VERSION)
   app.post('/api/deals/:dealId/assign-agents', async (req: Request, res: Response) => {
     try {
@@ -1009,7 +1030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         progress: 0,
         totalDocuments,
         processedDocuments: 0,
-        currentStep: 'Initializing document assignment',
+        currentStep: 'Queued for document assignment',
         jobData: { dealId, totalDocuments }
       });
       
