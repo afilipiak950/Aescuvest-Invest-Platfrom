@@ -140,6 +140,26 @@ router.post('/api/gcs/proxy-upload/:dealId',
         let jobCreationError: string | null = null;
         
         try {
+          // 🎯 CRITICAL: Create persistent upload session FIRST
+          console.log(`🔍 ZIP UPLOAD MICRO-STEP 0: Creating persistent upload session...`);
+          const { persistentUploadService } = await import('../services/persistentUploadService');
+          
+          const sessionId = persistentUploadService.generateSessionId();
+          await persistentUploadService.createSession({
+            sessionId,
+            dealId: dealId,
+            fileName: file.originalname,
+            fileSize: file.size,
+            uploadType: 'gcs_direct',
+            status: 'processing',
+            progress: 100,
+            uploadedBytes: file.size,
+            gcsPath: gcsPath,
+            currentStep: 'Starting ZIP extraction...'
+          });
+          
+          console.log(`✅ Created persistent upload session: ${sessionId}`);
+          
           // For ZIP files, create a background job to extract and process
           // CRITICAL: Use jobProcessor to actually trigger processing, not just create DB entry
           console.log(`🔍 ZIP UPLOAD MICRO-STEP 1: Loading jobProcessor module...`);

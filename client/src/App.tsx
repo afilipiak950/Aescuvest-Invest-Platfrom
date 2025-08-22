@@ -9,6 +9,7 @@ import { SidebarProvider } from "./contexts/SidebarContext";
 import { useAuth } from "./hooks/useAuth";
 import { useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { GlobalPersistentUploadMonitor, useGlobalPersistentUploads } from "@/components/GlobalPersistentUploads";
 
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
@@ -37,6 +38,15 @@ import NotFound from "@/pages/not-found";
 function AppContent() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, isLoading, user } = useAuth();
+  
+  // 🎯 CRITICAL: Global persistent upload monitoring
+  const {
+    showMonitor,
+    isMinimized,
+    activeUploadsCount,
+    toggleMinimize,
+    closeMonitor
+  } = useGlobalPersistentUploads();
   
   // Auth pages - don't show sidebar/navbar
   const isAuthPage = location === '/login' || location === '/register';
@@ -142,6 +152,16 @@ function AppContent() {
             <span>Loading...</span>
           </div>
         )}
+        
+        {/* 🎯 CRITICAL: Global Persistent Upload Monitor - Shows across ALL pages */}
+        {isAuthenticated && showMonitor && (
+          <GlobalPersistentUploadMonitor
+            isMinimized={isMinimized}
+            onToggleMinimize={toggleMinimize}
+            onClose={closeMonitor}
+          />
+        )}
+        
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>
