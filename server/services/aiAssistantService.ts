@@ -326,9 +326,9 @@ export class AescuvestAIAssistant {
         if (!agentMap.has(agentType) && analysis.status === 'completed') {
           // Parse all the different answer fields (using correct camelCase column names)
           let answers = {};
-          if (analysis.legal_answers) answers = analysis.legal_answers;
-          else if (analysis.clinical_answers) answers = { clinicalAnswers: analysis.clinical_answers };
-          else if (analysis.commercial_answers) answers = analysis.commercial_answers;
+          if (analysis.legalAnswers) answers = analysis.legalAnswers;
+          else if (analysis.clinicalAnswers) answers = { clinicalAnswers: analysis.clinicalAnswers };
+          else if (analysis.commercialAnswers) answers = analysis.commercialAnswers;
           else if (analysis.financial_answers) answers = analysis.financial_answers;
           else if (analysis.ip_answers) answers = analysis.ip_answers;
           else if (analysis.hr_answers) answers = analysis.hr_answers;
