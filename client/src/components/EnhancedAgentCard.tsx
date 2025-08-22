@@ -2571,7 +2571,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
   // Check if research analysis is already running
   const isAlreadyRunning = (() => {
     if (jobProgress && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs)) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'research');
       return !!researchJob && researchJob.status === 'processing';
     }
     return false;
@@ -2638,22 +2638,22 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       
       // Wait for results since analysis takes time
       let attempts = 0;
-      const maxAttempts = 200; // 10 minutes max wait
+      const maxAttempts = 240; // 12 minutes max wait (same as Clinical)
       
       const checkForResults = async () => {
         attempts++;
         
         try {
-          // Check for new comprehensive research analysis results
-          const response = await fetch(`/api/deals/${dealId}/research-analysis/comprehensive/results?_t=${Date.now()}`, {
+          // Check for new analysis results (use same pattern as Clinical/Legal)
+          const response = await fetch(`/api/deals/${dealId}/agents/research/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
           
           console.log(`🔬 Attempt ${attempts}: Checking for comprehensive research results...`);
           
-          if (data.success && data.results && data.results.researchAnswers && Object.keys(data.results.researchAnswers).length > 0) {
-            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.results.researchAnswers).length);
+          if (data.success && data.analysis && data.analysis.researchAnswers && Object.keys(data.analysis.researchAnswers).length > 0) {
+            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.analysis.researchAnswers).length);
             
             // Force refresh of comprehensive research results
             queryClient.invalidateQueries({
