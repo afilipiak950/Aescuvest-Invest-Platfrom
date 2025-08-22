@@ -915,6 +915,12 @@ app.use((req, res, next) => {
       return next();
     }
 
+    // 🚀 CRITICAL: Skip anti-Vite middleware for ALL upload routes
+    if (req.originalUrl.includes('/upload') || req.originalUrl.includes('/data-room') || req.originalUrl.includes('zip')) {
+      console.log(`📦 UPLOAD ROUTE - Skipping anti-Vite middleware: ${req.originalUrl}`);
+      return next();
+    }
+
     console.log(`🔄 PRE-VITE COMPLETE: ${req.method} ${req.originalUrl}`);
     
     // Force proper headers immediately
