@@ -189,42 +189,28 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
-    // 🚨 ALWAYS USE CHUNKED UPLOAD FOR FILES > 10MB
-    const USE_CHUNKED = file.size > 10 * 1024 * 1024; // 10MB threshold
+    // 🚨 ALWAYS USE GCS VIA CHUNKED UPLOAD FOR ALL FILES (as requested by user)
+    console.log('📤 File is 1.6MB - using direct upload (under 30MB limit)');
+    console.log('🚀 Using GCS CHUNKED upload for ALL files (forced as requested)');
     
-    if (USE_CHUNKED) {
-      console.log('🚀 Using CHUNKED upload for large file');
+    try {
+      const result = await uploadChunked(file);
+      console.log('✅ GCS Upload successful:', result);
       
-      try {
-        const result = await uploadChunked(file);
-        console.log('✅ Upload successful:', result);
-        
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-        
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-        if (onUploadComplete) {
-          onUploadComplete();
-        }
-      } catch (error) {
-        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
-    } else {
-      // Regular upload for small files
-      const formData = new FormData();
-      formData.append('zipFile', file);
-      formData.append('folderName', folderName);
-
-      try {
-        await uploadZipMutation.mutateAsync(formData);
-      } catch (error) {
-        console.error('Upload failed:', error);
-        alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      
+      if (onUploadComplete) {
+        onUploadComplete();
       }
+    } catch (error) {
+      console.error('GCS Upload failed:', error);
+      alert(`Upload failed: ${error.message || 'Unknown error'}`);
     }
   };
 
