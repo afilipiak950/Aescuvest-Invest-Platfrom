@@ -156,10 +156,54 @@ export default function MemoGenerator() {
     }
   }, [selectedDeal]);
   
-  // Fetch real deals from API
+  // Fetch real deals from API with document and analysis counts
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
     queryKey: ['/api/deals'],
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  
+  // Fetch document and analysis counts for each deal
+  const { data: dealCounts, isLoading: isLoadingCounts } = useQuery({
+    queryKey: ['/api/deals/counts'],
+    queryFn: async () => {
+      if (!Array.isArray(deals) || deals.length === 0) return {};
+      
+      const countsPromises = deals.map(async (deal: any) => {
+        try {
+          const [docsResponse, analysesResponse] = await Promise.all([
+            fetch(`/api/deals/${deal.id}/documents`),
+            fetch(`/api/analyses/${deal.id}`)
+          ]);
+          
+          const docsData = await docsResponse.json();
+          const analysesData = await analysesResponse.json();
+          
+          const docCount = Array.isArray(docsData) ? docsData.length : 0;
+          const analysisCount = Array.isArray(analysesData) ? analysesData.length : 0;
+          
+          return {
+            dealId: deal.id,
+            documents: docCount,
+            analyses: analysisCount
+          };
+        } catch (error) {
+          console.warn(`Failed to fetch counts for deal ${deal.id}:`, error);
+          return {
+            dealId: deal.id,
+            documents: 0,
+            analyses: 0
+          };
+        }
+      });
+      
+      const results = await Promise.all(countsPromises);
+      return results.reduce((acc, curr) => {
+        acc[curr.dealId] = { documents: curr.documents, analyses: curr.analyses };
+        return acc;
+      }, {} as Record<number, { documents: number; analyses: number }>);
+    },
+    enabled: Array.isArray(deals) && deals.length > 0,
+    staleTime: 1000 * 60 * 2, // 2 minutes cache
   });
   
   // Fetch existing memo if available
@@ -252,7 +296,7 @@ export default function MemoGenerator() {
     generateMemoMutation.mutate(selectedDeal);
   };
   
-  const isLoading = isLoadingDeals || isLoadingMemo;
+  const isLoading = isLoadingDeals || isLoadingMemo || isLoadingCounts;
   const isGenerating = generateMemoMutation.isPending;
   // Use existing memo from database first, then fallback to newly generated memo
   const currentMemo = existingMemo?.memo || generatedMemo;
@@ -294,11 +338,20 @@ export default function MemoGenerator() {
                     <SelectValue placeholder="Select a deal to generate memo" />
                   </SelectTrigger>
                   <SelectContent className="bg-dark-lighter border-dark-lighter">
-                    {Array.isArray(deals) && deals.map((deal: any) => (
-                      <SelectItem key={deal.id} value={deal.id.toString()}>
-                        {deal.companyName} - {deal.stage} {deal.id === 33 ? "✅ (100 docs + analyses)" : deal.id === 22 ? "✅ (263 docs)" : deal.id === 18 ? "✅ (263 docs)" : "❌ (no data)"}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(deals) && deals.map((deal: any) => {
+                      const counts = dealCounts?.[deal.id] || { documents: 0, analyses: 0 };
+                      const hasData = counts.documents > 0 || counts.analyses > 0;
+                      const status = hasData ? "✅" : "❌";
+                      const dataInfo = hasData 
+                        ? `(${counts.documents} docs${counts.analyses > 0 ? ` + ${counts.analyses} analyses` : ''})`
+                        : "(no data)";
+                      
+                      return (
+                        <SelectItem key={deal.id} value={deal.id.toString()}>
+                          {deal.companyName} - {deal.stage} {status} {dataInfo}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
