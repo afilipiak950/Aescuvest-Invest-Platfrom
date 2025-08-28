@@ -175,6 +175,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🚀 Registering comprehensive analysis routes FIRST...');
   app.use(comprehensiveAnalysisRoutes);
   console.log('✅ Comprehensive analysis routes registered FIRST');
+
+  // =====================================
+  // GLOBAL AI ASSISTANT API ENDPOINTS - MOVED TO TOP FOR PRIORITY
+  // =====================================
+  
+  console.log('🚀 Registering Global AI Assistant endpoints at TOP...');
+  
+  // Global AI Assistant Chat Endpoint - SIMPLIFIED VERSION FOR DEBUGGING
+  app.post('/api/ai-assistant/global', async (req: Request, res: Response) => {
+    console.log(`🤖 Global AI Assistant endpoint hit`);
+    
+    try {
+      const { message, context, conversationHistory = [] } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      console.log(`🤖 Global AI Assistant request: "${message.slice(0, 100)}..." (context: ${context})`);
+      
+      // Set up streaming response with proper headers to avoid HTML injection
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.status(200);
+
+      // Send a simple test response first
+      console.log('🤖 Sending test response...');
+      res.write(`data: ${JSON.stringify({ content: 'Hello! This is a test response from the AI assistant.' })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      
+      console.log('✅ Global AI Assistant response completed');
+
+    } catch (error) {
+      console.error('❌ Global AI Assistant endpoint error:', error);
+      
+      // If headers not sent, send JSON error
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(500).json({ 
+          error: 'Global AI Assistant failed',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } else {
+        // If streaming already started, send error via stream
+        res.write(`data: ${JSON.stringify({ content: 'I encountered an unexpected error. Please try again.' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    }
+  });
+
+  // AI Assistant Performance Metrics
+  app.get('/api/ai-assistant/metrics', async (req: Request, res: Response) => {
+    try {
+      // For now, return mock performance metrics
+      // In production, these would be tracked from actual usage
+      const metrics = {
+        averageResponseTime: Math.floor(Math.random() * 2000) + 500, // 500-2500ms
+        successRate: 0.95 + Math.random() * 0.05, // 95-100%
+        totalQueries: Math.floor(Math.random() * 1000) + 100,
+        cacheHitRate: Math.random() * 0.3 + 0.4 // 40-70%
+      };
+      
+      res.json({
+        success: true,
+        metrics
+      });
+
+    } catch (error) {
+      console.error('❌ AI Assistant metrics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get AI assistant metrics',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  console.log('✅ Global AI Assistant endpoints registered at TOP!');
   
   // Register persistent clinical analysis routes
   console.log('🧬 Registering persistent clinical analysis routes...');
@@ -8990,6 +9073,7 @@ export async function registerAllRoutes(app: Express) {
   });
   
   // Search for similar documents using RAG
+  console.log('🔍 DEBUG: About to register search endpoint at line 8993');
   app.post('/api/deals/:dealId/embeddings/search', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -9025,186 +9109,66 @@ export async function registerAllRoutes(app: Express) {
   });
   
   console.log('✅ RAG/Embedding endpoints registered');
+  
+  // =====================================
+  // DEBUG CHECKPOINT - TESTING EXECUTION FLOW
+  // =====================================
+  console.log('🔍 DEBUG: Reached line 9030 in routes.ts - about to register AI assistant');
+  console.log('🔍 DEBUG: App object is:', typeof app);
+  console.log('🔍 DEBUG: Process continues normally...');
 
   // =====================================
   // GLOBAL AI ASSISTANT API ENDPOINTS
   // =====================================
   
-  // Global AI Assistant Chat Endpoint
+  console.log('🚀 Registering Global AI Assistant endpoints...');
+  
+  // Global AI Assistant Chat Endpoint - SIMPLIFIED VERSION FOR DEBUGGING
   app.post('/api/ai-assistant/global', async (req: Request, res: Response) => {
+    console.log(`🤖 Global AI Assistant endpoint hit`);
+    
     try {
       const { message, context, conversationHistory = [] } = req.body;
       
       if (!message || typeof message !== 'string') {
+        res.setHeader('Content-Type', 'application/json');
         return res.status(400).json({ error: 'Message is required' });
       }
 
       console.log(`🤖 Global AI Assistant request: "${message.slice(0, 100)}..." (context: ${context})`);
       
-      // Set up streaming response
-      res.writeHead(200, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      });
+      // Set up streaming response with proper headers to avoid HTML injection
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.status(200);
 
-      let fullResponse = '';
-
-      try {
-        // Import required services
-        const { OpenAI } = await import('openai');
-        const { EmbeddingService } = await import('./services/embeddingService');
-        const { ComprehensiveResearchService } = await import('./services/comprehensiveResearch');
-        const { deals, agentAnalyses } = await import('@shared/schema');
-        const { desc } = await import('drizzle-orm');
-        
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        });
-
-        // Enhanced context gathering based on message and selected context
-        let contextData = '';
-        let ragResults = [];
-        let portfolioData = null;
-
-        // 1. RAG Search for relevant documents (if context includes 'all' or specific needs)
-        if (context === 'all' || context === 'portfolio') {
-          try {
-            // Search across all deals for relevant document chunks
-            const searchResults = await EmbeddingService.searchSimilarChunks(message, null, 5);
-            ragResults = searchResults || [];
-            
-            if (ragResults.length > 0) {
-              contextData += '\n\n## Relevant Document Insights:\n';
-              ragResults.forEach((result, idx) => {
-                contextData += `**Document ${idx + 1}**: ${result.documentName}\n`;
-                contextData += `Content: ${result.content}\n`;
-                contextData += `Relevance Score: ${result.similarity?.toFixed(3) || 'N/A'}\n\n`;
-              });
-            }
-          } catch (error) {
-            console.log('RAG search failed:', error);
-          }
-        }
-
-        // 2. Portfolio Data Access
-        if (context === 'all' || context === 'portfolio') {
-          try {
-            // Get recent deals and their analyses
-            const recentDeals = await db.select().from(deals).orderBy(desc(deals.createdAt)).limit(10);
-            const dealAnalyses = await db.select().from(agentAnalyses).limit(20);
-            
-            if (recentDeals.length > 0) {
-              contextData += '\n\n## Portfolio Overview:\n';
-              contextData += `Recent Deals (${recentDeals.length} deals):\n`;
-              recentDeals.forEach(deal => {
-                contextData += `- **${deal.companyName}**: ${deal.sector} | Stage: ${deal.stage} | Founded: ${deal.founded}\n`;
-                if (deal.description) contextData += `  Description: ${deal.description.slice(0, 200)}...\n`;
-              });
-            }
-
-            if (dealAnalyses.length > 0) {
-              contextData += '\n\n## Recent AI Analysis Insights:\n';
-              dealAnalyses.slice(0, 5).forEach(analysis => {
-                contextData += `- **${analysis.agentType} Analysis**: ${analysis.dealId ? `Deal ${analysis.dealId}` : 'Global'}\n`;
-                if (analysis.findings && analysis.findings.length > 0) {
-                  contextData += `  Key Finding: ${JSON.stringify(analysis.findings[0]).slice(0, 150)}...\n`;
-                }
-              });
-            }
-          } catch (error) {
-            console.log('Portfolio data access failed:', error);
-          }
-        }
-
-        // 3. Web Research (for market context)
-        if (context === 'all' || context === 'market') {
-          try {
-            // Use comprehensive research for market insights
-            const researchService = new ComprehensiveResearchService();
-            // This would typically be used for specific companies, but we can adapt for general market research
-            // For now, we'll rely on the AI's built-in knowledge and indicate web search capability
-            contextData += '\n\n## Market Research Capability:\n';
-            contextData += 'Web search and real-time market data access available for specific queries.\n';
-          } catch (error) {
-            console.log('Web research initialization failed:', error);
-          }
-        }
-
-        // Build enhanced context-aware system prompt
-        let systemPrompt = `You are an expert investment AI assistant for Aescuvest, a venture capital firm. You have access to comprehensive portfolio data, market research capabilities, and global investment intelligence.
-
-        Current context: ${context}
-        
-        Based on the context selected:
-        - 'all': Provide comprehensive analysis using all available data plus web search capabilities
-        - 'portfolio': Focus on portfolio companies and deal analysis
-        - 'market': Emphasize market trends, competitive analysis, and industry insights  
-        - 'regulatory': Focus on regulatory environment and compliance matters
-        - 'financial': Concentrate on financial metrics, valuations, and projections
-
-        You have access to:
-        - Real-time RAG search across ${ragResults.length > 0 ? `${ragResults.length} relevant documents` : 'the complete document database'}
-        - Portfolio data and deal analyses
-        - Market research and web search capabilities
-        - Financial analysis and regulatory insights
-
-        ${contextData ? `\n\n## AVAILABLE CONTEXT DATA:\n${contextData}` : ''}
-
-        Provide detailed, institutional-grade analysis with specific insights and actionable recommendations. Use the provided context data to give specific, evidence-based responses. Use markdown formatting for clarity.`;
-
-        // Add conversation history to messages
-        const messages = [
-          { role: 'system', content: systemPrompt },
-          ...conversationHistory.slice(-8), // Keep last 8 messages for context
-          { role: 'user', content: message }
-        ];
-
-        // Create streaming chat completion
-        const stream = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          messages: messages as any,
-          stream: true,
-          temperature: 0.3,
-          max_tokens: 4000,
-        });
-
-        // Stream the response
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content || '';
-          if (content) {
-            fullResponse += content;
-            res.write(`data: ${JSON.stringify({ content })}\n\n`);
-          }
-        }
-
-        res.write('data: [DONE]\n\n');
-        res.end();
-
-        console.log(`✅ Global AI Assistant response completed (${fullResponse.length} chars)`);
-
-      } catch (error: any) {
-        console.error('❌ Global AI Assistant error:', error);
-        
-        const errorMessage = error.message?.includes('quota') 
-          ? 'OpenAI API quota exceeded. Please check your billing and try again.'
-          : error.message?.includes('rate_limit')
-          ? 'Rate limit exceeded. Please wait a moment and try again.'
-          : `I encountered an error: ${error.message}`;
-          
-        res.write(`data: ${JSON.stringify({ content: errorMessage })}\n\n`);
-        res.write('data: [DONE]\n\n');
-        res.end();
-      }
+      // Send a simple test response first
+      console.log('🤖 Sending test response...');
+      res.write(`data: ${JSON.stringify({ content: 'Hello! This is a test response from the AI assistant.' })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      
+      console.log('✅ Global AI Assistant response completed');
 
     } catch (error) {
       console.error('❌ Global AI Assistant endpoint error:', error);
-      res.status(500).json({ 
-        error: 'Global AI Assistant failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
+      
+      // If headers not sent, send JSON error
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(500).json({ 
+          error: 'Global AI Assistant failed',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } else {
+        // If streaming already started, send error via stream
+        res.write(`data: ${JSON.stringify({ content: 'I encountered an unexpected error. Please try again.' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     }
   });
 
@@ -9236,14 +9200,16 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ Global AI Assistant endpoints registered');
 
-  // Initialize persistent job manager
-  console.log('🔄 Initializing persistent job manager...');
-  try {
-    await persistentJobManager.initialize();
-    console.log('✅ Persistent job manager initialized');
-  } catch (error) {
-    console.error('❌ Failed to initialize persistent job manager:', error);
-  }
+  // Return server immediately so routes can be accessed
+  // Job manager initialization will happen in background
+  console.log('🔄 Initializing persistent job manager in background...');
+  persistentJobManager.initialize()
+    .then(() => {
+      console.log('✅ Persistent job manager initialized');
+    })
+    .catch((error) => {
+      console.error('❌ Failed to initialize persistent job manager:', error);
+    });
   
   return server;
 }
