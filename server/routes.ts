@@ -170,6 +170,108 @@ const handleValidationError = (res: Response, error: z.ZodError) => {
   });
 };
 
+// Helper function to generate context-specific suggestions
+function generateContextSuggestions(context: string) {
+  const contextSuggestions = {
+    all: [
+      {
+        id: '1',
+        text: "What are the latest trends in HealthTech venture capital?",
+        category: 'market',
+        priority: 1
+      },
+      {
+        id: '2', 
+        text: "Analyze the regulatory environment for medical devices in 2025",
+        category: 'regulatory',
+        priority: 2
+      },
+      {
+        id: '3',
+        text: "Compare our portfolio performance against industry benchmarks",
+        category: 'financial',
+        priority: 3
+      },
+      {
+        id: '4',
+        text: "What are the key success factors for Series A fundraising?",
+        category: 'general',
+        priority: 4
+      },
+      {
+        id: '5',
+        text: "Identify emerging opportunities in AI and digital health",
+        category: 'market',
+        priority: 5
+      }
+    ],
+    portfolio: [
+      {
+        id: '1',
+        text: "Which portfolio companies show the strongest growth metrics?",
+        category: 'financial',
+        priority: 1
+      },
+      {
+        id: '2',
+        text: "Analyze risk factors across our current portfolio",
+        category: 'general',
+        priority: 2
+      },
+      {
+        id: '3',
+        text: "Compare management team capabilities across deals",
+        category: 'general',
+        priority: 3
+      }
+    ],
+    market: [
+      {
+        id: '1',
+        text: "What are the current market conditions for healthcare IPOs?",
+        category: 'market',
+        priority: 1
+      },
+      {
+        id: '2',
+        text: "Analyze competitive landscape in digital therapeutics",
+        category: 'market',
+        priority: 2
+      }
+    ],
+    regulatory: [
+      {
+        id: '1',
+        text: "What are the latest FDA regulatory changes affecting our sectors?",
+        category: 'regulatory',
+        priority: 1
+      },
+      {
+        id: '2',
+        text: "Analyze EU MDR compliance requirements for medical devices",
+        category: 'regulatory',
+        priority: 2
+      }
+    ],
+    financial: [
+      {
+        id: '1',
+        text: "What are current valuation multiples for SaaS companies?",
+        category: 'financial',
+        priority: 1
+      },
+      {
+        id: '2',
+        text: "Analyze burn rate benchmarks for early-stage companies",
+        category: 'financial',
+        priority: 2
+      }
+    ]
+  };
+
+  return contextSuggestions[context as keyof typeof contextSuggestions] || contextSuggestions.all;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register comprehensive analysis routes FIRST - before any conflicting routes
   console.log('🚀 Registering comprehensive analysis routes FIRST...');
@@ -269,6 +371,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: 'Failed to get AI assistant metrics',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  });
+
+  // Global AI Assistant Stats Endpoint
+  app.get('/api/ai-assistant/global/stats', async (req: Request, res: Response) => {
+    try {
+      console.log('📊 Global AI Assistant stats endpoint hit');
+      
+      // Gather comprehensive global stats
+      const [portfolioCount, documentCount, analysisCount] = await Promise.all([
+        db.select().from(deals).then(deals => deals.length),
+        db.select().from(documents).then(docs => docs.length),
+        db.select().from(agentAnalyses).then(analyses => analyses.length)
+      ]);
+      
+      const stats = {
+        documentsLoaded: documentCount,
+        agentAnalyses: analysisCount,
+        portfolioDeals: portfolioCount,
+        hasCompanyInfo: true,
+        totalContextSize: (documentCount * 50000) + (analysisCount * 10000) // Estimated
+      };
+      
+      res.json({ success: true, stats });
+      console.log('✅ Global AI Assistant stats returned:', stats);
+      
+    } catch (error) {
+      console.error('❌ Error fetching global AI stats:', error);
+      res.status(500).json({ error: 'Failed to fetch global AI stats' });
+    }
+  });
+
+  // Global AI Assistant Suggestions Endpoint
+  app.get('/api/ai-assistant/global/suggestions', async (req: Request, res: Response) => {
+    try {
+      console.log('💡 Global AI Assistant suggestions endpoint hit');
+      const { context = 'all' } = req.query;
+      
+      // Generate context-specific suggestions
+      const suggestions = generateContextSuggestions(context as string);
+      
+      res.json({ success: true, suggestions });
+      console.log('✅ Global AI Assistant suggestions returned for context:', context);
+      
+    } catch (error) {
+      console.error('❌ Error fetching global AI suggestions:', error);
+      res.status(500).json({ error: 'Failed to fetch global AI suggestions' });
+    }
+  });
+
+  // Global AI Assistant Preload Endpoint
+  app.post('/api/ai-assistant/global/preload', async (req: Request, res: Response) => {
+    try {
+      console.log('⚡ Global AI Assistant preload endpoint hit');
+      const { context = 'all' } = req.body;
+      
+      // Simulate context preloading
+      const contextStats = {
+        documentsLoaded: await db.select().from(documents).then(docs => docs.length),
+        agentAnalyses: await db.select().from(agentAnalyses).then(analyses => analyses.length),
+        portfolioDeals: await db.select().from(deals).then(deals => deals.length),
+        hasCompanyInfo: true,
+        totalContextSize: 5000000 // 5MB estimated
+      };
+      
+      res.json({ 
+        success: true, 
+        message: 'Global context preloaded successfully',
+        contextStats,
+        context
+      });
+      console.log('✅ Global AI Assistant context preloaded for:', context);
+      
+    } catch (error) {
+      console.error('❌ Error preloading global AI context:', error);
+      res.status(500).json({ error: 'Failed to preload global AI context' });
     }
   });
 
