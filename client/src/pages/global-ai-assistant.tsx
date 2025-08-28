@@ -158,7 +158,7 @@ export default function GlobalAIAssistant() {
     queryKey: ['/api/ai-assistant/global/suggestions', selectedContext],
     queryFn: async () => {
       const response = await fetch(`/api/ai-assistant/global/suggestions?context=${selectedContext}`);
-      if (!response.ok) return generateDefaultSuggestions();
+      if (!response.ok) return { suggestions: [] };
       return response.json();
     },
     enabled: isContextLoaded
@@ -179,10 +179,13 @@ export default function GlobalAIAssistant() {
   
   // Update smart suggestions when data changes
   useEffect(() => {
-    if (suggestions) {
-      setSmartSuggestions(suggestions);
+    if (suggestions?.suggestions && Array.isArray(suggestions.suggestions)) {
+      setSmartSuggestions(suggestions.suggestions);
     } else {
-      setSmartSuggestions(generateDefaultSuggestions());
+      // Keep existing suggestions if API fails
+      if (smartSuggestions.length === 0) {
+        setSmartSuggestions(generateDefaultSuggestions());
+      }
     }
   }, [suggestions, selectedContext]);
 
