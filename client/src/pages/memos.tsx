@@ -200,10 +200,12 @@ export default function Memos() {
                       View Details
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="sm">
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
+                  <Link href={`/memo-generator?deal=${memo.dealId}&edit=${memo.id}`}>
+                    <Button variant="ghost" size="sm">
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  </Link>
                   <Button variant="ghost" size="sm">
                     <Download className="h-3 w-3" />
                   </Button>
