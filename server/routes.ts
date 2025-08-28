@@ -374,25 +374,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Global AI Assistant Stats Endpoint
+  // Global AI Assistant Stats Endpoint - Enhanced with real service integration
   app.get('/api/ai-assistant/global/stats', async (req: Request, res: Response) => {
     try {
       console.log('📊 Global AI Assistant stats endpoint hit');
       
-      // Gather comprehensive global stats
-      const [portfolioCount, documentCount, analysisCount] = await Promise.all([
-        db.select().from(deals).then(deals => deals.length),
-        db.select().from(documents).then(docs => docs.length),
-        db.select().from(agentAnalyses).then(analyses => analyses.length)
-      ]);
-      
-      const stats = {
-        documentsLoaded: documentCount,
-        agentAnalyses: analysisCount,
-        portfolioDeals: portfolioCount,
-        hasCompanyInfo: true,
-        totalContextSize: (documentCount * 50000) + (analysisCount * 10000) // Estimated
-      };
+      // Import and use the enhanced GlobalAIAssistantService
+      const { GlobalAIAssistantService } = await import('./services/globalAIAssistantService');
+      const stats = await GlobalAIAssistantService.getGlobalStats();
       
       res.json({ success: true, stats });
       console.log('✅ Global AI Assistant stats returned:', stats);
@@ -403,14 +392,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Global AI Assistant Suggestions Endpoint
+  // Global AI Assistant Suggestions Endpoint - Enhanced with smart suggestions
   app.get('/api/ai-assistant/global/suggestions', async (req: Request, res: Response) => {
     try {
       console.log('💡 Global AI Assistant suggestions endpoint hit');
       const { context = 'all' } = req.query;
       
-      // Generate context-specific suggestions
-      const suggestions = generateContextSuggestions(context as string);
+      // Import and use the enhanced GlobalAIAssistantService
+      const { GlobalAIAssistantService } = await import('./services/globalAIAssistantService');
+      const suggestions = GlobalAIAssistantService.generateSmartSuggestions(context as string);
       
       res.json({ success: true, suggestions });
       console.log('✅ Global AI Assistant suggestions returned for context:', context);
@@ -421,20 +411,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Global AI Assistant Preload Endpoint
+  // Global AI Assistant Preload Endpoint - Enhanced with real context loading
   app.post('/api/ai-assistant/global/preload', async (req: Request, res: Response) => {
     try {
       console.log('⚡ Global AI Assistant preload endpoint hit');
       const { context = 'all' } = req.body;
       
-      // Simulate context preloading
-      const contextStats = {
-        documentsLoaded: await db.select().from(documents).then(docs => docs.length),
-        agentAnalyses: await db.select().from(agentAnalyses).then(analyses => analyses.length),
-        portfolioDeals: await db.select().from(deals).then(deals => deals.length),
-        hasCompanyInfo: true,
-        totalContextSize: 5000000 // 5MB estimated
-      };
+      // Import and use the enhanced GlobalAIAssistantService
+      const { GlobalAIAssistantService } = await import('./services/globalAIAssistantService');
+      const contextStats = await GlobalAIAssistantService.getGlobalStats();
       
       res.json({ 
         success: true, 
