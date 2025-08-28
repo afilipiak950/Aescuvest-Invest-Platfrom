@@ -162,17 +162,27 @@ export default function MemoGenerator() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
-  // Fetch document and analysis counts for each deal
-  const { data: dealCounts, isLoading: isLoadingCounts } = useQuery({
-    queryKey: ['/api/deals/counts'],
+  // Fetch document and analysis counts for each deal with real-time updates
+  const { data: dealCounts, isLoading: isLoadingCounts, refetch: refetchCounts } = useQuery({
+    queryKey: ['/api/deals/counts', deals?.length, Date.now()],
     queryFn: async () => {
       if (!Array.isArray(deals) || deals.length === 0) return {};
       
+      console.log(`🔄 Fetching document and analysis counts for ${deals.length} deals`);
+      
       const countsPromises = deals.map(async (deal: any) => {
         try {
+          // Add cache-busting timestamp to ensure fresh data
+          const timestamp = Date.now();
           const [docsResponse, analysesResponse] = await Promise.all([
-            fetch(`/api/deals/${deal.id}/documents`),
-            fetch(`/api/analyses/${deal.id}`)
+            fetch(`/api/deals/${deal.id}/documents?t=${timestamp}`, {
+              cache: 'no-cache',
+              headers: { 'Cache-Control': 'no-cache' }
+            }),
+            fetch(`/api/analyses/${deal.id}?t=${timestamp}`, {
+              cache: 'no-cache', 
+              headers: { 'Cache-Control': 'no-cache' }
+            })
           ]);
           
           const docsData = await docsResponse.json();
@@ -180,6 +190,8 @@ export default function MemoGenerator() {
           
           const docCount = Array.isArray(docsData) ? docsData.length : 0;
           const analysisCount = Array.isArray(analysesData) ? analysesData.length : 0;
+          
+          console.log(`📊 Deal ${deal.id} (${deal.companyName}): ${docCount} docs, ${analysisCount} analyses`);
           
           return {
             dealId: deal.id,
@@ -197,14 +209,41 @@ export default function MemoGenerator() {
       });
       
       const results = await Promise.all(countsPromises);
-      return results.reduce((acc, curr) => {
+      const countsMap = results.reduce((acc, curr) => {
         acc[curr.dealId] = { documents: curr.documents, analyses: curr.analyses };
         return acc;
       }, {} as Record<number, { documents: number; analyses: number }>);
+      
+      console.log(`✅ Updated counts for ${results.length} deals`, countsMap);
+      return countsMap;
     },
     enabled: Array.isArray(deals) && deals.length > 0,
-    staleTime: 1000 * 60 * 2, // 2 minutes cache
+    staleTime: 0, // No cache - always fetch fresh data
+    gcTime: 0, // Don't cache at all
+    refetchOnWindowFocus: true, // Refetch when window gets focus
+    refetchOnMount: true, // Always refetch on mount
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
+  
+  // Auto-refresh counts when deals change and force immediate refresh
+  useEffect(() => {
+    if (Array.isArray(deals) && deals.length > 0) {
+      console.log('🔄 Deals data updated, refreshing counts...');
+      // Invalidate all count-related queries and force refetch
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/counts'] });
+      refetchCounts();
+    }
+  }, [deals, refetchCounts, queryClient]);
+  
+  // Force immediate refresh on component mount
+  useEffect(() => {
+    if (Array.isArray(deals) && deals.length > 0) {
+      console.log('🚀 Component mounted, forcing immediate count refresh...');
+      // Clear any existing cache
+      queryClient.removeQueries({ queryKey: ['/api/deals/counts'] });
+      setTimeout(() => refetchCounts(), 100); // Small delay to ensure cache is cleared
+    }
+  }, []); // Run only on mount
   
   // Fetch existing memo if available
   const { data: existingMemo, isLoading: isLoadingMemo } = useQuery({
