@@ -2655,9 +2655,9 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       await comprehensiveAnalysisMutation.mutateAsync();
       console.log('✅ Analysis request sent, waiting for completion...');
       
-      // Wait for results since analysis takes time
+      // Wait longer for research results - research can take substantial time
       let attempts = 0;
-      const maxAttempts = 240; // 12 minutes max wait (same as Clinical)
+      const maxAttempts = 300; // 15 minutes max wait (longer than other agents)
       
       const checkForResults = async () => {
         attempts++;
@@ -2688,11 +2688,11 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
               queryKey: [`/api/background-jobs/${dealId}`]
             });
             
-            // Add a small delay to ensure UI updates
+            // Add a longer delay to ensure UI updates properly
             setTimeout(() => {
               setIsRunning(false);
               console.log('🎉 Research analysis UI updated successfully!');
-            }, 1000);
+            }, 2000); // Increased from 1000ms to 2000ms
             
             return;
           }
@@ -2702,7 +2702,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
         
         // Continue checking if not complete and under max attempts
         if (attempts < maxAttempts) {
-          setTimeout(checkForResults, 3000); // Check every 3 seconds
+          setTimeout(checkForResults, 2000); // Check every 2 seconds (faster than other agents)
         } else {
           console.log('⏰ Timeout reached - research analysis may still be running in background');
           
@@ -2718,8 +2718,8 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
         }
       };
       
-      // Start checking for results after a short delay
-      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      // Start checking for results immediately (no delay)
+      setTimeout(checkForResults, 1000); // Reduced from 5000ms to 1000ms
       
     } catch (error) {
       console.error('❌ Error starting comprehensive research analysis:', error);
