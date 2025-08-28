@@ -12,7 +12,7 @@ const menuItems = [
   { icon: Mail, label: 'Inbox', href: '/inbox' },
   { icon: FileUp, label: 'Deal Intake', href: '/deal-intake' },
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },
-  { icon: FileText, label: 'Memo Generator', href: '/memo-generator' },
+  { icon: FileText, label: 'Memos', href: '/memos' },
   { icon: Users, label: 'Investor Matching', href: '/investor-matching' },
   { icon: GitBranch, label: 'Workflow', href: '/workflow' },
 ];
