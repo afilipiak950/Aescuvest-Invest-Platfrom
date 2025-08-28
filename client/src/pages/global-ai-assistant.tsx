@@ -83,6 +83,19 @@ interface PerformanceMetrics {
   successRate: number;
 }
 
+// Helper function to get icon for category
+function getIconForCategory(category: string) {
+  switch (category) {
+    case 'financial': return DollarSign;
+    case 'legal': return Shield;
+    case 'clinical': return Award;
+    case 'commercial': return Briefcase;
+    case 'market': return TrendingUp;
+    case 'regulatory': return Shield;
+    default: return Lightbulb;
+  }
+}
+
 export default function GlobalAIAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -180,7 +193,12 @@ export default function GlobalAIAssistant() {
   // Update smart suggestions when data changes
   useEffect(() => {
     if (suggestions?.suggestions && Array.isArray(suggestions.suggestions)) {
-      setSmartSuggestions(suggestions.suggestions);
+      // Map API suggestions to ensure they have valid icons
+      const validSuggestions = suggestions.suggestions.map((suggestion: any) => ({
+        ...suggestion,
+        icon: getIconForCategory(suggestion.category || 'general')
+      }));
+      setSmartSuggestions(validSuggestions);
     } else {
       // Keep existing suggestions if API fails
       if (smartSuggestions.length === 0) {
@@ -742,7 +760,11 @@ export default function GlobalAIAssistant() {
                                     onClick={() => handleSuggestionClick(suggestion)}
                                     className="text-xs p-2 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
                                   >
-                                    <suggestion.icon className="h-3 w-3 mr-2 flex-shrink-0 text-blue-500" />
+                                    {suggestion.icon ? (
+                                      <suggestion.icon className="h-3 w-3 mr-2 flex-shrink-0 text-blue-500" />
+                                    ) : (
+                                      <Lightbulb className="h-3 w-3 mr-2 flex-shrink-0 text-blue-500" />
+                                    )}
                                     <span className="truncate">{suggestion.text}</span>
                                   </Button>
                                 ))}
