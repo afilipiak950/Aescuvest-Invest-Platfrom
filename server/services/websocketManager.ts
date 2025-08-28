@@ -178,6 +178,35 @@ class WebSocketManager {
   getActiveConnections(): number {
     return this.clients.size;
   }
+
+  // Production safety: Cleanup WebSocket connections
+  cleanup() {
+    if (this.wss) {
+      console.log('🧹 Closing WebSocket server...');
+      
+      // Close all active connections gracefully
+      this.clients.forEach((_, ws) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close(1000, 'Server shutdown');
+        }
+      });
+      
+      this.wss.close();
+      this.clients.clear();
+    }
+  }
+  
+  // Handle process termination for production deployments
+  initializeShutdownHandlers() {
+    const cleanup = () => {
+      console.log('🛑 WebSocket graceful shutdown initiated...');
+      this.cleanup();
+    };
+    
+    process.on('SIGTERM', cleanup);
+    process.on('SIGINT', cleanup);
+    process.on('SIGUSR2', cleanup); // Nodemon restart
+  }
 }
 
 export const websocketManager = new WebSocketManager();
