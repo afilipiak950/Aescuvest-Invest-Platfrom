@@ -405,9 +405,9 @@ Provide comprehensive research analysis as JSON:
       throw new Error('No documents available for research analysis');
     }
     
-    // Update job with total questions to process
+    // Update job with total documents to process (same as Clinical)
     await storageService.updateBackgroundJob(jobId, {
-      totalDocuments: COMPREHENSIVE_RESEARCH_QUESTIONS.length,
+      totalDocuments: assignedDocuments.length,
       currentStep: 'Analyzing research documents across 8 question categories'
     });
     
@@ -419,13 +419,13 @@ Provide comprehensive research analysis as JSON:
       console.log(`🔍 Processing question ${i + 1}/${COMPREHENSIVE_RESEARCH_QUESTIONS.length}: ${question.question}`);
       
       try {
-        // Update progress with error handling
+        // Update progress with error handling (same as Clinical)
         const progress = Math.round((i / COMPREHENSIVE_RESEARCH_QUESTIONS.length) * 100);
         await storageService.updateBackgroundJob(jobId, {
           progress,
           processedDocuments: i,
           currentDocumentName: question.question,
-          currentStep: `Analyzing: ${question.category}`
+          currentStep: `Analyzing: ${question.question}`
         });
         
         // Extract evidence from ALL assigned documents for this question
