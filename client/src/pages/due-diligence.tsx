@@ -1492,8 +1492,7 @@ function DueDiligenceContent() {
                   })}
                 </div>
                 
-                {/* Action Buttons - HIDDEN PER USER REQUEST */}
-                {/* 
+                {/* Action Buttons - HIDDEN PER USER REQUEST 
                 <div className="flex justify-center space-x-4 mt-6">
                   <Button
                     onClick={async () => {
@@ -1572,7 +1571,7 @@ function DueDiligenceContent() {
                     Legacy Reset
                   </Button>
                 </div>
-                */
+                */}
               </div>
 
               
