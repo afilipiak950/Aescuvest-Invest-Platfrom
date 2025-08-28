@@ -255,7 +255,7 @@ export default function GlobalAIAssistant() {
   };
 
   return (
-    <div className="w-full h-full px-1 sm:px-2 py-1 sm:py-2 overflow-auto">
+    <div className="w-full h-full overflow-auto">
       <PageHeader 
         title="Aescuvest AI Assistant" 
         description="Your intelligent investment analysis companion with access to portfolio data, market research, and global insights."
