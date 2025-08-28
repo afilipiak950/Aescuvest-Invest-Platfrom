@@ -265,13 +265,13 @@ export default function GlobalAIAssistant() {
       <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-end gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                   AI Context & Scope
                 </label>
                 <Select value={selectedContext} onValueChange={setSelectedContext}>
-                  <SelectTrigger className="bg-white/80 dark:bg-gray-800/80 border-blue-200 dark:border-blue-700">
+                  <SelectTrigger className="bg-white/80 dark:bg-gray-800/80 border-blue-200 dark:border-blue-700 h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -291,7 +291,7 @@ export default function GlobalAIAssistant() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowMetrics(!showMetrics)}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap h-10"
                 >
                   <Gauge className="h-4 w-4 mr-1" />
                   Metrics
@@ -301,7 +301,7 @@ export default function GlobalAIAssistant() {
                   size="sm"
                   onClick={clearConversation}
                   disabled={messages.length === 0}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap h-10"
                 >
                   <History className="h-4 w-4 mr-1" />
                   Clear
