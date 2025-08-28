@@ -9026,6 +9026,142 @@ export async function registerAllRoutes(app: Express) {
   
   console.log('✅ RAG/Embedding endpoints registered');
 
+  // =====================================
+  // GLOBAL AI ASSISTANT API ENDPOINTS
+  // =====================================
+  
+  // Global AI Assistant Chat Endpoint
+  app.post('/api/ai-assistant/global', async (req: Request, res: Response) => {
+    try {
+      const { message, context, conversationHistory = [] } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      console.log(`🤖 Global AI Assistant request: "${message.slice(0, 100)}..." (context: ${context})`);
+      
+      // Set up streaming response
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      });
+
+      let fullResponse = '';
+
+      try {
+        // Import OpenAI service
+        const { OpenAI } = await import('openai');
+        const openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+
+        // Build context-aware system prompt based on selected context
+        let systemPrompt = `You are an expert investment AI assistant for Aescuvest, a venture capital firm. You have access to comprehensive portfolio data, market research capabilities, and global investment intelligence.
+
+        Current context: ${context}
+        
+        Based on the context selected:
+        - 'all': Provide comprehensive analysis using all available data plus web search capabilities
+        - 'portfolio': Focus on portfolio companies and deal analysis
+        - 'market': Emphasize market trends, competitive analysis, and industry insights  
+        - 'regulatory': Focus on regulatory environment and compliance matters
+        - 'financial': Concentrate on financial metrics, valuations, and projections
+
+        You can:
+        - Analyze investment opportunities and provide due diligence insights
+        - Research market trends and competitive landscapes
+        - Answer questions about portfolio performance and benchmarks
+        - Provide regulatory and compliance guidance
+        - Conduct web searches for current market information
+        - Offer general business and investment advice
+
+        Provide detailed, institutional-grade analysis with specific insights and actionable recommendations. Use markdown formatting for clarity.`;
+
+        // Add conversation history to messages
+        const messages = [
+          { role: 'system', content: systemPrompt },
+          ...conversationHistory.slice(-8), // Keep last 8 messages for context
+          { role: 'user', content: message }
+        ];
+
+        // Create streaming chat completion
+        const stream = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: messages as any,
+          stream: true,
+          temperature: 0.3,
+          max_tokens: 4000,
+        });
+
+        // Stream the response
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            fullResponse += content;
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
+        }
+
+        res.write('data: [DONE]\n\n');
+        res.end();
+
+        console.log(`✅ Global AI Assistant response completed (${fullResponse.length} chars)`);
+
+      } catch (error: any) {
+        console.error('❌ Global AI Assistant error:', error);
+        
+        const errorMessage = error.message?.includes('quota') 
+          ? 'OpenAI API quota exceeded. Please check your billing and try again.'
+          : error.message?.includes('rate_limit')
+          ? 'Rate limit exceeded. Please wait a moment and try again.'
+          : `I encountered an error: ${error.message}`;
+          
+        res.write(`data: ${JSON.stringify({ content: errorMessage })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+
+    } catch (error) {
+      console.error('❌ Global AI Assistant endpoint error:', error);
+      res.status(500).json({ 
+        error: 'Global AI Assistant failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // AI Assistant Performance Metrics
+  app.get('/api/ai-assistant/metrics', async (req: Request, res: Response) => {
+    try {
+      // For now, return mock performance metrics
+      // In production, these would be tracked from actual usage
+      const metrics = {
+        averageResponseTime: Math.floor(Math.random() * 2000) + 500, // 500-2500ms
+        successRate: 0.95 + Math.random() * 0.05, // 95-100%
+        totalQueries: Math.floor(Math.random() * 1000) + 100,
+        cacheHitRate: Math.random() * 0.3 + 0.4 // 40-70%
+      };
+      
+      res.json({
+        success: true,
+        metrics
+      });
+
+    } catch (error) {
+      console.error('❌ AI Assistant metrics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get AI assistant metrics',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  console.log('✅ Global AI Assistant endpoints registered');
+
   // Initialize persistent job manager
   console.log('🔄 Initializing persistent job manager...');
   try {
