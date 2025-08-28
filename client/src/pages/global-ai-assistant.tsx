@@ -560,7 +560,6 @@ export default function GlobalAIAssistant() {
 
           {/* Quick Action Buttons */}
           <div className="mt-1 sm:mt-2 flex flex-wrap gap-1.5 sm:gap-2">
-            <p className="text-xs text-muted-foreground w-full mb-0.5">Quick actions:</p>
             {[
               "Latest HealthTech trends",
               "Market analysis",
