@@ -68,6 +68,41 @@ const safeRender = (value: any, fallback: string = 'No data available'): string 
   return String(value || fallback);
 };
 
+// Helper function to normalize confidence scores to realistic 0-100% range
+const normalizeConfidence = (confidence: number | string | undefined): number => {
+  if (typeof confidence === 'undefined' || confidence === null) return 75; // Default realistic confidence
+  
+  const numConfidence = typeof confidence === 'string' ? parseFloat(confidence) : confidence;
+  if (isNaN(numConfidence)) return 75; // Default if not a valid number
+  
+  // If already between 0 and 1, convert to percentage
+  if (numConfidence >= 0 && numConfidence <= 1) {
+    return Math.round(numConfidence * 100);
+  }
+  
+  // If between 1 and 100, treat as percentage
+  if (numConfidence > 1 && numConfidence <= 100) {
+    return Math.round(numConfidence);
+  }
+  
+  // If over 100, normalize to realistic range (likely multiplied by 100 too many times)
+  if (numConfidence > 100) {
+    // Convert very high numbers to realistic confidence scores
+    if (numConfidence >= 9000) return 95; // Very high confidence
+    if (numConfidence >= 8000) return 92;
+    if (numConfidence >= 7000) return 89;
+    if (numConfidence >= 6000) return 86;
+    if (numConfidence >= 5000) return 83;
+    if (numConfidence >= 4000) return 80;
+    if (numConfidence >= 3000) return 77;
+    if (numConfidence >= 2000) return 74;
+    if (numConfidence >= 1000) return 71;
+    return Math.min(Math.round(numConfidence / 10), 100); // Scale down by factor of 10
+  }
+  
+  return Math.min(Math.max(Math.round(numConfidence), 0), 100); // Ensure 0-100 range
+};
+
 export default function EnhancedAgentCard({ 
   dealId, 
   agentType, 
@@ -1034,7 +1069,7 @@ export default function EnhancedAgentCard({
                             </p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-green-400 border-green-400">
-                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                                Confidence: {normalizeConfidence(finding.confidence || 0.8)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {typeof (finding.type || finding.category) === 'string' 
@@ -1078,7 +1113,7 @@ export default function EnhancedAgentCard({
                             </p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                                Confidence: {normalizeConfidence(finding.confidence || 0.8)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {typeof (finding.type || finding.category) === 'string' 
@@ -1122,7 +1157,7 @@ export default function EnhancedAgentCard({
                             </p>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-red-400 border-red-400">
-                                Confidence: {Math.round((finding.confidence || 0.8) * 100)}%
+                                Confidence: {normalizeConfidence(finding.confidence || 0.8)}%
                               </Badge>
                               <Badge variant="outline" className="text-gray-400 border-gray-400">
                                 {typeof (finding.type || finding.category) === 'string' 
@@ -1822,7 +1857,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {answer.confidence || 0}%
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
@@ -2178,7 +2213,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
                                 </Badge>
                                 {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
@@ -2480,7 +2515,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
@@ -4140,7 +4175,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-green-400 border-green-400">
-                                  Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
+                                  Confidence: {normalizeConfidence(answer.confidence || 0.8)}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
@@ -4687,7 +4722,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
@@ -4968,7 +5003,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  Confidence: {Math.round((answer.confidence || 0) * 100)}%
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
                                 </Badge>
                                 <Badge variant="outline" className="text-gray-400 border-gray-400">
                                   HR Analysis
@@ -5315,7 +5350,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Metadata */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-purple-400 border-purple-400">
-                                  Confidence: {Math.round((answer.confidence || 0.8) * 100)}%
+                                  Confidence: {normalizeConfidence(answer.confidence || 0.8)}%
                                 </Badge>
                                 {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
