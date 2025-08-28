@@ -558,35 +558,6 @@ export default function GlobalAIAssistant() {
             )}
           </form>
 
-          {/* Quick Action Buttons */}
-          <div className="mt-1 sm:mt-2 flex flex-wrap gap-1.5 sm:gap-2">
-            {[
-              "Latest HealthTech trends",
-              "Market analysis",
-              "Regulatory updates",
-              "Portfolio performance",
-              "Startup valuations",
-              "Exit strategies",
-              "Due diligence checklist",
-              "Industry benchmarks",
-              "Investment thesis",
-              "Risk assessment",
-              "ESG compliance",
-              "Funding rounds"
-            ].map((query, idx) => (
-              <Button
-                key={idx}
-                variant="outline"
-                size="sm"
-                onClick={() => handleExampleQuery(query)}
-                disabled={isStreaming}
-                className="text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
-              >
-                <Globe className="h-3 w-3 mr-1" />
-                {query}
-              </Button>
-            ))}
-          </div>
         </CardContent>
       </Card>
     </div>
