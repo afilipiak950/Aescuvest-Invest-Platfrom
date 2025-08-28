@@ -307,7 +307,7 @@ function DueDiligenceContent() {
   });
 
   const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/research/results`],
+    queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
@@ -1342,10 +1342,10 @@ function DueDiligenceContent() {
                       doc.documentType?.toLowerCase() === agentType.toLowerCase()
                     ).length || 0;
                     
-                    // Correct questions per agent - matching actual question counts in services
+                    // Correct questions per agent - matching actual question counts in services  
                     const questionCounts = {
                       'Legal': 13, 'Clinical': 6, 'Commercial': 11, 
-                      'HR': 12, 'Financial': 12, 'IP': 12, 'Research': 4
+                      'HR': 12, 'Financial': 12, 'IP': 12, 'Research': 19
                     };
                     const totalQuestions = questionCounts[agentType] || 5;
                     // CORRECT FORMULA: assigned documents × questions per agent
