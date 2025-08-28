@@ -391,7 +391,7 @@ export default function GlobalAIAssistant() {
 
       {/* Main Chat Interface */}
       <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl">
-        <CardContent className="p-3 sm:p-4 lg:p-6">
+        <CardContent className="p-2 sm:p-3 lg:p-4">
           {/* Chat Messages */}
           <ScrollArea className="h-[400px] sm:h-[500px] lg:h-[600px] mb-3 sm:mb-4 lg:mb-6 pr-2 sm:pr-3 lg:pr-4">
             <AnimatePresence>
@@ -559,8 +559,8 @@ export default function GlobalAIAssistant() {
           </form>
 
           {/* Quick Action Buttons */}
-          <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
-            <p className="text-xs text-muted-foreground w-full mb-2">Quick actions:</p>
+          <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
+            <p className="text-xs text-muted-foreground w-full mb-1">Quick actions:</p>
             {[
               "Latest HealthTech trends",
               "Market analysis",
