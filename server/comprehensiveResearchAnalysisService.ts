@@ -491,19 +491,36 @@ Provide comprehensive research analysis as JSON:
         }
       });
       
-      // Store the comprehensive analysis in agent_analyses table
+      // CRITICAL FIX: Store directly to database like Clinical service (identical pattern)
+      // First, delete any existing research analysis to ensure clean replacement
+      await db
+        .delete(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'research')
+        ));
+      
+      console.log(`🗑️ Cleared existing research analysis for deal ${dealId}`);
+      
+      // Create the new comprehensive analysis using EXACT same pattern as Clinical
       const analysisData = {
-        findings,
-        recommendations,
-        research_answers: researchAnswers,
-        researchAnswers: researchAnswers, // Also store in the expected format
-        documentCount: assignedDocuments.length,
-        questionsAnalyzed: COMPREHENSIVE_RESEARCH_QUESTIONS.length,
-        completionRate: Math.round((Object.values(researchAnswers).filter((a: any) => !a.error).length / COMPREHENSIVE_RESEARCH_QUESTIONS.length) * 100)
+        dealId,
+        agentType: 'research' as const,
+        status: 'completed' as const, // CRITICAL: Must match Clinical exactly
+        progress: 100,
+        findings: JSON.stringify(findings),
+        recommendations: JSON.stringify(recommendations),
+        research_answers: JSON.stringify(researchAnswers), // Store in research_answers column
+        documentSources: JSON.stringify(assignedDocuments.map(d => d.name)),
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
       
-      await storageService.saveAgentAnalysis(dealId, 'Research', analysisData);
-      console.log(`💾 Saved research analysis to database for deal ${dealId}`);
+      await db
+        .insert(agentAnalyses)
+        .values(analysisData);
+      
+      console.log(`📊 Created fresh comprehensive research analysis for deal ${dealId} with ${Object.keys(researchAnswers).length} questions answered`);
       
       // Final completion
       await storageService.updateBackgroundJob(jobId, {
