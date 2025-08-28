@@ -140,10 +140,10 @@ export class EmbeddingService {
   // Search for relevant chunks using semantic similarity
   static async searchSimilarChunks(
     query: string,
-    dealId: number,
+    dealId: number | null,
     topK = TOP_K_RESULTS
-  ): Promise<Array<{ chunk: string; metadata: ChunkMetadata; similarity: number }>> {
-    console.log(`🔍 Searching for relevant chunks for query: "${query.substring(0, 50)}..."`);
+  ): Promise<Array<{ chunk: string; metadata: ChunkMetadata; similarity: number; content?: string; documentName?: string }>> {
+    console.log(`🔍 Searching for relevant chunks for query: "${query.substring(0, 50)}..." (dealId: ${dealId || 'global'})`);
     
     // Generate query embedding
     const queryEmbedding = await this.generateEmbedding(query);
@@ -152,28 +152,48 @@ export class EmbeddingService {
     // Use PostgreSQL's native vector similarity search with pgvector
     // The <=> operator calculates L2 distance, 1 - distance gives similarity
     // For better results, use cosine similarity operator <#> if available
-    const results = await db.execute(sql`
-      SELECT 
-        chunk_text,
-        metadata,
-        document_name,
-        1 - (embedding <=> ${embeddingString}::vector) as similarity
-      FROM document_embeddings
-      WHERE deal_id = ${dealId}
-      ORDER BY embedding <=> ${embeddingString}::vector
-      LIMIT ${topK}
-    `);
+    let results;
+    
+    if (dealId === null) {
+      // Global search across all deals
+      results = await db.execute(sql`
+        SELECT 
+          chunk_text,
+          metadata,
+          deal_id,
+          1 - (embedding <=> ${embeddingString}::vector) as similarity
+        FROM document_embeddings
+        ORDER BY embedding <=> ${embeddingString}::vector
+        LIMIT ${topK}
+      `);
+    } else {
+      // Deal-specific search
+      results = await db.execute(sql`
+        SELECT 
+          chunk_text,
+          metadata,
+          deal_id,
+          1 - (embedding <=> ${embeddingString}::vector) as similarity
+        FROM document_embeddings
+        WHERE deal_id = ${dealId}
+        ORDER BY embedding <=> ${embeddingString}::vector
+        LIMIT ${topK}
+      `);
+    }
     
     const topResults = results.rows.map((row: any) => ({
       chunk: row.chunk_text,
+      content: row.chunk_text, // Add content field for compatibility
+      documentName: row.metadata?.documentName || 'Unknown Document',
       metadata: row.metadata as ChunkMetadata,
-      similarity: row.similarity
+      similarity: row.similarity,
+      dealId: row.deal_id
     }));
     
     console.log(`✅ Found ${topResults.length} relevant chunks`);
     if (topResults.length > 0) {
-      console.log(`📊 Top similarity scores: ${topResults.slice(0, 3).map(r => r.similarity.toFixed(3)).join(', ')}`);
-      console.log(`📄 Top documents: ${topResults.slice(0, 3).map(r => r.metadata?.documentName || 'Unknown').join(', ')}`);
+      console.log(`📊 Top similarity scores: ${topResults.slice(0, 3).map(r => r.similarity?.toFixed(3) || 'N/A').join(', ')}`);
+      console.log(`📄 Top documents: ${topResults.slice(0, 3).map(r => r.documentName).join(', ')}`);
     } else {
       console.log(`⚠️ No relevant chunks found for query`);
     }
