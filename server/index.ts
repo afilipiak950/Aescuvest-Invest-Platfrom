@@ -1093,9 +1093,12 @@ app.use((req, res, next) => {
       return next();
     }
 
-    // 🚀 CRITICAL: Skip anti-Vite middleware for ALL upload routes
-    if (req.originalUrl.includes('/upload') || req.originalUrl.includes('/data-room') || req.originalUrl.includes('zip')) {
-      console.log(`📦 UPLOAD ROUTE - Skipping anti-Vite middleware: ${req.originalUrl}`);
+    // 🚀 CRITICAL: Skip anti-Vite middleware for ALL upload routes and AI streaming endpoints
+    if (req.originalUrl.includes('/upload') || 
+        req.originalUrl.includes('/data-room') || 
+        req.originalUrl.includes('zip') ||
+        req.originalUrl.includes('/ai-assistant/')) {
+      console.log(`📦 SPECIAL ROUTE - Skipping anti-Vite middleware: ${req.originalUrl}`);
       return next();
     }
 
