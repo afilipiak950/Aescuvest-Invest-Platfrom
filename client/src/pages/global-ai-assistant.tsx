@@ -255,14 +255,14 @@ export default function GlobalAIAssistant() {
   };
 
   return (
-    <div className="w-full h-full px-1 sm:px-2 pt-0 pb-0 overflow-auto">
+    <div className="w-full h-screen flex flex-col px-1 sm:px-2 pt-0 pb-0 overflow-hidden">
       <PageHeader 
         title="Aescuvest AI Assistant" 
         description="Your intelligent investment analysis companion with access to portfolio data, market research, and global insights."
       />
       
       {/* Context Selection and Controls */}
-      <div className="mb-3 sm:mb-4 lg:mb-6 grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+      <div className="mb-3 sm:mb-4 lg:mb-6 grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
         <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
           <CardContent className="pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 lg:pb-6">
             <div className="flex items-end gap-2 sm:gap-3 lg:gap-4">
@@ -332,7 +332,7 @@ export default function GlobalAIAssistant() {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mb-3 sm:mb-4 lg:mb-6"
+          className="mb-3 sm:mb-4 lg:mb-6 flex-shrink-0"
         >
           <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800">
             <CardHeader className="pb-3">
@@ -390,12 +390,12 @@ export default function GlobalAIAssistant() {
       )}
 
       {/* Main Chat Interface */}
-      <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl flex-1 flex flex-col">
-        <CardContent className="flex-1 flex flex-col p-0 relative">
+      <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl flex-1 flex flex-col min-h-0">
+        <CardContent className="flex-1 flex flex-col p-0 relative min-h-0">
           {/* Chat Messages - Scrollable Area */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0">
             <ScrollArea className="h-full">
-              <div className="pl-[40px] pr-[40px] pt-[248px] pb-4">
+              <div className="pl-[40px] pr-[40px] pt-6 pb-4">
             <AnimatePresence>
               {messages.length === 0 ? (
                 <motion.div
@@ -528,7 +528,7 @@ export default function GlobalAIAssistant() {
           </div>
 
           {/* Input Form - Fixed at Bottom */}
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur flex-shrink-0">
             <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 p-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
