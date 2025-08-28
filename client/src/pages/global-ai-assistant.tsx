@@ -391,7 +391,7 @@ export default function GlobalAIAssistant() {
 
       {/* Main Chat Interface */}
       <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl flex-1 flex flex-col">
-        <CardContent className="p-1 sm:p-2 lg:p-3 flex-1 flex flex-col pl-[40px] pr-[40px] pt-[128px] pb-[8px]">
+        <CardContent className="flex-1 flex flex-col pl-[40px] pr-[40px] pt-[128px] pb-[8px]">
           {/* Chat Messages */}
           <ScrollArea className="flex-1 mb-1 sm:mb-2 lg:mb-3 pr-2 sm:pr-3 lg:pr-4">
             <AnimatePresence>
