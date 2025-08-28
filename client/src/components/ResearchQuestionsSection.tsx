@@ -159,7 +159,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
 
   // Fetch Research analysis data from working endpoint
   const { data: comprehensiveResults, error: comprehensiveError, isLoading: comprehensiveLoading } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
     retry: false
   });

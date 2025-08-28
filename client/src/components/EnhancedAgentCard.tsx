@@ -105,7 +105,7 @@ export default function EnhancedAgentCard({
 
   // Fetch comprehensive Research analysis data directly for Research agents
   const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     enabled: agentType.toLowerCase() === 'research',
     refetchInterval: 2000, // Refresh every 2 seconds
   });
@@ -2264,7 +2264,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
 
   // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
   });
 
@@ -2599,7 +2599,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
         queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/agents/research/results`]
+        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
@@ -2640,7 +2640,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
         
         try {
           // Check for new comprehensive research analysis results
-          const response = await fetch(`/api/deals/${dealId}/agents/research/results?_t=${Date.now()}`, {
+          const response = await fetch(`/api/deals/${dealId}/research-analysis/comprehensive/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
@@ -2655,7 +2655,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
               queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
             });
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/agents/research/results`]
+              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
             });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
@@ -2684,7 +2684,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
           
           // Force refresh anyway in case results are there
           queryClient.invalidateQueries({
-            queryKey: [`/api/deals/${dealId}/agents/research/results`]
+            queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
           });
           queryClient.invalidateQueries({
             queryKey: ['/api/analyses', dealId]
