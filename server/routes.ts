@@ -5985,6 +5985,24 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
+      // CRITICAL FIX: Delete existing Research analysis to allow fresh restart
+      console.log(`🗑️ Clearing any existing research analysis data for deal ${dealId} to enable fresh restart`);
+      try {
+        await storage.deleteAgentAnalysis(dealId, 'research');
+        console.log(`✅ Previous research analysis data cleared successfully`);
+      } catch (deleteError) {
+        console.log(`⚠️ No existing research analysis to clear (this is normal for first run)`);
+      }
+      
+      // ALSO clear any stuck background jobs that might prevent fresh start
+      try {
+        const jobId = `research-analysis-${dealId}`;
+        await storage.deleteBackgroundJob(jobId);
+        console.log(`✅ Previous research background job cleared successfully`);
+      } catch (jobDeleteError) {
+        console.log(`⚠️ No existing research background job to clear (this is normal)`);
+      }
+      
       // Import the ENHANCED comprehensive analysis service
       const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
