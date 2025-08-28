@@ -25,7 +25,7 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
   };
   
   return (
-    <section className="mb-8">
+    <section className="mb-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold mb-2 text-white">{title}</h1>
