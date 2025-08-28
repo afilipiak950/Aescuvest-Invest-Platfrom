@@ -255,17 +255,17 @@ export default function GlobalAIAssistant() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 lg:py-6 max-w-7xl">
       <PageHeader 
         title="Aescuvest AI Assistant" 
         description="Your intelligent investment analysis companion with access to portfolio data, market research, and global insights."
       />
       
       {/* Context Selection and Controls */}
-      <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="mb-3 sm:mb-4 lg:mb-6 grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
         <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-6">
-            <div className="flex items-end gap-4">
+          <CardContent className="pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 lg:pb-6">
+            <div className="flex items-end gap-2 sm:gap-3 lg:gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                   AI Context & Scope
@@ -313,7 +313,7 @@ export default function GlobalAIAssistant() {
 
         {/* Stats Overview */}
         <Card className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
-          <CardContent className="pt-6">
+          <CardContent className="pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 lg:pb-6">
             <div className="text-center">
               <Brain className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-green-900 dark:text-green-100">
@@ -332,7 +332,7 @@ export default function GlobalAIAssistant() {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mb-6"
+          className="mb-3 sm:mb-4 lg:mb-6"
         >
           <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800">
             <CardHeader className="pb-3">
@@ -351,8 +351,8 @@ export default function GlobalAIAssistant() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <Zap className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Average Response</div>
                   <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
@@ -360,7 +360,7 @@ export default function GlobalAIAssistant() {
                   </div>
                 </div>
                 
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <BarChart3 className="h-6 w-6 text-green-500 mx-auto mb-2" />
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Success Rate</div>
                   <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
@@ -368,7 +368,7 @@ export default function GlobalAIAssistant() {
                   </div>
                 </div>
                 
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <Target className="h-6 w-6 text-blue-500 mx-auto mb-2" />
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Queries</div>
                   <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
@@ -376,7 +376,7 @@ export default function GlobalAIAssistant() {
                   </div>
                 </div>
                 
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <Database className="h-6 w-6 text-purple-500 mx-auto mb-2" />
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Cache Hit Rate</div>
                   <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
@@ -391,9 +391,9 @@ export default function GlobalAIAssistant() {
 
       {/* Main Chat Interface */}
       <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl">
-        <CardContent className="p-6">
+        <CardContent className="p-3 sm:p-4 lg:p-6">
           {/* Chat Messages */}
-          <ScrollArea className="h-[600px] mb-6 pr-4">
+          <ScrollArea className="h-[400px] sm:h-[500px] lg:h-[600px] mb-3 sm:mb-4 lg:mb-6 pr-2 sm:pr-3 lg:pr-4">
             <AnimatePresence>
               {messages.length === 0 ? (
                 <motion.div
@@ -413,14 +413,14 @@ export default function GlobalAIAssistant() {
                   </p>
                   
                   {/* Example Queries Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-w-4xl mx-auto">
                     {exampleQueries.slice(0, 6).map((query, idx) => (
                       <Button
                         key={idx}
                         variant="outline"
                         size="sm"
                         onClick={() => handleExampleQuery(query)}
-                        className="text-sm p-3 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+                        className="text-sm p-2 sm:p-3 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
                       >
                         <Sparkles className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
                         <span className="truncate">{query}</span>
@@ -429,14 +429,14 @@ export default function GlobalAIAssistant() {
                   </div>
                 </motion.div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-3 sm:space-y-4 lg:space-y-6">
                   {messages.map((message) => (
                     <motion.div
                       key={message.id}
                       initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
-                        "flex gap-4",
+                        "flex gap-2 sm:gap-3 lg:gap-4",
                         message.role === 'user' ? 'justify-end' : 'justify-start'
                       )}
                     >
@@ -447,7 +447,7 @@ export default function GlobalAIAssistant() {
                       )}
                       <div
                         className={cn(
-                          "max-w-[85%] rounded-lg p-4 shadow-sm",
+                          "max-w-[90%] sm:max-w-[85%] rounded-lg p-3 sm:p-4 shadow-sm",
                           message.role === 'user'
                             ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
                             : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
@@ -524,14 +524,14 @@ export default function GlobalAIAssistant() {
           </ScrollArea>
 
           {/* Input Form */}
-          <form onSubmit={handleSubmit} className="flex gap-3">
+          <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about investments, market trends, regulatory updates, or any general business questions..."
-                className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500 h-12"
+                className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500 h-10 sm:h-11 lg:h-12 text-sm sm:text-base"
                 disabled={isStreaming}
               />
             </div>
@@ -542,7 +542,7 @@ export default function GlobalAIAssistant() {
                 type="button"
                 onClick={stopProcessing}
                 variant="destructive"
-                className="bg-red-500 hover:bg-red-600 text-white shadow-lg h-12 px-4"
+                className="bg-red-500 hover:bg-red-600 text-white shadow-lg h-10 sm:h-11 lg:h-12 px-3 sm:px-4"
                 title="Stop AI processing"
               >
                 <Square className="h-4 w-4" />
@@ -551,7 +551,7 @@ export default function GlobalAIAssistant() {
               <Button
                 type="submit"
                 disabled={!input.trim()}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg h-12 px-6"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg h-10 sm:h-11 lg:h-12 px-4 sm:px-5 lg:px-6"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -559,7 +559,7 @@ export default function GlobalAIAssistant() {
           </form>
 
           {/* Quick Action Buttons */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
             <p className="text-xs text-muted-foreground w-full mb-2">Quick actions:</p>
             {[
               "Latest HealthTech trends",
