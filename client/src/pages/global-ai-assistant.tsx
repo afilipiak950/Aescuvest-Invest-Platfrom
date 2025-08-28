@@ -565,7 +565,15 @@ export default function GlobalAIAssistant() {
               "Latest HealthTech trends",
               "Market analysis",
               "Regulatory updates",
-              "Portfolio performance"
+              "Portfolio performance",
+              "Startup valuations",
+              "Exit strategies",
+              "Due diligence checklist",
+              "Industry benchmarks",
+              "Investment thesis",
+              "Risk assessment",
+              "ESG compliance",
+              "Funding rounds"
             ].map((query, idx) => (
               <Button
                 key={idx}
