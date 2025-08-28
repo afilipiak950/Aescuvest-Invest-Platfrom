@@ -182,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   console.log('🚀 Registering Global AI Assistant endpoints at TOP...');
   
-  // Global AI Assistant Chat Endpoint - SIMPLIFIED VERSION FOR DEBUGGING
+  // Global AI Assistant Chat Endpoint - FULLY CONTEXT-AWARE IMPLEMENTATION
   app.post('/api/ai-assistant/global', async (req: Request, res: Response) => {
     console.log(`🤖 Global AI Assistant endpoint hit`);
     
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`🤖 Global AI Assistant request: "${message.slice(0, 100)}..." (context: ${context})`);
       
-      // Set up streaming response with proper headers to avoid HTML injection
+      // Set up streaming response with proper headers
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
@@ -204,9 +204,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       res.status(200);
 
-      // Send a simple test response first
-      console.log('🤖 Sending test response...');
-      res.write(`data: ${JSON.stringify({ content: 'Hello! This is a test response from the AI assistant.' })}\n\n`);
+      // Import services dynamically
+      const { GlobalAIAssistantService } = await import('./services/globalAIAssistantService');
+      
+      // Create AI assistant service instance
+      const aiAssistant = new GlobalAIAssistantService();
+      
+      // Process request based on context
+      const response = await aiAssistant.processRequest({
+        message: message.trim(),
+        context,
+        conversationHistory,
+        streamResponse: (chunk: string) => {
+          // Stream response chunk by chunk
+          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        }
+      });
+
+      // Send completion signal
       res.write('data: [DONE]\n\n');
       res.end();
       
@@ -224,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } else {
         // If streaming already started, send error via stream
-        res.write(`data: ${JSON.stringify({ content: 'I encountered an unexpected error. Please try again.' })}\n\n`);
+        res.write(`data: ${JSON.stringify({ content: 'I apologize, but I encountered an error while processing your request. Please try again.' })}\n\n`);
         res.write('data: [DONE]\n\n');
         res.end();
       }
