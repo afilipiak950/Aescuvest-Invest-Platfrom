@@ -238,11 +238,11 @@ Focus on financial and investment analysis. When answering:
 
   private async getRelevantDocuments(query: string): Promise<any[]> {
     try {
-      const documents = await db.select()
+      const documentResults = await db.select()
         .from(documents)
         .orderBy(desc(documents.uploadedAt))
         .limit(20);
-      return documents;
+      return documentResults;
     } catch (error) {
       console.error('❌ Error fetching documents:', error);
       return [];
@@ -264,7 +264,7 @@ Focus on financial and investment analysis. When answering:
 
   private async searchEmbeddings(query: string): Promise<any[]> {
     try {
-      const results = await EmbeddingService.searchSimilarChunks(query, 10);
+      const results = await EmbeddingService.searchSimilarChunks(query, null, 10);
       return results;
     } catch (error) {
       console.error('❌ Error searching embeddings:', error);
@@ -290,7 +290,7 @@ Focus on financial and investment analysis. When answering:
       // Get documents that contain market research keywords
       const marketDocs = await db.select()
         .from(documents)
-        .where(sql`LOWER(${documents.filename}) LIKE '%market%' OR LOWER(${documents.filename}) LIKE '%research%' OR LOWER(${documents.filename}) LIKE '%industry%'`)
+        .where(sql`LOWER(${documents.name}) LIKE '%market%' OR LOWER(${documents.name}) LIKE '%research%' OR LOWER(${documents.name}) LIKE '%industry%'`)
         .limit(15);
       return marketDocs;
     } catch (error) {
@@ -370,7 +370,7 @@ Focus on financial and investment analysis. When answering:
     try {
       // Search embeddings with financial keywords
       const financialQuery = `financial analysis ${query} revenue metrics valuation`;
-      const results = await EmbeddingService.searchSimilarChunks(financialQuery, 8);
+      const results = await EmbeddingService.searchSimilarChunks(financialQuery, null, 8);
       return results;
     } catch (error) {
       console.error('❌ Error searching financial embeddings:', error);

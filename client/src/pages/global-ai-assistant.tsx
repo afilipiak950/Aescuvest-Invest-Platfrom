@@ -1,82 +1,104 @@
-import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import PageHeader from '@/components/layout/page-header';
+import React, { useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import PageHeader from '@/components/layout/page-header';
 import { 
   Bot, 
-  MessageSquare, 
   Send, 
-  Loader2, 
-  Search, 
-  Globe, 
-  TrendingUp, 
-  Building2,
-  FileText,
-  BarChart3,
+  Sparkles, 
+  FileText, 
+  BrainCircuit, 
+  Search,
+  Loader2,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
   Database,
-  Zap,
-  Sparkles,
-  Brain,
+  CheckCircle2,
+  TrendingUp,
+  AlertTriangle,
   Square,
-  History,
-  Lightbulb,
-  Star,
-  Gauge,
-  Users,
+  Zap,
+  Clock,
   Target,
+  Lightbulb,
+  Gauge,
+  Brain,
+  BarChart3,
+  Users,
+  Shield,
+  DollarSign,
+  Eye,
+  History,
+  Star,
+  Globe,
+  Building2,
   Award,
   Briefcase
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  contextStats?: {
+    documentsLoaded: number;
+    agentAnalyses: number;
+    hasCompanyInfo: boolean;
+    totalContextSize: number;
+    portfolioDeals: number;
+  };
+  responseTime?: number;
+  confidence?: 'High' | 'Medium' | 'Low';
+  queryType?: 'simple' | 'complex' | 'analytical' | 'cross-document';
+}
+
+interface SmartSuggestion {
+  id: string;
+  text: string;
+  category: 'financial' | 'legal' | 'clinical' | 'commercial' | 'market' | 'regulatory' | 'general';
+  icon: any;
+  priority: number;
 }
 
 interface PerformanceMetrics {
   averageResponseTime: number;
-  cacheHitRate: number;
   totalQueries: number;
+  cacheHitRate: number;
+  portfolioEmbeddingCoverage: number;
+  conversationLength: number;
   successRate: number;
 }
 
 export default function GlobalAIAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [isExpanded, setIsExpanded] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [selectedContext, setSelectedContext] = useState<string>('all');
+  const [isContextLoaded, setIsContextLoaded] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const [showMetrics, setShowMetrics] = useState(false);
+  const [selectedContext, setSelectedContext] = useState<string>('all');
+  const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>([]);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Enhanced example queries for global assistant
-  const exampleQueries = [
-    "What are the latest trends in HealthTech venture capital?",
-    "Compare the investment landscape between European and US startups",
-    "Analyze the regulatory environment for medical devices in 2025",
-    "What are the key success factors for Series A fundraising?",
-    "Give me insights on AI companies in our portfolio",
-    "What's the average burn rate for SaaS companies?",
-    "Search for recent FDA approvals in digital health",
-    "Explain the current market conditions for biotech IPOs",
-    "What are the top 5 risks in early-stage investing?",
-    "Benchmark our portfolio performance against industry standards"
-  ];
 
   // Context options for the assistant
   const contextOptions = [
@@ -87,163 +109,443 @@ export default function GlobalAIAssistant() {
     { value: 'financial', label: '💰 Financial Analysis', description: 'Financial metrics, valuations, and projections' }
   ];
 
+  // Fetch global context stats
+  const { data: contextStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['/api/ai-assistant/global/stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/ai-assistant/global/stats');
+      if (!response.ok) throw new Error('Failed to fetch global AI context stats');
+      return response.json();
+    }
+  });
+
+  // Fetch smart suggestions based on context
+  const { data: suggestions } = useQuery({
+    queryKey: ['/api/ai-assistant/global/suggestions', selectedContext],
+    queryFn: async () => {
+      const response = await fetch(`/api/ai-assistant/global/suggestions?context=${selectedContext}`);
+      if (!response.ok) return generateDefaultSuggestions();
+      return response.json();
+    },
+    enabled: isContextLoaded
+  });
+
   // Fetch performance metrics
-  const { data: metricsData } = useQuery({
+  const { data: metrics } = useQuery({
     queryKey: ['/api/ai-assistant/metrics'],
     queryFn: async () => {
       const response = await fetch('/api/ai-assistant/metrics');
+      if (!response.ok) throw new Error('Failed to fetch performance metrics');
       return response.json();
     },
-    staleTime: 1000 * 30, // 30 seconds
-    refetchInterval: 1000 * 30,
+    enabled: showMetrics,
+    refetchInterval: 5000 // Update every 5 seconds when visible
   });
 
+  // Generate default smart suggestions based on context
+  const generateDefaultSuggestions = (): SmartSuggestion[] => {
+    const baseContext = selectedContext || 'all';
+    
+    const contextSuggestions = {
+      all: [
+        {
+          id: '1',
+          text: "What are the latest trends in HealthTech venture capital?",
+          category: 'market' as const,
+          icon: TrendingUp,
+          priority: 1
+        },
+        {
+          id: '2', 
+          text: "Analyze the regulatory environment for medical devices in 2025",
+          category: 'regulatory' as const,
+          icon: Shield,
+          priority: 2
+        },
+        {
+          id: '3',
+          text: "Compare our portfolio performance against industry benchmarks",
+          category: 'financial' as const,
+          icon: BarChart3,
+          priority: 3
+        },
+        {
+          id: '4',
+          text: "What are the key success factors for Series A fundraising?",
+          category: 'general' as const,
+          icon: Target,
+          priority: 4
+        },
+        {
+          id: '5',
+          text: "Identify emerging opportunities in AI and digital health",
+          category: 'market' as const,
+          icon: Brain,
+          priority: 5
+        }
+      ],
+      portfolio: [
+        {
+          id: '1',
+          text: "Which portfolio companies show the strongest growth metrics?",
+          category: 'financial' as const,
+          icon: TrendingUp,
+          priority: 1
+        },
+        {
+          id: '2',
+          text: "Analyze risk factors across our current portfolio",
+          category: 'general' as const,
+          icon: Shield,
+          priority: 2
+        },
+        {
+          id: '3',
+          text: "Compare management team capabilities across deals",
+          category: 'general' as const,
+          icon: Users,
+          priority: 3
+        }
+      ],
+      market: [
+        {
+          id: '1',
+          text: "What are the current market conditions for healthcare IPOs?",
+          category: 'market' as const,
+          icon: TrendingUp,
+          priority: 1
+        },
+        {
+          id: '2',
+          text: "Analyze competitive landscape in digital therapeutics",
+          category: 'market' as const,
+          icon: Building2,
+          priority: 2
+        }
+      ],
+      regulatory: [
+        {
+          id: '1',
+          text: "What are the latest FDA regulatory changes affecting our sectors?",
+          category: 'regulatory' as const,
+          icon: Shield,
+          priority: 1
+        },
+        {
+          id: '2',
+          text: "Analyze EU MDR compliance requirements for medical devices",
+          category: 'regulatory' as const,
+          icon: Shield,
+          priority: 2
+        }
+      ],
+      financial: [
+        {
+          id: '1',
+          text: "What are current valuation multiples for SaaS companies?",
+          category: 'financial' as const,
+          icon: DollarSign,
+          priority: 1
+        },
+        {
+          id: '2',
+          text: "Analyze burn rate benchmarks for early-stage companies",
+          category: 'financial' as const,
+          icon: BarChart3,
+          priority: 2
+        }
+      ]
+    };
+
+    return contextSuggestions[baseContext as keyof typeof contextSuggestions] || contextSuggestions.all;
+  };
+  
+  // Update smart suggestions when data changes
   useEffect(() => {
-    if (metricsData?.metrics) {
-      setPerformanceMetrics(metricsData.metrics);
+    if (suggestions) {
+      setSmartSuggestions(suggestions);
+    } else {
+      setSmartSuggestions(generateDefaultSuggestions());
     }
-  }, [metricsData]);
+  }, [suggestions, selectedContext]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Update performance metrics
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (metrics?.metrics) {
+      setPerformanceMetrics(metrics.metrics);
+    }
+  }, [metrics]);
 
-  // Send message mutation
-  const sendMessageMutation = useMutation({
+  // Pre-load context when component mounts for instant responses
+  useEffect(() => {
+    if (!isContextLoaded) {
+      // Immediately mark as loading started
+      setIsPreloading(true);
+      
+      // Set a hard timeout to guarantee we exit loading state
+      const timeout = setTimeout(() => {
+        console.log('⚡ Global AI Assistant ready (timeout fallback)');
+        setIsPreloading(false);
+        setIsContextLoaded(true);
+      }, 2000); // 2 seconds for better UX
+      
+      // Pre-load context in the background
+      fetch('/api/ai-assistant/global/preload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: selectedContext })
+      })
+      .then(res => {
+        // Check if response is HTML (Vite blocking)
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          console.warn('Vite blocked preload endpoint, continuing anyway');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.success) {
+          console.log('🚀 Global AI Assistant context pre-loaded:', data.contextStats);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to pre-load global context:', err);
+      })
+      .finally(() => {
+        // Always clear loading state
+        clearTimeout(timeout);
+        setIsPreloading(false);
+        setIsContextLoaded(true);
+      });
+      
+      // Cleanup function
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
+  }, [selectedContext]); // Reload when context changes
+
+  // Handle smart suggestion click
+  const handleSuggestionClick = (suggestion: SmartSuggestion) => {
+    setInput(suggestion.text);
+    setShowSuggestions(false);
+    // Auto-submit the suggestion
+    setTimeout(() => {
+      handleSendMessage(suggestion.text);
+    }, 100);
+  };
+
+  // Handle sending messages with enhanced tracking
+  const handleSendMessage = async (messageText?: string) => {
+    const queryText = messageText || input;
+    if (!queryText.trim() || isStreaming) return;
+
+    console.log('🚀 handleSendMessage called with:', queryText);
+    setInput('');
+    setShowSuggestions(false);
+    
+    // Send query - the mutation will handle adding messages
+    sendQueryMutation.mutate({ message: queryText, context: selectedContext });
+  };
+
+  const sendQueryMutation = useMutation({
     mutationFn: async ({ message, context }: { message: string; context: string }) => {
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
+      
+      // Add user message immediately  
+      const userId = `user-${Date.now()}`;
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: userId,
         role: 'user',
         content: message,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
+      setMessages(prev => [...prev, userMessage]);
+      setIsStreaming(true);
+      console.log('🔄 Starting stream for message:', userId);
 
+      // Create assistant message placeholder
+      const assistantId = `assistant-${Date.now()}`;
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: assistantId,
         role: 'assistant',
         content: '',
         timestamp: new Date(),
+        contextStats: contextStats?.stats
       };
-
-      setMessages(prev => [...prev, userMessage, assistantMessage]);
-      setIsStreaming(true);
+      setMessages(prev => [...prev, assistantMessage]);
 
       try {
+        // Stream the response with abort signal
+        console.log(`🚀 FETCH STARTING - Global AI query to backend: "${message}" with context: ${context}`);
+        
         const response = await fetch('/api/ai-assistant/global', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: message.trim(),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            message,
             context,
             conversationHistory: messages.slice(-10).map(m => ({
               role: m.role,
               content: m.content
             }))
           }),
+          signal: abortControllerRef.current.signal
+        }).catch(err => {
+          console.error('🔥 FETCH FAILED:', err);
+          throw err;
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        
+        console.log('📡 Response received:', response.status, response.statusText);
+        
+        if (!response.ok) throw new Error(`Failed to send query: ${response.status} ${response.statusText}`);
 
         const reader = response.body?.getReader();
-        if (!reader) throw new Error('No response body');
+        const decoder = new TextDecoder();
 
-        let fullResponse = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        if (reader) {
+          let fullContent = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') return;
-              
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  fullResponse += parsed.content;
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessage.id 
-                      ? { ...msg, content: fullResponse }
-                      : msg
-                  ));
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+                
+                if (data) {
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.content) {
+                      fullContent += parsed.content;
+                      setMessages(prev => prev.map(msg => 
+                        msg.id === assistantId 
+                          ? { ...msg, content: fullContent }
+                          : msg
+                      ));
+                    }
+                  } catch (e) {
+                    console.error('Failed to parse SSE data:', e);
+                  }
                 }
-              } catch (e) {
-                console.warn('Failed to parse chunk:', data);
               }
             }
           }
         }
-
-        return fullResponse;
-      } finally {
+        
         setIsStreaming(false);
+        abortControllerRef.current = null;
+      } catch (error: any) {
+        console.error('🛑 Global AI Assistant request failed:', error);
+        
+        // Handle abort vs other errors
+        if (error.name === 'AbortError') {
+          console.log('✅ Request cancelled by user');
+        } else {
+          console.error('❌ Critical Global AI Assistant error:', error);
+          // Show error to user
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantId 
+              ? { ...msg, content: `Error: ${error.message}. Please try again.` }
+              : msg
+          ));
+        }
+        
+        // Clean up state in all cases
+        setIsStreaming(false);
+        abortControllerRef.current = null;
+        
+        // Don't remove messages on error - show the error instead
+        if (error.name === 'AbortError') {
+          // Remove incomplete assistant messages on abort
+          setMessages(prev => {
+            const filteredMessages = prev.filter(msg => {
+              return msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim());
+            });
+            return filteredMessages;
+          });
+        }
+        
+        throw error; // Re-throw so mutation can handle it
       }
-    },
-    onError: (error: any) => {
-      console.error('❌ Global AI Assistant error:', error);
-      setIsStreaming(false);
-      
-      // Update the last assistant message with error
-      setMessages(prev => 
-        prev.map((msg, index) => 
-          index === prev.length - 1 && msg.role === 'assistant'
-            ? { ...msg, content: `I apologize, but I encountered an error: ${error.message || 'Unknown error'}. Please try again.` }
-            : msg
-        )
-      );
-      
-      toast({
-        title: "Assistant Error",
-        description: error.message || "Failed to get response from AI assistant",
-        variant: "destructive",
-      });
     }
   });
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming) return;
-
-    const message = input.trim();
-    setInput('');
-    
-    sendMessageMutation.mutate({
-      message,
-      context: selectedContext
-    });
+    if (input.trim() && !isStreaming) {
+      // Force clear any stuck state
+      setIsPreloading(false);
+      setIsContextLoaded(true);
+      setIsStreaming(false);
+      
+      const query = input;
+      setInput('');
+      setIsExpanded(true);
+      sendQueryMutation.mutate({ message: query, context: selectedContext });
+    }
   };
+
+  // Example queries - enhanced for analyst-quality responses
+  const exampleQueries = [
+    "Provide comprehensive market analysis for healthcare technology trends in 2025",
+    "Analyze regulatory pathways and key milestones across our portfolio sectors",
+    "Compare investment returns and performance metrics across portfolio companies",
+    "Identify emerging opportunities in AI and digital health markets", 
+    "Assess critical risks and compliance requirements in our investment sectors",
+    "Benchmark our portfolio against industry standards and competitors",
+    "Quantify addressable market opportunities in key healthcare segments",
+    "Evaluate management team capabilities across portfolio companies"
+  ];
 
   const handleExampleQuery = (query: string) => {
-    if (isStreaming) return;
-    setInput(query);
-    setTimeout(() => {
-      sendMessageMutation.mutate({
-        message: query,
-        context: selectedContext
-      });
-      setInput('');
-    }, 100);
+    console.log('🎯 Example query clicked:', query);
+    
+    // Force clear any stuck state
+    setIsStreaming(false);
+    setIsPreloading(false);
+    setIsContextLoaded(true);
+    setIsExpanded(true);
+    
+    // Directly submit without setting input first
+    console.log('🚀 Direct submission of example query');
+    sendQueryMutation.mutate({ message: query, context: selectedContext });
   };
 
+  // Stop function to cancel ongoing AI processing
   const stopProcessing = () => {
+    console.log('🛑 Stopping Global AI Assistant processing...');
+    
+    // Abort the ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Reset streaming state immediately
     setIsStreaming(false);
-    // Update last message to indicate it was stopped
-    setMessages(prev => 
-      prev.map((msg, index) => 
-        index === prev.length - 1 && msg.role === 'assistant' && !msg.content
-          ? { ...msg, content: '*Response stopped by user*' }
-          : msg
-      )
-    );
+    
+    // Remove any incomplete assistant messages (messages without content)
+    setMessages(prev => {
+      const filteredMessages = prev.filter(msg => {
+        // Keep user messages and complete assistant messages
+        return msg.role === 'user' || (msg.role === 'assistant' && msg.content.trim());
+      });
+      return filteredMessages;
+    });
+    
+    console.log('✅ Global AI Assistant processing stopped');
   };
 
   const clearConversation = () => {
@@ -390,182 +692,280 @@ export default function GlobalAIAssistant() {
       )}
 
       {/* Main Chat Interface */}
-      <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl flex-1 flex flex-col min-h-0">
-        <CardContent className="flex-1 flex flex-col p-0 relative min-h-0">
-          {/* Chat Messages - Scrollable Area */}
-          <div className="flex-1 min-h-0">
-            <ScrollArea className="h-full">
-              <div className="pl-[40px] pr-[40px] pt-6 pb-4">
-            <AnimatePresence>
-              {messages.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-20"
-                >
-                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-full shadow-lg mx-auto mb-6 w-fit">
-                    <Bot className="h-12 w-12 text-white" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex-1 flex flex-col min-h-0"
+      >
+        <Card className="relative overflow-hidden border-2 border-blue-200 dark:border-blue-900 bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900/20 flex-1 flex flex-col min-h-0">
+          {/* Animated background effect */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-x" />
+          </div>
+          
+          <CardHeader className="relative z-10 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-blue-500 blur-lg opacity-50 animate-pulse" />
+                  <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl shadow-lg">
+                    <BrainCircuit className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Global Investment Intelligence Ready
-                  </h3>
-                  <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-                    Your AI assistant with comprehensive access to portfolio data, market research, web search, 
-                    and global investment intelligence. Ask anything from specific deal analysis to general market trends.
+                </div>
+                <div>
+                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Global AI Assistant
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {isPreloading ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Loading global context...
+                      </span>
+                    ) : isContextLoaded ? (
+                      <span className="text-green-600 flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        Ready - Global investment intelligence
+                      </span>
+                    ) : (
+                      'Elite global investment analysis with comprehensive portfolio and market access'
+                    )}
                   </p>
-                  
-                  {/* Example Queries Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-w-4xl mx-auto">
-                    {exampleQueries.slice(0, 6).map((query, idx) => (
-                      <Button
-                        key={idx}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExampleQuery(query)}
-                        className="text-sm p-2 sm:p-3 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
-                      >
-                        <Sparkles className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
-                        <span className="truncate">{query}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : (
-                <div className="space-y-3 sm:space-y-4 lg:space-y-6">
-                  {messages.map((message) => (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className={cn(
-                        "flex gap-2 sm:gap-3 lg:gap-4",
-                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      {message.role === 'assistant' && (
-                        <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-lg shadow-md flex-shrink-0">
-                          <Bot className="h-5 w-5 text-white" />
-                        </div>
-                      )}
-                      <div
-                        className={cn(
-                          "max-w-[90%] sm:max-w-[85%] rounded-lg p-3 sm:p-4 shadow-sm",
-                          message.role === 'user'
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-                        )}
-                      >
-                        {message.content ? (
-                          message.role === 'assistant' ? (
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                              <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  h1: ({ children }) => <h1 className="text-lg font-bold text-blue-900 dark:text-blue-100 mb-3">{children}</h1>,
-                                  h2: ({ children }) => <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 border-b border-gray-200 dark:border-gray-600 pb-1">{children}</h2>,
-                                  h3: ({ children }) => <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{children}</h3>,
-                                  p: ({ children }) => <p className="text-sm leading-relaxed mb-3 text-gray-700 dark:text-gray-300">{children}</p>,
-                                  ul: ({ children }) => <ul className="text-sm list-disc pl-5 mb-3 space-y-1">{children}</ul>,
-                                  ol: ({ children }) => <ol className="text-sm list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
-                                  li: ({ children }) => <li className="text-gray-700 dark:text-gray-300">{children}</li>,
-                                  strong: ({ children }) => <strong className="font-semibold text-blue-900 dark:text-blue-200">{children}</strong>,
-                                  em: ({ children }) => <em className="italic text-gray-600 dark:text-gray-400">{children}</em>,
-                                  blockquote: ({ children }) => (
-                                    <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-r mb-3">
-                                      {children}
-                                    </blockquote>
-                                  ),
-                                  code: ({ children }) => (
-                                    <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono">
-                                      {children}
-                                    </code>
-                                  ),
-                                  table: ({ children }) => (
-                                    <div className="overflow-x-auto mb-4">
-                                      <table className="min-w-full border border-gray-200 dark:border-gray-700">
-                                        {children}
-                                      </table>
-                                    </div>
-                                  ),
-                                  th: ({ children }) => (
-                                    <th className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left text-xs font-semibold text-gray-900 dark:text-gray-100">
-                                      {children}
-                                    </th>
-                                  ),
-                                  td: ({ children }) => (
-                                    <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
-                                      {children}
-                                    </td>
-                                  )
-                                }}
-                              >
-                                {message.content}
-                              </ReactMarkdown>
-                            </div>
+                </div>
+              </div>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="hover:bg-blue-100 dark:hover:bg-blue-900/50"
+              >
+                {isExpanded ? <ChevronUp /> : <ChevronDown />}
+              </Button>
+            </div>
+
+            {/* Context Stats */}
+            {contextStats?.stats && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-wrap gap-2 mt-4"
+              >
+                <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/50">
+                  <FileText className="h-3 w-3 mr-1" />
+                  {contextStats.stats.documentsLoaded || 0} Documents
+                </Badge>
+                <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900/50">
+                  <Bot className="h-3 w-3 mr-1" />
+                  {contextStats.stats.agentAnalyses || 0} Agent Analyses
+                </Badge>
+                <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/50">
+                  <Building2 className="h-3 w-3 mr-1" />
+                  {contextStats.stats.portfolioDeals || 0} Portfolio Deals
+                </Badge>
+                <Badge variant="secondary" className="bg-orange-100 dark:bg-orange-900/50">
+                  <Database className="h-3 w-3 mr-1" />
+                  {((contextStats.stats.totalContextSize || 0) / 1024 / 1024).toFixed(1)}MB Context
+                </Badge>
+                {contextStats.stats.hasCompanyInfo && (
+                  <Badge variant="secondary" className="bg-pink-100 dark:bg-pink-900/50">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Global Intel Loaded
+                  </Badge>
+                )}
+              </motion.div>
+            )}
+          </CardHeader>
+
+          <CardContent className="relative z-10 flex-1 flex flex-col p-0 min-h-0">
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: '100%', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1 flex flex-col min-h-0"
+                >
+                  {/* Messages Area */}
+                  <div className="flex-1 min-h-0">
+                    <ScrollArea className="h-full">
+                      <div className="pl-[40px] pr-[40px] pt-6 pb-4">
+                        <AnimatePresence>
+                          {messages.length === 0 ? (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="text-center py-20"
+                            >
+                              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-full shadow-lg mx-auto mb-6 w-fit">
+                                <Bot className="h-12 w-12 text-white" />
+                              </div>
+                              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                Global Investment Intelligence Ready
+                              </h3>
+                              <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+                                Your AI assistant with comprehensive access to portfolio data, market research, web search, 
+                                and global investment intelligence. Ask anything from specific deal analysis to general market trends.
+                              </p>
+                              
+                              {/* Smart Suggestions */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-w-4xl mx-auto">
+                                {smartSuggestions.slice(0, 6).map((suggestion) => (
+                                  <Button
+                                    key={suggestion.id}
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSuggestionClick(suggestion)}
+                                    className="text-sm p-2 sm:p-3 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+                                  >
+                                    <suggestion.icon className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
+                                    <span className="truncate">{suggestion.text}</span>
+                                  </Button>
+                                ))}
+                              </div>
+                            </motion.div>
                           ) : (
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          )
+                            <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                              {messages.map((message) => (
+                                <motion.div
+                                  key={message.id}
+                                  initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  className={cn(
+                                    "flex gap-2 sm:gap-3 lg:gap-4",
+                                    message.role === 'user' ? 'justify-end' : 'justify-start'
+                                  )}
+                                >
+                                  {message.role === 'assistant' && (
+                                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-lg shadow-md flex-shrink-0">
+                                      <Bot className="h-5 w-5 text-white" />
+                                    </div>
+                                  )}
+                                  <div
+                                    className={cn(
+                                      "max-w-[90%] sm:max-w-[85%] rounded-lg p-3 sm:p-4 shadow-sm",
+                                      message.role === 'user'
+                                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                                        : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                                    )}
+                                  >
+                                    {message.content ? (
+                                      message.role === 'assistant' ? (
+                                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                                          <ReactMarkdown 
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                              h1: ({ children }) => <h1 className="text-lg font-bold text-blue-900 dark:text-blue-100 mb-3">{children}</h1>,
+                                              h2: ({ children }) => <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2 border-b border-gray-200 dark:border-gray-600 pb-1">{children}</h2>,
+                                              h3: ({ children }) => <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{children}</h3>,
+                                              p: ({ children }) => <p className="text-sm leading-relaxed mb-3 text-gray-700 dark:text-gray-300">{children}</p>,
+                                              ul: ({ children }) => <ul className="text-sm list-disc pl-5 mb-3 space-y-1">{children}</ul>,
+                                              ol: ({ children }) => <ol className="text-sm list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
+                                              li: ({ children }) => <li className="text-gray-700 dark:text-gray-300">{children}</li>,
+                                              strong: ({ children }) => <strong className="font-semibold text-blue-900 dark:text-blue-200">{children}</strong>,
+                                              em: ({ children }) => <em className="italic text-gray-600 dark:text-gray-400">{children}</em>,
+                                              blockquote: ({ children }) => (
+                                                <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-r mb-3">
+                                                  {children}
+                                                </blockquote>
+                                              ),
+                                              code: ({ children }) => (
+                                                <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono">
+                                                  {children}
+                                                </code>
+                                              ),
+                                              table: ({ children }) => (
+                                                <div className="overflow-x-auto mb-4">
+                                                  <table className="min-w-full border border-gray-200 dark:border-gray-700">
+                                                    {children}
+                                                  </table>
+                                                </div>
+                                              ),
+                                              th: ({ children }) => (
+                                                <th className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                                  {children}
+                                                </th>
+                                              ),
+                                              td: ({ children }) => (
+                                                <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
+                                                  {children}
+                                                </td>
+                                              )
+                                            }}
+                                          >
+                                            {message.content}
+                                          </ReactMarkdown>
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                      )
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span className="text-xs text-muted-foreground">Thinking...</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {message.role === 'user' && (
+                                    <div className="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg flex-shrink-0">
+                                      <MessageSquare className="h-5 w-5" />
+                                    </div>
+                                  )}
+                                </motion.div>
+                              ))}
+                              <div ref={messagesEndRef} />
+                            </div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </ScrollArea>
+                  </div>
+
+                  {/* Input Form - Fixed at Bottom */}
+                  <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur flex-shrink-0">
+                    <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 p-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          placeholder={`Ask me anything about ${contextOptions.find(c => c.value === selectedContext)?.label.replace(/🌐|📊|📈|⚖️|💰/g, '').trim() || 'investments'}...`}
+                          className="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400"
+                          disabled={isStreaming}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        {isStreaming ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={stopProcessing}
+                            className="hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
+                          >
+                            <Square className="h-4 w-4 mr-1" />
+                            Stop
+                          </Button>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="text-xs text-muted-foreground">Generating response...</span>
-                          </div>
+                          <Button
+                            type="submit"
+                            disabled={!input.trim() || isStreaming}
+                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Send
+                          </Button>
                         )}
                       </div>
-                      {message.role === 'user' && (
-                        <div className="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg flex-shrink-0">
-                          <MessageSquare className="h-5 w-5" />
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
+                    </form>
+                  </div>
+                </motion.div>
               )}
-              </AnimatePresence>
-              </div>
-            </ScrollArea>
-          </div>
-
-          {/* Input Form - Fixed at Bottom */}
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur flex-shrink-0">
-            <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 p-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about investments, market trends, regulatory updates, or any general business questions..."
-                className="pl-10 pr-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-blue-200 dark:border-blue-900 focus:border-blue-500 h-10 sm:h-11 lg:h-12 text-sm sm:text-base"
-                disabled={isStreaming}
-              />
-            </div>
-            
-            {/* Stop/Send buttons */}
-            {isStreaming ? (
-              <Button
-                type="button"
-                onClick={stopProcessing}
-                variant="destructive"
-                className="bg-red-500 hover:bg-red-600 text-white shadow-lg h-10 sm:h-11 lg:h-12 px-3 sm:px-4"
-                title="Stop AI processing"
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={!input.trim()}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg h-10 sm:h-11 lg:h-12 px-4 sm:px-5 lg:px-6"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
-            </form>
-          </div>
-
-        </CardContent>
-      </Card>
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }
