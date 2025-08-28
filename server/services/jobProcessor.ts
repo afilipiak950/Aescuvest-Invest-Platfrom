@@ -379,8 +379,9 @@ class JobProcessor {
     
     console.log(`⏱️ Setting OCR timeout to ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileSizeMB.toFixed(2)}MB ${fileExtension} file`);
     
+    let timeoutId: NodeJS.Timeout;
     const ocrTimeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`OCR processing timeout after ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileExtension} file (${fileSizeMB.toFixed(2)}MB)`)), ocrTimeout);
+      timeoutId = setTimeout(() => reject(new Error(`OCR processing timeout after ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileExtension} file (${fileSizeMB.toFixed(2)}MB)`)), ocrTimeout);
     });
 
     let ocrResult;
@@ -397,7 +398,10 @@ class JobProcessor {
           ocrTimeoutPromise
         ]);
         
-        // Success - break out of retry loop
+        // Success - clear timeout and break out of retry loop
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         break;
         
       } catch (error) {
@@ -451,7 +455,9 @@ class JobProcessor {
         
         // Add timeout for AI summary generation (30 seconds max)
         const summaryTimeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('AI summary generation timeout after 30 seconds')), 30000);
+          const aiTimeoutId = setTimeout(() => reject(new Error('AI summary generation timeout after 30 seconds')), 30000);
+          // Clear timeout on completion
+          promise.finally(() => clearTimeout(aiTimeoutId));
         });
         
         aiSummary = await Promise.race([
@@ -1031,7 +1037,9 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
       // Optimized timeout for ZIP processing OCR
       const zipOcrTimeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('ZIP OCR processing timeout after 90 seconds')), 90000); // 90 seconds (optimized)
+        const zipTimeoutId = setTimeout(() => reject(new Error('ZIP OCR processing timeout after 90 seconds')), 90000); // 90 seconds (optimized)
+        // Clear timeout on completion
+        zipPromise.finally(() => clearTimeout(zipTimeoutId));
       });
 
       // Determine file type from extension

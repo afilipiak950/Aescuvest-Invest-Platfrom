@@ -3405,10 +3405,12 @@ ${document.ocrText}`
         }
         
         // Schedule next batch processing - optimized for speed
-        setTimeout(processNextBatch, 20000); // 20 seconds between batches
+        const nextTimeout = setTimeout(processNextBatch, 20000); // 20 seconds between batches
+        timeouts.add(nextTimeout);
       } catch (error) {
         console.error('Error in background AI processor:', error);
-        setTimeout(processNextBatch, 30000); // Retry in 30 seconds on error
+        const retryTimeout = setTimeout(processNextBatch, 30000); // Retry in 30 seconds on error
+        timeouts.add(retryTimeout);
       }
     };
     
@@ -3416,8 +3418,19 @@ ${document.ocrText}`
     processNextBatch();
   }
   
+  // Track all timeouts for cleanup
+  const timeouts = new Set<NodeJS.Timeout>();
+  
+  // Cleanup timeouts on process exit (production safety)
+  process.on('SIGTERM', () => {
+    console.log('🛑 Cleaning up background timeouts...');
+    timeouts.forEach(timeout => clearTimeout(timeout));
+    timeouts.clear();
+  });
+  
   // Start the background processor
-  setTimeout(() => startBackgroundAIProcessor(), 5000); // Start after 5 seconds
+  const startTimeout = setTimeout(() => startBackgroundAIProcessor(), 5000); // Start after 5 seconds
+  timeouts.add(startTimeout);
   
   // Rate limiting for manual processing requests
   const aiProcessingLimiter = new Map<number, number>();
