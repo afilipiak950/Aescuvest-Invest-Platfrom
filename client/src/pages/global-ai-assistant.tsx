@@ -120,7 +120,7 @@ export default function GlobalAIAssistant() {
       {
         id: '4',
         text: "What are the key success factors for Series A fundraising?",
-        category: 'investment' as const,
+        category: 'financial' as const,
         icon: Target,
         priority: 4
       }
