@@ -23,6 +23,7 @@ import DueDiligence from "@/pages/due-diligence";
 import MemoGenerator from "@/pages/memo-generator";
 import MemoTemplates from "@/pages/memo-templates";
 import Memos from "@/pages/memos";
+import GlobalAIAssistant from "@/pages/global-ai-assistant";
 import InvestorMatching from "@/pages/investor-matching";
 import WorkflowAutomation from "@/pages/workflow-automation";
 import AIInvestorMatching from "@/pages/ai-investor-matching";
@@ -118,6 +119,9 @@ function AppContent() {
               </Route>
               <Route path="/memos">
                 <Memos />
+              </Route>
+              <Route path="/ai-assistant">
+                <GlobalAIAssistant />
               </Route>
               <Route path="/investor-matching">
                 <InvestorMatching />
