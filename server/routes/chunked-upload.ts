@@ -191,16 +191,15 @@ router.post('/api/deals/:dealId/chunked-upload/complete', async (req: Request, r
     fs.rmSync(session.tempDir, { recursive: true, force: true });
     uploadSessions.delete(sessionId);
     
-    // Create document record
+    // Create document record using correct schema fields
     const documentResult = await db.insert(documentsTable).values({
       dealId: session.dealId,
       name: session.fileName,
-      content: finalPath,
-      uploadStatus: 'processing' as const,
-      processingStatus: 'pending' as const,
-      type: 'dataroom' as const,
-      uploadDate: new Date(),
-      fileSize: stats.size
+      path: finalPath,
+      type: session.fileName.toLowerCase().endsWith('.zip') ? 'application/zip' : 'application/octet-stream',
+      size: stats.size,
+      status: 'Processing',
+      uploadedAt: new Date()
     }).returning();
     
     const document = Array.isArray(documentResult) ? documentResult[0] : documentResult;
@@ -210,12 +209,9 @@ router.post('/api/deals/:dealId/chunked-upload/complete', async (req: Request, r
     if (session.fileName.endsWith('.zip')) {
       console.log('🗂️ Starting ZIP processing...');
       // Check if method exists before calling
-      if (typeof zipProcessor.processDataRoomZip === 'function') {
-        zipProcessor.processDataRoomZip(session.dealId, finalPath, document.id).catch((err: Error) => {
-          console.error('❌ ZIP processing failed:', err);
-        });
-      } else if (typeof zipProcessor.processZipFile === 'function') {
-        zipProcessor.processZipFile(session.dealId, finalPath, 'dataroom', document.id).catch((err: Error) => {
+      // Use the correct method signature for zipProcessor.processZipFile
+      if (typeof zipProcessor.processZipFile === 'function') {
+        zipProcessor.processZipFile(finalPath, session.dealId, 'Chunked Upload').catch((err: Error) => {
           console.error('❌ ZIP processing failed:', err);
         });
       } else {
