@@ -391,9 +391,11 @@ export default function GlobalAIAssistant() {
 
       {/* Main Chat Interface */}
       <Card className="bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-200 dark:border-blue-900 shadow-xl flex-1 flex flex-col">
-        <CardContent className="flex-1 flex flex-col pl-[40px] pr-[40px] pt-[248px] pb-[8px]">
-          {/* Chat Messages */}
-          <ScrollArea className="flex-1 mb-1 sm:mb-2 lg:mb-3 pr-2 sm:pr-3 lg:pr-4">
+        <CardContent className="flex-1 flex flex-col p-0 relative">
+          {/* Chat Messages - Scrollable Area */}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="pl-[40px] pr-[40px] pt-[248px] pb-4">
             <AnimatePresence>
               {messages.length === 0 ? (
                 <motion.div
@@ -520,11 +522,14 @@ export default function GlobalAIAssistant() {
                   <div ref={messagesEndRef} />
                 </div>
               )}
-            </AnimatePresence>
-          </ScrollArea>
+              </AnimatePresence>
+              </div>
+            </ScrollArea>
+          </div>
 
-          {/* Input Form */}
-          <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3">
+          {/* Input Form - Fixed at Bottom */}
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+            <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 p-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -556,7 +561,8 @@ export default function GlobalAIAssistant() {
                 <Send className="h-4 w-4" />
               </Button>
             )}
-          </form>
+            </form>
+          </div>
 
         </CardContent>
       </Card>
