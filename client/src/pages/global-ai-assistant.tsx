@@ -93,7 +93,41 @@ export default function GlobalAIAssistant() {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showMetrics, setShowMetrics] = useState(false);
   const [selectedContext, setSelectedContext] = useState<string>('all');
-  const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>([]);
+  // Generate default smart suggestions based on context
+  const generateDefaultSuggestions = (): SmartSuggestion[] => {
+    return [
+      {
+        id: '1',
+        text: "What are the latest trends in HealthTech venture capital?",
+        category: 'market' as const,
+        icon: TrendingUp,
+        priority: 1
+      },
+      {
+        id: '2', 
+        text: "Analyze the regulatory environment for medical devices in 2025",
+        category: 'regulatory' as const,
+        icon: Shield,
+        priority: 2
+      },
+      {
+        id: '3',
+        text: "Compare our portfolio performance against industry benchmarks",
+        category: 'financial' as const,
+        icon: BarChart3,
+        priority: 3
+      },
+      {
+        id: '4',
+        text: "What are the key success factors for Series A fundraising?",
+        category: 'investment' as const,
+        icon: Target,
+        priority: 4
+      }
+    ];
+  };
+
+  const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>(generateDefaultSuggestions());
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -142,123 +176,6 @@ export default function GlobalAIAssistant() {
     refetchInterval: 5000 // Update every 5 seconds when visible
   });
 
-  // Generate default smart suggestions based on context
-  const generateDefaultSuggestions = (): SmartSuggestion[] => {
-    const baseContext = selectedContext || 'all';
-    
-    const contextSuggestions = {
-      all: [
-        {
-          id: '1',
-          text: "What are the latest trends in HealthTech venture capital?",
-          category: 'market' as const,
-          icon: TrendingUp,
-          priority: 1
-        },
-        {
-          id: '2', 
-          text: "Analyze the regulatory environment for medical devices in 2025",
-          category: 'regulatory' as const,
-          icon: Shield,
-          priority: 2
-        },
-        {
-          id: '3',
-          text: "Compare our portfolio performance against industry benchmarks",
-          category: 'financial' as const,
-          icon: BarChart3,
-          priority: 3
-        },
-        {
-          id: '4',
-          text: "What are the key success factors for Series A fundraising?",
-          category: 'general' as const,
-          icon: Target,
-          priority: 4
-        },
-        {
-          id: '5',
-          text: "Identify emerging opportunities in AI and digital health",
-          category: 'market' as const,
-          icon: Brain,
-          priority: 5
-        }
-      ],
-      portfolio: [
-        {
-          id: '1',
-          text: "Which portfolio companies show the strongest growth metrics?",
-          category: 'financial' as const,
-          icon: TrendingUp,
-          priority: 1
-        },
-        {
-          id: '2',
-          text: "Analyze risk factors across our current portfolio",
-          category: 'general' as const,
-          icon: Shield,
-          priority: 2
-        },
-        {
-          id: '3',
-          text: "Compare management team capabilities across deals",
-          category: 'general' as const,
-          icon: Users,
-          priority: 3
-        }
-      ],
-      market: [
-        {
-          id: '1',
-          text: "What are the current market conditions for healthcare IPOs?",
-          category: 'market' as const,
-          icon: TrendingUp,
-          priority: 1
-        },
-        {
-          id: '2',
-          text: "Analyze competitive landscape in digital therapeutics",
-          category: 'market' as const,
-          icon: Building2,
-          priority: 2
-        }
-      ],
-      regulatory: [
-        {
-          id: '1',
-          text: "What are the latest FDA regulatory changes affecting our sectors?",
-          category: 'regulatory' as const,
-          icon: Shield,
-          priority: 1
-        },
-        {
-          id: '2',
-          text: "Analyze EU MDR compliance requirements for medical devices",
-          category: 'regulatory' as const,
-          icon: Shield,
-          priority: 2
-        }
-      ],
-      financial: [
-        {
-          id: '1',
-          text: "What are current valuation multiples for SaaS companies?",
-          category: 'financial' as const,
-          icon: DollarSign,
-          priority: 1
-        },
-        {
-          id: '2',
-          text: "Analyze burn rate benchmarks for early-stage companies",
-          category: 'financial' as const,
-          icon: BarChart3,
-          priority: 2
-        }
-      ]
-    };
-
-    return contextSuggestions[baseContext as keyof typeof contextSuggestions] || contextSuggestions.all;
-  };
   
   // Update smart suggestions when data changes
   useEffect(() => {
@@ -557,17 +474,19 @@ export default function GlobalAIAssistant() {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col px-1 sm:px-2 pt-0 pb-0 overflow-hidden">
-      <PageHeader 
-        title="Aescuvest AI Assistant" 
-        description="Your intelligent investment analysis companion with access to portfolio data, market research, and global insights."
-      />
+    <div className="w-full h-screen flex flex-col p-2 overflow-hidden">
+      <div className="flex-shrink-0 mb-3">
+        <PageHeader 
+          title="Aescuvest AI Assistant" 
+          description="Your intelligent investment analysis companion with access to portfolio data, market research, and global insights."
+        />
+      </div>
       
       {/* Context Selection and Controls */}
-      <div className="mb-3 sm:mb-4 lg:mb-6 grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
+      <div className="mb-2 grid grid-cols-1 lg:grid-cols-3 gap-2 flex-shrink-0">
         <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 lg:pb-6">
-            <div className="flex items-end gap-2 sm:gap-3 lg:gap-4">
+          <CardContent className="p-3">
+            <div className="flex items-end gap-2">
               <div className="flex-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                   AI Context & Scope
@@ -615,7 +534,7 @@ export default function GlobalAIAssistant() {
 
         {/* Stats Overview */}
         <Card className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
-          <CardContent className="pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 lg:pb-6">
+          <CardContent className="p-3">
             <div className="text-center">
               <Brain className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-green-900 dark:text-green-100">
@@ -634,14 +553,14 @@ export default function GlobalAIAssistant() {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mb-3 sm:mb-4 lg:mb-6 flex-shrink-0"
+          className="mb-2 flex-shrink-0"
         >
           <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-purple-600" />
-                  Global AI Assistant Performance
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-purple-600" />
+                  Performance
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -652,36 +571,36 @@ export default function GlobalAIAssistant() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
-                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                  <Zap className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Average Response</div>
-                  <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <Zap className="h-4 w-4 text-yellow-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Response</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
                     {performanceMetrics.averageResponseTime?.toFixed(0) || 0}ms
                   </div>
                 </div>
                 
-                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                  <BarChart3 className="h-6 w-6 text-green-500 mx-auto mb-2" />
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Success Rate</div>
-                  <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
+                <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <BarChart3 className="h-4 w-4 text-green-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Success</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
                     {(performanceMetrics.successRate * 100)?.toFixed(1) || 0}%
                   </div>
                 </div>
                 
-                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                  <Target className="h-6 w-6 text-blue-500 mx-auto mb-2" />
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Queries</div>
-                  <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
+                <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Queries</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
                     {performanceMetrics.totalQueries || 0}
                   </div>
                 </div>
                 
-                <div className="text-center p-2 sm:p-3 lg:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                  <Database className="h-6 w-6 text-purple-500 mx-auto mb-2" />
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Cache Hit Rate</div>
-                  <div className="font-bold text-xl text-gray-900 dark:text-gray-100">
+                <div className="text-center p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <Database className="h-4 w-4 text-purple-500 mx-auto mb-1" />
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Cache</div>
+                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
                     {(performanceMetrics.cacheHitRate * 100)?.toFixed(1) || 0}%
                   </div>
                 </div>
@@ -704,20 +623,20 @@ export default function GlobalAIAssistant() {
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-x" />
           </div>
           
-          <CardHeader className="relative z-10 flex-shrink-0">
+          <CardHeader className="relative z-10 flex-shrink-0 pb-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <div className="relative">
                   <div className="absolute inset-0 bg-blue-500 blur-lg opacity-50 animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl shadow-lg">
-                    <BrainCircuit className="h-6 w-6 text-white" />
+                  <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg shadow-lg">
+                    <BrainCircuit className="h-5 w-5 text-white" />
                   </div>
                 </div>
                 <div>
-                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <CardTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     Global AI Assistant
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {isPreloading ? (
                       <span className="flex items-center gap-1">
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -750,7 +669,7 @@ export default function GlobalAIAssistant() {
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-wrap gap-2 mt-4"
+                className="flex flex-wrap gap-1 mt-2"
               >
                 <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/50">
                   <FileText className="h-3 w-3 mr-1" />
@@ -791,61 +710,61 @@ export default function GlobalAIAssistant() {
                   {/* Messages Area */}
                   <div className="flex-1 min-h-0">
                     <ScrollArea className="h-full">
-                      <div className="pl-[40px] pr-[40px] pt-6 pb-4">
+                      <div className="px-4 py-4">
                         <AnimatePresence>
                           {messages.length === 0 ? (
                             <motion.div
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="text-center py-20"
+                              className="text-center py-8"
                             >
-                              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-full shadow-lg mx-auto mb-6 w-fit">
-                                <Bot className="h-12 w-12 text-white" />
+                              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-4 rounded-full shadow-lg mx-auto mb-4 w-fit">
+                                <Bot className="h-8 w-8 text-white" />
                               </div>
-                              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                              <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 Global Investment Intelligence Ready
                               </h3>
-                              <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+                              <p className="text-muted-foreground mb-4 max-w-2xl mx-auto text-sm">
                                 Your AI assistant with comprehensive access to portfolio data, market research, web search, 
                                 and global investment intelligence. Ask anything from specific deal analysis to general market trends.
                               </p>
                               
                               {/* Smart Suggestions */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-w-4xl mx-auto">
-                                {smartSuggestions.slice(0, 6).map((suggestion) => (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-4xl mx-auto">
+                                {(smartSuggestions || []).slice(0, 6).map((suggestion) => (
                                   <Button
                                     key={suggestion.id}
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleSuggestionClick(suggestion)}
-                                    className="text-sm p-2 sm:p-3 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+                                    className="text-xs p-2 h-auto text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
                                   >
-                                    <suggestion.icon className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
+                                    <suggestion.icon className="h-3 w-3 mr-2 flex-shrink-0 text-blue-500" />
                                     <span className="truncate">{suggestion.text}</span>
                                   </Button>
                                 ))}
                               </div>
                             </motion.div>
                           ) : (
-                            <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                            <div className="space-y-3">
                               {messages.map((message) => (
                                 <motion.div
                                   key={message.id}
                                   initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
                                   animate={{ opacity: 1, x: 0 }}
                                   className={cn(
-                                    "flex gap-2 sm:gap-3 lg:gap-4",
+                                    "flex gap-2",
                                     message.role === 'user' ? 'justify-end' : 'justify-start'
                                   )}
                                 >
                                   {message.role === 'assistant' && (
-                                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-lg shadow-md flex-shrink-0">
-                                      <Bot className="h-5 w-5 text-white" />
+                                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg shadow-md flex-shrink-0">
+                                      <Bot className="h-4 w-4 text-white" />
                                     </div>
                                   )}
                                   <div
                                     className={cn(
-                                      "max-w-[90%] sm:max-w-[85%] rounded-lg p-3 sm:p-4 shadow-sm",
+                                      "max-w-[85%] rounded-lg p-3 shadow-sm",
                                       message.role === 'user'
                                         ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
                                         : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
@@ -909,8 +828,8 @@ export default function GlobalAIAssistant() {
                                     )}
                                   </div>
                                   {message.role === 'user' && (
-                                    <div className="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg flex-shrink-0">
-                                      <MessageSquare className="h-5 w-5" />
+                                    <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg flex-shrink-0">
+                                      <MessageSquare className="h-4 w-4" />
                                     </div>
                                   )}
                                 </motion.div>
@@ -925,7 +844,7 @@ export default function GlobalAIAssistant() {
 
                   {/* Input Form - Fixed at Bottom */}
                   <div className="border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur flex-shrink-0">
-                    <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 p-4">
+                    <form onSubmit={handleSubmit} className="flex gap-2 p-3">
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
