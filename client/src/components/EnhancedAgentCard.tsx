@@ -3542,7 +3542,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
     let timeoutId: NodeJS.Timeout;
     
     if (jobProgress?.jobs) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'Research');
+      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'research' || job.agentType === 'Research');
       if (researchJob && researchJob.status === 'processing') {
         setProgress(researchJob.progress || 0);
         setCurrentStep(researchJob.currentDocument || researchJob.currentStep || 'Processing research analysis...');
