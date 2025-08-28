@@ -83,95 +83,105 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
     }
   });
 
-  // Chunked upload function
-  const uploadChunked = async (file: File) => {
-    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (safe under Cloud Run limits)
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    
-    console.log(`🚀 Starting CHUNKED upload: ${file.name} (${totalChunks} chunks)`);
+  // GCS direct upload function (same approach as DataRoomExplorer)
+  const uploadDirectToGCS = async (file: File) => {
+    console.log(`🚀 Starting GCS DIRECT upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
     
     try {
-      // Step 1: Initialize upload session
-      const initResponse = await fetch(`/api/deals/${dealId}/chunked-upload/init`, {
+      // Step 1: Request signed URL from server
+      console.log('📍 STEP 1: Requesting signed URL from server...');
+      const requestUrl = `/api/gcs/signed-url/${dealId}`;
+      const requestPayload = {
+        fileName: file.name,
+        fileSize: file.size
+      };
+
+      const signedResponse = await fetch(requestUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          totalChunks,
-          fileSize: file.size
-        })
+        body: JSON.stringify(requestPayload)
       });
-      
-      if (!initResponse.ok) {
-        throw new Error(`Init failed: ${initResponse.status}`);
+
+      if (!signedResponse.ok) {
+        throw new Error(`Signed URL request failed: ${signedResponse.status}`);
       }
+
+      const signedData = await signedResponse.json();
+      const { signedUrl, gcsFileName, uploadId } = signedData;
       
-      const { sessionId } = await initResponse.json();
-      console.log(`✅ Session created: ${sessionId}`);
+      console.log('✅ STEP 1 COMPLETE: Got signed URL');
+      console.log(`📝 Upload ID: ${uploadId}`);
+      console.log(`📝 GCS filename: ${gcsFileName}`);
+
+      // Step 2: Upload directly to GCS using XMLHttpRequest for progress
+      console.log('📍 STEP 2: Uploading directly to Google Cloud Storage...');
       
-      // Step 2: Upload chunks with retry logic
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
-        const chunk = file.slice(start, end);
-        
-        // Retry logic for failed chunks
-        let retries = 3;
-        let success = false;
-        
-        while (retries > 0 && !success) {
-          try {
-            const chunkResponse = await fetch(`/api/deals/${dealId}/chunked-upload/chunk`, {
-              method: 'POST',
-              headers: {
-                'X-Session-Id': sessionId,
-                'X-Chunk-Index': i.toString()
-              },
-              body: chunk
-            });
-            
-            if (!chunkResponse.ok) {
-              const errorText = await chunkResponse.text();
-              console.warn(`⚠️ Chunk ${i} failed (attempt ${4 - retries}/3): ${errorText}`);
-              if (retries === 1) {
-                throw new Error(`Chunk ${i} failed after 3 attempts: ${chunkResponse.status}`);
-              }
-              retries--;
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
-              continue;
-            }
-            
-            success = true;
-            const progress = ((i + 1) / totalChunks) * 100;
-            setUploadProgress(Math.round(progress));
-            console.log(`📦 Uploaded chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`);
-          } catch (networkError) {
-            console.error(`Network error uploading chunk ${i}:`, networkError);
-            retries--;
-            if (retries === 0) {
-              throw networkError;
-            }
-            await new Promise(resolve => setTimeout(resolve, 1000));
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            setUploadProgress(percentComplete);
+            console.log(`☁️ GCS direct upload progress: ${percentComplete}%`);
           }
-        }
-      }
-      
-      // Step 3: Complete upload
-      const completeResponse = await fetch(`/api/deals/${dealId}/chunked-upload/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId })
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', async () => {
+          console.log('🔍 GCS DIRECT UPLOAD COMPLETE - Status:', xhr.status);
+          
+          if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
+            console.log('✅ STEP 2 COMPLETE: File uploaded directly to GCS!');
+            
+            try {
+              // Step 3: Notify server that upload is complete
+              console.log('📍 STEP 3: Notifying server of completed upload...');
+              
+              const completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  gcsFileName,
+                  uploadId,
+                  fileName: file.name
+                })
+              });
+
+              if (!completeResponse.ok) {
+                const errorData = await completeResponse.json().catch(() => ({}));
+                throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
+              }
+
+              const result = await completeResponse.json();
+              console.log('✅ STEP 3 COMPLETE: Server processing done', result);
+              
+              setUploadProgress(100);
+              resolve(result);
+              
+            } catch (notifyError: any) {
+              console.error('❌ Failed to notify server:', notifyError);
+              reject(notifyError);
+            }
+          } else {
+            reject(new Error(`GCS upload failed with status: ${xhr.status}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+
+        // Configure and send request
+        xhr.open('PUT', signedUrl);
+        xhr.setRequestHeader('Content-Type', 'application/zip');
+        xhr.setRequestHeader('Content-Length', file.size.toString());
+        xhr.send(file);
       });
-      
-      if (!completeResponse.ok) {
-        throw new Error(`Complete failed: ${completeResponse.status}`);
-      }
-      
-      console.log('🎉 Chunked upload complete!');
-      return await completeResponse.json();
       
     } catch (error) {
-      console.error('❌ Chunked upload failed:', error);
+      console.error('❌ GCS direct upload failed:', error);
       throw error;
     } finally {
       setUploadProgress(0);
@@ -189,12 +199,11 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
-    // 🚨 ALWAYS USE GCS VIA CHUNKED UPLOAD FOR ALL FILES (as requested by user)
-    console.log('📤 File is 1.6MB - using direct upload (under 30MB limit)');
-    console.log('🚀 Using GCS CHUNKED upload for ALL files (forced as requested)');
+    // 🚨 ALWAYS USE GCS DIRECT UPLOAD FOR ALL FILES (correct approach)
+    console.log('🚀 Using GCS DIRECT upload for ALL files (production-ready approach)');
     
     try {
-      const result = await uploadChunked(file);
+      const result = await uploadDirectToGCS(file);
       console.log('✅ GCS Upload successful:', result);
       
       // Refresh data
