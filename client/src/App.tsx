@@ -21,6 +21,7 @@ import Pipeline from "@/pages/pipeline";
 import DealIntake from "@/pages/deal-intake";
 import DueDiligence from "@/pages/due-diligence";
 import MemoGenerator from "@/pages/memo-generator";
+import MemoTemplates from "@/pages/memo-templates";
 import Memos from "@/pages/memos";
 import InvestorMatching from "@/pages/investor-matching";
 import WorkflowAutomation from "@/pages/workflow-automation";
@@ -111,6 +112,9 @@ function AppContent() {
               </Route>
               <Route path="/memo-generator">
                 <MemoGenerator />
+              </Route>
+              <Route path="/memo-templates">
+                <MemoTemplates />
               </Route>
               <Route path="/memos">
                 <Memos />
