@@ -2,6 +2,7 @@ import { db } from '../db';
 import { backgroundJobs, documents, InsertBackgroundJob, BackgroundJob } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
+import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 import fs from 'fs';
 import path from 'path';
 
@@ -31,7 +32,7 @@ class JobProcessor {
     console.log(`🔍 JOB CREATE MICRO-STEP 1: Validating job data...`);
     
     // Ensure jobId is properly set with fallback
-    const safeJobData = {
+    const safeJobData: InsertBackgroundJob = {
       ...jobData,
       jobId: jobData.jobId || `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       status: jobData.status || 'pending'
@@ -216,12 +217,19 @@ class JobProcessor {
     this.isProcessing = true;
     console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🔥 PARALLEL PROCESSING: Process up to 10 jobs simultaneously for 10x speed boost
-    const MAX_CONCURRENT_JOBS = 10;
+    // 🔥 BULLETPROOF PROCESSING: Process up to 3 jobs simultaneously to avoid rate limits and memory issues
+    // CRITICAL: Reduced from 10 to 3 to prevent OpenAI rate limits at ~125 documents
+    const MAX_CONCURRENT_JOBS = 3; // Safe limit to prevent production failures
     
     while (this.jobQueue.length > 0) {
       // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
       const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
+      
+      // MEMORY MANAGEMENT: Add delay between batches to prevent memory buildup
+      if (this.processingJobs.size > 0) {
+        console.log(`⏳ Waiting 1 second between batches for memory management...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       
       if (batch.length === 1) {
         // Single job - process normally
@@ -244,10 +252,14 @@ class JobProcessor {
           await this.completeJob(job.id, null, String(error));
         }
       } else {
-        // Multiple jobs - PARALLEL PROCESSING for massive speed boost!
-        console.log(`🚀 PARALLEL PROCESSING: Starting ${batch.length} jobs simultaneously for 10x speed boost!`);
+        // Multiple jobs - BULLETPROOF PARALLEL PROCESSING with rate limiting
+        console.log(`🛡️ BULLETPROOF PROCESSING: Starting ${batch.length} jobs with rate limiting protection`);
         
-        const parallelPromises = batch.map(async (job) => {
+        const parallelPromises = batch.map(async (job, index) => {
+          // Stagger job starts to prevent API rate limit bursts
+          if (index > 0) {
+            await new Promise(resolve => setTimeout(resolve, index * 500)); // 500ms between each job start
+          }
           if (this.processingJobs.has(job.id)) {
             console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
             return null;
@@ -272,10 +284,16 @@ class JobProcessor {
         const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
         const failed = results.length - successful;
         
-        console.log(`🎉 PARALLEL BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
+        console.log(`🎉 BULLETPROOF BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
         
         if (successful > 0) {
-          console.log(`📈 SPEED BOOST ACHIEVED: ${successful} documents processed simultaneously!`);
+          console.log(`✅ PRODUCTION SAFE: ${successful} documents processed without hitting rate limits!`);
+        }
+        
+        // Force garbage collection hint after batch processing
+        if (global.gc) {
+          global.gc();
+          console.log(`🧹 Memory cleanup performed after batch`);
         }
       }
     }
@@ -924,6 +942,11 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
   private async processAISummaryGeneration(job: BackgroundJob) {
     console.log(`🤖 Processing AI summary generation for job ${job.id}`);
     
+    // RATE LIMITING: Add delay to prevent hitting OpenAI rate limits
+    // Critical for processing 300+ documents without getting stuck
+    const RATE_LIMIT_DELAY = 2000; // 2 seconds between AI calls
+    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
+    
     try {
       const documentId = job.documentId;
       if (!documentId) {
@@ -945,8 +968,32 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
       await this.updateJobProgress(job.id, 25, 'Analyzing document content...');
 
-      // Generate AI summary using OpenAI
-      const aiSummary = await this.generateAISummary(document.ocrText);
+      // Generate AI summary using OpenAI with retry logic
+      let aiSummary;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          aiSummary = await this.generateAISummary(document.ocrText);
+          break; // Success
+        } catch (error: any) {
+          retryCount++;
+          console.error(`⚠️ AI summary attempt ${retryCount}/${maxRetries} failed:`, error.message);
+          
+          if (error.message?.includes('rate_limit') || error.message?.includes('429')) {
+            // Rate limit hit - wait longer
+            const backoffDelay = Math.min(10000 * Math.pow(2, retryCount), 60000); // Max 1 minute
+            console.log(`⏳ Rate limit hit, waiting ${backoffDelay/1000}s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          } else if (retryCount < maxRetries) {
+            // Other error - shorter retry
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          } else {
+            throw error; // Final attempt failed
+          }
+        }
+      }
 
       await this.updateJobProgress(job.id, 75, 'Processing AI analysis results...');
 
@@ -1036,10 +1083,9 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       await this.updateJobProgress(jobId, 30, 'Starting text extraction...');
 
       // Optimized timeout for ZIP processing OCR
+      let zipTimeoutId: NodeJS.Timeout;
       const zipOcrTimeoutPromise = new Promise<never>((_, reject) => {
-        const zipTimeoutId = setTimeout(() => reject(new Error('ZIP OCR processing timeout after 90 seconds')), 90000); // 90 seconds (optimized)
-        // Clear timeout on completion
-        zipPromise.finally(() => clearTimeout(zipTimeoutId));
+        zipTimeoutId = setTimeout(() => reject(new Error('ZIP OCR processing timeout after 90 seconds')), 90000); // 90 seconds (optimized)
       });
 
       // Determine file type from extension
@@ -1052,6 +1098,8 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           mistralOCRService.extractText(filePath, fileType),
           zipOcrTimeoutPromise
         ]);
+        // Clear timeout on success
+        if (zipTimeoutId) clearTimeout(zipTimeoutId);
       } catch (error) {
         console.error(`❌ ZIP OCR failed for ${fileName}:`, error);
         ocrResult = {
