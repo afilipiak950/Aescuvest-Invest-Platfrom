@@ -1,4 +1,6 @@
 import { Link, useLocation } from 'wouter';
+import aescuvestIcon from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (3)_1756449410014.png";
+import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (2)_1756449410015.png";
 import { cn } from '@/lib/utils';
 import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,14 +32,19 @@ export default function Sidebar() {
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-dark font-bold text-sm">A</span>
-              </div>
-              <span className="text-xl font-bold text-primary">Aescuvest</span>
+              <img 
+                src={aescuvestLogo} 
+                alt="Aescuvest" 
+                className="h-8 w-auto object-contain"
+              />
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-dark font-bold text-lg">A</span>
+            <div className="h-10 w-10 flex items-center justify-center">
+              <img 
+                src={aescuvestIcon} 
+                alt="Aescuvest" 
+                className="h-8 w-8 object-contain"
+              />
             </div>
           )}
         </div>

@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Loader2, Lock, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (2)_1756449410015.png";
 
 const loginSchema = z.object({
   email: z
@@ -70,7 +71,11 @@ export default function LoginPage() {
           <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-16 z-10">
             <div className="mb-8">
               <div className="h-16 flex items-center justify-center mx-auto mb-6">
-                <h2 className="text-3xl font-bold text-primary">AESCUVEST</h2>
+                <img 
+                  src={aescuvestLogo}
+                  alt="Aescuvest Logo" 
+                  className="h-12 w-auto object-contain"
+                />
               </div>
             </div>
             <h1 className="text-5xl font-bold text-white leading-tight mb-6">
