@@ -1462,11 +1462,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       return response;
     },
     onSuccess: (data) => {
-      console.log('🤖 AI document assignment started:', data);
+      console.log('🤖 AI document assignment response:', data);
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      // Use totalDocuments from the response instead of assignments?.length
-      const documentCount = data.totalDocuments || data.assignments?.length || 0;
-      alert(`AI agent assignment started for ${documentCount} documents. Processing in background...`);
+      // Use totalDocuments from the response
+      const documentCount = data.totalDocuments || 0;
+      
+      // Check if this is a new job or an existing one
+      if (data.message?.includes('already in progress')) {
+        alert(`AI agent assignment is already running for ${documentCount} documents. Please wait for it to complete.`);
+      } else {
+        alert(`AI agent assignment started for ${documentCount} documents. Processing in background...`);
+      }
     },
     onError: (error) => {
       console.error('❌ AI document assignment failed:', error);
