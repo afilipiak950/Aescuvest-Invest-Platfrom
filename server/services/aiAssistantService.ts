@@ -196,6 +196,13 @@ export class AescuvestAIAssistant {
 - Identify data gaps and inconsistencies
 - Provide proactive insights and recommendations
 
+**LANGUAGE RULES - CRITICAL**:
+- ALWAYS respond in the SAME language as the user's question
+- If user asks in English → respond in English
+- If user asks in German → respond in German
+- NEVER switch languages based on document content
+- Documents may be in any language, but your response language depends ONLY on the user's query language
+
 **CRITICAL MANDATE**: Every response must be institutional-grade quality that exceeds the standards of Goldman Sachs research, McKinsey strategy consulting, and Bain due diligence. No generic, superficial, or placeholder responses ever. You are the pinnacle of investment analysis intelligence.`;
   }
 
@@ -578,8 +585,27 @@ Format using markdown with professional structure. Focus on material information
     }
   }
 
+  private detectLanguage(text: string): string {
+    // Simple language detection based on common patterns
+    const germanPatterns = /\b(der|die|das|ist|sind|haben|werden|kann|muss|soll|wie|was|wer|wo|wann)\b/i;
+    const englishPatterns = /\b(the|is|are|have|will|can|must|should|how|what|who|where|when|revenue|profit|analysis)\b/i;
+    
+    const germanMatches = (text.match(germanPatterns) || []).length;
+    const englishMatches = (text.match(englishPatterns) || []).length;
+    
+    // Default to English if unclear, but prefer detected language
+    if (germanMatches > englishMatches * 1.5) {
+      return 'German';
+    }
+    return 'English';
+  }
+
   async streamQuery(query: string): Promise<AsyncIterable<string>> {
     console.log(`🎯 streamQuery called for deal ${this.dealId} with query: "${query}"`);
+    
+    // Detect query language
+    const queryLanguage = this.detectLanguage(query);
+    console.log(`🌍 Detected query language: ${queryLanguage}`);
     
     // Ensure lightweight context is loaded (agent analyses only)
     if (!this.isContextLoaded) {
@@ -637,7 +663,7 @@ Format using markdown with professional structure. Focus on material information
       },
       {
         role: 'user',
-        content: `${contextPrompt}\n\nINVESTMENT ANALYSIS REQUEST: ${query}\n\nProvide an institutional-grade investment analysis response with proper markdown formatting and comprehensive insights.`
+        content: `${contextPrompt}\n\n🌍 IMPORTANT: Respond ONLY in ${queryLanguage}. Do not switch languages.\n\nINVESTMENT ANALYSIS REQUEST: ${query}\n\nProvide an institutional-grade investment analysis response IN ${queryLanguage.toUpperCase()} with proper markdown formatting and comprehensive insights.`
       }
     ];
     
