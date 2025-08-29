@@ -14,20 +14,69 @@ class GoogleCloudStorageService {
   private bucket: any;
 
   constructor() {
-    // Defer initialization until first use to avoid import issues
-    this.storage = null;
+    // Initialize immediately but with error handling for production
     this.bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || process.env.GCS_BUCKET_NAME || 'aescuvest-documents';
-    this.bucket = null;
     
-    console.log(`📁 GCS service created (will initialize on first use)`);
+    try {
+      // Try immediate initialization for production reliability
+      this.initializeStorageSync();
+      console.log(`📁 GCS service initialized successfully at startup`);
+    } catch (error) {
+      console.log(`⚠️ GCS startup initialization failed, will retry on first use:`, error.message);
+      this.storage = null;
+      this.bucket = null;
+    }
+  }
+
+  private initializeStorageSync() {
+    // Import synchronously for startup
+    const { Storage } = require('@google-cloud/storage');
+    
+    // Initialize GCS client with base64 encoded credentials
+    let storageConfig: any = {};
+    
+    // Check for base64 encoded credentials
+    if (process.env.GOOGLE_CLOUD_STORAGE_KEY) {
+      try {
+        // Decode base64 credentials
+        const keyJson = Buffer.from(process.env.GOOGLE_CLOUD_STORAGE_KEY, 'base64').toString('utf-8');
+        const credentials = JSON.parse(keyJson);
+        
+        storageConfig = {
+          projectId: credentials.project_id,
+          credentials: credentials
+        };
+        
+        console.log(`🔐 GCS initialized with credentials for project: ${credentials.project_id}`);
+      } catch (error) {
+        console.error('❌ Failed to parse GCS credentials:', error);
+        throw new Error('Invalid Google Cloud Storage credentials');
+      }
+    } else {
+      console.log('⚠️ No GCS credentials found, using default');
+      storageConfig = {
+        projectId: process.env.GCP_PROJECT_ID,
+        keyFilename: process.env.GCS_KEY_FILE || undefined,
+      };
+    }
+    
+    this.storage = new Storage(storageConfig);
+    this.bucket = this.storage.bucket(this.bucketName);
   }
 
   private async initializeStorage() {
     if (this.storage) return; // Already initialized
 
     try {
-      // Dynamic import to avoid module resolution issues at startup
-      const { Storage } = await import('@google-cloud/storage');
+      // Try dynamic import first, fallback to require for production
+      let Storage;
+      try {
+        const module = await import('@google-cloud/storage');
+        Storage = module.Storage;
+      } catch (importError) {
+        console.log('⚠️ Dynamic import failed, using require fallback');
+        Storage = require('@google-cloud/storage').Storage;
+      }
       
       // Initialize GCS client with base64 encoded credentials
       let storageConfig: any = {};
@@ -375,6 +424,13 @@ class GoogleCloudStorageService {
   /**
    * Get bucket instance (for direct access when needed)
    */
+  // Initialize storage if not already done
+  async initializeIfNeeded() {
+    if (!this.storage || !this.bucket) {
+      await this.initializeStorage();
+    }
+  }
+
   async getBucket() {
     await this.initializeStorage();
     return this.bucket;
