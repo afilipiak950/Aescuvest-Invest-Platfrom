@@ -12,16 +12,24 @@ import { storage } from './storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// MINIMAL research questions for guaranteed completion  
+// COMPREHENSIVE research questions matching UI expectations
 export const COMPREHENSIVE_RESEARCH_QUESTIONS = [
-  // Single test question
-  {
-    id: 'test_minimal_1',
-    category: 'Research Test',
-    question: 'What research methodology is used?',
-    analysisPrompt: 'Simple test analysis.',
-    keywords: ['methodology', 'research']
-  }
+  // Current questions with answers (res_1 to res_5)
+  { id: "res_1", question: "What research methodology and scientific approach is used?", category: "Technical Methodology" },
+  { id: "res_2", question: "What peer-reviewed publications and citations exist?", category: "Academic Publications" },
+  { id: "res_3", question: "What research partnerships and collaborations are present?", category: "Academic Publications" },
+  { id: "res_4", question: "What data quality and validation has been performed?", category: "Technical Methodology" },
+  { id: "res_5", question: "What research competitive advantages exist?", category: "Technical Innovation" },
+  
+  // Additional research questions that should be analyzed
+  { id: "res_6", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
+  { id: "res_7", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
+  { id: "res_8", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
+  { id: "res_9", question: "What is the total addressable market (TAM) size?", category: "Market Research" },
+  { id: "res_10", question: "Who are the main competitors and what is their market share?", category: "Market Research" },
+  { id: "res_11", question: "What are the market growth projections and key drivers?", category: "Market Research" },
+  { id: "res_12", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
+  { id: "res_13", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
 ];
 
 export class ComprehensiveResearchAnalysisService {
@@ -420,7 +428,7 @@ Be thorough in finding relevance - most business documents have research implica
         setTimeout(() => reject(new Error('OpenAI API timeout after 30 seconds')), 30000)
       );
       
-      const response = await Promise.race([responsePromise, timeoutPromise]);
+      const response = await Promise.race([responsePromise, timeoutPromise]) as any;
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -525,7 +533,7 @@ Respond in JSON format:
         setTimeout(() => reject(new Error('OpenAI API timeout after 30 seconds')), 30000)
       );
       
-      const response = await Promise.race([responsePromise, timeoutPromise]);
+      const response = await Promise.race([responsePromise, timeoutPromise]) as any;
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
       
