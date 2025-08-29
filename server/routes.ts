@@ -1259,6 +1259,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
+      // Always get document count first
+      const documents = await storage.getDocumentsByDealId(dealId);
+      const totalDocuments = documents.length;
+
       // Check if force reassign flag is set (default to true for always reassigning)
       const forceReassign = req.body?.forceReassign !== false;
 
@@ -1271,25 +1275,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (existingAssignmentJob) {
           console.log(`⚠️ Document assignment already running for deal ${dealId} (Job: ${existingAssignmentJob.jobId})`);
-          // Get actual document count if not in job
-          let totalDocs = existingAssignmentJob.totalDocuments;
-          if (!totalDocs) {
-            const documents = await storage.getDocumentsByDealId(dealId);
-            totalDocs = documents.length;
-          }
           return res.json({ 
             success: true, 
             message: `Document assignment already in progress`,
             jobId: existingAssignmentJob.jobId,
             status: existingAssignmentJob.status,
-            totalDocuments: totalDocs || 0
+            totalDocuments: totalDocuments  // Always use the actual count
           });
         }
       }
-
-      // Get document count for progress tracking
-      const documents = await storage.getDocumentsByDealId(dealId);
-      const totalDocuments = documents.length;
 
       console.log(`🤖 ${forceReassign ? 'Force reassigning' : 'Creating'} background job for AI document assignment of ${totalDocuments} documents for deal ${dealId}`);
       
