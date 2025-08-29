@@ -4772,6 +4772,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         // Transform to expected format
         jobs = dbJobs.map(job => ({
           jobId: job.jobId,
+          jobType: job.jobType,  // Include jobType for frontend filtering
           agentType: job.agentType,
           progress: job.progress || 0,
           status: job.status,
