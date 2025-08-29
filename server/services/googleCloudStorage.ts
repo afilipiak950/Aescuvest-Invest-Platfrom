@@ -1,4 +1,5 @@
-import { Storage } from '@google-cloud/storage';
+// Temporarily commented out due to module resolution issue
+// import { Storage } from '@google-cloud/storage';
 import { Readable } from 'stream';
 import path from 'path';
 import fs from 'fs';
@@ -8,44 +9,62 @@ import fs from 'fs';
  * Handles all file storage operations in GCS
  */
 class GoogleCloudStorageService {
-  private storage: Storage;
+  private storage: any; // Type temporarily any due to import issue
   private bucketName: string;
   private bucket: any;
 
   constructor() {
-    // Initialize GCS client with base64 encoded credentials
-    let storageConfig: any = {};
-    
-    // Check for base64 encoded credentials
-    if (process.env.GOOGLE_CLOUD_STORAGE_KEY) {
-      try {
-        // Decode base64 credentials
-        const keyJson = Buffer.from(process.env.GOOGLE_CLOUD_STORAGE_KEY, 'base64').toString('utf-8');
-        const credentials = JSON.parse(keyJson);
-        
-        storageConfig = {
-          projectId: credentials.project_id,
-          credentials: credentials
-        };
-        
-        console.log(`🔐 GCS initialized with credentials for project: ${credentials.project_id}`);
-      } catch (error) {
-        console.error('❌ Failed to parse GCS credentials:', error);
-        throw new Error('Invalid Google Cloud Storage credentials');
-      }
-    } else {
-      console.log('⚠️ No GCS credentials found, using default');
-      storageConfig = {
-        projectId: process.env.GCP_PROJECT_ID,
-        keyFilename: process.env.GCS_KEY_FILE || undefined,
-      };
-    }
-    
-    this.storage = new Storage(storageConfig);
+    // Defer initialization until first use to avoid import issues
+    this.storage = null;
     this.bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || process.env.GCS_BUCKET_NAME || 'aescuvest-documents';
-    this.bucket = this.storage.bucket(this.bucketName);
+    this.bucket = null;
     
-    console.log(`📁 GCS initialized with bucket: ${this.bucketName}`);
+    console.log(`📁 GCS service created (will initialize on first use)`);
+  }
+
+  private async initializeStorage() {
+    if (this.storage) return; // Already initialized
+
+    try {
+      // Dynamic import to avoid module resolution issues at startup
+      const { Storage } = await import('@google-cloud/storage');
+      
+      // Initialize GCS client with base64 encoded credentials
+      let storageConfig: any = {};
+      
+      // Check for base64 encoded credentials
+      if (process.env.GOOGLE_CLOUD_STORAGE_KEY) {
+        try {
+          // Decode base64 credentials
+          const keyJson = Buffer.from(process.env.GOOGLE_CLOUD_STORAGE_KEY, 'base64').toString('utf-8');
+          const credentials = JSON.parse(keyJson);
+          
+          storageConfig = {
+            projectId: credentials.project_id,
+            credentials: credentials
+          };
+          
+          console.log(`🔐 GCS initialized with credentials for project: ${credentials.project_id}`);
+        } catch (error) {
+          console.error('❌ Failed to parse GCS credentials:', error);
+          throw new Error('Invalid Google Cloud Storage credentials');
+        }
+      } else {
+        console.log('⚠️ No GCS credentials found, using default');
+        storageConfig = {
+          projectId: process.env.GCP_PROJECT_ID,
+          keyFilename: process.env.GCS_KEY_FILE || undefined,
+        };
+      }
+      
+      this.storage = new Storage(storageConfig);
+      this.bucket = this.storage.bucket(this.bucketName);
+      
+      console.log(`📁 GCS initialized with bucket: ${this.bucketName}`);
+    } catch (error) {
+      console.error('❌ Failed to initialize Google Cloud Storage:', error);
+      throw new Error(`GCS initialization failed: ${error.message}`);
+    }
   }
 
   /**
@@ -56,6 +75,7 @@ class GoogleCloudStorageService {
     dealId: number,
     fileName: string
   ): Promise<string> {
+    await this.initializeStorage();
     try {
       // Create GCS path: deals/{dealId}/documents/{timestamp}_{fileName}
       const timestamp = Date.now();
@@ -96,6 +116,7 @@ class GoogleCloudStorageService {
    * Download a file from GCS to local path
    */
   async downloadFile(gcsPath: string, localPath: string): Promise<void> {
+    await this.initializeStorage();
     try {
       // Extract file name from GCS path
       const fileName = this.extractFileName(gcsPath);
@@ -118,6 +139,7 @@ class GoogleCloudStorageService {
    * Stream a file from GCS
    */
   async streamFile(gcsPath: string): Promise<Readable> {
+    await this.initializeStorage();
     try {
       const fileName = this.extractFileName(gcsPath);
       console.log(`📊 Streaming from GCS: ${fileName}`);
@@ -134,6 +156,7 @@ class GoogleCloudStorageService {
    * Get file metadata
    */
   async getFileMetadata(gcsPath: string): Promise<any> {
+    await this.initializeStorage();
     try {
       const fileName = this.extractFileName(gcsPath);
       const [metadata] = await this.bucket.file(fileName).getMetadata();
@@ -148,6 +171,7 @@ class GoogleCloudStorageService {
    * Delete a file from GCS
    */
   async deleteFile(gcsPath: string): Promise<void> {
+    await this.initializeStorage();
     try {
       const fileName = this.extractFileName(gcsPath);
       console.log(`🗑️ Deleting from GCS: ${fileName}`);
@@ -164,6 +188,7 @@ class GoogleCloudStorageService {
    * Check if a file exists in GCS
    */
   async fileExists(gcsPath: string): Promise<boolean> {
+    await this.initializeStorage();
     try {
       const fileName = this.extractFileName(gcsPath);
       const [exists] = await this.bucket.file(fileName).exists();
@@ -182,6 +207,7 @@ class GoogleCloudStorageService {
     fileName: string,
     contentType: string = 'application/octet-stream'
   ): Promise<{ uploadUrl: string; gcsPath: string }> {
+    await this.initializeStorage();
     try {
       const timestamp = Date.now();
       const gcsFileName = `deals/${dealId}/documents/${timestamp}_${fileName}`;
@@ -222,6 +248,7 @@ class GoogleCloudStorageService {
    * Generate a signed URL for download
    */
   async generateDownloadUrl(gcsPath: string): Promise<string> {
+    await this.initializeStorage();
     try {
       const fileName = this.extractFileName(gcsPath);
       
@@ -283,6 +310,7 @@ class GoogleCloudStorageService {
    * Initialize bucket (create if doesn't exist)
    */
   async initializeBucket(): Promise<void> {
+    await this.initializeStorage();
     try {
       const [exists] = await this.bucket.exists();
       
@@ -310,6 +338,7 @@ class GoogleCloudStorageService {
     fileSize: number,
     dealId: number
   ): Promise<{ signedUrl: string; gcsFileName: string; uploadId: string }> {
+    await this.initializeStorage();
     try {
       // Generate unique file path
       const timestamp = Date.now();
@@ -346,7 +375,8 @@ class GoogleCloudStorageService {
   /**
    * Get bucket instance (for direct access when needed)
    */
-  getBucket() {
+  async getBucket() {
+    await this.initializeStorage();
     return this.bucket;
   }
 
@@ -354,6 +384,7 @@ class GoogleCloudStorageService {
    * Apply CORS configuration to the bucket
    */
   async configureCORS(): Promise<void> {
+    await this.initializeStorage();
     try {
       const corsConfiguration = [
         {
