@@ -2342,42 +2342,26 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string, questionText: string) => {
-    // Debug logging to see what data we have
-    if (comprehensiveResults?.results?.researchAnswers) {
-      console.log('🔍 DEBUG: Available keys:', Object.keys(comprehensiveResults.results.researchAnswers));
-      console.log('🔍 DEBUG: Looking for questionId:', questionId);
-      console.log('🔍 DEBUG: Looking for questionText:', questionText);
-    }
-    
     // Try comprehensive results first - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
       
-      // First try by question text (exact match)
-      const answer = allAnswers[questionText];
-      if (answer) {
-        console.log('✅ Found answer by questionText:', questionText);
-        return answer;
-      }
-      
-      // Fallback to question ID
+      // First try by question ID (most reliable)
       const answerById = allAnswers[questionId];
-      if (answerById) {
-        console.log('✅ Found answer by questionId:', questionId);
-        return answerById;
-      }
+      if (answerById) return answerById;
+      
+      // Fallback to question text (exact match)
+      const answer = allAnswers[questionText];
+      if (answer) return answer;
       
       // Try to find by partial matching of question text in the answer's question field
       for (const [key, answerData] of Object.entries(allAnswers)) {
         if (answerData && typeof answerData === 'object' && 'question' in answerData) {
           if (answerData.question === questionText) {
-            console.log('✅ Found answer by matching question field:', key);
             return answerData;
           }
         }
       }
-      
-      console.log('❌ No answer found for:', { questionId, questionText });
     }
     
     // Legacy fallback paths for backward compatibility  
