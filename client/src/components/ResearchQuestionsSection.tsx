@@ -9,18 +9,22 @@ import DocumentQuoteViewer from './DocumentQuoteViewer';
 // Comprehensive Research Analysis Button Component
 function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   const [isRunning, setIsRunning] = useState(false);
+  const queryClient = useQueryClient();
 
-  // RESET: Force isRunning to false to fix stuck state - AGGRESSIVE RESET
-  useEffect(() => {
-    console.log('🔄 AGGRESSIVE RESET: ResearchQuestionsSection button isRunning state to false');
-    setIsRunning(false);
-  }); // No dependency array = runs every render
+  // Check for existing background jobs
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 1000,
+  });
 
-  // Also force reset when component first mounts
-  if (isRunning) {
-    console.log('🔄 FORCE RESET: ResearchQuestionsSection detected isRunning=true, forcing false');
-    setIsRunning(false);
-  }
+  // Check if research analysis is already running
+  const isAlreadyRunning = (() => {
+    if ((jobProgress as any)?.jobs) {
+      const researchJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'research');
+      return !!researchJob && researchJob.status === 'processing';
+    }
+    return false;
+  })();
   
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -30,28 +34,107 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
       });
       return response;
     },
-    onSuccess: () => {
-      console.log('Comprehensive research analysis started successfully');
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log(`⚠️ Research analysis already running (${data.progress}% complete)`);
+        setIsRunning(false);
+        return;
+      }
+      
+      // Invalidate ALL relevant query keys to refresh the research data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', dealId]
+      });
+      
+      // Show success message
+      console.log('✅ Comprehensive research analysis started successfully');
     },
     onError: (error) => {
-      console.error('Error starting comprehensive research analysis:', error);
+      console.error('❌ Error starting comprehensive research analysis:', error);
       setIsRunning(false);
     }
   });
 
   const handleRunAnalysis = async () => {
-    console.log('🚀 ACTUAL Research button clicked! Deal:', dealId);
-    console.log('🔍 Button state before:', { isRunning, isPending: comprehensiveAnalysisMutation.isPending });
-    
     setIsRunning(true);
-    console.log('Starting comprehensive research analysis for deal', dealId);
+    console.log('🔬 Starting comprehensive research analysis for deal', dealId);
     
     try {
-      console.log('🔥 About to call mutateAsync...');
+      // Trigger custom event to show progress bar immediately
+      window.dispatchEvent(new CustomEvent('researchAnalysisStarted'));
+      
       await comprehensiveAnalysisMutation.mutateAsync();
-      console.log('✅ Research mutation completed successfully');
+      
+      console.log('✅ Analysis request sent, waiting for completion...');
+      
+      // Wait for results since analysis takes time - SAME POLLING LOGIC AS CLINICAL/LEGAL
+      let attempts = 0;
+      const maxAttempts = 240; // 12 minutes max wait
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          // Check for new comprehensive research analysis results
+          const response = await fetch(`/api/deals/${dealId}/research-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🔬 Attempt ${attempts}: Checking for comprehensive research results...`);
+          
+          if (data.success && data.results && data.results.researchAnswers && Object.keys(data.results.researchAnswers).length > 0) {
+            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.results.researchAnswers).length);
+            
+            // Force refresh of comprehensive research results
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            // Add a small delay to ensure UI updates
+            setTimeout(() => {
+              setIsRunning(false);
+              console.log('🎉 Research analysis UI updated successfully!');
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for research results:', error);
+        }
+        
+        // Continue checking if not complete and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000); // Check every 3 seconds
+        } else {
+          console.log('⏰ Timeout reached - research analysis may still be running in background');
+          
+          // Force refresh anyway in case results are there
+          queryClient.invalidateQueries({
+            queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['/api/analyses', dealId]
+          });
+          
+          setIsRunning(false);
+        }
+      };
+      
+      // Start checking for results after a short delay
+      setTimeout(checkForResults, 5000); // Wait 5 seconds before first check
+      
     } catch (error) {
-      console.error('❌ Error starting research analysis:', error);
+      console.error('❌ Error starting comprehensive research analysis:', error);
       setIsRunning(false);
     }
   };
@@ -67,14 +150,14 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
   return (
     <Button
       onClick={handleRunAnalysis}
-      disabled={isRunning || comprehensiveAnalysisMutation.isPending}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
       size="sm"
       className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
     >
-      {isRunning || comprehensiveAnalysisMutation.isPending ? (
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Research Analysis Running...
+          {isAlreadyRunning ? 'Research Analysis Running...' : isRunning ? 'Research Analysis Running...' : 'Starting Analysis...'}
         </>
       ) : (
         <>
