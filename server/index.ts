@@ -26,6 +26,16 @@ import persistentUploadRouter from './routes/persistent-upload';
 
 const app = express();
 
+// Health check endpoint for Cloud Run
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'aescuvest-api',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // 🚨🚨🚨 CRITICAL: Register critical endpoints FIRST before ANY middleware to bypass Vite
 
 // Register embedding endpoint to bypass Vite
