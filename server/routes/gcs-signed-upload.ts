@@ -115,9 +115,30 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
     
     const sessionId = persistentUploadService.generateSessionId();
     
-    // Get file size from GCS
+    // Initialize GCS and get file size with error handling
+    try {
+      await gcsService.initializeIfNeeded();
+    } catch (initError: any) {
+      console.error('❌ GCS initialization failed:', initError);
+      return res.status(500).json({
+        success: false,
+        message: 'Google Cloud Storage unavailable',
+        error: 'Storage service initialization failed'
+      });
+    }
+    
     const file = (gcsService as any).bucket.file(gcsFileName);
-    const [exists] = await file.exists();
+    let exists = false;
+    try {
+      [exists] = await file.exists();
+    } catch (existsError: any) {
+      console.error('❌ Failed to check file existence:', existsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to verify uploaded file',
+        error: existsError.message
+      });
+    }
     
     let fileSize = 0;
     if (exists) {
@@ -184,11 +205,17 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
     if (fileName.toLowerCase().endsWith('.zip')) {
       console.log('📦 Processing ZIP file from GCS...');
       
-      // Download file from GCS to process
+      // Download file from GCS to process with timeout
       const tempFilePath = `/tmp/${uploadId}-${fileName}`;
       console.log(`📥 Downloading to temp: ${tempFilePath}`);
       
-      await file.download({ destination: tempFilePath });
+      // Add timeout for production reliability
+      await Promise.race([
+        file.download({ destination: tempFilePath }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Download timeout')), 60000) // 1 minute timeout
+        )
+      ]);
       console.log('✅ File downloaded from GCS');
 
       // Process the ZIP file

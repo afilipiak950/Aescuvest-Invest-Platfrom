@@ -151,7 +151,29 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
 
               if (!completeResponse.ok) {
                 const errorData = await completeResponse.json().catch(() => ({}));
-                throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
+                console.error('❌ Server processing failed:', {
+                  status: completeResponse.status,
+                  statusText: completeResponse.statusText,
+                  errorData
+                });
+                
+                // Provide user-friendly error messages for common production issues
+                let userMessage = 'Upload processing failed';
+                if (completeResponse.status === 500) {
+                  if (errorData.message?.includes('Storage service')) {
+                    userMessage = 'Cloud storage service unavailable. Please try again in a moment.';
+                  } else if (errorData.message?.includes('Google Cloud Storage')) {
+                    userMessage = 'Cloud storage configuration issue. Please contact support.';
+                  } else {
+                    userMessage = 'Server processing error. Your file was uploaded but processing failed.';
+                  }
+                } else if (completeResponse.status === 404) {
+                  userMessage = 'Upload verification failed. The file may not have been uploaded properly.';
+                } else {
+                  userMessage = errorData.message || `Upload processing failed (${completeResponse.status})`;
+                }
+                
+                throw new Error(userMessage);
               }
 
               const result = await completeResponse.json();
