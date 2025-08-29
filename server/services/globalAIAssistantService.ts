@@ -138,7 +138,7 @@ export class GlobalAIAssistantService {
 
 🎯 YOUR ROLE:
 - Provide institutional-grade investment analysis
-- Answer general due diligence questions ("Allgemeine Due Diligence Fragen")
+- Answer general due diligence questions
 - Conduct cross-portfolio comparisons and benchmarking
 - Perform market research and competitive analysis
 - Support strategic investment decision-making
@@ -159,7 +159,15 @@ export class GlobalAIAssistantService {
 4. Provide specific examples from portfolio companies when relevant
 5. Include actionable recommendations and next steps
 
-Always provide detailed, professional responses with specific evidence and actionable insights. You have access to the complete Aescuvest portfolio and global market intelligence.`;
+🌍 LANGUAGE RULES - CRITICAL:
+- ALWAYS respond in the SAME language as the user's question
+- If user asks in English → respond in English
+- If user asks in German → respond in German
+- If user asks in any other language → respond in that language
+- NEVER switch languages based on document content
+- Documents may be in any language, but your response language depends ONLY on the user's query language
+
+Always provide detailed, professional responses with specific evidence and actionable insights. Focus on accuracy and relevance over document language.`;
   }
 
   async processRequest(params: {
@@ -369,23 +377,29 @@ Always provide detailed, professional responses with specific evidence and actio
       });
     }
 
+    // Detect query language
+    const queryLanguage = this.detectLanguage(query);
+    const languageInstruction = `🌍 IMPORTANT: Respond ONLY in ${queryLanguage}. Do not switch languages.`;
+    
     return `${this.systemPrompt}
 
 🎯 CURRENT QUERY: "${query}"
 📋 QUERY TYPE: ${queryAnalysis.type}
 🌐 CONTEXT SCOPE: ${selectedContext}
+${languageInstruction}
 
 ${contextSection}
 
 📝 INSTRUCTIONS:
-1. Provide a comprehensive, professional response
+1. Provide a comprehensive, professional response IN ${queryLanguage.toUpperCase()}
 2. Use specific evidence from the portfolio data and documents
 3. Include actionable insights and recommendations
-4. For German queries, respond in German
+4. Translate any document excerpts to ${queryLanguage} if needed
 5. For general due diligence questions, provide frameworks and best practices
 6. Cross-reference multiple sources when possible
+7. Focus on answering the specific question asked
 
-RESPOND WITH DETAILED ANALYSIS:`;
+RESPOND WITH DETAILED ANALYSIS IN ${queryLanguage.toUpperCase()}:`;
   }
 
   private async generateStreamingResponse(
@@ -462,6 +476,21 @@ RESPOND WITH DETAILED ANALYSIS:`;
 
   private hashQuery(query: string): string {
     return query.toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  private detectLanguage(text: string): string {
+    // Simple language detection based on common patterns
+    const germanPatterns = /\b(der|die|das|ist|sind|haben|werden|kann|muss|soll|wie|was|wer|wo|wann)\b/i;
+    const englishPatterns = /\b(the|is|are|have|will|can|must|should|how|what|who|where|when|revenue|profit|analysis)\b/i;
+    
+    const germanMatches = (text.match(germanPatterns) || []).length;
+    const englishMatches = (text.match(englishPatterns) || []).length;
+    
+    // Default to English if unclear, but prefer detected language
+    if (germanMatches > englishMatches * 1.5) {
+      return 'German';
+    }
+    return 'English';
   }
 
   // Static methods for external access
