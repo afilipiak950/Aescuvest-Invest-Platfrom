@@ -1,4 +1,5 @@
 import { useLocation } from 'wouter';
+import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (2)_1756449410015.png";
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -18,12 +19,11 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           {!isExpanded && (
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-dark font-bold text-sm">A</span>
-              </div>
-              <span className="text-xl font-bold text-primary">AESCUVEST</span>
-            </div>
+            <img 
+              src={aescuvestLogo}
+              alt="Aescuvest" 
+              className="h-8 w-auto object-contain"
+            />
           )}
         </div>
         
