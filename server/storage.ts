@@ -2006,12 +2006,22 @@ export class DatabaseStorage implements IStorage {
 
   async updateStuckBackgroundJobs(dealId: number): Promise<number> {
     try {
-      console.log(`🔄 Updating stuck background jobs for deal ${dealId}`);
+      console.log(`🔄 Clearing completed/cancelled/failed background jobs for deal ${dealId}`);
       
-      // Update all processing jobs older than 1 hour to cancelled status
+      // First, delete all completed, cancelled, and failed jobs to prevent duplicate key constraints
+      const deleteCompletedResult = await db.delete(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.dealId, dealId),
+          inArray(backgroundJobs.status, ['completed', 'cancelled', 'failed'])
+        ));
+      
+      const deletedCompleted = deleteCompletedResult.rowCount || 0;
+      console.log(`🗑️ Deleted ${deletedCompleted} completed/cancelled/failed jobs`);
+      
+      // Update remaining processing jobs older than 1 hour to cancelled status
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       
-      const result = await db.update(backgroundJobs)
+      const updateResult = await db.update(backgroundJobs)
         .set({
           status: 'cancelled',
           error: 'Job stuck - cancelled by system',
@@ -2022,11 +2032,12 @@ export class DatabaseStorage implements IStorage {
           eq(backgroundJobs.status, 'processing')
         ));
       
-      const rowCount = result.rowCount || 0;
-      console.log(`✅ Updated ${rowCount} stuck jobs to cancelled status`);
-      return rowCount;
+      const updatedStuck = updateResult.rowCount || 0;
+      console.log(`✅ Updated ${updatedStuck} stuck jobs to cancelled status`);
+      
+      return deletedCompleted + updatedStuck;
     } catch (error) {
-      console.error(`Error updating stuck background jobs for deal ${dealId}:`, error);
+      console.error(`Error clearing background jobs for deal ${dealId}:`, error);
       return 0;
     }
   }

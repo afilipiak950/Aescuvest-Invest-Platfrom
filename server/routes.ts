@@ -6389,6 +6389,70 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Run comprehensive Financial analysis
+  app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      console.log(`💰 Starting comprehensive financial analysis for deal ${dealId}`);
+      
+      // Check for existing Financial analysis jobs to prevent duplicates  
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingFinancialJob = existingJobs.find(job => 
+        job.agentType === 'Financial' && job.status === 'processing'
+      );
+      
+      if (existingFinancialJob) {
+        console.log(`⚠️ Financial analysis already running for deal ${dealId} (Job: ${existingFinancialJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Financial analysis already running`,
+          jobId: existingFinancialJob.jobId
+        });
+      }
+      
+      // CRITICAL FIX: Delete existing Financial analysis to allow fresh restart
+      console.log(`🗑️ Clearing any existing financial analysis data for deal ${dealId} to enable fresh restart`);
+      try {
+        await storage.deleteAgentAnalysis(dealId, 'Financial');
+        console.log(`✅ Previous financial analysis data cleared successfully`);
+      } catch (deleteError) {
+        console.log(`⚠️ No existing financial analysis to clear (this is normal for first run)`);
+      }
+      
+      // ALSO clear any stuck background jobs that might prevent fresh start
+      try {
+        const jobId = `financial-analysis-${dealId}`;
+        await storage.deleteBackgroundJob(jobId);
+        console.log(`✅ Previous financial background job cleared successfully`);
+      } catch (jobDeleteError) {
+        console.log(`⚠️ No existing financial background job to clear (this is normal)`);
+      }
+      
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      
+      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`💰 Starting ENHANCED financial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
+          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
+        }
+      })();
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive financial analysis started - processing 12 financial questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive financial analysis' });
+    }
+  });
+
   // Investment Memo Generator Routes
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
     try {

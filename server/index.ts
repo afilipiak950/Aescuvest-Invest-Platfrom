@@ -1107,7 +1107,8 @@ app.use((req, res, next) => {
     if (req.originalUrl.includes('/upload') || 
         req.originalUrl.includes('/data-room') || 
         req.originalUrl.includes('zip') ||
-        req.originalUrl.includes('/ai-assistant/')) {
+        req.originalUrl.includes('/ai-assistant/') ||
+        req.originalUrl.includes('-analysis/comprehensive')) {
       console.log(`📦 SPECIAL ROUTE - Skipping anti-Vite middleware: ${req.originalUrl}`);
       return next();
     }
