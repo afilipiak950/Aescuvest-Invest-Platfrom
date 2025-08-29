@@ -35,7 +35,7 @@ export default function EnhancedAgentCard({
   const { data: agentResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`],
     enabled: !!dealId && !!agentType,
-    refetchInterval: 5000, // Poll every 5 seconds to get updates
+    refetchInterval: 15000, // Poll every 15 seconds to reduce server load
   });
 
   // Use agent results if available, fallback to passed analysis

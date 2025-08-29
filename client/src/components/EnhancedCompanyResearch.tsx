@@ -150,7 +150,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     debugInfo: any;
   }>({
     queryKey: [`/api/deals/${dealId}/research/progress`],
-    refetchInterval: 2000, // Always poll every 2 seconds
+    refetchInterval: 10000, // Poll every 10 seconds to reduce server load
     enabled: !!dealId,
     retry: false,
   });

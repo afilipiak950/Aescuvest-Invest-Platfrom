@@ -14,6 +14,9 @@ interface JobProgress {
   currentStep: string;
   documentName?: string;
   error?: string;
+  totalFiles?: number;
+  processedFiles?: number;
+  estimatedTimeRemaining?: string;
 }
 
 interface BackgroundJobProgressProps {
@@ -128,23 +131,28 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
         }
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
         setSocket(null);
         isConnecting = false;
         
-        // Reconnect after 2 seconds
-        if (!reconnectTimer) {
+        // Only reconnect if it wasn't a clean close (code 1000)
+        if (event.code !== 1000 && !reconnectTimer) {
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
+            console.log('Attempting WebSocket reconnection...');
             connect();
-          }, 2000);
+          }, 3000); // Increased delay to reduce connection spam
         }
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('❌ WebSocket error:', error);
+        setSocket(null);
         isConnecting = false;
+        
+        // Don't attempt immediate reconnection on error
+        // Let the onclose handler manage reconnection
       };
     };
 
@@ -160,20 +168,38 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
     };
   }, [dealId, onJobComplete]);
 
-  // Add polling as fallback for progress updates
+  // Smart polling: only when WebSocket is disconnected and we have active jobs
   useEffect(() => {
-    if (!dealId) return;
+    if (!dealId || socket) return; // Don't poll if WebSocket is connected
 
-    const pollInterval = setInterval(async () => {
+    let pollInterval: NodeJS.Timeout | null = null;
+    let consecutiveEmptyResponses = 0;
+
+    const poll = async () => {
       try {
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
         if (data.success && data.jobs) {
-          console.log(`📊 Polling found ${data.jobs.length} active jobs for deal ${dealId}`);
+          if (data.jobs.length === 0) {
+            consecutiveEmptyResponses++;
+            // Stop polling after 5 consecutive empty responses (5 seconds)
+            if (consecutiveEmptyResponses >= 5) {
+              console.log(`📊 Stopping polling for deal ${dealId} - no active jobs found`);
+              if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+              }
+              setActiveJobs(new Map());
+              return;
+            }
+          } else {
+            consecutiveEmptyResponses = 0;
+            console.log(`📊 Polling found ${data.jobs.length} active jobs for deal ${dealId}`);
+          }
+          
           const jobsMap = new Map();
           data.jobs.forEach((job: JobProgress) => {
-            console.log(`📋 Job ${job.jobId}: ${job.progress}% - ${job.currentStep}`);
             jobsMap.set(job.jobId, job);
           });
           setActiveJobs(jobsMap);
@@ -181,10 +207,20 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
       } catch (error) {
         console.error('Error polling background jobs:', error);
       }
-    }, 1000); // Poll every 1 second for faster updates
+    };
 
-    return () => clearInterval(pollInterval);
-  }, [dealId]);
+    // Initial poll
+    poll();
+    
+    // Set up interval only if we found jobs or need to check
+    pollInterval = setInterval(poll, 1000);
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [dealId, socket]); // Include socket in dependencies
 
   const getStatusIcon = (status: string, progress: number) => {
     if (status === 'failed') {
