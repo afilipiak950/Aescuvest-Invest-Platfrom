@@ -1,5 +1,5 @@
-// Temporarily commented out due to module resolution issue
-// import { Storage } from '@google-cloud/storage';
+// CRITICAL FIX: Static import required for production
+import { Storage } from '@google-cloud/storage';
 import { Readable } from 'stream';
 import path from 'path';
 import fs from 'fs';
@@ -29,9 +29,11 @@ class GoogleCloudStorageService {
   }
 
   private initializeStorageSync() {
-    // Import synchronously for startup
-    const { Storage } = require('@google-cloud/storage');
-    
+    // Storage is now imported statically at the top of the file
+    this.setupStorageWithClass(Storage);
+  }
+  
+  private setupStorageWithClass(Storage: any) {
     // Initialize GCS client with base64 encoded credentials
     let storageConfig: any = {};
     
@@ -68,46 +70,9 @@ class GoogleCloudStorageService {
     if (this.storage) return; // Already initialized
 
     try {
-      // Try dynamic import first, fallback to require for production
-      let Storage;
-      try {
-        const module = await import('@google-cloud/storage');
-        Storage = module.Storage;
-      } catch (importError) {
-        console.log('⚠️ Dynamic import failed, using require fallback');
-        Storage = require('@google-cloud/storage').Storage;
-      }
-      
-      // Initialize GCS client with base64 encoded credentials
-      let storageConfig: any = {};
-      
-      // Check for base64 encoded credentials
-      if (process.env.GOOGLE_CLOUD_STORAGE_KEY) {
-        try {
-          // Decode base64 credentials
-          const keyJson = Buffer.from(process.env.GOOGLE_CLOUD_STORAGE_KEY, 'base64').toString('utf-8');
-          const credentials = JSON.parse(keyJson);
-          
-          storageConfig = {
-            projectId: credentials.project_id,
-            credentials: credentials
-          };
-          
-          console.log(`🔐 GCS initialized with credentials for project: ${credentials.project_id}`);
-        } catch (error) {
-          console.error('❌ Failed to parse GCS credentials:', error);
-          throw new Error('Invalid Google Cloud Storage credentials');
-        }
-      } else {
-        console.log('⚠️ No GCS credentials found, using default');
-        storageConfig = {
-          projectId: process.env.GCP_PROJECT_ID,
-          keyFilename: process.env.GCS_KEY_FILE || undefined,
-        };
-      }
-      
-      this.storage = new Storage(storageConfig);
-      this.bucket = this.storage.bucket(this.bucketName);
+      // Storage is now imported statically at the top of the file
+      // No need for dynamic import or require
+      this.setupStorageWithClass(Storage);
       
       console.log(`📁 GCS initialized with bucket: ${this.bucketName}`);
     } catch (error) {
