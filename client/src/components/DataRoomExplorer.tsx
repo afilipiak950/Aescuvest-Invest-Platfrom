@@ -2529,7 +2529,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       {/* Document Assignment Progress Bar */}
       {backgroundJobs?.jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
         <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
-          {backgroundJobs.jobs.filter(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map(job => (
+          {backgroundJobs?.jobs?.filter(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map(job => (
             <div key={job.jobId}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-purple-400">

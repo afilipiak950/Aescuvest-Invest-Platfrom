@@ -1042,7 +1042,7 @@ function DueDiligenceContent() {
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-yellow-400">
-                    {jobProgress?.jobs ? (jobProgress.jobs.filter((job: any) => job.status === 'processing')?.length || 0) : 0}
+                    {jobProgress?.jobs ? (jobProgress?.jobs?.filter((job: any) => job.status === 'processing')?.length || 0) : 0}
                   </div>
                   <div className="text-sm text-gray-400">Running Analyses</div>
                 </div>
@@ -1068,7 +1068,7 @@ function DueDiligenceContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {jobProgress.jobs.map((job: any) => (
+                  {jobProgress?.jobs?.map((job: any) => (
                     <div key={job.jobId} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-300">
@@ -1277,8 +1277,8 @@ function DueDiligenceContent() {
                     {/* Overall progress indicator */}
                     <span className="text-sm text-gray-400">Overall Progress</span>
                     <span className="text-sm font-medium text-primary">
-                      {jobProgress?.jobs && jobProgress.jobs.length > 0 
-                        ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
+                      {jobProgress?.jobs && jobProgress?.jobs?.length > 0 
+                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress?.jobs?.length) 
                         : 0}%
                     </span>
                   </div>
@@ -1289,8 +1289,8 @@ function DueDiligenceContent() {
                   <div 
                     className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
                     style={{ 
-                      width: `${jobProgress?.jobs && jobProgress.jobs.length > 0 
-                        ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
+                      width: `${jobProgress?.jobs && jobProgress?.jobs?.length > 0 
+                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress?.jobs?.length) 
                         : 0}%` 
                     }}
                   ></div>
@@ -1522,7 +1522,7 @@ function DueDiligenceContent() {
                         setIsRunningAllAnalyses(false);
                       }
                     }}
-                    disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress.jobs.length > 0)}
+                    disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress?.jobs?.length > 0)}
                     className="bg-primary hover:bg-primary/80 text-white px-6 py-2"
                   >
                     {isRunningAllAnalyses ? (
