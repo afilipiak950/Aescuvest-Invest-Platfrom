@@ -1,0 +1,22 @@
+This is a test clinical research document for medical device validation.
+
+The document contains information about:
+- FDA regulatory compliance requirements
+- Clinical trial protocols and procedures
+- Patient safety monitoring guidelines
+- Medical device effectiveness studies
+- Regulatory approval pathway documentation
+
+This document should trigger automatic assignment to Clinical, Legal, and Commercial agents based on its content.
+
+Key financial data includes:
+- Clinical trial budget: $2.5M
+- FDA submission costs: $500K
+- Regulatory consulting fees: $750K
+
+Risk assessment:
+- Regulatory approval timeline uncertainty
+- Patient safety protocol compliance
+- Medical device performance validation
+
+The document represents strategic implications for product development and market entry strategy.

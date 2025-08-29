@@ -1,0 +1,38 @@
+[
+  {
+    "origin": ["*"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS", "PATCH"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Accept",
+      "Accept-Encoding",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Headers",
+      "Access-Control-Max-Age",
+      "x-goog-resumable",
+      "x-goog-content-length-range",
+      "x-goog-meta-*",
+      "x-goog-storage-class",
+      "x-goog-acl",
+      "x-goog-encryption-algorithm",
+      "x-goog-encryption-key",
+      "x-goog-encryption-key-sha256",
+      "x-goog-hash",
+      "x-goog-if-generation-match",
+      "x-goog-if-metageneration-match",
+      "x-goog-request-payer",
+      "x-goog-user-project",
+      "x-goog-api-version",
+      "Authorization",
+      "Cache-Control",
+      "Expires",
+      "Pragma",
+      "Range",
+      "Origin",
+      "X-Requested-With"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

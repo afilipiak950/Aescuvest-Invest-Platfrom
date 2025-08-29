@@ -44,13 +44,13 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
 
   // Fetch documents for the deal
   const { data: documents } = useQuery({
-    queryKey: ['/api/deals', dealId, 'documents'],
+    queryKey: [`/api/deals/${dealId}/documents`],
     retry: false
   });
 
   // Fetch existing analyses for the deal
   const { data: analyses, isLoading: analysesLoading } = useQuery({
-    queryKey: ['/api/analyses', dealId],
+    queryKey: [`/api/analyses/${dealId}`],
     retry: false
   });
 
@@ -169,7 +169,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Select Agent Type</h3>
             <div className="grid grid-cols-2 gap-3">
-              {agentData?.agentTypes?.map((agentType: string) => (
+              {(agentData as any)?.agentTypes?.map((agentType: string) => (
                 <Button
                   key={agentType}
                   variant={selectedAgent === agentType ? "default" : "outline"}
@@ -185,7 +185,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
               <div className="mt-4 p-4 bg-black/5 rounded-md">
                 <h4 className="font-medium mb-2">Agent Focus Areas:</h4>
                 <ul className="list-disc list-inside text-sm space-y-1">
-                  {agentData?.agentInfo?.[selectedAgent]?.focusAreas?.map((area: string) => (
+                  {(agentData as any)?.agentInfo?.[selectedAgent]?.focusAreas?.map((area: string) => (
                     <li key={area}>{area}</li>
                   ))}
                 </ul>
@@ -196,9 +196,9 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
           {/* Document selection panel */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Select Document</h3>
-            {documents?.length > 0 ? (
+            {(documents as any)?.length > 0 ? (
               <div className="h-64 overflow-y-auto space-y-2">
-                {documents.map((doc: any) => (
+                {(documents as any[]).map((doc: any) => (
                   <div 
                     key={doc.id}
                     className={`p-3 border rounded-md cursor-pointer transition-colors ${
@@ -268,7 +268,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
                       </CardHeader>
                       
                       <CardContent className="pb-2">
-                        {analysis.findings && analysis.findings.length > 0 ? (
+                        {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.length > 0 ? (
                           <div className="space-y-4">
                             <h4 className="font-medium">Key Findings:</h4>
                             <div className="space-y-3">
@@ -293,7 +293,7 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
                         )}
                       </CardContent>
                       
-                      {analysis.recommendations && analysis.recommendations.length > 0 && (
+                      {analysis.recommendations && Array.isArray(analysis.recommendations) && analysis.recommendations.length > 0 && (
                         <>
                           <Separator />
                           <CardFooter className="pt-4">

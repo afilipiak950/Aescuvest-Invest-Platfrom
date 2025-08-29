@@ -200,10 +200,24 @@ export default function Memos() {
                       View Details
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="sm">
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
+                  <Link 
+                    href={`/memo-generator?deal=${memo.dealId}&edit=${memo.id}`} 
+                    className="block cursor-pointer"
+                    onClick={(e) => {
+                      console.log('Edit button clicked for memo:', memo.id, 'deal:', memo.dealId);
+                      console.log('Navigate to:', `/memo-generator?deal=${memo.dealId}&edit=${memo.id}`);
+                    }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full hover:bg-dark-lighter hover:text-white cursor-pointer"
+                      type="button"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  </Link>
                   <Button variant="ghost" size="sm">
                     <Download className="h-3 w-3" />
                   </Button>

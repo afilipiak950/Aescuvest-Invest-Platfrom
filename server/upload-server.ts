@@ -23,7 +23,7 @@ uploadApp.use(express.json());
 const upload = multer({
   dest: 'uploads/',
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
   }
 });
 

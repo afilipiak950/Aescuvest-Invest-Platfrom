@@ -1,10 +1,9 @@
 import { Link, useLocation } from 'wouter';
-import aescuvestIcon from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (3)_1756449410014.png";
-import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (2)_1756449410015.png";
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight, Database, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/contexts/SidebarContext';
+// Using public path for logo
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -13,7 +12,8 @@ const menuItems = [
   { icon: Mail, label: 'Inbox', href: '/inbox' },
   { icon: FileUp, label: 'Deal Intake', href: '/deal-intake' },
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },
-  { icon: FileText, label: 'Memo Generator', href: '/memo-generator' },
+  { icon: FileText, label: 'Memos', href: '/memos' },
+  { icon: Bot, label: 'AI Assistant', href: '/ai-assistant' },
   { icon: Users, label: 'Investor Matching', href: '/investor-matching' },
   { icon: GitBranch, label: 'Workflow', href: '/workflow' },
 ];
@@ -24,26 +24,27 @@ export default function Sidebar() {
 
   return (
     <div className={cn(
-      "hidden lg:flex flex-col bg-sidebar bg-dark-light border-r border-dark-lighter transition-all duration-300 ease-in-out",
+      "hidden lg:flex flex-col bg-navy border-r border-dark-border transition-all duration-300 ease-in-out",
       isExpanded ? "w-64" : "w-16"
     )}>
       {/* Header with logo and toggle */}
-      <div className="p-3 border-b border-dark-lighter">
+      <div className="p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
               <img 
-                src={aescuvestLogo} 
-                alt="Aescuvest" 
-                className="h-8 w-auto object-contain"
+                src="/assets/aescuvest-icon.png" 
+                alt="Aescuvest Logo" 
+                className="h-6 w-6"
               />
+              <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
             </div>
           ) : (
-            <div className="h-10 w-10 flex items-center justify-center">
+            <div className="h-10 w-10 flex items-center justify-center mx-auto">
               <img 
-                src={aescuvestIcon} 
-                alt="Aescuvest" 
-                className="h-8 w-8 object-contain"
+                src="/assets/aescuvest-icon-only.png" 
+                alt="Aescuvest Logo" 
+                className="h-8 w-8"
               />
             </div>
           )}
@@ -120,7 +121,7 @@ export default function Sidebar() {
           href="/profile"
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
-            "bg-gradient-to-br from-primary/80 to-primary text-dark font-medium hover:scale-105",
+            "bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-medium hover:scale-105",
             location === "/profile" && "ring-2 ring-primary ring-offset-2 ring-offset-dark",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}
