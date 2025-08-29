@@ -216,7 +216,7 @@ Respond with JSON format:
   /**
    * Process all documents for a deal and assign agents automatically
    */
-  async assignAgentsForAllDocuments(dealId: number): Promise<DocumentAssignmentAnalysis[]> {
+  async assignAgentsForAllDocuments(dealId: number, progressCallback?: (processedCount: number, totalCount: number, currentDoc: string) => Promise<void>): Promise<DocumentAssignmentAnalysis[]> {
     console.log(`🤖 Starting AI-powered document assignment for deal ${dealId}`);
     
     // Get all documents for the deal
@@ -251,6 +251,11 @@ Respond with JSON format:
         }
 
         console.log(`🔍 Analyzing document ${++processedCount}/${dealDocuments.length}: ${doc.name}`);
+        
+        // Update progress if callback provided
+        if (progressCallback) {
+          await progressCallback(processedCount, dealDocuments.length, doc.name);
+        }
 
         // Get document content for analysis
         const documentContent = doc.ocrText || '';
