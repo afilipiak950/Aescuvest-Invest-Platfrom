@@ -191,20 +191,70 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       await file.download({ destination: tempFilePath });
       console.log('✅ File downloaded from GCS');
 
-      // Process the ZIP file
-      const processedDocs = await zipProcessor.processZipFromGCS(
-        tempFilePath,
-        parseInt(dealId),
-        document.id,
-        gcsFileName
-      );
-
-      console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted with automatic OCR and AI processing`);
+      // Process the ZIP file with comprehensive error tracking
+      let processedDocs;
+      try {
+        console.log('🔧 [DEBUG] Starting processZipFromGCS with full error tracking...');
+        processedDocs = await zipProcessor.processZipFromGCS(
+          tempFilePath,
+          parseInt(dealId),
+          document.id,
+          gcsFileName
+        );
+        console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted with automatic OCR and AI processing`);
+        console.log('🔧 [DEBUG] processZipFromGCS completed successfully');
+      } catch (zipError: any) {
+        console.error('❌ [CRITICAL] processZipFromGCS failed:', zipError);
+        console.error('❌ [DEBUG] ZIP processing error details:', {
+          message: zipError.message,
+          stack: zipError.stack,
+          tempFilePath,
+          dealId,
+          documentId: document.id,
+          gcsFileName
+        });
+        
+        // Try to clean up temp file even if processing failed
+        try {
+          const fs = await import('fs');
+          await fs.promises.unlink(tempFilePath);
+          console.log('🧹 Temp file cleaned up after error');
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup temp file:', cleanupError);
+        }
+        
+        // Return error response with detailed information
+        return res.status(500).json({
+          success: false,
+          message: 'ZIP processing failed',
+          error: zipError.message,
+          documentId: document.id,
+          documentsCreated: 0,
+          gcsPath: gcsFileName
+        });
+      }
 
       // Clean up temp file
-      const fs = await import('fs');
-      await fs.promises.unlink(tempFilePath);
-      console.log('🧹 Temp file cleaned up');
+      try {
+        const fs = await import('fs');
+        await fs.promises.unlink(tempFilePath);
+        console.log('🧹 Temp file cleaned up');
+      } catch (cleanupError) {
+        console.error('❌ Failed to cleanup temp file (non-critical):', cleanupError);
+      }
+
+      // Verify background jobs were created
+      console.log('🔧 [DEBUG] Verifying background jobs were created...');
+      try {
+        const { jobProcessor } = await import('../services/jobProcessor');
+        const activeJobs = await jobProcessor.getActiveJobsForDeal(parseInt(dealId));
+        console.log(`🔧 [DEBUG] Found ${activeJobs.length} active jobs for deal ${dealId}`);
+        if (activeJobs.length === 0) {
+          console.warn('⚠️ [WARNING] No active jobs found after ZIP processing - this may indicate job creation failed');
+        }
+      } catch (jobCheckError) {
+        console.error('❌ [DEBUG] Failed to check active jobs:', jobCheckError);
+      }
 
       // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
       // No need for additional job creation here - the method handles everything
