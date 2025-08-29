@@ -2342,22 +2342,28 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string, questionText: string) => {
-    // Try comprehensive results first - check snake_case field name from API
-    if (comprehensiveResults?.analysis?.research_answers) {
+    // Try comprehensive results first - check correct API structure (results.researchAnswers)
+    if (comprehensiveResults?.results?.researchAnswers) {
       // First try by question text (exact match)
-      const answer = comprehensiveResults.analysis.research_answers[questionText];
+      const answer = comprehensiveResults.results.researchAnswers[questionText];
       if (answer) return answer;
       
       // Fallback to question ID
+      const answerById = comprehensiveResults.results.researchAnswers[questionId];
+      if (answerById) return answerById;
+    }
+    
+    // Legacy fallback paths for backward compatibility  
+    if (comprehensiveResults?.analysis?.research_answers) {
+      const answer = comprehensiveResults.analysis.research_answers[questionText];
+      if (answer) return answer;
       const answerById = comprehensiveResults.analysis.research_answers[questionId];
       if (answerById) return answerById;
     }
     
-    // Fallback to camelCase if available
     if (comprehensiveResults?.analysis?.researchAnswers) {
       const answer = comprehensiveResults.analysis.researchAnswers[questionText];
       if (answer) return answer;
-      
       const answerById = comprehensiveResults.analysis.researchAnswers[questionId];
       if (answerById) return answerById;
     }
