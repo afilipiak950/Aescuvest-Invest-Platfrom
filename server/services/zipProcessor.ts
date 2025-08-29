@@ -120,23 +120,39 @@ export class ZipProcessor {
           console.log(`✅ Created document ${document.id}: ${fileName}`);
 
           // Create OCR job for automatic processing (OCR + AI Summary) - KEY MISSING PIECE!
-          const ocrJobId = await jobProcessor.createJob({
-            jobType: 'document_ocr',
-            dealId: dealId,
-            documentId: document.id,
-            status: 'pending',
-            progress: 0,
-            currentStep: 'Queued for OCR processing',
-            jobData: {
-              filePath: filePath, // Actual extracted file path for OCR processing
-              fileName: fileName,
-              fileType: fileType,
+          console.log(`🔧 [DEBUG] About to create OCR job for document ${document.id}: ${fileName}`);
+          let ocrJobId;
+          try {
+            ocrJobId = await jobProcessor.createJob({
+              jobType: 'document_ocr',
+              dealId: dealId,
               documentId: document.id,
-              documentName: fileName
-            }
-          });
-          
-          console.log(`🚀 Created OCR job ${ocrJobId} for document ${document.id}: ${fileName}`);
+              status: 'pending',
+              progress: 0,
+              currentStep: 'Queued for OCR processing',
+              jobData: {
+                filePath: filePath, // Actual extracted file path for OCR processing
+                fileName: fileName,
+                fileType: fileType,
+                documentId: document.id,
+                documentName: fileName
+              }
+            });
+            console.log(`🚀 Created OCR job ${ocrJobId} for document ${document.id}: ${fileName}`);
+          } catch (jobError: any) {
+            console.error(`❌ [CRITICAL] Failed to create OCR job for document ${document.id}:`, jobError);
+            console.error('❌ [DEBUG] Job creation error details:', {
+              message: jobError.message,
+              stack: jobError.stack,
+              documentId: document.id,
+              fileName,
+              filePath,
+              dealId
+            });
+            
+            // Continue processing other files even if this job fails
+            console.warn(`⚠️ [WARNING] Continuing without background job for ${fileName} - OCR will need to be triggered manually`);
+          }
 
           documents.push(document);
           processedCount++;
