@@ -158,6 +158,15 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
               console.log('✅ STEP 3 COMPLETE: Server processing done', result);
               
               setUploadProgress(100);
+              
+              // Schedule delayed success cleanup and refresh (same as DataRoomExplorer)
+              setTimeout(() => {
+                setUploadProgress(0);
+                // Trigger cache invalidation to refresh documents
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
+              }, 2000);
+              
               resolve(result);
               
             } catch (notifyError: any) {
@@ -206,9 +215,7 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       const result = await uploadDirectToGCS(file);
       console.log('✅ GCS Upload successful:', result);
       
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      // Note: Cache invalidation is handled by uploadDirectToGCS with proper timing
       
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
