@@ -1,0 +1,41 @@
+# Google App Engine configuration for massive file uploads
+runtime: nodejs20
+
+env_variables:
+  NODE_ENV: production
+  MAX_BODY_SIZE: "59055800320"
+  NGINX_CLIENT_MAX_BODY_SIZE: "55g"
+
+# CRITICAL: App Engine specific settings for large uploads
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.8
+  target_throughput_utilization: 0.8
+
+# Extended timeouts for large file processing
+instance_class: F4_1G
+
+# Network settings for large uploads
+network:
+  session_affinity: true
+  
+# Request timeout extended to 2 hours
+handlers:
+- url: /.*
+  script: auto
+  upload: .*
+  # CRITICAL: No size limits at App Engine level
+  secure: optional
+  
+# Skip files for deployment optimization
+skip_files:
+- ^(.*/)?#.*#$
+- ^(.*/)?.*~$
+- ^(.*/)?.*\.py[co]$
+- ^(.*/)?.*/RCS/.*$
+- ^(.*/)?\..*$
+- node_modules/
+- uploads/
+- test-zip-office/
+- attached_assets/

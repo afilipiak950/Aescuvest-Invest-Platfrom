@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
-import { Settings, User, Bell, Shield, Key, Database, Mail, Palette, Globe, AlertCircle, CheckCircle, Copy } from 'lucide-react';
+import { Settings, User, Bell, Shield, Key, Database, Mail, Palette, Globe, AlertCircle, CheckCircle, Copy, XCircle, RefreshCw, Clock, Building2 } from 'lucide-react';
 
 interface UserSettings {
   id: number;
@@ -45,9 +45,33 @@ interface EvaluationCriteria {
   updated_at: string;
 }
 
+interface AffinityStatus {
+  configured: boolean;
+  connected: boolean;
+  user?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: string;
+  };
+  error?: string;
+}
+
+interface SyncMetrics {
+  total: number;
+  synced: number;
+  pending: number;
+  errors: number;
+  lastSync: number | null;
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
+  const [affinityApiKey, setAffinityApiKey] = useState('');
+  const [isConfiguringAffinity, setIsConfiguringAffinity] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -226,6 +250,75 @@ export default function SettingsPage() {
     },
   });
 
+  // Affinity status query
+  const { data: affinityStatus, isLoading: affinityStatusLoading } = useQuery<AffinityStatus>({
+    queryKey: ['/api/affinity/status'],
+    refetchInterval: 30000 
+  });
+
+  // Affinity sync metrics query
+  const { data: affinityMetrics, isLoading: affinityMetricsLoading } = useQuery<SyncMetrics>({
+    queryKey: ['/api/affinity/sync-metrics'],
+    enabled: affinityStatus?.connected,
+    refetchInterval: 10000 
+  });
+
+  // Affinity lists query
+  const { data: affinityLists, isLoading: affinityListsLoading } = useQuery({
+    queryKey: ['/api/affinity/lists'],
+    enabled: affinityStatus?.connected,
+    select: (data: any) => data?.lists || []
+  });
+
+  // Configure Affinity API key mutation
+  const configureAffinityApiKey = useMutation({
+    mutationFn: async (key: string) => {
+      return await apiRequest('/api/affinity/configure', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey: key })
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Affinity API key configured successfully",
+      });
+      setAffinityApiKey('');
+      setIsConfiguringAffinity(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/affinity/status'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Configuration Failed",
+        description: error.details || error.message || "Failed to configure API key",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Sync Affinity investors mutation
+  const syncAffinityInvestors = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/affinity/sync-investors', {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sync Started",
+        description: "Investor synchronization has been started",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/affinity/sync-metrics'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Sync Failed",
+        description: error.details || error.message || "Failed to start sync",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Password validation function
   const validatePassword = (data: typeof passwordData): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -347,7 +440,7 @@ export default function SettingsPage() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-dark-light border border-dark-lighter">
+          <TabsList className="grid w-full grid-cols-6 bg-dark-light border border-dark-lighter">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -359,6 +452,10 @@ export default function SettingsPage() {
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Security
+            </TabsTrigger>
+            <TabsTrigger value="affinity" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Affinity CRM
             </TabsTrigger>
             <TabsTrigger value="scoring" className="flex items-center gap-2">
               <Database className="h-4 w-4" />
@@ -858,6 +955,254 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="affinity" className="space-y-6">
+            <Card className="bg-dark-light border-dark-lighter">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Affinity CRM Integration
+                </CardTitle>
+                <CardDescription>
+                  Connect and synchronize with your Affinity CRM for investor data management
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Connection Status */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Connection Status
+                    </h4>
+                    <Badge variant={affinityStatus?.connected ? "default" : "secondary"}>
+                      {affinityStatus?.connected ? (
+                        <><CheckCircle className="h-3 w-3 mr-1" />Connected</>
+                      ) : (
+                        <><XCircle className="h-3 w-3 mr-1" />Disconnected</>
+                      )}
+                    </Badge>
+                  </div>
+                  
+                  <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                    {affinityStatus?.connected ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-400" />
+                          <div>
+                            <p className="text-sm font-medium">Successfully connected to Affinity</p>
+                            <p className="text-xs text-gray-400">
+                              Connected as: {affinityStatus.user?.first_name} {affinityStatus.user?.last_name} 
+                              ({affinityStatus.user?.email})
+                            </p>
+                          </div>
+                        </div>
+                        {affinityMetrics && (
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div className="p-3 bg-dark rounded-lg">
+                              <p className="text-xs text-gray-400">Total Investors</p>
+                              <p className="text-lg font-semibold text-white">{affinityMetrics.total}</p>
+                            </div>
+                            <div className="p-3 bg-dark rounded-lg">
+                              <p className="text-xs text-gray-400">Synced</p>
+                              <p className="text-lg font-semibold text-green-400">{affinityMetrics.synced}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <XCircle className="h-5 w-5 text-red-400" />
+                          <div>
+                            <p className="text-sm font-medium">Not connected to Affinity</p>
+                            <p className="text-xs text-gray-400">Configure your API key to enable synchronization</p>
+                          </div>
+                        </div>
+                        {affinityStatus?.error && (
+                          <Alert className="bg-red-900/20 border-red-500/50">
+                            <AlertCircle className="h-4 w-4 text-red-400" />
+                            <AlertDescription className="text-red-400 text-sm">
+                              {affinityStatus.error}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Separator className="bg-dark-lighter" />
+
+                {/* API Configuration */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    API Configuration
+                  </h4>
+                  <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                    {!isConfiguringAffinity ? (
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">API Key</p>
+                          <p className="text-xs text-gray-400">
+                            {affinityStatus?.configured ? 'API key is configured' : 'No API key configured'}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => setIsConfiguringAffinity(true)}
+                          variant="outline"
+                          size="sm"
+                          className="border-primary text-primary hover:bg-primary/10"
+                        >
+                          {affinityStatus?.configured ? 'Update Key' : 'Configure Key'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="affinity-api-key">Affinity API Key</Label>
+                          <Input
+                            id="affinity-api-key"
+                            type="password"
+                            value={affinityApiKey}
+                            onChange={(e) => setAffinityApiKey(e.target.value)}
+                            placeholder="Enter your Affinity API key"
+                            className="bg-dark border-dark-lighter"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => configureAffinityApiKey.mutate(affinityApiKey)}
+                            disabled={!affinityApiKey.trim() || configureAffinityApiKey.isPending}
+                            size="sm"
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            {configureAffinityApiKey.isPending ? 'Configuring...' : 'Save Key'}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setIsConfiguringAffinity(false);
+                              setAffinityApiKey('');
+                            }}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Separator className="bg-dark-lighter" />
+
+                {/* Synchronization Controls */}
+                {affinityStatus?.connected && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Synchronization
+                    </h4>
+                    <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Investor Data Sync</p>
+                          <p className="text-xs text-gray-400">
+                            Synchronize investor data from Affinity CRM
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => syncAffinityInvestors.mutate()}
+                          disabled={syncAffinityInvestors.isPending}
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          {syncAffinityInvestors.isPending ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Sync Now
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {affinityMetrics && (
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="text-center p-3 bg-dark rounded-lg">
+                            <p className="text-sm font-semibold text-white">{affinityMetrics.total}</p>
+                            <p className="text-xs text-gray-400">Total</p>
+                          </div>
+                          <div className="text-center p-3 bg-dark rounded-lg">
+                            <p className="text-sm font-semibold text-green-400">{affinityMetrics.synced}</p>
+                            <p className="text-xs text-gray-400">Synced</p>
+                          </div>
+                          <div className="text-center p-3 bg-dark rounded-lg">
+                            <p className="text-sm font-semibold text-yellow-400">{affinityMetrics.pending}</p>
+                            <p className="text-xs text-gray-400">Pending</p>
+                          </div>
+                          <div className="text-center p-3 bg-dark rounded-lg">
+                            <p className="text-sm font-semibold text-red-400">{affinityMetrics.errors}</p>
+                            <p className="text-xs text-gray-400">Errors</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {affinityMetrics?.lastSync && (
+                        <div className="mt-3 text-xs text-gray-400 flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          Last sync: {new Date(affinityMetrics.lastSync).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Affinity Lists */}
+                {affinityStatus?.connected && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Affinity Lists
+                    </h4>
+                    <div className="p-4 rounded-lg border border-dark-lighter bg-dark-light/30">
+                      {affinityListsLoading ? (
+                        <div className="space-y-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="animate-pulse h-8 bg-dark-lighter rounded"></div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {affinityLists && affinityLists.length > 0 ? (
+                            affinityLists.map((list: any) => (
+                              <div key={list.id} className="flex items-center justify-between p-2 rounded border border-dark-lighter">
+                                <div className="flex items-center gap-2">
+                                  <Building2 className="h-4 w-4 text-gray-400" />
+                                  <span className="text-sm font-medium">{list.name}</span>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {list.type}
+                                </Badge>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-400">No lists found</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

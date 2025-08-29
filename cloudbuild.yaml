@@ -1,0 +1,34 @@
+# Google Cloud Build configuration for large file uploads
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/aescuvest-platform', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/aescuvest-platform']
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'aescuvest-platform'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/aescuvest-platform'
+      - '--platform'
+      - 'managed'
+      - '--region'
+      - 'us-central1'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '32Gi'
+      - '--cpu'
+      - '8'
+      - '--timeout'
+      - '7200'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'NODE_ENV=production'
+      - '--port'
+      - '5000'
+      - '--max-body-size'
+      - '59055800320'  # 55GB for production deployment
+      - '--service-account'
+      - 'aescuvest-upload@$PROJECT_ID.iam.gserviceaccount.com'

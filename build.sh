@@ -1,15 +1,31 @@
 #!/bin/bash
 
-echo "🚀 Starting production build with optimizations..."
+echo "🚀 Starting production build with deployment optimizations..."
 
 # Set production environment
 export NODE_ENV=production
 
-# Clean previous builds
-echo "🧹 Cleaning previous builds..."
-rm -rf dist
-rm -rf node_modules/.cache
-rm -rf .vite
+# Run deployment optimizations
+echo "🧹 Running deployment cleanup..."
+if [ -f "scripts/optimize-node-modules.sh" ]; then
+    bash scripts/optimize-node-modules.sh
+fi
+
+# Basic cleanup
+rm -rf dist 2>/dev/null || true
+rm -rf build 2>/dev/null || true
+rm -rf node_modules/.cache 2>/dev/null || true
+rm -rf .vite 2>/dev/null || true
+
+# Additional deployment optimizations
+echo "⚡ Additional deployment optimizations..."
+# Clean npm cache
+npm cache clean --force 2>/dev/null || true
+
+# Clean upload directories for deployment
+echo "📁 Preparing deployment directories..."
+find uploads -type f -delete 2>/dev/null || true
+find attached_assets -type f -delete 2>/dev/null || true
 
 # Install dependencies without dev dependencies for final bundle
 echo "📦 Installing production dependencies..."
@@ -17,7 +33,9 @@ npm ci --production=false
 
 # Build frontend with optimizations
 echo "🔨 Building frontend..."
+cd client
 npx vite build --mode production
+cd ..
 
 # Build backend with optimizations
 echo "🔨 Building backend..."
@@ -29,21 +47,35 @@ npx esbuild server/index.ts \
   --outdir=dist \
   --minify \
   --tree-shaking=true \
-  --target=node18 \
-  --sourcemap=false
+  --target=node18
 
 # Clean up development dependencies after build
 echo "🧹 Removing development dependencies..."
 npm prune --production
 
-# Remove unnecessary files from node_modules
-echo "🧹 Optimizing node_modules..."
+# Aggressive node_modules optimization for deployment
+echo "🧹 Aggressively optimizing node_modules for deployment..."
 find node_modules -name "*.md" -type f -delete 2>/dev/null || true
 find node_modules -name "*.txt" -type f -delete 2>/dev/null || true
+find node_modules -name "README*" -type f -delete 2>/dev/null || true
+find node_modules -name "LICENSE*" -type f -delete 2>/dev/null || true
+find node_modules -name "CHANGELOG*" -type f -delete 2>/dev/null || true
 find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
 find node_modules -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
+find node_modules -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
+find node_modules -name "spec" -type d -exec rm -rf {} + 2>/dev/null || true
+find node_modules -name "examples" -type d -exec rm -rf {} + 2>/dev/null || true
+find node_modules -name "demo" -type d -exec rm -rf {} + 2>/dev/null || true
+find node_modules -name "sample" -type d -exec rm -rf {} + 2>/dev/null || true
 find node_modules -name "*.test.js" -type f -delete 2>/dev/null || true
 find node_modules -name "*.spec.js" -type f -delete 2>/dev/null || true
+find node_modules -name "*.test.ts" -type f -delete 2>/dev/null || true
+find node_modules -name "*.spec.ts" -type f -delete 2>/dev/null || true
+
+# Remove large binary files that might be in dependencies
+find node_modules -name "*.pdf" -type f -delete 2>/dev/null || true
+find node_modules -name "*.zip" -type f -delete 2>/dev/null || true
+find node_modules -name "*.tar.gz" -type f -delete 2>/dev/null || true
 
 # Ensure runtime directories exist
 echo "📁 Creating runtime directories..."
@@ -51,7 +83,20 @@ mkdir -p uploads
 mkdir -p dist/uploads
 touch uploads/.gitkeep
 
-echo "✅ Production build complete!"
+# Final size check and cleanup verification
+echo "📊 Deployment size optimization summary:"
+UPLOAD_SIZE=$(du -sh uploads/ 2>/dev/null | cut -f1 || echo "0K")
+ASSETS_SIZE=$(du -sh attached_assets/ 2>/dev/null | cut -f1 || echo "0K")
+NODE_MODULES_SIZE=$(du -sh node_modules/ 2>/dev/null | cut -f1 || echo "Unknown")
+
+echo "   • uploads/ directory: $UPLOAD_SIZE"
+echo "   • attached_assets/ directory: $ASSETS_SIZE"
+echo "   • node_modules/ size: $NODE_MODULES_SIZE"
+echo "   • Runtime directories created"
+echo "   • Development dependencies pruned"
+echo "   • Build artifacts optimized"
+
+echo "✅ Production build complete and optimized for deployment!"
 echo "📊 Build summary:"
 du -sh dist/ 2>/dev/null || echo "  - Backend bundle: Built"
 du -sh client/dist/ 2>/dev/null || echo "  - Frontend bundle: Built"

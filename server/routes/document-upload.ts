@@ -2,8 +2,13 @@ import express, { type Request, type Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { dbFileStorage } from '../services/databaseFileStorage';
+import { gcsService } from '../services/googleCloudStorage';
 
 const router = express.Router();
+
+// Check if GCS is enabled (production always uses GCS)
+const useGCS = process.env.USE_GCS === 'true' || process.env.NODE_ENV === 'production';
 
 // Setup multer for file uploads with proper file storage
 const storage = multer.diskStorage({
@@ -26,7 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /pdf|doc|docx|txt|png|jpg|jpeg/;
@@ -81,6 +86,25 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
         console.log(`❌ File not found on disk: ${file.path}`);
       }
       
+      let finalPath = file.path;
+      
+      // Upload to GCS if enabled (production always uses GCS)
+      if (useGCS && dealId) {
+        try {
+          console.log(`☁️ Uploading to Google Cloud Storage...`);
+          const gcsPath = await gcsService.uploadFile(
+            file.path,
+            parseInt(dealId),
+            file.originalname
+          );
+          console.log(`✅ Uploaded to GCS: ${gcsPath}`);
+          finalPath = gcsPath;
+        } catch (error) {
+          console.error(`❌ GCS upload failed, using local path:`, error);
+          // Fall back to local storage if GCS fails
+        }
+      }
+      
       // Ensure we return the correct file information for OCR processing
       return {
         id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -88,9 +112,9 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
         size: file.size,
         type: file.mimetype,
         status: 'uploaded',
-        path: file.path,
+        path: finalPath,
         filename: file.filename,
-        diskPath: file.path // Full path to the file on disk
+        diskPath: file.path // Keep local path for compatibility
       };
     }));
 
@@ -168,12 +192,22 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
         isFolder: false
       };
       
-      // Create document in database
-      const document = await storage.createDocument(documentData);
+      // Store file in database for production (or keep local for development)
+      const storagePath = await dbFileStorage.storeFile(
+        file.path,
+        dealId ? parseInt(dealId) : 0,
+        file.originalname
+      );
+      
+      // Update document data with storage path
+      documentData.path = storagePath;
+      
+      // Create document in database - cast to any to avoid TypeScript issue
+      const document = await storage.createDocument(documentData as any);
       
       // Create background OCR job for progress tracking
       const jobData = { 
-        filePath: file.path, 
+        filePath: storagePath, // Use storage path instead of local path
         fileName: file.originalname,
         documentId: document.id,
         documentName: file.originalname

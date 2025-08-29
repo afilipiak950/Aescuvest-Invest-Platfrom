@@ -156,48 +156,77 @@ ${criteria.map(c => `- ${c.name} (${c.weight}%): ${c.description}`).join('\n')}
 
 DETAILED SCORING INSTRUCTIONS:
 
-**Sector Analysis (Healthcare vs Biotech):**
-- Pure Healthcare Tech (software, AI, digital health): 90-100 points
-- Medical Devices (non-biotech): 80-95 points  
-- Healthcare Services/Platforms: 85-95 points
-- Biotech/Pharma (wet lab, drug discovery): 0-20 points
-- Mixed Healthcare-Biotech: 30-60 points
+**CRITICAL EVALUATION FRAMEWORK - BE HIGHLY SELECTIVE:**
 
-**Geography Scoring:**
-- Germany, UK, France, Netherlands, Switzerland: 95-100 points
-- Other EU countries: 80-90 points
-- Israel: 90-100 points
-- US/Canada: 60-75 points
-- Other regions: 0-40 points
+**Sector Analysis (Healthcare vs Biotech) - STRICT CRITERIA:**
+- Pure Healthcare Tech (software, AI, digital health): 75-85 points (lowered from 90-100)
+- Medical Devices (non-biotech): 65-80 points (lowered from 80-95)
+- Healthcare Services/Platforms: 70-85 points (lowered from 85-95)
+- Biotech/Pharma (wet lab, drug discovery): 0-15 points (lowered from 0-20)
+- Mixed Healthcare-Biotech: 20-45 points (lowered from 30-60)
 
-**Stage Preferences:**
-- Series A: 95-100 points
-- Series B: 90-95 points  
-- Series C: 85-90 points
-- Seed: 70-80 points
-- Pre-seed: 60-70 points
-- Later stages: 40-60 points
+**Geography Scoring - STRICTER STANDARDS:**
+- Germany, UK, France, Netherlands, Switzerland: 80-90 points (lowered from 95-100)
+- Other EU countries: 65-80 points (lowered from 80-90)
+- Israel: 75-85 points (lowered from 90-100)
+- US/Canada: 45-60 points (lowered from 60-75)
+- Other regions: 0-30 points (lowered from 0-40)
 
-**Business Model Analysis:**
-- SaaS/Platform: 90-100 points
-- Automation/AI tools: 85-95 points
-- Reagents/Consumables: 80-90 points
-- Hardware only: 60-75 points
-- Services only: 50-70 points
+**Stage Preferences - MORE DEMANDING:**
+- Series A: 80-90 points (lowered from 95-100)
+- Series B: 75-85 points (lowered from 90-95)
+- Series C: 70-80 points (lowered from 85-90)
+- Seed: 55-65 points (lowered from 70-80)
+- Pre-seed: 45-55 points (lowered from 60-70)
+- Later stages: 25-45 points (lowered from 40-60)
 
-**Biotech Exclusion Analysis:**
-- Pure software/digital health (no wet lab): 95-100 points
-- Medical devices (no biologics): 85-95 points
-- Services/platforms only: 90-100 points
-- Mixed model with some biotech: 30-60 points
-- Primarily wet-lab biotech/pharma: 0-20 points
+**Business Model Analysis - HIGHER STANDARDS:**
+- SaaS/Platform: 75-85 points (lowered from 90-100)
+- Automation/AI tools: 70-80 points (lowered from 85-95)
+- Reagents/Consumables: 65-75 points (lowered from 80-90)
+- Hardware only: 45-60 points (lowered from 60-75)
+- Services only: 35-55 points (lowered from 50-70)
 
-**Ownership Feasibility Analysis:**
-- Clear path to 20-30% stake: 90-100 points
-- Possible 15-25% stake: 80-90 points
-- Limited to 10-20% stake: 60-80 points
-- Very diluted ownership <10%: 30-60 points
-- No meaningful ownership possible: 0-30 points
+**Biotech Exclusion Analysis - ULTRA-STRICT:**
+- Pure software/digital health (no wet lab): 80-90 points (lowered from 95-100)
+- Medical devices (no biologics): 70-80 points (lowered from 85-95)
+- Services/platforms only: 75-85 points (lowered from 90-100)
+- Mixed model with some biotech: 15-35 points (lowered from 30-60)
+- Primarily wet-lab biotech/pharma: 0-15 points (lowered from 0-20)
+
+**Ownership Feasibility Analysis - TOUGHER REQUIREMENTS:**
+- Clear path to 20-30% stake: 75-85 points (lowered from 90-100)
+- Possible 15-25% stake: 65-75 points (lowered from 80-90)
+- Limited to 10-20% stake: 45-65 points (lowered from 60-80)
+- Very diluted ownership <10%: 20-45 points (lowered from 30-60)
+- No meaningful ownership possible: 0-20 points (lowered from 0-30)
+
+**ADDITIONAL CRITICAL FACTORS - ENHANCED SCRUTINY:**
+- Revenue traction: Must show clear path to profitability within 3-5 years
+- Team quality: Proven track record with demonstrated success in similar markets
+- Competition: Must have clear, defensible differentiation and moats
+- Market timing: Must be entering at optimal time with proof of market readiness
+- Scalability: Must demonstrate scalable business model with evidence of potential scale
+- Technology risk: Must assess technological feasibility and competitive advantages
+- Regulatory compliance: Must be compliant with current and anticipated regulations
+- Financial sustainability: Must show realistic path to sustainable unit economics
+
+**INVESTMENT THESIS VALIDATION:**
+Each criterion must be scored with extreme scrutiny. Look for:
+- Hard evidence over claims
+- Proven metrics over projections
+- Defensible advantages over generic features
+- Realistic growth trajectories over hockey stick projections
+- Clear value proposition over vague benefits
+
+**CRITICAL EVALUATION MINDSET:**
+- Be highly skeptical of all claims
+- Demand evidence for every assertion
+- Prioritize downside risk assessment
+- Question sustainability of competitive advantages
+- Challenge revenue projections and growth assumptions
+- Evaluate team experience critically
+- Consider worst-case scenarios in all assessments
 
 CRITICAL: You must evaluate ALL ${criteria.length} criteria listed above. Each criterion must have a score and detailed reasoning.
 
@@ -849,11 +878,11 @@ ${textContent}`
 
     const overallScore = totalWeight > 0 ? Math.round(weightedScore) : 0;
     
-    // Determine recommendation based on overall score
+    // Determine recommendation based on overall score - MORE CRITICAL THRESHOLDS
     let recommendation: 'PASS' | 'INVESTIGATE' | 'REJECT';
-    if (overallScore >= 80) {
+    if (overallScore >= 85) {
       recommendation = 'PASS';
-    } else if (overallScore >= 50) {
+    } else if (overallScore >= 65) {
       recommendation = 'INVESTIGATE';
     } else {
       recommendation = 'REJECT';

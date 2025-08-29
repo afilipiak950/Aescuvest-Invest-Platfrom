@@ -14,9 +14,6 @@ interface JobProgress {
   currentStep: string;
   documentName?: string;
   error?: string;
-  totalFiles?: number;
-  processedFiles?: number;
-  estimatedTimeRemaining?: string;
 }
 
 interface BackgroundJobProgressProps {
@@ -31,8 +28,10 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
 
   // Mutation to cancel a job
   const cancelJobMutation = useMutation({
-    mutationFn: async (jobId: number) => {
-      return apiRequest(`/api/background-jobs/${jobId}/cancel`, {
+    mutationFn: async (jobId: string | number) => {
+      // Use the correct endpoint based on job ID format
+      const endpoint = typeof jobId === 'string' ? 'stop' : 'cancel';
+      return apiRequest(`/api/background-jobs/${jobId}/${endpoint}`, {
         method: 'POST',
       });
     },
@@ -131,28 +130,23 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
         }
       };
 
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
         setSocket(null);
         isConnecting = false;
         
-        // Only reconnect if it wasn't a clean close (code 1000)
-        if (event.code !== 1000 && !reconnectTimer) {
+        // Reconnect after 2 seconds
+        if (!reconnectTimer) {
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
-            console.log('Attempting WebSocket reconnection...');
             connect();
-          }, 3000); // Increased delay to reduce connection spam
+          }, 2000);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        setSocket(null);
+        console.error('WebSocket error:', error);
         isConnecting = false;
-        
-        // Don't attempt immediate reconnection on error
-        // Let the onclose handler manage reconnection
       };
     };
 
@@ -168,34 +162,24 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
     };
   }, [dealId, onJobComplete]);
 
-  // Smart polling: only when WebSocket is disconnected and we have active jobs
+  // Add polling as fallback for progress updates
   useEffect(() => {
-    if (!dealId || socket) return; // Don't poll if WebSocket is connected
+    if (!dealId) return;
 
-    let pollInterval: NodeJS.Timeout | null = null;
-    let consecutiveEmptyResponses = 0;
-
-    const poll = async () => {
+    const pollInterval = setInterval(async () => {
       try {
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
         if (data.success && data.jobs) {
-          if (data.jobs.length === 0) {
-            consecutiveEmptyResponses++;
-            // Stop polling after 5 consecutive empty responses (5 seconds)
-            if (consecutiveEmptyResponses >= 5) {
-              console.log(`📊 Stopping polling for deal ${dealId} - no active jobs found`);
-              if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-              }
-              setActiveJobs(new Map());
-              return;
-            }
-          } else {
-            consecutiveEmptyResponses = 0;
-            console.log(`📊 Polling found ${data.jobs.length} active jobs for deal ${dealId}`);
+          // Filter out legal analysis jobs from logging since they use their own progress endpoint
+          const nonLegalJobs = data.jobs.filter((job: JobProgress) => !job.jobId.toString().includes('legal_analysis'));
+          
+          if (nonLegalJobs.length > 0) {
+            console.log(`📊 Polling found ${nonLegalJobs.length} active jobs for deal ${dealId}`);
+            nonLegalJobs.forEach((job: JobProgress) => {
+              console.log(`📋 Job ${job.jobId}: ${job.progress}% - ${job.currentStep}`);
+            });
           }
           
           const jobsMap = new Map();
@@ -207,20 +191,10 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
       } catch (error) {
         console.error('Error polling background jobs:', error);
       }
-    };
+    }, 1000); // Poll every 1 second for faster updates
 
-    // Initial poll
-    poll();
-    
-    // Set up interval only if we found jobs or need to check
-    pollInterval = setInterval(poll, 1000);
-
-    return () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-      }
-    };
-  }, [dealId, socket]); // Include socket in dependencies
+    return () => clearInterval(pollInterval);
+  }, [dealId]);
 
   const getStatusIcon = (status: string, progress: number) => {
     if (status === 'failed') {
