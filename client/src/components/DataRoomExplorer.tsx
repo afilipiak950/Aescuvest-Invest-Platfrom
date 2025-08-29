@@ -2527,9 +2527,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       )}
 
       {/* Document Assignment Progress Bar */}
-      {jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
+      {backgroundJobs?.jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
         <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
-          {jobs.filter(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map(job => (
+          {backgroundJobs.jobs.filter(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map(job => (
             <div key={job.jobId}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-purple-400">
@@ -2600,7 +2600,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     onClick={() => assignAgentsMutation.mutate()}
                     size="sm"
                     variant="outline" 
-                    disabled={assignAgentsMutation.isPending || jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending'))}
+                    disabled={assignAgentsMutation.isPending || backgroundJobs?.jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending'))}
                     className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {assignAgentsMutation.isPending ? (
@@ -2608,7 +2608,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                         <Loader2 className="w-4 h-4 animate-spin mr-1" />
                         Starting...
                       </>
-                    ) : jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) ? (
+                    ) : backgroundJobs?.jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin mr-1" />
                         Assignment Running
