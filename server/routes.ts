@@ -6311,17 +6311,24 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         console.log(`⚠️ No existing research background job to clear (this is normal)`);
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Import the WORKING comprehensive research analysis service
+      const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisComplete');
       
-      // Run ENHANCED comprehensive research analysis in background with deep evidence-based processing
+      // Run comprehensive research analysis in background with proper storage
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Research');
-          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
+          console.log(`🔬 Service imported successfully:`, typeof comprehensiveResearchAnalysisService);
+          console.log(`🔬 Method available:`, typeof comprehensiveResearchAnalysisService.runComprehensiveAnalysis);
+          
+          const jobId = `research-analysis-${dealId}`;
+          console.log(`🔬 About to call runComprehensiveAnalysis with dealId: ${dealId}, storage: ${typeof storage}, jobId: ${jobId}`);
+          
+          await comprehensiveResearchAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
+          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
+          console.error(`❌ DETAILED Error in comprehensive research analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
