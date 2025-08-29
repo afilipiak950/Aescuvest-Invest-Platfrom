@@ -1259,27 +1259,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
-      // Check for existing assignment jobs to prevent duplicates
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingAssignmentJob = existingJobs.find(job => 
-        job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')
-      );
-      
-      if (existingAssignmentJob) {
-        console.log(`⚠️ Document assignment already running for deal ${dealId} (Job: ${existingAssignmentJob.jobId})`);
-        return res.json({ 
-          success: true, 
-          message: `Document assignment already in progress`,
-          jobId: existingAssignmentJob.jobId,
-          status: existingAssignmentJob.status
-        });
+      // Check if force reassign flag is set (default to true for always reassigning)
+      const forceReassign = req.body?.forceReassign !== false;
+
+      // Only check for existing jobs if not forcing reassignment
+      if (!forceReassign) {
+        const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+        const existingAssignmentJob = existingJobs.find(job => 
+          job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')
+        );
+        
+        if (existingAssignmentJob) {
+          console.log(`⚠️ Document assignment already running for deal ${dealId} (Job: ${existingAssignmentJob.jobId})`);
+          return res.json({ 
+            success: true, 
+            message: `Document assignment already in progress`,
+            jobId: existingAssignmentJob.jobId,
+            status: existingAssignmentJob.status,
+            totalDocuments: existingAssignmentJob.totalDocuments || 0
+          });
+        }
       }
 
       // Get document count for progress tracking
       const documents = await storage.getDocumentsByDealId(dealId);
       const totalDocuments = documents.length;
 
-      console.log(`🤖 Creating background job for AI document assignment of ${totalDocuments} documents for deal ${dealId}`);
+      console.log(`🤖 ${forceReassign ? 'Force reassigning' : 'Creating'} background job for AI document assignment of ${totalDocuments} documents for deal ${dealId}`);
+      
+      // Cancel any existing assignment jobs if forcing reassignment
+      if (forceReassign) {
+        const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+        const runningAssignmentJobs = existingJobs.filter(job => 
+          job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')
+        );
+        
+        for (const job of runningAssignmentJobs) {
+          console.log(`🛑 Cancelling existing assignment job ${job.jobId}`);
+          await storage.updateBackgroundJob(job.id, { 
+            status: 'cancelled',
+            currentStep: 'Cancelled - new assignment started'
+          });
+        }
+      }
       
       // Create background job for assignment process
       const jobId = `assignment_${dealId}_${Date.now()}`;
@@ -1292,14 +1314,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalDocuments,
         processedDocuments: 0,
         currentStep: 'Queued for document assignment',
-        jobData: { dealId, totalDocuments }
+        jobData: { dealId, totalDocuments, forceReassign }
       });
       
       console.log(`✅ Created assignment background job ${jobId} with ID ${createdJob}`);
       
       return res.status(200).json({
         success: true,
-        message: `Document assignment started in background for ${totalDocuments} documents`,
+        message: `Document assignment ${forceReassign ? 're-started' : 'started'} in background for ${totalDocuments} documents`,
         jobId,
         totalDocuments,
         status: 'pending'
