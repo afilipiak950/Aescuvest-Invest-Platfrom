@@ -78,7 +78,16 @@ class JobProcessor {
     };
 
     if (metadata) {
-      updateData.metadata = metadata;
+      // Map metadata fields to database columns for assignment jobs
+      if (metadata.processedDocuments !== undefined) {
+        updateData.processedDocuments = metadata.processedDocuments;
+      }
+      if (metadata.totalDocuments !== undefined) {
+        updateData.totalDocuments = metadata.totalDocuments;
+      }
+      if (metadata.currentDocument !== undefined) {
+        updateData.currentDocumentName = metadata.currentDocument;
+      }
     }
 
     if (status) {
