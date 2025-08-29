@@ -34,14 +34,14 @@ class JobProcessor {
     // Ensure jobId is properly set with fallback
     const safeJobData: InsertBackgroundJob = {
       ...jobData,
-      jobId: jobData.jobId || `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      status: jobData.status || 'pending'
+      jobId: (jobData as any).jobId || `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      status: (jobData as any).status || 'pending'
     };
     
     console.log(`🔍 JOB CREATE MICRO-STEP 2: Inserting job to database with safe data...`);
     console.log(`🔍 Safe job data:`, safeJobData);
     
-    const [job] = await db.insert(backgroundJobs).values(safeJobData).returning();
+    const [job] = await db.insert(backgroundJobs).values(safeJobData as any).returning();
     
     if (!job || !job.id) {
       throw new Error('Failed to create job - no job ID returned from database');
@@ -472,14 +472,15 @@ class JobProcessor {
         await this.updateJobProgress(job.id, 70, 'Generating intelligent document summary...');
         
         // Add timeout for AI summary generation (30 seconds max)
+        const summaryPromise = this.generateAISummary(ocrResult.extractedText);
         const summaryTimeoutPromise = new Promise<never>((_, reject) => {
           const aiTimeoutId = setTimeout(() => reject(new Error('AI summary generation timeout after 30 seconds')), 30000);
           // Clear timeout on completion
-          promise.finally(() => clearTimeout(aiTimeoutId));
+          summaryPromise.finally(() => clearTimeout(aiTimeoutId));
         });
         
         aiSummary = await Promise.race([
-          this.generateAISummary(ocrResult.extractedText),
+          summaryPromise,
           summaryTimeoutPromise
         ]);
         aiSummaryStatus = 'completed';
@@ -1010,10 +1011,19 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       // CRITICAL: Embed document in RAG system after AI summary generation
       try {
         console.log(`🎯 EMBEDDING document ${documentId} in RAG system...`);
-        const { EmbeddingService } = await import('./embeddingService');
-        const embeddingService = new EmbeddingService();
-        await embeddingService.embedDocument(documentId);
-        console.log(`✅ Document ${documentId} successfully embedded in RAG system`);
+        // Get document details for embedding
+        const [doc] = await db.select().from(documents).where(eq(documents.id, documentId));
+        if (doc && doc.ocrText) {
+          const { EmbeddingService } = await import('./embeddingService');
+          await EmbeddingService.embedDocument(
+            documentId,
+            doc.dealId,
+            doc.name,
+            doc.ocrText,
+            doc.agentType || 'general'
+          );
+          console.log(`✅ Document ${documentId} successfully embedded in RAG system`);
+        }
       } catch (embedError) {
         console.error(`⚠️ Failed to embed document ${documentId}, will retry later:`, embedError);
         // Don't fail the job if embedding fails - it can be retried
@@ -1133,14 +1143,12 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
             if (docs && docs[0]) {
               const doc = docs[0];
               // Generate embeddings in background
-              EmbeddingService.generateAndStoreEmbeddings(
+              EmbeddingService.embedDocument(
+                doc.id,
+                doc.dealId,
+                doc.name,
                 ocrResult.extractedText,
-                {
-                  dealId: doc.dealId,
-                  documentId: doc.id,
-                  documentName: doc.name,
-                  documentType: doc.agentType || 'general'
-                }
+                doc.agentType || 'general'
               ).then(() => {
                 console.log(`✅ Embeddings generated for document ${doc.name}`);
               }).catch(error => {
@@ -1164,14 +1172,12 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
             if (docs && docs[0]) {
               const doc = docs[0];
               // Generate embeddings in background
-              EmbeddingService.generateAndStoreEmbeddings(
+              EmbeddingService.embedDocument(
+                doc.id,
+                doc.dealId,
+                doc.name,
                 ocrResult.extractedText,
-                {
-                  dealId: doc.dealId,
-                  documentId: doc.id,
-                  documentName: doc.name,
-                  documentType: doc.agentType || 'general'
-                }
+                doc.agentType || 'general'
               ).then(() => {
                 console.log(`✅ Embeddings generated for document ${doc.name}`);
               }).catch(error => {
