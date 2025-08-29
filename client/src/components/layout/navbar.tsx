@@ -2,7 +2,8 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSidebar } from '@/contexts/SidebarContext';
-import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
+// Logo file missing - using placeholder for now
+// import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
 
 export default function Navbar() {
   const [location, setLocation] = useLocation();
@@ -20,7 +21,7 @@ export default function Navbar() {
         <div className="flex items-center">
           {!isExpanded && (
             <img 
-              src={aescuvestLogoFull}
+              src="/aescuvest-full-logo.png"
               alt="Aescuvest" 
               className="h-8 w-auto"
             />
