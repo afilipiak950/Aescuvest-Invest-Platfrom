@@ -1271,12 +1271,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (existingAssignmentJob) {
           console.log(`⚠️ Document assignment already running for deal ${dealId} (Job: ${existingAssignmentJob.jobId})`);
+          // Get actual document count if not in job
+          let totalDocs = existingAssignmentJob.totalDocuments;
+          if (!totalDocs) {
+            const documents = await storage.getDocumentsByDealId(dealId);
+            totalDocs = documents.length;
+          }
           return res.json({ 
             success: true, 
             message: `Document assignment already in progress`,
             jobId: existingAssignmentJob.jobId,
             status: existingAssignmentJob.status,
-            totalDocuments: existingAssignmentJob.totalDocuments || 0
+            totalDocuments: totalDocs || 0
           });
         }
       }
