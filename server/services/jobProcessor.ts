@@ -70,12 +70,16 @@ class JobProcessor {
     return job.id;
   }
 
-  async updateJobProgress(jobId: number, progress: number, currentStep: string, status?: string) {
+  async updateJobProgress(jobId: number, progress: number, currentStep: string, status?: string, metadata?: any) {
     const updateData: any = {
       progress,
       currentStep,
       updatedAt: new Date()
     };
+
+    if (metadata) {
+      updateData.metadata = metadata;
+    }
 
     if (status) {
       updateData.status = status;
@@ -1227,8 +1231,24 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
     console.log(`🤖 Starting AI-powered document assignment for deal ${dealId} (Background Job: ${job.id})`);
     
     try {
+      // Create progress callback to update job progress
+      const progressCallback = async (processedCount: number, totalCount: number, currentDoc: string) => {
+        const progress = Math.round((processedCount / totalCount) * 100);
+        await this.updateJobProgress(
+          job.id, 
+          progress, 
+          `Analyzing document ${processedCount}/${totalCount}: ${currentDoc}`,
+          'processing',
+          {
+            processedDocuments: processedCount,
+            totalDocuments: totalCount,
+            currentDocument: currentDoc
+          }
+        );
+      };
+      
       // Import the service dynamically to avoid circular dependencies
-      const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId);
+      const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId, progressCallback);
       
       // Get total document count for accurate reporting
       const documents = await db
@@ -1237,7 +1257,10 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
         .where(eq(documentsTable.dealId, dealId));
       const totalDocuments = documents.length;
       
-      await this.updateJobProgress(job.id, 100, `Assignment completed: ${totalDocuments} documents processed`, 'processing');
+      await this.updateJobProgress(job.id, 100, `Assignment completed: ${totalDocuments} documents processed`, 'processing', {
+        processedDocuments: totalDocuments,
+        totalDocuments: totalDocuments
+      });
       
       const summary = {
         totalDocuments: totalDocuments,
