@@ -49,17 +49,13 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
 
   const connection: DataRoomConnection | null = connectionData?.connection || null;
 
-  // ZIP upload mutation
+  // GCS direct upload mutation (now matches DataRoomExplorer exactly)
   const uploadZipMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      return await apiRequest(`/api/deals/${dealId}/data-room/upload-zip`, {
-        method: 'POST',
-        body: formData
-      });
+    mutationFn: async (file: File) => {
+      return await uploadDirectToGCS(file);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      // No immediate cache invalidation - handled by uploadDirectToGCS after 2-second delay
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -208,26 +204,10 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
-    // 🚨 ALWAYS USE GCS DIRECT UPLOAD FOR ALL FILES (correct approach)
-    console.log('🚀 Using GCS DIRECT upload for ALL files (production-ready approach)');
+    // 🚨 Use mutation to trigger GCS direct upload (consistent with mutation pattern)
+    console.log('🚀 Using GCS DIRECT upload via mutation for production consistency');
     
-    try {
-      const result = await uploadDirectToGCS(file);
-      console.log('✅ GCS Upload successful:', result);
-      
-      // Note: Cache invalidation is handled by uploadDirectToGCS with proper timing
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      if (onUploadComplete) {
-        onUploadComplete();
-      }
-    } catch (error) {
-      console.error('GCS Upload failed:', error);
-      alert(`Upload failed: ${error.message || 'Unknown error'}`);
-    }
+    uploadZipMutation.mutate(file);
   };
 
   const getStatusColor = (status: string) => {
