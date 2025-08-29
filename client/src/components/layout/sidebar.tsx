@@ -3,8 +3,9 @@ import { cn } from '@/lib/utils';
 import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/contexts/SidebarContext';
-import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png";
-import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
+// Logo files missing - using placeholders for now
+// import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png";
+// import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -33,11 +34,11 @@ export default function Sidebar() {
           {isExpanded ? (
             <div className="flex items-center gap-3">
               <img 
-                src={aescuvestLogoFull} 
+                src="/aescuvest-full-logo.png" 
                 alt="Aescuvest" 
                 className="h-8 w-auto object-contain"
                 onError={(e) => {
-                  console.error('Logo failed to load:', aescuvestLogoFull);
+                  console.error('Logo failed to load');
                   e.currentTarget.style.display = 'none';
                 }}
               />
@@ -46,11 +47,11 @@ export default function Sidebar() {
           ) : (
             <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
               <img 
-                src={aescuvestLogo} 
+                src="/aescuvest-logo.png" 
                 alt="Aescuvest" 
                 className="h-8 w-8 object-contain"
                 onError={(e) => {
-                  console.error('Logo failed to load:', aescuvestLogo);
+                  console.error('Logo failed to load');
                   e.currentTarget.style.display = 'none';
                   const fallback = e.currentTarget.nextElementSibling as HTMLElement;
                   if (fallback) fallback.style.display = 'block';
