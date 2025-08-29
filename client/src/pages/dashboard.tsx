@@ -278,31 +278,15 @@ export default function Dashboard() {
           
           setReminders(realReminders);
           
-          // Fetch user information - try multiple endpoints
+          // Fetch user information
           try {
-            // First try the settings endpoint
             const userResponse = await fetch('/api/settings/user');
-            if (userResponse.ok) {
-              const userData = await userResponse.json();
-              if (userData.success && userData.user) {
-                setUserName(userData.user.firstName || userData.user.name || userData.user.username || 'Admin');
-              }
-            } else {
-              // Fallback to auth session endpoint
-              const sessionResponse = await fetch('/api/auth/session');
-              if (sessionResponse.ok) {
-                const sessionData = await sessionResponse.json();
-                if (sessionData.authenticated) {
-                  setUserName('Admin');
-                }
-              } else {
-                // Default fallback
-                setUserName('Admin');
-              }
+            const userData = await userResponse.json();
+            if (userData.success && userData.user) {
+              setUserName(userData.user.name || userData.user.username || 'User');
             }
           } catch (error) {
-            console.log('Could not fetch user data, using default');
-            setUserName('Admin');
+            console.log('Could not fetch user data');
           }
           
           // Calculate pending tasks from reminders and deals
@@ -314,20 +298,9 @@ export default function Dashboard() {
         
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        
-        // Use mock data as fallback
-        setDeals(mockDeals);
-        setActivities(mockActivities);
-        setReminders(mockReminders);
-        setStats(mockDashboardStats);
-        setUserName('Admin');
-        setPendingTasks(3);
-        setRealStats({
-          dueDiligenceActive: 14,
-          memosDrafts: 3,
-          investorMatches: 8,
-          recentDealsChange: 15
-        });
+        setDeals([]);
+        setActivities([]);
+        setReminders([]);
       } finally {
         setIsLoading(false);
       }
@@ -420,7 +393,7 @@ export default function Dashboard() {
         <Card className="bg-dark-light border-dark-lighter">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xl font-semibold text-white">Upcoming Reminders</CardTitle>
-            <Link href="/workflow" className="text-primary text-sm hover:text-primary/80 transition duration-300">
+            <Link href="/workflow" className="text-primary text-sm hover:text-primary-hover transition duration-300">
               View All
             </Link>
           </CardHeader>
@@ -433,7 +406,7 @@ export default function Dashboard() {
         <Card className="bg-dark-light border-dark-lighter">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xl font-semibold text-white">Latest AI Activity</CardTitle>
-            <Link href="/due-diligence" className="text-primary text-sm hover:text-primary/80 transition duration-300">
+            <Link href="/due-diligence" className="text-primary text-sm hover:text-primary-hover transition duration-300">
               View All
             </Link>
           </CardHeader>

@@ -130,10 +130,10 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
               </Button>
               <div className={`px-4 py-2 rounded-lg text-lg font-medium ${
                 displayScore >= 85 ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
-                displayScore >= 65 ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' :
+                displayScore >= 70 ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' :
                 'bg-red-600/20 text-red-400 border border-red-600/30'
               }`}>
-                {displayScore >= 85 ? 'PASS' : displayScore >= 65 ? 'INVESTIGATE' : 'REJECT'}
+                {displayScore >= 85 ? 'Excellent Fit' : displayScore >= 70 ? 'Good Fit' : 'Limited Fit'}
               </div>
             </div>
           </div>

@@ -16,20 +16,17 @@ import {
   TrashIcon,
   PlusIcon,
   XIcon,
-  Brain,
-  AlertCircle
+  Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
-import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
 
 interface DataRoomExplorerProps {
   dealId: number;
@@ -78,7 +75,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     enabled: isOpen && !!dealId,
     refetchInterval: 2000
   });
-  
 
   // Auto-refresh when document processing completes
   useEffect(() => {
@@ -100,31 +96,79 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
   
   if (!isOpen) return null;
 
-  // Get the latest document data from cache to ensure real-time updates
-  const documentsData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]) as Document[] | undefined;
-  const latestDocument = documentsData?.find(doc => doc.id === document.id) || document;
-  
-  const analysis = latestDocument.analyses ? JSON.parse(latestDocument.analyses) : null;
+  const analysis = document.analyses ? JSON.parse(document.analyses) : null;
   const analysisData = analysis?.analysis || analysis;
   
-  // Get AI summary from latest document data (with real-time updates)
-  const aiSummary = latestDocument.aiSummary as AIDocumentSummary | null;
-  const aiSummaryStatus = latestDocument.aiSummaryStatus || 'pending';
+  // Get AI summary from document data (automatically generated during upload)
+  const aiSummary = document.aiSummary as AIDocumentSummary | null;
+  const aiSummaryStatus = document.aiSummaryStatus || 'pending';
 
   // Intelligent document-to-agent assignment based on weighted analysis
   const getAssignedAgents = () => {
-    // Use the assignedAgents field populated by the intelligent assignment system
-    if (latestDocument.assignedAgents && Array.isArray(latestDocument.assignedAgents) && latestDocument.assignedAgents.length > 0) {
-      console.log(`📋 Document "${latestDocument.name}" assigned to agents:`, latestDocument.assignedAgents);
-      return latestDocument.assignedAgents.map((agentType: string) => {
-        // Capitalize the agent type for display
-        const capitalizedType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
-        return getAgentInfo(capitalizedType);
-      });
+    console.log('Analyzing document for intelligent agent assignment:', document.name);
+    
+    const docName = document.name.toLowerCase();
+    const docContent = (document.ocrText || '').toLowerCase();
+    const aiSummary = document.aiSummary;
+    
+    // Extract relevant content for analysis
+    const analysisText = [
+      docName,
+      docContent.substring(0, 2000), // First 2k chars for performance
+      aiSummary?.executiveSummary || '',
+      aiSummary?.documentType || '',
+      (aiSummary?.criticalFindings || []).join(' '),
+      (aiSummary?.keyFinancialData || []).join(' '),
+      (aiSummary?.riskAssessment || []).join(' '),
+      (aiSummary?.neutralFindings || []).join(' ')
+    ].join(' ').toLowerCase();
+    
+    // Weighted scoring system for each agent type
+    const agentScores = calculateAgentRelevanceScores(docName, analysisText, aiSummary);
+    
+    // Intelligent agent assignment based on score distribution
+    const sortedAgents = Object.entries(agentScores)
+      .sort(([,a], [,b]) => b - a)
+      .filter(([, score]) => score > 0.1); // Minimum relevance threshold
+    
+    console.log('Document relevance scores:', agentScores);
+    console.log('All agents above threshold:', sortedAgents.map(([type, score]) => `${type}: ${score.toFixed(2)}`));
+    
+    if (sortedAgents.length === 0) {
+      // Fallback to Commercial agent if no strong relevance detected
+      return [getAgentInfo('Commercial')];
     }
     
-    console.log(`⚠️ Document "${latestDocument.name}" has no intelligent assignments - showing as unassigned`);
-    return [];
+    // Get the highest scoring agent
+    const topAgent = sortedAgents[0];
+    const [, topScore] = topAgent;
+    
+    // Only assign a second agent if:
+    // 1. There is a second agent above threshold
+    // 2. The second agent's score is at least 50% of the top score
+    // 3. The top score is not overwhelmingly dominant (< 0.8)
+    const selectedAgents = [topAgent];
+    
+    if (sortedAgents.length > 1 && topScore < 0.8) {
+      const secondAgent = sortedAgents[1];
+      const [, secondScore] = secondAgent;
+      
+      // Only add second agent if it's meaningfully relevant
+      if (secondScore >= topScore * 0.5) {
+        selectedAgents.push(secondAgent);
+        console.log(`Adding second agent: ${secondAgent[0]} (${secondScore.toFixed(2)}) - 50%+ of top score`);
+      } else {
+        console.log(`Skipping second agent: ${secondAgent[0]} (${secondScore.toFixed(2)}) - less than 50% of top score`);
+      }
+    } else if (topScore >= 0.8) {
+      console.log(`Single agent assignment: ${topAgent[0]} (${topScore.toFixed(2)}) - overwhelmingly dominant`);
+    }
+    
+    console.log('Final selected agents:', selectedAgents.map(([type, score]) => `${type}: ${score.toFixed(2)}`));
+    
+    return selectedAgents.map(([agentType]) => 
+      getAgentInfo(agentType.charAt(0).toUpperCase() + agentType.slice(1))
+    );
   };
 
   // Sophisticated scoring algorithm for agent relevance
@@ -429,15 +473,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-lighter rounded-lg max-w-7xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-dark-lighter rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-dark">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-semibold text-white mb-2">{latestDocument.name}</h2>
+              <h2 className="text-xl font-semibold text-white mb-2">{document.name}</h2>
               <div className="flex items-center space-x-4 text-sm text-gray-400">
-                <span>Type: {latestDocument.documentType || latestDocument.type}</span>
-                <span>Category: {latestDocument.category || 'General'}</span>
-                <span>Size: {(latestDocument.size / 1024).toFixed(1)} KB</span>
+                <span>Type: {document.documentType || document.type}</span>
+                <span>Category: {document.category || 'General'}</span>
+                <span>Size: {(document.size / 1024).toFixed(1)} KB</span>
               </div>
             </div>
             <button
@@ -449,43 +493,33 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[85vh]">
-          <Tabs defaultValue="analysis" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-              <TabsTrigger value="pdf" disabled={!document.name?.toLowerCase().endsWith('.pdf')}>
-                PDF Viewer {!document.name?.toLowerCase().endsWith('.pdf') && '(PDF only)'}
-              </TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="analysis" className="mt-4">
-              {/* Agent Assignment Section */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
-                {assignedAgents.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {assignedAgents.map((agent: any, index: number) => {
-                      const colorClasses = agent.colorClasses.split(' ');
-                      return (
-                        <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
-                          <div className="flex items-center space-x-2">
-                            <div className={`w-2 h-2 rounded-full ${colorClasses[3]}`}></div>
-                            <span className={`${colorClasses[2]} font-medium text-sm`}>{agent.name}</span>
-                          </div>
-                          <div className="text-xs text-gray-400 mt-1">{agent.description}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-3">
-                    <div className="text-center text-gray-400 text-sm">
-                      No agents have analyzed this document yet
+        <div className="p-6 overflow-y-auto max-h-[70vh]">
+          {/* Agent Assignment Section */}
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-white mb-3">Assigned Agents</h3>
+            {assignedAgents.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {assignedAgents.map((agent, index) => {
+                  const colorClasses = agent.colorClasses.split(' ');
+                  return (
+                    <div key={index} className={`${colorClasses[0]} border ${colorClasses[1]} rounded-lg p-3`}>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${colorClasses[3]}`}></div>
+                        <span className={`${colorClasses[2]} font-medium text-sm`}>{agent.name}</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">{agent.description}</div>
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
+            ) : (
+              <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-3">
+                <div className="text-center text-gray-400 text-sm">
+                  No agents have analyzed this document yet
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* AI Document Analysis - Automatically Generated */}
           <div className="mb-6">
@@ -622,15 +656,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
           </div>
 
           {/* OCR Text - Enhanced formatting for better readability */}
-          {latestDocument.ocrText && (
+          {document.ocrText && (
             <div className="mb-6">
               <details className={aiSummary ? '' : 'open'}>
                 <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors flex items-center">
                   <span className="mr-2">📄</span>
                   Extracted Document Text 
-                  {latestDocument.ocrText.length > 1000 && (
+                  {document.ocrText.length > 1000 && (
                     <span className="ml-2 text-sm bg-blue-500/20 px-2 py-1 rounded text-blue-300">
-                      {Math.round(latestDocument.ocrText.length / 1000)}k characters
+                      {Math.round(document.ocrText.length / 1000)}k characters
                     </span>
                   )}
                 </summary>
@@ -640,20 +674,20 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
                       <span className="text-sm text-gray-400">Document Content</span>
                       <div className="flex items-center space-x-2">
                         <button 
-                          onClick={() => navigator.clipboard.writeText(latestDocument.ocrText)}
+                          onClick={() => navigator.clipboard.writeText(document.ocrText)}
                           className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-white transition-colors"
                         >
                           Copy Text
                         </button>
                         <span className="text-xs text-gray-500">
-                          {latestDocument.ocrText.split('\n').length} lines
+                          {document.ocrText.split('\n').length} lines
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="p-4 max-h-96 overflow-y-auto">
                     <div className="text-sm text-gray-200 leading-relaxed">
-                      {latestDocument.ocrText.split('\n').map((line: string, index: number) => (
+                      {document.ocrText.split('\n').map((line: string, index: number) => (
                         <div key={index} className="mb-2">
                           {line.trim() ? (
                             <p className="text-gray-200">{line}</p>
@@ -669,195 +703,163 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
             </div>
           )}
 
-              {/* OCR Text - Enhanced formatting for better readability */}
-              {document.ocrText && (
-                <div className="mb-6">
-                  <details className={aiSummary ? '' : 'open'}>
-                    <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors flex items-center">
-                      <span className="mr-2">📄</span>
-                      Extracted Document Text 
-                      {latestDocument.ocrText.length > 1000 && (
-                        <span className="ml-2 text-sm bg-blue-500/20 px-2 py-1 rounded text-blue-300">
-                          {Math.round(latestDocument.ocrText.length / 1000)}k characters
-                        </span>
-                      )}
-                    </summary>
-                    <div className="bg-gray-900 border border-gray-700 rounded-lg mt-3 overflow-hidden">
-                      <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-400">Document Content</span>
-                          <div className="flex items-center space-x-2">
-                            <button 
-                              onClick={() => navigator.clipboard.writeText(latestDocument.ocrText)}
-                              className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-white transition-colors"
-                            >
-                              Copy Text
-                            </button>
-                            <span className="text-xs text-gray-500">
-                              {latestDocument.ocrText.split('\n').length} lines
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 max-h-96 overflow-y-auto">
-                        <div className="text-sm text-gray-200 leading-relaxed">
-                          {latestDocument.ocrText.split('\n').map((line: string, index: number) => (
-                            <div key={index} className="mb-2">
-                              {line.trim() ? (
-                                <p className="text-gray-200">{line}</p>
-                              ) : (
-                                <div className="h-3"></div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+          {/* Additional Analysis Data */}
+          {analysisData && (
+            <div className="mb-6">
+              <details>
+                <summary className="text-lg font-medium text-white mb-3 cursor-pointer hover:text-blue-300 transition-colors">
+                  Technical Analysis
+                </summary>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+                  {analysisData.documentType && (
+                    <div>
+                      <h4 className="text-md font-medium text-white mb-2">Document Type</h4>
+                      <p className="text-gray-300">{analysisData.documentType}</p>
                     </div>
-                  </details>
-                </div>
-              )}
-
-            </TabsContent>
-            
-            <TabsContent value="pdf" className="mt-4">
-              {document.name?.toLowerCase().endsWith('.pdf') ? (
-                <div className="h-[700px] w-full bg-gray-900 rounded-lg overflow-hidden">
-                  <InlinePDFPreview 
-                    document={document} 
-                    dealId={dealId} 
-                    className="w-full h-full"
-                  />
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 py-8">
-                  PDF viewer is only available for PDF documents
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="details" className="mt-4">
-              {/* Additional Analysis Data */}
-              {analysisData && (
-                <div className="mb-6">
-                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-                    <h3 className="text-lg font-medium text-purple-300 mb-3 flex items-center">
-                      <span className="mr-2">⚙️</span>
-                      Technical Analysis
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {analysisData.documentType && (
-                        <div>
-                          <h4 className="text-md font-medium text-white mb-2">Document Type</h4>
-                          <p className="text-gray-300">{analysisData.documentType}</p>
-                        </div>
-                      )}
-                      
-                      {analysisData.category && (
-                        <div>
-                          <h4 className="text-md font-medium text-white mb-2">Business Category</h4>
-                          <p className="text-gray-300">{analysisData.category}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Complete OCR & Text Extraction Debug Section */}
-              <div className="mb-6">
-                <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-orange-300 mb-3 flex items-center">
-                    <span className="mr-2">🔍</span>
-                    Complete Text Extraction Debug (Mistral OCR)
-                  </h3>
+                  )}
                   
-                  {/* Basic Document Info */}
-                  <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
-                    <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
-                      <span className="text-xs text-gray-400">Document Metadata</span>
+                  {analysisData.category && (
+                    <div>
+                      <h4 className="text-md font-medium text-white mb-2">Business Category</h4>
+                      <p className="text-gray-300">{analysisData.category}</p>
                     </div>
-                    <div className="p-3">
-                      <div className="text-xs text-gray-200 space-y-2">
-                        <div><span className="text-orange-300">ID:</span> {document.id}</div>
-                        <div><span className="text-orange-300">Name:</span> {document.name}</div>
-                        <div><span className="text-orange-300">Type:</span> {document.type}</div>
-                        <div><span className="text-orange-300">Size:</span> {(document.size / 1024).toFixed(1)} KB</div>
-                        <div><span className="text-orange-300">Status:</span> {document.status}</div>
-                        <div><span className="text-orange-300">AI Summary Status:</span> {(document as any).aiSummaryStatus || 'Not processed'}</div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          )}
 
-                  {/* OCR Text Analysis */}
-                  <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
-                    <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
-                      <span className="text-xs text-gray-400">OCR Text Analysis</span>
-                    </div>
-                    <div className="p-3">
-                      <div className="text-xs text-gray-200 space-y-2">
-                        <div><span className="text-orange-300">Has ocrText:</span> {document.ocrText ? 'Yes' : 'No'}</div>
-                        <div><span className="text-orange-300">OCR Text type:</span> {typeof document.ocrText}</div>
-                        <div><span className="text-orange-300">OCR Text length:</span> {document.ocrText ? latestDocument.ocrText.length : 'N/A'}</div>
-                        <div><span className="text-orange-300">OCR Text preview:</span> {document.ocrText ? `"${document.ocrText.substring(0, 100)}..."` : 'No text'}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Complete Document Object Inspection */}
-                  <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden">
-                    <div className="bg-gray-800 px-3 py-2 border-b border-gray-600 flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Complete Document Object</span>
-                      <button 
-                        onClick={() => navigator.clipboard.writeText(JSON.stringify(document, null, 2))}
-                        className="text-xs bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded text-white transition-colors"
-                      >
-                        Copy JSON
-                      </button>
-                    </div>
-                    <div className="p-3 max-h-64 overflow-y-auto">
-                      <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono">
-                        {JSON.stringify(document, null, 2)}
-                      </pre>
-                    </div>
+          {/* Complete OCR & Text Extraction Debug Section */}
+          <div className="mb-6">
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-orange-300 mb-3 flex items-center">
+                <span className="mr-2">🔍</span>
+                Complete Text Extraction Debug (Mistral OCR)
+              </h3>
+              
+              {/* Basic Document Info */}
+              <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
+                <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
+                  <span className="text-xs text-gray-400">Document Metadata</span>
+                </div>
+                <div className="p-3">
+                  <div className="text-xs text-gray-200 space-y-2">
+                    <div><span className="text-orange-300">ID:</span> {document.id}</div>
+                    <div><span className="text-orange-300">Name:</span> {document.name}</div>
+                    <div><span className="text-orange-300">Type:</span> {document.type}</div>
+                    <div><span className="text-orange-300">Size:</span> {(document.size / 1024).toFixed(1)} KB</div>
+                    <div><span className="text-orange-300">Status:</span> {document.status}</div>
+                    <div><span className="text-orange-300">AI Summary Status:</span> {(document as any).aiSummaryStatus || 'Not processed'}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Status and Metadata */}
-              <div className="mt-6 pt-6 border-t border-dark">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
-                      {document.status === 'Analyzed' && <CheckCircleIcon className="w-4 h-4 text-green-500 mr-1" />}
-                      {document.status === 'Pending' && <ClockIcon className="w-4 h-4 text-yellow-500 mr-1" />}
-                      <span className="text-sm text-gray-400">Status: {document.status}</span>
-                    </div>
-                    <span className="text-sm text-gray-400">
-                      Uploaded: {new Date(document.uploadedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={() => {
-                        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-                        refetch();
-                      }}
-                      className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
-                    >
-                      <span>Refresh</span>
-                    </button>
-                    <button 
-                      onClick={handleDownload}
-                      className="flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary-light rounded-lg text-white text-sm hover:bg-primary/80 transition-colors"
-                    >
-                      <DownloadIcon className="w-4 h-4" />
-                      <span>Download</span>
-                    </button>
+              {/* OCR Text Analysis */}
+              <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden mb-4">
+                <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
+                  <span className="text-xs text-gray-400">OCR Text Analysis</span>
+                </div>
+                <div className="p-3">
+                  <div className="text-xs text-gray-200 space-y-2">
+                    <div><span className="text-orange-300">Has ocrText:</span> {document.ocrText ? 'Yes' : 'No'}</div>
+                    <div><span className="text-orange-300">OCR Text type:</span> {typeof document.ocrText}</div>
+                    <div><span className="text-orange-300">OCR Text length:</span> {document.ocrText ? document.ocrText.length : 'N/A'}</div>
+                    <div><span className="text-orange-300">OCR Text preview:</span> {document.ocrText ? `"${document.ocrText.substring(0, 100)}..."` : 'No text'}</div>
                   </div>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
+
+              {/* Complete Document Object Inspection */}
+              <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 px-3 py-2 border-b border-gray-600 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Complete Document Object</span>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(JSON.stringify(document, null, 2))}
+                    className="text-xs bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded text-white transition-colors"
+                  >
+                    Copy JSON
+                  </button>
+                </div>
+                <div className="p-3 max-h-64 overflow-y-auto">
+                  <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono">
+                    {JSON.stringify(document, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* OCR Text Display - Only if OCR text exists */}
+          {document.ocrText && document.ocrText.length > 0 && (
+            <div className="mb-6">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <h3 className="text-lg font-medium text-green-300 mb-3 flex items-center">
+                  <span className="mr-2">📄</span>
+                  OCR Extracted Text
+                  <span className="ml-2 text-sm bg-green-500/20 px-2 py-1 rounded text-green-300">
+                    {Math.round(document.ocrText.length / 1000)}k chars
+                  </span>
+                </h3>
+                <div className="bg-gray-900 border border-gray-600 rounded-lg overflow-hidden">
+                  <div className="bg-gray-800 px-3 py-2 border-b border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">Raw OCR Output</span>
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(document.ocrText)}
+                          className="text-xs bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-white transition-colors"
+                        >
+                          Copy OCR Text
+                        </button>
+                        <span className="text-xs text-gray-500">
+                          {document.ocrText.split('\n').length} lines
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 max-h-64 overflow-y-auto">
+                    <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono leading-relaxed">
+                      {document.ocrText}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status and Metadata */}
+          <div className="mt-6 pt-6 border-t border-dark">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center">
+                  {document.status === 'Analyzed' && <CheckCircleIcon className="w-4 h-4 text-green-500 mr-1" />}
+                  {document.status === 'Pending' && <ClockIcon className="w-4 h-4 text-yellow-500 mr-1" />}
+                  <span className="text-sm text-gray-400">Status: {document.status}</span>
+                </div>
+                <span className="text-sm text-gray-400">
+                  Uploaded: {new Date(document.uploadedAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+                    refetch();
+                  }}
+                  className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
+                >
+                  <span>Refresh</span>
+                </button>
+                <button 
+                  onClick={handleDownload}
+                  className="flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary-light rounded-lg text-white text-sm hover:bg-primary/80 transition-colors"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -920,7 +922,7 @@ const FolderTree: React.FC<{
                 className="flex items-center flex-1 cursor-pointer"
                 onClick={() => !isSelectionMode && onDocumentClick(doc)}
               >
-                {doc.name.toLowerCase().endsWith('.pdf') ? (
+                {doc.type.includes('pdf') ? (
                   <FileTextIcon className="w-4 h-4 text-red-400 mr-2" />
                 ) : (
                   <FileIcon className="w-4 h-4 text-gray-400 mr-2" />
@@ -930,9 +932,7 @@ const FolderTree: React.FC<{
                   {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
                   {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                   {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
-                  {((doc as any).aiSummaryStatus === 'processing' || (doc as any).aiSummaryStatus === 'analyzing') && <Brain className="w-3 h-3 text-blue-400 animate-pulse" />}
-                  {(doc as any).aiSummaryStatus === 'extracting' && <Loader2 className="w-3 h-3 text-yellow-400 animate-spin" />}
-                  <AlertCircle className="w-3 h-3 text-amber-500" />
+                  {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
                   <EyeIcon className="w-3 h-3 text-gray-500" />
                   <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                 </div>
@@ -974,266 +974,57 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
-
-  // 🎯 CRITICAL: Check for active persistent uploads when component loads
-  const { data: persistentUploads } = useQuery({
-    queryKey: [`/api/deals/${dealId}/persistent-uploads`],
-    refetchInterval: 2000, // Poll every 2 seconds
-  });
-
-  // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads  
-  useEffect(() => {
-    const uploadsData = persistentUploads as any;
-    console.log('🎯 PERSISTENT UPLOADS DATA:', uploadsData);
-    
-    if (uploadsData?.uploads?.active?.length > 0) {
-      const activeUpload = uploadsData.uploads.active[0];
-      console.log(`🎯 RESTORING progress bar from persistent session: ${activeUpload.fileName}`);
-      
-      if (activeUpload.uploadType === 'gcs_direct') {
-        // 🎯 CRITICAL FIX: Don't force minimum 1% - use real progress from persistent upload system
-        const realProgress = activeUpload.progress || 0;
-        setUploadProgress({
-          fileName: activeUpload.fileName,
-          progress: realProgress,
-          status: activeUpload.currentStep || 'Uploading to Google Cloud Storage...'
-        });
-        console.log(`✅ Progress bar restored: ${activeUpload.fileName} - showing ${realProgress}%`);
-      }
-    } else if (uploadsData?.uploads) {
-      console.log('🎯 No active uploads found, clearing progress bars');
-      setUploadProgress(null);
-      setChunkedUploadProgress(null);
-      console.log('🎯 FORCE CLEARED: Both progress states set to null');
-    }
-  }, [persistentUploads]);
-
-  // 🎯 CRITICAL: Real-time progress sync from localStorage polling  
-  useEffect(() => {
-    const syncProgress = () => {
-      const uploadsData = persistentUploads as any;
-      
-      if (uploadsData?.uploads?.active?.length > 0) {
-        const activeUpload = uploadsData.uploads.active[0];
-        
-        // Check localStorage for current GCS progress
-        const allKeys = Object.keys(localStorage);
-        const progressKeys = allKeys.filter(key => key.startsWith('gcs_upload_progress_'));
-        
-        if (progressKeys.length > 0) {
-          try {
-            const latestProgressKey = progressKeys[progressKeys.length - 1];
-            const progressData = JSON.parse(localStorage.getItem(latestProgressKey) || '{}');
-            
-            if (progressData.progress !== undefined && progressData.progress > 0) {
-              console.log(`🔄 Syncing progress from localStorage: ${progressData.progress}%`);
-              
-              setUploadProgress({
-                fileName: activeUpload.fileName,
-                progress: progressData.progress,
-                status: `Uploading to Google Cloud Storage... ${progressData.progress.toFixed(1)}%`
-              });
-            }
-          } catch (error) {
-            console.error('❌ Error parsing progress from localStorage:', error);
-          }
-        }
-      }
-    };
-
-    // Sync immediately and then every second
-    if (persistentUploads) {
-      syncProgress();
-      const interval = setInterval(syncProgress, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [persistentUploads]);
-  const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
   // Enhanced document click handler with PDF viewing support
   const handleDocumentClick = (document: Document) => {
-    // Always show document detail modal with extracted content and AI summary
-    setSelectedDocument(document);
+    // Check if document is a PDF and open in PDF viewer
+    if (document.type && document.type.toLowerCase().includes('pdf')) {
+      setPdfDocument(document);
+      setPdfViewerOpen(true);
+    } else {
+      // Open other documents in detail modal
+      setSelectedDocument(document);
+    }
   };
 
-  const { data: documents = [], isLoading, refetch } = useQuery({
+  const { data: documents, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
-    staleTime: 2000, // Shorter cache time for faster updates 
-    refetchInterval: 2000, // More frequent polling during processing
+    staleTime: 10000, // Cache for 10 seconds to improve performance
+    refetchInterval: 5000, // Reduced polling frequency
     refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: true, // Refetch on focus to show latest data
+    refetchOnWindowFocus: false, // Don't refetch on focus to prevent delays
     retry: 2, // Limit retries
-    retryDelay: 1000, // Faster retry
-    // Custom queryFn to handle large responses properly
-    queryFn: async () => {
-      const response = await fetch(`/api/deals/${dealId}/documents`, {
-        credentials: 'include',
-        signal: AbortSignal.timeout(120000), // 2 minute timeout for large responses
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log(`✅ DataRoomExplorer received ${data?.length || 0} documents for deal ${dealId}`);
-      return data || [];
-    }
+    retryDelay: 1000 // Faster retry
   });
 
   // Real-time WebSocket listener for immediate AI summary updates
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
-    let socket: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout | null = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 10;
-    
-    const connect = () => {
-      try {
-        if (reconnectAttempts >= maxReconnectAttempts) {
-          console.log('Max WebSocket reconnection attempts reached');
-          return;
-        }
-        
-        socket = new WebSocket(wsUrl);
-        
-        socket.onopen = () => {
-          console.log('WebSocket connected');
-          reconnectAttempts = 0;
-        };
+    const socket = new WebSocket(wsUrl);
 
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            
-            // Handle AI summary completion
-            if (data.type === 'ai_summary_complete' && data.dealId === dealId) {
-              console.log('🔄 AI summary completed, updating cached document...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, aiSummaryStatus: 'completed', ...data.updates }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-            
-            // Handle AI summary processing start
-            if (data.type === 'ai_summary_start' && data.dealId === dealId) {
-              console.log('🧠 AI summary started, updating status...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, aiSummaryStatus: 'analyzing' }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-            
-            // Handle OCR/text extraction start
-            if (data.type === 'ocr_start' && data.dealId === dealId) {
-              console.log('📄 OCR extraction started...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, aiSummaryStatus: 'extracting' }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-            
-            // Handle job progress updates to show which documents are being processed
-            if (data.type === 'job_progress' && data.dealId === dealId) {
-              console.log('🔄 Job progress update:', data);
-              // If there's an active processing step, show visual feedback
-              if (data.currentStep && data.currentStep.includes('summary')) {
-                // Find recently uploaded documents and mark them as processing
-                queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                  if (!oldData || !Array.isArray(oldData)) return oldData;
-                  return oldData.map((doc, index) => {
-                    // Mark first few documents without AI summaries as processing
-                    const shouldProcess = !doc.aiSummary && 
-                                        doc.ocrContent && 
-                                        doc.ocrContent.length > 0 && 
-                                        !doc.aiSummaryStatus &&
-                                        index < 3; // Process first 3 eligible documents
-                    return shouldProcess 
-                      ? { ...doc, aiSummaryStatus: 'analyzing' }
-                      : doc;
-                  });
-                });
-              }
-            }
-            
-            // Handle any document status updates
-            if (data.type === 'document_status_update' && data.dealId === dealId) {
-              console.log('🔄 Document status updated...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, ...data.updates }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-          } catch (error) {
-            // Ignore non-JSON messages
-          }
-            };
-        
-        socket.onerror = (error) => {
-          console.error('WebSocket error:', error);
-        };
-        
-        socket.onclose = () => {
-          console.log(`WebSocket closed, attempting reconnect in ${Math.min(5 * (reconnectAttempts + 1), 30)}s...`);
-          reconnectAttempts++;
-          const delay = Math.min(5000 * (reconnectAttempts), 30000);
-          reconnectTimeout = setTimeout(connect, delay);
-        };
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ai_summary_complete' && data.dealId === dealId) {
+          console.log('🔄 AI summary completed, updating cached document...', data);
+          // Use setQueryData for instant updates instead of invalidating cache
+          queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
+            if (!oldData || !Array.isArray(oldData)) return oldData;
+            return oldData.map(doc => 
+              doc.id === data.documentId 
+                ? { ...doc, aiSummaryStatus: 'completed', ...data.updates }
+                : doc
+            );
+          });
+        }
       } catch (error) {
-        console.error('Failed to create WebSocket:', error);
-        reconnectAttempts++;
-        const delay = Math.min(5000 * (reconnectAttempts), 30000);
-        reconnectTimeout = setTimeout(connect, delay);
+        // Ignore non-JSON messages
       }
     };
-    
-    connect();
 
     return () => {
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
+      socket.close();
     };
   }, [dealId, queryClient, refetch]);
 
@@ -1256,48 +1047,29 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         });
 
         xhr.addEventListener('load', () => {
-          console.log(`🌐 Upload load event - Status: ${xhr.status}, Response: ${xhr.responseText?.substring(0, 200)}`);
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
-              console.log('✅ Upload successful:', response);
               resolve(response);
             } catch (e) {
-              console.log('✅ Upload completed (no JSON response)');
               resolve({ success: true, message: 'Upload completed' });
             }
-          } else if (xhr.status === 413) {
-            // 413 "Request Entity Too Large" - Cloud Run infrastructure limit
-            console.log('⚠️ 413 error detected (Cloud Run limit), falling back to chunked upload');
-            reject(new Error('Upload failed: 413 - File upload limit exceeded. The system now supports files up to 50GB. If you are still seeing this error, please contact support as this should not occur with our enhanced configuration.'));
           } else {
-            console.error(`❌ Upload failed - Status: ${xhr.status}, StatusText: ${xhr.statusText}, Response: ${xhr.responseText}`);
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }
         });
 
-        xhr.addEventListener('error', (event) => {
-          console.error('❌ Upload network error:', event);
-          console.error('❌ XHR state:', { status: xhr.status, statusText: xhr.statusText, readyState: xhr.readyState });
+        xhr.addEventListener('error', () => {
           reject(new Error('Upload failed due to network error'));
         });
 
         xhr.addEventListener('timeout', () => {
-          console.error('❌ Upload timeout after 10 minutes');
           reject(new Error('Upload timed out'));
         });
 
-        console.log(`🚀 Starting upload to: /api/deals/${dealId}/data-room/upload-zip`);
-        console.log(`📦 FormData contents:`, Array.from(formData.entries()).map(([key, value]) => ({ 
-          key, 
-          value: value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value 
-        })));
-        
         xhr.open('POST', `/api/deals/${dealId}/data-room/upload-zip`);
         xhr.timeout = 600000; // 10 minutes
         xhr.withCredentials = true; // Include cookies for auth
-        
-        console.log(`📡 Sending XMLHttpRequest...`);
         xhr.send(formData);
       });
     },
@@ -1430,56 +1202,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
-  // Force complete AI processing mutation for stuck jobs
-  const forceCompleteProcessingMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest(`/api/deals/${dealId}/force-complete-processing`, {
-        method: 'POST'
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-      refetch();
-    },
-    onError: (error) => {
-      console.error('Force complete processing failed:', error);
-    }
-  });
-
-
-
-  // AI Document Assignment mutation
-  const assignAgentsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/assign-agents`, {
-        method: 'POST',
-      });
-      return response;
-    },
-    onSuccess: (data) => {
-      console.log('🤖 AI document assignment completed:', data);
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      alert(`Successfully assigned agents to ${data.assignments?.length || 0} documents`);
-    },
-    onError: (error) => {
-      console.error('❌ AI document assignment failed:', error);
-      alert(`Failed to assign agents: ${error.message}`);
-    }
-  });
-
-
-
   // Track processing state to prevent duplicates
   const [processingComplete, setProcessingComplete] = useState(false);
   const [processingCooldown, setProcessingCooldown] = useState(false);
-
-  // Monitor background jobs for the main component
-  const { data: backgroundJobs } = useQuery({
-    queryKey: [`/api/background-jobs/${dealId}`],
-    enabled: !!dealId,
-    refetchInterval: processingComplete ? false : 2000
-  });
 
   // Disabled automatic AI processing to prevent infinite loops
   // Users can manually trigger AI processing when needed
@@ -1491,653 +1216,25 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check maximum file size - with GCS, we support up to 5TB
-    const maxSize = 5 * 1024 * 1024 * 1024 * 1024; // 5TB with GCS
-    if (file.size > maxSize) {
-      alert(`File size (${(file.size / 1024 / 1024 / 1024).toFixed(1)}GB) exceeds the maximum limit of 5TB.`);
-      return;
-    }
-
-    if (!file.name.toLowerCase().endsWith('.zip')) {
-      alert('Please select a ZIP file');
+    if (file.size > 500 * 1024 * 1024) { // 500MB limit
+      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 500MB. Please select a smaller file.`);
       return;
     }
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
-    
-    // 🚨 ALWAYS USE GCS FOR ALL FILES (as requested by user)
-    console.log('🚀 FORCING GCS UPLOAD for ALL files regardless of size (user requirement)');
-    const shouldUseProxy = true; // FORCE GCS for ALL files
-    
-    // 🚀 MICRO-STEP SOLUTION: Use DIRECT GCS upload for all files (TRUE 413 bypass)
-    if (shouldUseProxy) {
-      console.log(`🎯 USING DIRECT GCS UPLOAD (COMPLETE 413 BYPASS) for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
-      
-      try {
-        // 🐛 COMPREHENSIVE DEBUGGING: Test environment first
-        console.log('🔍 DEBUGGING ENVIRONMENT:');
-        console.log('- Window location:', window.location.href);
-        console.log('- Current origin:', window.location.origin);
-        console.log('- DealId:', dealId, typeof dealId);
-        console.log('- File details:', { name: file.name, size: file.size, type: file.type });
-        
-        setUploadProgress({
-          fileName: file.name,
-          progress: 0,
-          status: 'Step 1: Getting upload authorization...'
-        });
-        
-        // 🎯 CRITICAL: Create persistent upload session FIRST
-        console.log(`🎯 Creating persistent upload session for: ${file.name}`);
-        const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
-        
-        // 🛠️ RECOVERY: Check for existing stuck sessions and clean them up
-        try {
-          console.log('🔍 Checking for stuck upload sessions...');
-          const existingUploads = await fetch(`/api/deals/${dealId}/persistent-uploads`);
-          if (existingUploads.ok) {
-            const { uploads } = await existingUploads.json();
-            const stuckUploads = uploads.all?.filter((u: any) => 
-              u.status === 'uploading' && u.progress === 0 && u.fileName === file.name
-            ) || [];
-            
-            if (stuckUploads.length > 0) {
-              console.log(`🧹 Found ${stuckUploads.length} stuck uploads for this file, cleaning up...`);
-              for (const stuckUpload of stuckUploads) {
-                await fetch(`/api/persistent-uploads/${stuckUpload.sessionId}`, { method: 'DELETE' }).catch(() => {});
-              }
-            }
-          }
-        } catch (error) {
-          console.log('🔍 Stuck session cleanup failed (non-critical):', error);
-        }
-        
-        const sessionId = await frontendPersistentUploadService.createUploadSession(
-          dealId,
-          file.name,
-          file.size,
-          'gcs_direct'
-        );
-        
-        // 📍 MICRO-STEP 1: Request signed URL (tiny request, no file data)
-        console.log('📍 MICRO-STEP 1: Requesting signed URL from server...');
-        const requestUrl = `/api/gcs/signed-url/${dealId}`;
-        const requestPayload = {
-          fileName: file.name,
-          fileSize: file.size
-        };
-        
-        console.log(`🔗 Full request URL: ${window.location.origin}${requestUrl}`);
-        console.log(`📦 Request payload:`, requestPayload);
-        console.log(`📝 JSON payload:`, JSON.stringify(requestPayload));
-        
-        // 🧪 TEST: Try a simple connectivity test first
-        console.log('🧪 Testing basic connectivity...');
-        try {
-          const testResponse = await fetch('/api/persistent-uploads/global');
-          console.log('✅ Basic API connectivity test:', testResponse.status, testResponse.ok);
-        } catch (testError) {
-          console.error('❌ Basic connectivity test failed:', testError);
-        }
-        
-        // 🛠️ Update persistent session to show we're starting signed URL request
-        console.log('🛠️ Updating persistent session before signed URL request...');
-        try {
-          await frontendPersistentUploadService.updateProgress(
-            sessionId,
-            1,
-            0,
-            'Requesting signed URL from server...'
-          );
-          console.log('✅ Updated session to 1% before signed URL request');
-        } catch (updateError) {
-          console.error('❌ Failed to update session progress:', updateError);
-        }
-        
-        // 🚨 DETAILED REQUEST ATTEMPT WITH TIMEOUT
-        console.log('🚨 Making signed URL request with timeout and full debugging...');
-        let signedUrlResponse;
-        
-        // 🛠️ Create request with abort controller for timeout
-        const abortController = new AbortController();
-        const timeoutId = setTimeout(() => {
-          abortController.abort();
-          console.error('❌ TIMEOUT: Signed URL request took longer than 10 seconds');
-        }, 10000);
-        
-        try {
-          console.log('🔄 Starting fetch request now...');
-          const startTime = performance.now();
-          
-          signedUrlResponse = await fetch(requestUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestPayload),
-            signal: abortController.signal
-          });
-          
-          clearTimeout(timeoutId);
-          const endTime = performance.now();
-          const duration = Math.round(endTime - startTime);
-          
-          console.log(`📡 Signed URL fetch completed in ${duration}ms`);
-          console.log('📡 Response details:', {
-            status: signedUrlResponse.status,
-            statusText: signedUrlResponse.statusText,
-            ok: signedUrlResponse.ok,
-            url: signedUrlResponse.url,
-            type: signedUrlResponse.type,
-            redirected: signedUrlResponse.redirected,
-            headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
-          });
-          
-          // 🛠️ Update persistent session after successful fetch
-          try {
-            await frontendPersistentUploadService.updateProgress(
-              sessionId,
-              5,
-              0,
-              'Received server response, processing signed URL...'
-            );
-          } catch (e) {
-            console.error('Failed to update progress after fetch:', e);
-          }
-          
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-          console.error('❌ CRITICAL: Signed URL fetch failed completely:', fetchError);
-          console.error('❌ Error name:', fetchError.name);
-          console.error('❌ Error message:', fetchError.message);
-          console.error('❌ Error stack:', fetchError.stack);
-          
-          if (fetchError.name === 'AbortError') {
-            console.error('❌ Request was ABORTED due to timeout');
-          }
-          
-          // 🛠️ Update persistent session with error
-          try {
-            await frontendPersistentUploadService.updateProgress(
-              sessionId,
-              0,
-              0,
-              `Network error: ${fetchError.message}`
-            );
-          } catch (e) {
-            console.error('Failed to update error status:', e);
-          }
-          
-          throw new Error(`Signed URL request failed: ${fetchError.message}`);
-        }
 
-        if (!signedUrlResponse.ok) {
-          const errorData = await signedUrlResponse.json().catch(() => ({}));
-          console.error('❌ SIGNED URL ERROR:', errorData);
-          console.error('❌ Full response details:', {
-            status: signedUrlResponse.status,
-            statusText: signedUrlResponse.statusText,
-            headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
-          });
-          
-          // 🛠️ Update persistent session with error
-          try {
-            await frontendPersistentUploadService.updateProgress(
-              sessionId,
-              0,
-              0,
-              `Signed URL failed: ${signedUrlResponse.status}`
-            );
-          } catch (e) {
-            console.error('Failed to update error status:', e);
-          }
-          
-          throw new Error(errorData.message || `Failed to get signed URL: ${signedUrlResponse.statusText}`);
-        }
+    // Initialize upload progress
+    setUploadProgress({
+      fileName: file.name,
+      progress: 0,
+      status: 'Starting upload...'
+    });
 
-        console.log('🔍 Parsing signed URL response JSON...');
-        let signedUrlData;
-        try {
-          signedUrlData = await signedUrlResponse.json();
-          console.log('✅ JSON parsing successful:', signedUrlData);
-        } catch (jsonError) {
-          console.error('❌ Failed to parse JSON response:', jsonError);
-          throw new Error(`Invalid JSON response: ${jsonError.message}`);
-        }
-        
-        const { signedUrl, gcsFileName, uploadId } = signedUrlData;
-        console.log('✅ MICRO-STEP 1 COMPLETE: Got signed URL');
-        console.log(`📝 Upload ID: ${uploadId}`);
-        console.log(`📝 GCS filename: ${gcsFileName}`);
-        console.log(`📝 Signed URL length: ${signedUrl.length} characters`);
-        
-        // 🛠️ Update persistent session after successful signed URL
-        try {
-          await frontendPersistentUploadService.updateProgress(
-            sessionId,
-            10,
-            0,
-            'Starting direct GCS upload...'
-          );
-        } catch (e) {
-          console.error('Failed to update progress after signed URL:', e);
-        }
-        console.log(`📁 GCS Path: ${gcsFileName}`);
+    const formData = new FormData();
+    formData.append('zipFile', file);
+    formData.append('folderName', folderName);
 
-        // 📍 MICRO-STEP 2: Upload directly to GCS (bypasses server completely!)
-        console.log('📍 MICRO-STEP 2: Uploading directly to Google Cloud Storage...');
-        setUploadProgress({
-          fileName: file.name,
-          progress: 10,
-          status: 'Step 2: Uploading to cloud storage (bypassing server)...'
-        });
-        
-        // Use XMLHttpRequest for progress tracking
-        const xhr = new XMLHttpRequest();
-        
-        // 🎯 CRITICAL: Register abort controller so cancel buttons can stop this upload!
-        const uploadAbortController = new AbortController();
-        frontendPersistentUploadService.registerUploadController(sessionId, uploadAbortController);
-        
-        // Connect abort controller to XMLHttpRequest
-        uploadAbortController.signal.addEventListener('abort', () => {
-          console.log(`🛑 ABORTING XMLHttpRequest for session: ${sessionId}`);
-          xhr.abort();
-        });
-        
-        // Track upload progress to GCS
-        xhr.upload.addEventListener('progress', async (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 100);
-            setUploadProgress({
-              fileName: file.name,
-              progress: percentComplete,
-              status: `Step 2: Uploading to cloud (${percentComplete}%) - Bypassing server...`
-            });
-            console.log(`☁️ GCS direct upload progress: ${percentComplete}%`);
-            
-            // Update persistent upload session with progress
-            try {
-              await frontendPersistentUploadService.updateProgress(
-                sessionId,
-                percentComplete,
-                e.loaded,
-                `Uploading to cloud (${percentComplete}%)`
-              );
-            } catch (error) {
-              // Silent fail - don't interrupt upload
-              console.log('Progress update failed (non-critical):', error);
-            }
-          }
-        });
-        
-        // Handle completion
-        xhr.addEventListener('load', async function() {
-          console.log('🔍 GCS DIRECT UPLOAD COMPLETE - Status:', xhr.status);
-          
-          if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
-            console.log('✅ MICRO-STEP 2 COMPLETE: File uploaded directly to GCS!');
-            
-            // 📍 MICRO-STEP 3: Notify server that upload is complete
-            console.log('📍 MICRO-STEP 3: Notifying server of completed upload...');
-            setUploadProgress({
-              fileName: file.name,
-              progress: 95,
-              status: 'Step 3: Processing uploaded file...'
-            });
-
-            try {
-              console.log('🔔 Attempting to notify server about completed upload...');
-              console.log('📍 Notification URL:', `/api/gcs/upload-complete/${dealId}`);
-              console.log('📦 Notification payload:', {
-                gcsFileName,
-                uploadId,
-                fileName: file.name
-              });
-
-              const completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  gcsFileName,
-                  uploadId,
-                  fileName: file.name
-                })
-              });
-
-              console.log('📡 Server response status:', completeResponse.status);
-              console.log('📡 Server response ok:', completeResponse.ok);
-
-              if (!completeResponse.ok) {
-                const errorData = await completeResponse.json().catch(() => ({}));
-                console.error('❌ Server error response:', errorData);
-                throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
-              }
-
-              const result = await completeResponse.json();
-              console.log('✅ MICRO-STEP 3 COMPLETE: Server processing done', result);
-              
-              setUploadProgress({
-                fileName: file.name,
-                progress: 100,
-                status: `✅ Upload complete! ${result.documentsCreated || 0} documents extracted`
-              });
-              
-              // Refresh documents
-              setTimeout(() => {
-                setUploadProgress(null);
-                refetch();
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-              }, 2000);
-              
-            } catch (notifyError: any) {
-              console.error('❌ Failed to notify server:', notifyError);
-              console.error('❌ Error details:', {
-                message: notifyError.message,
-                stack: notifyError.stack,
-                name: notifyError.name
-              });
-              
-              // Still try to refresh documents in case they were partially processed
-              setUploadProgress({
-                fileName: file.name,
-                progress: 100,
-                status: 'Upload complete - refreshing documents...'
-              });
-              
-              setTimeout(() => {
-                setUploadProgress(null);
-                refetch();
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-                // 🧹 Cleanup: Remove abort controller since upload completed
-                frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
-              }, 3000);
-            }
-            
-          } else if (xhr.status === 413) {
-            // This should NEVER happen with direct GCS upload!
-            console.error('❌ CRITICAL: Got 413 even with direct GCS upload! This indicates misconfiguration.');
-            setUploadProgress({
-              fileName: file.name,
-              progress: 0,
-              status: 'ERROR: 413 with direct upload - contact support'
-            });
-            
-            setTimeout(() => {
-              setUploadProgress(null);
-              // 🧹 Cleanup: Remove abort controller since upload failed
-              frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
-            }, 5000);
-            
-          } else {
-            // GCS upload failed with unexpected status
-            console.error(`❌ GCS direct upload failed with status ${xhr.status}`);
-            console.error('Response:', xhr.responseText);
-            
-            setUploadProgress({
-              fileName: file.name,
-              progress: 0,
-              status: `GCS upload failed: Status ${xhr.status}`
-            });
-            
-            setTimeout(() => {
-              setUploadProgress(null);
-              // 🧹 Cleanup: Remove abort controller since upload failed
-              frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
-            }, 3000);
-          }
-        });
-        
-        // Handle errors and implement proper fallback
-        xhr.addEventListener('error', async function() {
-          console.error('❌ GCS direct upload network error - implementing fallback');
-          setUploadProgress({
-            fileName: file.name,
-            progress: 0,
-            status: 'GCS failed - trying proxy upload...'
-          });
-          
-          // Wait a moment then try proxy upload
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // FALLBACK: Try proxy upload (server handles GCS)
-          console.log('🔄 FALLBACK: Attempting proxy upload through server...');
-          
-          try {
-            const proxyFormData = new FormData();
-            proxyFormData.append('file', file);
-            
-            setUploadProgress({
-              fileName: file.name,
-              progress: 10,
-              status: 'Using proxy upload (server will handle GCS)...'
-            });
-            
-            const proxyXhr = new XMLHttpRequest();
-            
-            // Track proxy upload progress
-            proxyXhr.upload.addEventListener('progress', (e) => {
-              if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: percentComplete,
-                  status: `Proxy upload: ${percentComplete}%`
-                });
-              }
-            });
-            
-            // Handle proxy completion
-            proxyXhr.addEventListener('load', function() {
-              if (proxyXhr.status === 200 || proxyXhr.status === 201) {
-                try {
-                  const result = JSON.parse(proxyXhr.responseText);
-                  console.log('✅ Proxy upload successful:', result);
-                  setUploadProgress({
-                    fileName: file.name,
-                    progress: 100,
-                    status: 'Upload complete via proxy!'
-                  });
-                  
-                  setTimeout(() => {
-                    setUploadProgress(null);
-                    refetch();
-                  }, 2000);
-                } catch (e) {
-                  console.error('Proxy response parse error:', e);
-                  setUploadProgress({
-                    fileName: file.name,
-                    progress: 0,
-                    status: 'Proxy upload failed - response error'
-                  });
-                }
-              } else {
-                console.error('Proxy upload failed:', proxyXhr.status);
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: 0,
-                  status: `Proxy failed: ${proxyXhr.statusText}`
-                });
-                
-                // Last resort: fall back to chunked upload
-                setTimeout(() => {
-                  console.log('🔄 FINAL FALLBACK: Using chunked upload...');
-                  setUploadProgress(null);
-                  // Trigger chunked upload by simulating file selection with chunked flag
-                  const chunkedEvent = new Event('change');
-                  Object.defineProperty(chunkedEvent, 'target', {
-                    value: { files: [file] },
-                    enumerable: true
-                  });
-                  // Force chunked upload path
-                  handleZipUpload(chunkedEvent as any);
-                }, 2000);
-              }
-            });
-            
-            // Handle proxy error
-            proxyXhr.addEventListener('error', function() {
-              console.error('❌ Proxy upload also failed');
-              setUploadProgress({
-                fileName: file.name,
-                progress: 0,
-                status: 'Both GCS and proxy failed - trying chunked upload...'
-              });
-              
-              // Last resort: chunked upload
-              setTimeout(() => {
-                console.log('🔄 FINAL FALLBACK: Using chunked upload...');
-                setUploadProgress(null);
-                alert('Direct and proxy uploads failed. Please try again with a smaller file or contact support.');
-              }, 2000);
-            });
-            
-            // Send proxy request
-            proxyXhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
-            proxyXhr.send(proxyFormData);
-            
-          } catch (proxyError) {
-            console.error('Proxy upload setup failed:', proxyError);
-            setUploadProgress({
-              fileName: file.name,
-              progress: 0,
-              status: 'All upload methods failed'
-            });
-            setTimeout(() => {
-              setUploadProgress(null);
-              alert('Upload failed. Please try a smaller file or contact support.');
-            }, 3000);
-          }
-        });
-        
-        // 🚀 CRITICAL: Send directly to GCS using PUT method
-        console.log('🚀 Opening PUT request to GCS signed URL');
-        xhr.open('PUT', signedUrl);
-        xhr.setRequestHeader('Content-Type', 'application/zip');
-        xhr.send(file);
-        
-        return; // Exit here, upload is handled asynchronously
-        
-      } catch (error: any) {
-        console.error('Proxy upload failed with error:', error);
-        console.error('Error message:', error?.message);
-        // Fall through to chunked upload as last resort
-        console.log('📤 Falling back to chunked upload due to proxy error');
-      }
-    }
-    
-    // 🚨 CRITICAL: Cloud Run has a 32MB hard limit for HTTP requests
-    // Files over 30MB MUST use chunked uploads to avoid 413 errors
-    const CLOUD_RUN_LIMIT = 30 * 1024 * 1024; // 30MB (below 32MB limit)
-    
-    if (file.size > CLOUD_RUN_LIMIT) {
-      console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using CHUNKED upload to avoid Cloud Run 32MB limit`);
-      
-      try {
-        // Inline chunked upload implementation
-        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-        
-        setUploadProgress({
-          fileName: file.name,
-          progress: 0,
-          status: `Preparing chunked upload (${totalChunks} chunks)...`
-        });
-        
-        // Initialize chunked upload using GET to bypass Vite interference
-        const params = new URLSearchParams({
-          fileName: file.name,
-          totalSize: file.size.toString(),
-          chunkSize: CHUNK_SIZE.toString()
-        });
-        
-        const initResponse = await fetch(`/api/upload/chunk/init?${params.toString()}`, {
-          method: 'GET'
-        });
-        
-        if (!initResponse.ok) {
-          throw new Error('Failed to initialize chunked upload');
-        }
-        
-        const { uploadId } = await initResponse.json();
-        console.log(`✅ Upload initialized with ID: ${uploadId}`);
-        
-        // Upload chunks
-        for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, file.size);
-          const chunk = file.slice(start, end);
-          
-          const formData = new FormData();
-          formData.append('chunk', chunk);
-          
-          const chunkResponse = await fetch(`/api/upload/chunk/${uploadId}/${i}`, {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (!chunkResponse.ok) {
-            throw new Error(`Failed to upload chunk ${i + 1}/${totalChunks}`);
-          }
-          
-          const progress = ((i + 1) / totalChunks) * 100;
-          setUploadProgress({
-            fileName: file.name,
-            progress: Math.round(progress),
-            status: `Uploading chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`
-          });
-        }
-        
-        // Complete upload and process
-        setUploadProgress({
-          fileName: file.name,
-          progress: 100,
-          status: 'Processing uploaded file...'
-        });
-        
-        const completeResponse = await fetch(`/api/deals/${dealId}/upload-chunked/${uploadId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folderName })
-        });
-        
-        if (!completeResponse.ok) {
-          throw new Error('Failed to process uploaded file');
-        }
-        
-        const result = await completeResponse.json();
-        console.log('✅ Upload complete:', result);
-        
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-        
-        setUploadProgress(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-      } catch (error: any) {
-        console.error('Chunked upload failed:', error);
-        alert(`Upload failed: ${error.message || 'Unknown error'}\n\nPlease split your file into parts smaller than 30MB and upload them separately.`);
-        setUploadProgress(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-      return;
-    } else {
-      // 🚨 ELIMINATED: Direct server upload path completely removed (GCS-only system)
-      // All uploads now use GCS infrastructure exclusively as requested by user
-      console.error('❌ Upload system error: All upload paths failed');
-      alert('Upload failed: All upload methods unsuccessful. Please try again or contact support.');
-      setUploadProgress(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+    uploadZipMutation.mutate(formData);
   };
 
   const handleAdditionalFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2171,8 +1268,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     setSelectedFiles(newSelection);
   };
 
-
-
   const handleSelectAll = (checked: boolean) => {
     if (checked && documents && Array.isArray(documents)) {
       const allFileIds = new Set(documents.map((doc: Document) => doc.id));
@@ -2194,14 +1289,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('🗂️ Building folder tree with', docs.length, 'documents');
     
     // Separate email attachments from regular documents
-    const emailAttachments = docs.filter(doc => 
-      doc.folderPath?.includes('email-attachments') || 
-      doc.path?.includes('email-attachments')
-    );
-    const regularDocs = docs.filter(doc => 
-      !doc.folderPath?.includes('email-attachments') && 
-      !doc.path?.includes('email-attachments')
-    );
+    const emailAttachments = docs.filter(doc => doc.folderPath?.includes('email-attachments'));
+    const regularDocs = docs.filter(doc => !doc.folderPath?.includes('email-attachments'));
     
     const root: FolderNode = {
       name: '',
@@ -2212,19 +1301,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     };
 
     regularDocs.forEach((doc) => {
-      // 🔧 CRITICAL FIX: Use both folderPath and path fields to build hierarchy
-      let folderPath = doc.folderPath || doc.path || '';
-      
-      // Handle extracted documents - remove filename from path to get folder structure
-      if (folderPath.includes('extracted/') || folderPath.includes('/')) {
-        const pathSegments = folderPath.split('/');
-        // Remove the filename (last segment) to get the folder path
-        if (pathSegments.length > 1 && pathSegments[pathSegments.length - 1].includes('.')) {
-          pathSegments.pop(); // Remove filename
-          folderPath = pathSegments.join('/');
-        }
-      }
-      
+      const folderPath = doc.folderPath || '';
       const pathParts = folderPath ? folderPath.split('/').filter(Boolean) : [];
       
       let currentNode = root;
@@ -2250,15 +1327,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       currentNode.documents.push(doc);
     });
 
-    const totalFolders = Array.from(root.children.keys()).length;
-    const extractedFolder = root.children.get('extracted');
-    const extractedDocCount = extractedFolder ? extractedFolder.documents.length : 0;
-
     console.log('🗂️ Folder tree built:', {
       rootDocuments: root.documents.length,
       rootFolders: root.children.size,
       folderNames: Array.from(root.children.keys()),
-      extractedDocuments: extractedDocCount,
       emailAttachments: emailAttachments.length
     });
 
@@ -2272,8 +1344,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       return newStates;
     });
   };
-
-  const documentsArray = documents as Document[] | undefined;
 
   if (isLoading) {
     return (
@@ -2298,16 +1368,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       </div>
     );
   }
-  
-  // Note: Auto force complete functionality temporarily disabled due to component lifecycle issues
-  // The AI processing timeout service handles stuck processing automatically
 
+  const documentsArray = documents as Document[] | undefined;
   console.log('📊 DataRoomExplorer debug:', { 
     dealId,
-    documents: Array.isArray(documents) ? documents.length : 'undefined', 
+    documents: Array.isArray(documentsArray) ? documentsArray.length : 'undefined', 
     isLoading, 
-    isArray: Array.isArray(documents),
-    firstDoc: Array.isArray(documents) && documents.length > 0 ? documents[0]?.name : 'none',
+    isArray: Array.isArray(documentsArray),
+    firstDoc: Array.isArray(documentsArray) && documentsArray.length > 0 ? documentsArray[0]?.name : 'none',
     queryKey: `/api/deals/${dealId}/documents`
   });
   
@@ -2315,14 +1383,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('📊 DataRoomExplorer: Still loading...');
   }
   
-  // Check if we have only email attachments but no regular documents
-  const hasOnlyEmailAttachments = documents && Array.isArray(documents) && documents.length > 0 && 
-    documents.every(doc => doc.folderPath?.includes('email-attachments'));
-
-  if ((!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments) {
+  if (!documentsArray || !Array.isArray(documentsArray) || documentsArray.length === 0) {
     console.log('📊 DataRoomExplorer: No documents condition met', { 
-      documents: Array.isArray(documents) ? documents.length : 'not array', 
-      isArray: Array.isArray(documents) 
+      documents: Array.isArray(documentsArray) ? documentsArray.length : 'not array', 
+      isArray: Array.isArray(documentsArray) 
     });
     return (
       <div className="bg-dark-lighter rounded-lg">
@@ -2399,54 +1463,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             </div>
           )}
 
-          {/* Chunked Upload Progress Display for Large Files */}
-          {chunkedUploadProgress && (
-            <div className="space-y-3 p-4 bg-dark border border-green-600 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-green-400" />
-                  <span className="text-sm font-medium text-white">{chunkedUploadProgress.fileName}</span>
-                </div>
-                <span className="text-sm text-green-400">{chunkedUploadProgress.progress.toFixed(1)}%</span>
-              </div>
-              
-              <div className="w-full bg-gray-700 rounded-full h-3">
-                <div 
-                  className="bg-gradient-to-r from-green-500 to-green-400 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${chunkedUploadProgress.progress}%` }}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>{chunkedUploadProgress.status}</span>
-                <div className="flex items-center space-x-4">
-                  {chunkedUploadProgress.speed > 0 && (
-                    <span>Speed: {(chunkedUploadProgress.speed / 1024 / 1024).toFixed(1)} MB/s</span>
-                  )}
-                  {chunkedUploadProgress.eta > 0 && (
-                    <span>ETA: {Math.ceil(chunkedUploadProgress.eta / 60)}min</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Background Job Progress */}
           <BackgroundJobProgress 
             dealId={dealId} 
             onJobComplete={() => {
-              console.log('🔄 ZIP extraction completed, refreshing document list...');
-              // Force immediate refresh with multiple strategies
               queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-              queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] }); // Clear cache completely
-              setTimeout(() => {
-                refetch(); // Refresh documents immediately after cache clear
-              }, 100);
-              // Second refresh to ensure all documents are loaded
-              setTimeout(() => {
-                refetch();
-                console.log('🔄 Second refresh completed');
-              }, 2000);
+              refetch(); // Refresh documents immediately
               if (onUploadComplete) onUploadComplete();
             }}
           />
@@ -2465,21 +1487,21 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  const { folderTree, emailAttachments } = buildFolderTree(documents || []);
+  const { folderTree, emailAttachments } = buildFolderTree(documentsArray || []);
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* Pitchdeck Section - Only show if there are email attachments */}
+    <div className="space-y-6">
+      {/* Email Attachments Section - Only show if there are email attachments */}
       {emailAttachments.length > 0 && (
         <div className="bg-dark-lighter rounded-lg">
           <div className="p-4 border-b border-dark">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white flex items-center">
-                  <span className="mr-2">📊</span>
-                  Pitch Deck
+                  <span className="mr-2">📧</span>
+                  Email Attachments
                 </h3>
-                <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} presentation documents</p>
+                <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} attachments from emails</p>
               </div>
             </div>
           </div>
@@ -2503,7 +1525,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
                     {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
                     {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
-                    <AlertCircle className="w-3 h-3 text-amber-500" />
                     <EyeIcon className="w-3 h-3 text-gray-500" />
                     <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                   </div>
@@ -2515,66 +1536,85 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       )}
 
       {/* Data Room Explorer Section */}
-      <div className="bg-dark-lighter rounded-lg flex-1 flex flex-col">
-        {/* Document Availability Notice */}
-        <div className="p-3 bg-amber-900/20 border-b border-amber-500/30">
-          <div className="flex items-center">
-            <AlertCircle className="w-4 h-4 text-amber-400 mr-2 flex-shrink-0" />
-            <div className="text-sm text-amber-200">
-              <strong>Document Files Notice:</strong> Some document files may be temporarily unavailable due to recent system maintenance. 
-              Document metadata and AI summaries remain intact. Files can be re-uploaded if needed.
-            </div>
-          </div>
-        </div>
-        
+      <div className="bg-dark-lighter rounded-lg">
         <div className="p-4 border-b border-dark">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
-                {isLoading && (
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                )}
-              </div>
-              <p className="text-sm text-gray-400 mt-1">{(documents?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
+              <h3 className="text-lg font-semibold text-white">Data Room Explorer</h3>
+              <p className="text-sm text-gray-400 mt-1">{(documentsArray?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
             </div>
           
           <div className="flex items-center space-x-2">
-            {/* AI Progress Indicator - Always Visible */}
-            {documents && Array.isArray(documents) && documents.length > 0 && (
-              <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
-                <Brain className="w-4 h-4 text-blue-300" />
-                <span className="text-sm text-blue-300 font-medium">
-                  AI Complete: {documents.filter((doc: any) => doc.aiSummaryStatus === 'completed').length}/{documents.length} analyzed
-                </span>
-              </div>
-            )}
-            
             {!isSelectionMode ? (
               <>
-
-                {/* AI Agent Assignment Button */}
-                {documents && Array.isArray(documents) && documents.length > 0 && (
-                  <Button
-                    onClick={() => assignAgentsMutation.mutate()}
-                    size="sm"
-                    variant="outline" 
-                    disabled={assignAgentsMutation.isPending}
-                    className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white"
-                  >
-                    {assignAgentsMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        Assigning...
-                      </>
-                    ) : (
-                      <>
-                        <Brain className="w-4 h-4 mr-1" />
-                        AI Assign Agents
-                      </>
-                    )}
-                  </Button>
-                )}
+                {/* Smart AI Summary Status Indicator */}
+                {documentsArray && Array.isArray(documentsArray) && (() => {
+                  const totalDocs = documentsArray.length;
+                  const docsWithSummaries = documentsArray.filter((doc: any) => doc.aiSummaryStatus === 'completed').length;
+                  const processingDocs = documentsArray.filter((doc: any) => doc.aiSummaryStatus === 'processing').length;
+                  const docsWithOCR = documentsArray.filter((doc: any) => doc.status === 'Analyzed').length;
+                  const docsNeedingSummaries = documentsArray.filter((doc: any) => 
+                    doc.status === 'Analyzed' && 
+                    (!doc.aiSummaryStatus || doc.aiSummaryStatus === 'pending' || doc.aiSummaryStatus === 'failed')
+                  ).length;
+                  
+                  // Calculate completion percentage and remaining time
+                  const completionPercentage = totalDocs > 0 ? Math.round((docsWithSummaries / totalDocs) * 100) : 0;
+                  const pendingDocs = totalDocs - docsWithSummaries - processingDocs;
+                  const estimatedMinutes = Math.ceil(pendingDocs / 3); // 3 docs per 20-second batch
+                  
+                  if (processingDocs > 0 || (docsWithSummaries > 0 && pendingDocs > 0)) {
+                    return (
+                      <div className="flex items-center space-x-2 px-3 py-2 bg-blue-900/30 border border-blue-600 rounded-md">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
+                        <span className="text-sm text-blue-300 font-medium">
+                          AI Processing: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
+                        </span>
+                      </div>
+                    );
+                  } else if (docsWithSummaries === totalDocs) {
+                    return (
+                      <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
+                        <Brain className="w-4 h-4 text-green-300" />
+                        <span className="text-sm text-green-300 font-medium">
+                          AI Complete: {docsWithSummaries}/{totalDocs} (100%)
+                        </span>
+                      </div>
+                    );
+                  } else if (docsWithSummaries > 0) {
+                    return (
+                      <div className="flex items-center space-x-2 px-3 py-2 bg-green-900/30 border border-green-600 rounded-md">
+                        <Brain className="w-4 h-4 text-green-300" />
+                        <span className="text-sm text-green-300 font-medium">
+                          AI Summaries: {docsWithSummaries}/{totalDocs} ({completionPercentage}%)
+                        </span>
+                      </div>
+                    );
+                  } else if (docsNeedingSummaries > 0) {
+                    return (
+                      <Button
+                        onClick={() => processAISummariesMutation.mutate()}
+                        size="sm"
+                        variant="outline"
+                        disabled={processAISummariesMutation.isPending || processingCooldown}
+                        className="border-blue-600 text-blue-300 hover:bg-blue-700"
+                      >
+                        {processAISummariesMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-4 h-4 mr-1" />
+                            Generate AI Summaries ({docsNeedingSummaries})
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
                 
                 <Button
                   onClick={() => setShowAdditionalUpload(true)}
@@ -2599,7 +1639,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    checked={selectedFiles.size === (documents?.length || 0) && (documents?.length || 0) > 0}
+                    checked={selectedFiles.size === (documentsArray?.length || 0) && (documentsArray?.length || 0) > 0}
                     onCheckedChange={handleSelectAll}
                   />
                   <span className="text-sm text-gray-300">Select All</span>
@@ -2636,87 +1676,75 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         </div>
       </div>
 
-
+      {/* Background Job Progress Tracking */}
+      <div className="p-4 border-b border-dark">
+        <BackgroundJobProgress 
+          dealId={dealId}
+          onJobComplete={(jobId, result) => {
+            console.log(`Job ${jobId} completed:`, result);
+            // Refetch documents to show updated OCR results
+            refetch();
+            if (onUploadComplete) {
+              onUploadComplete();
+            }
+          }}
+        />
+      </div>
 
       {/* Additional File Upload Section */}
       {showAdditionalUpload && (
-        <div className="relative border-b border-dark bg-gradient-to-br from-dark to-dark-lighter overflow-hidden">
-          {/* Background decorative elements */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/5 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-500/5 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
-          
-          <div className="relative p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-xl flex items-center justify-center border border-primary/20">
-                <UploadIcon className="w-5 h-5 text-primary" />
-              </div>
-              <h4 className="text-white text-lg font-semibold">Upload Additional Files</h4>
+        <div className="p-4 border-b border-dark bg-dark">
+          <h4 className="text-white text-sm font-medium mb-3">Upload Additional Files</h4>
+          <div className="space-y-3">
+            <Input
+              ref={additionalFileInputRef}
+              type="file"
+              multiple
+              onChange={handleAdditionalFilesUpload}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png"
+              className="bg-dark border-gray-600 text-white file:bg-blue-600 file:text-white file:border-0 file:rounded file:px-3 file:py-1"
+            />
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => additionalFileInputRef.current?.click()}
+                disabled={uploadFilesMutation.isPending}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {uploadFilesMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <UploadIcon className="w-4 h-4 mr-2" />
+                    Select Files
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setShowAdditionalUpload(false)}
+                size="sm"
+                variant="outline"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                Cancel
+              </Button>
             </div>
-            
-            <div className="space-y-4">
-              {/* Drag and drop area */}
-              <div className="relative">
-                <Input
-                  ref={additionalFileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleAdditionalFilesUpload}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="border-2 border-dashed border-primary/30 rounded-xl p-8 bg-gradient-to-br from-primary/5 to-blue-500/5 hover:border-primary/50 transition-all duration-300 hover:bg-primary/10">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-                      <UploadIcon className="w-6 h-6 text-primary" />
-                    </div>
-                    <p className="text-white font-medium mb-1">Drag files here or click to browse</p>
-                    <p className="text-gray-400 text-sm">Support for PDF, DOC, XLS, PPT, TXT, and images</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Action buttons */}
-              <div className="flex space-x-3">
-                <Button
-                  onClick={() => additionalFileInputRef.current?.click()}
-                  disabled={uploadFilesMutation.isPending}
-                  className="bg-gradient-to-r from-primary to-green-400 hover:from-primary/80 hover:to-green-400/80 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  {uploadFilesMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <UploadIcon className="w-4 h-4 mr-2" />
-                      Select Files
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={() => setShowAdditionalUpload(false)}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-gray-500 rounded-lg transition-all duration-300"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-            
-            {uploadFilesMutation.error && (
-              <Alert className="mt-4 border-red-500/50 bg-red-900/20 rounded-lg">
-                <AlertTriangleIcon className="w-4 h-4" />
-                <AlertDescription className="text-red-300">
-                  Upload failed: {uploadFilesMutation.error.message}
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
+          {uploadFilesMutation.error && (
+            <Alert className="mt-3 border-red-500 bg-red-900/20">
+              <AlertTriangleIcon className="w-4 h-4" />
+              <AlertDescription className="text-red-300">
+                Upload failed: {uploadFilesMutation.error.message}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       )}
 
-      <div className="p-4 h-96 overflow-y-auto">
+      <div className="p-4 max-h-96 overflow-y-auto">
         {folderTree.children.size > 0 ? (
           Array.from(folderTree.children.values()).map((child) => (
             <FolderTree
@@ -2757,44 +1785,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     )}
                     <span className="text-gray-300 text-sm flex-1">{doc.name}</span>
                     <div className="flex items-center space-x-2">
-                      {/* OCR Completion Status */}
-                      {doc.ocrContent && doc.ocrContent.length > 0 && (
-                        <div title="OCR completed">
-                          <CheckCircleIcon className="w-3 h-3 text-green-500" />
-                        </div>
-                      )}
-                      {(!doc.ocrContent || doc.ocrContent.length === 0) && !doc.name.endsWith('.zip') && (
-                        <div title="OCR pending">
-                          <ClockIcon className="w-3 h-3 text-yellow-500" />
-                        </div>
-                      )}
-                      
-                      {/* AI Summary Status */}
-                      {doc.aiSummary && doc.aiSummaryStatus !== 'processing' && (
-                        <div title="AI summary completed">
-                          <Brain className="w-3 h-3 text-purple-400" />
-                        </div>
-                      )}
-                      {(doc.aiSummaryStatus === 'processing' || doc.aiSummaryStatus === 'analyzing') && (
-                        <div title="AI summary processing - analyzing document">
-                          <Brain className="w-3 h-3 text-blue-400 animate-pulse" />
-                        </div>
-                      )}
-                      {doc.aiSummaryStatus === 'extracting' && (
-                        <div title="Extracting text from document">
-                          <Loader2 className="w-3 h-3 text-yellow-400 animate-spin" />
-                        </div>
-                      )}
-                      {!doc.aiSummary && !doc.aiSummaryStatus && doc.ocrContent && doc.ocrContent.length > 0 && (
-                        <div title="AI summary pending">
-                          <Brain className="w-3 h-3 text-gray-400" />
-                        </div>
-                      )}
-                      
-                      {/* File Actions */}
-                      <div title="View document">
-                        <EyeIcon className="w-3 h-3 text-gray-500" />
-                      </div>
+                      {doc.status === 'Analyzed' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
+                      {doc.status === 'Pending' && <ClockIcon className="w-3 h-3 text-yellow-500" />}
+                      {(doc as any).aiSummaryStatus === 'completed' && <Brain className="w-3 h-3 text-purple-400" />}
+                      {(doc as any).aiSummaryStatus === 'processing' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                      <EyeIcon className="w-3 h-3 text-gray-500" />
                       <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                     </div>
                   </div>
@@ -2804,176 +1799,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           )
         )}
 
-        {/* No documents message or upload interface when only email attachments exist */}
+        {/* No documents message */}
         {folderTree.children.size === 0 && folderTree.documents.length === 0 && (
-          <div className="p-6">
-            {emailAttachments.length > 0 ? (
-              // Show upload interface when email attachments exist but no regular documents
-              <div className="relative">
-                {/* Background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5 rounded-xl"></div>
-                
-                <div className="relative space-y-6 p-6">
-                  <div className="text-center mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/20">
-                      <UploadIcon className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Upload Documents</h3>
-                    <p className="text-gray-400 text-sm">Add additional documents to your data room for AI analysis</p>
-                  </div>
-                  
-                  {/* Folder Name Input */}
-                  <div className="space-y-3">
-                    <Label htmlFor="folderName" className="text-white text-sm font-medium">Folder Name</Label>
-                    <Input
-                      id="folderName"
-                      value={folderName}
-                      onChange={(e) => setFolderName(e.target.value)}
-                      placeholder="Enter folder name"
-                      className="bg-dark-lighter border-gray-600 text-white rounded-lg focus:border-primary focus:ring-primary/20"
-                    />
-                  </div>
-
-                  {/* ZIP Upload */}
-                  <div className="space-y-3">
-                    <Label htmlFor="zipFile" className="text-white text-sm font-medium">Upload ZIP File</Label>
-                    <div className="relative">
-                      <Input
-                        ref={fileInputRef}
-                        id="zipFile"
-                        type="file"
-                        accept=".zip"
-                        onChange={handleZipUpload}
-                        disabled={uploadZipMutation.isPending}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      <div className="border-2 border-dashed border-primary/40 rounded-xl p-6 bg-gradient-to-br from-primary/5 to-blue-500/5 hover:border-primary/60 transition-all duration-300 hover:bg-primary/10">
-                        <div className="flex items-center justify-center space-x-3">
-                          <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-                            {uploadZipMutation.isPending ? (
-                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                            ) : (
-                              <UploadIcon className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                          <div className="text-center">
-                            <p className="text-white font-medium">
-                              {uploadZipMutation.isPending ? 'Uploading...' : 'Drop ZIP file here or click to browse'}
-                            </p>
-                            <p className="text-gray-400 text-xs mt-1">Maximum file size: 5GB (automatic chunked upload)</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Upload Progress */}
-                  {uploadProgress && (
-                    <div className="space-y-3 p-4 bg-dark-lighter/50 border border-gray-600/50 rounded-xl backdrop-blur-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-white font-medium">{uploadProgress.fileName}</p>
-                            <p className="text-xs text-gray-400">{uploadProgress.status}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm text-gray-400 font-medium">{uploadProgress.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${uploadProgress.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chunked Upload Progress */}
-                  {chunkedUploadProgress && (
-                    <div className="space-y-3 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl backdrop-blur-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                            <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-white font-medium">{chunkedUploadProgress.fileName}</p>
-                            <p className="text-xs text-purple-300">
-                              {chunkedUploadProgress.status === 'initializing' && 'Preparing large file upload...'}
-                              {chunkedUploadProgress.status === 'uploading' && `Uploading chunk ${(chunkedUploadProgress.currentChunk ?? 0) + 1}/${chunkedUploadProgress.totalChunks}`}
-                              {chunkedUploadProgress.status === 'assembling' && 'Assembling file on server...'}
-                              {chunkedUploadProgress.status === 'complete' && 'Upload complete!'}
-                              {chunkedUploadProgress.status === 'error' && 'Upload failed'}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-sm text-purple-300 font-medium">{chunkedUploadProgress.progress.toFixed(1)}%</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-purple-500 to-pink-400 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${chunkedUploadProgress.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Error Display */}
-                  {uploadZipMutation.error && (
-                    <Alert className="border-red-500/50 bg-red-900/20 rounded-xl">
-                      <AlertTriangleIcon className="h-4 w-4" />
-                      <AlertDescription className="text-red-300">
-                        Upload failed: {uploadZipMutation.error.message}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </div>
-            ) : (
-              // Show default message when no documents at all
-              <div className="relative">
-                {/* Background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10 rounded-xl"></div>
-                
-                <div className="relative text-center py-12 px-6">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-primary/20">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary/30 to-blue-500/30 rounded-2xl flex items-center justify-center">
-                      <UploadIcon className="h-8 w-8 text-primary" />
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-xl font-semibold text-white mb-3">No Documents Yet</h3>
-                  <p className="text-gray-400 text-sm mb-8 max-w-md mx-auto">
-                    Upload a ZIP file containing your documents to get started. 
-                    Our AI will automatically extract and analyze all files.
-                  </p>
-                  
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="flex items-center space-x-6 text-xs text-gray-400">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span>PDF Support</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                        <span>Office Documents</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                        <span>Images</span>
-                      </div>
-                    </div>
-                    
-                    <p className="text-xs text-gray-500">
-                      Connect your data room to start analyzing documents with AI
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className="p-6 text-center text-gray-400">
+            <p>No documents in data room. Upload a ZIP file to get started.</p>
           </div>
         )}
       </div>

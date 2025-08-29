@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Link, useParams, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Plus, Eye, FileText, Users, TrendingUp, Search, Filter, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,20 +49,10 @@ const getRandomColor = () => {
 };
 
 export default function DealsPage() {
-  const params = useParams();
-  const dealId = params.dealId;
-  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [sectorFilter, setSectorFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
-
-  // Redirect to due diligence page if dealId is provided
-  useEffect(() => {
-    if (dealId) {
-      setLocation(`/due-diligence?deal=${dealId}`);
-    }
-  }, [dealId, setLocation]);
 
   const { data: deals = [], isLoading } = useQuery<Deal[]>({
     queryKey: ['/api/deals'],

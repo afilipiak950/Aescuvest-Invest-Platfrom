@@ -47,7 +47,7 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
     retry: false
   });
 
-  const connection: DataRoomConnection | null = connectionData?.connection || null;
+  const connection: DataRoomConnection | null = (connectionData as any)?.connection || null;
 
   // GCS direct upload mutation (now matches DataRoomExplorer exactly)
   const uploadZipMutation = useMutation({
@@ -63,19 +63,6 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       if (onUploadComplete) {
         onUploadComplete();
       }
-    }
-  });
-
-  // Disconnect mutation
-  const disconnectMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest(`/api/deals/${dealId}/data-room/disconnect`, {
-        method: 'POST'
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
     }
   });
 
@@ -99,99 +86,81 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       });
 
       if (!signedResponse.ok) {
-        throw new Error(`Signed URL request failed: ${signedResponse.status}`);
+        const errorText = await signedResponse.text();
+        throw new Error(`Failed to get signed URL: ${signedResponse.status} ${errorText}`);
       }
 
-      const signedData = await signedResponse.json();
-      const { signedUrl, gcsFileName, uploadId } = signedData;
-      
-      console.log('✅ STEP 1 COMPLETE: Got signed URL');
-      console.log(`📝 Upload ID: ${uploadId}`);
-      console.log(`📝 GCS filename: ${gcsFileName}`);
+      const { uploadUrl, fileName: serverFileName } = await signedResponse.json();
+      console.log('✅ STEP 1 SUCCESS: Got signed URL from server');
 
-      // Step 2: Upload directly to GCS using XMLHttpRequest for progress
-      console.log('📍 STEP 2: Uploading directly to Google Cloud Storage...');
-      
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        // Track upload progress
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 100);
-            setUploadProgress(percentComplete);
-            console.log(`☁️ GCS direct upload progress: ${percentComplete}%`);
-          }
-        });
-
-        // Handle completion
-        xhr.addEventListener('load', async () => {
-          console.log('🔍 GCS DIRECT UPLOAD COMPLETE - Status:', xhr.status);
-          
-          if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
-            console.log('✅ STEP 2 COMPLETE: File uploaded directly to GCS!');
-            
-            try {
-              // Step 3: Notify server that upload is complete
-              console.log('📍 STEP 3: Notifying server of completed upload...');
-              
-              const completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  gcsFileName,
-                  uploadId,
-                  fileName: file.name
-                })
-              });
-
-              if (!completeResponse.ok) {
-                const errorData = await completeResponse.json().catch(() => ({}));
-                throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
-              }
-
-              const result = await completeResponse.json();
-              console.log('✅ STEP 3 COMPLETE: Server processing done', result);
-              
-              setUploadProgress(100);
-              
-              // Schedule delayed success cleanup and refresh (same as DataRoomExplorer)
-              setTimeout(() => {
-                setUploadProgress(0);
-                // Trigger cache invalidation to refresh documents
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
-              }, 2000);
-              
-              resolve(result);
-              
-            } catch (notifyError: any) {
-              console.error('❌ Failed to notify server:', notifyError);
-              reject(notifyError);
-            }
-          } else {
-            reject(new Error(`GCS upload failed with status: ${xhr.status}`));
-          }
-        });
-
-        xhr.addEventListener('error', () => {
-          reject(new Error('Upload failed due to network error'));
-        });
-
-        // Configure and send request
-        xhr.open('PUT', signedUrl);
-        xhr.setRequestHeader('Content-Type', 'application/zip');
-        xhr.setRequestHeader('Content-Length', file.size.toString());
-        xhr.send(file);
+      // Step 2: Upload directly to Google Cloud Storage
+      console.log('📍 STEP 2: Uploading directly to GCS...');
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream'
+        }
       });
-      
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`GCS upload failed: ${uploadResponse.status} ${errorText}`);
+      }
+      console.log('✅ STEP 2 SUCCESS: File uploaded to GCS');
+
+      // Step 3: Notify server that upload is complete
+      console.log('📍 STEP 3: Notifying server of upload completion...');
+      const completeUrl = `/api/gcs/upload-complete/${dealId}`;
+      const completePayload = {
+        fileName: serverFileName,
+        originalFileName: file.name,
+        fileSize: file.size
+      };
+
+      const completeResponse = await fetch(completeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(completePayload)
+      });
+
+      if (!completeResponse.ok) {
+        const errorText = await completeResponse.text();
+        throw new Error(`Failed to notify server: ${completeResponse.status} ${errorText}`);
+      }
+      console.log('✅ STEP 3 SUCCESS: Server notified of upload completion');
+
+      const result = await completeResponse.json();
+      console.log('🎉 GCS DIRECT upload completed successfully!');
+
+      // Invalidate cache after 2-second delay to ensure backend processing has started
+      setTimeout(() => {
+        console.log('🔄 Invalidating cache after GCS upload...');
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/deals`] });
+      }, 2000);
+
+      return result;
+
     } catch (error) {
-      console.error('❌ GCS direct upload failed:', error);
+      console.error('❌ GCS DIRECT upload failed:', error);
       throw error;
-    } finally {
-      setUploadProgress(0);
     }
   };
+
+  // Disconnect mutation
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest(`/api/deals/${dealId}/data-room/disconnect`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/data-room/status`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+    }
+  });
 
   const handleZipUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -202,12 +171,21 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
       return;
     }
 
+    // Check file size (500MB = 524,288,000 bytes)
+    const maxSize = 500 * 1024 * 1024; // 500MB
+    if (file.size > maxSize) {
+      alert(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the maximum limit of 500MB. Please select a smaller file.`);
+      return;
+    }
+
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
-    // 🚨 Use mutation to trigger GCS direct upload (consistent with mutation pattern)
-    console.log('🚀 Using GCS DIRECT upload via mutation for production consistency');
-    
-    uploadZipMutation.mutate(file);
+    try {
+      await uploadZipMutation.mutateAsync(file);
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      alert(`Upload failed: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -360,22 +338,10 @@ export default function DataRoomManager({ dealId, onUploadComplete }: DataRoomMa
             <Alert>
               <FileText className="h-4 w-4" />
               <AlertDescription>
-                Upload a ZIP file containing your deal documents. Files larger than 10MB will be 
-                automatically chunked for reliable upload. All files will be processed using 
-                AI-powered OCR for document intelligence and insights.
+                Upload a ZIP file containing your deal documents. All files will be automatically 
+                analyzed using AI-powered OCR for document intelligence and insights.
               </AlertDescription>
             </Alert>
-            
-            {/* Upload Progress Bar */}
-            {uploadProgress > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <Progress value={uploadProgress} className="w-full" />
-              </div>
-            )}
           </div>
         )}
 

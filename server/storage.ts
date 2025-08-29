@@ -1,4 +1,3 @@
-// @ts-nocheck - bypass type errors for deployment
 import { 
   users, User, InsertUser,
   deals, Deal, InsertDeal,
@@ -19,13 +18,11 @@ import {
   researchJobs, ResearchJob, InsertResearchJob
 } from "@shared/schema";
 import { db, pool } from './db';
-import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { eq, and, or, desc, inArray, isNotNull, isNull } from 'drizzle-orm';
 
-// In-memory cache for better performance across queries
+// In-memory cache for document queries
 const documentCache = new Map<number, { data: Document[], timestamp: number }>();
-const dealsCache = new Map<string, { data: any[], timestamp: number }>();
-const analysesCache = new Map<number, { data: AgentAnalysis[], timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds cache for better performance
+const CACHE_TTL = 60000; // 60 seconds cache for better performance
 
 // Storage interface with all the CRUD methods we need
 export interface IStorage {
@@ -74,10 +71,8 @@ export interface IStorage {
   getAllMemos(): Promise<InvestmentMemo[]>;
   getMemoById(id: number): Promise<InvestmentMemo | undefined>;
   getMemoByDealId(dealId: number): Promise<InvestmentMemo | undefined>;
-  createMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo>;
+  createInvestmentMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo>;
   updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined>;
-  deleteMemosByDealId(dealId: number): Promise<number>;
-
   
   // Investor methods
   getAllInvestors(): Promise<Investor[]>;
@@ -120,22 +115,14 @@ export interface IStorage {
   getCompanyResearchByDealId(dealId: number): Promise<any | undefined>;
   createCompanyResearch(research: any): Promise<any>;
   createOrUpdateCompanyResearch(dealId: number, data: any): Promise<any>;
-  updateCompanyResearch(dealId: number, data: any): Promise<any | undefined>;
   updateCompanyResearchStatus(dealId: number, status: string): Promise<any | undefined>;
   deleteCompanyResearchByDealId(dealId: number): Promise<number>;
   
   // Background jobs methods
   createBackgroundJob(job: any): Promise<any>;
-  updateBackgroundJob(jobId: string, data: any): Promise<any>;
+  updateBackgroundJob(id: string, updates: any): Promise<any>;
   getBackgroundJobsByDealId(dealId: number): Promise<any[]>;
-  getRunningBackgroundJobs(dealId?: number): Promise<any[]>;
-  clearStuckBackgroundJobs(dealId?: number): Promise<number>;
-  getActiveBackgroundJobsForDeal(dealId: number): Promise<any[]>;
-  completeBackgroundJob(jobId: string, results: any): Promise<void>;
-  failBackgroundJob(jobId: string, errorMessage: string): Promise<void>;
   deleteBackgroundJobsByDealId(dealId: number): Promise<number>;
-  updateStuckBackgroundJobs(dealId: number): Promise<number>;
-  clearStuckJobs(dealId: number): Promise<void>;
   
   // Data room connection methods
   getDataRoomConnectionByDealId(dealId: number): Promise<any | undefined>;
@@ -153,12 +140,6 @@ export interface IStorage {
   // Comprehensive analysis methods
   getComprehensiveAnalysis(dealId: number): Promise<ComprehensiveAnalysis | undefined>;
   createOrUpdateComprehensiveAnalysis(dealId: number, data: Partial<ComprehensiveAnalysis>): Promise<ComprehensiveAnalysis>;
-  deleteComprehensiveAnalysesByDealId(dealId: number): Promise<number>;
-  deleteBackgroundUploadsByDealId(dealId: number): Promise<number>;
-  deleteInvestorMatchesByDealId(dealId: number): Promise<number>;
-  deleteInvestmentMemosByDealId(dealId: number): Promise<number>;
-  deleteAutomationExecutionsByDealId(dealId: number): Promise<number>;
-  deleteResearchBackgroundJobsByDealId(dealId: number): Promise<number>;
   
   // Research jobs methods
   createResearchJob(job: InsertResearchJob): Promise<ResearchJob>;
@@ -216,44 +197,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllDeals(): Promise<Deal[]> {
-    // Check cache first
-    const cached = dealsCache.get('all_deals');
-    const now = Date.now();
-    
-    if (cached && (now - cached.timestamp) < CACHE_TTL) {
-      console.log(`💨 Using cached deals data (${cached.data.length} deals)`);
-      return cached.data;
-    }
-    
-    console.log('⚡ Fetching all deals with optimized query...');
-    const startTime = Date.now();
-    
-    // Optimized query with selective fields for dashboard performance
-    const result = await db
-      .select({
-        id: deals.id,
-        companyName: deals.companyName,
-        description: deals.description,
-        sector: deals.sector,
-        stage: deals.stage,
-        location: deals.location,
-        website: deals.website,
-        fundingAmount: deals.fundingAmount,
-        status: deals.status,
-        aiScore: deals.aiScore,
-        createdAt: deals.createdAt,
-        updatedAt: deals.updatedAt
-      })
-      .from(deals)
-      .orderBy(desc(deals.createdAt))
-      .limit(100); // Limit to most recent 100 deals for performance
-    
-    const queryTime = Date.now() - startTime;
-    console.log(`⚡ Fetched ${result.length} deals in ${queryTime}ms`);
-    
-    // Cache the result
-    dealsCache.set('all_deals', { data: result, timestamp: now });
-    
+    const result = await db.select().from(deals).orderBy(desc(deals.createdAt));
     return result;
   }
 
@@ -264,11 +208,6 @@ export class DatabaseStorage implements IStorage {
 
   async createDeal(deal: InsertDeal): Promise<Deal> {
     const [newDeal] = await db.insert(deals).values(deal).returning();
-    
-    // Invalidate deals cache when new deal is created
-    dealsCache.delete('all_deals');
-    console.log('💨 Invalidated deals cache after creating new deal');
-    
     return newDeal;
   }
 
@@ -287,60 +226,16 @@ export class DatabaseStorage implements IStorage {
       .set({ status })
       .where(eq(deals.id, id))
       .returning();
-    
-    // Invalidate deals cache when status changes
-    dealsCache.delete('all_deals');
-    console.log('💨 Invalidated deals cache after status update');
-    
     return updatedDeal || undefined;
   }
 
   async deleteDeal(id: number): Promise<boolean> {
     try {
-      console.log(`🗑️ DatabaseStorage: Attempting to delete deal ${id}`);
-      console.log(`🔍 DatabaseStorage: Deal ID type: ${typeof id}, value: ${id}`);
-      
-      // First check if deal exists
-      console.log(`🔍 DatabaseStorage: Checking if deal ${id} exists...`);
-      const existingDeal = await this.getDealById(id);
-      if (!existingDeal) {
-        console.log(`❌ DatabaseStorage: Deal ${id} not found - cannot delete`);
-        return false;
-      }
-      console.log(`✅ DatabaseStorage: Found deal ${id}: ${existingDeal.companyName}`);
-      
-      // Delete the deal using returning() to confirm deletion
-      console.log(`🗑️ DatabaseStorage: Executing DELETE query for deal ${id}...`);
-      const deletedDeals = await db
-        .delete(deals)
-        .where(eq(deals.id, id))
-        .returning({ id: deals.id });
-      
-      console.log(`🗑️ DatabaseStorage: DELETE query returned ${deletedDeals.length} row(s):`, deletedDeals);
-      const wasDeleted = deletedDeals.length > 0;
-      console.log(`🗑️ DatabaseStorage: Deal ${id} deletion ${wasDeleted ? 'successful' : 'failed'}`);
-      
-      // Invalidate deals cache after successful deletion
-      if (wasDeleted) {
-        dealsCache.delete('all_deals');
-        console.log('💨 DatabaseStorage: Invalidated deals cache after deletion');
-      } else {
-        console.log(`❌ DatabaseStorage: DELETE returned no rows - foreign key constraint or other issue?`);
-      }
-      
-      return wasDeleted;
+      const result = await db.delete(deals).where(eq(deals.id, id));
+      return (result.rowCount || 0) > 0;
     } catch (error) {
-      console.error(`❌ DatabaseStorage: CRITICAL ERROR deleting deal ${id}:`, error);
-      console.error(`❌ DatabaseStorage: Error details:`, {
-        name: error?.name,
-        message: error?.message,
-        code: error?.code,
-        constraint: error?.constraint,
-        detail: error?.detail,
-        stack: error?.stack
-      });
-      // Re-throw the error so the endpoint can see the actual issue
-      throw error;
+      console.error(`Error deleting deal ${id}:`, error);
+      return false;
     }
   }
 
@@ -359,59 +254,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]> {
-    console.log(`📄 DB: Fetching documents with FULL OCR text for deal ${dealId}...`);
+    console.log(`📄 DB: Fetching documents with OCR for deal ${dealId}...`);
     const startTime = Date.now();
     
-    // Get ALL documents including OCR text for investment memo generation
+    // Get all documents with OCR text for analysis
     const result = await db
-      .select({
-        id: documents.id,
-        dealId: documents.dealId,
-        name: documents.name,
-        type: documents.type,
-        path: documents.path,
-        size: documents.size,
-        status: documents.status,
-        ocrText: documents.ocrText, // INCLUDE OCR TEXT - Critical for investment memo generation
-        uploadedAt: documents.uploadedAt,
-        folderPath: documents.folderPath,
-        isFolder: documents.isFolder,
-        parentId: documents.parentId,
-        category: documents.category,
-        documentType: documents.documentType,
-        aiSummaryStatus: documents.aiSummaryStatus,
-        aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
-        aiSummary: documents.aiSummary,
-        analyses: documents.analyses,
-        assignedAgents: documents.assignedAgents,
-        assignmentReason: documents.assignmentReason,
-        assignmentConfidence: documents.assignmentConfidence,
-        manuallyAssigned: documents.manuallyAssigned,
-        assignedAt: documents.assignedAt
-      })
+      .select()
       .from(documents)
       .where(eq(documents.dealId, dealId))
       .orderBy(documents.name);
     
     const queryTime = Date.now() - startTime;
-    const docsWithOcr = result.filter(doc => doc.ocrText && doc.ocrText.length > 100).length;
-    const totalOcrLength = result.reduce((sum, doc) => sum + (doc.ocrText?.length || 0), 0);
-    
     console.log(`📄 DB: OCR query completed in ${queryTime}ms, found ${result.length} documents`);
-    console.log(`📄 DB: ${docsWithOcr} documents have OCR text with ${totalOcrLength.toLocaleString()} total characters`);
     
     return result;
   }
 
   async getDocumentsByDealId(dealId: number): Promise<Document[]> {
-    // Force fresh query to get updated assignment data
-    console.log(`📄 DB: Clearing cache and forcing fresh query for deal ${dealId}...`);
-    documentCache.delete(dealId);
+    // Check cache with reasonable TTL for performance
+    const cached = documentCache.get(dealId);
+    const now = Date.now();
+    
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      console.log(`📄 DB: Using cached documents for deal ${dealId} (${cached.data.length} docs)`);
+      return cached.data;
+    }
     
     const startTime = Date.now();
     console.log(`📄 DB: Starting optimized documents query for deal ${dealId}...`);
     
-    // Optimized query: include aiSummary and OCR content for functionality, exclude only heaviest fields
+    // Optimized query: include aiSummary for functionality, exclude only heaviest fields
     const result = await db
       .select({
         id: documents.id,
@@ -424,30 +296,24 @@ export class DatabaseStorage implements IStorage {
         uploadedAt: documents.uploadedAt,
         folderPath: documents.folderPath,
         isFolder: documents.isFolder,
-        ocrContent: documents.ocrText, // Map ocr_text to ocrContent for frontend
         parentId: documents.parentId,
         category: documents.category,
         documentType: documents.documentType,
         aiSummaryStatus: documents.aiSummaryStatus,
         aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
         aiSummary: documents.aiSummary, // Include for AI summary display
-        analyses: documents.analyses, // Include for technical analysis
-        assignedAgents: documents.assignedAgents, // Include for agent assignment display
-        assignmentReason: documents.assignmentReason,
-        assignmentConfidence: documents.assignmentConfidence,
-        manuallyAssigned: documents.manuallyAssigned,
-        assignedAt: documents.assignedAt
+        analyses: documents.analyses // Include for technical analysis
         // Exclude only: ocrText (heaviest field), insights, riskFactors
       })
       .from(documents)
       .where(eq(documents.dealId, dealId))
-      .orderBy(documents.name); // Remove limit to get all documents
+      .orderBy(documents.name)
+      .limit(500); // Reduce initial load size
     
     const queryTime = Date.now() - startTime;
     console.log(`📄 DB: Optimized query completed in ${queryTime}ms, found ${result.length} documents`);
     
-    // Clear old cache and set new data with assignment fields
-    documentCache.delete(dealId);
+    // Re-enable caching after AI summary fix is confirmed
     documentCache.set(dealId, { data: result, timestamp: Date.now() });
     
     // Log AI summary availability for debugging
@@ -455,78 +321,6 @@ export class DatabaseStorage implements IStorage {
     console.log(`📄 Query completed: ${result.length} docs, ${summaryCount} with AI summaries`);
     
     return result;
-  }
-
-  // NEW: Get documents WITH complete OCR text for memo generation using direct database connection
-  async getDocumentsWithOCRForMemo(dealId: number): Promise<any[]> {
-    console.log(`🔍 Fetching ALL documents WITH complete OCR text for memo generation - deal ${dealId}`);
-    
-    const startTime = Date.now();
-    
-    try {
-      // Use direct PostgreSQL connection to bypass any ORM limitations
-      const client = await pool.connect();
-      
-      // First, verify OCR content exists
-      const ocrCheckQuery = `SELECT COUNT(*) as ocr_docs, SUM(LENGTH(ocr_text)) as total_chars FROM documents WHERE deal_id = $1 AND ocr_text IS NOT NULL AND LENGTH(ocr_text) > 100`;
-      const ocrCheck = await client.query(ocrCheckQuery, [dealId]);
-      console.log(`🔍 OCR CHECK: ${ocrCheck.rows[0].ocr_docs} docs with OCR, ${ocrCheck.rows[0].total_chars} total chars`);
-      
-      const query = `
-        SELECT id, deal_id, name, type, path, size, status, uploaded_at,
-               folder_path, is_folder, parent_id, category, document_type,
-               ai_summary, ai_summary_status, ai_summary_generated_at,
-               analyses, assigned_agents, assignment_reason, assignment_confidence,
-               manually_assigned, assigned_at, assigned_by,
-               ocr_text, summary, insights, risk_factors
-        FROM documents 
-        WHERE deal_id = $1 
-        ORDER BY name
-      `;
-      
-      const result = await client.query(query, [dealId]);
-      const documents = result.rows;
-      
-      client.release();
-      
-      const queryTime = Date.now() - startTime;
-      
-      // Debug OCR content with detailed field inspection
-      let ocrDocsCount = 0;
-      let totalOcrChars = 0;
-      
-      documents.forEach((doc, index) => {
-        if (doc.ocr_text && doc.ocr_text.length > 100) {
-          ocrDocsCount++;
-          totalOcrChars += doc.ocr_text.length;
-          console.log(`📄 Document ${index + 1} (${doc.name}): ${doc.ocr_text.length.toLocaleString()} OCR characters - SUCCESSFULLY RETRIEVED!`);
-        } else {
-          console.log(`📄 Document ${index + 1} (${doc.name}): No substantial OCR text`);
-        }
-      });
-      
-      console.log(`📄 DIRECT DB QUERY COMPLETE: ${documents.length} docs, ${ocrDocsCount} with OCR, ${totalOcrChars.toLocaleString()} total OCR chars in ${queryTime}ms`);
-      
-      if (ocrDocsCount > 0) {
-        console.log(`✅ OCR EXTRACTION SUCCESS: Found ${totalOcrChars.toLocaleString()} characters across ${ocrDocsCount} documents`);
-      } else {
-        console.log(`❌ OCR EXTRACTION FAILED: No OCR content retrieved despite database verification`);
-      }
-      
-      return documents;
-    } catch (error) {
-      console.error('Error with direct database query:', error);
-      
-      // Fallback to Drizzle query
-      const result = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.dealId, dealId))
-        .orderBy(documents.name);
-      
-      console.log(`📄 FALLBACK QUERY: ${result.length} documents`);
-      return result;
-    }
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
@@ -710,13 +504,10 @@ export class DatabaseStorage implements IStorage {
         researchStatus: research.researchStatus,
         ceoProfile: safeJsonParse(research.ceoProfile),
         financialData: safeJsonParse(research.financialData),
-        marketAnalysis: safeJsonParse(research.marketAnalysis),
         businessIntelligence: safeJsonParse(research.businessIntelligence),
         riskFactors: safeJsonParse(research.riskFactors),
         investmentHighlights: safeJsonParse(research.investmentHighlights),
-        externalLinks: safeJsonParse(research.externalLinks),
-        aiAnalysis: safeJsonParse(research.aiAnalysis),
-        researchCompletedAt: research.researchCompletedAt
+        externalLinks: safeJsonParse(research.externalLinks)
       };
     } catch (error) {
       console.error('Error fetching raw company research:', error);
@@ -779,9 +570,6 @@ export class DatabaseStorage implements IStorage {
 
   async createOrUpdateCompanyResearch(dealId: number, researchData: any): Promise<any> {
     try {
-      // Debug the incoming research data
-      console.log(`🔍 DEBUG: Storage received for deal ${dealId} - Market Analysis:`, researchData.marketAnalysis ? 'Present' : 'Missing');
-      
       const existing = await this.getCompanyResearchByDealId(dealId);
       
       if (existing) {
@@ -794,9 +582,6 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(companyResearch.dealId, dealId))
           .returning();
-          
-        // Debug the updated record
-        console.log(`🔍 DEBUG: Updated record - Market Analysis:`, updated.marketAnalysis ? 'Present' : 'Missing');
         return updated;
       } else {
         // Create new research
@@ -809,31 +594,11 @@ export class DatabaseStorage implements IStorage {
             updatedAt: new Date()
           })
           .returning();
-          
-        // Debug the created record
-        console.log(`🔍 DEBUG: Created record - Market Analysis:`, created.marketAnalysis ? 'Present' : 'Missing');
         return created;
       }
     } catch (error) {
       console.error('Error creating/updating company research:', error);
       throw error;
-    }
-  }
-
-  async updateCompanyResearch(dealId: number, data: any): Promise<any | undefined> {
-    try {
-      const [updated] = await db
-        .update(companyResearch)
-        .set({
-          ...data,
-          updatedAt: new Date()
-        })
-        .where(eq(companyResearch.dealId, dealId))
-        .returning();
-      return updated;
-    } catch (error) {
-      console.error('Error updating company research:', error);
-      return undefined;
     }
   }
 
@@ -861,31 +626,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnalysesByDealId(dealId: number): Promise<AgentAnalysis[]> {
-    // Check cache first
-    const cached = analysesCache.get(dealId);
-    const now = Date.now();
-    
-    if (cached && (now - cached.timestamp) < CACHE_TTL) {
-      console.log(`💨 Using cached analyses for deal ${dealId} (${cached.data.length} analyses)`);
-      return cached.data;
-    }
-    
     console.log(`🔍 Querying agent analyses for deal ${dealId}`);
-    const startTime = Date.now();
-    
     const analysisList = await db
       .select()
       .from(agentAnalyses)
       .where(eq(agentAnalyses.dealId, dealId))
-      .orderBy(desc(agentAnalyses.createdAt))
-      .limit(50); // Limit results for performance
-    
-    const queryTime = Date.now() - startTime;
-    console.log(`🔍 Found ${analysisList.length} analyses for deal ${dealId} in ${queryTime}ms`);
-    
-    // Cache the result
-    analysesCache.set(dealId, { data: analysisList, timestamp: now });
-    
+      .orderBy(desc(agentAnalyses.createdAt));
+    console.log(`🔍 Found ${analysisList.length} analyses for deal ${dealId}`);
     return analysisList;
   }
 
@@ -905,13 +652,6 @@ export class DatabaseStorage implements IStorage {
 
   async createAgentAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis> {
     const [newAnalysis] = await db.insert(agentAnalyses).values(analysis).returning();
-    
-    // Invalidate analyses cache when new analysis is created
-    if (newAnalysis.dealId) {
-      analysesCache.delete(newAnalysis.dealId);
-      console.log(`💨 Invalidated analyses cache for deal ${newAnalysis.dealId}`);
-    }
-    
     return newAnalysis;
   }
 
@@ -948,50 +688,24 @@ export class DatabaseStorage implements IStorage {
     return deletedCount;
   }
 
-  // Investment memo methods - full implementation
   async getAllMemos(): Promise<InvestmentMemo[]> {
-    return await db.select().from(investmentMemos).orderBy(desc(investmentMemos.createdAt));
+    return [];
   }
 
   async getMemoById(id: number): Promise<InvestmentMemo | undefined> {
-    const result = await db.select().from(investmentMemos).where(eq(investmentMemos.id, id));
-    return result[0];
+    return undefined;
   }
 
   async getMemoByDealId(dealId: number): Promise<InvestmentMemo | undefined> {
-    const result = await db.select().from(investmentMemos)
-      .where(eq(investmentMemos.dealId, dealId))
-      .orderBy(desc(investmentMemos.createdAt));
-    return result[0];
+    return undefined;
   }
 
-  async createMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo> {
-    // Delete any existing memos for this deal to ensure only one active memo
-    await db.delete(investmentMemos)
-      .where(eq(investmentMemos.dealId, memo.dealId));
-
-    // Create new memo
-    const [newMemo] = await db.insert(investmentMemos).values([memo]).returning();
-    
-    console.log(`💾 Created new investment memo for deal ${memo.dealId}`);
-    return newMemo;
+  async createInvestmentMemo(memo: InsertInvestmentMemo): Promise<InvestmentMemo> {
+    throw new Error('Not implemented');
   }
 
   async updateMemo(id: number, data: Partial<InvestmentMemo>): Promise<InvestmentMemo | undefined> {
-    const [updatedMemo] = await db.update(investmentMemos)
-      .set(data)
-      .where(eq(investmentMemos.id, id))
-      .returning();
-    
-    return updatedMemo;
-  }
-
-  async deleteMemosByDealId(dealId: number): Promise<number> {
-    const result = await db.delete(investmentMemos)
-      .where(eq(investmentMemos.dealId, dealId));
-    
-    console.log(`🗑️ Deleted ${result.rowCount || 0} memos for deal ${dealId}`);
-    return result.rowCount || 0;
+    return undefined;
   }
 
   async getAllInvestors(): Promise<Investor[]> {
@@ -1235,7 +949,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-
+  async updateDealAiScore(dealId: number, score: number): Promise<void> {
+    try {
+      await db
+        .update(deals)
+        .set({ 
+          aiScore: score.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(deals.id, dealId));
+    } catch (error) {
+      console.error('Error updating deal AI score:', error);
+    }
+  }
 
   async getEvaluationCriteriaById(id: number): Promise<any | undefined> {
     return undefined;
@@ -1245,13 +971,25 @@ export class DatabaseStorage implements IStorage {
     return criteria;
   }
 
-
+  async updateEvaluationCriteria(id: number, data: any): Promise<any | undefined> {
+    return undefined;
+  }
 
   async getAllEvaluationResults(): Promise<any[]> {
     return [];
   }
 
-
+  async getEvaluationResultsByDealId(dealId: number): Promise<any[]> {
+    try {
+      const results = await db.select().from(evaluationResults)
+        .where(eq(evaluationResults.dealId, dealId))
+        .orderBy(desc(evaluationResults.createdAt));
+      return results;
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+      return [];
+    }
+  }
 
   async deleteEvaluationResultsByDealId(dealId: number): Promise<number> {
     try {
@@ -1281,96 +1019,6 @@ export class DatabaseStorage implements IStorage {
       return result.rowCount || 0;
     } catch (error) {
       console.error(`Error deleting background jobs for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async deleteComprehensiveAnalysesByDealId(dealId: number): Promise<number> {
-    try {
-      console.log(`🗑️ DatabaseStorage: Deleting comprehensive analysis for deal ${dealId}...`);
-      // Import comprehensiveAnalysis from schema
-      const { comprehensiveAnalysis } = await import('../shared/schema');
-      const result = await db.delete(comprehensiveAnalysis).where(eq(comprehensiveAnalysis.dealId, dealId));
-      const count = result.rowCount || 0;
-      console.log(`🗑️ DatabaseStorage: Deleted ${count} comprehensive analysis record(s) for deal ${dealId}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ DatabaseStorage: Error deleting comprehensive analysis for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async deleteBackgroundUploadsByDealId(dealId: number): Promise<number> {
-    try {
-      console.log(`🗑️ DatabaseStorage: Deleting background uploads for deal ${dealId}...`);
-      // Import persistentUploadSessions (the correct schema name for background_uploads table)
-      const { persistentUploadSessions } = await import('../shared/schema');
-      const result = await db.delete(persistentUploadSessions).where(eq(persistentUploadSessions.dealId, dealId));
-      const count = result.rowCount || 0;
-      console.log(`🗑️ DatabaseStorage: Deleted ${count} background upload record(s) for deal ${dealId}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ DatabaseStorage: Error deleting background uploads for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async deleteInvestorMatchesByDealId(dealId: number): Promise<number> {
-    try {
-      console.log(`🗑️ DatabaseStorage: Deleting investor matches for deal ${dealId}...`);
-      // Import investorMatches from schema
-      const { investorMatches } = await import('../shared/schema');
-      const result = await db.delete(investorMatches).where(eq(investorMatches.dealId, dealId));
-      const count = result.rowCount || 0;
-      console.log(`🗑️ DatabaseStorage: Deleted ${count} investor match record(s) for deal ${dealId}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ DatabaseStorage: Error deleting investor matches for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async deleteInvestmentMemosByDealId(dealId: number): Promise<number> {
-    try {
-      console.log(`🗑️ DatabaseStorage: Deleting investment memos for deal ${dealId}...`);
-      // Import investmentMemos from schema
-      const { investmentMemos } = await import('../shared/schema');
-      const result = await db.delete(investmentMemos).where(eq(investmentMemos.dealId, dealId));
-      const count = result.rowCount || 0;
-      console.log(`🗑️ DatabaseStorage: Deleted ${count} investment memo record(s) for deal ${dealId}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ DatabaseStorage: Error deleting investment memos for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async deleteAutomationExecutionsByDealId(dealId: number): Promise<number> {
-    try {
-      console.log(`🗑️ DatabaseStorage: Deleting automation executions for deal ${dealId}...`);
-      // Import automationExecutions from schema
-      const { automationExecutions } = await import('../shared/schema');
-      const result = await db.delete(automationExecutions).where(eq(automationExecutions.dealId, dealId));
-      const count = result.rowCount || 0;
-      console.log(`🗑️ DatabaseStorage: Deleted ${count} automation execution record(s) for deal ${dealId}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ DatabaseStorage: Error deleting automation executions for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async deleteResearchBackgroundJobsByDealId(dealId: number): Promise<number> {
-    try {
-      console.log(`🗑️ DatabaseStorage: Deleting research background jobs for deal ${dealId}...`);
-      // Import researchBackgroundJobs from schema
-      const { researchBackgroundJobs } = await import('../shared/schema');
-      const result = await db.delete(researchBackgroundJobs).where(eq(researchBackgroundJobs.dealId, dealId));
-      const count = result.rowCount || 0;
-      console.log(`🗑️ DatabaseStorage: Deleted ${count} research background job record(s) for deal ${dealId}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ DatabaseStorage: Error deleting research background jobs for deal ${dealId}:`, error);
       return 0;
     }
   }
@@ -1490,88 +1138,33 @@ export class DatabaseStorage implements IStorage {
   async saveAgentAnalysis(dealId: number, agentType: string, analysisData: any): Promise<any> {
     try {
       // Store agent analysis in the agentAnalyses table
-      // Ensure agentType is properly formatted
-      const formattedAgentType = agentType ? agentType.charAt(0).toUpperCase() + agentType.slice(1) : 'Unknown';
-      
       const existing = await db.select().from(agentAnalyses)
-        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, formattedAgentType)));
+        .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))));
       
       if (existing.length > 0) {
-        // Prepare update object with common fields
-        const updateData: any = {
-          findings: analysisData.findings || [],
-          recommendations: analysisData.recommendations || [],
-          status: 'Completed',
-          updatedAt: new Date()
-        };
-        
-        // Add agent-specific answer fields
-        if (agentType.toLowerCase() === 'research' && analysisData.results) {
-          updateData.research_answers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'legal' && analysisData.results) {
-          updateData.legalAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'clinical' && analysisData.results) {
-          updateData.clinicalAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'commercial' && analysisData.results) {
-          updateData.commercialAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'financial' && analysisData.results) {
-          updateData.financialAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'hr' && analysisData.results) {
-          updateData.hrAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'ip' && analysisData.results) {
-          updateData.ip_answers = analysisData.results;
-        }
-        
         const [updated] = await db
           .update(agentAnalyses)
-          .set(updateData)
+          .set({
+            findings: analysisData.findings || [],
+            recommendations: analysisData.recommendations || [],
+            status: 'Completed',
+            updatedAt: new Date()
+          })
           .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))))
           .returning();
         return updated;
       } else {
-        // Prepare insert object with common fields
-        const insertData: any = {
-          dealId,
-          agentType: agentType.charAt(0).toUpperCase() + agentType.slice(1),
-          findings: analysisData.findings || [],
-          recommendations: analysisData.recommendations || [],
-          status: 'Completed',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        
-        // Add agent-specific answer fields
-        if (agentType.toLowerCase() === 'research' && analysisData.results) {
-          insertData.research_answers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'legal' && analysisData.results) {
-          insertData.legalAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'clinical' && analysisData.results) {
-          insertData.clinicalAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'commercial' && analysisData.results) {
-          insertData.commercialAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'financial' && analysisData.results) {
-          insertData.financialAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'hr' && analysisData.results) {
-          insertData.hrAnswers = analysisData.results;
-        }
-        if (agentType.toLowerCase() === 'ip' && analysisData.results) {
-          insertData.ip_answers = analysisData.results;
-        }
-        
         const [created] = await db
           .insert(agentAnalyses)
-          .values(insertData)
+          .values({
+            dealId,
+            agentType: agentType.charAt(0).toUpperCase() + agentType.slice(1),
+            findings: analysisData.findings || [],
+            recommendations: analysisData.recommendations || [],
+            status: 'Completed',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
           .returning();
         return created;
       }
@@ -1609,95 +1202,50 @@ export class DatabaseStorage implements IStorage {
     try {
       // Try both lowercase and capitalized versions to handle inconsistent data
       const normalizedAgentType = agentType.toLowerCase();
-      // Special handling for IP and Research agent types to ensure proper case matching
-      const capitalizedAgentType = normalizedAgentType === 'ip' ? 'IP' : 
-                                   normalizedAgentType === 'research' ? 'Research' : 
-                                   agentType.charAt(0).toUpperCase() + agentType.slice(1);
+      const capitalizedAgentType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
       
-      // Get records matching both case variations by running two separate queries then combining
-      const lowercaseResults = await db.select({
-        id: agentAnalyses.id,
-        dealId: agentAnalyses.dealId,
-        agentType: agentAnalyses.agentType,
-        status: agentAnalyses.status,
-        progress: agentAnalyses.progress,
-        findings: agentAnalyses.findings,
-        recommendations: agentAnalyses.recommendations,
-        documentSources: agentAnalyses.documentSources,
-        legalAnswers: agentAnalyses.legalAnswers,
-        clinicalAnswers: agentAnalyses.clinicalAnswers,
-        commercialAnswers: agentAnalyses.commercialAnswers,
-        research_answers: agentAnalyses.research_answers,
-        financial_answers: agentAnalyses.financial_answers,
-        hr_answers: agentAnalyses.hr_answers,
-        ip_answers: agentAnalyses.ip_answers,
-        createdAt: agentAnalyses.createdAt,
-        updatedAt: agentAnalyses.updatedAt
-      }).from(agentAnalyses)
+      // Get all analysis records and prioritize those with actual content
+      let analysisResults = await db.select().from(agentAnalyses)
         .where(and(
           eq(agentAnalyses.dealId, dealId), 
           eq(agentAnalyses.agentType, normalizedAgentType)
-        ));
-        
-      const capitalizedResults = await db.select({
-        id: agentAnalyses.id,
-        dealId: agentAnalyses.dealId,
-        agentType: agentAnalyses.agentType,
-        status: agentAnalyses.status,
-        progress: agentAnalyses.progress,
-        findings: agentAnalyses.findings,
-        recommendations: agentAnalyses.recommendations,
-        documentSources: agentAnalyses.documentSources,
-        legalAnswers: agentAnalyses.legalAnswers,
-        clinicalAnswers: agentAnalyses.clinicalAnswers,
-        commercialAnswers: agentAnalyses.commercialAnswers,
-        research_answers: agentAnalyses.research_answers,
-        financial_answers: agentAnalyses.financial_answers,
-        hr_answers: agentAnalyses.hr_answers,
-        ip_answers: agentAnalyses.ip_answers,
-        createdAt: agentAnalyses.createdAt,
-        updatedAt: agentAnalyses.updatedAt
-      }).from(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, dealId), 
-          eq(agentAnalyses.agentType, capitalizedAgentType)
-        ));
-        
-      // Combine both result sets
-      const analysisResults = [...lowercaseResults, ...capitalizedResults]
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        ))
+        .orderBy(desc(agentAnalyses.updatedAt));
       
-      // Prioritize "completed" or "Completed" status records over "Failed" ones, then by content
-      let analysisResult = analysisResults.find(result => 
-        result.status === 'Completed' || result.status === 'completed'
-      );
-      
-      // If no completed record, look for one with actual findings/recommendations
-      if (!analysisResult) {
-        analysisResult = analysisResults.find(result => {
-          // Handle both array and JSON string formats
-          let hasFindings = false;
-          let hasRecommendations = false;
-          
-          if (result.findings) {
-            if (Array.isArray(result.findings)) {
-              hasFindings = result.findings.length > 0;
-            } else if (typeof result.findings === 'string') {
-              hasFindings = result.findings.length > 2 && result.findings !== '[]'; // More than just empty array string
-            }
-          }
-          
-          if (result.recommendations) {
-            if (Array.isArray(result.recommendations)) {
-              hasRecommendations = result.recommendations.length > 0;
-            } else if (typeof result.recommendations === 'string') {
-              hasRecommendations = result.recommendations.length > 2 && result.recommendations !== '[]';
-            }
-          }
-          
-          return hasFindings || hasRecommendations;
-        });
+      // If not found with lowercase, try capitalized version
+      if (!analysisResults.length) {
+        analysisResults = await db.select().from(agentAnalyses)
+          .where(and(
+            eq(agentAnalyses.dealId, dealId), 
+            eq(agentAnalyses.agentType, capitalizedAgentType)
+          ))
+          .orderBy(desc(agentAnalyses.updatedAt));
       }
+      
+      // Prioritize records with actual findings/recommendations over empty ones
+      let analysisResult = analysisResults.find(result => {
+        // Handle both array and JSON string formats
+        let hasFindings = false;
+        let hasRecommendations = false;
+        
+        if (result.findings) {
+          if (Array.isArray(result.findings)) {
+            hasFindings = result.findings.length > 0;
+          } else if (typeof result.findings === 'string') {
+            hasFindings = result.findings.length > 2 && result.findings !== '[]'; // More than just empty array string
+          }
+        }
+        
+        if (result.recommendations) {
+          if (Array.isArray(result.recommendations)) {
+            hasRecommendations = result.recommendations.length > 0;
+          } else if (typeof result.recommendations === 'string') {
+            hasRecommendations = result.recommendations.length > 2 && result.recommendations !== '[]';
+          }
+        }
+        
+        return hasFindings || hasRecommendations;
+      });
       
       // If no record with content found, use the most recent one
       if (!analysisResult && analysisResults.length > 0) {
@@ -1706,15 +1254,9 @@ export class DatabaseStorage implements IStorage {
       
       if (analysisResult) {
         console.log(`✅ Found ${agentType} analysis for deal ${dealId}:`, {
-          id: analysisResult.id,
-          agentType: analysisResult.agentType,
           status: analysisResult.status,
           findingsLength: analysisResult.findings ? String(analysisResult.findings).length : 0,
-          recommendationsLength: analysisResult.recommendations ? String(analysisResult.recommendations).length : 0,
-          totalRecordsFound: analysisResults.length,
-          lowercaseCount: lowercaseResults.length,
-          capitalizedCount: capitalizedResults.length,
-          allRecordStatuses: analysisResults.map(r => ({ id: r.id, agentType: r.agentType, status: r.status }))
+          recommendationsLength: analysisResult.recommendations ? String(analysisResult.recommendations).length : 0
         });
         
         return {
@@ -1723,16 +1265,7 @@ export class DatabaseStorage implements IStorage {
           status: analysisResult.status || 'Completed',
           progress: analysisResult.progress || 100,
           createdAt: analysisResult.createdAt,
-          documentSources: analysisResult.documentSources || [],
-          legalAnswers: analysisResult.legalAnswers || null,
-          clinical_answers: analysisResult.clinicalAnswers || null,
-          clinicalAnswers: analysisResult.clinicalAnswers || null,
-          commercialAnswers: analysisResult.commercialAnswers || null,
-          research_answers: analysisResult.research_answers || null,
-          researchAnswers: analysisResult.research_answers || null,
-          financialAnswers: analysisResult.financial_answers || null,
-          hrAnswers: analysisResult.hr_answers || null,
-          ip_answers: analysisResult.ip_answers || null
+          documentSources: analysisResult.documentSources || []
         };
       }
       
@@ -1760,47 +1293,6 @@ export class DatabaseStorage implements IStorage {
       return null;
     } catch (error) {
       console.error('Error getting agent analysis results:', error);
-      return null;
-    }
-  }
-
-  async getAgentAnalysisByDealAndType(dealId: number, agentType: string): Promise<any> {
-    try {
-      // Try both lowercase and capitalized versions to handle inconsistent data
-      const normalizedAgentType = agentType.toLowerCase();
-      const capitalizedAgentType = agentType.charAt(0).toUpperCase() + agentType.slice(1);
-      
-      // First try with the exact agentType provided
-      let [analysisResult] = await db.select().from(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, dealId), 
-          eq(agentAnalyses.agentType, agentType)
-        ))
-        .orderBy(desc(agentAnalyses.updatedAt));
-      
-      // If not found, try with normalized case
-      if (!analysisResult) {
-        [analysisResult] = await db.select().from(agentAnalyses)
-          .where(and(
-            eq(agentAnalyses.dealId, dealId), 
-            eq(agentAnalyses.agentType, normalizedAgentType)
-          ))
-          .orderBy(desc(agentAnalyses.updatedAt));
-      }
-      
-      // If still not found, try with capitalized version
-      if (!analysisResult) {
-        [analysisResult] = await db.select().from(agentAnalyses)
-          .where(and(
-            eq(agentAnalyses.dealId, dealId), 
-            eq(agentAnalyses.agentType, capitalizedAgentType)
-          ))
-          .orderBy(desc(agentAnalyses.updatedAt));
-      }
-      
-      return analysisResult || null;
-    } catch (error) {
-      console.error(`Error getting ${agentType} analysis by deal and type:`, error);
       return null;
     }
   }
@@ -1865,114 +1357,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRunningBackgroundJobs(dealId?: number): Promise<BackgroundJob[]> {
-    try {
-      // Include both 'processing' and recently 'completed' jobs for frontend visibility
-      let whereConditions = [];
-      
-      // Base condition: either processing OR recently completed
-      const statusCondition = or(
-        eq(backgroundJobs.status, 'processing'),
-        and(
-          eq(backgroundJobs.status, 'completed'),
-          // Show completed jobs for 15 seconds after completion
-          sql`completed_at > NOW() - INTERVAL '15 seconds'`
-        )
-      );
-      
-      whereConditions.push(statusCondition);
-      
-      if (dealId !== undefined) {
-        whereConditions.push(eq(backgroundJobs.dealId, dealId));
-      }
-      
-      const jobs = await db.select().from(backgroundJobs)
-        .where(and(...whereConditions))
-        .orderBy(backgroundJobs.createdAt);
-      
-      console.log(`📊 Found ${jobs.length} running background jobs${dealId ? ` for deal ${dealId}` : ''}`);
-      return jobs;
-    } catch (error) {
-      console.error('Error fetching running background jobs:', error);
-      return [];
-    }
-  }
-
-  async completeBackgroundJob(jobId: string, results: any): Promise<void> {
-    try {
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'completed',
-          progress: 100,
-          completedAt: new Date(),
-          results: JSON.stringify(results)
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-      
-      console.log(`✅ Background job ${jobId} marked as completed`);
-    } catch (error) {
-      console.error(`❌ Error completing background job ${jobId}:`, error);
-      throw error;
-    }
-  }
-
-  async failBackgroundJob(jobId: string, errorMessage: string): Promise<void> {
-    try {
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: errorMessage,
-          failedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-      
-      console.log(`❌ Background job ${jobId} marked as failed: ${errorMessage}`);
-    } catch (error) {
-      console.error(`❌ Error failing background job ${jobId}:`, error);
-      throw error;
-    }
-  }
-
-  async clearStuckBackgroundJobs(dealId?: number): Promise<number> {
-    try {
-      let query = db
-        .update(backgroundJobs)
-        .set({
-          status: 'cancelled',
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.status, 'processing'));
-      
-      if (dealId) {
-        query = query.where(and(
-          eq(backgroundJobs.status, 'processing'),
-          eq(backgroundJobs.dealId, dealId)
-        ));
-      }
-      
-      const result = await query;
-      return result.rowCount || 0;
-    } catch (error) {
-      console.error('Error clearing stuck background jobs:', error);
-      return 0;
-    }
-  }
-
-  async getBackgroundJobsByDealAndType(dealId: number, jobType: string): Promise<BackgroundJob | undefined> {
-    try {
-      const jobs = await this.getBackgroundJobsByDealId(dealId);
-      return jobs.find(job => 
-        job.jobType === jobType && 
-        job.status === 'processing'
-      ) || undefined;
-    } catch (error) {
-      console.error(`❌ Error getting background jobs for deal ${dealId} and type ${jobType}:`, error);
-      return undefined;
-    }
-  }
-
   async getActiveBackgroundJobsForDeal(dealId: number): Promise<BackgroundJob[]> {
     try {
       console.log(`🔍 Querying background jobs for deal ${dealId} with status 'processing'`);
@@ -1998,76 +1382,45 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-
-
-
-
-
-
-  async updateStuckBackgroundJobs(dealId: number): Promise<number> {
+  async completeBackgroundJob(jobId: string, results: any): Promise<void> {
     try {
-      console.log(`🔄 Updating stuck background jobs for deal ${dealId}`);
-      
-      // Update all processing jobs older than 1 hour to cancelled status
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      
-      const result = await db.update(backgroundJobs)
+      await db.update(backgroundJobs)
         .set({
-          status: 'cancelled',
-          error: 'Job stuck - cancelled by system',
+          status: 'completed',
+          progress: 100,
+          result: results,
+          completedAt: new Date(),
           updatedAt: new Date()
         })
-        .where(and(
-          eq(backgroundJobs.dealId, dealId),
-          eq(backgroundJobs.status, 'processing')
-        ));
-      
-      const rowCount = result.rowCount || 0;
-      console.log(`✅ Updated ${rowCount} stuck jobs to cancelled status`);
-      return rowCount;
-    } catch (error) {
-      console.error(`Error updating stuck background jobs for deal ${dealId}:`, error);
-      return 0;
-    }
-  }
-
-  async clearStuckJobs(dealId: number): Promise<void> {
-    try {
-      console.log(`🧹 Clearing stuck jobs for deal ${dealId} from persistent job manager`);
-      // This method is mainly for persistent job manager integration
-      // The actual database cleanup is handled by updateStuckBackgroundJobs
-    } catch (error) {
-      console.error(`Error clearing stuck jobs for deal ${dealId}:`, error);
-    }
-  }
-
-  async getBackgroundJobById(jobId: string): Promise<BackgroundJob | null> {
-    try {
-      const jobs = await db.select()
-        .from(backgroundJobs)
-        .where(eq(backgroundJobs.jobId, jobId))
-        .limit(1);
-      
-      return jobs[0] || null;
-    } catch (error) {
-      console.error(`Error getting background job ${jobId}:`, error);
-      return null;
-    }
-  }
-
-  async deleteBackgroundJob(jobId: string): Promise<boolean> {
-    try {
-      console.log(`🗑️ Deleting background job ${jobId}`);
-      const result = await db.delete(backgroundJobs)
         .where(eq(backgroundJobs.jobId, jobId));
-      
-      const deleted = result.rowCount > 0;
-      console.log(`${deleted ? '✅' : '❌'} Background job ${jobId} ${deleted ? 'deleted' : 'not found'}`);
-      return deleted;
+      console.log(`✅ Marked background job ${jobId} as completed`);
     } catch (error) {
-      console.error(`Error deleting background job ${jobId}:`, error);
-      return false;
+      console.error(`Error completing background job ${jobId}:`, error);
+      throw error;
     }
+  }
+
+  async failBackgroundJob(jobId: string, errorMessage: string): Promise<void> {
+    try {
+      await db.update(backgroundJobs)
+        .set({
+          status: 'failed',
+          error: errorMessage,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      console.log(`❌ Marked background job ${jobId} as failed`);
+    } catch (error) {
+      console.error(`Error failing background job ${jobId}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteBackgroundJobsByDealId(dealId: number): Promise<number> {
+    // Clean up any agent analyses for this deal
+    const result = await db.delete(agentAnalyses).where(eq(agentAnalyses.dealId, dealId));
+    return result.rowCount || 0;
   }
 
   // Research jobs methods

@@ -1,10 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
 // Default baseUrl for API requests
-// 🚨 CRITICAL FIX: Dynamic baseUrl to bypass Vite in development
-const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000' // Development: bypass Vite middleware
-  : ''; // Production: use relative URLs
+const baseUrl = '';
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -70,7 +67,7 @@ export const apiRequest = async <T = any>(
     
     // Debug logging for FormData requests
     if (options.body instanceof FormData) {
-      console.log('🔍 Sending FormData request to:', `${baseUrl}${url}`);
+      console.log('🔍 Sending FormData request to:', url);
       console.log('🔍 FormData entries:');
       for (const [key, value] of options.body.entries()) {
         if (value instanceof File) {

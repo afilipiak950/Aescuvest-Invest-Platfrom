@@ -100,32 +100,21 @@ export default function UnassignedDocuments({ dealId, documents, onAssignDocumen
       setAssignmentComment(prev => ({ ...prev, [variables.docId]: '' }));
       setShowCommentDialog(null);
       
-      // Enhanced cache invalidation for immediate UI updates
-      console.log(`🔄 Starting comprehensive UI refresh for deal ${dealId} after assignment`);
+      // Force immediate UI refresh with proper sequence
+      console.log(`🔄 Forcing UI refresh for deal ${dealId} after assignment`);
       
-      // 1. Force complete removal of documents cache
-      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      
-      // 2. Invalidate and refetch documents (core data that drives unassigned list)
-      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      
-      // 3. Invalidate analyses (determines assignment status)
+      // First invalidate and refetch analyses (this determines assignment status)
       await queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
       await queryClient.refetchQueries({ queryKey: [`/api/analyses/${dealId}`] });
       
-      // 4. Invalidate agent-specific results
+      // Then invalidate and refetch documents
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      // Finally invalidate agent-specific results
       await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/${variables.agentType.toLowerCase()}/results`] });
       
-      // 5. Force invalidation of any cache that might contain deal data
-      queryClient.removeQueries({ 
-        predicate: (query) => {
-          const key = query.queryKey?.[0] as string;
-          return key?.includes(`deals/${dealId}`) || key?.includes(`/api/deals/${dealId}`);
-        }
-      });
-      
-      console.log(`✅ Comprehensive UI refresh completed for document ${variables.docId} assignment`);
+      console.log(`✅ UI refresh completed for document ${variables.docId} assignment`);
       
       // Call onAssignDocument to trigger parent component refresh
       onAssignDocument(variables.docId, variables.agentType);

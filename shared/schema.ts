@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json, bigint, vector, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -68,41 +68,6 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit
   updatedAt: true,
 });
 
-// Document Embeddings for RAG system
-export const documentEmbeddings = pgTable("document_embeddings", {
-  id: serial("id").primaryKey(),
-  documentId: integer("document_id").notNull(),
-  dealId: integer("deal_id").notNull(),
-  chunkIndex: integer("chunk_index").notNull(),
-  chunkText: text("chunk_text").notNull(),
-  embedding: json("embedding").notNull(), // Store as JSON array for now
-  tokenCount: integer("token_count").notNull(),
-  metadata: json("metadata"), // Store document name, type, etc.
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const insertDocumentEmbeddingSchema = createInsertSchema(documentEmbeddings).omit({
-  id: true,
-  createdAt: true,
-});
-
-// Query Cache for semantic caching
-export const queryCache = pgTable("query_cache", {
-  id: serial("id").primaryKey(),
-  dealId: integer("deal_id").notNull(),
-  queryText: text("query_text").notNull(),
-  queryEmbedding: json("query_embedding").notNull(),
-  response: text("response").notNull(),
-  similarity: real("similarity"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-});
-
-export const insertQueryCacheSchema = createInsertSchema(queryCache).omit({
-  id: true,
-  createdAt: true,
-});
-
 // Login schema for validation
 export const loginUserSchema = z.object({
   email: z.string().min(1, "Email or username is required"),
@@ -169,7 +134,6 @@ export const documents: any = pgTable("documents", {
   aiSummaryGeneratedAt: timestamp("ai_summary_generated_at"),
   // Agent assignment fields
   assignedAgents: json("assigned_agents").$type<string[]>().default([]),
-  agentType: text("agent_type"), // Primary agent for UI compatibility
   assignmentReason: text("assignment_reason"), // AI explanation for assignment
   assignmentConfidence: numeric("assignment_confidence", { precision: 3, scale: 2 }), // 0.00-1.00
   manuallyAssigned: boolean("manually_assigned").default(false),
@@ -239,85 +203,6 @@ export const agentAnalyses = pgTable("agent_analyses", {
   findings: json("findings").$type<{ id: number; content: string; type: string }[]>(),
   recommendations: json("recommendations").$type<{ title: string; description: string; priority: string; category: string; impact: string }[]>(),
   documentSources: json("document_sources").$type<string[]>(),
-  legalAnswers: json("legal_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-    };
-  }>(),
-  clinicalAnswers: json("clinical_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-      detailedEvidence?: any[];
-      keyFindings?: string[];
-      recommendations?: string[];
-    };
-  }>(),
-  commercialAnswers: json("commercial_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-      detailedEvidence?: any[];
-      keyFindings?: string[];
-      recommendations?: string[];
-    };
-  }>(),
-  ip_answers: json("ip_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-      keyFindings?: string[];
-      evidenceSummary?: string;
-      ipAssessment?: string;
-      recommendations?: string[];
-      jurisdiction?: string;
-      patentStatus?: string;
-      trademarkClass?: string;
-      licenseType?: string;
-    };
-  }>(),
-  hr_answers: json("hr_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-      detailedEvidence?: any[];
-      keyFindings?: string[];
-      recommendations?: string[];
-    };
-  }>(),
-  financial_answers: json("financial_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-      detailedEvidence?: any[];
-      keyFindings?: string[];
-      recommendations?: string[];
-    };
-  }>(),
-  research_answers: json("research_answers").$type<{
-    [key: string]: {
-      question: string;
-      answer: string;
-      confidence: number;
-      sources: string[];
-      detailedEvidence?: any[];
-      keyFindings?: string[];
-      recommendations?: string[];
-    };
-  }>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -349,8 +234,6 @@ export const investmentMemos = pgTable("investment_memos", {
     opportunities: string[];
     threats: string[];
   }>(),
-  // New comprehensive memo field for 30-50 page detailed memos
-  memo: json("memo"),
   status: text("status").notNull().default("Draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -362,11 +245,30 @@ export const insertInvestmentMemoSchema = createInsertSchema(investmentMemos).om
   updatedAt: true,
 });
 
-// Legacy investor matches table (kept for backward compatibility)
+// Investors
+export const investors = pgTable("investors", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  location: text("location").notNull(),
+  focus: json("focus").$type<string[]>(),
+  stages: json("stages").$type<string[]>(),
+  checkSize: text("check_size"),
+  portfolio: json("portfolio").$type<string[]>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertInvestorSchema = createInsertSchema(investors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Investor Matches
 export const investorMatches = pgTable("investor_matches", {
   id: serial("id").primaryKey(),
   dealId: integer("deal_id").notNull().references(() => deals.id),
-  investorId: integer("investor_id"),
+  investorId: integer("investor_id").notNull().references(() => investors.id),
   matchScore: integer("match_score").notNull(),
   matchInsights: json("match_insights").$type<string[]>(),
   status: text("status").notNull().default("New Match"),
@@ -440,6 +342,9 @@ export type InsertAgentAnalysis = z.infer<typeof insertAgentAnalysisSchema>;
 export type InvestmentMemo = typeof investmentMemos.$inferSelect;
 export type InsertInvestmentMemo = z.infer<typeof insertInvestmentMemoSchema>;
 
+export type Investor = typeof investors.$inferSelect;
+export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
+
 export type InvestorMatch = typeof investorMatches.$inferSelect;
 export type InsertInvestorMatch = z.infer<typeof insertInvestorMatchSchema>;
 
@@ -483,12 +388,10 @@ export const companyResearch = pgTable("company_research", {
   // Additional fields for enhanced research
   ceoProfile: json("ceo_profile"),
   financialData: json("financial_data"),
-  marketAnalysis: json("market_analysis"),
   externalLinks: json("external_links"),
   businessIntelligence: json("business_intelligence"),
   investmentHighlights: json("investment_highlights"),
   riskFactors: json("risk_factors"),
-  aiAnalysis: json("ai_analysis"),
   researchStatus: varchar("research_status", { length: 50 }).default("pending").notNull(),
   researchCompletedAt: timestamp("research_completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -560,8 +463,6 @@ export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema
 
 
 
-
-
 // Data Room Connections table
 export const dataRoomConnections = pgTable("data_room_connections", {
   id: serial("id").primaryKey(),
@@ -610,7 +511,7 @@ export type InsertMicrosoftEmailConnection = z.infer<typeof insertMicrosoftEmail
 export const backgroundJobs = pgTable("background_jobs", {
   id: serial("id").primaryKey(),
   jobId: text("job_id").notNull().unique(), // Unique job identifier
-  jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing', 'agent_analysis', 'document_assignment'
+  jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing', 'agent_analysis'
   status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
   progress: integer("progress").notNull().default(0), // 0-100 percentage
   dealId: integer("deal_id").references(() => deals.id),
@@ -623,7 +524,6 @@ export const backgroundJobs = pgTable("background_jobs", {
   currentStep: text("current_step"), // Current processing step description
   result: json("result"), // Store processing results
   error: text("error"), // Error message if failed
-  runId: text("run_id"), // Run ID for binding progress to specific comprehensive analysis runs
   createdAt: timestamp("created_at").defaultNow().notNull(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
@@ -631,33 +531,6 @@ export const backgroundJobs = pgTable("background_jobs", {
 });
 
 export const insertBackgroundJobSchema = createInsertSchema(backgroundJobs).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// 🎯 CRITICAL: Persistent Upload Sessions for Complete Background Processing
-export const persistentUploadSessions = pgTable("persistent_upload_sessions", {
-  id: serial("id").primaryKey(),
-  sessionId: text("session_id").notNull().unique(),
-  dealId: integer("deal_id").notNull().references(() => deals.id),
-  fileName: text("file_name").notNull(),
-  fileSize: bigint("file_size", { mode: "number" }).notNull(),
-  uploadType: text("upload_type").notNull(), // 'gcs_direct', 'chunked', 'zip_processing'
-  status: text("status").notNull().default("uploading"), // 'uploading', 'processing', 'completed', 'failed'
-  progress: integer("progress").default(0),
-  uploadedBytes: bigint("uploaded_bytes", { mode: "number" }).default(0),
-  gcsPath: text("gcs_path"),
-  jobId: text("job_id"), // Links to background_jobs for processing
-  currentStep: text("current_step"),
-  errorMessage: text("error_message"),
-  metadata: json("metadata"), // JSON for additional data like chunk info, retry count, etc.
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at")
-});
-
-export const insertPersistentUploadSessionSchema = createInsertSchema(persistentUploadSessions).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -787,6 +660,7 @@ export const userActivities = pgTable("user_activities", {
     [key: string]: any;
   }>(),
   ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -798,17 +672,19 @@ export const insertUserActivitySchema = createInsertSchema(userActivities).omit(
 export type UserActivity = typeof userActivities.$inferSelect;
 export type InsertUserActivity = z.infer<typeof insertUserActivitySchema>;
 
-// User Stats table for performance tracking
+// User Statistics view for profile page
 export const userStats = pgTable("user_stats", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  dealsViewed: integer("deals_viewed").notNull().default(0),
-  memosGenerated: integer("memos_generated").notNull().default(0),
-  documentsUploaded: integer("documents_uploaded").notNull().default(0),
-  analysesRun: integer("analyses_run").notNull().default(0),
-  matchesCreated: integer("matches_created").notNull().default(0),
-  loginCount: integer("login_count").notNull().default(0),
-  lastLogin: timestamp("last_login"),
+  dealsReviewed: integer("deals_reviewed").default(0),
+  memosGenerated: integer("memos_generated").default(0),
+  matchesCreated: integer("matches_created").default(0),
+  documentsUploaded: integer("documents_uploaded").default(0),
+  analysesRun: integer("analyses_run").default(0),
+  workflowsCreated: integer("workflows_created").default(0),
+  reportsExported: integer("reports_exported").default(0),
+  loginCount: integer("login_count").default(0),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -821,319 +697,6 @@ export const insertUserStatsSchema = createInsertSchema(userStats).omit({
 
 export type UserStats = typeof userStats.$inferSelect;
 export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
-
-// Investors table (legacy table kept for compatibility)
-export const investors = pgTable("investors", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  firm: text("firm"),
-  email: text("email"),
-  phone: text("phone"),
-  focus: text("focus"),
-  checkSize: text("check_size"),
-  location: text("location"),
-  website: text("website"),
-  linkedin: text("linkedin"),
-  twitter: text("twitter"),
-  bio: text("bio"),
-  preferences: json("preferences"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertInvestorSchema = createInsertSchema(investors).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type Investor = typeof investors.$inferSelect;
-export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
-
-// Organizations table for storing all Affinity organizations
-export const organizations = pgTable("organizations", {
-  id: serial("id").primaryKey(),
-  affinityId: text("affinity_id").notNull().unique(),
-  name: text("name").notNull(),
-  domain: text("domain"),
-  domains: text("domains").array().default([]),
-  type: text("type").notNull().default("organization"),
-  isGlobal: boolean("is_global").default(false),
-  // Business information
-  description: text("description"),
-  industry: text("industry"),
-  website: text("website"),
-  foundingYear: integer("founding_year"),
-  employeeCount: integer("employee_count"),
-  location: text("location"),
-  headquarters: text("headquarters"),
-  // Financial information
-  revenue: bigint("revenue", { mode: "number" }),
-  fundingRaised: bigint("funding_raised", { mode: "number" }),
-  valuation: bigint("valuation", { mode: "number" }),
-  lastFundingDate: timestamp("last_funding_date"),
-  fundingStage: text("funding_stage"),
-  // AI-powered insights
-  businessModel: text("business_model"),
-  keyProducts: text("key_products").array().default([]),
-  competitors: text("competitors").array().default([]),
-  targetMarket: text("target_market"),
-  technologyStack: text("technology_stack").array().default([]),
-  // Affinity data
-  affinityData: json("affinity_data").$type<{
-    listEntries?: any[];
-    fieldValues?: Record<string, any>;
-    interactionDates?: any;
-    createdAt?: string;
-    updatedAt?: string;
-  }>().default({}),
-  // Matching intelligence
-  matchingScore: integer("matching_score").default(0), // 0-100
-  relevanceScore: integer("relevance_score").default(0), // 0-100
-  investmentPotential: text("investment_potential").default("unknown"), // 'high', 'medium', 'low', 'unknown'
-  // Sync tracking
-  lastSyncAt: timestamp("last_sync_at"),
-  syncStatus: text("sync_status").default("pending"), // 'pending', 'synced', 'error'
-  syncErrors: text("sync_errors").array().default([]),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertOrganizationSchema = createInsertSchema(organizations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type Organization = typeof organizations.$inferSelect;
-export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
-
-// Deal-Organization matches table for intelligent matching
-export const dealOrganizationMatches = pgTable("deal_organization_matches", {
-  id: serial("id").primaryKey(),
-  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-  matchScore: integer("match_score").notNull().default(0), // AI-calculated match score 0-100
-  matchReasons: text("match_reasons").array().default([]), // Array of match reasons
-  matchDetails: json("match_details").$type<{
-    industryMatch?: boolean;
-    sizeMatch?: boolean;
-    stageMatch?: boolean;
-    geoMatch?: boolean;
-    technologyMatch?: boolean;
-    businessModelMatch?: boolean;
-    competitorAnalysis?: any;
-    marketAnalysis?: any;
-  }>().default({}),
-  status: text("status").notNull().default("pending"), // 'pending', 'contacted', 'interested', 'declined', 'invested'
-  contactAttempts: integer("contact_attempts").default(0),
-  lastContactAt: timestamp("last_contact_at"),
-  notes: text("notes"),
-  aiGeneratedPitch: text("ai_generated_pitch"),
-  expectedInvestment: bigint("expected_investment", { mode: "number" }),
-  probabilityScore: integer("probability_score").default(0), // 0-100 probability of investment
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertDealOrganizationMatchSchema = createInsertSchema(dealOrganizationMatches).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type DealOrganizationMatch = typeof dealOrganizationMatches.$inferSelect;
-export type InsertDealOrganizationMatch = z.infer<typeof insertDealOrganizationMatchSchema>;
-
-// Daily sync jobs for automated data retrieval
-export const dailySyncJobs = pgTable("daily_sync_jobs", {
-  id: serial("id").primaryKey(),
-  jobType: text("job_type").notNull(), // 'affinity_organizations', 'affinity_persons', 'matching_intelligence'
-  status: text("status").notNull().default("pending"), // 'pending', 'running', 'completed', 'failed'
-  progress: integer("progress").default(0), // 0-100
-  totalItems: integer("total_items").default(0),
-  processedItems: integer("processed_items").default(0),
-  newItems: integer("new_items").default(0),
-  updatedItems: integer("updated_items").default(0),
-  errors: text("errors").array().default([]),
-  result: json("result").$type<{
-    organizations?: number;
-    persons?: number;
-    matches?: number;
-    duration?: number;
-    stats?: Record<string, any>;
-  }>().default({}),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  scheduledFor: timestamp("scheduled_for").defaultNow().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertDailySyncJobSchema = createInsertSchema(dailySyncJobs).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type DailySyncJob = typeof dailySyncJobs.$inferSelect;
-export type InsertDailySyncJob = z.infer<typeof insertDailySyncJobSchema>;
-
-// Deal-Investor matches table
-export const dealInvestorMatches = pgTable("deal_investor_matches", {
-  id: serial("id").primaryKey(),
-  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
-  investorId: integer("investor_id").notNull().references(() => investors.id, { onDelete: "cascade" }),
-  matchScore: integer("match_score").notNull(), // 0-100
-  matchReason: text("match_reason").array().notNull().default([]), // Array of match reasons
-  // AI-generated insights
-  matchInsights: json("match_insights").$type<{
-    strengths?: string[];
-    concerns?: string[];
-    recommendations?: string[];
-    competitiveAdvantage?: string;
-    riskFactors?: string[];
-  }>().default({}),
-  // Fit analysis
-  sectorFit: integer("sector_fit").default(0), // 0-100
-  stageFit: integer("stage_fit").default(0), // 0-100
-  geographyFit: integer("geography_fit").default(0), // 0-100
-  checkSizeFit: integer("check_size_fit").default(0), // 0-100
-  thesisFit: integer("thesis_fit").default(0), // 0-100
-  // Engagement tracking
-  status: text("status").notNull().default("potential"), // 'potential', 'contacted', 'interested', 'declined', 'invested'
-  outreachStatus: text("outreach_status").default("not_contacted"), // 'not_contacted', 'email_sent', 'meeting_scheduled', 'follow_up', 'closed'
-  lastContactDate: timestamp("last_contact_date"),
-  nextFollowUpDate: timestamp("next_follow_up_date"),
-  meetingScheduled: boolean("meeting_scheduled").default(false),
-  // Campaign tracking
-  campaignId: integer("campaign_id"), // Reference to email campaigns
-  emailsSent: integer("emails_sent").default(0),
-  emailsOpened: integer("emails_opened").default(0),
-  emailsClicked: integer("emails_clicked").default(0),
-  materialsSent: text("materials_sent").array().notNull().default([]), // Array of sent materials
-  // Notes and feedback
-  notes: text("notes"),
-  feedback: text("feedback"),
-  declineReason: text("decline_reason"),
-  // Metadata
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertDealInvestorMatchSchema = createInsertSchema(dealInvestorMatches).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type DealInvestorMatch = typeof dealInvestorMatches.$inferSelect;
-export type InsertDealInvestorMatch = z.infer<typeof insertDealInvestorMatchSchema>;
-
-// Email campaigns table
-export const emailCampaigns = pgTable("email_campaigns", {
-  id: serial("id").primaryKey(),
-  dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  subject: text("subject").notNull(),
-  template: text("template").notNull(), // Email template with placeholders
-  // Campaign settings
-  scheduledDate: timestamp("scheduled_date"),
-  sendTime: text("send_time"), // Time of day to send
-  followUpEnabled: boolean("follow_up_enabled").default(false),
-  followUpDays: integer("follow_up_days").default(5),
-  // Materials included
-  attachments: text("attachments").array().notNull().default([]), // Array of file paths
-  includeInvestmentMemo: boolean("include_investment_memo").default(true),
-  includeTeaserDeck: boolean("include_teaser_deck").default(true),
-  includeFinancials: boolean("include_financials").default(false),
-  // Tracking
-  totalRecipients: integer("total_recipients").default(0),
-  emailsSent: integer("emails_sent").default(0),
-  emailsDelivered: integer("emails_delivered").default(0),
-  emailsOpened: integer("emails_opened").default(0),
-  emailsClicked: integer("emails_clicked").default(0),
-  emailsReplied: integer("emails_replied").default(0),
-  // Status
-  status: text("status").notNull().default("draft"), // 'draft', 'scheduled', 'sending', 'sent', 'completed'
-  sentAt: timestamp("sent_at"),
-  completedAt: timestamp("completed_at"),
-  // Metadata
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type EmailCampaign = typeof emailCampaigns.$inferSelect;
-export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
-
-// Campaign recipients table
-export const campaignRecipients = pgTable("campaign_recipients", {
-  id: serial("id").primaryKey(),
-  campaignId: integer("campaign_id").notNull().references(() => emailCampaigns.id, { onDelete: "cascade" }),
-  investorId: integer("investor_id").notNull().references(() => investors.id, { onDelete: "cascade" }),
-  matchId: integer("match_id").references(() => dealInvestorMatches.id, { onDelete: "cascade" }),
-  // Email tracking
-  emailAddress: text("email_address").notNull(),
-  personalizedSubject: text("personalized_subject"),
-  personalizedContent: text("personalized_content"),
-  // Delivery tracking
-  status: text("status").notNull().default("pending"), // 'pending', 'sent', 'delivered', 'bounced', 'failed'
-  sentAt: timestamp("sent_at"),
-  deliveredAt: timestamp("delivered_at"),
-  openedAt: timestamp("opened_at"),
-  clickedAt: timestamp("clicked_at"),
-  repliedAt: timestamp("replied_at"),
-  // Engagement
-  openCount: integer("open_count").default(0),
-  clickCount: integer("click_count").default(0),
-  replyReceived: boolean("reply_received").default(false),
-  // Follow-up
-  followUpSent: boolean("follow_up_sent").default(false),
-  followUpSentAt: timestamp("follow_up_sent_at"),
-  // Metadata
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertCampaignRecipientSchema = createInsertSchema(campaignRecipients).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type CampaignRecipient = typeof campaignRecipients.$inferSelect;
-export type InsertCampaignRecipient = z.infer<typeof insertCampaignRecipientSchema>;
-
-// Comprehensive HR Analyses table
-export const comprehensiveHrAnalyses = pgTable("comprehensive_hr_analyses", {
-  id: serial("id").primaryKey(),
-  dealId: integer("deal_id").notNull().references(() => deals.id),
-  hrAnswers: text("hr_answers"), // JSON string containing all HR question answers
-  findings: text("findings"), // JSON string containing HR findings
-  recommendations: text("recommendations"), // JSON string containing HR recommendations
-  status: text("status").notNull().default("In Progress"),
-  progress: integer("progress").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertComprehensiveHrAnalysisSchema = createInsertSchema(comprehensiveHrAnalyses).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type ComprehensiveHrAnalysis = typeof comprehensiveHrAnalyses.$inferSelect;
-export type InsertComprehensiveHrAnalysis = z.infer<typeof insertComprehensiveHrAnalysisSchema>;
 
 
 

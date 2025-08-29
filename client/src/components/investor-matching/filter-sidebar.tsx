@@ -1,350 +1,280 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Slider } from '@/components/ui/slider';
-import { Filter, X } from 'lucide-react';
-
-interface Deal {
-  id: number;
-  companyName: string;
-  sector: string;
-  stage: string;
-  location: string;
-  fundingAmount: number;
-}
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Deal } from "@/types";
+import { Loader2 } from "lucide-react";
 
 interface FilterSidebarProps {
   deals: Deal[];
   selectedDeal: string;
   onDealChange: (dealId: string) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
-export default function FilterSidebar({ deals, selectedDeal, onDealChange, isLoading }: FilterSidebarProps) {
-  const [filters, setFilters] = useState({
-    sectors: [] as string[],
-    stages: [] as string[],
-    locations: [] as string[],
-    checkSizeRange: [0, 50] as [number, number],
-    verified: false,
-    tier: 'all'
-  });
+const investorTypes = [
+  { id: "vc", label: "Venture Capital", defaultChecked: true },
+  { id: "corporate", label: "Corporate Venture", defaultChecked: true },
+  { id: "angel", label: "Angel Investors", defaultChecked: false },
+  { id: "familyoffice", label: "Family Offices", defaultChecked: true },
+];
 
-  const [appliedFilters, setAppliedFilters] = useState<string[]>([]);
+const investmentStages = [
+  { id: "seed", label: "Seed", defaultChecked: false },
+  { id: "seriesa", label: "Series A", defaultChecked: true },
+  { id: "seriesb", label: "Series B", defaultChecked: true },
+  { id: "growth", label: "Growth", defaultChecked: false },
+];
 
-  const sectorOptions = [
-    'HealthTech', 'MedTech', 'Neurotechnology', 'BCI', 'Medical Devices',
-    'Digital Health', 'Life Sciences', 'Biotech', 'Pharma', 'AI/ML',
-    'SaaS', 'FinTech', 'InsurTech', 'RegTech', 'Enterprise Software',
-    'Consumer', 'E-commerce', 'Mobility', 'CleanTech', 'Energy'
-  ];
+const geographyRegions = [
+  { id: "dach", label: "DACH Region", defaultChecked: true },
+  { id: "uk", label: "UK", defaultChecked: true },
+  { id: "nordics", label: "Nordics", defaultChecked: true },
+];
 
-  const stageOptions = [
-    'Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D+',
-    'Growth', 'Private Equity', 'Venture Debt', 'Bridge'
-  ];
-
-  const locationOptions = [
-    'Berlin, Germany', 'Munich, Germany', 'Hamburg, Germany', 'Frankfurt, Germany',
-    'London, UK', 'Cambridge, UK', 'Edinburgh, UK', 'Manchester, UK',
-    'Zurich, Switzerland', 'Geneva, Switzerland', 'Basel, Switzerland',
-    'Paris, France', 'Lyon, France', 'Amsterdam, Netherlands',
-    'Stockholm, Sweden', 'Copenhagen, Denmark', 'Oslo, Norway',
-    'Helsinki, Finland', 'Dublin, Ireland', 'Vienna, Austria',
-    'Milan, Italy', 'Barcelona, Spain', 'Madrid, Spain',
-    'Tel Aviv, Israel', 'New York, USA', 'San Francisco, USA',
-    'Boston, USA', 'Toronto, Canada', 'Singapore'
-  ];
-
-  const handleSectorChange = (sector: string) => {
-    setFilters(prev => ({
-      ...prev,
-      sectors: prev.sectors.includes(sector) 
-        ? prev.sectors.filter(s => s !== sector)
-        : [...prev.sectors, sector]
-    }));
-  };
-
-  const handleStageChange = (stage: string) => {
-    setFilters(prev => ({
-      ...prev,
-      stages: prev.stages.includes(stage) 
-        ? prev.stages.filter(s => s !== stage)
-        : [...prev.stages, stage]
-    }));
-  };
-
-  const handleLocationChange = (location: string) => {
-    setFilters(prev => ({
-      ...prev,
-      locations: prev.locations.includes(location) 
-        ? prev.locations.filter(l => l !== location)
-        : [...prev.locations, location]
-    }));
-  };
-
-  const applyFilters = () => {
-    const filterLabels = [];
-    
-    if (filters.sectors.length > 0) {
-      filterLabels.push(`Sectors: ${filters.sectors.join(', ')}`);
-    }
-    if (filters.stages.length > 0) {
-      filterLabels.push(`Stages: ${filters.stages.join(', ')}`);
-    }
-    if (filters.locations.length > 0) {
-      filterLabels.push(`Locations: ${filters.locations.join(', ')}`);
-    }
-    if (filters.checkSizeRange[0] > 0 || filters.checkSizeRange[1] < 50) {
-      filterLabels.push(`Check Size: €${filters.checkSizeRange[0]}M - €${filters.checkSizeRange[1]}M`);
-    }
-    if (filters.verified) {
-      filterLabels.push('Verified Only');
-    }
-    if (filters.tier !== 'all') {
-      filterLabels.push(`Tier: ${filters.tier}`);
-    }
-    
-    setAppliedFilters(filterLabels);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      sectors: [],
-      stages: [],
-      locations: [],
-      checkSizeRange: [0, 50],
-      verified: false,
-      tier: 'all'
+export default function FilterSidebar({
+  deals,
+  selectedDeal,
+  onDealChange,
+  isLoading = false,
+}: FilterSidebarProps) {
+  const [investorTypeFilters, setInvestorTypeFilters] = useState<string[]>(
+    investorTypes.filter(t => t.defaultChecked).map(t => t.id)
+  );
+  
+  const [stageFilters, setStageFilters] = useState<string[]>(
+    investmentStages.filter(s => s.defaultChecked).map(s => s.id)
+  );
+  
+  const [geography, setGeography] = useState("Europe");
+  
+  const [regionFilters, setRegionFilters] = useState<string[]>(
+    geographyRegions.filter(r => r.defaultChecked).map(r => r.id)
+  );
+  
+  const [checkSize, setCheckSize] = useState("€2M - €5M");
+  
+  const handleTypeToggle = (typeId: string) => {
+    setInvestorTypeFilters(prev => {
+      if (prev.includes(typeId)) {
+        return prev.filter(id => id !== typeId);
+      } else {
+        return [...prev, typeId];
+      }
     });
-    setAppliedFilters([]);
   };
-
-  const removeFilter = (filterToRemove: string) => {
-    setAppliedFilters(prev => prev.filter(f => f !== filterToRemove));
+  
+  const handleStageToggle = (stageId: string) => {
+    setStageFilters(prev => {
+      if (prev.includes(stageId)) {
+        return prev.filter(id => id !== stageId);
+      } else {
+        return [...prev, stageId];
+      }
+    });
   };
-
-  const currentDeal = deals.find(d => d.id.toString() === selectedDeal);
-
-  return (
-    <div className="space-y-6">
-      {/* Deal Selection */}
-      <Card className="bg-dark-light border-dark-lighter">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold">Select Deal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedDeal} onValueChange={onDealChange} disabled={isLoading}>
-            <SelectTrigger className="bg-dark-lighter border-dark-lighter text-white">
-              <SelectValue placeholder="Choose a deal" />
-            </SelectTrigger>
-            <SelectContent className="bg-dark-lighter border-dark-lighter">
-              {deals.map(deal => (
-                <SelectItem key={deal.id} value={deal.id.toString()}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{deal.companyName}</span>
-                    <span className="text-xs text-gray-400">
-                      {deal.sector} • {deal.stage} • €{deal.fundingAmount?.toLocaleString() || 'N/A'}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+  
+  const handleRegionToggle = (regionId: string) => {
+    setRegionFilters(prev => {
+      if (prev.includes(regionId)) {
+        return prev.filter(id => id !== regionId);
+      } else {
+        return [...prev, regionId];
+      }
+    });
+  };
+  
+  const updateMatches = () => {
+    // In a real app, this would trigger a refetch of investors with the selected filters
+    console.log("Updating matches with filters:", {
+      dealId: selectedDeal,
+      investorTypes: investorTypeFilters,
+      stages: stageFilters,
+      geography,
+      regions: regionFilters,
+      checkSize,
+    });
+  };
+  
+  if (isLoading) {
+    return (
+      <Card className="bg-dark-light border-dark-lighter sticky top-24">
+        <CardContent className="p-6">
+          <Skeleton className="h-6 w-40 mb-3 bg-dark-lighter" />
+          <Skeleton className="h-10 w-full mb-6 bg-dark-lighter" />
           
-          {currentDeal && (
-            <div className="mt-4 p-3 bg-dark-lighter rounded-lg">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Company:</span>
-                  <span className="text-sm text-gray-300">{currentDeal.companyName}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Sector:</span>
-                  <Badge variant="outline" className="text-xs">{currentDeal.sector}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Stage:</span>
-                  <Badge variant="outline" className="text-xs">{currentDeal.stage}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Location:</span>
-                  <span className="text-sm text-gray-300">{currentDeal.location}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Funding:</span>
-                  <span className="text-sm text-gray-300">€{currentDeal.fundingAmount?.toLocaleString() || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-          )}
+          <Skeleton className="h-6 w-32 mb-3 bg-dark-lighter" />
+          <div className="space-y-2 mb-6">
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+          </div>
+          
+          <Skeleton className="h-6 w-40 mb-3 bg-dark-lighter" />
+          <div className="space-y-2 mb-6">
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+          </div>
+          
+          <Skeleton className="h-6 w-24 mb-3 bg-dark-lighter" />
+          <Skeleton className="h-10 w-full mb-3 bg-dark-lighter" />
+          <div className="space-y-2 mb-6">
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+            <Skeleton className="h-5 w-full bg-dark-lighter" />
+          </div>
+          
+          <Skeleton className="h-6 w-24 mb-3 bg-dark-lighter" />
+          <Skeleton className="h-10 w-full mb-6 bg-dark-lighter" />
+          
+          <Skeleton className="h-10 w-full bg-dark-lighter" />
         </CardContent>
       </Card>
-
-      {/* Filters */}
-      <Card className="bg-dark-light border-dark-lighter">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Investor Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Sectors */}
+    );
+  }
+  
+  return (
+    <Card className="bg-dark-light border-dark-lighter sticky top-24">
+      <CardContent className="p-6">
+        <div className="space-y-6">
           <div>
-            <Label className="text-sm font-medium mb-2 block">Focus Areas</Label>
-            <div className="max-h-32 overflow-y-auto space-y-2">
-              {sectorOptions.map(sector => (
-                <div key={sector} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`sector-${sector}`}
-                    checked={filters.sectors.includes(sector)}
-                    onCheckedChange={() => handleSectorChange(sector)}
-                    className="border-gray-600"
-                  />
-                  <Label htmlFor={`sector-${sector}`} className="text-sm text-gray-300">
-                    {sector}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Investment Stages */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Investment Stages</Label>
-            <div className="max-h-32 overflow-y-auto space-y-2">
-              {stageOptions.map(stage => (
-                <div key={stage} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`stage-${stage}`}
-                    checked={filters.stages.includes(stage)}
-                    onCheckedChange={() => handleStageChange(stage)}
-                    className="border-gray-600"
-                  />
-                  <Label htmlFor={`stage-${stage}`} className="text-sm text-gray-300">
-                    {stage}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Locations */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Locations</Label>
-            <div className="max-h-32 overflow-y-auto space-y-2">
-              {locationOptions.map(location => (
-                <div key={location} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`location-${location}`}
-                    checked={filters.locations.includes(location)}
-                    onCheckedChange={() => handleLocationChange(location)}
-                    className="border-gray-600"
-                  />
-                  <Label htmlFor={`location-${location}`} className="text-sm text-gray-300">
-                    {location}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Check Size Range */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block">
-              Check Size Range: €{filters.checkSizeRange[0]}M - €{filters.checkSizeRange[1]}M
+            <Label className="block text-sm font-medium text-gray-300 mb-2">
+              Select Deal
             </Label>
-            <Slider
-              value={filters.checkSizeRange}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, checkSizeRange: value as [number, number] }))}
-              max={50}
-              min={0}
-              step={1}
-              className="my-4"
-            />
-          </div>
-
-          {/* Verified Only */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="verified"
-              checked={filters.verified}
-              onCheckedChange={(checked) => setFilters(prev => ({ ...prev, verified: checked as boolean }))}
-              className="border-gray-600"
-            />
-            <Label htmlFor="verified" className="text-sm text-gray-300">
-              Verified investors only
-            </Label>
-          </div>
-
-          {/* Tier */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Investor Tier</Label>
-            <Select value={filters.tier} onValueChange={(value) => setFilters(prev => ({ ...prev, tier: value }))}>
-              <SelectTrigger className="bg-dark-lighter border-dark-lighter text-white">
-                <SelectValue />
+            <Select 
+              value={selectedDeal} 
+              onValueChange={onDealChange}
+            >
+              <SelectTrigger className="w-full bg-dark-lighter border-dark-lighter focus:ring-primary">
+                <SelectValue placeholder="Select a deal" />
               </SelectTrigger>
               <SelectContent className="bg-dark-lighter border-dark-lighter">
-                <SelectItem value="all">All Tiers</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="basic">Basic</SelectItem>
+                {deals.map(deal => (
+                  <SelectItem key={deal.id} value={deal.id.toString()}>
+                    {deal.companyName}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-
-          {/* Filter Actions */}
-          <div className="flex gap-2 pt-4">
-            <Button
-              onClick={applyFilters}
-              className="flex-1 bg-primary hover:bg-primary-hover text-dark font-medium"
-              size="sm"
-            >
-              Apply Filters
-            </Button>
-            <Button
-              onClick={clearFilters}
-              variant="outline"
-              className="flex-1 border-gray-600 text-gray-300 hover:bg-dark-lighter"
-              size="sm"
-            >
-              Clear
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Applied Filters */}
-      {appliedFilters.length > 0 && (
-        <Card className="bg-dark-light border-dark-lighter">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold">Applied Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
+          
+          <div>
+            <Label className="block text-sm font-medium text-gray-300 mb-2">
+              Investor Type
+            </Label>
             <div className="space-y-2">
-              {appliedFilters.map((filter, index) => (
-                <div key={index} className="flex items-center justify-between bg-dark-lighter rounded-lg p-2">
-                  <span className="text-sm text-gray-300">{filter}</span>
-                  <Button
-                    onClick={() => removeFilter(filter)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+              {investorTypes.map((type) => (
+                <div className="flex items-center" key={type.id}>
+                  <Checkbox 
+                    id={type.id} 
+                    checked={investorTypeFilters.includes(type.id)}
+                    onCheckedChange={() => handleTypeToggle(type.id)}
+                    className="mr-2 h-4 w-4 data-[state=checked]:bg-primary"
+                  />
+                  <Label htmlFor={type.id} className="text-sm">
+                    {type.label}
+                  </Label>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          </div>
+          
+          <div>
+            <Label className="block text-sm font-medium text-gray-300 mb-2">
+              Investment Stage
+            </Label>
+            <div className="space-y-2">
+              {investmentStages.map((stage) => (
+                <div className="flex items-center" key={stage.id}>
+                  <Checkbox 
+                    id={stage.id} 
+                    checked={stageFilters.includes(stage.id)}
+                    onCheckedChange={() => handleStageToggle(stage.id)}
+                    className="mr-2 h-4 w-4 data-[state=checked]:bg-primary"
+                  />
+                  <Label htmlFor={stage.id} className="text-sm">
+                    {stage.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <Label className="block text-sm font-medium text-gray-300 mb-2">
+              Geography
+            </Label>
+            <Select 
+              value={geography} 
+              onValueChange={setGeography}
+            >
+              <SelectTrigger className="w-full bg-dark-lighter border-dark-lighter focus:ring-primary mb-2">
+                <SelectValue placeholder="Select geography" />
+              </SelectTrigger>
+              <SelectContent className="bg-dark-lighter border-dark-lighter">
+                <SelectItem value="Europe">Europe</SelectItem>
+                <SelectItem value="North America">North America</SelectItem>
+                <SelectItem value="Asia">Asia</SelectItem>
+                <SelectItem value="Global">Global</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <div className="space-y-2">
+              {geographyRegions.map((region) => (
+                <div className="flex items-center" key={region.id}>
+                  <Checkbox 
+                    id={region.id} 
+                    checked={regionFilters.includes(region.id)}
+                    onCheckedChange={() => handleRegionToggle(region.id)}
+                    className="mr-2 h-4 w-4 data-[state=checked]:bg-primary"
+                  />
+                  <Label htmlFor={region.id} className="text-sm">
+                    {region.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <Label className="block text-sm font-medium text-gray-300 mb-2">
+              Check Size
+            </Label>
+            <Select 
+              value={checkSize} 
+              onValueChange={setCheckSize}
+            >
+              <SelectTrigger className="w-full bg-dark-lighter border-dark-lighter focus:ring-primary">
+                <SelectValue placeholder="Select check size" />
+              </SelectTrigger>
+              <SelectContent className="bg-dark-lighter border-dark-lighter">
+                <SelectItem value="€500K - €2M">€500K - €2M</SelectItem>
+                <SelectItem value="€2M - €5M">€2M - €5M</SelectItem>
+                <SelectItem value="€5M - €10M">€5M - €10M</SelectItem>
+                <SelectItem value="€10M+">€10M+</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="pt-4">
+            <Button 
+              onClick={updateMatches}
+              className="w-full bg-primary hover:bg-primary-hover text-dark font-medium"
+            >
+              Update Matches
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

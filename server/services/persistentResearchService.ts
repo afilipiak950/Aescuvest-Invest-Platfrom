@@ -1,7 +1,6 @@
 import { storage } from '../storage';
 import { type InsertResearchJob } from '@shared/schema';
 import { authenticResearchService } from './authenticResearchService';
-import { financialResearchService } from './financialResearchService';
 
 interface ResearchStep {
   name: string;
@@ -173,37 +172,9 @@ export class PersistentResearchService {
       const researchData = await authenticResearchService.conductComprehensiveResearch(dealId);
       result = researchData;
       console.log(`✅ Comprehensive research complete`);
-      
-      // Store research data in company_research table
-      console.log(`💾 Storing research data in database for deal ${dealId}`);
-      await storage.createOrUpdateCompanyResearch(dealId, researchData);
-      console.log(`✅ Research data stored successfully`);
 
-      // Step 3: CEO Research (15%)
-      cumulativeProgress += RESEARCH_STEPS[2].weight;
-      await this.updateJobProgress(jobId, 3, cumulativeProgress, "Analyzing leadership and executive team", {
-        step: "ceo_research",
-        timestamp: new Date().toISOString()
-      });
-      await this.delay(1000);
-
-      // Step 4: Financial Analysis (20%) - Enhanced with dedicated financial research
-      cumulativeProgress += RESEARCH_STEPS[3].weight;
-      await this.updateJobProgress(jobId, 4, cumulativeProgress, "Conducting financial research and analysis", {
-        step: "financial_analysis",
-        timestamp: new Date().toISOString()
-      });
-      
-      try {
-        console.log(`💰 Starting enhanced financial research for ${companyName}`);
-        const financialData = await financialResearchService.conductFinancialResearch(companyName, website);
-        console.log(`✅ Financial research completed`);
-      } catch (error) {
-        console.warn(`⚠️ Financial research failed, continuing with existing data:`, error);
-      }
-
-      // Continue with remaining steps
-      for (let step = 5; step <= 8; step++) {
+      // Update progress through all steps
+      for (let step = 2; step <= 8; step++) {
         cumulativeProgress += RESEARCH_STEPS[step - 1].weight;
         await this.updateJobProgress(jobId, step, cumulativeProgress, RESEARCH_STEPS[step - 1].description, {
           step: `step_${step}`,
@@ -214,25 +185,6 @@ export class PersistentResearchService {
 
       await this.completeJob(jobId, result);
       console.log(`🎉 Research job ${jobId} completed successfully for deal ${dealId}`);
-
-      // Automatically trigger AI evaluation after research completion
-      try {
-        console.log(`🤖 Automatically triggering AI evaluation for deal ${dealId} after research completion`);
-        const { evaluateCompanyByDeal } = await import('./aiEvaluation');
-        
-        // Run AI evaluation in background without blocking
-        setTimeout(async () => {
-          try {
-            const evaluationResult = await evaluateCompanyByDeal(dealId);
-            console.log(`✅ Auto-triggered AI evaluation completed for deal ${dealId} with score: ${evaluationResult.overallScore}`);
-          } catch (evalError) {
-            console.error(`❌ Auto-triggered AI evaluation failed for deal ${dealId}:`, evalError);
-          }
-        }, 2000); // Small delay to let research data settle
-        
-      } catch (error) {
-        console.error(`⚠️ Failed to auto-trigger AI evaluation for deal ${dealId}:`, error);
-      }
 
     } catch (error) {
       console.error(`❌ Research job ${jobId} failed:`, error);

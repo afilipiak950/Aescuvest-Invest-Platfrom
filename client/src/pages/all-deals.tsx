@@ -25,10 +25,9 @@ import { AIScoreBadge } from '@/components/ai/AIEvaluationDisplay';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
-const getScoreColor = (score: string | number | null) => {
-  const numScore = typeof score === 'string' ? parseInt(score) : (score || 0);
-  if (numScore >= 80) return 'bg-green-500/20 text-green-400 border-green-500/30';
-  if (numScore >= 60) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+const getScoreColor = (score: number) => {
+  if (score >= 80) return 'bg-green-500/20 text-green-400 border-green-500/30';
+  if (score >= 60) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
   return 'bg-red-500/20 text-red-400 border-red-500/30';
 };
 
@@ -68,64 +67,27 @@ export default function AllDealsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Delete deal mutation with optimistic updates
+  // Delete deal mutation
   const deleteDealMutation = useMutation({
     mutationFn: async (dealId: number) => {
-      // Prevent deletion of demo deals (IDs 1-8)
-      if (dealId <= 8 && apiDeals.length === 0) {
-        throw new Error('Cannot delete demo deals. Please refresh the page to load real deals from the database.');
-      }
-      
       return apiRequest(`/api/deals/${dealId}`, {
         method: 'DELETE',
       });
     },
-    onMutate: async (dealId) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['/api/deals'] });
-      
-      // Snapshot the previous value
-      const previousDeals = queryClient.getQueryData<Deal[]>(['/api/deals']);
-      
-      // Optimistically remove the deal from cache
-      queryClient.setQueryData<Deal[]>(['/api/deals'], (old) => 
-        old ? old.filter(deal => deal.id !== dealId) : []
-      );
-      
-      // Return a context object with the snapshotted value
-      return { previousDeals };
-    },
-    onError: (error: any, dealId, context) => {
-      // Rollback on error
-      if (context?.previousDeals) {
-        queryClient.setQueryData(['/api/deals'], context.previousDeals);
-      }
-      
-      // Show appropriate error message
-      let errorMessage = "Failed to delete deal. Please try again.";
-      if (error.message?.includes('Cannot delete demo deals')) {
-        errorMessage = error.message;
-      } else if (error.message?.includes('Deal not found')) {
-        errorMessage = "Deal not found. It may have been already deleted.";
-      } else if (error.message?.includes('API error')) {
-        errorMessage = "Unable to connect to server. Please check your connection.";
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    },
     onSuccess: (data, dealId) => {
+      // Invalidate and refetch deals
+      queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
       toast({
         title: "Deal deleted",
         description: "The deal has been successfully deleted.",
       });
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete deal. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -140,7 +102,7 @@ export default function AllDealsPage() {
       location: 'San Francisco, CA',
       website: 'https://techflow.ai',
       fundingAmount: 15000000,
-      aiScore: '92',
+      aiScore: 92,
       status: 'under_review',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -154,7 +116,7 @@ export default function AllDealsPage() {
       location: 'Berlin, Germany',
       website: 'https://greenenergy.com',
       fundingAmount: 5000000,
-      aiScore: '88',
+      aiScore: 88,
       status: 'approved',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -168,7 +130,7 @@ export default function AllDealsPage() {
       location: 'Boston, MA',
       website: 'https://healthtrack.pro',
       fundingAmount: 25000000,
-      aiScore: '95',
+      aiScore: 95,
       status: 'due_diligence',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -182,7 +144,7 @@ export default function AllDealsPage() {
       location: 'London, UK',
       website: 'https://financeflow.io',
       fundingAmount: 2000000,
-      aiScore: '72',
+      aiScore: 72,
       status: 'rejected',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -196,7 +158,7 @@ export default function AllDealsPage() {
       location: 'Austin, TX',
       website: 'https://spacelogistics.com',
       fundingAmount: 18000000,
-      aiScore: '89',
+      aiScore: 89,
       status: 'under_review',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -210,7 +172,7 @@ export default function AllDealsPage() {
       location: 'Amsterdam, Netherlands',
       website: 'https://foodtech.innovation',
       fundingAmount: 8000000,
-      aiScore: '86',
+      aiScore: 86,
       status: 'approved',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -224,7 +186,7 @@ export default function AllDealsPage() {
       location: 'Tel Aviv, Israel',
       website: 'https://cybershield.security',
       fundingAmount: 12000000,
-      aiScore: '91',
+      aiScore: 91,
       status: 'due_diligence',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -238,7 +200,7 @@ export default function AllDealsPage() {
       location: 'Barcelona, Spain',
       website: 'https://edutech.future',
       fundingAmount: 6000000,
-      aiScore: '84',
+      aiScore: 84,
       status: 'under_review',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -250,9 +212,7 @@ export default function AllDealsPage() {
   });
 
   // Use demo data if API returns empty or if there's an issue
-  // Show a warning when using demo data
   const deals = apiDeals.length > 0 ? apiDeals : demoDeals;
-  const isUsingDemoData = apiDeals.length === 0;
 
   const filteredDeals = deals.filter(deal => {
     const matchesSearch = deal.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -273,18 +233,6 @@ export default function AllDealsPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Recent Deals</h1>
-            {isUsingDemoData && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
-                <p className="text-yellow-400 text-sm">
-                  ⚠️ Showing demo data. <button 
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/deals'] })}
-                    className="underline hover:text-yellow-300"
-                  >
-                    Click here to refresh and load real deals
-                  </button>
-                </p>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -383,8 +331,8 @@ export default function AllDealsPage() {
                             <span className="text-gray-300">{deal.stage}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={cn("border", getScoreColor(deal.aiScore))}>
-                              {deal.aiScore || '0'}/100
+                            <Badge className={cn("border", getScoreColor(deal.aiScore || 0))}>
+                              {deal.aiScore || 0}/100
                             </Badge>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">

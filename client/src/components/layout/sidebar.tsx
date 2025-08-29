@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight, Database, Bot } from 'lucide-react';
+import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/contexts/SidebarContext';
-// Using public path for logo
+import aescuvestLogo from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1.png";
+import aescuvestLogoFull from "@assets/65693c5a89e524678d52208a_Aescuvest Logo 1 (1).png";
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -12,8 +13,7 @@ const menuItems = [
   { icon: Mail, label: 'Inbox', href: '/inbox' },
   { icon: FileUp, label: 'Deal Intake', href: '/deal-intake' },
   { icon: Search, label: 'Due Diligence', href: '/due-diligence' },
-  { icon: FileText, label: 'Memos', href: '/memos' },
-  { icon: Bot, label: 'AI Assistant', href: '/ai-assistant' },
+  { icon: FileText, label: 'Memo Generator', href: '/memo-generator' },
   { icon: Users, label: 'Investor Matching', href: '/investor-matching' },
   { icon: GitBranch, label: 'Workflow', href: '/workflow' },
 ];
@@ -24,28 +24,39 @@ export default function Sidebar() {
 
   return (
     <div className={cn(
-      "hidden lg:flex flex-col bg-navy border-r border-dark-border transition-all duration-300 ease-in-out",
+      "hidden lg:flex flex-col bg-sidebar bg-dark-light border-r border-dark-lighter transition-all duration-300 ease-in-out",
       isExpanded ? "w-64" : "w-16"
     )}>
       {/* Header with logo and toggle */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-3 border-b border-dark-lighter">
         <div className="flex items-center justify-between">
           {isExpanded ? (
             <div className="flex items-center gap-3">
               <img 
-                src="/assets/aescuvest-icon.png" 
-                alt="Aescuvest Logo" 
-                className="h-6 w-6"
+                src={aescuvestLogoFull} 
+                alt="Aescuvest" 
+                className="h-8 w-auto object-contain"
+                onError={(e) => {
+                  console.error('Logo failed to load:', aescuvestLogoFull);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
-              <span className="text-xl font-bold text-primary tracking-wide">AESCUVEST</span>
+              <span className="text-xl font-bold text-primary">Aescuvest</span>
             </div>
           ) : (
-            <div className="h-10 w-10 flex items-center justify-center mx-auto">
+            <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
               <img 
-                src="/assets/aescuvest-icon-only.png" 
-                alt="Aescuvest Logo" 
-                className="h-8 w-8"
+                src={aescuvestLogo} 
+                alt="Aescuvest" 
+                className="h-8 w-8 object-contain"
+                onError={(e) => {
+                  console.error('Logo failed to load:', aescuvestLogo);
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
               />
+              <span className="text-primary font-bold text-lg hidden">A</span>
             </div>
           )}
         </div>
@@ -121,7 +132,7 @@ export default function Sidebar() {
           href="/profile"
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
-            "bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-medium hover:scale-105",
+            "bg-gradient-to-br from-primary/80 to-primary text-dark font-medium hover:scale-105",
             location === "/profile" && "ring-2 ring-primary ring-offset-2 ring-offset-dark",
             !isExpanded && "justify-center w-10 h-10 mx-auto"
           )}

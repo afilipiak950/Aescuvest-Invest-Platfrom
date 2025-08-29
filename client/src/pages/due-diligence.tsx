@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,70 +12,44 @@ import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
-import { AescuvestAIAssistant } from '@/components/AescuvestAIAssistant';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
-import ErrorBoundary from '@/components/ErrorBoundary';
 
-function DueDiligenceContent() {
-    const [location] = useLocation();
-    const params = useParams();
-    const [selectedDeal, setSelectedDeal] = useState<string>(params.dealId || '22'); // Default to deal 22
-    const [activeAgent, setActiveAgent] = useState<string>('legal');
-    const [isUploading, setIsUploading] = useState(false);
-    const [showUploadField, setShowUploadField] = useState(false);
-    const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
-    const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
-    const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
-  const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
+export default function DueDiligence() {
+  const [location] = useLocation();
+  const [selectedDeal, setSelectedDeal] = useState<string>('1'); // Default to first deal
+  const [activeAgent, setActiveAgent] = useState<string>('legal');
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadField, setShowUploadField] = useState(false);
+  const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
+  const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
 
-    const queryClient = useQueryClient();
-    const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-    // Enhanced job finder - matches by agent type (case insensitive)
-    const findJobSafely = (jobs: any[], patterns: string[]) => {
-      if (!jobs || !Array.isArray(jobs)) return null;
-      return jobs.find((job: any) => {
-        if (!job || !job.agentType) return false;
-        const jobAgent = job.agentType.toLowerCase();
-        return patterns.some(pattern => {
-          const searchPattern = pattern.toLowerCase();
-          return jobAgent === searchPattern || jobAgent.includes(searchPattern);
-        });
-      });
-    };
+  // Parse URL parameters and set selected deal
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const dealParam = searchParams.get('deal');
+    if (dealParam) {
+      setSelectedDeal(dealParam);
+    }
+  }, [location]);
 
-    // Parse URL parameters and set selected deal
-    useEffect(() => {
-      // Check for deal ID in URL path parameter first
-      if (params.dealId) {
-        setSelectedDeal(params.dealId);
-      } else {
-        // Fall back to URL search parameter
-        const searchParams = new URLSearchParams(window.location.search);
-        const dealParam = searchParams.get('deal');
-        if (dealParam) {
-          setSelectedDeal(dealParam);
-        }
-      }
-    }, [location, params.dealId]);
+  // Fetch real deals from database
+  const { data: deals, isLoading: isLoadingDeals } = useQuery({
+    queryKey: ['/api/deals'],
+    retry: false,
+  });
 
-    // Fetch real deals from database
-    const { data: deals, isLoading: isLoadingDeals } = useQuery({
-      queryKey: ['/api/deals'],
-      retry: false,
-    });
-
-    // Fetch real documents for selected deal
-    const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
+  // Fetch real documents for selected deal
+  const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 3,
     enabled: !!selectedDeal,
@@ -102,126 +75,42 @@ function DueDiligenceContent() {
       console.log(`✅ Received ${data?.length || 0} documents for deal ${selectedDeal}`);
       return data;
     }
-    });
+  });
 
-    // Fetch job progress data for real-time updates
-    const { data: jobProgress } = useQuery({
+  // Fetch job progress data for real-time updates
+  const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
-    enabled: !!selectedDeal,
+    enabled: !!selectedDeal && isRunningAllAnalyses,
     refetchInterval: 1000, // Poll every second for real-time progress
     queryFn: async () => {
       console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
       const response = await fetch(`/api/background-jobs/${selectedDeal}`);
       const data = await response.json();
       console.log(`📊 Job progress data:`, data);
-      if (data?.jobs?.length > 0) {
-        console.log(`🔍 Available job agent types:`, data.jobs.map(j => j.agentType));
-        console.log(`🔍 First job details:`, data.jobs[0]);
-      }
       return data;
     }
-    });
+  });
 
-    // Create progress states from jobProgress data instead of separate queries to prevent UI interference
-    const legalProgress = useMemo(() => {
-      const legalJob = findJobSafely(jobProgress?.jobs, ['Legal', 'legal_analysis', 'legal-analysis']);
-      return legalJob ? {
-        isRunning: legalJob.status === 'processing',
-        progress: legalJob.progress || 0,
-        currentStep: legalJob.currentDocument || legalJob.message || 'Processing legal documents...',
-        currentDocumentName: legalJob.currentDocument || 'Processing'
-      } : null;
-    }, [jobProgress]);
+  // Debug log for documents loading
+  console.log('📄 Documents query state:', {
+    selectedDeal,
+    isLoading: isLoadingDocuments,
+    hasData: !!documents,
+    dataLength: documents?.length || 0,
+    error: documentsError
+  });
 
-    const commercialProgress = useMemo(() => {
-      const commercialJob = findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial-analysis', 'commercial_analysis']);
-      return commercialJob ? {
-        isRunning: commercialJob.status === 'processing',
-        progress: commercialJob.progress || 0,
-        currentStep: commercialJob.currentDocument || commercialJob.message || 'Processing commercial documents...',
-        currentDocumentName: commercialJob.currentDocument || 'Processing'
-      } : null;
-    }, [jobProgress]);
+  // Track document count for automated analysis triggering
+  const [previousDocumentCount, setPreviousDocumentCount] = useState(0);
+  const [hasTriggeredInitialAnalysis, setHasTriggeredInitialAnalysis] = useState(false);
 
-    const hrProgress = useMemo(() => {
-      const hrJob = findJobSafely(jobProgress?.jobs, ['HR', 'hr_analysis', 'hr-analysis']);
-      return hrJob ? {
-        isRunning: hrJob.status === 'processing',
-        progress: hrJob.progress || 0,
-        currentStep: hrJob.currentDocument || hrJob.message || 'Processing HR documents...',
-        currentDocumentName: hrJob.currentDocument || 'Processing'
-      } : null;
-    }, [jobProgress]);
+  // Auto-show data room when documents exist (always show for immediate access)
+  useEffect(() => {
+    setShowDataRoom(true); // Always show data room for immediate document access
+  }, [documents]);
 
-    const clinicalProgress = useMemo(() => {
-      const clinicalJob = findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical_analysis', 'clinical-analysis']);
-      return clinicalJob ? {
-        isRunning: clinicalJob.status === 'processing' && clinicalJob.progress > 0,
-        progress: clinicalJob.progress || 0,
-        currentStep: clinicalJob.currentDocument || clinicalJob.message || 'Processing clinical documents...',
-        currentDocumentName: clinicalJob.currentDocument || 'Processing'
-      } : null;
-    }, [jobProgress]);
-
-    // Stop job mutation
-    const stopJobMutation = useMutation({
-    mutationFn: async (jobId: string) => {
-      const response = await apiRequest(`/api/background-jobs/${jobId}/stop`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return response;
-    },
-    onSuccess: () => {
-      // Refresh background jobs data
-      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-    },
-    onError: (error) => {
-      console.error('❌ Error stopping job:', error);
-    }
-    });
-
-    const handleStopJob = (jobId: string, agentType: string) => {
-      console.log(`🛑 Stopping ${agentType} analysis job: ${jobId}`);
-      stopJobMutation.mutate(jobId);
-    };
-
-    // Reset clinical analysis started flag when analysis is complete
-    useEffect(() => {
-      // Disabled due to progress polling removal - clinical analysis completion is now handled elsewhere
-      if (clinicalAnalysisStarted) {
-        // Auto-reset flag after 30 seconds to prevent it from staying true indefinitely
-        const timer = setTimeout(() => {
-          setClinicalAnalysisStarted(false);
-        }, 30000);
-        return () => clearTimeout(timer);
-      }
-    }, [clinicalAnalysisStarted]);
-
-    // Log current state immediately
-    console.log(`🎯 Current selectedDeal:`, selectedDeal);
-    console.log(`🎯 Progress polling disabled to fix UI interference issues`);
-
-    // Debug log for documents loading
-    console.log('📄 Documents query state:', {
-      selectedDeal,
-      isLoading: isLoadingDocuments,
-      hasData: !!documents,
-      dataLength: documents?.length || 0,
-      error: documentsError
-    });
-
-    // Track document count for automated analysis triggering
-    const [previousDocumentCount, setPreviousDocumentCount] = useState(0);
-    const [hasTriggeredInitialAnalysis, setHasTriggeredInitialAnalysis] = useState(false);
-
-    // Auto-show data room when documents exist (always show for immediate access)
-    useEffect(() => {
-      setShowDataRoom(true); // Always show data room for immediate document access
-    }, [documents]);
-
-    // Function to trigger automated analysis for all agents
-    const triggerAutomatedAnalysis = async () => {
+  // Function to trigger automated analysis for all agents
+  const triggerAutomatedAnalysis = async () => {
     if (isRunningAllAnalyses) {
       console.log('⏭️ Analysis already in progress, skipping automated trigger');
       return;
@@ -283,133 +172,76 @@ function DueDiligenceContent() {
   console.log('🔍 Analyses Query Debug:', {
     selectedDeal,
     isLoadingAnalyses,
-    analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
+    analysesData: analyses,
+    analysesLength: (analyses && Array.isArray(analyses)) ? analyses.length : 'not array',
     agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
-  });
-
-  // Fetch comprehensive analysis data for each agent to detect completed analyses
-  const { data: clinicalAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000,
-  });
-
-  const { data: hrAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/hr/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000,
-  });
-
-  const { data: ipAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/ip/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000,
-  });
-
-  const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000,
-  });
-
-  const { data: financialAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000,
-  });
-
-  const { data: commercialAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 2000,
   });
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
   
-  // Calculate document assignments for each agent type with comprehensive safety
-  const agentDocuments = useMemo(() => {
-    // Always return a safe default structure
-    const safeDefault = {
-      clinical: [],
-      legal: [],
-      commercial: [],
-      hr: [],
-      financial: [],
-      ip: [],
-      research: [],
-      unassigned: []
-    };
-
-    // Early exit with safe default if no documents
-    if (!documents || !Array.isArray(documents) || (documents?.length || 0) === 0) {
-      console.log('📊 Missing or empty documents data for agent assignments');
-      return safeDefault;
+  // Calculate unassigned documents using real database assignments from analyses
+  const unassignedDocs = useMemo(() => {
+    if (!documents || !Array.isArray(documents)) {
+      console.log('📊 Missing documents data for unassigned calculation');
+      return [];
     }
 
-    try {
-      const assignments = {
-        clinical: [] as any[],
-        legal: [] as any[],
-        commercial: [] as any[],
-        hr: [] as any[],
-        financial: [] as any[],
-        ip: [] as any[],
-        research: [] as any[],
-        unassigned: [] as any[]
-      };
-
-      documents.forEach((doc: any) => {
-        if (!doc || typeof doc !== 'object') {
-          assignments.unassigned.push(doc);
-          return;
-        }
-
-        if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || (doc.assignedAgents?.length || 0) === 0) {
-          assignments.unassigned.push(doc);
-        } else {
-          // Document can be assigned to multiple agents
-          doc.assignedAgents.forEach((agent: string) => {
-            try {
-              const agentKey = String(agent || '').toLowerCase();
-              if (agentKey && agentKey in assignments) {
-                assignments[agentKey as keyof typeof assignments].push(doc);
-              }
-            } catch (agentError) {
-              console.warn('Error processing agent assignment:', agentError);
-              assignments.unassigned.push(doc);
+    // Get all document NAMES and IDs that are actually assigned to agents from database
+    const allAssignedDocNames = new Set();
+    const allAssignedDocIds = new Set();
+    
+    if (analyses && Array.isArray(analyses)) {
+      analyses.forEach((analysis: any) => {
+        if (analysis.documentSources && Array.isArray(analysis.documentSources)) {
+          analysis.documentSources.forEach((docNameOrId: string) => {
+            // Check if it's a document ID (numeric string) or document name
+            const numericId = parseInt(docNameOrId);
+            if (!isNaN(numericId) && numericId.toString() === docNameOrId) {
+              // It's a document ID
+              allAssignedDocIds.add(numericId);
+            } else {
+              // It's a document name
+              allAssignedDocNames.add(docNameOrId);
             }
           });
         }
       });
-      
-      console.log('📊 Agent document assignments:', {
-        clinical: assignments.clinical?.length || 0,
-        legal: assignments.legal?.length || 0,
-        commercial: assignments.commercial?.length || 0,
-        hr: assignments.hr?.length || 0,
-        financial: assignments.financial?.length || 0,
-        ip: assignments.ip?.length || 0,
-        research: assignments.research?.length || 0,
-        unassigned: assignments.unassigned?.length || 0,
-        total: documents?.length || 0
-      });
-      
-      return assignments;
-    } catch (error) {
-      console.error('Error calculating agent documents:', error);
-      return safeDefault;
     }
-  }, [documents]);
-
-  // Extract individual agent document arrays for easy access with null safety
-  const clinicalDocs = agentDocuments?.clinical || [];
-  const legalDocs = agentDocuments?.legal || [];
-  const commercialDocs = agentDocuments?.commercial || [];
-  const hrDocs = agentDocuments?.hr || [];
-  const financialDocs = agentDocuments?.financial || [];
-  const ipDocs = agentDocuments?.ip || [];
-  const researchDocs = agentDocuments?.research || [];
-  const unassignedDocs = agentDocuments?.unassigned || [];
+    
+    // Return documents that are not assigned to any agent in the database (check both name and ID)
+    const unassigned = documents.filter((doc: any) => 
+      !allAssignedDocNames.has(doc.name) && !allAssignedDocIds.has(doc.id)
+    );
+    
+    // Debug logging to understand assignment distribution
+    console.log('📊 Assignment debugging:', {
+      totalDocuments: documents.length,
+      assignedByName: allAssignedDocNames.size,
+      assignedById: allAssignedDocIds.size,
+      unassignedCount: unassigned.length,
+      totalAnalyses: (analyses && Array.isArray(analyses)) ? analyses.length : 0
+    });
+    
+    console.log('📊 Unassigned calculation (database-based):', { 
+      totalDocs: documents.length, 
+      assignedDocNames: allAssignedDocNames.size, 
+      unassignedCount: unassigned.length,
+      analysesCount: analyses && Array.isArray(analyses) ? analyses.length : 0,
+      sampleAssignedNames: Array.from(allAssignedDocNames).slice(0, 5),
+      sampleDocumentNames: documents.slice(0, 3).map((doc: any) => doc.name),
+      firstDocAssigned: documents.length > 0 ? allAssignedDocNames.has(documents[0].name) : false
+    });
+    
+    // Debug: Log detailed analysis breakdown
+    if (analyses && Array.isArray(analyses)) {
+      console.log('📋 Analysis breakdown:');
+      analyses.forEach((analysis: any) => {
+        console.log(`  ${analysis.agentType}: ${analysis.documentSources ? analysis.documentSources.length : 0} docs`);
+      });
+    }
+    
+    return unassigned;
+  }, [documents, analyses]);
   
   const handleFileUpload = async () => {
     setShowUploadField(!showUploadField);
@@ -418,25 +250,20 @@ function DueDiligenceContent() {
   // Mutation for running all agent analyses (manual trigger)
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
+      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+      console.log(`🚀 Starting fresh comprehensive analysis for all ${agentTypes.length} agents`);
+      
+      // Step 1: Stop all running analyses first 
+      console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
       try {
-        console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
-        
-        // Validate selectedDeal is available in mutation context
-        if (!selectedDeal) {
-          throw new Error('No deal selected for analysis');
-        }
-        
-        // Step 1: Stop all running analyses first 
-        console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
-        try {
-          await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
-        } catch (stopError) {
-          console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
-        }
+        await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
+      } catch (stopError) {
+        console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
+      }
       
       // Step 2: Delete all existing analyses 
       console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
@@ -447,116 +274,40 @@ function DueDiligenceContent() {
         });
         console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
         
-        // Also clear any stuck background jobs
-        try {
-          await apiRequest(`/api/background-jobs/clear-stuck`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
-          });
-          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
-        } catch (clearError) {
-          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
-        }
-        
         // Wait for cleanup to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (deleteError) {
         console.error(`❌ Failed to delete existing analyses:`, deleteError);
         // Continue anyway - the analyses will be overwritten
       }
       
-      // Step 3: Run all comprehensive analyses in parallel
-      const comprehensiveEndpoints = [
-        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
-      ];
-
-      const promises = comprehensiveEndpoints.map(async (endpoint) => {
-        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
-        try {
-          const response = await apiRequest(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          
-          // Handle "already running" responses as successes
-          if (response && (response.alreadyRunning || response.success === false)) {
-            console.log(`✅ Analysis already running for ${endpoint}:`, response.message);
-            return { success: true, alreadyRunning: true, endpoint, message: response.message };
-          }
-          
-          // Handle HR endpoint temporary issue - treat as success for now
-          if (endpoint.includes('hr-analysis') && response && response.success === false) {
-            console.log(`⚠️ HR analysis has temporary issue, treating as success for now`);
-            return { success: true, temporaryIssue: true, endpoint, message: 'HR analysis temporarily unavailable' };
-          }
-          
-          return response;
-        } catch (error) {
-          console.error(`❌ Error starting analysis for ${endpoint}:`, error);
-          // Don't throw - let individual failures not break the whole process
-          return { success: false, endpoint, error: (error as any)?.message || 'Unknown error' };
-        }
-      });
+      // Step 3: Run all agent analyses in parallel with force refresh
+      const promises = agentTypes.map(agentType => 
+        apiRequest(`/api/deals/${selectedDeal}/agents/${agentType}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ forceRefresh: true })
+        })
+      );
       
-      const results = await Promise.allSettled(promises);
-      
-      // Log results and count successes
-      let successCount = 0;
-      results.forEach((result, index) => {
-        const endpoint = comprehensiveEndpoints[index];
-        if (result.status === 'fulfilled' && (result.value.success || result.value.alreadyRunning)) {
-          successCount++;
-          console.log(`✅ ${endpoint}: Success`);
-        } else {
-          console.log(`❌ ${endpoint}: Failed`);
-        }
-      });
-      
-      console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints?.length || 0} analyses started/running`);
-      
-      // Return successful results (don't fail if some are already running)
-      return results.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
-      
-      } catch (mutationError) {
-        console.error('❌ Critical error in mutation function:', mutationError);
-        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
-      }
+      return Promise.all(promises);
     },
     onSuccess: (results) => {
-      console.log(`✅ All comprehensive analyses started successfully:`, results);
+      console.log(`✅ All agent analyses started successfully:`, results);
       
       // Show immediate feedback
       toast({
-        title: "Comprehensive Analyses Started",
-        description: "All 7 AI agents are now running comprehensive document analysis...",
-        duration: 5000,
+        title: "Analyses Started",
+        description: "All AI agents are now analyzing documents...",
+        duration: 3000,
       });
       
-      // Invalidate all comprehensive analysis results queries to refresh UI
+      // Invalidate all agent results queries to refresh UI
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-      
-      // Invalidate comprehensive analysis endpoints
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
-      
-      // Also invalidate regular agent endpoints for backwards compatibility
       agentTypes.forEach(agentType => {
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
       });
       queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       
       // Set up completion monitoring
       const checkCompletion = setInterval(async () => {
@@ -564,27 +315,26 @@ function DueDiligenceContent() {
           const response = await fetch(`/api/analyses/${selectedDeal}`);
           const data = await response.json();
           
-          if (Array.isArray(data) && (data?.length || 0) >= 7) {
+          if (Array.isArray(data) && data.length >= 7) {
             const allCompleted = data.every((analysis: any) => 
               analysis.status === 'Completed' || analysis.status === 'completed'
             );
             
             if (allCompleted) {
-              console.log(`🎉 All comprehensive analyses completed! Refreshing data...`);
+              console.log(`🎉 All analyses completed! Refreshing data...`);
               setIsRunningAllAnalyses(false);
               clearInterval(checkCompletion);
               
               // Refresh all relevant queries
               queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
               agentTypes.forEach(agentType => {
                 queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
               });
               
               // Show completion notification
               toast({
-                title: "Comprehensive Analyses Complete",
-                description: "All 7 agent comprehensive analyses completed successfully!",
+                title: "Analyses Complete",
+                description: "All agent analyses completed successfully!",
                 duration: 5000,
               });
             }
@@ -592,107 +342,49 @@ function DueDiligenceContent() {
         } catch (error) {
           console.error('Error checking analysis completion:', error);
         }
-      }, 3000); // Check every 3 seconds
+      }, 2000); // Check every 2 seconds
       
-      // Cleanup after 15 minutes max
+      // Cleanup after 10 minutes max
       setTimeout(() => {
         setIsRunningAllAnalyses(false);
         clearInterval(checkCompletion);
-      }, 900000);
+      }, 600000);
     },
     onError: (error) => {
       console.error(`❌ Failed to start all analyses:`, error);
       setIsRunningAllAnalyses(false);
-      
-      // Show user-friendly error message
-      toast({
-        title: "Analysis Failed",
-        description: "Failed to start analyses. This may be due to API quota limits. Please try again later.",
-        variant: "destructive",
-        duration: 5000,
-      });
-      
-      // Clear any loading states
-      queryClient.setQueryData([`/api/background-jobs/${selectedDeal}`], { jobs: [] });
     }
   });
 
   const handleRunAllAnalyses = () => {
-    try {
-      console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
-      
-      // Validate selectedDeal exists
-      if (!selectedDeal) {
-        console.error('❌ No deal selected');
-        toast({
-          title: "No Deal Selected",
-          description: "Please select a deal before running analyses.",
-          variant: "destructive",
-          duration: 3000,
-        });
-        return;
-      }
-      
-      setIsRunningAllAnalyses(true);
-      
-      // Immediately show loading feedback
-      toast({
-        title: "Resetting Analyses",
-        description: "Stopping all running analyses and starting fresh...",
-        duration: 2000,
-      });
-      
-      // Skip query invalidation to prevent crashes - let mutation handle cache updates
-      console.log('📋 Skipping immediate query invalidation to prevent component crashes');
-      
-      // Start mutation immediately to prevent state conflicts
-      try {
-        runAllAnalysesMutation.mutate();
-      } catch (mutationError) {
-        console.error('❌ Error starting mutation:', mutationError);
-        setIsRunningAllAnalyses(false);
-        toast({
-          title: "Mutation Error",
-          description: "Failed to start analysis mutation. Please try again.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ Critical error in handleRunAllAnalyses:', error);
-      setIsRunningAllAnalyses(false);
-      
-      toast({
-        title: "Critical Error",
-        description: `Failed to start analyses: ${(error as any)?.message || 'Unknown error'}. Please refresh the page and try again.`,
-        variant: "destructive",
-        duration: 5000,
-      });
-    }
+    console.log(`🚀 Reset & Run All Analyses button clicked for deal ${selectedDeal}`);
+    setIsRunningAllAnalyses(true);
+    
+    // Immediately show loading feedback
+    toast({
+      title: "Resetting Analyses",
+      description: "Stopping all running analyses and starting fresh...",
+      duration: 2000,
+    });
+    
+    // Immediately invalidate all agent queries to clear existing data and show loading states
+    const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
+    agentTypes.forEach(agentType => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
+    });
+    queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
+    
+    runAllAnalysesMutation.mutate();
   };
 
-  // Early loading guard to prevent undefined property access errors
-  if (isLoadingDocuments || isLoadingDeals || !agentDocuments) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="text-center mt-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-200 mb-4">Loading Analysis</h2>
-          <p className="text-gray-400">Preparing document analysis data...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-      <div className="container mx-auto px-4 py-6">
-        <PageHeader 
-          title="Due Diligence Analysis" 
-          description="Analyze company documents and generate insights with AI agents."
-        />
-        
-        {/* Deal Selection */}
+    <div className="container mx-auto px-4 py-6">
+      <PageHeader 
+        title="Due Diligence Analysis" 
+        description="Analyze company documents and generate insights with AI agents."
+      />
+      
+      {/* Deal Selection */}
       <Card className="bg-dark-light border-dark-lighter mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4">
@@ -730,9 +422,6 @@ function DueDiligenceContent() {
         </CardContent>
       </Card>
       
-
-
-      
       {/* Upload Field - Shows when Upload Files button is clicked */}
       {showUploadField && (
         <Card className="bg-dark-light border-dark-lighter mb-6">
@@ -752,9 +441,6 @@ function DueDiligenceContent() {
         </div>
       ) : currentDeal ? (
         <>
-          {/* Aescuvest AI Assistant */}
-          <AescuvestAIAssistant dealId={parseInt(selectedDeal)} className="mb-6" />
-          
           {/* Company Information */}
           <Card className="bg-dark-light border-dark-lighter mb-6">
             <CardHeader>
@@ -1020,91 +706,14 @@ function DueDiligenceContent() {
             </CardContent>
           </Card>
 
-          {/* Deal Statistics Card */}
-          <Card className="bg-dark-light border-dark-lighter mb-6">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">Deal Analysis Overview</CardTitle>
-              <CardDescription>
-                Real-time statistics for {currentDeal?.companyName || 'Selected Deal'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-primary">{documents?.length || 0}</div>
-                  <div className="text-sm text-gray-400">Total Documents</div>
-                </div>
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-blue-400">
-                    {Array.isArray(analyses) ? (analyses.filter((a: any) => a.status === 'Completed' || a.status === 'completed')?.length || 0) : 0}
-                  </div>
-                  <div className="text-sm text-gray-400">Completed Analyses</div>
-                </div>
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-yellow-400">
-                    {jobProgress?.jobs ? (jobProgress.jobs.filter((job: any) => job.status === 'processing')?.length || 0) : 0}
-                  </div>
-                  <div className="text-sm text-gray-400">Running Analyses</div>
-                </div>
-                <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-green-400">
-                    {(unassignedDocs?.length || 0) === 0 && (documents?.length || 0) > 0 ? '100%' : 
-                     (documents?.length || 0) > 0 ? `${Math.round(((documents?.length || 0) - (unassignedDocs?.length || 0)) / (documents?.length || 1) * 100)}%` : '0%'}
-                  </div>
-                  <div className="text-sm text-gray-400">Assignment Rate</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
           
-          {/* Main Progress Bar - Restored */}
-          {jobProgress && jobProgress.jobs && (jobProgress.jobs?.length || 0) > 0 && (
-            <Card className="bg-dark-light border-dark-lighter mb-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Analysis Progress</CardTitle>
-                <CardDescription>
-                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {jobProgress.jobs.map((job: any) => (
-                    <div key={job.jobId} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-300">
-                          {job.agentType} Analysis
-                        </span>
-                        <span className="text-sm text-gray-400">
-                          {job.progress}%
-                        </span>
-                      </div>
-                      <Progress value={job.progress} className="h-2" />
-                      {job.currentStep && (
-                        <p className="text-xs text-gray-500">
-                          {job.currentStep && job.currentStep.includes('batch') ? 
-                            job.currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-                            job.currentStep
-                          }
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Documents */}
           <Card className="bg-dark-light border-dark-lighter mb-6">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="text-xl font-bold">
-                    Documents ({documents?.length || 0})
-                  </CardTitle>
-                  <CardDescription>
-                    {documents?.length === 0 ? 'No documents uploaded yet' : `${documents.length} documents available for analysis`}
-                  </CardDescription>
+                  <CardTitle className="text-xl font-bold">Documents</CardTitle>
+                  <CardDescription>Uploaded documents for analysis</CardDescription>
                 </div>
                 <div className="flex space-x-2">
                   <Button variant="outline" className="bg-dark-lighter hover:bg-dark border-dark-lighter">
@@ -1116,58 +725,25 @@ function DueDiligenceContent() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent>
               {!showDataRoom ? (
-                <div className="relative overflow-hidden">
-                  {/* Background gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/5"></div>
-                  
-                  {/* Content */}
-                  <div className="relative p-8 text-center">
-                    {/* Icon with animated background */}
-                    <div className="relative mb-6">
-                      <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-2xl flex items-center justify-center mx-auto border border-primary/20 backdrop-blur-sm">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary/30 to-blue-500/30 rounded-xl flex items-center justify-center">
-                          <LinkIcon className="h-8 w-8 text-primary" />
-                        </div>
-                      </div>
-                      {/* Floating particles */}
-                      <div className="absolute top-2 right-4 w-2 h-2 bg-primary/40 rounded-full animate-pulse"></div>
-                      <div className="absolute bottom-4 left-6 w-1.5 h-1.5 bg-blue-400/40 rounded-full animate-pulse delay-300"></div>
+                <div className="text-center py-8">
+                  <div className="mb-4">
+                    <div className="w-16 h-16 bg-dark-lighter rounded-full flex items-center justify-center mx-auto mb-4">
+                      <LinkIcon className="h-8 w-8 text-gray-400" />
                     </div>
-                    
-                    <h3 className="text-xl font-semibold text-white mb-3 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
-                      Connect Data Room
-                    </h3>
-                    <p className="text-gray-400 text-sm mb-8 max-w-md mx-auto leading-relaxed">
-                      Upload ZIP files, individual documents, or connect to external data sources. 
-                      Our AI will automatically analyze and categorize your documents with intelligent insights.
+                    <h3 className="text-lg font-medium text-white mb-2">Connect Data Room</h3>
+                    <p className="text-gray-400 text-sm mb-6">
+                      Upload ZIP files or connect to external data sources to analyze deal documents with AI-powered insights.
                     </p>
-                    
-                    {/* Features list */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-xs">
-                      <div className="flex items-center justify-center space-x-2 p-3 bg-dark-lighter/50 rounded-lg border border-gray-700/50">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span className="text-gray-300">ZIP File Support</span>
-                      </div>
-                      <div className="flex items-center justify-center space-x-2 p-3 bg-dark-lighter/50 rounded-lg border border-gray-700/50">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                        <span className="text-gray-300">AI Analysis</span>
-                      </div>
-                      <div className="flex items-center justify-center space-x-2 p-3 bg-dark-lighter/50 rounded-lg border border-gray-700/50">
-                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                        <span className="text-gray-300">Real-time OCR</span>
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      onClick={() => setShowDataRoom(true)}
-                      className="bg-gradient-to-r from-primary to-green-400 hover:from-primary/80 hover:to-green-400/80 text-white font-medium px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                    >
-                      <LinkIcon className="h-5 w-5 mr-2" />
-                      Connect Data Room
-                    </Button>
                   </div>
+                  <Button 
+                    onClick={() => setShowDataRoom(true)}
+                    className="bg-primary hover:bg-primary/80 text-white"
+                  >
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Connect Data Room
+                  </Button>
                 </div>
               ) : (
                 <DataRoomExplorer 
@@ -1187,392 +763,27 @@ function DueDiligenceContent() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl font-semibold">AI Analysis Results</CardTitle>
-                <div className="flex space-x-2">
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        console.log('🛑 Stopping all background jobs for deal', selectedDeal);
-                        
-                        // Use the clear-stuck-jobs endpoint which is working correctly
-                        const response = await fetch(`/api/deals/${selectedDeal}/clear-stuck-jobs`, {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json'
-                          }
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                          toast({
-                            title: "Jobs Stopped",
-                            description: `Cleared ${result.clearedCount} background jobs`,
-                            duration: 3000,
-                          });
-                          
-                          // Refresh job progress
-                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-                        } else {
-                          throw new Error(result.error || 'Failed to clear jobs');
-                        }
-                      } catch (error) {
-                        console.error('❌ Error stopping jobs:', error);
-                        toast({
-                          title: "Clear Failed",
-                          description: "Failed to clear background jobs. Please try again.",
-                          variant: "destructive",
-                          duration: 5000,
-                        });
-                      }
-                    }}
-                    variant="outline"
-                    className="bg-red-600/10 hover:bg-red-600/20 border-red-600/30 text-red-400 hover:text-red-300"
-                    size="sm"
-                    disabled={!jobProgress?.jobs?.some(job => job.status === 'processing')}
-                  >
-                    <Square className="h-4 w-4 mr-2" />
-                    Stop All Jobs
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      try {
-                        handleRunAllAnalyses();
-                      } catch (buttonError) {
-                        console.error('❌ Button click error:', buttonError);
-                        toast({
-                          title: "Button Error",
-                          description: "Failed to handle button click. Please refresh the page.",
-                          variant: "destructive",
-                          duration: 5000,
-                        });
-                      }
-                    }}
-                    disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
-                    className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
-                    size="sm"
-                  >
-                    {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Running All Analyses
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="h-4 w-4 mr-2" />
-                        Reset & Run All Analyses
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button 
+                  onClick={handleRunAllAnalyses}
+                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
+                  className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
+                  size="sm"
+                >
+                  {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Running All Analyses
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4 mr-2" />
+                      Reset & Run All Analyses
+                    </>
+                  )}
+                </Button>
               </div>
             </CardHeader>
-            
-            
             <CardContent>
-              {/* All Agents Progress Overview - Horizontal 7-Card Layout */}
-              <div className="mb-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
-                  <div className="flex items-center space-x-2">
-                    {/* Overall progress indicator */}
-                    <span className="text-sm text-gray-400">Overall Progress</span>
-                    <span className="text-sm font-medium text-primary">
-                      {jobProgress?.jobs && jobProgress.jobs.length > 0 
-                        ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
-                        : 0}%
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Overall Progress Bar */}
-                <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
-                  <div 
-                    className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
-                    style={{ 
-                      width: `${jobProgress?.jobs && jobProgress.jobs.length > 0 
-                        ? Math.round(jobProgress.jobs.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress.jobs.length) 
-                        : 0}%` 
-                    }}
-                  ></div>
-                </div>
-                
-                {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
-                <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
-                  {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
-                    // Find matching job from backend data
-                    const matchingJob = jobProgress?.jobs?.find(j => 
-                      j.agentType?.toLowerCase() === agentType.toLowerCase()
-                    );
-                    
-                    // CRITICAL FIX: Check for completed analysis data first, then active jobs
-                    const completedAnalysis = analyses?.find(a => 
-                      a.agentType?.toLowerCase() === agentType.toLowerCase()
-                    );
-                    
-                    // COMPREHENSIVE ANALYSIS FIX: Also check if comprehensive analysis exists
-                    // by checking if the agent-specific results endpoint returns data
-                    const hasComprehensiveAnalysis = (() => {
-                      const agentLower = agentType.toLowerCase();
-                      // Check if we have data from the agent-specific endpoints that were added
-                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
-                      if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
-                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
-                      if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                      if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
-                      if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
-                      return false;
-                    })();
-                    
-                    // RESET FIX: Prioritize active job progress over completed analysis to allow resets
-                    const currentProgress = matchingJob?.status === 'processing'
-                      ? (matchingJob?.progress || 0)  // Active job takes priority (allows reset)
-                      : (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
-                        ? 100  // Show completed only when no active job
-                        : 0;   // Default to 0
-                    
-                    // CRITICAL FIX: Show "Currently Running" when job is processing, regardless of completion status
-                    const isCurrentlyRunning = matchingJob?.status === 'processing';
-                    const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
-                    const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
-                    
-                    // Calculate realistic job statistics
-                    const assignedDocs = documents?.filter(doc => 
-                      doc.assignedAgents?.includes(agentType) || 
-                      doc.category?.toLowerCase() === agentType.toLowerCase() ||
-                      doc.documentType?.toLowerCase() === agentType.toLowerCase()
-                    ).length || 0;
-                    
-                    // Correct questions per agent - matching actual question counts in services  
-                    const questionCounts = {
-                      'Legal': 13, 'Clinical': 6, 'Commercial': 11, 
-                      'HR': 12, 'Financial': 12, 'IP': 12, 'Research': 19
-                    };
-                    const totalQuestions = questionCounts[agentType] || 5;
-                    // CORRECT FORMULA: assigned documents × questions per agent
-                    const totalJobs = assignedDocs * totalQuestions;
-                    
-                    // Calculate job progress stats based on live progress data
-                    const doneJobs = Math.floor((currentProgress / 100) * totalJobs);
-                    const queuedJobs = isCurrentlyRunning ? Math.max(totalJobs - doneJobs - 1, 0) : 0;
-                    const runningJobs = isCurrentlyRunning ? 1 : 0;
-                    const failedJobs = 0;
-                    
-                    // Define unique colors for each agent
-                    const agentColors = [
-                      'border-blue-500 bg-blue-500/10', // Legal
-                      'border-green-500 bg-green-500/10', // Clinical  
-                      'border-purple-500 bg-purple-500/10', // Commercial
-                      'border-orange-500 bg-orange-500/10', // HR
-                      'border-red-500 bg-red-500/10', // Financial
-                      'border-cyan-500 bg-cyan-500/10', // IP
-                      'border-yellow-500 bg-yellow-500/10', // Research
-                    ];
-                    
-                    const progressBarColors = [
-                      'bg-blue-500', // Legal
-                      'bg-green-500', // Clinical
-                      'bg-purple-500', // Commercial
-                      'bg-orange-500', // HR
-                      'bg-red-500', // Financial
-                      'bg-cyan-500', // IP
-                      'bg-yellow-500', // Research
-                    ];
-                    
-                    const statusColors = [
-                      'text-blue-400', // Legal
-                      'text-green-400', // Clinical
-                      'text-purple-400', // Commercial
-                      'text-orange-400', // HR
-                      'text-red-400', // Financial
-                      'text-cyan-400', // IP
-                      'text-yellow-400', // Research
-                    ];
-                    
-                    return (
-                      <div 
-                        key={agentType} 
-                        className={`${agentColors[index]} border rounded-lg p-4 cursor-pointer hover:border-opacity-70 transition-colors`}
-                        onClick={() => setActiveAgent(agentType.toLowerCase())}
-                      >
-                        {/* Agent Title and Progress */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            {isCurrentlyRunning && <div className={`w-2 h-2 ${progressBarColors[index]} rounded-full animate-pulse`}></div>}
-                            <span className="text-sm font-semibold text-white">{agentType}</span>
-                          </div>
-                          <span className={`text-lg font-bold ${statusColors[index]}`}>{currentProgress}%</span>
-                        </div>
-                        
-                        {/* Progress Bar - Pure Inline Test */}
-                        <div style={{
-                          width: '100%',
-                          backgroundColor: '#1a1a2e',
-                          borderRadius: '9999px',
-                          height: '8px',
-                          marginBottom: '12px'
-                        }}>
-                          <div style={{
-                            width: `${currentProgress}%`,
-                            height: '8px',
-                            borderRadius: '9999px',
-                            backgroundColor: index === 0 ? '#3b82f6' : // Legal - blue
-                                           index === 1 ? '#10b981' : // Clinical - green 
-                                           index === 2 ? '#8b5cf6' : // Commercial - purple
-                                           index === 3 ? '#f97316' : // HR - orange
-                                           index === 4 ? '#ef4444' : // Financial - red
-                                           index === 5 ? '#06b6d4' : // IP - cyan
-                                           index === 6 ? '#eab308' : '#3b82f6', // Research - yellow
-                            transition: 'none'
-                          }} 
-                          ref={(el) => {
-                            if (el) {
-                              console.log(`🔥 ${agentType} BAR REAL PROGRESS:`, {
-                                agentType,
-                                index,
-                                realProgress: currentProgress,
-                                appliedWidth: el.style.width,
-                                actualWidth: el.offsetWidth,
-                                parentWidth: el.parentElement?.offsetWidth,
-                                backgroundColor: el.style.backgroundColor
-                              });
-                            }
-                          }}
-                          />
-                        </div>
-                        
-                        {/* Job Statistics */}
-                        <div className="space-y-2 text-xs">
-                          {/* Jobs Done/Total */}
-                          <div className="flex justify-between text-gray-300">
-                            <span>Jobs:</span>
-                            <span>{doneJobs} / {totalJobs}</span>
-                          </div>
-                          
-                          {/* Queue Status */}
-                          <div className="flex justify-between text-gray-400">
-                            <span>Queue:</span>
-                            <span>
-                              {queuedJobs} | {runningJobs} | {failedJobs} | 0
-                            </span>
-                          </div>
-                          
-                          {/* Documents and Questions */}
-                          <div className="flex justify-between text-gray-400">
-                            <span>Docs: {assignedDocs} • Q: {totalQuestions}</span>
-                          </div>
-                        </div>
-                        
-                        {/* Current Activity */}
-                        {isCurrentlyRunning && currentStep && (
-                          <div className="mt-3 pt-2 border-t border-opacity-20">
-                            <div className={`text-xs ${statusColors[index]} font-medium mb-1`}>Currently Working:</div>
-                            <div className="text-xs text-gray-400 truncate">
-                              {currentDocumentName || 'Processing'} → {currentStep}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Completed Status */}
-                        {!isCurrentlyRunning && currentProgress === 100 && (
-                          <div className="mt-3 pt-2 border-t border-opacity-20">
-                            <div className="text-xs text-green-400 font-medium">✓ Analysis Complete</div>
-                            <div className="text-xs text-gray-400">Ready to view results</div>
-                          </div>
-                        )}
-                        
-                        {/* Not Started Status */}
-                        {!isCurrentlyRunning && currentProgress === 0 && (
-                          <div className="mt-3 pt-2 border-t border-opacity-20">
-                            <div className="text-xs text-gray-500">Not Started</div>
-                            <div className="text-xs text-gray-500">{assignedDocs} docs assigned</div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Action Buttons - HIDDEN PER USER REQUEST 
-                <div className="flex justify-center space-x-4 mt-6">
-                  <Button
-                    onClick={async () => {
-                      try {
-                        setIsRunningAllAnalyses(true);
-                        const response = await apiRequest(`/api/deals/${selectedDeal}/comprehensive-analysis`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' }
-                        });
-                        
-                        if (response.success) {
-                          toast({
-                            title: "Comprehensive Analysis Started",
-                            description: `Started analysis for ${response.summary.startedSuccessfully}/7 agents`,
-                          });
-                          // Refresh progress data
-                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-                        }
-                      } catch (error) {
-                        console.error('Error starting comprehensive analysis:', error);
-                        toast({
-                          title: "Error",
-                          description: "Failed to start comprehensive analysis",
-                          variant: "destructive"
-                        });
-                      } finally {
-                        setIsRunningAllAnalyses(false);
-                      }
-                    }}
-                    disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress.jobs.length > 0)}
-                    className="bg-primary hover:bg-primary/80 text-white px-6 py-2"
-                  >
-                    {isRunningAllAnalyses ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Starting Analysis...
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="h-4 w-4 mr-2" />
-                        Comprehensive Analysis
-                      </>
-                    )}
-                  </Button>
-                  
-                  <Button
-                    onClick={async () => {
-                      try {
-                        const response = await apiRequest(`/api/deals/${selectedDeal}/legacy-reset`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' }
-                        });
-                        
-                        if (response.success) {
-                          toast({
-                            title: "Legacy Reset Complete",
-                            description: "All analysis data cleared. Ready for fresh start.",
-                          });
-                          // Refresh all data
-                          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-                          queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-                        }
-                      } catch (error) {
-                        console.error('Error performing legacy reset:', error);
-                        toast({
-                          title: "Error", 
-                          description: "Failed to reset analysis data",
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                    variant="outline"
-                    className="border-gray-600 text-gray-300 hover:bg-gray-800 px-6 py-2"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Legacy Reset
-                  </Button>
-                </div>
-                */}
-              </div>
 
               
               <Tabs value={activeAgent} onValueChange={setActiveAgent} className="w-full">
@@ -1581,119 +792,49 @@ function DueDiligenceContent() {
                     value="clinical"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Clinical ({clinicalDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Clinical
                   </TabsTrigger>
                   <TabsTrigger
                     value="legal"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Legal ({legalDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Legal
                   </TabsTrigger>
                   <TabsTrigger
                     value="commercial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Commercial ({commercialDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Commercial
                   </TabsTrigger>
                   <TabsTrigger
                     value="hr"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>HR ({hrDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    HR
                   </TabsTrigger>
                   <TabsTrigger
                     value="financial"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Financial ({financialDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Financial
                   </TabsTrigger>
                   <TabsTrigger
                     value="ip"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>IP ({ipDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    IP
                   </TabsTrigger>
                   <TabsTrigger
                     value="research"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <span>Research ({researchDocs?.length || 0})</span>
-                      {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.status === 'processing' && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
-                          <span className="text-xs text-primary">
-                            {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    Research
                   </TabsTrigger>
                   <TabsTrigger
                     value="unassigned"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Unassigned ({unassignedDocs?.length || 0})
+                    Unassigned ({unassignedDocs.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="ai-agents"
@@ -1711,9 +852,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.currentStep}
-                    onClinicalAnalysisStart={() => setClinicalAnalysisStarted(true)}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('clinical'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1725,8 +865,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.currentStep}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('legal'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('legal'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1738,8 +878,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.currentStep}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('commercial'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('commercial'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1751,8 +891,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.currentStep}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('hr'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('hr'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1764,8 +904,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.currentStep}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('financial'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('financial'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1777,8 +917,8 @@ function DueDiligenceContent() {
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.currentStep}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('ip'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('ip'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1786,13 +926,12 @@ function DueDiligenceContent() {
                   <EnhancedAgentCard 
                     dealId={parseInt(selectedDeal)}
                     agentType="Research"
-                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType === 'Research' || a.agentType.toLowerCase() === 'research') : undefined}
+                    analysis={Array.isArray(analyses) ? analyses.find((a: any) => a.agentType.toLowerCase() === 'research') : undefined}
                     isLoading={isLoadingAnalyses}
                     documents={documents}
                     isRunningAllAnalyses={isRunningAllAnalyses}
-                    currentProgress={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.progress || 0}
-                    currentDocumentName={findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.currentStep}
-                    onResearchAnalysisStart={() => setResearchAnalysisStarted(true)}
+                    currentProgress={jobProgress?.jobs?.find((job: any) => job.jobId.includes('research'))?.progress || 0}
+                    currentDocumentName={jobProgress?.jobs?.find((job: any) => job.jobId.includes('research'))?.currentStep}
                   />
                 </TabsContent>
                 
@@ -1826,16 +965,7 @@ function DueDiligenceContent() {
             <p className="text-gray-400 mb-4">Please select a deal to view its due diligence analysis.</p>
           </CardContent>
         </Card>
-        )}
-      </div>
-    );
-
-}
-
-export default function DueDiligence() {
-  return (
-    <ErrorBoundary>
-      <DueDiligenceContent />
-    </ErrorBoundary>
+      )}
+    </div>
   );
 }

@@ -42,7 +42,7 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 export function getScoreColor(score: number): string {
-  if (score >= 85) return 'text-primary border-primary';
+  if (score >= 85) return 'text-green-500 border-green-500';
   if (score >= 70) return 'text-blue-500 border-blue-500';
   if (score >= 50) return 'text-amber-500 border-amber-500';
   return 'text-red-500 border-red-500';

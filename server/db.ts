@@ -10,14 +10,7 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  // Performance optimizations
-  max: 20, // Maximum number of connections in the pool
-  min: 5, // Minimum number of connections in the pool
-  idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-  connectionTimeoutMillis: 5000, // Connection timeout
-  // Enable connection pooling optimizations
-  allowExitOnIdle: false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 export const db = drizzle(pool, { schema });

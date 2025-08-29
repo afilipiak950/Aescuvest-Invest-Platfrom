@@ -28,7 +28,7 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
     <section className="mb-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-white">{title}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">{title}</h1>
           {description && (
             <p className="text-gray-400">{description}</p>
           )}
@@ -40,10 +40,7 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
               <Button
                 key={index}
                 variant={action.variant || 'default'}
-                className={action.variant === 'outline' 
-                  ? 'bg-dark-lighter hover:bg-dark-light border-primary-custom text-primary-custom' 
-                  : 'bg-primary-custom hover:bg-primary-custom/90 text-dark'
-                }
+                className={action.variant === 'outline' ? 'bg-dark-lighter hover:bg-dark-light' : ''}
                 onClick={action.onClick}
                 asChild={!!action.href}
               >

@@ -9,62 +9,19 @@ class JobProcessor {
   private processingJobs: Set<number> = new Set();
   private jobQueue: BackgroundJob[] = [];
   private isProcessing = false;
-  
-  constructor() {
-    // Start automatic cleanup of stuck jobs every 5 minutes
-    setInterval(() => {
-      this.cleanupStuckJobs();
-    }, 5 * 60 * 1000); // 5 minutes
-    
-    // 🚀 LOAD PENDING JOBS: Check database every 5 seconds for pending jobs to enable parallel processing
-    setInterval(() => {
-      this.loadPendingJobsFromDatabase();
-    }, 5 * 1000); // 5 seconds
-    
-    // Load pending jobs immediately on startup
-    setTimeout(() => {
-      this.loadPendingJobsFromDatabase();
-    }, 1000);
-  }
 
   async createJob(jobData: InsertBackgroundJob): Promise<number> {
-    console.log(`🔍 JOB CREATE MICRO-STEP 1: Validating job data...`);
-    
-    // Ensure jobId is properly set with fallback
-    const safeJobData = {
-      ...jobData,
-      jobId: jobData.jobId || `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      status: jobData.status || 'pending'
-    };
-    
-    console.log(`🔍 JOB CREATE MICRO-STEP 2: Inserting job to database with safe data...`);
-    console.log(`🔍 Safe job data:`, safeJobData);
-    
-    const [job] = await db.insert(backgroundJobs).values(safeJobData).returning();
-    
-    if (!job || !job.id) {
-      throw new Error('Failed to create job - no job ID returned from database');
-    }
+    const [job] = await db.insert(backgroundJobs).values(jobData).returning();
     console.log(`📋 Created background job ${job.id}: ${job.jobType}`);
-    console.log(`🔍 JOB CREATE MICRO-STEP 2: Job details:`, {
-      id: job.id,
-      jobType: job.jobType,
-      dealId: job.dealId,
-      status: job.status
-    });
     
     // Add to queue and start processing asynchronously
     this.jobQueue.push(job);
-    console.log(`🔍 JOB CREATE MICRO-STEP 3: Added to queue. Queue length: ${this.jobQueue.length}`);
     
     // Process the job immediately in the background
-    console.log(`🔍 JOB CREATE MICRO-STEP 4: Scheduling processQueue with setImmediate...`);
     setImmediate(() => {
-      console.log(`🔍 JOB CREATE MICRO-STEP 5: setImmediate callback triggered!`);
       this.processQueue();
     });
     
-    console.log(`🔍 JOB CREATE MICRO-STEP 6: Returning job ID: ${job.id}`);
     return job.id;
   }
 
@@ -94,13 +51,12 @@ class JobProcessor {
       .where(eq(backgroundJobs.id, jobId));
 
     if (updatedJob) {
-      const jobData = updatedJob.jobData as any || {};
       websocketManager.broadcastJobProgress({
         jobId,
         progress,
         status: status || updatedJob.status,
         currentStep,
-        documentName: jobData?.documentName || jobData?.fileName || 'Unknown document'
+        documentName: updatedJob.jobData?.documentName || updatedJob.jobData?.fileName || 'Unknown document'
       }, updatedJob.dealId || undefined);
     }
 
@@ -140,71 +96,6 @@ class JobProcessor {
     console.log(`✅ Job ${jobId} ${status}: ${error || 'Success'}`);
   }
 
-  async loadPendingJobsFromDatabase() {
-    try {
-      // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
-      const pendingJobs = await db.select()
-        .from(backgroundJobs)
-        .where(eq(backgroundJobs.status, 'pending'))
-        .limit(50); // Load up to 50 pending jobs at a time
-      
-      if (pendingJobs.length > 0) {
-        console.log(`🚀 LOADING ${pendingJobs.length} pending jobs from database into memory queue for parallel processing!`);
-        
-        // Add jobs that aren't already in the queue
-        let newJobs = 0;
-        for (const job of pendingJobs) {
-          const alreadyQueued = this.jobQueue.some(qJob => qJob.id === job.id);
-          if (!alreadyQueued && !this.processingJobs.has(job.id)) {
-            this.jobQueue.push(job);
-            newJobs++;
-          }
-        }
-        
-        if (newJobs > 0) {
-          console.log(`✅ Added ${newJobs} new jobs to queue. Total queue length: ${this.jobQueue.length}`);
-          
-          // Trigger parallel processing immediately
-          setImmediate(() => {
-            this.processQueue();
-          });
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error loading pending jobs from database:', error);
-    }
-  }
-
-  async cleanupStuckJobs() {
-    try {
-      console.log('🧹 Checking for stuck jobs...');
-      
-      // Find jobs that have been processing for more than 10 minutes
-      const stuckJobs = await db.select()
-        .from(backgroundJobs)
-        .where(and(
-          eq(backgroundJobs.status, 'processing')
-        ));
-
-      const now = new Date();
-      const stuckThreshold = 5 * 60 * 1000; // 5 minutes (faster cleanup)
-
-      for (const job of stuckJobs) {
-        const lastUpdate = job.updatedAt || job.startedAt || job.createdAt;
-        const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
-        
-        if (timeSinceUpdate > stuckThreshold) {
-          console.log(`🧹 Cleaning up stuck job ${job.id} (stuck for ${Math.floor(timeSinceUpdate / 60000)} minutes)`);
-          
-          await this.completeJob(job.id, null, `Job automatically cleaned up - stuck for ${Math.floor(timeSinceUpdate / 60000)} minutes`);
-          this.processingJobs.delete(job.id);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error during stuck job cleanup:', error);
-    }
-  }
-
   private async processQueue() {
     console.log(`🔄 ProcessQueue called - isProcessing: ${this.isProcessing}, queueLength: ${this.jobQueue.length}`);
     
@@ -214,74 +105,31 @@ class JobProcessor {
     }
 
     this.isProcessing = true;
-    console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
+    console.log(`🚀 Starting queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🔥 PARALLEL PROCESSING: Process up to 10 jobs simultaneously for 10x speed boost
-    const MAX_CONCURRENT_JOBS = 10;
-    
     while (this.jobQueue.length > 0) {
-      // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
-      const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
+      const job = this.jobQueue.shift()!;
+      console.log(`📋 Processing job ${job.id}: ${job.jobType}`);
       
-      if (batch.length === 1) {
-        // Single job - process normally
-        const job = batch[0];
-        console.log(`📋 Processing single job ${job.id}: ${job.jobType}`);
-        
-        if (this.processingJobs.has(job.id)) {
-          console.log(`⏭️ Skipping job ${job.id} - already processing`);
-          continue;
-        }
+      if (this.processingJobs.has(job.id)) {
+        console.log(`⏭️ Skipping job ${job.id} - already processing`);
+        continue; // Skip if already processing
+      }
 
-        this.processingJobs.add(job.id);
-        
-        try {
-          console.log(`🎯 Executing job ${job.id}`);
-          await this.processJob(job);
-          console.log(`✅ Job ${job.id} completed successfully`);
-        } catch (error) {
-          console.error(`❌ Error processing job ${job.id}:`, error);
-          await this.completeJob(job.id, null, String(error));
-        }
-      } else {
-        // Multiple jobs - PARALLEL PROCESSING for massive speed boost!
-        console.log(`🚀 PARALLEL PROCESSING: Starting ${batch.length} jobs simultaneously for 10x speed boost!`);
-        
-        const parallelPromises = batch.map(async (job) => {
-          if (this.processingJobs.has(job.id)) {
-            console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
-            return null;
-          }
-
-          this.processingJobs.add(job.id);
-          
-          try {
-            console.log(`🎯 Executing parallel job ${job.id}: ${job.jobType}`);
-            await this.processJob(job);
-            console.log(`✅ Parallel job ${job.id} completed successfully`);
-            return job.id;
-          } catch (error) {
-            console.error(`❌ Parallel job ${job.id} failed:`, error);
-            await this.completeJob(job.id, null, String(error));
-            return null;
-          }
-        });
-        
-        // Wait for all parallel jobs to complete
-        const results = await Promise.allSettled(parallelPromises);
-        const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-        const failed = results.length - successful;
-        
-        console.log(`🎉 PARALLEL BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
-        
-        if (successful > 0) {
-          console.log(`📈 SPEED BOOST ACHIEVED: ${successful} documents processed simultaneously!`);
-        }
+      this.processingJobs.add(job.id);
+      
+      try {
+        console.log(`🎯 Executing job ${job.id}`);
+        await this.processJob(job);
+        console.log(`✅ Job ${job.id} completed successfully`);
+      } catch (error) {
+        console.error(`❌ Error processing job ${job.id}:`, error);
+        await this.completeJob(job.id, null, String(error));
       }
     }
 
     this.isProcessing = false;
-    console.log(`🏁 PARALLEL queue processing completed - MASSIVE speed improvement achieved!`);
+    console.log(`🏁 Queue processing completed`);
   }
 
   private async processJob(job: BackgroundJob) {
@@ -300,9 +148,6 @@ class JobProcessor {
       case 'ai_summary_generation':
         await this.processAISummaryGeneration(job);
         break;
-      case 'document_assignment':
-        await this.processDocumentAssignment(job);
-        break;
       default:
         throw new Error(`Unknown job type: ${job.jobType}`);
     }
@@ -311,46 +156,11 @@ class JobProcessor {
   private async processDocumentOCR(job: BackgroundJob) {
     const { filePath, fileName, fileType, documentId } = job.jobData as any;
     
-    await this.updateJobProgress(job.id, 5, 'Validating job data and file paths...', 'processing');
-    
-    // Enhanced job data validation
-    if (!documentId) {
-      throw new Error('Missing documentId in job data');
-    }
-    if (!filePath) {
-      throw new Error('Missing filePath in job data');
-    }
-    if (!fileName) {
-      throw new Error('Missing fileName in job data');
-    }
-    
-    await this.updateJobProgress(job.id, 10, 'Initializing OCR processing...');
+    await this.updateJobProgress(job.id, 10, 'Initializing OCR processing...', 'processing');
 
-    // Handle database-stored files
-    let actualFilePath = filePath;
-    let tempFilePath: string | null = null;
-    
-    if (filePath.startsWith('db://')) {
-      // File is stored in database, retrieve it
-      const { dbFileStorage } = await import('./databaseFileStorage');
-      await this.updateJobProgress(job.id, 15, 'Retrieving file from database storage...');
-      
-      const fileBuffer = await dbFileStorage.retrieveFile(filePath);
-      
-      // Create temporary file for OCR processing
-      const tempDir = path.join(process.cwd(), 'temp');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      
-      tempFilePath = path.join(tempDir, `temp_${Date.now()}_${fileName}`);
-      await fs.promises.writeFile(tempFilePath, fileBuffer);
-      actualFilePath = tempFilePath;
-      
-      await this.updateJobProgress(job.id, 18, 'File retrieved from database, starting OCR...');
-    } else {
-      // Enhanced file path validation and resolution
-      actualFilePath = await this.validateAndResolvePath(filePath);
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
     }
 
     await this.updateJobProgress(job.id, 20, 'Loading Mistral OCR service...');
@@ -360,110 +170,18 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 30, 'Starting text extraction...');
 
-    // Dynamic timeout based on file size and type
-    const fileStats = fs.statSync(actualFilePath);
-    const fileSizeMB = fileStats.size / (1024 * 1024);
-    const fileExtension = path.extname(actualFilePath).toLowerCase();
-    
-    let ocrTimeout = 120000; // 2 minutes default
-    if (fileExtension === '.zip') {
-      ocrTimeout = Math.max(300000, fileSizeMB * 3000); // 5 minutes minimum for ZIP
-    } else if (fileExtension === '.pdf') {
-      ocrTimeout = Math.max(180000, fileSizeMB * 20000); // 3 minutes minimum for PDF
-    } else if (fileSizeMB > 50) {
-      ocrTimeout = Math.max(240000, fileSizeMB * 5000); // 4 minutes for very large files
-    }
-    
-    // Cap at 15 minutes for extremely large files
-    ocrTimeout = Math.min(ocrTimeout, 900000);
-    
-    console.log(`⏱️ Setting OCR timeout to ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileSizeMB.toFixed(2)}MB ${fileExtension} file`);
-    
-    let timeoutId: NodeJS.Timeout;
-    const ocrTimeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(`OCR processing timeout after ${(ocrTimeout/60000).toFixed(1)} minutes for ${fileExtension} file (${fileSizeMB.toFixed(2)}MB)`)), ocrTimeout);
-    });
-
-    let ocrResult;
-    let retryAttempt = 0;
-    const maxRetries = 3;
-    
-    while (retryAttempt <= maxRetries) {
-      try {
-        await this.updateJobProgress(job.id, 30 + (retryAttempt * 15), 
-          retryAttempt === 0 ? 'Starting text extraction...' : `Retry attempt ${retryAttempt}/3...`);
-        
-        ocrResult = await Promise.race([
-          mistralOCRService.extractText(actualFilePath, fileType),
-          ocrTimeoutPromise
-        ]);
-        
-        // Success - clear timeout and break out of retry loop
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        break;
-        
-      } catch (error) {
-        retryAttempt++;
-        console.error(`❌ OCR attempt ${retryAttempt} failed for ${actualFilePath}:`, error);
-        
-        // Log detailed error information for monitoring
-        await this.logOCRFailure(job.id, documentId, actualFilePath, error, retryAttempt);
-        
-        if (retryAttempt > maxRetries) {
-          // Final attempt failed - check if we can salvage anything
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          
-          if (errorMessage.includes('timeout')) {
-            // Timeout error - try simplified extraction
-            ocrResult = await this.attemptSimplifiedExtraction(actualFilePath, fileType);
-          } else if (errorMessage.includes('corrupted') || errorMessage.includes('not found')) {
-            // File issue - create error record but don't retry
-            ocrResult = {
-              extractedText: `File processing failed: ${errorMessage}. File: ${path.basename(actualFilePath)}`,
-              confidence: 0.0,
-              processingTime: '0s'
-            };
-          } else {
-            // Other error - provide fallback result
-            ocrResult = {
-              extractedText: `OCR processing failed after ${maxRetries} attempts: ${errorMessage}. File: ${path.basename(actualFilePath)}`,
-              confidence: 0.0,
-              processingTime: '0s'
-            };
-          }
-          break;
-        } else {
-          // Wait before retry with exponential backoff
-          const delay = Math.min(5000 * Math.pow(2, retryAttempt - 1), 30000); // Max 30 seconds
-          console.log(`⏳ Waiting ${delay/1000}s before retry...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
+    const ocrResult = await mistralOCRService.extractText(filePath, fileType);
     
     await this.updateJobProgress(job.id, 60, 'OCR extraction completed, generating AI summary...');
 
     let aiSummary = null;
     let aiSummaryStatus = 'failed';
 
-    // Generate AI summary automatically if we have extracted text (optimized)
+    // Generate AI summary automatically if we have extracted text
     if (ocrResult.extractedText && ocrResult.extractedText.trim().length > 50) {
       try {
         await this.updateJobProgress(job.id, 70, 'Generating intelligent document summary...');
-        
-        // Add timeout for AI summary generation (30 seconds max)
-        const summaryTimeoutPromise = new Promise<never>((_, reject) => {
-          const aiTimeoutId = setTimeout(() => reject(new Error('AI summary generation timeout after 30 seconds')), 30000);
-          // Clear timeout on completion
-          promise.finally(() => clearTimeout(aiTimeoutId));
-        });
-        
-        aiSummary = await Promise.race([
-          this.generateAISummary(ocrResult.extractedText),
-          summaryTimeoutPromise
-        ]);
+        aiSummary = await this.generateAISummary(ocrResult.extractedText);
         aiSummaryStatus = 'completed';
         await this.updateJobProgress(job.id, 90, 'AI summary generated successfully...');
       } catch (error) {
@@ -497,47 +215,6 @@ class JobProcessor {
       await db.update(documents)
         .set(updateData)
         .where(eq(documents.id, documentId));
-      
-      // 🚀 AUTOMATICALLY EMBED DOCUMENT FOR RAG SYSTEM
-      if ((ocrResult.extractedText && ocrResult.extractedText.length > 100) || aiSummary) {
-        try {
-          await this.updateJobProgress(job.id, 95, 'Adding to RAG system for instant search...');
-          
-          // Import embedding service
-          const { EmbeddingService } = await import('./embeddingService');
-          
-          // Get document details for embedding
-          const [doc] = await db.select()
-            .from(documents)
-            .where(eq(documents.id, documentId));
-          
-          if (doc) {
-            // Combine OCR text and AI summary for comprehensive embedding
-            let textToEmbed = '';
-            if (ocrResult.extractedText) {
-              textToEmbed += 'OCR TEXT:\n' + ocrResult.extractedText + '\n\n';
-            }
-            if (aiSummary) {
-              const summaryText = typeof aiSummary === 'string' ? aiSummary : JSON.stringify(aiSummary);
-              textToEmbed += 'AI SUMMARY:\n' + summaryText;
-            }
-            
-            // Generate embeddings for RAG
-            await EmbeddingService.embedDocument(
-              documentId,
-              doc.dealId,
-              doc.name,
-              textToEmbed,
-              doc.type || 'general'
-            );
-            
-            console.log(`✅ Document ${doc.name} added to RAG system for instant search`);
-          }
-        } catch (error) {
-          console.error('Failed to embed document for RAG:', error);
-          // Don't fail the job if embedding fails
-        }
-      }
     }
 
     await this.updateJobProgress(job.id, 100, 'OCR processing and AI analysis completed successfully');
@@ -552,15 +229,6 @@ class JobProcessor {
     };
 
     await this.completeJob(job.id, result);
-    
-    // Clean up temporary file if it was created
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      try {
-        await fs.promises.unlink(tempFilePath);
-      } catch (err) {
-        console.warn('Failed to cleanup temp file:', err);
-      }
-    }
   }
 
   private async processDocumentAnalysis(job: BackgroundJob) {
@@ -603,28 +271,15 @@ class JobProcessor {
   private async processZipFile(job: BackgroundJob) {
     const { zipPath, dealId, folderName } = job.jobData as any;
     
-    console.log(`🔍 MICRO-STEP 1: processZipFile called with:`, {
-      jobId: job.id,
-      zipPath,
-      dealId,
-      folderName
-    });
-    
     await this.updateJobProgress(job.id, 10, 'Extracting ZIP file...', 'processing');
 
-    console.log(`🔍 MICRO-STEP 2: Loading zipProcessor module...`);
     // Import and use zip processor
     const { zipProcessor } = await import('./zipProcessor');
     
-    console.log(`🔍 MICRO-STEP 3: Calling zipProcessor.processZipFile...`);
     const result = await zipProcessor.processZipFile(zipPath, dealId, folderName);
-    
-    console.log(`🔍 MICRO-STEP 4: ZIP processing result:`, result);
     
     await this.updateJobProgress(job.id, 100, 'ZIP processing completed');
     await this.completeJob(job.id, result);
-    
-    console.log(`🔍 MICRO-STEP 5: ZIP job completed successfully`);
   }
 
   private async performAIAnalysis(document: any, analysisTypes: string[]) {
@@ -661,9 +316,9 @@ class JobProcessor {
           eq(backgroundJobs.dealId, dealId),
           eq(backgroundJobs.status, 'processing')
         )
-      ) as any;
+      );
     } else {
-      query = query.where(eq(backgroundJobs.status, 'processing')) as any;
+      query = query.where(eq(backgroundJobs.status, 'processing'));
     }
 
     return await query;
@@ -674,190 +329,6 @@ class JobProcessor {
       .where(dealId ? eq(backgroundJobs.dealId, dealId) : undefined)
       .limit(limit);
     return jobs;
-  }
-
-  /**
-   * Enhanced file path validation and resolution
-   * Handles multiple storage types and fallback paths
-   */
-  private async validateAndResolvePath(filePath: string): Promise<string> {
-    console.log(`🔍 Validating file path: ${filePath}`);
-    
-    // Check if direct path exists
-    if (fs.existsSync(filePath)) {
-      console.log(`✅ File found at direct path: ${filePath}`);
-      return filePath;
-    }
-    
-    const fileName = path.basename(filePath);
-    console.log(`🔍 File not found at ${filePath}, searching for: ${fileName}`);
-    
-    // Array of search paths in order of preference
-    const searchPaths = [
-      // Current working directory
-      path.join(process.cwd(), filePath),
-      // Uploads directory
-      path.join(process.cwd(), 'uploads', fileName),
-      path.join(process.cwd(), 'uploads', filePath),
-      // Extracted directories
-      path.join(process.cwd(), 'uploads', 'extracted'),
-      // GCS cache directory
-      path.join(process.cwd(), 'temp', fileName),
-      // Temp directory
-      path.join('/tmp', fileName)
-    ];
-    
-    // Check direct search paths
-    for (const searchPath of searchPaths) {
-      if (fs.existsSync(searchPath)) {
-        console.log(`✅ Found file at: ${searchPath}`);
-        return searchPath;
-      }
-    }
-    
-    // Search in extracted subdirectories
-    const extractedDir = path.join(process.cwd(), 'uploads', 'extracted');
-    if (fs.existsSync(extractedDir)) {
-      console.log(`🔍 Searching in extracted subdirectories...`);
-      
-      const subDirs = fs.readdirSync(extractedDir, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
-      
-      for (const subDir of subDirs) {
-        const possiblePath = path.join(extractedDir, subDir, fileName);
-        if (fs.existsSync(possiblePath)) {
-          console.log(`✅ Found file in extracted directory: ${possiblePath}`);
-          return possiblePath;
-        }
-        
-        // Also search with original relative path
-        const relativePathInSubdir = path.join(extractedDir, subDir, filePath);
-        if (fs.existsSync(relativePathInSubdir)) {
-          console.log(`✅ Found file with relative path: ${relativePathInSubdir}`);
-          return relativePathInSubdir;
-        }
-      }
-    }
-    
-    // Final fallback: search the entire uploads directory recursively (last resort)
-    console.log(`🔍 Performing recursive search as last resort...`);
-    const foundPath = await this.recursiveFileSearch(path.join(process.cwd(), 'uploads'), fileName);
-    if (foundPath) {
-      console.log(`✅ Found file via recursive search: ${foundPath}`);
-      return foundPath;
-    }
-    
-    // File not found anywhere
-    throw new Error(`File not found: ${filePath}. Searched in uploads, extracted, temp, and recursive directories. File may have been deleted or moved.`);
-  }
-  
-  /**
-   * Recursively search for a file in a directory
-   */
-  private async recursiveFileSearch(dir: string, fileName: string): Promise<string | null> {
-    try {
-      const items = await fs.promises.readdir(dir, { withFileTypes: true });
-      
-      for (const item of items) {
-        const fullPath = path.join(dir, item.name);
-        
-        if (item.isFile() && item.name === fileName) {
-          return fullPath;
-        } else if (item.isDirectory()) {
-          const found = await this.recursiveFileSearch(fullPath, fileName);
-          if (found) return found;
-        }
-      }
-    } catch (error) {
-      // Ignore errors for inaccessible directories
-      console.warn(`⚠️ Cannot access directory ${dir}: ${error}`);
-    }
-    
-    return null;
-  }
-
-  /**
-   * Log OCR failure for monitoring and analysis
-   */
-  private async logOCRFailure(jobId: number, documentId: number, filePath: string, error: any, attempt: number) {
-    try {
-      const errorInfo = {
-        jobId,
-        documentId,
-        filePath: path.basename(filePath),
-        errorMessage: error instanceof Error ? error.message : String(error),
-        attempt,
-        timestamp: new Date().toISOString(),
-        fileSize: fs.existsSync(filePath) ? fs.statSync(filePath).size : 0,
-        fileExtension: path.extname(filePath).toLowerCase()
-      };
-      
-      console.error(`📊 OCR Failure Log:`, errorInfo);
-      
-      // Store in database for monitoring (optional - could create a failures table)
-      // For now, just comprehensive logging
-      
-    } catch (logError) {
-      console.error('Failed to log OCR failure:', logError);
-    }
-  }
-
-  /**
-   * Attempt simplified text extraction for timeout cases
-   */
-  private async attemptSimplifiedExtraction(filePath: string, fileType: string): Promise<any> {
-    try {
-      console.log(`🔄 Attempting simplified extraction for ${path.basename(filePath)}`);
-      
-      const fileExtension = path.extname(filePath).toLowerCase();
-      
-      // For text files, try direct reading
-      if (['.txt', '.md', '.csv', '.json'].includes(fileExtension)) {
-        const content = fs.readFileSync(filePath, 'utf8');
-        return {
-          extractedText: content.substring(0, 10000), // Limit to first 10KB
-          confidence: 0.8,
-          processingTime: '0.1s'
-        };
-      }
-      
-      // For PDFs, try simple pdftotext without OCR
-      if (fileExtension === '.pdf') {
-        const { execSync } = await import('child_process');
-        try {
-          const textOutput = execSync(`pdftotext "${filePath}" -`, { 
-            encoding: 'utf8', 
-            timeout: 15000 // 15 second timeout
-          });
-          
-          if (textOutput && textOutput.trim().length > 10) {
-            return {
-              extractedText: textOutput.substring(0, 10000),
-              confidence: 0.7,
-              processingTime: '0.5s'
-            };
-          }
-        } catch (pdfError) {
-          console.log(`⚠️ Simple PDF extraction also failed: ${pdfError}`);
-        }
-      }
-      
-      // Fallback: provide basic file information
-      return {
-        extractedText: `Simplified extraction attempted for ${path.basename(filePath)}. File type: ${fileType}. Original processing failed due to timeout or complexity.`,
-        confidence: 0.1,
-        processingTime: '0.1s'
-      };
-      
-    } catch (error) {
-      console.error('Simplified extraction failed:', error);
-      return {
-        extractedText: `Both standard and simplified extraction failed for ${path.basename(filePath)}.`,
-        confidence: 0.0,
-        processingTime: '0.1s'
-      };
-    }
   }
 
   private async generateAISummary(text: string): Promise<any> {
@@ -915,9 +386,9 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
       return result;
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('OpenAI API error during summary generation:', error);
-      throw new Error(`Failed to generate AI summary: ${error?.message || 'Unknown error'}`);
+      throw new Error(`Failed to generate AI summary: ${error.message}`);
     }
   }
 
@@ -960,18 +431,6 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
         })
         .where(eq(documents.id, documentId));
 
-      // CRITICAL: Embed document in RAG system after AI summary generation
-      try {
-        console.log(`🎯 EMBEDDING document ${documentId} in RAG system...`);
-        const { EmbeddingService } = await import('./embeddingService');
-        const embeddingService = new EmbeddingService();
-        await embeddingService.embedDocument(documentId);
-        console.log(`✅ Document ${documentId} successfully embedded in RAG system`);
-      } catch (embedError) {
-        console.error(`⚠️ Failed to embed document ${documentId}, will retry later:`, embedError);
-        // Don't fail the job if embedding fails - it can be retried
-      }
-
       await this.updateJobProgress(job.id, 100, 'AI summary generation completed');
       await this.completeJob(job.id, { 
         success: true, 
@@ -981,7 +440,7 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
       console.log(`✅ AI summary generated successfully for document ${documentId}`);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error(`❌ AI summary generation failed for job ${job.id}:`, error);
       
       // Update document status to failed
@@ -1035,31 +494,11 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       
       await this.updateJobProgress(jobId, 30, 'Starting text extraction...');
 
-      // Optimized timeout for ZIP processing OCR
-      const zipOcrTimeoutPromise = new Promise<never>((_, reject) => {
-        const zipTimeoutId = setTimeout(() => reject(new Error('ZIP OCR processing timeout after 90 seconds')), 90000); // 90 seconds (optimized)
-        // Clear timeout on completion
-        zipPromise.finally(() => clearTimeout(zipTimeoutId));
-      });
-
       // Determine file type from extension
       const fileType = path.extname(fileName).substring(1).toLowerCase();
       console.log(`🔍 Processing ${fileName} as type: ${fileType}`);
 
-      let ocrResult;
-      try {
-        ocrResult = await Promise.race([
-          mistralOCRService.extractText(filePath, fileType),
-          zipOcrTimeoutPromise
-        ]);
-      } catch (error) {
-        console.error(`❌ ZIP OCR failed for ${fileName}:`, error);
-        ocrResult = {
-          extractedText: `OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}. File: ${fileName}`,
-          confidence: 0.0,
-          processingTime: '0s'
-        };
-      }
+      const ocrResult = await mistralOCRService.extractText(filePath, fileType);
       
       await this.updateJobProgress(jobId, 70, 'OCR extraction completed, saving results...');
 
@@ -1075,66 +514,6 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           })
         })
         .where(eq(documents.id, documentId));
-        
-      // Generate embeddings for RAG system (non-blocking)
-      if (ocrResult.extractedText && ocrResult.extractedText.length > 0 && documentId) {
-        // Import dynamically to avoid circular dependencies
-        import('./embeddingService').then(({ EmbeddingService }) => {
-          // Get document details for metadata
-          db.select().from(documents).where(eq(documents.id, documentId)).then(docs => {
-            if (docs && docs[0]) {
-              const doc = docs[0];
-              // Generate embeddings in background
-              EmbeddingService.generateAndStoreEmbeddings(
-                ocrResult.extractedText,
-                {
-                  dealId: doc.dealId,
-                  documentId: doc.id,
-                  documentName: doc.name,
-                  documentType: doc.agentType || 'general'
-                }
-              ).then(() => {
-                console.log(`✅ Embeddings generated for document ${doc.name}`);
-              }).catch(error => {
-                console.error(`❌ Failed to generate embeddings for ${doc.name}:`, error);
-              });
-            }
-          });
-        }).catch(error => {
-          console.error('Failed to load embedding service:', error);
-        });
-      }
-
-      await this.updateJobProgress(jobId, 85, 'Generating embeddings for RAG...');
-      
-      // Generate embeddings for RAG system (non-blocking)
-      if (ocrResult.extractedText && ocrResult.extractedText.length > 0) {
-        // Import dynamically to avoid circular dependencies
-        import('./embeddingService').then(({ EmbeddingService }) => {
-          // Get document details for metadata
-          db.select().from(documents).where(eq(documents.id, documentId)).then(docs => {
-            if (docs && docs[0]) {
-              const doc = docs[0];
-              // Generate embeddings in background
-              EmbeddingService.generateAndStoreEmbeddings(
-                ocrResult.extractedText,
-                {
-                  dealId: doc.dealId,
-                  documentId: doc.id,
-                  documentName: doc.name,
-                  documentType: doc.agentType || 'general'
-                }
-              ).then(() => {
-                console.log(`✅ Embeddings generated for document ${doc.name}`);
-              }).catch(error => {
-                console.error(`❌ Failed to generate embeddings for ${doc.name}:`, error);
-              });
-            }
-          });
-        }).catch(error => {
-          console.error('Failed to load embedding service:', error);
-        });
-      }
 
       await this.updateJobProgress(jobId, 100, 'OCR processing completed successfully');
 
@@ -1152,53 +531,6 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       console.error(`❌ DIRECT OCR FAILED: Job ${jobId} error:`, error);
       await this.completeJob(jobId, null, String(error));
       throw error;
-    }
-  }
-
-  /**
-   * Process document assignment background job
-   */
-  private async processDocumentAssignment(job: BackgroundJob) {
-    await this.updateJobProgress(job.id, 0, 'Starting document assignment', 'processing');
-    
-    const { aiDocumentAssignmentService } = await import('./aiDocumentAssignment');
-    const jobData = job.jobData as any;
-    const dealId = jobData?.dealId || job.dealId;
-    
-    if (!dealId) {
-      throw new Error('Missing dealId for document assignment job');
-    }
-
-    console.log(`🤖 Starting AI-powered document assignment for deal ${dealId} (Background Job: ${job.id})`);
-    
-    try {
-      // Import the service dynamically to avoid circular dependencies
-      const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId);
-      
-      await this.updateJobProgress(job.id, 100, `Assignment completed: ${assignments.length} documents processed`, 'processing');
-      
-      const summary = {
-        totalDocuments: assignments.length,
-        agentCounts: assignments.reduce((acc, assignment) => {
-          assignment.assignedAgents.forEach(agent => {
-            acc[agent] = (acc[agent] || 0) + 1;
-          });
-          return acc;
-        }, {} as Record<string, number>)
-      };
-      
-      await this.completeJob(job.id, {
-        success: true,
-        message: `Successfully assigned agents to ${assignments.length} documents`,
-        assignments,
-        summary
-      });
-      
-      console.log(`✅ Background assignment completed for deal ${dealId}: ${assignments.length} documents processed`);
-      
-    } catch (error) {
-      console.error(`❌ Background assignment failed for deal ${dealId}:`, error);
-      await this.completeJob(job.id, null, `Assignment failed: ${error.message}`);
     }
   }
 }

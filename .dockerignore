@@ -1,160 +1,24 @@
-# Dependencies and build artifacts
-node_modules/
-node_modules/.cache/
-.npm/
-.cache/
-dist/
-build/
-
-# Upload directories (runtime directories will be recreated)
+node_modules/.cache
 uploads/*
 !uploads/.gitkeep
-attached_assets/*
-!attached_assets/65693c5a89e524678d52208a_Aescuvest\ Logo\ 1.png
-!attached_assets/65693c5a89e524678d52208a_Aescuvest\ Logo\ 1\ \(1\).png
-
-# Development and testing files
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.nyc_output
-coverage/
-test-*
-tests/
-__tests__/
-spec/
-__pycache__/
-
-# Environment and IDE files
-.env*
 .DS_Store
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Documentation and non-essential files
-README.md
-CHANGELOG.md
-LICENSE
-*.md
-docs/
-documentation/
-
-# Large binary files
+.vscode
+.idea
+test-*
+scripts/
+attached_assets/
 *.zip
 *.rar
 *.7z
 *.gz
 *.bz2
-*.tar
 *.pdf
 *.docx
 *.xlsx
-*.ppt
-*.pptx
-*.mov
-*.mp4
-*.avi
-*.mkv
-*.iso
-*.dmg
-
-# Git and version control
-.git/
-.git-rewrite/
+README.md
+.git
 .gitignore
-.gitattributes
-.github/
-
-# Large Git rewrite artifacts (critical - can be several GB)
-.git-rewrite/**/*
-
-# Temporary files
-tmp/
-temp/
-.tmp/
-
-# Additional optimization exclusions
-**/.cache/
-**/cache/
-**/*.cache
-npm-shrinkwrap.json
-yarn.lock
-pnpm-lock.yaml
-
-# Heavy OCR text data and processing files
-**/ocr-data/
-**/text-extraction/
-**/large-datasets/
-scripts/data/
-
-# Browserlist data
-.browserslistrc
-
-# Additional development artifacts
-.env.example
-.env.sample
-.env.template
-docker-compose.yml
-docker-compose.yaml
-Dockerfile.dev
-**/migrations/
-**/__pycache__/
-**/*.pyc
-
-# Large media directories
-**/videos/
-**/audio/
-**/media/
-**/assets/videos/
-**/assets/audio/
-
-# Additional config and documentation
-.gitignore
-.gitattributes
-.gitmodules
-.editorconfig
-.browserslistrc
-*.config.backup
-.temp/
-
-# OS generated files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Heavy development dependencies
-node_modules/**/test*/
-node_modules/**/tests/
-node_modules/**/*.test.*
-node_modules/**/*.spec.*
-node_modules/**/examples/
-node_modules/**/sample*/
-node_modules/**/demo*/
-node_modules/**/*.md
-node_modules/**/*.txt
-node_modules/**/LICENSE*
-node_modules/**/CHANGELOG*
-
-# Chromium and browser binaries (critical - hundreds of MB)
-node_modules/**/puppeteer/.local-chromium/
-node_modules/**/.local-chromium/
-node_modules/**/chromium/
-node_modules/**/chrome-linux/
-node_modules/**/chrome-mac/
-node_modules/**/chrome-win/
-**/chrome
-**/chromium
-**/.local-chromium/**/*
-
-# PDF processing binaries and large dependencies
-node_modules/**/pdfjs-dist/build/
-node_modules/**/sharp/vendor/
-node_modules/**/node-gyp-build/prebuilds/
-node_modules/**/*.node
-node_modules/**/*.dylib
-node_modules/**/*.so
-node_modules/**/*.dll

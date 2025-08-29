@@ -61,14 +61,14 @@ export function AIScoreBadge({ aiScore }: { aiScore?: number }) {
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return "bg-green-600 text-green-100";
-    if (score >= 65) return "bg-yellow-600 text-yellow-100";
+    if (score >= 80) return "bg-green-600 text-green-100";
+    if (score >= 50) return "bg-yellow-600 text-yellow-100";
     return "bg-red-600 text-red-100";
   };
 
   const getScoreIcon = (score: number) => {
-    if (score >= 85) return <CheckCircle className="w-3 h-3 mr-1" />;
-    if (score >= 65) return <AlertTriangle className="w-3 h-3 mr-1" />;
+    if (score >= 80) return <CheckCircle className="w-3 h-3 mr-1" />;
+    if (score >= 50) return <AlertTriangle className="w-3 h-3 mr-1" />;
     return <XCircle className="w-3 h-3 mr-1" />;
   };
 

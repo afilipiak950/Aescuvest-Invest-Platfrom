@@ -22,7 +22,7 @@ async function debugAIProcessingStuck(): Promise<void> {
 
     // Filter documents without AI summaries using JavaScript
     const documentsWithoutAI = allDocs.filter(doc => 
-      !doc.aiSummary || doc.aiSummary === null || (typeof doc.aiSummary === 'string' && doc.aiSummary.trim() === '')
+      !doc.aiSummary || doc.aiSummary === null || doc.aiSummary.trim() === ''
     );
 
     console.log(`📊 Found ${documentsWithoutAI.length} documents without AI summaries`);
@@ -31,7 +31,7 @@ async function debugAIProcessingStuck(): Promise<void> {
     console.log(`📊 Total documents for deal 22: ${allDocs.length}`);
     
     // Count documents with actual AI summaries
-    const docsWithAI = allDocs.filter(doc => doc.aiSummary && typeof doc.aiSummary === 'string' && doc.aiSummary.trim() !== '');
+    const docsWithAI = allDocs.filter(doc => doc.aiSummary && doc.aiSummary.trim() !== '');
     console.log(`📊 Documents with AI summaries: ${docsWithAI.length}`);
     console.log(`📊 Completion rate: ${Math.round((docsWithAI.length / allDocs.length) * 100)}%`);
 
@@ -141,7 +141,7 @@ async function debugAIProcessingStuck(): Promise<void> {
         .from(documents)
         .where(eq(documents.dealId, 22));
         
-      const finalDocsWithAI = finalDocs.filter(doc => doc.aiSummary && typeof doc.aiSummary === 'string' && doc.aiSummary.trim() !== '');
+      const finalDocsWithAI = finalDocs.filter(doc => doc.aiSummary && doc.aiSummary.trim() !== '');
       const finalCompletionRate = Math.round((finalDocsWithAI.length / finalDocs.length) * 100);
       
       console.log(`✅ Final completion rate: ${finalCompletionRate}% (${finalDocsWithAI.length}/${finalDocs.length})`);

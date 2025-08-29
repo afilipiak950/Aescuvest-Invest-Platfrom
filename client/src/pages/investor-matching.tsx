@@ -1,462 +1,340 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import PageHeader from '@/components/layout/page-header';
+import InvestorCard from '@/components/investor-matching/investor-card';
+import FilterSidebar from '@/components/investor-matching/filter-sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Search, 
-  Filter, 
-  RefreshCw, 
-  Download, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  MapPin,
-  Target,
-  Mail,
-  Calendar,
-  BarChart3,
-  Zap,
-  AlertCircle,
-  CheckCircle2
-} from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
+import { Deal, Investor } from '@/types';
 
-import FilterSidebar from '@/components/investor-matching/filter-sidebar';
-import InvestorCard from '@/components/investor-matching/investor-card';
+// Mock data
+const mockDeals: Deal[] = [
+  {
+    id: 1,
+    companyName: 'NeuroTech AI',
+    description: 'Brain-computer interface',
+    sector: 'MedTech',
+    stage: 'Series A',
+    location: 'Berlin, Germany',
+    fundingAmount: 8500000,
+    aiScore: 85,
+    status: 'Due Diligence',
+    createdAt: new Date(Date.now() - 86400000).toISOString(), // yesterday
+    documents: []
+  },
+  {
+    id: 2,
+    companyName: 'HealthMetrics',
+    description: 'Remote patient monitoring',
+    sector: 'HealthTech',
+    stage: 'Series B',
+    location: 'London, UK',
+    fundingAmount: 12000000,
+    aiScore: 78,
+    status: 'Memo Ready',
+    createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+    documents: []
+  }
+];
+
+const mockInvestors: Investor[] = [
+  {
+    id: 1,
+    name: 'Health Ventures Capital',
+    location: 'Berlin, Germany',
+    focus: ['HealthTech', 'MedTech', 'Digital Health'],
+    stages: ['Series A', 'Series B'],
+    checkSize: '€2M - €8M',
+    matchScore: 94,
+    portfolio: ['Cortex Medical', 'DigiHealth', 'MedSense', 'NeuraTech'],
+    matchInsights: [
+      'Previously invested in neural interface startup Cortex Medical',
+      'Portfolio includes 3 medical device companies',
+      'Led Series A round for similar German healthtech startup',
+      'Has co-investment history with existing investor HTGF'
+    ]
+  },
+  {
+    id: 2,
+    name: 'Innovation Neuro Fund',
+    location: 'Zurich, Switzerland',
+    focus: ['Neurotechnology', 'BCI', 'Medical Devices'],
+    stages: ['Series A', 'Series B'],
+    checkSize: '€3M - €10M',
+    matchScore: 92,
+    portfolio: ['NeuraTech', 'BrainSync', 'NeuroPulse', 'Minder'],
+    matchInsights: [
+      'Specialist fund focused exclusively on neurotechnology',
+      'Partner Dr. Müller has background in neural interfaces',
+      'Looking specifically for BCI investments in 2023',
+      'Recently closed a competitive investment (potential conflict)'
+    ]
+  },
+  {
+    id: 3,
+    name: 'MedTech Partners',
+    location: 'Munich, Germany',
+    focus: ['MedTech', 'HealthTech', 'Life Sciences'],
+    stages: ['Series A', 'Series B', 'Growth'],
+    checkSize: '€5M - €15M',
+    matchScore: 88,
+    portfolio: ['MedSense', 'ImplantTech', 'Cardios', 'NeuroSolutions'],
+    matchInsights: [
+      'Strong track record in medical device investments',
+      'Strategic partnerships with major healthcare providers',
+      'Supports portfolio with regulatory expertise',
+      'Typically invests larger amounts than current round size'
+    ]
+  }
+];
 
 export default function InvestorMatching() {
-  const [selectedDeal, setSelectedDeal] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('match_score');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isGeneratingMatches, setIsGeneratingMatches] = useState(false);
-  const [selectedInvestors, setSelectedInvestors] = useState<Set<number>>(new Set());
-
-  // Fetch deals for dropdown
-  const { data: deals = [], isLoading: dealsLoading } = useQuery({
+  const [selectedDeal, setSelectedDeal] = useState<string>('1');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('match');
+  
+  // Simulate fetch deals query
+  const { data: deals, isLoading: isLoadingDeals } = useQuery({
     queryKey: ['/api/deals'],
-    select: (data) => data || []
-  });
-
-  // Fetch investor matches for selected deal
-  const { data: matchesData, isLoading: matchesLoading, refetch: refetchMatches } = useQuery({
-    queryKey: ['/api/investor-matching/matches', selectedDeal],
-    enabled: !!selectedDeal,
-    select: (data) => data || { matches: [], analytics: {} }
-  });
-
-  const matches = matchesData?.matches || [];
-  const analytics = matchesData?.analytics || {};
-
-  // Set first deal as default when deals load
-  useEffect(() => {
-    if (deals.length > 0 && !selectedDeal) {
-      setSelectedDeal(deals[0].id.toString());
+    queryFn: async () => {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return mockDeals;
     }
-  }, [deals, selectedDeal]);
-
-  const handleGenerateMatches = async () => {
-    if (!selectedDeal) return;
-    
-    setIsGeneratingMatches(true);
-    try {
-      console.log(`🧠 Generating intelligent matches for deal ${selectedDeal}...`);
-      
-      const response = await fetch('/api/investor-matching/generate-matches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dealId: parseInt(selectedDeal) })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to generate intelligent matches');
-      }
-      
-      const data = await response.json();
-      console.log(`✅ Generated ${data.totalMatches} intelligent matches:`, data);
-      
-      // Refresh matches to show new intelligent matches
-      refetchMatches();
-    } catch (error) {
-      console.error('❌ Error generating intelligent matches:', error);
-    } finally {
-      setIsGeneratingMatches(false);
-    }
-  };
-
-  const filteredAndSortedMatches = matches
-    .filter(match => {
-      if (!searchTerm) return true;
-      return match.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             match.firmName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             match.focus.some(f => f.toLowerCase().includes(searchTerm.toLowerCase()));
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'match_score':
-          return b.matchScore - a.matchScore;
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'location':
-          return a.location.localeCompare(b.location);
-        case 'check_size':
-          return (b.checkSizeMax || 0) - (a.checkSizeMax || 0);
-        default:
-          return 0;
-      }
-    });
-
-  const itemsPerPage = 12;
-  const totalPages = Math.ceil(filteredAndSortedMatches.length / itemsPerPage);
-  const paginatedMatches = filteredAndSortedMatches.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  });
+  
+  // Simulate fetch investors query
+  const { data: investors, isLoading: isLoadingInvestors } = useQuery({
+    queryKey: ['/api/investors', selectedDeal],
+    queryFn: async () => {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      return mockInvestors;
+    },
+    enabled: !!selectedDeal
+  });
+  
+  const filteredInvestors = investors?.filter(investor => 
+    investor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    investor.focus.some(f => f.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    investor.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleInvestorSelect = (investorId: number) => {
-    setSelectedInvestors(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(investorId)) {
-        newSet.delete(investorId);
-      } else {
-        newSet.add(investorId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleBulkEmail = async () => {
-    if (selectedInvestors.size === 0) return;
-    
-    try {
-      const response = await fetch('/api/investor-matching/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dealId: selectedDeal,
-          investorIds: Array.from(selectedInvestors),
-          type: 'email'
-        })
-      });
-      
-      if (response.ok) {
-        setSelectedInvestors(new Set());
-        // Show success message
-      }
-    } catch (error) {
-      console.error('Failed to send bulk email:', error);
+  
+  const sortedInvestors = [...(filteredInvestors || [])].sort((a, b) => {
+    if (sortBy === 'match') return b.matchScore - a.matchScore;
+    if (sortBy === 'name') return a.name.localeCompare(b.name);
+    if (sortBy === 'check') {
+      const extractNumber = (str: string) => {
+        const match = str.match(/\d+/g);
+        return match ? parseInt(match[0]) : 0;
+      };
+      return extractNumber(b.checkSize) - extractNumber(a.checkSize);
     }
-  };
-
-  if (dealsLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">Loading deals...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (deals.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            No deals found. Please create a deal first to use the investor matching feature.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
+    return 0;
+  });
+  
+  const isLoading = isLoadingDeals || isLoadingInvestors;
+  const currentDeal = deals?.find(d => d.id.toString() === selectedDeal);
+  
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Investor Matching</h1>
-            <p className="text-gray-400">Find the perfect investors for your deals using AI-powered matching</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={handleGenerateMatches}
-              disabled={!selectedDeal || isGeneratingMatches}
-              className="bg-primary hover:bg-primary-hover text-dark font-medium"
-            >
-              {isGeneratingMatches ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Generate Matches
-                </>
-              )}
-            </Button>
-            
-            {selectedInvestors.size > 0 && (
-              <Button
-                onClick={handleBulkEmail}
-                variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-dark-lighter"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Email Selected ({selectedInvestors.size})
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Analytics Cards */}
-        {analytics && Object.keys(analytics).length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Total Matches</p>
-                    <p className="text-2xl font-bold text-white">{analytics.totalMatches || 0}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-400" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Avg Match Score</p>
-                    <p className="text-2xl font-bold text-white">{analytics.averageMatchScore || 0}%</p>
-                  </div>
-                  <Target className="h-8 w-8 text-green-400" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">High-Quality Matches</p>
-                    <p className="text-2xl font-bold text-white">{analytics.highQualityMatches || 0}</p>
-                  </div>
-                  <TrendingUp className="h-8 w-8 text-yellow-400" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-dark-light border-dark-lighter">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Contacted</p>
-                    <p className="text-2xl font-bold text-white">{analytics.contactedCount || 0}</p>
-                  </div>
-                  <Mail className="h-8 w-8 text-purple-400" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filter Sidebar */}
+    <div className="container mx-auto px-4 py-6">
+      <PageHeader 
+        title="Investor Matching" 
+        description="Find the right investors for your deals based on AI-powered analysis."
+      />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Left Column - Filters */}
         <div className="lg:col-span-1">
-          <FilterSidebar
-            deals={deals}
+          <FilterSidebar 
+            deals={deals || []} 
             selectedDeal={selectedDeal}
             onDealChange={setSelectedDeal}
-            isLoading={dealsLoading}
+            isLoading={isLoadingDeals}
           />
         </div>
-
-        {/* Main Content */}
+        
+        {/* Right Column - Investor List */}
         <div className="lg:col-span-3">
-          {/* Search and Controls */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search investors by name, firm, or focus area..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-dark-lighter border-dark-lighter text-white"
-              />
-            </div>
-            
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48 bg-dark-lighter border-dark-lighter text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-dark-lighter border-dark-lighter">
-                <SelectItem value="match_score">Match Score</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="location">Location</SelectItem>
-                <SelectItem value="check_size">Check Size</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-                className="p-2"
-              >
-                <BarChart3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="p-2"
-              >
-                <Users className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Content */}
-          {matchesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="bg-dark-light border-dark-lighter">
-                  <CardHeader>
-                    <Skeleton className="h-6 w-3/4 bg-dark-lighter" />
-                    <Skeleton className="h-4 w-1/2 bg-dark-lighter" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <Skeleton className="h-4 w-full bg-dark-lighter" />
-                      <Skeleton className="h-4 w-2/3 bg-dark-lighter" />
-                      <Skeleton className="h-8 w-full bg-dark-lighter" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : paginatedMatches.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No matches found</h3>
-              <p className="text-gray-400 mb-4">
-                {selectedDeal ? 'Try adjusting your filters or generate new matches' : 'Select a deal to start matching'}
-              </p>
-              {selectedDeal && (
-                <Button
-                  onClick={handleGenerateMatches}
-                  disabled={isGeneratingMatches}
-                  className="bg-primary hover:bg-primary-hover text-dark font-medium"
-                >
-                  <Zap className="h-4 w-4 mr-2" />
-                  Generate Matches
-                </Button>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Results Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <p className="text-sm text-gray-400">
-                    Showing {paginatedMatches.length} of {filteredAndSortedMatches.length} investors
-                  </p>
-                  {filteredAndSortedMatches.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      Avg Score: {Math.round(filteredAndSortedMatches.reduce((acc, m) => acc + m.matchScore, 0) / filteredAndSortedMatches.length)}%
-                    </Badge>
+          <Card className="bg-dark-light border-dark-lighter mb-6">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
+                  <CardTitle className="text-xl font-semibold">Top Investor Matches</CardTitle>
+                  {!isLoading && currentDeal && (
+                    <p className="text-gray-400 text-sm">
+                      {sortedInvestors?.length} investors matched for {currentDeal.companyName}
+                    </p>
                   )}
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-600 text-gray-300 hover:bg-dark-lighter"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Search investors..."
+                      className="bg-dark-lighter border-dark-lighter text-white pl-9 pr-4 w-full md:w-64 focus-visible:ring-primary"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <Search className="h-4 w-4 text-gray-400 absolute left-3 top-2.5" />
+                  </div>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="bg-dark-lighter border-dark-lighter text-white focus:ring-primary w-40">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-dark-lighter border-dark-lighter">
+                      <SelectItem value="match">Sort by Match</SelectItem>
+                      <SelectItem value="name">Sort by Name</SelectItem>
+                      <SelectItem value="check">Sort by Size</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-
-              {/* Investor Grid */}
-              <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-                {paginatedMatches.map((investor) => (
-                  <div key={investor.id} className="relative">
-                    <InvestorCard investor={investor} />
-                    <div className="absolute top-2 right-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedInvestors.has(investor.id)}
-                        onChange={() => handleInvestorSelect(investor.id)}
-                        className="w-4 h-4 rounded border-gray-600 bg-dark-lighter text-primary focus:ring-primary"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    className="border-gray-600 text-gray-300 hover:bg-dark-lighter"
-                  >
-                    Previous
-                  </Button>
-                  
-                  <div className="flex items-center gap-1">
-                    {[...Array(totalPages)].map((_, i) => (
-                      <Button
-                        key={i}
-                        variant={currentPage === i + 1 ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCurrentPage(i + 1)}
-                        className={currentPage === i + 1 
-                          ? 'bg-primary hover:bg-primary-hover text-dark' 
-                          : 'border-gray-600 text-gray-300 hover:bg-dark-lighter'
-                        }
-                      >
-                        {i + 1}
-                      </Button>
-                    ))}
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    className="border-gray-600 text-gray-300 hover:bg-dark-lighter"
-                  >
-                    Next
-                  </Button>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : sortedInvestors && sortedInvestors.length > 0 ? (
+                <div className="space-y-4">
+                  {sortedInvestors.map(investor => (
+                    <InvestorCard key={investor.id} investor={investor} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No investors found matching your criteria.</p>
                 </div>
               )}
-            </>
-          )}
+            </CardContent>
+          </Card>
+          
+          {/* Email Template Section */}
+          <Card className="bg-dark-light border-dark-lighter">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xl font-semibold">Outreach Campaign</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-dark-lighter rounded-lg p-5 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium">Email Template</h4>
+                  <button className="bg-dark px-3 py-1 text-xs rounded">Edit</button>
+                </div>
+                <div className="bg-dark rounded-lg p-4 text-sm">
+                  <p className="mb-2"><strong>Subject:</strong> NeuroTech AI - Series A Investment Opportunity in Neural Interface Technology</p>
+                  <p className="mb-2">Dear {'{investor_name}'},</p>
+                  <p className="mb-2">I hope this email finds you well. I'm reaching out regarding NeuroTech AI, a promising startup in the neural interface space that aligns well with {'{firm_name}'}'s investment focus in {'{focus_area}'}.</p>
+                  <p className="mb-2">NeuroTech AI is developing a next-generation brain-computer interface with proprietary neural decoding algorithms that show 92% accuracy in trials - significantly outperforming competitors while remaining minimally invasive.</p>
+                  <p className="mb-2">Key highlights:</p>
+                  <ul className="list-disc pl-5 mb-2 space-y-1">
+                    <li>Experienced team with backgrounds from MIT, ETH Zurich, and Medtronic</li>
+                    <li>Strong IP portfolio with 3 granted patents and 5 pending applications</li>
+                    <li>Regulatory pathway defined with FDA pre-submission completed</li>
+                    <li>€2.5M seed round closed in 2021, now raising €8.5M Series A</li>
+                  </ul>
+                  <p className="mb-2">We've completed our due diligence and would be happy to share our investment memo and introduce you to the founding team if there's interest.</p>
+                  <p className="mb-2">Would you be available for a brief call next week to discuss this opportunity?</p>
+                  <p>Best regards,</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <h4 className="font-medium mb-3">Selected Investors</h4>
+                  <div className="bg-dark-lighter rounded-lg p-3 max-h-48 overflow-y-auto">
+                    <div className="space-y-2">
+                      {sortedInvestors?.slice(0, 3).map(investor => (
+                        <div key={investor.id} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center font-semibold text-dark text-xs mr-2">
+                              {investor.name.charAt(0)}
+                            </div>
+                            <span className="text-sm">{investor.name}</span>
+                          </div>
+                          <button className="text-gray-400 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-3">Materials</h4>
+                  <div className="bg-dark-lighter rounded-lg p-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-sm">Investment Memo.pdf</span>
+                        </div>
+                        <div className="flex">
+                          <input type="checkbox" className="mr-1 h-4 w-4 text-primary" defaultChecked />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-sm">Teaser Deck.pdf</span>
+                        </div>
+                        <div className="flex">
+                          <input type="checkbox" className="mr-1 h-4 w-4 text-primary" defaultChecked />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-3">Schedule</h4>
+                  <div className="bg-dark-lighter rounded-lg p-3">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Send Date</label>
+                        <input type="date" className="w-full bg-dark border-dark-lighter rounded p-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Time</label>
+                        <select className="w-full bg-dark border-dark-lighter rounded p-2 text-sm">
+                          <option>9:00 AM</option>
+                          <option>10:00 AM</option>
+                          <option>11:00 AM</option>
+                          <option>12:00 PM</option>
+                          <option>1:00 PM</option>
+                          <option>2:00 PM</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="flex items-center text-xs">
+                          <input type="checkbox" className="mr-2 h-4 w-4 text-primary" defaultChecked />
+                          <span>Schedule follow-up reminder (5 days)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button className="bg-dark-lighter hover:bg-dark px-4 py-2 rounded-lg text-sm mr-3">
+                  Save Draft
+                </button>
+                <button className="bg-primary hover:bg-primary-hover text-dark font-medium px-4 py-2 rounded-lg text-sm">
+                  Send Campaign
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

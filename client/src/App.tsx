@@ -9,7 +9,6 @@ import { SidebarProvider } from "./contexts/SidebarContext";
 import { useAuth } from "./hooks/useAuth";
 import { useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { GlobalPersistentUploadMonitor, useGlobalPersistentUploads } from "@/components/GlobalPersistentUploads";
 
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
@@ -21,9 +20,7 @@ import Pipeline from "@/pages/pipeline";
 import DealIntake from "@/pages/deal-intake";
 import DueDiligence from "@/pages/due-diligence";
 import MemoGenerator from "@/pages/memo-generator";
-import MemoTemplates from "@/pages/memo-templates";
 import Memos from "@/pages/memos";
-import GlobalAIAssistant from "@/pages/global-ai-assistant";
 import InvestorMatching from "@/pages/investor-matching";
 import WorkflowAutomation from "@/pages/workflow-automation";
 import AIInvestorMatching from "@/pages/ai-investor-matching";
@@ -40,15 +37,6 @@ import NotFound from "@/pages/not-found";
 function AppContent() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, isLoading, user } = useAuth();
-  
-  // 🎯 CRITICAL: Global persistent upload monitoring
-  const {
-    showMonitor,
-    isMinimized,
-    activeUploadsCount,
-    toggleMinimize,
-    closeMonitor
-  } = useGlobalPersistentUploads();
   
   // Auth pages - don't show sidebar/navbar
   const isAuthPage = location === '/login' || location === '/register';
@@ -96,9 +84,6 @@ function AppContent() {
               <Route path="/deals">
                 <DealsPage />
               </Route>
-              <Route path="/deals/:dealId">
-                <DealsPage />
-              </Route>
               <Route path="/pipeline">
                 <Pipeline />
               </Route>
@@ -108,20 +93,11 @@ function AppContent() {
               <Route path="/due-diligence">
                 <DueDiligence />
               </Route>
-              <Route path="/due-diligence/:dealId">
-                <DueDiligence />
-              </Route>
               <Route path="/memo-generator">
                 <MemoGenerator />
               </Route>
-              <Route path="/memo-templates">
-                <MemoTemplates />
-              </Route>
               <Route path="/memos">
                 <Memos />
-              </Route>
-              <Route path="/ai-assistant">
-                <GlobalAIAssistant />
               </Route>
               <Route path="/investor-matching">
                 <InvestorMatching />
@@ -160,17 +136,6 @@ function AppContent() {
             <span>Loading...</span>
           </div>
         )}
-        
-        {/* 🎯 CRITICAL: Global Persistent Upload Monitor - Shows across ALL pages */}
-        {/* TEMP FIX: Force component to render to test hook */}
-        {isAuthenticated && (
-          <GlobalPersistentUploadMonitor
-            isMinimized={isMinimized}
-            onToggleMinimize={toggleMinimize}
-            onClose={closeMonitor}
-          />
-        )}
-        
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>

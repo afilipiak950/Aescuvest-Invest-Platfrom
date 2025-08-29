@@ -14,25 +14,7 @@ export class PersistentJobManager {
   }
 
   async startAgentAnalysis(dealId: number, agentType: string, totalDocuments: number): Promise<string> {
-    // Skip regular analysis for Legal agents - they use comprehensive analysis only
-    if (agentType.toLowerCase() === 'legal') {
-      console.log(`⏭️ Skipping regular analysis for Legal agent - use comprehensive analysis instead`);
-      throw new Error('Legal agents use comprehensive analysis only. Use /api/deals/:dealId/legal-analysis/comprehensive instead.');
-    }
-
-    const jobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
-    
-    // Check for existing jobs to prevent duplicates
-    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-    const existingJob = existingJobs.find(job => 
-      job.agentType.toLowerCase() === agentType.toLowerCase() && 
-      (job.status === 'processing' || job.status === 'pending')
-    );
-    
-    if (existingJob) {
-      console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
-      throw new Error(`${agentType} analysis already running for deal ${dealId}`);
-    }
+    const jobId = `${agentType}-analysis-${dealId}`;
     
     try {
       // Create persistent job in database
@@ -40,7 +22,7 @@ export class PersistentJobManager {
         jobId,
         jobType: 'agent_analysis',
         dealId,
-        agentType: agentType.toLowerCase(),
+        agentType,
         status: 'processing',
         progress: 0,
         totalDocuments,
@@ -231,59 +213,6 @@ export class PersistentJobManager {
 
   getAllActiveJobs(): Map<string, any> {
     return this.activeJobs;
-  }
-
-  async clearStuckJobs(dealId: number): Promise<void> {
-    try {
-      console.log(`🧹 Clearing stuck jobs for deal ${dealId} from persistent job manager`);
-      
-      // Get all jobs for this deal
-      const jobs = await storage.getBackgroundJobsByDealId(dealId);
-      const stuckJobs = jobs.filter(job => job.status === 'processing');
-      
-      // Clear stuck jobs from memory and intervals
-      for (const job of stuckJobs) {
-        this.activeJobs.delete(job.jobId);
-        
-        const interval = this.jobIntervals.get(job.jobId);
-        if (interval) {
-          clearInterval(interval);
-          this.jobIntervals.delete(job.jobId);
-        }
-      }
-      
-      console.log(`🧹 Cleared ${stuckJobs.length} stuck jobs from memory for deal ${dealId}`);
-    } catch (error) {
-      console.error(`Error clearing stuck jobs for deal ${dealId}:`, error);
-    }
-  }
-
-  async stopJob(jobId: string): Promise<void> {
-    try {
-      console.log(`🛑 Stopping job ${jobId} in persistent manager`);
-      
-      // Update database to cancelled status
-      await storage.updateBackgroundJob(jobId, {
-        status: 'cancelled',
-        completedAt: new Date(),
-        updatedAt: new Date()
-      });
-      
-      // Remove from memory
-      this.activeJobs.delete(jobId);
-      
-      // Clear interval
-      const interval = this.jobIntervals.get(jobId);
-      if (interval) {
-        clearInterval(interval);
-        this.jobIntervals.delete(jobId);
-      }
-      
-      console.log(`✅ Successfully stopped job ${jobId}`);
-    } catch (error) {
-      console.error(`Error stopping job ${jobId}:`, error);
-      throw error;
-    }
   }
 }
 
