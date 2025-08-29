@@ -1464,8 +1464,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     onSuccess: (data) => {
       console.log('🤖 AI document assignment response:', data);
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      // Use totalDocuments from the response
-      const documentCount = data.totalDocuments || 0;
+      // Use totalDocuments from the response or fallback to documents count
+      const documentCount = data.totalDocuments || documents?.length || 0;
       
       // Check if this is a new job or an existing one
       if (data.message?.includes('already in progress')) {
@@ -2526,6 +2526,35 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         </div>
       )}
 
+      {/* Document Assignment Progress Bar */}
+      {jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
+        <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+          {jobs.filter(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map(job => (
+            <div key={job.jobId}>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-purple-400">
+                  <Brain className="w-4 h-4 inline mr-1" />
+                  AI Document Assignment in Progress
+                </span>
+                <span className="text-xs text-gray-400">
+                  {job.processedDocuments || 0} / {job.totalDocuments || 0} documents
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                <div 
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.round(((job.processedDocuments || 0) / (job.totalDocuments || 1)) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-400">
+                {job.currentStep || 'Processing documents...'}
+                {job.currentDocument && ` - ${job.currentDocument}`}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Data Room Explorer Section */}
       <div className="bg-dark-lighter rounded-lg flex-1 flex flex-col">
         {/* Document Availability Notice */}
@@ -2571,13 +2600,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     onClick={() => assignAgentsMutation.mutate()}
                     size="sm"
                     variant="outline" 
-                    disabled={assignAgentsMutation.isPending}
-                    className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white"
+                    disabled={assignAgentsMutation.isPending || jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending'))}
+                    className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {assignAgentsMutation.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        Assigning...
+                        Starting...
+                      </>
+                    ) : jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        Assignment Running
                       </>
                     ) : (
                       <>
