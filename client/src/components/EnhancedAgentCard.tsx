@@ -2651,9 +2651,6 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
         queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
-      });
-      queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
       });
       
@@ -2703,9 +2700,6 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
             console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.results.researchAnswers).length);
             
             // Force refresh of comprehensive research results
-            queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
-            });
             queryClient.invalidateQueries({
               queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
             });
