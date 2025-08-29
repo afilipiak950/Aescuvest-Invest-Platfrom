@@ -4770,22 +4770,33 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         const dbJobs = await storage.getRunningBackgroundJobs(dealId);
         
         // Transform to expected format
-        jobs = dbJobs.map(job => ({
-          jobId: job.jobId,
-          jobType: job.jobType,  // Include jobType for frontend filtering
-          agentType: job.agentType,
-          progress: job.progress || 0,
-          status: job.status,
-          processedDocuments: job.processedDocuments || 0,
-          totalDocuments: job.totalDocuments || 0,
-          currentDocument: job.currentDocument || '',
-          currentStep: job.currentStep || '',
-          metadata: {
+        jobs = dbJobs.map(job => {
+          // Extract metadata fields for assignment jobs
+          const metadata = job.metadata || {};
+          const processedDocs = metadata.processedDocuments || job.processedDocuments || 0;
+          const totalDocs = metadata.totalDocuments || job.totalDocuments || 0;
+          const currentDoc = metadata.currentDocument || job.currentDocumentName || '';
+          
+          return {
+            jobId: job.jobId,
+            jobType: job.jobType,  // Include jobType for frontend filtering
             agentType: job.agentType,
-            startTime: job.createdAt,
-            lastUpdate: job.updatedAt
-          }
-        }));
+            progress: job.progress || 0,
+            status: job.status,
+            processedDocuments: processedDocs,
+            totalDocuments: totalDocs,
+            currentDocument: currentDoc,
+            currentStep: job.currentStep || '',
+            metadata: {
+              agentType: job.agentType,
+              startTime: job.createdAt,
+              lastUpdate: job.updatedAt,
+              processedDocuments: processedDocs,
+              totalDocuments: totalDocs,
+              currentDocument: currentDoc
+            }
+          };
+        });
         
         console.log(`📊 Found ${jobs.length} background jobs for deal ${dealId}`);
       } catch (storageError) {
