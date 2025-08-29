@@ -229,12 +229,24 @@ Respond with JSON format:
 
     const results: DocumentAssignmentAnalysis[] = [];
     let processedCount = 0;
+    let skippedCount = 0;
 
     for (const doc of dealDocuments) {
       try {
         // Skip if document has no content to analyze
         if (!doc.ocrText && !doc.aiSummary) {
           console.log(`⏭️ Skipping document ${doc.name} - no content available`);
+          skippedCount++;
+          // Still add to results with existing assignments or default
+          if (doc.assignedAgents && doc.assignedAgents.length > 0) {
+            results.push({
+              documentId: doc.id,
+              documentName: doc.name,
+              assignedAgents: doc.assignedAgents,
+              confidence: 0.5,
+              reasoning: 'Using existing assignments (no content for re-analysis)'
+            });
+          }
           continue;
         }
 
@@ -296,7 +308,7 @@ Respond with JSON format:
       }
     }
 
-    console.log(`🎯 Assignment complete! Processed ${results.length} documents`);
+    console.log(`🎯 Assignment complete! Processed ${processedCount} documents, skipped ${skippedCount}, total results: ${results.length}`);
     
     // Log assignment summary
     const agentCounts = AVAILABLE_AGENTS.map(agent => ({

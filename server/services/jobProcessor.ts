@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { documents as documentsTable } from '../../shared/schema';
 import { backgroundJobs, documents, InsertBackgroundJob, BackgroundJob } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
@@ -1229,10 +1230,18 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       // Import the service dynamically to avoid circular dependencies
       const assignments = await aiDocumentAssignmentService.assignAgentsForAllDocuments(dealId);
       
-      await this.updateJobProgress(job.id, 100, `Assignment completed: ${assignments.length} documents processed`, 'processing');
+      // Get total document count for accurate reporting
+      const documents = await db
+        .select({ id: documentsTable.id })
+        .from(documentsTable)
+        .where(eq(documentsTable.dealId, dealId));
+      const totalDocuments = documents.length;
+      
+      await this.updateJobProgress(job.id, 100, `Assignment completed: ${totalDocuments} documents processed`, 'processing');
       
       const summary = {
-        totalDocuments: assignments.length,
+        totalDocuments: totalDocuments,
+        assignedDocuments: assignments.length,
         agentCounts: assignments.reduce((acc, assignment) => {
           assignment.assignedAgents.forEach(agent => {
             acc[agent] = (acc[agent] || 0) + 1;
@@ -1243,12 +1252,12 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       
       await this.completeJob(job.id, {
         success: true,
-        message: `Successfully assigned agents to ${assignments.length} documents`,
+        message: `Successfully assigned agents to ${totalDocuments} documents`,
         assignments,
         summary
       });
       
-      console.log(`✅ Background assignment completed for deal ${dealId}: ${assignments.length} documents processed`);
+      console.log(`✅ Background assignment completed for deal ${dealId}: ${assignments.length} assigned, ${totalDocuments} total documents`);
       
     } catch (error) {
       console.error(`❌ Background assignment failed for deal ${dealId}:`, error);
