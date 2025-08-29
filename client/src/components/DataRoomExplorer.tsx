@@ -1454,13 +1454,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     mutationFn: async () => {
       const response = await apiRequest(`/api/deals/${dealId}/assign-agents`, {
         method: 'POST',
+        body: JSON.stringify({ forceReassign: true }), // Force reassignment even if already assigned
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       return response;
     },
     onSuccess: (data) => {
-      console.log('🤖 AI document assignment completed:', data);
+      console.log('🤖 AI document assignment started:', data);
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      alert(`Successfully assigned agents to ${data.assignments?.length || 0} documents`);
+      // Use totalDocuments from the response instead of assignments?.length
+      const documentCount = data.totalDocuments || data.assignments?.length || 0;
+      alert(`AI agent assignment started for ${documentCount} documents. Processing in background...`);
     },
     onError: (error) => {
       console.error('❌ AI document assignment failed:', error);
