@@ -466,7 +466,7 @@ function DueDiligenceContent() {
         // Continue anyway - the analyses will be overwritten
       }
       
-      // Step 3: Run all comprehensive analyses in parallel
+      // Step 3: Run all comprehensive analyses with staggered startup to prevent race conditions
       const comprehensiveEndpoints = [
         `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
         `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
@@ -477,9 +477,14 @@ function DueDiligenceContent() {
         `/api/deals/${selectedDeal}/research-analysis/comprehensive`
       ];
 
-      const promises = comprehensiveEndpoints.map(async (endpoint) => {
-        console.log(`📊 Starting comprehensive analysis: ${endpoint}`);
+      // Use sequential startup with 500ms delays to prevent database race conditions
+      const results = [];
+      for (let i = 0; i < comprehensiveEndpoints.length; i++) {
+        const endpoint = comprehensiveEndpoints[i];
+        
         try {
+          console.log(`📊 Starting comprehensive analysis (${i+1}/7): ${endpoint}`);
+          
           const response = await apiRequest(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
@@ -488,32 +493,39 @@ function DueDiligenceContent() {
           // Handle "already running" responses as successes
           if (response && (response.alreadyRunning || response.success === false)) {
             console.log(`✅ Analysis already running for ${endpoint}:`, response.message);
-            return { success: true, alreadyRunning: true, endpoint, message: response.message };
+            results.push({ status: 'fulfilled', value: { success: true, alreadyRunning: true, endpoint, message: response.message } });
+          } else {
+            console.log(`✅ Analysis started successfully for ${endpoint}`);
+            results.push({ status: 'fulfilled', value: response });
           }
           
-          // Handle HR endpoint temporary issue - treat as success for now
-          if (endpoint.includes('hr-analysis') && response && response.success === false) {
-            console.log(`⚠️ HR analysis has temporary issue, treating as success for now`);
-            return { success: true, temporaryIssue: true, endpoint, message: 'HR analysis temporarily unavailable' };
+          // Add 500ms delay between agent starts to prevent race conditions
+          if (i < comprehensiveEndpoints.length - 1) {
+            console.log(`⏰ Waiting 500ms before starting next agent to prevent race conditions...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
           
-          return response;
         } catch (error) {
           console.error(`❌ Error starting analysis for ${endpoint}:`, error);
           // Don't throw - let individual failures not break the whole process
-          return { success: false, endpoint, error: (error as any)?.message || 'Unknown error' };
+          results.push({ status: 'rejected', reason: { success: false, endpoint, error: (error as any)?.message || 'Unknown error' } });
+          
+          // Still add delay even for failed requests
+          if (i < comprehensiveEndpoints.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
-      });
-      
-      const results = await Promise.allSettled(promises);
+      }
       
       // Log results and count successes
       let successCount = 0;
       results.forEach((result, index) => {
         const endpoint = comprehensiveEndpoints[index];
-        if (result.status === 'fulfilled' && (result.value.success || result.value.alreadyRunning)) {
+        if (result.status === 'fulfilled' && (result.value?.success || result.value?.alreadyRunning)) {
           successCount++;
           console.log(`✅ ${endpoint}: Success`);
+        } else if (result.status === 'rejected') {
+          console.log(`❌ ${endpoint}: Failed -`, result.reason?.error || 'Unknown error');
         } else {
           console.log(`❌ ${endpoint}: Failed`);
         }
@@ -522,7 +534,7 @@ function DueDiligenceContent() {
       console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints?.length || 0} analyses started/running`);
       
       // Return successful results (don't fail if some are already running)
-      return results.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
+      return results.map(r => r.status === 'fulfilled' ? r.value : (r.reason || null)).filter(Boolean);
       
       } catch (mutationError) {
         console.error('❌ Critical error in mutation function:', mutationError);
