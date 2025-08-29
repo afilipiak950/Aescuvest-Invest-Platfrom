@@ -53,8 +53,8 @@ export default function DueDiligence() {
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 3,
     enabled: !!selectedDeal,
-    refetchInterval: 5000, // Poll every 5 seconds for real-time AI progress
-    staleTime: 0, // Always fetch fresh data to show current AI processing status
+    refetchInterval: 15000, // Poll every 15 seconds to reduce server load
+    staleTime: 30000, // Cache for 30 seconds to reduce requests
     gcTime: 60000, // Keep in cache for 1 minute
     queryFn: async () => {
       console.log(`🔄 Fetching documents for deal ${selectedDeal}...`);
@@ -81,7 +81,7 @@ export default function DueDiligence() {
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
     enabled: !!selectedDeal && isRunningAllAnalyses,
-    refetchInterval: 1000, // Poll every second for real-time progress
+    refetchInterval: 5000, // Poll every 5 seconds to reduce server load
     queryFn: async () => {
       console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
       const response = await fetch(`/api/background-jobs/${selectedDeal}`);

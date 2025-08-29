@@ -69,11 +69,11 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
     enabled: isOpen
   });
 
-  // Monitor background jobs and auto-refresh when processing completes
+  // Monitor background jobs only when modal is open and no WebSocket connection
   const { data: backgroundJobs } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     enabled: isOpen && !!dealId,
-    refetchInterval: 2000
+    refetchInterval: false // Disable polling since BackgroundJobProgress handles it
   });
 
   // Auto-refresh when document processing completes
@@ -989,12 +989,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const { data: documents, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
-    staleTime: 10000, // Cache for 10 seconds to improve performance
-    refetchInterval: 5000, // Reduced polling frequency
+    staleTime: 30000, // Cache for 30 seconds to reduce server load
+    refetchInterval: 10000, // Reduced polling frequency to 10s
     refetchIntervalInBackground: false, // Don't poll in background
     refetchOnWindowFocus: false, // Don't refetch on focus to prevent delays
     retry: 2, // Limit retries
-    retryDelay: 1000 // Faster retry
+    retryDelay: 2000 // Slower retry to reduce server load
   });
 
   // Real-time WebSocket listener for immediate AI summary updates
