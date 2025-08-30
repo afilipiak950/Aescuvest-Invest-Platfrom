@@ -181,7 +181,14 @@ export class ComprehensiveResearchAnalysisService {
       // Find relevant documents based on keywords
       const relevantDocs = docs.filter(doc => {
         const text = (doc.ocrText || '').toLowerCase();
-        const summary = (doc.aiSummary || '').toLowerCase();
+        
+        // Handle aiSummary safely - it might be an object or string
+        let summary = '';
+        if (typeof doc.aiSummary === 'string') {
+          summary = doc.aiSummary.toLowerCase();
+        } else if (doc.aiSummary && typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          summary = doc.aiSummary.executiveSummary.toLowerCase();
+        }
         
         return question.keywords.some((keyword: string) => 
           text.includes(keyword.toLowerCase()) || 
@@ -194,11 +201,21 @@ export class ComprehensiveResearchAnalysisService {
       }
       
       // Prepare context from relevant documents
-      const context = relevantDocs.map(doc => ({
-        filename: doc.filename,
-        content: doc.ocrText || doc.aiSummary || 'No content available',
-        summary: doc.aiSummary || 'No summary available'
-      })).slice(0, 5); // Limit to top 5 relevant docs
+      const context = relevantDocs.map(doc => {
+        // Handle aiSummary safely - it might be an object or string
+        let summaryText = 'No summary available';
+        if (typeof doc.aiSummary === 'string' && doc.aiSummary.trim()) {
+          summaryText = doc.aiSummary;
+        } else if (doc.aiSummary && typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          summaryText = doc.aiSummary.executiveSummary;
+        }
+        
+        return {
+          filename: doc.filename,
+          content: doc.ocrText || summaryText || 'No content available',
+          summary: summaryText
+        };
+      }).slice(0, 5); // Limit to top 5 relevant docs
       
       const prompt = `You are a research analyst conducting comprehensive due diligence research analysis.
 
@@ -313,18 +330,15 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
           eq(agentAnalyses.agentType, 'research')
         ));
 
-      // Save the new analysis
+      // Save the new analysis - ONLY VALID SCHEMA FIELDS
       await db.insert(agentAnalyses).values({
         dealId,
         agentType: 'research',
         status: 'completed',
+        progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        research_answers: JSON.stringify(researchAnswers),
-        questionsAnswered: Object.keys(researchAnswers).length,
-        totalQuestions: RESEARCH_QUESTIONS.length,
-        documentsProcessed: docsProcessed,
-        completedAt: new Date()
+        research_answers: JSON.stringify(researchAnswers)
       });
 
       // Update job as completed
