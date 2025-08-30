@@ -6271,49 +6271,64 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive Research analysis
+  // Run comprehensive Research analysis - EXACT COMMERCIAL COPY
   app.post('/api/deals/:dealId/research-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
       console.log(`🔬 Starting comprehensive research analysis for deal ${dealId}`);
       
-      // Check for existing Research analysis jobs to prevent duplicates (using enhanced service pattern)
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingResearchJob = existingJobs.find(job => 
-        job.jobType === 'agent_analysis' && 
-        job.agentType && job.agentType.toLowerCase() === 'research' && 
-        (job.status === 'processing' || job.status === 'pending')
-      );
-      
+      // Check if there's already a running comprehensive research analysis - EXACT Commercial approach
+      const existingResearchJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_research_analysis');
       if (existingResearchJob) {
-        console.log(`⚠️ Research analysis already running for deal ${dealId} (Job: ${existingResearchJob.jobId})`);
-        return res.json({ 
-          success: true, 
-          message: `Research analysis already running`,
+        return res.json({
+          success: true,
+          message: 'Comprehensive research analysis already running',
           alreadyRunning: true,
-          progress: existingResearchJob.progress || 0
+          jobId: existingResearchJob.jobId
         });
       }
       
-      // Import the ENHANCED comprehensive analysis service (same as Clinical/Legal)
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Create background job - EXACT Commercial approach
+      const jobId = `comprehensive-research-analysis-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_research_analysis',
+        agentType: 'research',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing research analysis',
+        processedDocuments: 0,
+        totalDocuments: 0
+      });
       
-      // Run ENHANCED comprehensive research analysis in background with deep evidence-based processing
+      // Import and run service in background - EXACT Commercial approach
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Research');
-          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
+          const { ComprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
+          
+          const researchService = new ComprehensiveResearchAnalysisService();
+          await researchService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
-          console.error(`❌ Error stack:`, error.stack);
+          console.error(`❌ Error in comprehensive research analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Commercial approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
         }
       })();
       
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive research analysis started - processing 12 research questions across all assigned documents'
+      res.json({
+        success: true,
+        message: 'Comprehensive research analysis started',
+        jobId
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive research analysis for deal ${req.params.dealId}:`, error);
