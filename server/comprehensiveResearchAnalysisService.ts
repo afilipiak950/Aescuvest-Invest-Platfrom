@@ -314,7 +314,7 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         status: 'completed',
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        analysisData: JSON.stringify(researchAnswers),
+        research_answers: JSON.stringify(researchAnswers),
         questionsAnswered: Object.keys(researchAnswers).length,
         totalQuestions: RESEARCH_QUESTIONS.length,
         documentsProcessed: docsProcessed,
