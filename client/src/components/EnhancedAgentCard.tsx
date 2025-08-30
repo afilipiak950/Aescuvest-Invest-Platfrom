@@ -2623,11 +2623,13 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
     refetchInterval: 1000,
   });
 
-  // Check if research analysis is already running (handle both case variants)
+  // Check if research analysis is already running (enhanced service pattern)
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
       const researchJob = jobProgress.jobs.find((job: any) => 
-        job.agentType === 'research' || job.agentType === 'Research'
+        job.jobType === 'agent_analysis' && 
+        job.agentType && job.agentType.toLowerCase() === 'research' && 
+        (job.status === 'processing' || job.status === 'pending')
       );
       return !!researchJob && researchJob.status === 'processing';
     }
