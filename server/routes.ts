@@ -6278,10 +6278,12 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       console.log(`🔬 Starting comprehensive research analysis for deal ${dealId}`);
       
-      // Check for existing Research analysis jobs to prevent duplicates  
+      // Check for existing Research analysis jobs to prevent duplicates (using enhanced service pattern)
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
       const existingResearchJob = existingJobs.find(job => 
-        job.agentType === 'Research' && job.status === 'processing'
+        job.jobType === 'agent_analysis' && 
+        job.agentType && job.agentType.toLowerCase() === 'research' && 
+        (job.status === 'processing' || job.status === 'pending')
       );
       
       if (existingResearchJob) {
@@ -6289,45 +6291,22 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.json({ 
           success: true, 
           message: `Research analysis already running`,
-          jobId: existingResearchJob.jobId
+          alreadyRunning: true,
+          progress: existingResearchJob.progress || 0
         });
       }
       
-      // CRITICAL FIX: Delete existing Research analysis to allow fresh restart
-      console.log(`🗑️ Clearing any existing research analysis data for deal ${dealId} to enable fresh restart`);
-      try {
-        await storage.deleteAgentAnalysis(dealId, 'research');
-        console.log(`✅ Previous research analysis data cleared successfully`);
-      } catch (deleteError) {
-        console.log(`⚠️ No existing research analysis to clear (this is normal for first run)`);
-      }
+      // Import the ENHANCED comprehensive analysis service (same as Clinical/Legal)
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // ALSO clear any stuck background jobs that might prevent fresh start
-      try {
-        const jobId = `research-analysis-${dealId}`;
-        await storage.deleteBackgroundJob(jobId);
-        console.log(`✅ Previous research background job cleared successfully`);
-      } catch (jobDeleteError) {
-        console.log(`⚠️ No existing research background job to clear (this is normal)`);
-      }
-      
-      // Import the WORKING comprehensive research analysis service
-      const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisComplete');
-      
-      // Run comprehensive research analysis in background with proper storage
+      // Run ENHANCED comprehensive research analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
-          console.log(`🔬 Service imported successfully:`, typeof comprehensiveResearchAnalysisService);
-          console.log(`🔬 Method available:`, typeof comprehensiveResearchAnalysisService.runComprehensiveAnalysis);
-          
-          const jobId = `research-analysis-${dealId}`;
-          console.log(`🔬 About to call runComprehensiveAnalysis with dealId: ${dealId}, storage: ${typeof storage}, jobId: ${jobId}`);
-          
-          await comprehensiveResearchAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
-          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Research');
+          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ DETAILED Error in comprehensive research analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
