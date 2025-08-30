@@ -2623,10 +2623,12 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
     refetchInterval: 1000,
   });
 
-  // Check if research analysis is already running
+  // Check if research analysis is already running (handle both case variants)
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
-      const researchJob = jobProgress.jobs.find((job: any) => job.agentType === 'research');
+      const researchJob = jobProgress.jobs.find((job: any) => 
+        job.agentType === 'research' || job.agentType === 'Research'
+      );
       return !!researchJob && researchJob.status === 'processing';
     }
     return false;
@@ -2666,6 +2668,21 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
   const handleRunAnalysis = async () => {
     setIsRunning(true);
     console.log('🔬 Starting comprehensive research analysis for deal', dealId);
+    
+    // AGGRESSIVE CACHE CLEARING - Clear all Research data immediately for fresh restart
+    console.log('🗑️ MAIN BUTTON AGGRESSIVE CLEAR: Removing all cached research data for fresh restart');
+    queryClient.removeQueries({
+      queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+    });
+    queryClient.invalidateQueries({
+      queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+    });
+    queryClient.invalidateQueries({
+      queryKey: ['/api/analyses', dealId]
+    });
+    queryClient.invalidateQueries({
+      queryKey: [`/api/background-jobs/${dealId}`]
+    });
     
     // Call the callback to trigger client-side progress state
     if (onAnalysisStart) {
