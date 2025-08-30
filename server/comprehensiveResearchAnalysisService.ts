@@ -82,6 +82,12 @@ const RESEARCH_QUESTIONS = [
     question: 'What are the ESG considerations and sustainability factors?', 
     category: 'Strategic Analysis',
     keywords: ['esg', 'sustainability', 'environmental impact', 'social responsibility', 'governance', 'sustainable business', 'environmental considerations', 'social impact']
+  },
+  { 
+    id: 'research_13', 
+    question: 'What customer validation and market traction evidence exists?', 
+    category: 'Strategic Analysis',
+    keywords: ['customer validation', 'market traction', 'product market fit', 'customer feedback', 'market adoption', 'user engagement', 'customer retention', 'revenue traction', 'growth metrics']
   }
 ];
 
