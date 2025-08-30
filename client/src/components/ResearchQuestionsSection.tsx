@@ -62,6 +62,21 @@ function ComprehensiveResearchAnalysisButton({ dealId }: { dealId: number }) {
     setIsRunning(true);
     console.log('🔬 Starting comprehensive research analysis for deal', dealId);
     
+    // AGGRESSIVE CACHE CLEARING - Clear all Research data immediately for fresh restart
+    console.log('🗑️ AGGRESSIVE CLEAR: Removing all cached research data for fresh restart');
+    queryClient.removeQueries({
+      queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+    });
+    queryClient.invalidateQueries({
+      queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+    });
+    queryClient.invalidateQueries({
+      queryKey: ['/api/analyses', dealId]
+    });
+    queryClient.invalidateQueries({
+      queryKey: [`/api/background-jobs/${dealId}`]
+    });
+    
     try {
       // Trigger custom event to show progress bar immediately
       window.dispatchEvent(new CustomEvent('researchAnalysisStarted'));
