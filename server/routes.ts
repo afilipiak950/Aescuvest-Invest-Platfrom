@@ -42,7 +42,7 @@ import legacyResetRoutes from './routes/legacyReset';
 import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
-import persistentResearchRoutes from './routes/persistentResearchRoutes';
+import { persistentResearchRoutes } from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
