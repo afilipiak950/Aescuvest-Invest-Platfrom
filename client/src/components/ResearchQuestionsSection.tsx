@@ -364,12 +364,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
-  // COMPREHENSIVE DEBUG: Log all data sources
-  console.log('🔬 STEP 1 - analysisData from parent:', analysisData);
-  console.log('🔬 STEP 2 - comprehensiveResults from direct fetch:', comprehensiveResults);
-  console.log('🔬 STEP 3 - comprehensiveResults.results:', (comprehensiveResults as any)?.results);
-  console.log('🔬 STEP 4 - researchAnswers from comprehensive:', (comprehensiveResults as any)?.results?.researchAnswers);
-  console.log('🔬 STEP 5 - researchAnswers keys count:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}).length);
+  // Research questions now working with correct data structure
 
   // Get answer for a specific question  
   const getAnswerForQuestion = (questionId: string): {
@@ -383,19 +378,6 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     recommendations?: string[];
     detailedEvidence?: any[];
   } | null => {
-    console.log('🎯 ANSWER LOOKUP - Question ID:', questionId);
-    console.log('🎯 ANSWER LOOKUP - comprehensiveResults exists:', !!comprehensiveResults);
-    console.log('🎯 ANSWER LOOKUP - comprehensiveResults.results exists:', !!(comprehensiveResults as any)?.results);
-    console.log('🎯 ANSWER LOOKUP - researchAnswers exists:', !!(comprehensiveResults as any)?.results?.researchAnswers);
-    console.log('🎯 ANSWER LOOKUP - Available answer keys:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}));
-    console.log('🎯 ANSWER LOOKUP - Specific answer exists for', questionId, ':', !!(comprehensiveResults as any)?.results?.researchAnswers?.[questionId]);
-    
-    // LOG THE ACTUAL ANSWER CONTENT
-    if ((comprehensiveResults as any)?.results?.researchAnswers?.[questionId]) {
-      console.log('🎯 ANSWER FOUND for', questionId, ':', (comprehensiveResults as any).results.researchAnswers[questionId]);
-    } else {
-      console.log('❌ NO ANSWER FOUND for', questionId);
-    }
     
     // First try comprehensive results from working endpoint
     if (comprehensiveResults && typeof comprehensiveResults === 'object' && 'results' in comprehensiveResults && 
@@ -498,9 +480,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
           {expandedCategories.has(category) && (
             <div className="border-t border-dark-lighter">
               {questions.map(question => {
-                console.log('🔍 RENDER LOOP - Processing question:', question.id);
                 const answer = getAnswerForQuestion(question.id);
-                console.log('🔍 RENDER LOOP - Answer result for', question.id, ':', !!answer, answer?.answer?.substring(0, 100));
 
                 return (
                   <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
