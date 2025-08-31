@@ -364,6 +364,11 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
+  // Debug log to verify data flow
+  console.log('🔍 RESEARCH DEBUG - Full analysisData:', analysisData);
+  console.log('🔍 RESEARCH DEBUG - Has researchAnswers?:', !!analysisData?.researchAnswers);
+  console.log('🔍 RESEARCH DEBUG - researchAnswers keys:', Object.keys(analysisData?.researchAnswers || {}));
+
   // Get answer for a specific question  
   const getAnswerForQuestion = (questionId: string): {
     answer: string;
@@ -426,8 +431,8 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     }
     
     // Fallback to research_answers structure
-    if (analysisData.research_answers && analysisData.research_answers[questionId]) {
-      const answer = analysisData.research_answers[questionId];
+    if (analysisData.researchAnswers && analysisData.researchAnswers[questionId]) {
+      const answer = analysisData.researchAnswers[questionId];
       return {
         answer: answer.answer,
         confidence: Math.round((answer.confidence || 0.75) * 100),
