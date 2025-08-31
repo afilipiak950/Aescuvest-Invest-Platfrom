@@ -7,12 +7,12 @@ import { Router } from 'express';
 import { persistentResearchAnalysisService } from '../services/persistentResearchAnalysis';
 import { storage } from '../storage';
 
-const router = Router();
+export const persistentResearchRoutes = Router();
 
 /**
  * Start Research Analysis - EXACT Legal approach
  */
-router.post('/deals/:dealId/research-analysis/start', async (req, res) => {
+persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/start', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
 
@@ -53,7 +53,7 @@ router.post('/deals/:dealId/research-analysis/start', async (req, res) => {
 /**
  * Get Research Analysis Status - EXACT Legal approach
  */
-router.get('/deals/:dealId/research-analysis/status', async (req, res) => {
+persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/status', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
 
@@ -96,7 +96,7 @@ router.get('/deals/:dealId/research-analysis/status', async (req, res) => {
 /**
  * Cancel Research Analysis - EXACT Legal approach
  */
-router.post('/deals/:dealId/research-analysis/cancel', async (req, res) => {
+persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/cancel', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
 
@@ -131,7 +131,7 @@ router.post('/deals/:dealId/research-analysis/cancel', async (req, res) => {
 /**
  * Get Research Results - EXACT Legal approach
  */
-router.get('/deals/:dealId/research-analysis/results', async (req, res) => {
+persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/results', async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
     
@@ -220,4 +220,50 @@ router.get('/deals/:dealId/research-analysis/results', async (req, res) => {
   }
 });
 
-export default router;
+/**
+ * Get comprehensive research analysis results - EXACT Legal match
+ */
+persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/comprehensive/results', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    const analysis = await storage.getAgentAnalysis(dealId, 'research');
+    
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: 'No research analysis found'
+      });
+    }
+
+    console.log(`✅ Found comprehensive research analysis - ${Object.keys(analysis.research_answers || {}).length} questions, ${analysis.findings?.length || 0} findings, ${analysis.recommendations?.length || 0} recommendations`);
+
+    res.json({
+      success: true,
+      analysis: {
+        dealId,
+        agentType: analysis.agentType,
+        status: analysis.status,
+        findings: analysis.findings || [],
+        recommendations: analysis.recommendations || [],
+        confidence: analysis.confidence || 0,
+        completedAt: analysis.completedAt,
+        researchAnswers: analysis.research_answers || {}
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting comprehensive research analysis results:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get research analysis results' 
+    });
+  }
+});
