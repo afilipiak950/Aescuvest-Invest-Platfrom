@@ -268,6 +268,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
       console.log('🔬 Research results from agents endpoint:', comprehensiveResults);
       console.log('🔬 Has research answers:', !!(comprehensiveResults as any)?.results?.researchAnswers);
       console.log('🔬 Research answers keys:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}));
+      console.log('🔬 Looking for question ID:', questionId, 'in research answers');
     }
   }, [comprehensiveResults]);
 
@@ -331,26 +332,28 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     }
   };
 
-  // Research questions by category
+  // Research questions by category - IDs match backend research_1 through research_13
   const RESEARCH_QUESTIONS = [
     // Technical Whitepapers - 3 questions
-    { id: "technical_1", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
-    { id: "technical_2", question: "Are KPIs / benchmarks clearly described?", category: "Technical Whitepapers" },
-    { id: "technical_3", question: "Are claims cited and supported by peer-reviewed literature?", category: "Technical Whitepapers" },
+    { id: "research_1", question: "Are methodologies reproducible?", category: "Technical Whitepapers" },
+    { id: "research_2", question: "Are KPIs / benchmarks clearly described?", category: "Technical Whitepapers" },
+    { id: "research_3", question: "Are claims cited and supported by peer-reviewed literature?", category: "Technical Whitepapers" },
     
     // Market Research Reports - 3 questions
-    { id: "market_1", question: "Are TAM/SAM/SOM defined with assumptions?", category: "Market Research Reports" },
-    { id: "market_2", question: "Are sources cited (Gartner, Statista, CB Insights)?", category: "Market Research Reports" },
-    { id: "market_3", question: "Are forecasts based on bottom-up or top-down logic?", category: "Market Research Reports" },
+    { id: "research_4", question: "Are TAM/SAM/SOM defined with assumptions?", category: "Market Research Reports" },
+    { id: "research_5", question: "Are sources cited (Gartner, Statista, CB Insights)?", category: "Market Research Reports" },
+    { id: "research_6", question: "Are forecasts based on bottom-up or top-down logic?", category: "Market Research Reports" },
     
     // Academic Publications - 3 questions
-    { id: "academic_1", question: "Are papers peer-reviewed?", category: "Academic Publications" },
-    { id: "academic_2", question: "Are citations in PubMed, arXiv, Nature, etc.?", category: "Academic Publications" },
-    { id: "academic_3", question: "Is the publication recent and still relevant?", category: "Academic Publications" },
+    { id: "research_7", question: "Are papers peer-reviewed?", category: "Academic Publications" },
+    { id: "research_8", question: "Are citations in PubMed, arXiv, Nature, etc.?", category: "Academic Publications" },
+    { id: "research_9", question: "Is the publication recent and still relevant?", category: "Academic Publications" },
     
-    // Patent Landscape Analyses - 2 questions
-    { id: "patent_1", question: "Are citations and forward references analyzed?", category: "Patent Landscape Analyses" },
-    { id: "patent_2", question: "Is competitive IP density mapped?", category: "Patent Landscape Analyses" }
+    // Patent Landscape Analyses - 4 questions (completing the 13 total)
+    { id: "research_10", question: "Are citations and forward references analyzed?", category: "Patent Landscape Analyses" },
+    { id: "research_11", question: "Is competitive IP density mapped?", category: "Patent Landscape Analyses" },
+    { id: "research_12", question: "What research methodology and scientific approach is used?", category: "Patent Landscape Analyses" },
+    { id: "research_13", question: "What data quality and validation has been performed?", category: "Patent Landscape Analyses" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
