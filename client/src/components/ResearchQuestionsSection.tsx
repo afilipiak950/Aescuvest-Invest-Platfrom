@@ -297,7 +297,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     sources?: any[];
     title: string;
   }>({ quotes: [], sources: [], title: '' });
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Technical Whitepapers']));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Technical Whitepapers', 'Market Research Reports', 'Academic Publications', 'Patent Landscape Analyses']));
 
   // Toggle category expansion
   const toggleCategory = (category: string) => {
@@ -459,7 +459,10 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
 
 
 
-      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+      {Object.entries(categorizedQuestions).map(([category, questions]) => {
+        console.log('🏷️ Rendering category:', category, 'with', questions.length, 'questions');
+        console.log('🏷️ Category expanded?', expandedCategories.has(category));
+        return (
         <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
           <div 
             className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
@@ -538,7 +541,8 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
