@@ -76,7 +76,13 @@ export class PersistentResearchAnalysisService {
       this.stopJobMonitoring(jobId);
     }
 
-    // Legal doesn't delete existing analysis, just background jobs - EXACT Legal approach
+    // CRITICAL FIX: Delete existing analysis immediately like Financial agent to prevent stale data
+    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'research');
+    if (existingAnalysis) {
+      console.log(`🧹 DELETING existing research analysis for deal ${dealId} to prevent stale data display`);
+      await storage.deleteAgentAnalysisByDealAndType(dealId, 'research');
+    }
+    
     console.log(`🧹 Fresh start for research analysis deal ${dealId}`);
 
     // Create fresh job state
