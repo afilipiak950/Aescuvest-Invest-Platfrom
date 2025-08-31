@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const RESEARCH_QUESTIONS = [
+export const RESEARCH_QUESTIONS = [
   // Competitive Intelligence
   { 
     id: 'research_1', 

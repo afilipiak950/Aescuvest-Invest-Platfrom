@@ -42,6 +42,7 @@ import legacyResetRoutes from './routes/legacyReset';
 import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
+import persistentResearchRoutes from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
@@ -454,6 +455,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🔍 Registering persistent legal analysis routes...');
   app.use(persistentLegalRoutes);
   console.log('✅ Persistent legal analysis routes registered');
+  
+  // Register persistent research analysis routes
+  console.log('🔬 Registering persistent research analysis routes...');
+  app.use(persistentResearchRoutes);
+  console.log('✅ Persistent research analysis routes registered');
   
   // Register persistent analysis routes (includes clear-stuck-jobs and stop-all-jobs endpoints)
   console.log('🔄 Registering persistent analysis routes...');
