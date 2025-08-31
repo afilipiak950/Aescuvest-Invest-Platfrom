@@ -2295,7 +2295,7 @@ interface ResearchQuestionsSectionProps {
 }
 
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onResearchAnalysisStart }: ResearchQuestionsSectionProps) {
-  const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Whitepapers"]));
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
 
   // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults } = useQuery({
