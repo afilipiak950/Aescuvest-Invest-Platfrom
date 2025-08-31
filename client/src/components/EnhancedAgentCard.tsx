@@ -2435,6 +2435,12 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     return acc;
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
+  // Get documents that were used for research analysis
+  const researchDocumentSources = documents.filter(doc => 
+    doc.agentType === 'research' || 
+    (Array.isArray(doc.agentType) && doc.agentType.includes('research'))
+  );
+
   const getAnswerForQuestion = (questionId: string, questionText: string) => {
     // Try comprehensive results first - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
@@ -2645,12 +2651,36 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                 </div>
                               )}
 
-                              {/* Metadata */}
+                              {/* Metadata - Research Analysis has different data structure */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
-                                  Confidence: {normalizeConfidence(answer.confidence)}%
+                                  Research Analysis
                                 </Badge>
-                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                {/* For research analysis, show document sources differently since it doesn't have quotes/sources metadata */}
+                                {researchDocumentSources && researchDocumentSources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = researchDocumentSources.map((docSource: any) => ({
+                                        documentName: docSource.filename || docSource.name || 'Unknown Document',
+                                        relevantSections: ['Research document used for analysis'],
+                                        extractedText: answer.answer || 'Research analysis based on this document'
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {researchDocumentSources.length} document{researchDocumentSources.length > 1 ? 's' : ''} analyzed
+                                  </Badge>
+                                )}
+                                {/* Fallback for other agents with traditional source structure */}
+                                {!researchDocumentSources && answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
@@ -2670,7 +2700,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                     {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
                                   </Badge>
                                 )}
-                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                {!researchDocumentSources && answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                   <Badge 
                                     variant="outline" 
                                     className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
