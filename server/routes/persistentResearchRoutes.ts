@@ -247,7 +247,7 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/comprehensive
 
     res.json({
       success: true,
-      analysis: {
+      results: {
         dealId,
         agentType: analysis.agentType,
         status: analysis.status,
