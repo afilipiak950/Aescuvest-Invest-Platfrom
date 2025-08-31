@@ -268,7 +268,7 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
       console.log('🔬 Research results from agents endpoint:', comprehensiveResults);
       console.log('🔬 Has research answers:', !!(comprehensiveResults as any)?.results?.researchAnswers);
       console.log('🔬 Research answers keys:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}));
-      console.log('🔬 Looking for question ID:', questionId, 'in research answers');
+      console.log('🔬 Total research answers available:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}).length);
     }
   }, [comprehensiveResults]);
 
