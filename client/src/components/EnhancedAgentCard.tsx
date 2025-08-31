@@ -2472,6 +2472,9 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-cyan-400 mb-2">Research Analysis</h5>
+                                {console.log('🎯 UI RENDER DEBUG - answer object:', answer)}
+                                {console.log('🎯 UI RENDER DEBUG - answer.answer value:', answer.answer)}
+                                {console.log('🎯 UI RENDER DEBUG - answer.answer type:', typeof answer.answer)}
                                 <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
