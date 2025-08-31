@@ -167,8 +167,8 @@ export default function EnhancedAgentCard({
     if (agentType.toLowerCase() === 'ip' && ipAnalysisData && typeof ipAnalysisData === 'object' && 'analysis' in ipAnalysisData) {
       return ipAnalysisData.analysis;
     }
-    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'analysis' in researchAnalysisData) {
-      return researchAnalysisData.analysis;
+    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'results' in researchAnalysisData) {
+      return researchAnalysisData.results;
     }
     if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
       return clinicalAnalysisData.analysis;
