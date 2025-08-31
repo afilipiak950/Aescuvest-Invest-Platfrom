@@ -376,10 +376,18 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     recommendations?: string[];
     detailedEvidence?: any[];
   } | null => {
+    console.log('🔍 DEBUG getAnswerForQuestion called for:', questionId);
+    console.log('🔍 DEBUG comprehensiveResults:', !!comprehensiveResults);
+    console.log('🔍 DEBUG comprehensiveResults.results:', !!(comprehensiveResults as any)?.results);
+    console.log('🔍 DEBUG comprehensiveResults.results.researchAnswers:', !!(comprehensiveResults as any)?.results?.researchAnswers);
+    console.log('🔍 DEBUG available question keys:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}));
+    console.log('🔍 DEBUG looking for question:', questionId, 'in answers:', !!(comprehensiveResults as any)?.results?.researchAnswers?.[questionId]);
+    
     // First try comprehensive results from working endpoint
     if (comprehensiveResults && typeof comprehensiveResults === 'object' && 'results' in comprehensiveResults && 
         (comprehensiveResults as any).results?.researchAnswers?.[questionId]) {
       const answer = (comprehensiveResults as any).results.researchAnswers[questionId];
+      console.log('🎯 DEBUG Found answer for', questionId, ':', answer);
       return {
         answer: answer.answer || 'No analysis available',
         confidence: answer.confidence || 0,
@@ -391,10 +399,15 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
         recommendations: answer.recommendations || [],
         detailedEvidence: answer.detailedEvidence || []
       };
+    } else {
+      console.log('❌ DEBUG No answer found for', questionId);
     }
     
     // Fallback to analysisData
-    if (!analysisData) return null;
+    if (!analysisData) {
+      console.log('❌ DEBUG No analysisData available');
+      return null;
+    }
     
     // First try to get answer from researchAnswers structure
     if (analysisData.researchAnswers && analysisData.researchAnswers[questionId]) {
