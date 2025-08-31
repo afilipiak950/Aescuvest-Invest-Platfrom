@@ -2342,16 +2342,24 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string, questionText: string) => {
+    console.log('🎯 FUNCTION START - questionId:', questionId);
+    console.log('🎯 FUNCTION START - comprehensiveResults exists:', !!comprehensiveResults);
+    console.log('🎯 FUNCTION START - comprehensiveResults.results exists:', !!comprehensiveResults?.results);
+    console.log('🎯 FUNCTION START - researchAnswers exists:', !!comprehensiveResults?.results?.researchAnswers);
+    
     // Try comprehensive results first - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
+      console.log('🎯 ALL ANSWERS KEYS:', Object.keys(allAnswers));
       
       // First try by question ID (most reliable)
       const answerById = allAnswers[questionId];
+      console.log('🎯 ANSWER BY ID FOUND:', !!answerById);
+      console.log('🎯 ANSWER BY ID TYPE:', typeof answerById);
       if (answerById) {
         // Convert string response to object format
         if (typeof answerById === 'string') {
-          return {
+          const convertedAnswer = {
             answer: answerById,
             confidence: 75,
             sources: [],
@@ -2359,6 +2367,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             keyFindings: [],
             recommendations: []
           };
+          console.log('🎯 CONVERTED ANSWER:', convertedAnswer);
+          return convertedAnswer;
         }
         return answerById;
       }
