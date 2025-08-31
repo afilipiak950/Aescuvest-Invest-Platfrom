@@ -43,6 +43,100 @@ interface AnalysisData {
   [key: string]: any;
 }
 
+// Component to format structured research content
+function FormattedResearchContent({ content }: { content: string }) {
+  if (!content) return <p className="text-gray-400 text-sm">No content available</p>;
+
+  // Split content into lines and process each one
+  const lines = content.split('\n');
+  const formattedElements: JSX.Element[] = [];
+  
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    
+    if (!trimmedLine) {
+      // Empty line - add spacing
+      formattedElements.push(<div key={index} className="h-2" />);
+      return;
+    }
+    
+    // Headers (bold text with **)
+    if (trimmedLine.includes('**') && trimmedLine.includes(':')) {
+      const headerText = trimmedLine.replace(/\*\*/g, '').replace(':', '');
+      formattedElements.push(
+        <h6 key={index} className="text-white font-semibold text-sm mb-2 mt-3 first:mt-0">
+          {headerText}
+        </h6>
+      );
+      return;
+    }
+    
+    // Numbered list items (1., 2., etc.)
+    if (/^\d+\.\s*\*\*/.test(trimmedLine)) {
+      const numberMatch = trimmedLine.match(/^(\d+)\.\s*\*\*(.*?)\*\*(.*)$/);
+      if (numberMatch) {
+        const [, number, title, content] = numberMatch;
+        formattedElements.push(
+          <div key={index} className="mb-3">
+            <div className="flex items-start gap-2">
+              <span className="text-cyan-400 font-medium text-sm mt-0.5">{number}.</span>
+              <div className="flex-1">
+                <span className="text-white font-medium text-sm">{title}</span>
+                {content && <span className="text-gray-300 text-sm">{content}</span>}
+              </div>
+            </div>
+          </div>
+        );
+        return;
+      }
+    }
+    
+    // Regular numbered items
+    if (/^\d+\.\s/.test(trimmedLine)) {
+      const content = trimmedLine.replace(/^\d+\.\s*/, '');
+      const number = trimmedLine.match(/^(\d+)\./)?.[1];
+      formattedElements.push(
+        <div key={index} className="flex items-start gap-2 mb-2">
+          <span className="text-cyan-400 text-sm mt-0.5">{number}.</span>
+          <span className="text-gray-300 text-sm leading-relaxed">{content}</span>
+        </div>
+      );
+      return;
+    }
+    
+    // Bullet points (-, •, *)
+    if (/^[-•*]\s/.test(trimmedLine)) {
+      const content = trimmedLine.replace(/^[-•*]\s*/, '');
+      formattedElements.push(
+        <div key={index} className="flex items-start gap-2 mb-1">
+          <span className="text-cyan-400 text-sm mt-1">•</span>
+          <span className="text-gray-300 text-sm leading-relaxed">{content}</span>
+        </div>
+      );
+      return;
+    }
+    
+    // Indented content (starts with spaces)
+    if (/^\s{2,}/.test(line) && !trimmedLine.match(/^\d+\./)) {
+      formattedElements.push(
+        <div key={index} className="ml-4 text-gray-300 text-sm leading-relaxed mb-1">
+          {trimmedLine}
+        </div>
+      );
+      return;
+    }
+    
+    // Regular paragraph
+    formattedElements.push(
+      <p key={index} className="text-gray-300 text-sm leading-relaxed mb-2">
+        {trimmedLine}
+      </p>
+    );
+  });
+  
+  return <div className="space-y-1">{formattedElements}</div>;
+}
+
 interface ComprehensiveResults {
   success?: boolean;
   analysis?: AnalysisData;
@@ -2468,7 +2562,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-cyan-400 mb-2">Research Analysis</h5>
-                                <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</div>
+                                <FormattedResearchContent content={answer.answer} />
                               </div>
 
                               {/* Enhanced Research Assessment */}
