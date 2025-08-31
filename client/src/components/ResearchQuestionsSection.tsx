@@ -266,8 +266,8 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
   React.useEffect(() => {
     if (comprehensiveResults) {
       console.log('🔬 Research results from agents endpoint:', comprehensiveResults);
-      console.log('🔬 Has research answers:', !!(comprehensiveResults as any)?.analysis?.researchAnswers);
-      console.log('🔬 Research answers keys:', Object.keys((comprehensiveResults as any)?.analysis?.researchAnswers || {}));
+      console.log('🔬 Has research answers:', !!(comprehensiveResults as any)?.results?.researchAnswers);
+      console.log('🔬 Research answers keys:', Object.keys((comprehensiveResults as any)?.results?.researchAnswers || {}));
     }
   }, [comprehensiveResults]);
 
@@ -374,9 +374,9 @@ export default function ResearchQuestionsSection({ dealId, analysisData, assigne
     detailedEvidence?: any[];
   } | null => {
     // First try comprehensive results from working endpoint
-    if (comprehensiveResults && typeof comprehensiveResults === 'object' && 'analysis' in comprehensiveResults && 
-        (comprehensiveResults as any).analysis?.researchAnswers?.[questionId]) {
-      const answer = (comprehensiveResults as any).analysis.researchAnswers[questionId];
+    if (comprehensiveResults && typeof comprehensiveResults === 'object' && 'results' in comprehensiveResults && 
+        (comprehensiveResults as any).results?.researchAnswers?.[questionId]) {
+      const answer = (comprehensiveResults as any).results.researchAnswers[questionId];
       return {
         answer: answer.answer || 'No analysis available',
         confidence: answer.confidence || 0,
