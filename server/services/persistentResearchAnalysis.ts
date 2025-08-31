@@ -80,7 +80,7 @@ export class PersistentResearchAnalysisService {
     const existingAnalysis = await storage.getAgentAnalysis(dealId, 'research');
     if (existingAnalysis) {
       console.log(`🧹 DELETING existing research analysis for deal ${dealId} to prevent stale data display`);
-      await storage.deleteAgentAnalysisByDealAndType(dealId, 'research');
+      await storage.clearAgentAnalysis(dealId, 'research');
     }
     
     console.log(`🧹 Fresh start for research analysis deal ${dealId}`);
