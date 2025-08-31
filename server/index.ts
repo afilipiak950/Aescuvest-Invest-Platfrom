@@ -12,6 +12,7 @@ import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
+import { persistentResearchAnalysisService } from "./services/persistentResearchAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
 import { debug413Middleware, bypass413Middleware } from "./debug-413";
@@ -1202,6 +1203,12 @@ app.use((req, res, next) => {
     console.log('🔍 Initializing Persistent Legal Analysis Service...');
     persistentLegalAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent legal analysis:', err);
+    });
+    
+    // Initialize Persistent Research Analysis Service
+    console.log('🔬 Initializing Persistent Research Analysis Service...');
+    persistentResearchAnalysisService.initialize().catch(err => {
+      console.error('❌ Failed to initialize persistent research analysis:', err);
     });
 
     // Initialize Persistent Financial Analysis Service

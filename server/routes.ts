@@ -6271,68 +6271,52 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run comprehensive Research analysis - EXACT COMMERCIAL COPY
+  // Run Persistent Research Analysis - EXACT LEGAL APPROACH
   app.post('/api/deals/:dealId/research-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🔬 Starting comprehensive research analysis for deal ${dealId}`);
+      console.log(`🔬 Starting persistent research analysis for deal ${dealId} - EXACT Legal approach`);
       
-      // Check if there's already a running comprehensive research analysis - EXACT Commercial approach
-      const existingResearchJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_research_analysis');
+      // Check if there's already an active research analysis job - EXACT Legal approach
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingResearchJob = existingJobs.find(job => 
+        (job.agentType === 'research' || job.type === 'research_analysis') && 
+        job.status === 'running'
+      );
+      
       if (existingResearchJob) {
-        return res.json({
-          success: true,
-          message: 'Comprehensive research analysis already running',
+        console.log(`⚠️ Research analysis already running for deal ${dealId} (Job: ${existingResearchJob.jobId})`);
+        return res.json({ 
+          success: false, 
+          message: `Research analysis already in progress (${Math.round(existingResearchJob.progress || 0)}% complete)`,
           alreadyRunning: true,
-          jobId: existingResearchJob.jobId
+          progress: existingResearchJob.progress || 0
         });
       }
       
-      // Create background job - EXACT Commercial approach
-      const jobId = `comprehensive-research-analysis-${dealId}-${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_research_analysis',
-        agentType: 'research',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing research analysis',
-        processedDocuments: 0,
-        totalDocuments: 0
-      });
+      // Import the PERSISTENT research analysis service
+      const { persistentResearchAnalysisService } = await import('./services/persistentResearchAnalysis');
       
-      // Import and run service in background - EXACT Commercial approach
-      (async () => {
-        try {
-          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
-          const { ComprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
-          
-          const researchService = new ComprehensiveResearchAnalysisService();
-          await researchService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ Error in comprehensive research analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Commercial approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
-        }
-      })();
+      // Start persistent research analysis - EXACT Legal approach
+      const jobId = await persistentResearchAnalysisService.startResearchAnalysis(dealId);
+      
+      console.log(`🔬 Research analysis job ${jobId} started for deal ${dealId}`);
       
       res.json({
         success: true,
-        message: 'Comprehensive research analysis started',
-        jobId
+        message: 'Research analysis started successfully',
+        jobId,
+        started: true
       });
+      
     } catch (error) {
-      console.error(`❌ Error starting comprehensive research analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ success: false, error: 'Failed to start comprehensive research analysis' });
+      console.error(`❌ Error starting persistent research analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to start research analysis',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
