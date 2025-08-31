@@ -5,7 +5,7 @@
  */
 
 import { storage } from '../storage';
-import { comprehensiveResearchAnalysisService, RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
+import { ComprehensiveResearchAnalysisService, RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
 import { websocketManager } from './websocketManager';
 
 interface ResearchJobState {
@@ -165,7 +165,7 @@ export class PersistentResearchAnalysisService {
       console.log(`🔬 Starting comprehensive research analysis for deal ${dealId}`);
       
       // Create service instance with proper job tracking
-      const service = new comprehensiveResearchAnalysisService(dealId, storage, jobId);
+      const service = new ComprehensiveResearchAnalysisService();
       
       // Run the comprehensive analysis
       const result = await service.runComprehensiveAnalysis(dealId, storage, jobId);
