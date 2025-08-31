@@ -2342,30 +2342,41 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string, questionText: string) => {
-    console.log('🔬 RESEARCH DEBUG - Looking for answer to:', questionId, questionText);
-    console.log('🔬 RESEARCH DEBUG - comprehensiveResults:', !!comprehensiveResults);
-    console.log('🔬 RESEARCH DEBUG - comprehensiveResults.results:', !!comprehensiveResults?.results);
-    console.log('🔬 RESEARCH DEBUG - researchAnswers:', !!comprehensiveResults?.results?.researchAnswers);
-    console.log('🔬 RESEARCH DEBUG - Available answer keys:', Object.keys(comprehensiveResults?.results?.researchAnswers || {}));
-    
     // Try comprehensive results first - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
-      console.log('🔬 RESEARCH DEBUG - All answers object:', allAnswers);
       
       // First try by question ID (most reliable)
       const answerById = allAnswers[questionId];
-      console.log('🔬 RESEARCH DEBUG - Answer found by ID', questionId, ':', !!answerById);
       if (answerById) {
-        console.log('🔬 RESEARCH DEBUG - Returning answer by ID:', answerById);
+        // Convert string response to object format
+        if (typeof answerById === 'string') {
+          return {
+            answer: answerById,
+            confidence: 75,
+            sources: [],
+            quotes: [],
+            keyFindings: [],
+            recommendations: []
+          };
+        }
         return answerById;
       }
       
       // Fallback to question text (exact match)
       const answer = allAnswers[questionText];
-      console.log('🔬 RESEARCH DEBUG - Answer found by text:', !!answer);
       if (answer) {
-        console.log('🔬 RESEARCH DEBUG - Returning answer by text:', answer);
+        // Convert string response to object format
+        if (typeof answer === 'string') {
+          return {
+            answer: answer,
+            confidence: 75,
+            sources: [],
+            quotes: [],
+            keyFindings: [],
+            recommendations: []
+          };
+        }
         return answer;
       }
       
