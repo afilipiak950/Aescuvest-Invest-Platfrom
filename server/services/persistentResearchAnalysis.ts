@@ -76,9 +76,8 @@ export class PersistentResearchAnalysisService {
       this.stopJobMonitoring(jobId);
     }
 
-    // Delete existing analysis to ensure fresh results - EXACT Legal approach
-    console.log(`🧹 Deleting any existing research analysis for deal ${dealId} to start fresh`);
-    await storage.deleteAnalysisByDealAndAgent(dealId, 'research');
+    // Legal doesn't delete existing analysis, just background jobs - EXACT Legal approach
+    console.log(`🧹 Fresh start for research analysis deal ${dealId}`);
 
     // Create fresh job state
     const jobState: ResearchJobState = {
@@ -98,20 +97,18 @@ export class PersistentResearchAnalysisService {
 
     this.activeJobs.set(jobId, jobState);
 
-    // Create background job
+    // Create background job - EXACT Legal schema
     await storage.createBackgroundJob({
       jobId,
+      jobType: 'comprehensive_research_analysis',
       dealId,
-      type: 'research_analysis',
-      status: 'running',
+      agentType: 'research',
+      status: 'processing',
       progress: 0,
-      currentStep: 'Starting research analysis',
-      createdAt: new Date(),
-      metadata: { 
-        agentType: 'research',
-        totalQuestions: RESEARCH_QUESTIONS.length,
-        approach: 'persistent'
-      }
+      totalDocuments: 0,
+      processedDocuments: 0,
+      currentStep: 'Initializing research analysis...',
+      startedAt: new Date()
     });
 
     // Start WebSocket progress updates - EXACT Legal approach
@@ -229,8 +226,8 @@ export class PersistentResearchAnalysisService {
           jobState.lastUpdate = new Date();
         }
 
-        // Send WebSocket update
-        this.websocketManager.notifyClientsInRoom(`deal-${jobState.dealId}`, 'research-progress', {
+        // Send WebSocket update - EXACT Legal approach
+        this.websocketManager.broadcastToRoom(`deal-${jobState.dealId}`, 'research-progress', {
           dealId: jobState.dealId,
           progress: jobState.progress,
           step: jobState.currentStep,
@@ -300,7 +297,7 @@ export class PersistentResearchAnalysisService {
    * Check if a deal has an active research analysis
    */
   hasActiveResearchAnalysis(dealId: number): boolean {
-    for (const [_, jobState] of this.activeJobs) {
+    for (const jobState of this.activeJobs.values()) {
       if (jobState.dealId === dealId) {
         return true;
       }

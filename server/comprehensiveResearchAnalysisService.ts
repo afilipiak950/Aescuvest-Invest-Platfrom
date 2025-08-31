@@ -338,7 +338,7 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        research_answers: JSON.stringify(researchAnswers)
+        research_answers: researchAnswers
       });
 
       // Update job as completed
