@@ -1,10 +1,25 @@
 import { QueryClient } from "@tanstack/react-query";
 
 // Default baseUrl for API requests
-// 🚨 CRITICAL FIX: Dynamic baseUrl to bypass Vite in development
-const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000' // Development: bypass Vite middleware
-  : ''; // Production: use relative URLs
+// 🚨 CRITICAL FIX: Dynamic baseUrl to handle Replit development environment
+const baseUrl = (() => {
+  if (typeof window === 'undefined') return '';
+  
+  const hostname = window.location.hostname;
+  
+  // Local development
+  if (hostname === 'localhost') {
+    return 'http://localhost:5000';
+  }
+  
+  // Replit development environment - use same domain with port 5000
+  if (hostname.includes('replit.dev')) {
+    return `${window.location.protocol}//${hostname}`;
+  }
+  
+  // Production or other environments - use relative URLs
+  return '';
+})();
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -55,6 +70,10 @@ export const apiRequest = async <T = any>(
   options: RequestInit = {}
 ): Promise<T> => {
   try {
+    console.log(`🌐 apiRequest: Making ${options.method || 'GET'} request to: ${baseUrl}${url}`);
+    console.log(`🌐 apiRequest: baseUrl = "${baseUrl}"`);
+    console.log(`🌐 apiRequest: Full URL = "${baseUrl}${url}"`);
+    console.log(`🌐 apiRequest: Options:`, options);
     // Add auth token if available
     const token = localStorage.getItem('auth_token');
     const headers: Record<string, string> = {};
@@ -89,7 +108,13 @@ export const apiRequest = async <T = any>(
       signal: AbortSignal.timeout(600000), // 10 minutes timeout
     });
     
-    return handleApiResponse(response);
+    console.log(`🌐 apiRequest: Response status: ${response.status}`);
+    console.log(`🌐 apiRequest: Response ok: ${response.ok}`);
+    console.log(`🌐 apiRequest: Response headers:`, Object.fromEntries(response.headers.entries()));
+    
+    const result = await handleApiResponse(response);
+    console.log(`🌐 apiRequest: Final result:`, result);
+    return result;
   } catch (error) {
     console.error('API request error:', error);
     throw error;
