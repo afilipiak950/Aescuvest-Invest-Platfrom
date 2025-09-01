@@ -2407,24 +2407,21 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Complete Research questions structure - ALL questions that should be answered
+  // Complete Research questions structure - MUST match enhanced research service IDs exactly
   const RESEARCH_QUESTIONS = [
-    // FIXED: Use research_X IDs to match API response structure
-    { id: "research_1", question: "What research methodology and scientific approach is used?", category: "Technical Methodology" },
-    { id: "research_2", question: "What peer-reviewed publications and citations exist?", category: "Academic Publications" },
-    { id: "research_3", question: "What research partnerships and collaborations are present?", category: "Academic Publications" },
-    { id: "research_4", question: "What data quality and validation has been performed?", category: "Technical Methodology" },
-    { id: "research_5", question: "What research competitive advantages exist?", category: "Technical Innovation" },
-    
-    // Additional research questions that should be analyzed
-    { id: "research_6", question: "Are there citations in high-impact journals (Nature, Science, Cell)?", category: "Academic Publications" },
-    { id: "research_7", question: "What is the h-index and citation count of key publications?", category: "Academic Publications" },
-    { id: "research_8", question: "Are there collaborations with leading academic institutions?", category: "Academic Publications" },
-    { id: "research_9", question: "What is the total addressable market (TAM) size?", category: "Market Research" },
-    { id: "research_10", question: "Who are the main competitors and what is their market share?", category: "Market Research" },
-    { id: "research_11", question: "What are the market growth projections and key drivers?", category: "Market Research" },
-    { id: "research_12", question: "What is the freedom-to-operate (FTO) analysis result?", category: "Patent Landscape" },
-    { id: "research_13", question: "Are there any patent disputes or prior art challenges?", category: "Patent Landscape" }
+    { id: "market_1", question: "What is the total addressable market (TAM) and serviceable addressable market (SAM)?", category: "Market Analysis" },
+    { id: "competitive_1", question: "Who are the main competitors and what are their competitive advantages?", category: "Competitive Analysis" },
+    { id: "competitive_2", question: "What are the key competitive threats and how significant are they?", category: "Competitive Analysis" },
+    { id: "technology_1", question: "What is the technological differentiation and competitive moat?", category: "Technology Assessment" },
+    { id: "business_1", question: "How scalable and sustainable is the business model?", category: "Business Model" },
+    { id: "growth_1", question: "What are the growth drivers and expansion opportunities?", category: "Growth Potential" },
+    { id: "risk_1", question: "What are the primary business and market risks?", category: "Risk Assessment" },
+    { id: "customer_1", question: "Who is the target customer and what is the customer acquisition strategy?", category: "Customer Analysis" },
+    { id: "partnerships_1", question: "What strategic partnerships and alliances exist or are planned?", category: "Strategic Partnerships" },
+    { id: "regulatory_1", question: "What regulatory requirements and compliance obligations apply?", category: "Regulatory Environment" },
+    { id: "innovation_1", question: "What is the innovation pipeline and R&D capabilities?", category: "Innovation & R&D" },
+    { id: "exit_1", question: "What are the potential exit strategies and strategic acquirers?", category: "Exit Strategy" },
+    { id: "esg_1", question: "What ESG considerations and sustainability factors are relevant?", category: "ESG & Sustainability" }
   ];
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
