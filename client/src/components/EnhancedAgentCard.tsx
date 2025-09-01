@@ -2646,81 +2646,95 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                 </div>
                               )}
 
-                              {/* Metadata - Research Analysis has different data structure */}
+                              {/* Metadata - Research Analysis with comprehensive sources badge like other agents */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-cyan-400 border-cyan-400">
                                   Research Analysis
                                 </Badge>
-                                {/* For research analysis, show document sources differently since it doesn't have quotes/sources metadata */}
-                                {researchDocumentSources && researchDocumentSources.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
-                                    onClick={() => {
-                                      const sources = researchDocumentSources.map((docSource: any) => ({
-                                        documentName: docSource.filename || docSource.name || 'Unknown Document',
-                                        relevantSections: ['Research document used for analysis'],
-                                        extractedText: answer.answer || 'Research analysis based on this document'
-                                      }));
-                                      
-                                      setSelectedQuoteData({
-                                        quotes: [],
-                                        sources,
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {researchDocumentSources.length} document{researchDocumentSources.length > 1 ? 's' : ''} analyzed
-                                  </Badge>
-                                )}
-                                {/* Fallback for other agents with traditional source structure */}
-                                {!researchDocumentSources && answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
-                                    onClick={() => {
-                                      setSelectedQuoteData({
-                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
-                                          text: quote,
-                                          documentName: answer.sources?.[0] || 'Unknown Document',
-                                          confidence: answer.confidence || 0.8
-                                        })),
-                                        sources: [],
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
-                                  </Badge>
-                                )}
-                                {!researchDocumentSources && answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
-                                    onClick={() => {
-                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
-                                        return {
-                                          documentName: evidence.documentName,
-                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
-                                          extractedText: evidence.documentSummary || 'No specific content extracted'
-                                        };
-                                      }) || answer.sources.map((source: string) => ({
-                                        documentName: source,
-                                        relevantSections: [answer.answer || 'No specific section identified'],
-                                        extractedText: answer.answer
-                                      }));
-                                      
-                                      setSelectedQuoteData({
-                                        quotes: [],
-                                        sources,
-                                        title: question.question
-                                      });
-                                      setQuoteViewerOpen(true);
-                                    }}
-                                  >
-                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                
+                                {/* Comprehensive Sources Badge - ALWAYS shows like other agents */}
+                                {(() => {
+                                  // Count all available sources from different data structures
+                                  const quotesCount = (answer.quotes && Array.isArray(answer.quotes)) ? answer.quotes.length : 0;
+                                  const sourcesCount = (answer.sources && Array.isArray(answer.sources)) ? answer.sources.length : 0;
+                                  const docSourcesCount = researchDocumentSources ? researchDocumentSources.length : 0;
+                                  const evidenceCount = (answer.detailedEvidence && Array.isArray(answer.detailedEvidence)) ? answer.detailedEvidence.length : 0;
+                                  
+                                  // Total sources available
+                                  const totalSources = Math.max(quotesCount, sourcesCount, docSourcesCount, evidenceCount) || 1;
+                                  
+                                  return (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                      onClick={() => {
+                                        // Build comprehensive quotes array
+                                        const quotes = [];
+                                        if (answer.quotes && Array.isArray(answer.quotes)) {
+                                          quotes.push(...answer.quotes.map((quote: any) => ({
+                                            text: typeof quote === 'string' ? quote : quote.text || String(quote),
+                                            documentName: quote.document || answer.sources?.[0] || 'Research Document',
+                                            confidence: quote.confidence || answer.confidence || 0.8,
+                                            relevance: quote.relevance || 'High'
+                                          })));
+                                        }
+                                        
+                                        // Build comprehensive sources array
+                                        const sources = [];
+                                        
+                                        // Add research document sources
+                                        if (researchDocumentSources && researchDocumentSources.length > 0) {
+                                          sources.push(...researchDocumentSources.map((docSource: any) => ({
+                                            documentName: docSource.filename || docSource.name || 'Research Document',
+                                            relevantSections: ['Research analysis based on this document'],
+                                            extractedText: answer.answer || 'Research findings from document analysis'
+                                          })));
+                                        }
+                                        
+                                        // Add detailed evidence sources
+                                        if (answer.detailedEvidence && Array.isArray(answer.detailedEvidence)) {
+                                          sources.push(...answer.detailedEvidence.map((evidence: any) => ({
+                                            documentName: evidence.documentName || 'Research Document',
+                                            relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'Research evidence'],
+                                            extractedText: evidence.documentSummary || evidence.extractedText || 'Research evidence extracted'
+                                          })));
+                                        }
+                                        
+                                        // Add traditional sources if available
+                                        if (answer.sources && Array.isArray(answer.sources) && sources.length === 0) {
+                                          sources.push(...answer.sources.map((source: string) => ({
+                                            documentName: source,
+                                            relevantSections: [answer.answer || 'Research analysis'],
+                                            extractedText: answer.answer || 'Research findings'
+                                          })));
+                                        }
+                                        
+                                        // Fallback if no sources - create from answer
+                                        if (sources.length === 0 && answer.answer) {
+                                          sources.push({
+                                            documentName: 'Research Analysis',
+                                            relevantSections: ['Research findings and analysis'],
+                                            extractedText: answer.answer
+                                          });
+                                        }
+                                        
+                                        setSelectedQuoteData({
+                                          quotes,
+                                          sources,
+                                          title: question.question
+                                        });
+                                        setQuoteViewerOpen(true);
+                                      }}
+                                    >
+                                      📊 {totalSources} source{totalSources > 1 ? 's' : ''} {quotesCount > 0 ? `& ${quotesCount} quote${quotesCount > 1 ? 's' : ''}` : ''}
+                                    </Badge>
+                                  );
+                                })()}
+                                
+                                {/* Show confidence if available */}
+                                {answer.confidence && (
+                                  <Badge variant="outline" className="text-green-400 border-green-400">
+                                    {Math.round(answer.confidence * 100)}% confidence
                                   </Badge>
                                 )}
                               </div>
