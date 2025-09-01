@@ -27,6 +27,17 @@ import persistentUploadRouter from './routes/persistent-upload';
 
 const app = express();
 
+// 🚨 ULTRA-EARLY DEBUG: Catch ALL requests before ANY middleware
+app.use((req, res, next) => {
+  console.log(`🔍 ULTRA-EARLY DEBUG: ${req.method} ${req.path} - BEFORE ALL MIDDLEWARE`);
+  if (req.method === 'DELETE') {
+    console.log(`🚨 ULTRA-EARLY DELETE: ${req.method} ${req.path} - Headers:`, Object.keys(req.headers));
+    console.log(`🚨 ULTRA-EARLY DELETE: Full URL = ${req.url}`);
+    console.log(`🚨 ULTRA-EARLY DELETE: Original URL = ${req.originalUrl}`);
+  }
+  next();
+});
+
 // Health check endpoint for Cloud Run
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ 
