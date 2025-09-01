@@ -324,6 +324,23 @@ export class DatabaseStorage implements IStorage {
       }
       console.log(`✅ DatabaseStorage: Found deal ${id}: ${existingDeal.companyName}`);
       
+      // ⚠️ CRITICAL FIX: Delete foreign key references FIRST before deleting the deal
+      console.log(`🧹 DatabaseStorage: Cleaning up foreign key references for deal ${id}...`);
+      
+      // Delete background uploads (the failing constraint)
+      console.log(`🗑️ DatabaseStorage: Deleting background uploads for deal ${id}...`);
+      await this.deleteBackgroundUploadsByDealId(id);
+      
+      // Delete other related data to be safe
+      console.log(`🗑️ DatabaseStorage: Deleting documents for deal ${id}...`);
+      await this.deleteDocumentsByDealId(id);
+      
+      console.log(`🗑️ DatabaseStorage: Deleting analyses for deal ${id}...`);
+      await this.deleteAnalysesByDealId(id);
+      
+      console.log(`🗑️ DatabaseStorage: Deleting company research for deal ${id}...`);
+      await this.deleteCompanyResearchByDealId(id);
+      
       // Delete the deal using returning() to confirm deletion
       console.log(`🗑️ DatabaseStorage: Executing DELETE query for deal ${id}...`);
       const deletedDeals = await db
