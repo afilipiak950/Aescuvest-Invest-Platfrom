@@ -6,20 +6,27 @@ const baseUrl = (() => {
   if (typeof window === 'undefined') return '';
   
   const hostname = window.location.hostname;
+  console.log(`🔍 DEBUG: Computing baseUrl for hostname: ${hostname}`);
   
   // Local development
   if (hostname === 'localhost') {
+    console.log(`🔍 DEBUG: Using localhost baseUrl`);
     return 'http://localhost:5000';
   }
   
   // Replit development environment - use same domain with port 5000
   if (hostname.includes('replit.dev')) {
-    return `${window.location.protocol}//${hostname}`;
+    const computed = `${window.location.protocol}//${hostname}`;
+    console.log(`🔍 DEBUG: Using Replit baseUrl: ${computed}`);
+    return computed;
   }
   
   // Production or other environments - use relative URLs
+  console.log(`🔍 DEBUG: Using relative baseUrl (empty string)`);
   return '';
 })();
+
+console.log(`🌐 FINAL baseUrl: "${baseUrl}"`);
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -100,13 +107,23 @@ export const apiRequest = async <T = any>(
       }
     }
     
-    const response = await fetch(`${baseUrl}${url}`, {
-      ...options,
-      headers,
-      credentials: 'include', // Include cookies for auth
-      // Extended timeout for large file uploads
-      signal: AbortSignal.timeout(600000), // 10 minutes timeout
-    });
+    let response;
+    try {
+      response = await fetch(`${baseUrl}${url}`, {
+        ...options,
+        headers,
+        credentials: 'include', // Include cookies for auth
+        // Extended timeout for large file uploads
+        signal: AbortSignal.timeout(600000), // 10 minutes timeout
+      });
+      console.log(`🌐 apiRequest: Fetch completed successfully`);
+    } catch (fetchError) {
+      console.error(`❌ apiRequest: Fetch failed with error:`, fetchError);
+      console.error(`❌ apiRequest: Fetch error type:`, typeof fetchError);
+      console.error(`❌ apiRequest: Fetch error constructor:`, (fetchError as any).constructor?.name);
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      throw new Error(`Network request failed: ${errorMessage}`);
+    }
     
     console.log(`🌐 apiRequest: Response status: ${response.status}`);
     console.log(`🌐 apiRequest: Response ok: ${response.ok}`);

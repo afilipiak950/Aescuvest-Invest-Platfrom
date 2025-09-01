@@ -80,6 +80,17 @@ export default function AllDealsPage() {
       console.log(`🗑️ Frontend: Attempting to delete deal ${dealId}`);
       console.log(`🔍 Frontend: Making DELETE request to /api/deals/${dealId}`);
       
+      // First test if we can connect to the API at all
+      try {
+        console.log(`🧪 Frontend: Testing API connectivity first...`);
+        const testResult = await apiRequest('/api/deals', { method: 'GET' });
+        console.log(`🧪 Frontend: API connectivity test successful:`, testResult);
+      } catch (connectError) {
+        console.error(`🧪 Frontend: API connectivity test failed:`, connectError);
+        const errorMessage = connectError instanceof Error ? connectError.message : String(connectError);
+        throw new Error(`Cannot connect to API: ${errorMessage}`);
+      }
+      
       try {
         const result = await apiRequest(`/api/deals/${dealId}`, {
           method: 'DELETE',
@@ -107,13 +118,20 @@ export default function AllDealsPage() {
       return { previousDeals };
     },
     onError: (error: any, dealId, context) => {
+      console.error(`❌ DELETION ERROR for deal ${dealId}:`, error);
+      console.error(`❌ Error type:`, typeof error);
+      console.error(`❌ Error constructor:`, error.constructor.name);
+      console.error(`❌ Error message:`, error.message);
+      console.error(`❌ Error stack:`, error.stack);
+      console.error(`❌ Full error object:`, JSON.stringify(error, null, 2));
+      
       // Rollback on error
       if (context?.previousDeals) {
         queryClient.setQueryData(['/api/deals'], context.previousDeals);
       }
       
       // Show appropriate error message
-      let errorMessage = "Failed to delete deal. Please try again.";
+      let errorMessage = `Failed to delete deal. Error: ${error.message || 'Unknown error'}`;
       if (error.message?.includes('Cannot delete demo deals')) {
         errorMessage = error.message;
       } else if (error.message?.includes('Deal not found')) {
