@@ -2773,8 +2773,9 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
   const isAlreadyRunning = (() => {
     if (jobProgress?.jobs) {
       const researchJob = jobProgress.jobs.find((job: any) => 
-        job.jobType === 'agent_analysis' && 
-        job.agentType && job.agentType.toLowerCase() === 'research' && 
+        (job.jobType === 'comprehensive_research_analysis' || 
+         job.jobId?.includes('research-analysis') ||
+         (job.agentType && job.agentType.toLowerCase() === 'research')) && 
         (job.status === 'processing' || job.status === 'pending')
       );
       return !!researchJob && researchJob.status === 'processing';
