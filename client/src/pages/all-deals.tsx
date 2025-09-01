@@ -77,9 +77,19 @@ export default function AllDealsPage() {
         throw new Error('Cannot delete demo deals. Please refresh the page to load real deals from the database.');
       }
       
-      return apiRequest(`/api/deals/${dealId}`, {
-        method: 'DELETE',
-      });
+      console.log(`🗑️ Frontend: Attempting to delete deal ${dealId}`);
+      console.log(`🔍 Frontend: Making DELETE request to /api/deals/${dealId}`);
+      
+      try {
+        const result = await apiRequest(`/api/deals/${dealId}`, {
+          method: 'DELETE',
+        });
+        console.log(`✅ Frontend: Delete success for deal ${dealId}:`, result);
+        return result;
+      } catch (error) {
+        console.error(`❌ Frontend: Delete failed for deal ${dealId}:`, error);
+        throw error;
+      }
     },
     onMutate: async (dealId) => {
       // Cancel any outgoing refetches
