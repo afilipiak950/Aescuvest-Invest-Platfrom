@@ -2421,22 +2421,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     setExpandedCategories(newExpanded);
   };
 
-  // Complete Research questions structure - MUST match enhanced research service IDs exactly
-  const RESEARCH_QUESTIONS = [
-    { id: "market_1", question: "What is the total addressable market (TAM) and serviceable addressable market (SAM)?", category: "Market Analysis" },
-    { id: "competitive_1", question: "Who are the main competitors and what are their competitive advantages?", category: "Competitive Analysis" },
-    { id: "competitive_2", question: "What are the key competitive threats and how significant are they?", category: "Competitive Analysis" },
-    { id: "technology_1", question: "What is the technological differentiation and competitive moat?", category: "Technology Assessment" },
-    { id: "business_1", question: "How scalable and sustainable is the business model?", category: "Business Model" },
-    { id: "growth_1", question: "What are the growth drivers and expansion opportunities?", category: "Growth Potential" },
-    { id: "risk_1", question: "What are the primary business and market risks?", category: "Risk Assessment" },
-    { id: "customer_1", question: "Who is the target customer and what is the customer acquisition strategy?", category: "Customer Analysis" },
-    { id: "partnerships_1", question: "What strategic partnerships and alliances exist or are planned?", category: "Strategic Partnerships" },
-    { id: "regulatory_1", question: "What regulatory requirements and compliance obligations apply?", category: "Regulatory Environment" },
-    { id: "innovation_1", question: "What is the innovation pipeline and R&D capabilities?", category: "Innovation & R&D" },
-    { id: "exit_1", question: "What are the potential exit strategies and strategic acquirers?", category: "Exit Strategy" },
-    { id: "esg_1", question: "What ESG considerations and sustainability factors are relevant?", category: "ESG & Sustainability" }
-  ];
+  // Use the main RESEARCH_QUESTIONS array defined above (line 1497) for consistency
 
   const categorizedQuestions = RESEARCH_QUESTIONS.reduce((acc, question) => {
     if (!acc[question.category]) {
@@ -2444,7 +2429,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     }
     acc[question.category].push(question);
     return acc;
-  }, {} as Record<string, typeof RESEARCH_QUESTIONS>);
+  }, {} as Record<string, ResearchQuestion[]>);
 
   // Get documents that were used for research analysis
   const researchDocumentSources = documents.filter(doc => 
