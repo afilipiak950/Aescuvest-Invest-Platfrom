@@ -41,6 +41,7 @@ export interface IStorage {
   getAllDeals(): Promise<Deal[]>;
   getDealById(id: number): Promise<Deal | undefined>;
   createDeal(deal: InsertDeal): Promise<Deal>;
+  updateDeal(id: number, data: Partial<Deal>): Promise<Deal | undefined>;
   updateDealAiScore(id: number, score: number): Promise<Deal | undefined>;
   updateDealStatus(id: number, status: string): Promise<Deal | undefined>;
   deleteDeal(id: number): Promise<boolean>;
@@ -278,6 +279,20 @@ export class DatabaseStorage implements IStorage {
       .set({ aiScore: score.toString() })
       .where(eq(deals.id, id))
       .returning();
+    return updatedDeal || undefined;
+  }
+
+  async updateDeal(id: number, data: Partial<Deal>): Promise<Deal | undefined> {
+    const [updatedDeal] = await db
+      .update(deals)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(deals.id, id))
+      .returning();
+    
+    // Invalidate deals cache when deal is updated
+    dealsCache.delete('all_deals');
+    console.log('💨 Invalidated deals cache after deal update');
+    
     return updatedDeal || undefined;
   }
 

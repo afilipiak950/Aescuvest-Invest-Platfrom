@@ -264,7 +264,7 @@ export function registerApiRoutes(app: Express) {
   app.put('/api/v1/deals/:id', authenticateApiKey, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.id);
-      const existingDeal = await storage.getDeal(dealId);
+      const existingDeal = await storage.getDealById(dealId);
       
       if (!existingDeal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
@@ -296,7 +296,7 @@ export function registerApiRoutes(app: Express) {
   app.delete('/api/v1/deals/:id', authenticateApiKey, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.id);
-      const existingDeal = await storage.getDeal(dealId);
+      const existingDeal = await storage.getDealById(dealId);
       
       if (!existingDeal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
@@ -319,13 +319,13 @@ export function registerApiRoutes(app: Express) {
   app.get('/api/v1/deals/:dealId/documents', authenticateApiKey, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
       }
 
-      const documents = await storage.getDocumentsByDeal(dealId);
+      const documents = await storage.getDocumentsByDealId(dealId);
       
       const documentList = documents.map(doc => ({
         id: doc.id,
@@ -347,7 +347,7 @@ export function registerApiRoutes(app: Express) {
   app.post('/api/v1/deals/:dealId/documents', authenticateApiKey, apiUpload.array('files'), async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
@@ -409,13 +409,13 @@ export function registerApiRoutes(app: Express) {
   app.get('/api/v1/deals/:dealId/analyses', authenticateApiKey, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
       }
 
-      const analyses = await storage.getAgentAnalysesByDeal(dealId);
+      const analyses = await storage.getAnalysesByDealId(dealId);
       
       const analysisData = analyses.map(analysis => ({
         id: analysis.id,
@@ -441,12 +441,12 @@ export function registerApiRoutes(app: Express) {
       const dealId = parseInt(req.params.dealId);
       const { agentTypes } = req.body;
       
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
       }
 
-      const documents = await storage.getDocumentsByDeal(dealId);
+      const documents = await storage.getDocumentsByDealId(dealId);
       if (documents.length === 0) {
         return res.status(400).json(apiResponse.error('No documents found for analysis', 'NO_DOCUMENTS'));
       }
@@ -492,7 +492,7 @@ export function registerApiRoutes(app: Express) {
   app.post('/api/v1/deals/:dealId/memo/generate', authenticateApiKey, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
@@ -513,7 +513,7 @@ export function registerApiRoutes(app: Express) {
   app.get('/api/v1/deals/:dealId/memo', optionalApiAuth, async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
@@ -543,7 +543,7 @@ export function registerApiRoutes(app: Express) {
       const { ModernPdfExportService } = await import('../services/modernPdfExportService');
       
       // Get the deal data
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found'));
       }
@@ -589,7 +589,7 @@ export function registerApiRoutes(app: Express) {
       const { PDFExportService } = await import('../services/pdfExportService');
       
       // Get the deal data
-      const deal = await storage.getDeal(dealId);
+      const deal = await storage.getDealById(dealId);
       if (!deal) {
         return res.status(404).json(apiResponse.error('Deal not found'));
       }
