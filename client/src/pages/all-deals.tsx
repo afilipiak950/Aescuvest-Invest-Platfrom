@@ -71,8 +71,9 @@ export default function AllDealsPage() {
   // Delete deal mutation with optimistic updates
   const deleteDealMutation = useMutation({
     mutationFn: async (dealId: number) => {
-      // Prevent deletion of demo deals (IDs 1-8)
-      if (dealId <= 8 && apiDeals.length === 0) {
+      // Only prevent deletion of demo deals when actually using demo data
+      // and the deal ID matches demo deal IDs
+      if (dealId <= 8 && apiDeals.length === 0 && demoDeals.some(demo => demo.id === dealId)) {
         throw new Error('Cannot delete demo deals. Please refresh the page to load real deals from the database.');
       }
       
