@@ -6277,19 +6277,29 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Run Persistent Research Analysis - EXACT LEGAL APPROACH
+  // Run comprehensive research analysis - systematically analyzes ALL assigned documents
   app.post('/api/deals/:dealId/research-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🔬 Starting persistent research analysis for deal ${dealId} - EXACT Legal approach`);
+      console.log(`🚀 Starting comprehensive research analysis for deal ${dealId}`);
       
-      // Check if there's already an active research analysis job - EXACT Legal approach
+      // Check for existing research analysis jobs to prevent duplicates
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingResearchJob = existingJobs.find(job => 
-        (job.agentType === 'research' || job.type === 'research_analysis') && 
-        job.status === 'running'
-      );
+      const existingResearchJob = existingJobs.find(job => {
+        if (!job || job.status !== 'processing') return false;
+        
+        // Check job type first
+        if (job.jobType === 'comprehensive_research_analysis') return true;
+        
+        // Check jobId with proper null safety
+        if (job.jobId && typeof job.jobId === 'string' && job.jobId.includes('research_analysis')) return true;
+        
+        // Check agentType as fallback
+        if (job.agentType === 'Research') return true;
+        
+        return false;
+      });
       
       if (existingResearchJob) {
         console.log(`⚠️ Research analysis already running for deal ${dealId} (Job: ${existingResearchJob.jobId})`);
@@ -6301,32 +6311,32 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the PERSISTENT research analysis service
-      const { persistentResearchAnalysisService } = await import('./services/persistentResearchAnalysis');
+      // Import the ENHANCED research analysis service
+      const { startEnhancedResearchAnalysis } = await import('./enhancedResearchAnalysisService');
       
-      // Start persistent research analysis - EXACT Legal approach
-      const jobId = await persistentResearchAnalysisService.startResearchAnalysis(dealId);
+      // Run ENHANCED research analysis in background with deep evidence-based processing
+      (async () => {
+        try {
+          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
+          await startEnhancedResearchAnalysis(dealId);
+          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
+        }
+      })();
       
-      console.log(`🔬 Research analysis job ${jobId} started for deal ${dealId}`);
-      
-      res.json({
-        success: true,
-        message: 'Research analysis started successfully',
-        jobId,
-        started: true
+      res.json({ 
+        success: true, 
+        message: 'ENHANCED research analysis started - deep evidence-based processing with comprehensive source attribution across ALL assigned documents'
       });
-      
     } catch (error) {
-      console.error(`❌ Error starting persistent research analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ 
-        success: false, 
-        error: 'Failed to start research analysis',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error(`❌ Error starting comprehensive research analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive research analysis' });
     }
   });
 
-  // Get comprehensive Research analysis results
+  // Get comprehensive research analysis results
   app.get('/api/deals/:dealId/research-analysis/comprehensive/results', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -6334,7 +6344,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       console.log(`🔬 Fetching comprehensive research analysis results for deal ${dealId}`);
       
       // Get comprehensive research analysis from agent_analyses table
-      const analysis = await storage.getAgentAnalysis(dealId, 'research');
+      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
       
       if (!analysis) {
         console.log(`❌ No comprehensive research analysis found for deal ${dealId}`);
@@ -6345,7 +6355,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Parse research answers if they exist
+      // Parse research answers if they exist (enhanced format)
       let researchAnswers = {};
       if (analysis.research_answers) {
         try {
@@ -6364,6 +6374,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         parsedAnswersKeys: Object.keys(researchAnswers)
       });
       
+      // Enhanced response format matching Legal analysis structure
       res.json({
         success: true,
         results: {
@@ -6371,12 +6382,52 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
           findings: analysis.findings || [],
           recommendations: analysis.recommendations || [],
           researchAnswers,
-          completedAt: analysis.completedAt
+          completedAt: analysis.completedAt,
+          // Enhanced metadata for consistency with Legal
+          totalQuestions: Object.keys(researchAnswers).length,
+          documentsAnalyzed: analysis.documentsAnalyzed || 0
         }
       });
     } catch (error) {
       console.error(`❌ Error getting comprehensive research analysis results:`, error);
       res.status(500).json({ success: false, error: 'Failed to get analysis results' });
+    }
+  });
+
+  // Get comprehensive research analysis progress
+  app.get('/api/deals/:dealId/research-analysis/comprehensive/progress', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check for active comprehensive research analysis job
+      const jobs = await storage.getBackgroundJobsByDealId(dealId);
+      const comprehensiveJob = jobs.find(job => 
+        job.jobType === 'comprehensive_research_analysis' && 
+        job.status === 'processing'
+      );
+      
+      if (comprehensiveJob) {
+        res.json({
+          success: true,
+          isRunning: true,
+          progress: comprehensiveJob.progress || 0,
+          currentStep: comprehensiveJob.currentStep || 'Starting analysis',
+          currentDocumentName: comprehensiveJob.currentDocumentName || 'Initializing',
+          processedDocuments: comprehensiveJob.processedDocuments || 0,
+          totalDocuments: comprehensiveJob.totalDocuments || 13,
+          message: 'Comprehensive research analysis in progress'
+        });
+      } else {
+        res.json({
+          success: true,
+          isRunning: false,
+          progress: 0,
+          message: 'No comprehensive research analysis running'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error getting comprehensive research analysis progress:`, error);
+      res.status(500).json({ success: false, error: 'Failed to get progress' });
     }
   });
 
