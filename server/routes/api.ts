@@ -293,27 +293,8 @@ export function registerApiRoutes(app: Express) {
     }
   });
 
-  app.delete('/api/v1/deals/:id', authenticateApiKey, async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.id);
-      const existingDeal = await storage.getDealById(dealId);
-      
-      if (!existingDeal) {
-        return res.status(404).json(apiResponse.error('Deal not found', 'DEAL_NOT_FOUND'));
-      }
-
-      // Check ownership (admins can delete any deal)
-      if (req.apiUser!.role !== 'admin' && existingDeal.createdBy !== req.apiUser!.id) {
-        return res.status(403).json(apiResponse.error('Access denied', 'ACCESS_DENIED'));
-      }
-
-      await storage.deleteDeal(dealId);
-      res.json(apiResponse.success(null, 'Deal deleted successfully'));
-    } catch (error) {
-      console.error('❌ API Error deleting deal:', error);
-      res.status(500).json(apiResponse.error('Failed to delete deal'));
-    }
-  });
+  // REMOVED: Duplicate delete route that was causing foreign key constraint errors
+  // The comprehensive delete route in routes.ts handles deletion with proper cleanup
 
   // Documents API
   app.get('/api/v1/deals/:dealId/documents', authenticateApiKey, async (req: Request, res: Response) => {
