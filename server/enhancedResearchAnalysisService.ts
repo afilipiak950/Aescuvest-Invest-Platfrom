@@ -6,85 +6,77 @@
 
 import { EnhancedComprehensiveAnalysisService } from './enhancedComprehensiveAnalysisService';
 
-// Comprehensive research questions for thorough analysis
+// Comprehensive research questions matching frontend RESEARCH_QUESTIONS array for consistency
 const ENHANCED_RESEARCH_QUESTIONS = [
+  // Market Research Reports
   {
     id: 'market_1',
-    category: 'Market Analysis',
-    question: 'What is the total addressable market (TAM) and serviceable addressable market (SAM)?',
-    keywords: ['market size', 'TAM', 'SAM', 'addressable market', 'market opportunity', 'revenue potential']
+    category: 'Market Research Reports',
+    question: 'Are TAM/SAM/SOM defined with assumptions?',
+    keywords: ['market size', 'TAM', 'SAM', 'SOM', 'addressable market', 'market opportunity', 'revenue potential', 'assumptions']
   },
   {
-    id: 'competitive_1',
-    category: 'Competitive Analysis',
-    question: 'Who are the main competitors and what are their competitive advantages?',
-    keywords: ['competitors', 'competitive landscape', 'market share', 'competitive advantage', 'differentiation']
+    id: 'market_2',
+    category: 'Market Research Reports',
+    question: 'What competitive landscape analysis is provided?',
+    keywords: ['competitive landscape', 'competitors', 'market share', 'competitive analysis', 'industry analysis']
   },
   {
-    id: 'competitive_2',
-    category: 'Competitive Analysis',
-    question: 'What are the key competitive threats and how significant are they?',
-    keywords: ['competitive threats', 'market risks', 'disruption', 'barriers to entry', 'threat analysis']
+    id: 'market_3',
+    category: 'Market Research Reports',
+    question: 'Are market growth projections validated?',
+    keywords: ['market growth', 'projections', 'validation', 'growth rates', 'market trends', 'forecasts']
+  },
+  // Technical Whitepapers
+  {
+    id: 'technical_1',
+    category: 'Technical Whitepapers',
+    question: 'What technical approach/architecture is described?',
+    keywords: ['technical approach', 'architecture', 'technology stack', 'implementation', 'system design']
   },
   {
-    id: 'technology_1',
-    category: 'Technology Assessment',
-    question: 'What is the technological differentiation and competitive moat?',
-    keywords: ['technology', 'differentiation', 'innovation', 'moat', 'technical advantage', 'proprietary']
+    id: 'technical_2',
+    category: 'Technical Whitepapers',
+    question: 'Are technical risks and mitigation strategies outlined?',
+    keywords: ['technical risks', 'mitigation strategies', 'risk assessment', 'technical challenges', 'risk management']
   },
   {
-    id: 'business_1',
-    category: 'Business Model',
-    question: 'How scalable and sustainable is the business model?',
-    keywords: ['business model', 'scalability', 'sustainability', 'revenue model', 'unit economics']
+    id: 'technical_3',
+    category: 'Technical Whitepapers',
+    question: 'What scalability and performance benchmarks are provided?',
+    keywords: ['scalability', 'performance', 'benchmarks', 'load testing', 'performance metrics', 'capacity']
+  },
+  // Academic Publications
+  {
+    id: 'academic_1',
+    category: 'Academic Publications',
+    question: 'What peer-reviewed research supports the technology?',
+    keywords: ['peer-reviewed', 'research', 'academic validation', 'publications', 'scientific evidence', 'studies']
   },
   {
-    id: 'growth_1',
-    category: 'Growth Potential',
-    question: 'What are the growth drivers and expansion opportunities?',
-    keywords: ['growth drivers', 'expansion', 'market expansion', 'growth potential', 'scaling']
+    id: 'academic_2',
+    category: 'Academic Publications',
+    question: 'Are there collaborations with research institutions?',
+    keywords: ['research collaborations', 'university partnerships', 'academic institutions', 'research partnerships']
   },
   {
-    id: 'risk_1',
-    category: 'Risk Assessment',
-    question: 'What are the primary business and market risks?',
-    keywords: ['business risks', 'market risks', 'operational risks', 'regulatory risks', 'strategic risks']
+    id: 'academic_3',
+    category: 'Academic Publications',
+    question: 'What scientific evidence validates the approach?',
+    keywords: ['scientific evidence', 'validation', 'research methodology', 'experimental results', 'clinical data']
+  },
+  // Patent Landscape
+  {
+    id: 'patent_1',
+    category: 'Patent Landscape',
+    question: 'What patent portfolio exists and what gaps are identified?',
+    keywords: ['patent portfolio', 'intellectual property', 'IP gaps', 'patent protection', 'IP strategy']
   },
   {
-    id: 'customer_1',
-    category: 'Customer Analysis',
-    question: 'Who is the target customer and what is the customer acquisition strategy?',
-    keywords: ['target customer', 'customer acquisition', 'customer segments', 'customer strategy']
-  },
-  {
-    id: 'partnerships_1',
-    category: 'Strategic Partnerships',
-    question: 'What strategic partnerships and alliances exist or are planned?',
-    keywords: ['partnerships', 'alliances', 'strategic relationships', 'joint ventures', 'collaborations']
-  },
-  {
-    id: 'regulatory_1',
-    category: 'Regulatory Environment',
-    question: 'What regulatory requirements and compliance obligations apply?',
-    keywords: ['regulatory', 'compliance', 'regulations', 'legal requirements', 'industry standards']
-  },
-  {
-    id: 'innovation_1',
-    category: 'Innovation & R&D',
-    question: 'What is the innovation pipeline and R&D capabilities?',
-    keywords: ['innovation', 'R&D', 'research', 'development', 'pipeline', 'future products']
-  },
-  {
-    id: 'exit_1',
-    category: 'Exit Strategy',
-    question: 'What are the potential exit strategies and strategic acquirers?',
-    keywords: ['exit strategy', 'acquisition', 'strategic buyers', 'IPO', 'exit opportunities']
-  },
-  {
-    id: 'esg_1',
-    category: 'ESG & Sustainability',
-    question: 'What ESG considerations and sustainability factors are relevant?',
-    keywords: ['ESG', 'sustainability', 'environmental', 'social impact', 'governance', 'responsible investing']
+    id: 'patent_2',
+    category: 'Patent Landscape',
+    question: 'Are there freedom-to-operate risks?',
+    keywords: ['freedom to operate', 'FTO', 'patent risks', 'IP infringement', 'patent landscape analysis']
   }
 ];
 
