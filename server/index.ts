@@ -1009,6 +1009,16 @@ app.use((req, res, next) => {
   });
   console.log('✅ Pre-Vite upload handler registered');
 
+  // 🚨 CRITICAL: Add DELETE debugging middleware before all routes
+  app.use((req, res, next) => {
+    if (req.method === 'DELETE' && req.path.includes('/api/deals/')) {
+      console.log(`🚨 DELETE REQUEST INTERCEPTED: ${req.method} ${req.path}`);
+      console.log(`🚨 DELETE: Full URL = ${req.url}`);
+      console.log(`🚨 DELETE: Headers = ${JSON.stringify(req.headers, null, 2)}`);
+    }
+    next();
+  });
+
   // 🚨 CRITICAL: Register API routes FIRST (before Vite middleware)
   const server = await registerRoutes(app);
   console.log('✅ All API routes registered successfully before Vite middleware');
