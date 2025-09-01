@@ -1009,12 +1009,12 @@ app.use((req, res, next) => {
   });
   console.log('✅ Pre-Vite upload handler registered');
 
-  // 🚨 CRITICAL: Add DELETE debugging middleware before all routes
+  // 🚨 ULTRA-COMPREHENSIVE DEBUG: Track ALL requests 
   app.use((req, res, next) => {
-    if (req.method === 'DELETE' && req.path.includes('/api/deals/')) {
+    console.log(`🌐 ULTRA-DEBUG: ${req.method} ${req.path} - MIDDLEWARE HIT`);
+    if (req.method === 'DELETE') {
       console.log(`🚨 DELETE REQUEST INTERCEPTED: ${req.method} ${req.path}`);
       console.log(`🚨 DELETE: Full URL = ${req.url}`);
-      console.log(`🚨 DELETE: Headers = ${JSON.stringify(req.headers, null, 2)}`);
     }
     next();
   });
