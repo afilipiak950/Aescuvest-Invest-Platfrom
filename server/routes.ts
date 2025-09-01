@@ -976,10 +976,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEST ROUTE - Add before comprehensive deletion to verify route registration
+  app.delete('/api/deals/:id/test-route-hit', async (req: Request, res: Response) => {
+    console.log(`🧪 TEST: Delete route registration working for deal ${req.params.id}`);
+    res.json({ test: 'route_hit', dealId: req.params.id });
+  });
+
   app.delete('/api/deals/:id', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.id);
-      console.log(`🗑️ DELETE /api/deals/${dealId} - Starting deletion process`);
+      console.log(`🗑️ DELETE /api/deals/${dealId} - Starting deletion process - COMPREHENSIVE ROUTE HIT!`);
       
       if (isNaN(dealId)) {
         console.log(`❌ Invalid deal ID: ${req.params.id}`);
