@@ -2443,8 +2443,19 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
       
-      // First try by question ID (most reliable)
+      // First try by question ID (most reliable) - answers are objects, not strings
       const answerById = allAnswers[questionId];
+      if (answerById && typeof answerById === 'object' && answerById.answer && !answerById.answer.includes('No relevant documents found')) {
+        return answerById; // Return the full object which already has answer, sources, quotes, etc.
+      }
+      
+      // Fallback to question text (exact match)
+      const answer = allAnswers[questionText];
+      if (answer && typeof answer === 'object' && answer.answer) {
+        return answer;
+      }
+      
+      // Legacy string format fallback
       if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
         return {
           answer: answerById,
@@ -2454,23 +2465,6 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           keyFindings: [],
           recommendations: []
         };
-      }
-      
-      // Fallback to question text (exact match)
-      const answer = allAnswers[questionText];
-      if (answer) {
-        // Convert string response to object format
-        if (typeof answer === 'string') {
-          return {
-            answer: answer,
-            confidence: 75,
-            sources: [],
-            quotes: [],
-            keyFindings: [],
-            recommendations: []
-          };
-        }
-        return answer;
       }
       
       // Try to find by partial matching of question text in the answer's question field
