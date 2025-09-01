@@ -1336,9 +1336,8 @@ export class DatabaseStorage implements IStorage {
   async deleteBackgroundUploadsByDealId(dealId: number): Promise<number> {
     try {
       console.log(`🗑️ DatabaseStorage: Deleting background uploads for deal ${dealId}...`);
-      // Import persistentUploadSessions (the correct schema name for background_uploads table)
-      const { persistentUploadSessions } = await import('../shared/schema');
-      const result = await db.delete(persistentUploadSessions).where(eq(persistentUploadSessions.dealId, dealId));
+      // Use raw SQL since background_uploads table is not defined in Drizzle schema
+      const result = await db.execute(sql`DELETE FROM background_uploads WHERE deal_id = ${dealId}`);
       const count = result.rowCount || 0;
       console.log(`🗑️ DatabaseStorage: Deleted ${count} background upload record(s) for deal ${dealId}`);
       return count;
