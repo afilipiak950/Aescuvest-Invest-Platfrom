@@ -54,14 +54,15 @@ export class EnhancedComprehensiveAnalysisService {
     // Create background job for tracking using unified pattern
     const jobId = `${this.agentType.toLowerCase()}-analysis-${dealId}`;
     
-    // Delete previous analysis and background job before starting fresh (like Clinical/Legal)
-    console.log(`🧹 Deleting previous ${this.agentType} analysis for deal ${dealId}`);
+    // Skip deletion since analysis will be updated in place
+    console.log(`🔄 Enhanced ${this.agentType} analysis will overwrite existing data for deal ${dealId}`);
+    
+    // Clear any stuck background jobs that might prevent fresh start
     try {
-      await storage.deleteAgentAnalysisByDealAndType(dealId, this.agentType);
       await storage.deleteBackgroundJob(jobId);
-      console.log(`✅ Previous ${this.agentType} analysis deleted for deal ${dealId}`);
-    } catch (error) {
-      console.log(`ℹ️ No previous ${this.agentType} analysis to delete for deal ${dealId}`);
+      console.log(`✅ Previous ${this.agentType} background job cleared successfully`);
+    } catch (jobDeleteError) {
+      console.log(`⚠️ No existing ${this.agentType} background job to clear (this is normal)`);
     }
     
     // Check for existing running jobs to prevent duplicates
