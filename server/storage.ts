@@ -313,6 +313,7 @@ export class DatabaseStorage implements IStorage {
   async deleteDeal(id: number): Promise<boolean> {
     try {
       console.log(`🗑️ DatabaseStorage: Attempting to delete deal ${id}`);
+      console.log(`🚨 STORAGE DEBUG: deleteDeal called from:`, new Error().stack);
       console.log(`🔍 DatabaseStorage: Deal ID type: ${typeof id}, value: ${id}`);
       
       // First check if deal exists
