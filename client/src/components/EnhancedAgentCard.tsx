@@ -2390,12 +2390,26 @@ interface ResearchQuestionsSectionProps {
 
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onResearchAnalysisStart }: ResearchQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
+  const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
 
   // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
   });
+
+  // Listen for research analysis start event to clear old data immediately
+  useEffect(() => {
+    const handleAnalysisStart = () => {
+      setIsAnalysisStarting(true);
+      console.log('🗑️ RESEARCH UI: Clearing old answers immediately for fresh start');
+      // Clear analysis starting flag after a delay
+      setTimeout(() => setIsAnalysisStarting(false), 5000);
+    };
+
+    window.addEventListener('researchAnalysisStarted', handleAnalysisStart);
+    return () => window.removeEventListener('researchAnalysisStarted', handleAnalysisStart);
+  }, []);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -2439,6 +2453,11 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   );
 
   const getAnswerForQuestion = (questionId: string, questionText: string) => {
+    // If analysis is starting, return null to show empty state
+    if (isAnalysisStarting) {
+      return null;
+    }
+
     // Try comprehensive results first - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
