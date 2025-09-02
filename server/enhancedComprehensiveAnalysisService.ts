@@ -442,7 +442,7 @@ Provide a thorough analysis with specific source attribution.`;
         updatedAt: new Date()
       };
       
-      // Set the correct answers field based on agent type
+      // Set the correct answers field based on agent type (USE EXACT PROPERTY NAMES FROM SCHEMA!)
       if (this.agentType.toLowerCase() === 'research') {
         updateData.research_answers = JSON.stringify(answers);
       } else if (this.agentType.toLowerCase() === 'clinical') {
