@@ -142,10 +142,37 @@ export class EnhancedComprehensiveAnalysisService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`❌ Error in enhanced ${this.agentType} analysis:`, error);
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed',
-        error: errorMessage
-      });
+      
+      // Check if this is an OpenAI quota error
+      const isQuotaError = errorMessage.includes('exceeded your current quota') || 
+                          errorMessage.includes('insufficient_quota') ||
+                          (error as any)?.code === 'insufficient_quota';
+      
+      if (isQuotaError) {
+        console.log(`🚫 OpenAI quota exceeded for ${this.agentType} analysis - updating agent status`);
+        
+        // Update agent analysis status to reflect quota error
+        const analysisRecord = await storage.getAgentAnalysisByDealAndType(dealId, this.agentType.toLowerCase());
+        if (analysisRecord && analysisRecord.id) {
+          await storage.updateAgentAnalysis(analysisRecord.id, {
+            status: 'OpenAI quota exceeded - retry later',
+            updatedAt: new Date()
+          });
+          console.log(`💾 Updated ${this.agentType} agent status to quota exceeded`);
+        }
+        
+        await storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          error: 'OpenAI quota exceeded - analysis will retry when quota resets',
+          currentStep: 'Waiting for OpenAI quota reset'
+        });
+      } else {
+        await storage.updateBackgroundJob(jobId, {
+          status: 'failed', 
+          error: errorMessage
+        });
+      }
+      
       throw error;
     }
   }
