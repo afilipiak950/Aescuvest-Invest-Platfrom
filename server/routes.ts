@@ -5456,17 +5456,25 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       if (agentType === 'financial') {
         const analysis = await storage.getAgentAnalysis(dealId, 'Financial');
         
-        if (analysis && analysis.financialAnswers) {
+        if (analysis) {
           // Transform comprehensive Financial results to match the expected format - EXACT HR PATTERN
           let financialAnswers = {};
           let findings = [];
           let recommendations = [];
           
           try {
-            const financialAnswersData = analysis.financialAnswers;
-            financialAnswers = typeof financialAnswersData === 'string' 
-              ? JSON.parse(financialAnswersData) 
-              : financialAnswersData;
+            // Handle both camelCase and snake_case field names like HR pattern
+            if (analysis.financialAnswers) {
+              const financialAnswersData = analysis.financialAnswers;
+              financialAnswers = typeof financialAnswersData === 'string' 
+                ? JSON.parse(financialAnswersData) 
+                : financialAnswersData;
+            } else if (analysis.financial_answers) {
+              const financialAnswersData = analysis.financial_answers;
+              financialAnswers = typeof financialAnswersData === 'string' 
+                ? JSON.parse(financialAnswersData) 
+                : financialAnswersData;
+            }
               
             // Parse findings and recommendations exactly like HR pattern
             if (analysis.findings) {
