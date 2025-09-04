@@ -71,8 +71,8 @@ export default function DueDiligence() {
     mutationFn: async () => {
       if (!selectedDeal) throw new Error('No deal selected');
       
-      // Use comprehensive research endpoint for consistency with blue button
-      const standardAgentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip'];
+      // Use comprehensive endpoints for consistency with blue buttons
+      const standardAgentTypes = ['legal', 'commercial', 'hr', 'financial', 'ip'];
       const standardResults = await Promise.all(
         standardAgentTypes.map(agentType =>
           apiRequest(`/api/deals/${selectedDeal}/agents/${agentType}/analyze`, {
@@ -81,12 +81,15 @@ export default function DueDiligence() {
         )
       );
       
-      // Use comprehensive research endpoint for research (same as blue button)
+      // Use comprehensive endpoints for clinical and research (same as blue buttons)
+      const clinicalResult = await apiRequest(`/api/deals/${selectedDeal}/clinical-analysis/comprehensive`, {
+        method: 'POST',
+      });
       const researchResult = await apiRequest(`/api/deals/${selectedDeal}/research-analysis/comprehensive`, {
         method: 'POST',
       });
       
-      return [...standardResults, researchResult];
+      return [...standardResults, clinicalResult, researchResult];
     },
     onSuccess: () => {
       // Invalidate agent analyses to refetch latest data
