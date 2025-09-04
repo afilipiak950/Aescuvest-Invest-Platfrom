@@ -8,7 +8,7 @@ import EnhancedAgentCard from '@/components/EnhancedAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
-import { CompanyResearchDisplay } from '@/components/CompanyResearchDisplay';
+import CompanyResearchDisplay from '@/components/CompanyResearchDisplay';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
@@ -41,7 +41,7 @@ export default function DueDiligence() {
   }, [location]);
 
   // Fetch real deals from database
-  const { data: deals, isLoading: isLoadingDeals } = useQuery({
+  const { data: deals, isLoading: isLoadingDeals } = useQuery<Deal[]>({
     queryKey: ['/api/deals'],
     retry: false,
   });
@@ -62,7 +62,7 @@ export default function DueDiligence() {
 
   // Find selected deal object
   const selectedDealData = useMemo(() => {
-    if (!deals || !selectedDeal) return null;
+    if (!deals || !Array.isArray(deals) || !selectedDeal) return null;
     return deals.find((deal: Deal) => deal.id.toString() === selectedDeal);
   }, [deals, selectedDeal]);
 
@@ -71,15 +71,22 @@ export default function DueDiligence() {
     mutationFn: async () => {
       if (!selectedDeal) throw new Error('No deal selected');
       
-      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-      const results = await Promise.all(
-        agentTypes.map(agentType =>
+      // Use comprehensive research endpoint for consistency with blue button
+      const standardAgentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip'];
+      const standardResults = await Promise.all(
+        standardAgentTypes.map(agentType =>
           apiRequest(`/api/deals/${selectedDeal}/agents/${agentType}/analyze`, {
             method: 'POST',
           })
         )
       );
-      return results;
+      
+      // Use comprehensive research endpoint for research (same as blue button)
+      const researchResult = await apiRequest(`/api/deals/${selectedDeal}/research-analysis/comprehensive`, {
+        method: 'POST',
+      });
+      
+      return [...standardResults, researchResult];
     },
     onSuccess: () => {
       // Invalidate agent analyses to refetch latest data
@@ -136,7 +143,7 @@ export default function DueDiligence() {
                   <SelectValue placeholder="Select a deal" />
                 </SelectTrigger>
                 <SelectContent className="bg-dark border-dark-lighter">
-                  {deals?.map((deal: Deal) => (
+                  {Array.isArray(deals) && deals.map((deal: Deal) => (
                     <SelectItem 
                       key={deal.id} 
                       value={deal.id.toString()}
@@ -179,7 +186,7 @@ export default function DueDiligence() {
               <div className="flex gap-2">
                 <Button
                   onClick={handleRunAllAnalyses}
-                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending || !documents?.length}
+                  disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending || !Array.isArray(documents) || !documents?.length}
                   className="bg-primary hover:bg-primary-hover"
                 >
                   {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
