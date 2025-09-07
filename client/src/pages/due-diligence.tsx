@@ -289,7 +289,7 @@ function DueDiligenceContent() {
 
   // Fetch comprehensive analysis data for each agent to detect completed analyses
   const { data: clinicalAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
+    queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
@@ -313,7 +313,7 @@ function DueDiligenceContent() {
   });
 
   const { data: financialAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
+    queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
