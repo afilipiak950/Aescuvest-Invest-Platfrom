@@ -1587,34 +1587,6 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
     subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
   },
   {
-    id: 'academic_3',
-    category: 'Academic Publications',
-    question: 'What scientific evidence validates the approach?',
-    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
-  },
-  // Patent Landscape
-  {
-    id: 'patent_1',
-    category: 'Patent Landscape',
-    question: 'What patent portfolio exists and what gaps are identified?',
-    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
-  },
-  {
-    id: 'patent_2',
-    category: 'Patent Landscape',
-    question: 'Are there freedom-to-operate risks?',
-    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
-  }
-];
-
-const LEGAL_QUESTIONS: LegalQuestion[] = [
-  {
-    id: 'contracts_1',
-    category: 'Contracts & Agreements',
-    question: 'Are key commercial contracts clearly defined?',
-    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
-  },
-  {
     id: 'contracts_2',
     category: 'Contracts & Agreements',
     question: 'What are the key contractual obligations and terms?',
