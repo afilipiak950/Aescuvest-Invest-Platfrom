@@ -307,7 +307,7 @@ function DueDiligenceContent() {
   });
 
   const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${selectedDeal}/agents/research/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
@@ -561,7 +561,7 @@ function DueDiligenceContent() {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/research/results`] });
       
       // Also invalidate regular agent endpoints for backwards compatibility
       agentTypes.forEach(agentType => {
