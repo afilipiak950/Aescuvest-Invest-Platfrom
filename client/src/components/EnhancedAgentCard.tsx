@@ -1495,56 +1495,96 @@ interface ResearchQuestion {
 }
 
 const RESEARCH_QUESTIONS: ResearchQuestion[] = [
-  // Market Research Reports
+  // Competitive Intelligence
   {
-    id: 'market_1',
-    category: 'Market Research Reports',
-    question: 'Are TAM/SAM/SOM defined with assumptions?',
-    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
+    id: 'research_1',
+    category: 'Competitive Intelligence',
+    question: 'What competitive threats exist and how significant are they?',
+    subQuestions: ['Competitive landscape', 'Market share threats', 'Competitive advantages']
   },
   {
-    id: 'market_2',
-    category: 'Market Research Reports',
-    question: 'What competitive landscape analysis is provided?',
-    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
+    id: 'research_2',
+    category: 'Competitive Intelligence',
+    question: 'What is the patent landscape and IP positioning?',
+    subQuestions: ['Patent portfolio', 'IP protection', 'Freedom to operate']
   },
   {
-    id: 'market_3',
-    category: 'Market Research Reports',
-    question: 'Are market growth projections validated?',
-    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
+    id: 'research_3',
+    category: 'Competitive Intelligence',
+    question: 'How defensible is the technology moat?',
+    subQuestions: ['Technology barriers', 'Competitive moat', 'Defensibility']
   },
-  // Technical Whitepapers
+  // Market Analysis
   {
-    id: 'technical_1',
-    category: 'Technical Whitepapers',
-    question: 'What technical approach/architecture is described?',
-    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
-  },
-  {
-    id: 'technical_2',
-    category: 'Technical Whitepapers',
-    question: 'Are technical risks and mitigation strategies outlined?',
-    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
+    id: 'research_4',
+    category: 'Market Analysis',
+    question: 'What is the Total Addressable Market (TAM) size and growth?',
+    subQuestions: ['Market size', 'Growth potential', 'Market opportunity']
   },
   {
-    id: 'technical_3',
-    category: 'Technical Whitepapers',
-    question: 'What scalability and performance benchmarks are provided?',
-    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
-  },
-  // Academic Publications
-  {
-    id: 'academic_1',
-    category: 'Academic Publications',
-    question: 'What peer-reviewed research supports the technology?',
-    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
+    id: 'research_5',
+    category: 'Market Analysis',
+    question: 'What are the key market trends and drivers?',
+    subQuestions: ['Industry trends', 'Growth drivers', 'Market dynamics']
   },
   {
-    id: 'academic_2',
-    category: 'Academic Publications',
-    question: 'Are there collaborations with research institutions?',
-    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
+    id: 'research_6',
+    category: 'Market Analysis',
+    question: 'What is the regulatory environment and compliance requirements?',
+    subQuestions: ['Regulatory framework', 'Compliance', 'Industry standards']
+  },
+  // Technology Assessment
+  {
+    id: 'research_7',
+    category: 'Technology Assessment',
+    question: 'What is the technology maturity and scalability potential?',
+    subQuestions: ['Technology readiness', 'Scalability', 'Platform maturity']
+  },
+  {
+    id: 'research_8',
+    category: 'Technology Assessment',
+    question: 'What are the key technology dependencies and risks?',
+    subQuestions: ['Technology risks', 'Dependencies', 'Technical challenges']
+  },
+  {
+    id: 'research_9',
+    category: 'Technology Assessment',
+    question: 'What data quality and validation has been performed?',
+    subQuestions: ['Data integrity', 'Validation methods', 'Quality assurance']
+  },
+  // Strategic Analysis
+  {
+    id: 'research_10',
+    category: 'Strategic Analysis',
+    question: 'What are the potential exit strategies and acquirer landscape?',
+    subQuestions: ['Exit opportunities', 'Strategic buyers', 'Acquisition potential']
+  },
+  {
+    id: 'research_11',
+    category: 'Strategic Analysis',
+    question: 'What international expansion opportunities exist?',
+    subQuestions: ['Global markets', 'International strategy', 'Geographic expansion']
+  },
+  {
+    id: 'research_12',
+    category: 'Strategic Analysis',
+    question: 'What are the ESG considerations and sustainability factors?',
+    subQuestions: ['Environmental impact', 'Social responsibility', 'Governance']
+  },
+  {
+    id: 'research_13',
+    category: 'Strategic Analysis',
+    question: 'What customer validation and market traction evidence exists?',
+    subQuestions: ['Customer feedback', 'Market adoption', 'Revenue traction']
+  }
+];
+
+const LEGAL_QUESTIONS: LegalQuestion[] = [
+  {
+    id: 'contracts_1',
+    category: 'Contracts & Agreements',
+    question: 'Are key commercial contracts clearly defined?',
+    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
   },
   {
     id: 'academic_3',
@@ -2456,29 +2496,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       console.log('✅ DEBUG: Found research_answers data!');
       const allAnswers = comprehensiveResults.analysis.research_answers;
       
-      // CRITICAL FIX: Map frontend question IDs to API data keys
-      // Frontend: market_1, market_2, technical_1, etc.
-      // API: research_1, research_2, research_3, etc.
-      const questionIndex = RESEARCH_QUESTIONS.findIndex(q => q.id === questionId);
-      if (questionIndex !== -1) {
-        const apiKey = `research_${questionIndex + 1}`;
-        console.log('🔄 MAPPING: Frontend ID', questionId, '→ API key', apiKey);
-        
-        const answerByMappedId = allAnswers[apiKey];
-        if (answerByMappedId && typeof answerByMappedId === 'string' && !answerByMappedId.includes('No relevant documents found')) {
-          console.log('✅ SUCCESS: Found answer by mapped ID:', { questionId, apiKey, answer: answerByMappedId.substring(0, 100) + '...' });
-          return {
-            answer: answerByMappedId,
-            confidence: 85,
-            sources: [],
-            quotes: [],
-            keyFindings: [],
-            recommendations: []
-          };
-        }
-      }
-      
-      // Fallback: Try by question ID first (research_1, research_2, etc.)
+      // DIRECT ACCESS: Frontend now uses same IDs as API (research_1, research_2, etc.)
+      // Try by question ID first (research_1, research_2, etc.)
       const answerById = allAnswers[questionId];
       if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
         console.log('✅ DEBUG: Found answer by direct ID:', { questionId, answer: answerById.substring(0, 100) + '...' });
@@ -2806,13 +2825,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                           ) : (
                             <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
                               <p className="text-gray-400 text-xs">
-                                🚨 DEBUG: No answer found for {question.id} - {question.question}
-                                {console.log('🚨 DEBUG: No answer for question:', { 
-                                  questionId: question.id, 
-                                  questionText: question.question,
-                                  answerResult: getAnswerForQuestion(question.id, question.question),
-                                  comprehensiveResultsExists: !!comprehensiveResults
-                                })}
+No research analysis available for this question yet.
                               </p>
                             </div>
                           )}
