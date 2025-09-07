@@ -234,7 +234,7 @@ export default function EnhancedAgentCard({
 
   // Fetch comprehensive Research analysis data directly for Research agents
   const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/research/results`],
     enabled: agentType.toLowerCase() === 'research',
     refetchInterval: 2000, // Refresh every 2 seconds
   });
@@ -2396,6 +2396,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/research/results`],
     refetchInterval: 2000,
+    staleTime: 0, // Force fresh data
+    cacheTime: 0, // Don't cache at all
   });
 
   // Listen for research analysis start event to clear old data immediately
@@ -2845,7 +2847,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       
       // Invalidate ALL relevant query keys to refresh the research data
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+        queryKey: [`/api/deals/${dealId}/agents/research/results`]
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
@@ -2913,7 +2915,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
             
             // Force refresh of comprehensive research results
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+              queryKey: [`/api/deals/${dealId}/agents/research/results`]
             });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
@@ -2942,7 +2944,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
           
           // Force refresh anyway in case results are there
           queryClient.invalidateQueries({
-            queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
+            queryKey: [`/api/deals/${dealId}/agents/research/results`]
           });
           queryClient.invalidateQueries({
             queryKey: ['/api/analyses', dealId]

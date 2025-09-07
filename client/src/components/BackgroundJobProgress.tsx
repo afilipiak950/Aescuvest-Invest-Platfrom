@@ -101,7 +101,6 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
               
               // CRITICAL FIX: Invalidate comprehensive analysis results to switch from progress to results display
               if (jobId.includes('comprehensive_research')) {
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`] });
                 queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/research/results`] });
               }
               if (jobId.includes('comprehensive_clinical')) {
