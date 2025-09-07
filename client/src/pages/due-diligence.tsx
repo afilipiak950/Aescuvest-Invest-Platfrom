@@ -313,7 +313,7 @@ function DueDiligenceContent() {
   });
 
   const { data: financialAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
