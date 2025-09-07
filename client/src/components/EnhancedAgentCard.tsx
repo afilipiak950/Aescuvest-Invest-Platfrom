@@ -2445,18 +2445,42 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       return null;
     }
 
-    console.log('🔍 DEBUG: Research getAnswerForQuestion called for', { questionId, questionText });
-    console.log('🔍 DEBUG: comprehensiveResults structure:', comprehensiveResults);
+    console.log('🔍 RESEARCH DEBUG: getAnswerForQuestion called for', { questionId, questionText });
+    console.log('🔍 RESEARCH DEBUG: comprehensiveResults:', comprehensiveResults);
+    console.log('🔍 RESEARCH DEBUG: research_answers exists?', !!comprehensiveResults?.analysis?.research_answers);
+    console.log('🔍 RESEARCH DEBUG: research_answers keys:', comprehensiveResults?.analysis?.research_answers ? Object.keys(comprehensiveResults.analysis.research_answers) : 'none');
 
     // PRIORITY FIX: Check actual data location first (analysis.research_answers)
     if (comprehensiveResults?.analysis?.research_answers) {
       console.log('✅ DEBUG: Found research_answers data!');
       const allAnswers = comprehensiveResults.analysis.research_answers;
       
-      // Try by question ID first (research_1, research_2, etc.)
+      // CRITICAL FIX: Map frontend question IDs to API data keys
+      // Frontend: market_1, market_2, technical_1, etc.
+      // API: research_1, research_2, research_3, etc.
+      const questionIndex = RESEARCH_QUESTIONS.findIndex(q => q.id === questionId);
+      if (questionIndex !== -1) {
+        const apiKey = `research_${questionIndex + 1}`;
+        console.log('🔄 MAPPING: Frontend ID', questionId, '→ API key', apiKey);
+        
+        const answerByMappedId = allAnswers[apiKey];
+        if (answerByMappedId && typeof answerByMappedId === 'string' && !answerByMappedId.includes('No relevant documents found')) {
+          console.log('✅ SUCCESS: Found answer by mapped ID:', { questionId, apiKey, answer: answerByMappedId.substring(0, 100) + '...' });
+          return {
+            answer: answerByMappedId,
+            confidence: 85,
+            sources: [],
+            quotes: [],
+            keyFindings: [],
+            recommendations: []
+          };
+        }
+      }
+      
+      // Fallback: Try by question ID first (research_1, research_2, etc.)
       const answerById = allAnswers[questionId];
       if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
-        console.log('✅ DEBUG: Found answer by ID:', { questionId, answer: answerById.substring(0, 100) + '...' });
+        console.log('✅ DEBUG: Found answer by direct ID:', { questionId, answer: answerById.substring(0, 100) + '...' });
         return {
           answer: answerById,
           confidence: 85,
