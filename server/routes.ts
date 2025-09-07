@@ -6557,11 +6557,11 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Enhanced response format matching Legal analysis structure
       res.json({
         success: true,
-        results: {
+        analysis: {
           status: analysis.status,
           findings: analysis.findings || [],
           recommendations: analysis.recommendations || [],
-          researchAnswers,
+          research_questions: researchAnswers,
           completedAt: analysis.completedAt,
           // Enhanced metadata for consistency with Legal
           totalQuestions: Object.keys(researchAnswers).length,
