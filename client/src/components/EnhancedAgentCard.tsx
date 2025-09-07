@@ -4142,12 +4142,12 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
-  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
+  // CRITICAL FIX: Use agents endpoint EXACTLY like Commercial agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
     refetchInterval: 2000,
-    staleTime: 0, // Always treat as stale to force fresh data like Legal
-    gcTime: 0, // Don't cache results like Legal
+    staleTime: 0, // Always treat as stale to force fresh data like Commercial
+    gcTime: 0, // Don't cache results like Commercial
   });
 
   // Force refetch on component mount to ensure fresh data like Legal
