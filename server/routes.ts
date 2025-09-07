@@ -6524,7 +6524,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       console.log(`🔬 Fetching comprehensive research analysis results for deal ${dealId}`);
       
       // Get comprehensive research analysis from agent_analyses table
-      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
+      const analysis = await storage.getAgentAnalysis(dealId, 'research');
       
       if (!analysis) {
         console.log(`❌ No comprehensive research analysis found for deal ${dealId}`);
