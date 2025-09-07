@@ -2392,9 +2392,9 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
   const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
 
-  // Check if research analysis is available from agent endpoint
+  // Check if research analysis is available from agent endpoint (FIXED: use same pattern as Commercial)
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/research/results`],
     refetchInterval: 2000,
   });
 
@@ -2443,7 +2443,44 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       return null;
     }
 
-    // Try comprehensive results first - check correct API structure (results.researchAnswers)
+    console.log('🔍 DEBUG: Research getAnswerForQuestion called for', { questionId, questionText });
+    console.log('🔍 DEBUG: comprehensiveResults structure:', comprehensiveResults);
+
+    // PRIORITY FIX: Check actual data location first (analysis.research_answers)
+    if (comprehensiveResults?.analysis?.research_answers) {
+      console.log('✅ DEBUG: Found research_answers data!');
+      const allAnswers = comprehensiveResults.analysis.research_answers;
+      
+      // Try by question ID first (research_1, research_2, etc.)
+      const answerById = allAnswers[questionId];
+      if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
+        console.log('✅ DEBUG: Found answer by ID:', { questionId, answer: answerById.substring(0, 100) + '...' });
+        return {
+          answer: answerById,
+          confidence: 85,
+          sources: [],
+          quotes: [],
+          keyFindings: [],
+          recommendations: []
+        };
+      }
+      
+      // Try by question text
+      const answerByText = allAnswers[questionText];
+      if (answerByText && typeof answerByText === 'string' && !answerByText.includes('No relevant documents found')) {
+        console.log('✅ DEBUG: Found answer by text:', { questionText, answer: answerByText.substring(0, 100) + '...' });
+        return {
+          answer: answerByText,
+          confidence: 85,
+          sources: [],
+          quotes: [],
+          keyFindings: [],
+          recommendations: []
+        };
+      }
+    }
+
+    // Try comprehensive results second - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
       
