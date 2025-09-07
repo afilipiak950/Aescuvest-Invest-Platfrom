@@ -5258,6 +5258,130 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
+  // Legal Analysis Start Route - EXACT Clinical pattern
+  app.post('/api/deals/:dealId/legal-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check if there's already a running comprehensive legal analysis
+      const existingLegalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_legal_analysis');
+      if (existingLegalJob) {
+        return res.json({
+          success: true,
+          message: 'Comprehensive legal analysis already running',
+          alreadyRunning: true,
+          progress: existingLegalJob.progress || 0
+        });
+      }
+      
+      // Create background job - EXACT Clinical approach
+      const jobId = `comprehensive-legal-analysis-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_legal_analysis',
+        agentType: 'legal',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing legal analysis',
+        processedDocuments: 0,
+        totalDocuments: 0
+      });
+      
+      // Import and run service in background - EXACT Clinical approach
+      (async () => {
+        try {
+          console.log(`⚖️ Starting comprehensive legal analysis background process for deal ${dealId}`);
+          const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
+          
+          const legalService = new ComprehensiveLegalAnalysisService();
+          await legalService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Clinical approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
+        }
+      })();
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive legal analysis started - processing legal questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive legal analysis' });
+    }
+  });
+
+  // Financial Analysis Start Route - EXACT Clinical pattern  
+  app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Check if there's already a running comprehensive financial analysis
+      const existingFinancialJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_financial_analysis');
+      if (existingFinancialJob) {
+        return res.json({
+          success: true,
+          message: 'Comprehensive financial analysis already running',
+          alreadyRunning: true,
+          progress: existingFinancialJob.progress || 0
+        });
+      }
+      
+      // Create background job - EXACT Clinical approach
+      const jobId = `comprehensive-financial-analysis-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_financial_analysis',
+        agentType: 'financial',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing financial analysis',
+        processedDocuments: 0,
+        totalDocuments: 0
+      });
+      
+      // Import and run service in background - EXACT Clinical approach
+      (async () => {
+        try {
+          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
+          const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
+          
+          const financialService = new ComprehensiveFinancialAnalysisService();
+          await financialService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Clinical approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
+        }
+      })();
+      
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive financial analysis started - processing financial questions across all assigned documents'
+      });
+    } catch (error) {
+      console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive financial analysis' });
+    }
+  });
+
   // Clinical Analysis Start Route
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
