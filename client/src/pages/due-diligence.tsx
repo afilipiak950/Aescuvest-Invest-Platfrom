@@ -1326,12 +1326,12 @@ function DueDiligenceContent() {
                     const hasComprehensiveAnalysis = (() => {
                       const agentLower = agentType.toLowerCase();
                       // Check if we have data from the agent-specific endpoints that were added
-                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
+                      if (agentLower === 'clinical') return clinicalAnalysisData?.results?.clinicalAnswers && Object.keys(clinicalAnalysisData.results.clinicalAnswers).length > 0;
                       if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
                       if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
                       if (agentLower === 'research') return researchAnalysisData?.results?.researchAnswers && Object.keys(researchAnalysisData.results.researchAnswers).length > 0;
-                      if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
+                      if (agentLower === 'financial') return financialAnalysisData?.results?.financialAnswers && Object.keys(financialAnalysisData.results.financialAnswers).length > 0;
                       return false;
                     })();
                     
