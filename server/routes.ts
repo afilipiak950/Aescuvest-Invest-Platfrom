@@ -6084,7 +6084,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       console.log(`💰 Fetching comprehensive financial analysis results for deal ${dealId}`);
       
       // Get comprehensive financial analysis from agent_analyses table
-      const analysis = await storage.getAgentAnalysisByDealAndType(dealId, 'Financial');
+      const analysis = await storage.getAgentAnalysis(dealId, 'financial');
       
       if (!analysis) {
         console.log(`❌ No comprehensive financial analysis found for deal ${dealId}`);
