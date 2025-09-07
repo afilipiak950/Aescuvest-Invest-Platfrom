@@ -5274,18 +5274,39 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Create background job - EXACT Commercial approach
+      const jobId = `comprehensive-clinical-analysis-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_clinical_analysis',
+        agentType: 'clinical',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing clinical analysis',
+        processedDocuments: 0,
+        totalDocuments: 0
+      });
       
-      // Run ENHANCED comprehensive clinical analysis in background with deep evidence-based processing
+      // Import and run service in background - EXACT Commercial approach
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED clinical analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Clinical');
-          console.log(`✅ Enhanced clinical analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive clinical analysis background process for deal ${dealId}`);
+          const { ComprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
+          
+          const clinicalService = new ComprehensiveClinicalAnalysisService();
+          await clinicalService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced clinical analysis for deal ${dealId}:`, error);
-          console.error(`❌ Error stack:`, error.stack);
+          console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Commercial approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
         }
       })();
       
@@ -6325,18 +6346,39 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Import the ENHANCED research analysis service
-      const { startEnhancedResearchAnalysis } = await import('./enhancedResearchAnalysisService');
+      // Create background job - EXACT Commercial approach  
+      const jobId = `comprehensive-research-analysis-${dealId}-${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        dealId,
+        jobType: 'comprehensive_research_analysis',
+        agentType: 'research',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Initializing research analysis',
+        processedDocuments: 0,
+        totalDocuments: 0
+      });
       
-      // Run ENHANCED research analysis in background with deep evidence-based processing
+      // Import and run service in background - EXACT Commercial approach
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
-          await startEnhancedResearchAnalysis(dealId);
-          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
+          const { ComprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
+          
+          const researchService = new ComprehensiveResearchAnalysisService();
+          await researchService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
-          console.error(`❌ Error stack:`, error.stack);
+          console.error(`❌ Error in comprehensive research analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Commercial approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
         }
       })();
       

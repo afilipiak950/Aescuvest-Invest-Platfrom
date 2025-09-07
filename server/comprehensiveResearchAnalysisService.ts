@@ -370,3 +370,6 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
     }
   }
 }
+
+// Export the service class - EXACT Commercial pattern
+export const comprehensiveResearchAnalysisService = new ComprehensiveResearchAnalysisService();
