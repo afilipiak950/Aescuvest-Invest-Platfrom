@@ -1331,7 +1331,7 @@ function DueDiligenceContent() {
                       if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
                       if (agentLower === 'research') return researchAnalysisData?.results?.researchAnswers && Object.keys(researchAnalysisData.results.researchAnswers).length > 0;
-                      if (agentLower === 'financial') return financialAnalysisData?.results?.financialAnswers && Object.keys(financialAnalysisData.results.financialAnswers).length > 0;
+                      if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
                       return false;
                     })();
                     
