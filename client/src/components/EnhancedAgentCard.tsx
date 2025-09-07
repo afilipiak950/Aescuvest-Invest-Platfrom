@@ -2446,9 +2446,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     }
 
     console.log('🔍 RESEARCH DEBUG: getAnswerForQuestion called for', { questionId, questionText });
-    console.log('🔍 RESEARCH DEBUG: comprehensiveResults:', comprehensiveResults);
+    console.log('🔍 RESEARCH DEBUG: comprehensiveResults exists?', !!comprehensiveResults);
     console.log('🔍 RESEARCH DEBUG: research_answers exists?', !!comprehensiveResults?.analysis?.research_answers);
     console.log('🔍 RESEARCH DEBUG: research_answers keys:', comprehensiveResults?.analysis?.research_answers ? Object.keys(comprehensiveResults.analysis.research_answers) : 'none');
+    console.log('🔍 RESEARCH DEBUG: question index in array:', RESEARCH_QUESTIONS.findIndex(q => q.id === questionId));
 
     // PRIORITY FIX: Check actual data location first (analysis.research_answers)
     if (comprehensiveResults?.analysis?.research_answers) {
@@ -2804,7 +2805,15 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                             </div>
                           ) : (
                             <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
-                              <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
+                              <p className="text-gray-400 text-xs">
+                                🚨 DEBUG: No answer found for {question.id} - {question.question}
+                                {console.log('🚨 DEBUG: No answer for question:', { 
+                                  questionId: question.id, 
+                                  questionText: question.question,
+                                  answerResult: getAnswerForQuestion(question.id, question.question),
+                                  comprehensiveResultsExists: !!comprehensiveResults
+                                })}
+                              </p>
                             </div>
                           )}
                         </div>
