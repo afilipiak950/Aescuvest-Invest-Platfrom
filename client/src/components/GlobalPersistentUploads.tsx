@@ -52,11 +52,12 @@ export function GlobalPersistentUploadMonitor({
       return response.json();
     },
     refetchInterval: (data) => {
-      // Smart polling: only poll when there are active uploads
+      // ULTRA-OPTIMIZED: Much longer intervals to reduce server load
       const hasActiveUploads = data?.uploads?.some(u => u.status === 'uploading' || u.status === 'processing');
-      return hasActiveUploads ? 5000 : 60000; // 5s when active, 1m when idle
+      return hasActiveUploads ? 10000 : 300000; // 10s when active, 5m when idle
     },
-    refetchIntervalInBackground: false // Don't poll in background for better performance
+    refetchIntervalInBackground: false, // Don't poll in background for better performance
+    staleTime: 15000, // Cache for 15 seconds to reduce requests
   });
 
   const uploads: PersistentUploadSession[] = uploadsData?.uploads || [];

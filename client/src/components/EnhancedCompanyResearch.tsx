@@ -159,7 +159,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     }
   }, [researchData]);
 
-  // Always poll for research progress to detect new jobs
+  // OPTIMIZED: Smart polling for research progress (not constant 2-second hammering)
   const { data: progressData } = useQuery<{
     status: string;
     progress: number;
@@ -168,9 +168,15 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     debugInfo: any;
   }>({
     queryKey: [`/api/deals/${dealId}/research/progress`],
-    refetchInterval: 2000, // Always poll every 2 seconds
+    refetchInterval: (data) => {
+      // Smart polling: only poll frequently when research is actually running
+      const isProcessing = data?.status === 'processing';
+      const isStarting = isRefreshing;
+      return (isProcessing || isStarting) ? 3000 : 30000; // 3s when active, 30s when idle
+    },
     enabled: !!dealId,
     retry: false,
+    staleTime: 5000, // Cache for 5 seconds for better performance
   });
 
   // Update progress state when polling data changes

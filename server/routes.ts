@@ -1193,6 +1193,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ⚡ Document Cache for Dashboard Performance (5 minute cache)
+  const documentCache = new Map<number, { data: any, timestamp: number }>();
+  
   app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
     const startTime = Date.now();
     try {
@@ -1201,7 +1204,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
       
-      console.log(`📄 Starting documents fetch for deal ${dealId}...`);
+      // ⚡ PERFORMANCE OPTIMIZATION: Check cache first
+      const cached = documentCache.get(dealId);
+      if (cached && (Date.now() - cached.timestamp) < 5 * 60 * 1000) { // 5 minute cache
+        console.log(`⚡ Using cached documents for deal ${dealId} (${cached.data.length} docs)`);
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cached.data);
+      }
+      
+      console.log(`📄 Fetching documents for deal ${dealId} from database...`);
       const dbStartTime = Date.now();
       
       const documents = await storage.getDocumentsByDealId(dealId);
@@ -1209,8 +1220,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbEndTime = Date.now();
       const totalTime = Date.now() - startTime;
       
-      console.log(`📄 Documents fetch completed for deal ${dealId}: ${documents.length} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms)`);
+      // Cache the result for future requests
+      documentCache.set(dealId, { data: documents, timestamp: Date.now() });
       
+      console.log(`📄 Documents fetch completed for deal ${dealId}: ${documents.length} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms) - CACHED`);
+      
+      res.setHeader('X-Cache', 'MISS');
       return res.status(200).json(documents);
     } catch (error) {
       const totalTime = Date.now() - startTime;
