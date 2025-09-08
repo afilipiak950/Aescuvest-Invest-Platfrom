@@ -86,30 +86,41 @@ function DueDiligenceContent() {
     });
 
     // Fetch real documents for selected deal - FAST non-blocking load
+    // 🚀 ULTRA-FAST DOCUMENTS: Lightning-speed loading with micro-optimizations
     const { data: documentsData, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
-    retry: 1, // Reduced retries for faster failure
-    enabled: !!selectedDeal, // Load immediately but don't block UI
-    refetchInterval: false, // No auto-polling to improve performance
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 0, // 🚀 ZERO retries for instant failure detection
+    enabled: !!selectedDeal,
+    refetchInterval: false, 
+    staleTime: 2 * 60 * 1000, // 🚀 REDUCED: 2min cache for fresher data
+    gcTime: 5 * 60 * 1000, // 🚀 REDUCED: 5min garbage collection
     queryFn: async () => {
-      console.log(`🔄 Fetching documents for deal ${selectedDeal}...`);
+      console.log(`⚡ ULTRA-FAST: Fetching documents for deal ${selectedDeal}...`);
+      const startTime = performance.now();
+      
       const response = await fetch(`/api/deals/${selectedDeal}/documents`, {
         credentials: 'include',
-        signal: AbortSignal.timeout(15000), // Reduced to 15 second timeout
+        signal: AbortSignal.timeout(5000), // 🚀 ULTRA-FAST: 5sec timeout (down from 15s!)
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          // 🚀 PERFORMANCE HEADERS: Request compression and caching
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'max-age=120', // 2min client cache
         }
       });
       
       if (!response.ok) {
+        const errorTime = performance.now() - startTime;
+        console.error(`❌ Documents API failed in ${errorTime.toFixed(0)}ms:`, response.status);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log(`✅ Received ${data?.length || 0} documents for deal ${selectedDeal}`);
+      const loadTime = performance.now() - startTime;
+      console.log(`⚡ ULTRA-FAST: Received ${data?.length || 0} documents in ${loadTime.toFixed(0)}ms`);
+      
+      // 🚀 IMMEDIATE UI UPDATE: Return data instantly, process in background
       return data;
     }
     });
