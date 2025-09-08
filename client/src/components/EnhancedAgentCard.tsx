@@ -222,35 +222,35 @@ export default function EnhancedAgentCard({
   const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
     queryKey: [`/api/deals/${dealId}/agents/hr/results`],
     enabled: agentType.toLowerCase() === 'hr',
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
   // Fetch comprehensive IP analysis data directly for IP agents
   const { data: ipAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
     queryKey: [`/api/deals/${dealId}/agents/ip/results`],
     enabled: agentType.toLowerCase() === 'ip',
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
   // Fetch comprehensive Research analysis data directly for Research agents
   const { data: researchAnalysisData } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     enabled: agentType.toLowerCase() === 'research',
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
   // Fetch comprehensive Clinical analysis data directly for Clinical agents
   const { data: clinicalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/clinical/results`],
     enabled: agentType.toLowerCase() === 'clinical',
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
   // Fetch comprehensive Financial analysis data directly for Financial agents
   const { data: financialAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
     queryKey: [`/api/deals/${dealId}/agents/financial/results`],
     enabled: agentType.toLowerCase() === 'financial',
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
   // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, or Financial agent and we have the data
@@ -280,43 +280,47 @@ export default function EnhancedAgentCard({
   function ProgressDisplay({ dealId, assignedDocuments }: { dealId: number; assignedDocuments: number }) {
     const { data: jobProgress } = useQuery({
       queryKey: [`/api/background-jobs/${dealId}`],
-      refetchInterval: 1000, // Poll every second for progress updates
+      refetchInterval: (data) => {
+        // Smart polling: faster when jobs are running, slower when idle
+        const hasActiveJob = data?.jobs?.some(j => j.status === 'processing');
+        return hasActiveJob ? 3000 : 15000; // 3s when active, 15s when idle
+      },
     });
 
     // Check for comprehensive legal analysis progress
     const { data: legalProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/progress`],
-      refetchInterval: 1000,
+      refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
     // Check for comprehensive commercial analysis progress
     const { data: commercialProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
-      refetchInterval: 1000,
+      refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
     // Check for comprehensive HR analysis progress
     const { data: hrProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
-      refetchInterval: 1000,
+      refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
     // Check for comprehensive IP analysis progress
     const { data: ipProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
-      refetchInterval: 1000,
+      refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
     // Check for comprehensive Financial analysis progress
     const { data: financialProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/progress`],
-      refetchInterval: 1000,
+      refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
     // Check for comprehensive Clinical analysis progress
     const { data: clinicalProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
       queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/progress`],
-      refetchInterval: 1000,
+      refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
     // Look for both comprehensive legal analysis and regular legal agent jobs
