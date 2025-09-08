@@ -374,13 +374,13 @@ function DueDiligenceContent() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // CRITICAL FIX: Add missing legalAnalysisData query hook
   const { data: legalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/legal/results`],
     enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal?.id?.toString() === selectedDeal) : undefined;
   
