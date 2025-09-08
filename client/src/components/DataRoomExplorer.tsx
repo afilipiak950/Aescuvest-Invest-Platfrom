@@ -2357,11 +2357,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const hasOnlyEmailAttachments = documents && Array.isArray(documents) && documents.length > 0 && 
     documents.every(doc => doc.folderPath?.includes('email-attachments'));
 
-  if ((!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments) {
-    console.log('📊 DataRoomExplorer: No documents condition met', { 
-      documents: Array.isArray(documents) ? documents.length : 'not array', 
-      isArray: Array.isArray(documents) 
-    });
+  // 🚨 CRITICAL FIX: Store the "no documents" condition but DO NOT early return to avoid hooks violations
+  const showEmptyState = (!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments;
+  
+  if (showEmptyState) {
+    // Store the empty state JSX instead of returning early (hooks violation fix)
+    console.log('📊 DataRoomExplorer: No documents condition met, will show empty state in main render');
+  }
+
+  // 🚨 CRITICAL FIX: Use conditional rendering in JSX instead of early return
+  if (showEmptyState) {
     return (
       <div className="bg-dark-lighter rounded-lg">
         <div className="p-4 border-b border-dark">
