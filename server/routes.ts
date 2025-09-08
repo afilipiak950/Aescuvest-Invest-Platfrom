@@ -9239,8 +9239,12 @@ export async function registerAllRoutes(app: Express) {
 
   // CRITICAL STREAMING ENDPOINTS - These were missing and causing queries to fail!
   
-  // AI Assistant streaming endpoint - the main one that was missing!
+  // ⚡ ULTRA-FAST AI Assistant Instance Cache (prevents minute-long delays)
+  const aiAssistantCache = new Map<number, any>();
+  
+  // AI Assistant streaming endpoint - OPTIMIZED with instance caching!
   app.post('/api/deals/:dealId/ai-assistant/stream', async (req: Request, res: Response) => {
+    const startTime = Date.now();
     try {
       const dealId = parseInt(req.params.dealId);
       const { query } = req.body;
@@ -9249,11 +9253,18 @@ export async function registerAllRoutes(app: Express) {
         return res.status(400).json({ error: 'Query is required' });
       }
       
-      console.log(`🚀 AI Assistant streaming query for deal ${dealId}: "${query}"`);
+      console.log(`⚡ AI Assistant streaming query for deal ${dealId}: "${query}" (instance caching enabled)`);
       
-      // Import and create AI Assistant instance
-      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
-      const assistant = new AescuvestAIAssistant(dealId);
+      // ⚡ PERFORMANCE OPTIMIZATION: Reuse cached AI Assistant instances
+      let assistant = aiAssistantCache.get(dealId);
+      if (!assistant) {
+        console.log(`🔄 Creating new AI Assistant instance for deal ${dealId}`);
+        const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+        assistant = new AescuvestAIAssistant(dealId);
+        aiAssistantCache.set(dealId, assistant);
+      } else {
+        console.log(`⚡ Using cached AI Assistant instance for deal ${dealId} (instant)`);
+      }
       
       // Set up streaming response
       res.setHeader('Content-Type', 'text/event-stream');
@@ -9264,16 +9275,32 @@ export async function registerAllRoutes(app: Express) {
       let streamComplete = false;
       
       try {
-        // Stream the query response
-        const stream = await assistant.streamQuery(query);
+        // ⚡ ULTRA-FAST: Process query with cached context (no reloading)
+        const setupTime = Date.now() - startTime;
+        console.log(`⏱️ Assistant setup completed in ${setupTime}ms`);
         
-        for await (const chunk of stream) {
-          if (streamComplete) break;
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-        }
+        const queryStartTime = Date.now();
+        const response = await assistant.processQuery(query);
+        const queryTime = Date.now() - queryStartTime;
+        
+        console.log(`✅ Query processed in ${queryTime}ms (total: ${Date.now() - startTime}ms)`);
+        
+        // Stream the complete response immediately 
+        res.write(`data: ${JSON.stringify({ 
+          type: 'content', 
+          content: response 
+        })}\n\n`);
         
         streamComplete = true;
-        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.write(`data: ${JSON.stringify({ 
+          type: 'done', 
+          done: true,
+          timing: {
+            setup: setupTime,
+            query: queryTime,
+            total: Date.now() - startTime
+          }
+        })}\n\n`);
         res.end();
         
       } catch (error) {
@@ -9298,23 +9325,35 @@ export async function registerAllRoutes(app: Express) {
     }
   });
 
-  // AI Assistant preload endpoint - also missing!
+  // ⚡ AI Assistant preload endpoint - OPTIMIZED with instance caching!
   app.post('/api/deals/:dealId/ai-assistant/preload', async (req: Request, res: Response) => {
+    const startTime = Date.now();
     try {
       const dealId = parseInt(req.params.dealId);
-      console.log(`🔄 AI Assistant preloading context for deal ${dealId}`);
+      console.log(`🚀 AI Assistant preloading context for deal ${dealId} (with caching)`);
       
-      // Import and create AI Assistant instance
-      const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
-      const assistant = new AescuvestAIAssistant(dealId);
+      // ⚡ PERFORMANCE OPTIMIZATION: Create and cache AI Assistant instance
+      let assistant = aiAssistantCache.get(dealId);
+      if (!assistant) {
+        const { AescuvestAIAssistant } = await import('./services/aiAssistantService');
+        assistant = new AescuvestAIAssistant(dealId);
+        aiAssistantCache.set(dealId, assistant);
+        console.log(`💾 AI Assistant instance cached for deal ${dealId}`);
+      } else {
+        console.log(`⚡ AI Assistant instance already cached for deal ${dealId}`);
+      }
       
-      // Pre-load the context
+      // Pre-load the context (this uses 10-minute caching internally)
       await assistant.loadCompleteContext();
+      
+      const loadTime = Date.now() - startTime;
+      console.log(`✅ AI context preloaded in ${loadTime}ms for deal ${dealId}`);
       
       res.json({ 
         success: true, 
-        message: 'AI context preloaded successfully',
-        dealId 
+        message: `AI context preloaded successfully in ${loadTime}ms`,
+        dealId,
+        loadTime
       });
       
     } catch (error) {
