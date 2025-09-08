@@ -65,15 +65,37 @@ router.get('/api/deals/:dealId/persistent-uploads', async (req: Request, res: Re
   }
 });
 
-// Get all global persistent upload sessions (across all deals)
+// ⚡ Global Upload Cache for Performance (30 second cache)
+const globalUploadCache = new Map<string, { data: any, timestamp: number }>();
+
+// Get all global persistent upload sessions (across all deals) - CACHED
 router.get('/api/persistent-uploads/global', async (req: Request, res: Response) => {
+  const startTime = Date.now();
   try {
-    console.log(`🌐 Getting all global persistent uploads`);
+    // ⚡ Check cache first
+    const cacheKey = 'global_uploads';
+    const cached = globalUploadCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 30 * 1000) { // 30 second cache
+      console.log(`⚡ Using cached global uploads (${cached.data.length} uploads)`);
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({
+        success: true,
+        uploads: cached.data,
+        totalCount: cached.data.length
+      });
+    }
+    
+    console.log(`🌐 Getting all global persistent uploads from database`);
     
     const activeSessions = await persistentUploadService.getAllActiveSessions();
     
-    console.log(`📊 Found ${activeSessions.length} active uploads globally`);
+    // Cache the result
+    globalUploadCache.set(cacheKey, { data: activeSessions, timestamp: Date.now() });
     
+    const totalTime = Date.now() - startTime;
+    console.log(`📊 Found ${activeSessions.length} active uploads globally in ${totalTime}ms - CACHED`);
+    
+    res.setHeader('X-Cache', 'MISS');
     res.json({
       success: true,
       uploads: activeSessions,
