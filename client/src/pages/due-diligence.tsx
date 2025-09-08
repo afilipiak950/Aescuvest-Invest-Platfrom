@@ -415,52 +415,93 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Green button triggers the blue Research button click
+  // Green button navigates through tabs and triggers each blue button
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log('🔘 Green button clicked - finding and triggering ALL 7 blue agent buttons');
+        console.log('🔘 Green button clicked - navigating through tabs to trigger ALL 7 blue agent buttons');
         
         if (!selectedDeal) {
           throw new Error('No deal selected for analysis');
         }
 
-        // Wait a moment for DOM to be ready
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Find and click ALL 7 agent analysis buttons
-        const agentTypes = [
-          'Legal Analysis', 
-          'Clinical Analysis', 
-          'Commercial Analysis', 
-          'HR Analysis', 
-          'Financial Analysis', 
-          'IP Analysis', 
-          'Research Analysis'
+        // Define tabs to visit and their corresponding button text
+        const tabsToProcess = [
+          { tab: 'legal', buttonText: 'Run Legal Analysis' },
+          { tab: 'clinical', buttonText: 'Run Clinical Analysis' }, 
+          { tab: 'commercial', buttonText: 'Run Commercial Analysis' },
+          { tab: 'hr', buttonText: 'Run HR Analysis' },
+          { tab: 'financial', buttonText: 'Run Financial Analysis' },
+          { tab: 'ip', buttonText: 'Run IP Analysis' },
+          { tab: 'research', buttonText: 'Run Research Analysis' }
         ];
         
         let clickedButtons = 0;
-        const allButtons = document.querySelectorAll('button');
-        console.log(`🔍 Searching through ${allButtons.length} total buttons for all 7 agents`);
+        const originalTab = activeAgent; // Remember current tab to restore later
         
-        for (const agentType of agentTypes) {
-          console.log(`🔍 Looking for ${agentType} button...`);
-          
-          // Find button containing this agent type
-          for (const button of allButtons) {
-            const buttonText = button.textContent?.trim();
+        console.log(`🔍 Starting navigation through ${tabsToProcess.length} tabs`);
+        
+        for (const { tab, buttonText } of tabsToProcess) {
+          try {
+            console.log(`🔍 Navigating to ${tab} tab...`);
             
-            if (buttonText?.includes(`Run ${agentType}`) && !button.disabled) {
-              console.log(`🔘 Found and clicking ${agentType} button: "${buttonText}"`);
-              (button as HTMLButtonElement).click();
-              clickedButtons++;
-              
-              // Small delay between clicks to prevent conflicts
-              await new Promise(resolve => setTimeout(resolve, 50));
-              break;
+            // Navigate to the specific tab
+            setActiveAgent(tab);
+            
+            // Wait for tab to load and render
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Find the blue button on this specific tab
+            const tabContent = document.querySelector(`[data-state="active"]`);
+            if (!tabContent) {
+              console.warn(`⚠️ Could not find active tab content for ${tab}`);
+              continue;
             }
+            
+            // Look for the blue button within this tab's content
+            const buttons = tabContent.querySelectorAll('button');
+            let buttonFound = false;
+            
+            for (const button of buttons) {
+              const text = button.textContent?.trim();
+              if (text?.includes(buttonText) && !button.disabled) {
+                console.log(`🔘 Found and clicking button in ${tab} tab: "${text}"`);
+                (button as HTMLButtonElement).click();
+                clickedButtons++;
+                buttonFound = true;
+                break;
+              }
+            }
+            
+            if (!buttonFound) {
+              // Fallback: search entire page for this specific button
+              const allButtons = document.querySelectorAll('button');
+              for (const button of allButtons) {
+                const text = button.textContent?.trim();
+                if (text?.includes(buttonText) && !button.disabled) {
+                  console.log(`🔘 Found button via fallback search for ${tab}: "${text}"`);
+                  (button as HTMLButtonElement).click();
+                  clickedButtons++;
+                  buttonFound = true;
+                  break;
+                }
+              }
+            }
+            
+            if (!buttonFound) {
+              console.warn(`⚠️ Could not find "${buttonText}" button in ${tab} tab`);
+            }
+            
+            // Small delay before moving to next tab
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+          } catch (tabError) {
+            console.error(`❌ Error processing ${tab} tab:`, tabError);
           }
         }
+        
+        // Restore original tab
+        setActiveAgent(originalTab);
         
         if (clickedButtons === 0) {
           console.error('❌ Could not find any agent analysis buttons');
@@ -1141,7 +1182,7 @@ function DueDiligenceContent() {
                     ) : (
                       <>
                         <Bot className="h-4 w-4 mr-2" />
-                        Reset & Run Research Analysis
+                        Reset & Run All Analyses
                       </>
                     )}
                   </Button>
