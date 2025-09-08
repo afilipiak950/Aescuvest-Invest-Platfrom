@@ -77,14 +77,14 @@ function DueDiligenceContent() {
       gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
     });
 
-    // Fetch real documents for selected deal
+    // Fetch real documents for selected deal - NON-BLOCKING
     const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 1, // Reduced retries for faster failure
-    enabled: !!selectedDeal,
-    refetchInterval: 30000, // Poll every 30 seconds (much less frequent)
-    staleTime: 30000, // Cache for 30 seconds to reduce network calls
-    gcTime: 300000, // Keep in cache for 5 minutes
+    enabled: false, // Load lazily - don't block page render
+    refetchInterval: false, // No auto-polling to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     queryFn: async () => {
       console.log(`🔄 Fetching documents for deal ${selectedDeal}...`);
       const response = await fetch(`/api/deals/${selectedDeal}/documents`, {
@@ -106,15 +106,12 @@ function DueDiligenceContent() {
     }
     });
 
-    // Fetch job progress data for real-time updates
+    // Fetch job progress data - NON-BLOCKING lazy load
     const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
-    enabled: !!selectedDeal,
-    refetchInterval: (data) => {
-      // Smart polling: faster when jobs are running, slower when idle
-      const hasActiveJobs = data?.jobs?.some(job => job.status === 'processing');
-      return hasActiveJobs ? 2000 : 10000; // 2s when active, 10s when idle
-    },
+    enabled: false, // Load lazily - don't block page render
+    refetchInterval: false, // No auto-polling on page load
+    staleTime: 30 * 1000, // Cache for 30 seconds
     queryFn: async () => {
       console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
       const response = await fetch(`/api/background-jobs/${selectedDeal}`);
@@ -278,11 +275,12 @@ function DueDiligenceContent() {
   //   // Automatic analysis temporarily disabled for stability
   // }, []);
 
-  // Fetch real analysis data
+  // Fetch real analysis data - non-blocking
   const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
     queryKey: [`/api/analyses/${selectedDeal}`],
     retry: false,
-    enabled: !!selectedDeal
+    enabled: false, // Load lazily to not block page render
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Debug log for analyses data
@@ -607,18 +605,8 @@ function DueDiligenceContent() {
     }
   };
 
-  // Early loading guard - only wait for essential data
-  if (isLoadingDocuments || isLoadingDeals) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="text-center mt-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-200 mb-4">Loading Analysis</h2>
-          <p className="text-gray-400">Preparing document analysis data...</p>
-        </div>
-      </div>
-    );
-  }
+  // Instant page load - no loading screens, show content immediately
+  // Remove all blocking loading guards to show page instantly
 
   return (
       <div className="container mx-auto px-4 py-6">
