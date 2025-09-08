@@ -1265,11 +1265,11 @@ function DueDiligenceContent() {
                     const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
                     const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
                     
-                    // Calculate realistic job statistics
-                    const assignedDocs = documents?.filter(doc => 
-                      doc.assignedAgents?.includes(agentType) || 
-                      doc.category?.toLowerCase() === agentType.toLowerCase() ||
-                      doc.documentType?.toLowerCase() === agentType.toLowerCase()
+                    // Calculate realistic job statistics - BULLETPROOF ARRAY HANDLING
+                    const assignedDocs = (Array.isArray(documents) ? documents : []).filter(doc => 
+                      doc?.assignedAgents?.includes(agentType) || 
+                      doc?.category?.toLowerCase() === agentType.toLowerCase() ||
+                      doc?.documentType?.toLowerCase() === agentType.toLowerCase()
                     ).length || 0;
                     
                     // Correct questions per agent - matching actual question counts in services  
