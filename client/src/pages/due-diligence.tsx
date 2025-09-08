@@ -1119,7 +1119,7 @@ function DueDiligenceContent() {
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle className="text-xl font-bold">
-                    Documents ({documents?.length || 0})
+                    Documents
                   </CardTitle>
                   <CardDescription>
                     {(documents?.length || 0) === 0 ? 'No documents uploaded yet' : `${documents?.length || 0} documents available for analysis`}
@@ -1602,7 +1602,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>Clinical ({clinicalDocs?.length || 0})</span>
+                      <span>Clinical</span>
                       {findJobSafely(jobProgress?.jobs, ['Clinical', 'clinical'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1618,7 +1618,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>Legal ({legalDocs?.length || 0})</span>
+                      <span>Legal</span>
                       {findJobSafely(jobProgress?.jobs, ['Legal', 'legal'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1634,7 +1634,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>Commercial ({commercialDocs?.length || 0})</span>
+                      <span>Commercial</span>
                       {findJobSafely(jobProgress?.jobs, ['Commercial', 'commercial'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1650,7 +1650,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>HR ({hrDocs?.length || 0})</span>
+                      <span>HR</span>
                       {findJobSafely(jobProgress?.jobs, ['HR', 'hr'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1666,7 +1666,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>Financial ({financialDocs?.length || 0})</span>
+                      <span>Financial</span>
                       {findJobSafely(jobProgress?.jobs, ['Financial', 'financial'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1682,7 +1682,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>IP ({ipDocs?.length || 0})</span>
+                      <span>IP</span>
                       {findJobSafely(jobProgress?.jobs, ['IP', 'ip'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1698,7 +1698,7 @@ function DueDiligenceContent() {
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>Research ({researchDocs?.length || 0})</span>
+                      <span>Research</span>
                       {findJobSafely(jobProgress?.jobs, ['Research', 'research'])?.status === 'processing' && (
                         <div className="flex items-center space-x-1">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
@@ -1713,7 +1713,7 @@ function DueDiligenceContent() {
                     value="unassigned"
                     className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent pb-2 px-1"
                   >
-                    Unassigned ({unassignedDocs?.length || 0})
+                    Unassigned
                   </TabsTrigger>
                   <TabsTrigger
                     value="ai-agents"
