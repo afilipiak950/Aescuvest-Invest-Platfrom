@@ -415,172 +415,57 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Mutation for running all agent analyses (manual trigger)
+  // Mutation for running research analysis only (same as blue button)
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      try {
-        console.log(`🔬 Starting research analysis (perfect results as requested)`);
-        
-        // Validate selectedDeal is available in mutation context
-        if (!selectedDeal) {
-          throw new Error('No deal selected for analysis');
-        }
-        
-        // Step 1: Stop all running analyses first 
-        console.log(`🛑 Stopping all running analyses for deal ${selectedDeal}`);
-        try {
-          await apiRequest(`/api/deals/${selectedDeal}/stop-all-analyses`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          console.log(`✅ Successfully stopped all running analyses for deal ${selectedDeal}`);
-        } catch (stopError) {
-          console.warn(`⚠️ Failed to stop running analyses (may not be running):`, stopError);
-        }
+      console.log('🔬 Starting research analysis for deal', selectedDeal);
       
-      // Step 2: Delete all existing analyses 
-      console.log(`🗑️ Deleting all existing analyses for deal ${selectedDeal}`);
-      try {
-        await apiRequest(`/api/analyses/${selectedDeal}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        console.log(`✅ Successfully deleted existing analyses for deal ${selectedDeal}`);
-        
-        // Also clear any stuck background jobs
-        try {
-          await apiRequest(`/api/background-jobs/clear-stuck`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: parseInt(selectedDeal) })
-          });
-          console.log(`✅ Cleared stuck background jobs for deal ${selectedDeal}`);
-        } catch (clearError) {
-          console.warn(`⚠️ Failed to clear stuck jobs:`, clearError);
-        }
-        
-        // Wait for cleanup to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (deleteError) {
-        console.error(`❌ Failed to delete existing analyses:`, deleteError);
-        // Continue anyway - the analyses will be overwritten
+      // Validate selectedDeal exists
+      if (!selectedDeal) {
+        throw new Error('No deal selected for analysis');
       }
+
+      // Call the EXACT same endpoint as the blue "Run Research Analysis" button
+      const response = await apiRequest(`/api/deals/${selectedDeal}/research-analysis/comprehensive`, {
+        method: 'POST'
+      });
       
-      // Step 3: Run ONLY the research analysis (as requested by user)
-      const researchEndpoint = `/api/deals/${selectedDeal}/research-analysis/comprehensive`;
-        
-      try {
-        console.log(`🔬 Starting research analysis: ${researchEndpoint}`);
-        
-        const response = await apiRequest(researchEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        // Handle "already running" responses as successes
-        if (response && (response.alreadyRunning || response.success === false)) {
-          console.log(`✅ Research analysis already running:`, response.message);
-          return [{ success: true, alreadyRunning: true, endpoint: researchEndpoint, message: response.message }];
-        } else {
-          console.log(`✅ Research analysis started successfully`);
-          return [response];
-        }
-        
-      } catch (error) {
-        console.error(`❌ Error starting research analysis:`, error);
-        throw new Error(`Research analysis failed: ${(error as any)?.message || 'Unknown error'}`);
-      }
-      
-      } catch (mutationError) {
-        console.error('❌ Critical error in mutation function:', mutationError);
-        throw new Error(`Analysis mutation failed: ${(mutationError as any)?.message || 'Unknown error'}`);
-      }
+      return response;
     },
-    onSuccess: (results) => {
-      console.log(`✅ All comprehensive analyses started successfully:`, results);
-      
-      // Show immediate feedback
-      toast({
-        title: "Comprehensive Analyses Started",
-        description: "All 7 AI agents are now running comprehensive document analysis...",
-        duration: 5000,
-      });
-      
-      // Invalidate all comprehensive analysis results queries to refresh UI
-      const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
-      
-      // Invalidate comprehensive analysis endpoints
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/legal-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
-      
-      // Also invalidate regular agent endpoints for backwards compatibility
-      agentTypes.forEach(agentType => {
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-      
-      // Set up completion monitoring
-      const checkCompletion = setInterval(async () => {
-        try {
-          const response = await fetch(`/api/analyses/${selectedDeal}`);
-          const data = await response.json();
-          
-          if (Array.isArray(data) && (data?.length || 0) >= 7) {
-            const allCompleted = data.every((analysis: any) => 
-              analysis.status === 'Completed' || analysis.status === 'completed'
-            );
-            
-            if (allCompleted) {
-              console.log(`🎉 All comprehensive analyses completed! Refreshing data...`);
-              setIsRunningAllAnalyses(false);
-              clearInterval(checkCompletion);
-              
-              // Refresh all relevant queries
-              queryClient.invalidateQueries({ queryKey: [`/api/analyses/${selectedDeal}`] });
-              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-              agentTypes.forEach(agentType => {
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/${agentType}/results`] });
-              });
-              
-              // Show completion notification
-              toast({
-                title: "Comprehensive Analyses Complete",
-                description: "All 7 agent comprehensive analyses completed successfully!",
-                duration: 5000,
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error checking analysis completion:', error);
-        }
-      }, 3000); // Check every 3 seconds
-      
-      // Cleanup after 15 minutes max
-      setTimeout(() => {
+    onSuccess: (data) => {
+      if (data?.alreadyRunning) {
+        console.log(`⚠️ Research analysis already running (${data.progress}% complete)`);
         setIsRunningAllAnalyses(false);
-        clearInterval(checkCompletion);
-      }, 900000);
+        return;
+      }
+      
+      // Invalidate research analysis queries to refresh UI (same as blue button)
+      queryClient.invalidateQueries({
+        queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/analyses', selectedDeal]
+      });
+      
+      // Show success message
+      console.log('✅ Research analysis started successfully');
+      toast({
+        title: "Research Analysis Started",
+        description: "Research analysis is now running...",
+        duration: 3000,
+      });
     },
     onError: (error) => {
-      console.error(`❌ Failed to start all analyses:`, error);
+      console.error('❌ Error starting research analysis:', error);
       setIsRunningAllAnalyses(false);
       
       // Show user-friendly error message
       toast({
-        title: "Analysis Failed",
-        description: "Failed to start analyses. This may be due to API quota limits. Please try again later.",
+        title: "Research Analysis Failed",
+        description: "Failed to start research analysis. Please try again.",
         variant: "destructive",
         duration: 5000,
       });
-      
-      // Clear any loading states
-      queryClient.setQueryData([`/api/background-jobs/${selectedDeal}`], { jobs: [] });
     }
   });
 
