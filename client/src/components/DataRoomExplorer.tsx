@@ -2365,6 +2365,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     console.log('📊 DataRoomExplorer: No documents condition met, will show empty state in main render');
   }
 
+  // ⚡ PERFORMANCE: Memoize expensive folder tree building - MOVED BEFORE ANY EARLY RETURNS
+  const { folderTree, emailAttachments } = useMemo(() => 
+    buildFolderTree(documents || []), 
+    [documents]
+  );
+
   // 🚨 CRITICAL FIX: Use conditional rendering in JSX instead of early return
   if (showEmptyState) {
     return (
@@ -2508,11 +2514,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  // ⚡ PERFORMANCE: Memoize expensive folder tree building
-  const { folderTree, emailAttachments } = useMemo(() => 
-    buildFolderTree(documents || []), 
-    [documents]
-  );
+  // ⚡ PERFORMANCE: Memoize expensive folder tree building - ALREADY MOVED ABOVE
 
   return (
     <div className="space-y-6 h-full flex flex-col">
