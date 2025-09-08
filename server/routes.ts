@@ -1204,29 +1204,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
       
-      // ⚡ PERFORMANCE OPTIMIZATION: Check cache first
-      const cached = documentCache.get(dealId);
+      // 🚀 CRITICAL FIX: Pagination to eliminate 8.9MB responses
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(10, parseInt(req.query.limit as string) || 20)); // 20 docs per page by default
+      const summary = req.query.summary === 'true'; // Summary mode for dashboard
+      
+      // Create cache key including pagination params
+      const cacheKey = `${dealId}-${page}-${limit}-${summary}`;
+      const cached = documentCache.get(cacheKey);
+      
       if (cached && (Date.now() - cached.timestamp) < 5 * 60 * 1000) { // 5 minute cache
-        console.log(`⚡ Using cached documents for deal ${dealId} (${cached.data.length} docs)`);
+        console.log(`⚡ Using cached documents for deal ${dealId} page ${page} (${cached.data.documents.length} docs)`);
         res.setHeader('X-Cache', 'HIT');
         return res.status(200).json(cached.data);
       }
       
-      console.log(`📄 Fetching documents for deal ${dealId} from database...`);
+      console.log(`📄 Fetching documents for deal ${dealId} page ${page} (limit: ${limit}, summary: ${summary})...`);
       const dbStartTime = Date.now();
       
-      const documents = await storage.getDocumentsByDealId(dealId);
+      // Get paginated documents
+      const result = await storage.getDocumentsByDealIdPaginated(dealId, page, limit, summary);
       
       const dbEndTime = Date.now();
       const totalTime = Date.now() - startTime;
       
       // Cache the result for future requests
-      documentCache.set(dealId, { data: documents, timestamp: Date.now() });
+      documentCache.set(cacheKey, { data: result, timestamp: Date.now() });
       
-      console.log(`📄 Documents fetch completed for deal ${dealId}: ${documents.length} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms) - CACHED`);
+      console.log(`📄 Documents fetch completed for deal ${dealId} page ${page}: ${result.documents.length}/${result.total} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms) - PAGINATED`);
       
       res.setHeader('X-Cache', 'MISS');
-      return res.status(200).json(documents);
+      return res.status(200).json(result);
     } catch (error) {
       const totalTime = Date.now() - startTime;
       console.error(`Error fetching documents after ${totalTime}ms:`, error);
