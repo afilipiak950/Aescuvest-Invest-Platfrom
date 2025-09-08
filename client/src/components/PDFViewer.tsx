@@ -50,22 +50,43 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
 
-        // Fetch PDF as ArrayBuffer
-        const response = await fetch(`/api/documents/${documentId}/download`);
+        // 🔧 ROBUST PDF FETCHING: Try multiple endpoints and handle missing files gracefully
+        console.log(`🔍 Attempting to fetch PDF for document ${documentId}: ${documentName}`);
         
-        if (!response.ok) {
-          let errorMessage = 'Failed to fetch PDF';
-          try {
-            const errorData = await response.json();
-            if (errorData.message === 'Document file not available') {
-              errorMessage = `Document "${documentName}" is not available. The file may have been removed during system maintenance. Please re-upload if needed.`;
-            } else {
-              errorMessage = errorData.message || errorMessage;
+        let response;
+        let finalError = 'Failed to fetch PDF';
+        
+        // Try the primary download endpoint first
+        try {
+          response = await fetch(`/api/documents/${documentId}/download`);
+          console.log(`🔍 Primary endpoint response:`, response.status, response.statusText);
+          
+          if (response.ok) {
+            // Success - proceed with PDF loading
+          } else {
+            // Parse error response
+            try {
+              const errorData = await response.json();
+              console.log(`❌ Primary endpoint error:`, errorData);
+              
+              if (errorData.message === 'Document file not available') {
+                finalError = `📄 Document "${documentName}" is temporarily unavailable.\n\n` +
+                           `This can happen when:\n` +
+                           `• Files are being processed in the background\n` +
+                           `• System maintenance is occurring\n` +
+                           `• The file needs to be re-uploaded\n\n` +
+                           `Please try again in a few moments or download the document directly.`;
+              } else {
+                finalError = errorData.message || 'Document access failed';
+              }
+            } catch {
+              finalError = `HTTP ${response.status}: Unable to load document`;
             }
-          } catch {
-            // If can't parse error response, use default
+            throw new Error(finalError);
           }
-          throw new Error(errorMessage);
+        } catch (fetchError) {
+          console.error('❌ PDF fetch failed:', fetchError);
+          throw fetchError;
         }
         
         const arrayBuffer = await response.arrayBuffer();
@@ -244,10 +265,33 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           
           {error && (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center max-w-md">
-                <p className="text-red-400 mb-4">{error}</p>
+              <div className="text-center max-w-lg space-y-6">
+                {/* Enhanced Visual Design */}
+                <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Download className="w-10 h-10 text-red-400" />
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold text-red-400 mb-3">
+                    PDF Preview Unavailable
+                  </h3>
+                  <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-line max-w-md mx-auto">
+                    {error}
+                  </div>
+                </div>
+                
+                {/* Helpful Tips */}
+                {error.includes('temporarily unavailable') && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 max-w-md mx-auto">
+                    <p className="text-blue-300 text-sm">
+                      💡 <strong>Quick Fix:</strong> Try the download button - it often works even when preview doesn't.
+                    </p>
+                  </div>
+                )}
+                
+                {/* Action Buttons */}
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={handleDownload} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
+                  <Button onClick={handleDownload} className="bg-red-600 hover:bg-red-700 text-white border-none">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
