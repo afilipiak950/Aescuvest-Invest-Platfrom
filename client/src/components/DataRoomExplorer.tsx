@@ -1105,8 +1105,22 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
     }
   });
 
-  // 🚀 CRITICAL FIX: Extract documents from paginated response for backward compatibility
-  const documents = Array.isArray(paginatedData) ? paginatedData : paginatedData?.documents || [];
+  // 🚀 BULLETPROOF FIX: Extract documents from paginated response with detailed logging
+  console.log('🔧 RAW PAGINATION DATA:', {
+    paginatedData,
+    isArray: Array.isArray(paginatedData),
+    hasDocuments: !!paginatedData?.documents,
+    documentsLength: paginatedData?.documents?.length,
+    dataKeys: paginatedData ? Object.keys(paginatedData) : 'undefined'
+  });
+
+  const documents = Array.isArray(paginatedData) ? paginatedData : (paginatedData?.documents || []);
+  
+  console.log('🔧 EXTRACTED DOCUMENTS:', {
+    documentsLength: documents.length,
+    isArray: Array.isArray(documents),
+    firstDocName: documents[0]?.name || 'none'
+  });
 
   // State debug log
   console.log('DataRoom State:', { 
@@ -2386,8 +2400,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
   const hasOnlyEmailAttachments = documents && Array.isArray(documents) && documents.length > 0 && 
     documents.every(doc => doc.folderPath?.includes('email-attachments'));
 
-  // 🚨 CRITICAL FIX: Store the "no documents" condition but DO NOT early return to avoid hooks violations
+  // 🚨 BULLETPROOF CONDITION CHECK: Detailed logging for empty state logic
   const showEmptyState = (!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments;
+  
+  console.log('🔧 EMPTY STATE CHECK:', {
+    hasDocuments: !!documents,
+    isArray: Array.isArray(documents),
+    documentsLength: documents ? documents.length : 'undefined',
+    hasOnlyEmailAttachments,
+    showEmptyState,
+    willShowUpload: showEmptyState
+  });
   
   if (showEmptyState) {
     // Store the empty state JSX instead of returning early (hooks violation fix)
