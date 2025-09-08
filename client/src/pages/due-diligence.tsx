@@ -1204,6 +1204,7 @@ function DueDiligenceContent() {
                 <DataRoomExplorer 
                   key={`dataroom-${selectedDeal}`}
                   dealId={parseInt(selectedDeal!)} 
+                  documents={documents}
                   onUploadComplete={() => {
                     // Refresh documents and keep data room visible
                     queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });

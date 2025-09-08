@@ -33,6 +33,7 @@ import { chunkedUploadService, type ChunkedUploadProgress } from '../services/ch
 
 interface DataRoomExplorerProps {
   dealId: number;
+  documents?: Document[];
   onUploadComplete?: () => void;
 }
 
@@ -962,7 +963,7 @@ const FolderTree: React.FC<{
 }); // ⚡ PERFORMANCE: React.memo closing
 
 // 🚀 ULTRA-FAST MEMO: Prevent unnecessary re-renders with React.memo  
-export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId, onUploadComplete }) => {
+export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId, documents: propDocuments, onUploadComplete }) => {
   // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -1066,12 +1067,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
     setSelectedDocument(document);
   };
 
-  // Query setup debug
-  console.log('DataRoom Query Setup:', { dealId });
-
-  // 🚀 CRITICAL FIX: Use React Query to get EXISTING data instead of duplicate query
-  const paginatedData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
-  const isLoading = false; // Data is already loaded by parent component
+  // 🚀 CRITICAL FIX: Use documents passed as props from parent component
+  const documents = propDocuments || [];
+  const isLoading = false; // Data is passed from parent component
   const error = null;
   
   // 🚀 Manual refetch function that invalidates the parent query
@@ -1079,17 +1077,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
     queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
   }, [queryClient, dealId]);
 
-  // 🚀 BULLETPROOF FIX: Use cached data from parent component query
-  console.log('🔧 CACHED DATA FROM PARENT:', {
-    paginatedData,
-    isArray: Array.isArray(paginatedData),
-    hasDocuments: !!paginatedData?.documents,
-    documentsLength: paginatedData?.documents?.length,
-    dataKeys: paginatedData ? Object.keys(paginatedData) : 'undefined'
+  // Debug the passed documents
+  console.log('🔧 DOCUMENTS FROM PROPS:', {
+    propDocuments: !!propDocuments,
+    isArray: Array.isArray(propDocuments),
+    documentsLength: documents.length,
+    firstDoc: documents[0]?.name || 'none'
   });
-
-  // 🚀 IMPORTANT: Parent component already extracts documents, so paginatedData should be the documents array
-  const documents = Array.isArray(paginatedData) ? paginatedData : (paginatedData?.documents || []);
   
   console.log('🔧 EXTRACTED DOCUMENTS:', {
     documentsLength: documents.length,
