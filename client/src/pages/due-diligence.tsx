@@ -72,13 +72,15 @@ function DueDiligenceContent() {
     // Fetch real deals from database
     const { data: deals, isLoading: isLoadingDeals } = useQuery({
       queryKey: ['/api/deals'],
-      retry: false,
+      retry: 1, // Single retry for faster failure
+      staleTime: 5 * 60 * 1000, // Cache deals for 5 minutes
+      gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
     });
 
     // Fetch real documents for selected deal
     const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
-    retry: 3,
+    retry: 1, // Reduced retries for faster failure
     enabled: !!selectedDeal,
     refetchInterval: 30000, // Poll every 30 seconds (much less frequent)
     staleTime: 30000, // Cache for 30 seconds to reduce network calls
@@ -599,8 +601,8 @@ function DueDiligenceContent() {
     }
   };
 
-  // Early loading guard to prevent undefined property access errors
-  if (isLoadingDocuments || isLoadingDeals || !agentDocuments) {
+  // Early loading guard - only wait for essential data
+  if (isLoadingDocuments || isLoadingDeals) {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="text-center mt-20">
