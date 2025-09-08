@@ -415,54 +415,57 @@ function DueDiligenceContent() {
     setShowUploadField(!showUploadField);
   };
 
-  // Mutation for running research analysis only (same as blue button)
+  // Green button triggers the blue Research button click
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      console.log('🔬 Starting research analysis for deal', selectedDeal);
+      console.log('🔘 Green button clicked - finding and triggering blue Research button');
       
-      // Validate selectedDeal exists
       if (!selectedDeal) {
         throw new Error('No deal selected for analysis');
       }
 
-      // Call the EXACT same endpoint as the blue "Run Research Analysis" button
-      const response = await apiRequest(`/api/deals/${selectedDeal}/research-analysis/comprehensive`, {
-        method: 'POST'
-      });
+      // Find the blue "Run Research Analysis" button and click it
+      // The button should be in the Research agent card
+      const researchButton = document.querySelector('[data-testid="research-analysis-button"], button:has-text("Run Research Analysis")') as HTMLButtonElement;
       
-      return response;
+      if (researchButton && !researchButton.disabled) {
+        console.log('🔘 Found blue Research button, triggering click...');
+        researchButton.click();
+        return { success: true, triggered: true };
+      } else {
+        console.log('🔍 Blue Research button not found or disabled, searching by text...');
+        
+        // Fallback: find by button text content
+        const allButtons = document.querySelectorAll('button');
+        for (const button of allButtons) {
+          if (button.textContent?.includes('Run Research Analysis') && !button.disabled) {
+            console.log('🔘 Found Research button by text, clicking...');
+            button.click();
+            return { success: true, triggered: true };
+          }
+        }
+        
+        throw new Error('Could not find the blue Research Analysis button');
+      }
     },
     onSuccess: (data) => {
-      if (data?.alreadyRunning) {
-        console.log(`⚠️ Research analysis already running (${data.progress}% complete)`);
-        setIsRunningAllAnalyses(false);
-        return;
-      }
+      console.log('✅ Successfully triggered blue Research button');
+      setIsRunningAllAnalyses(false);
       
-      // Invalidate research analysis queries to refresh UI (same as blue button)
-      queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`]
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['/api/analyses', selectedDeal]
-      });
-      
-      // Show success message
-      console.log('✅ Research analysis started successfully');
+      // The blue button will handle all the analysis logic
       toast({
         title: "Research Analysis Started",
-        description: "Research analysis is now running...",
-        duration: 3000,
+        description: "Triggered research analysis via blue button...",
+        duration: 2000,
       });
     },
     onError: (error) => {
-      console.error('❌ Error starting research analysis:', error);
+      console.error('❌ Failed to trigger blue Research button:', error);
       setIsRunningAllAnalyses(false);
       
-      // Show user-friendly error message
       toast({
-        title: "Research Analysis Failed",
-        description: "Failed to start research analysis. Please try again.",
+        title: "Failed to Start Analysis",
+        description: "Could not find or trigger the Research Analysis button.",
         variant: "destructive",
         duration: 5000,
       });
