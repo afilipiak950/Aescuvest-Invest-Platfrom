@@ -1659,7 +1659,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   // Check if legal analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data
     gcTime: 0, // Don't cache results (replaces cacheTime in newer versions)
   });
@@ -2067,7 +2067,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   // Check if clinical analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data
     gcTime: 0, // Don't cache results (replaces cacheTime in newer versions)
   });
@@ -2399,7 +2399,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
   // Listen for research analysis start event to clear old data immediately
@@ -2779,7 +2779,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
   // Check for existing background jobs
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   // Check if research analysis is already running (enhanced service pattern)
@@ -2958,7 +2958,7 @@ function ComprehensiveClinicalAnalysisButton({ dealId, onAnalysisStart }: { deal
   // Check for existing background jobs
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   // Check if clinical analysis is already running
@@ -3122,7 +3122,7 @@ function ComprehensiveLegalAnalysisButton({ dealId }: { dealId: number }) {
   // Check for existing background jobs
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   // Check if legal analysis is already running
@@ -3276,7 +3276,7 @@ function CommercialAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   useEffect(() => {
@@ -3366,7 +3366,7 @@ function ClinicalAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   useEffect(() => {
@@ -3435,7 +3435,7 @@ function HrAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   useEffect(() => {
@@ -3507,7 +3507,7 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   // REMOVED: No longer check old comprehensive financial analysis progress - ONLY use background jobs like Clinical
@@ -3591,7 +3591,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
     retry: false,
     staleTime: 0, // Always fetch fresh data
   });
@@ -3599,7 +3599,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   // Also check for comprehensive IP analysis progress
   const { data: ipProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
     retry: false,
     staleTime: 0, // Always fetch fresh data
   });
@@ -3728,7 +3728,7 @@ function ResearchAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   useEffect(() => {
@@ -3797,7 +3797,7 @@ function LegalAnalysisProgress({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   useEffect(() => {
@@ -3866,7 +3866,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
   // Check for existing background jobs
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   // Check if commercial analysis is already running
@@ -4002,7 +4002,7 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   // Check for existing background jobs
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   // Check if HR analysis is already running
@@ -4149,7 +4149,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data like Legal
     gcTime: 0, // Don't cache results like Legal
   });
@@ -4453,7 +4453,7 @@ function PersistentFinancialButton({ dealId }: { dealId: number }) {
   // Check for existing background jobs - EXACTLY like Clinical button
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000, // Only poll for job status like Clinical
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s // Only poll for job status like Clinical
   });
 
   // Check if financial analysis is already running - EXACTLY like Clinical button
@@ -4588,12 +4588,12 @@ function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   const { data: progressData } = useQuery({
     queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
-    refetchInterval: 1000,
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
   });
 
   const isAlreadyRunning = (progressData as any)?.isRunning || 
@@ -4734,7 +4734,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
   const toggleCategory = (category: string) => {
@@ -5009,12 +5009,12 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 
   const { data: comprehensiveResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/hr/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
   const { data: hrProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
   const toggleCategory = (category: string) => {
@@ -5235,7 +5235,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Financial agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`],
-    refetchInterval: 2000,
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data like Financial
     gcTime: 0, // Don't cache results like Financial
   });
