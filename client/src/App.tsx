@@ -9,7 +9,8 @@ import { SidebarProvider } from "./contexts/SidebarContext";
 import { useAuth } from "./hooks/useAuth";
 import { useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { GlobalPersistentUploadMonitor, useGlobalPersistentUploads } from "@/components/GlobalPersistentUploads";
+// TEMPORARILY DISABLED to eliminate excessive polling causing 20-second dashboard delays
+// import { GlobalPersistentUploadMonitor, useGlobalPersistentUploads } from "@/components/GlobalPersistentUploads";
 
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
@@ -41,14 +42,14 @@ function AppContent() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, isLoading, user } = useAuth();
   
-  // 🎯 CRITICAL: Global persistent upload monitoring
-  const {
-    showMonitor,
-    isMinimized,
-    activeUploadsCount,
-    toggleMinimize,
-    closeMonitor
-  } = useGlobalPersistentUploads();
+  // TEMPORARILY DISABLED to eliminate excessive polling causing 20-second dashboard delays
+  // const {
+  //   showMonitor,
+  //   isMinimized,
+  //   activeUploadsCount,
+  //   toggleMinimize,
+  //   closeMonitor
+  // } = useGlobalPersistentUploads();
   
   // Auth pages - don't show sidebar/navbar
   const isAuthPage = location === '/login' || location === '/register';
@@ -161,15 +162,14 @@ function AppContent() {
           </div>
         )}
         
-        {/* 🎯 CRITICAL: Global Persistent Upload Monitor - Shows across ALL pages */}
-        {/* TEMP FIX: Force component to render to test hook */}
-        {isAuthenticated && (
+        {/* TEMPORARILY DISABLED to eliminate excessive polling causing 20-second dashboard delays */}
+        {/* {isAuthenticated && (
           <GlobalPersistentUploadMonitor
             isMinimized={isMinimized}
             onToggleMinimize={toggleMinimize}
             onClose={closeMonitor}
           />
-        )}
+        )} */}
         
         <Toaster />
       </TooltipProvider>
