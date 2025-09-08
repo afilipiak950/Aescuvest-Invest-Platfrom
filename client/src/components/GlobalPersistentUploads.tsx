@@ -51,8 +51,12 @@ export function GlobalPersistentUploadMonitor({
       if (!response.ok) throw new Error('Failed to fetch global uploads');
       return response.json();
     },
-    refetchInterval: 2000, // Poll every 2 seconds
-    refetchIntervalInBackground: true // Continue polling even when tab is not active
+    refetchInterval: (data) => {
+      // Smart polling: only poll when there are active uploads
+      const hasActiveUploads = data?.uploads?.some(u => u.status === 'uploading' || u.status === 'processing');
+      return hasActiveUploads ? 5000 : 60000; // 5s when active, 1m when idle
+    },
+    refetchIntervalInBackground: false // Don't poll in background for better performance
   });
 
   const uploads: PersistentUploadSession[] = uploadsData?.uploads || [];

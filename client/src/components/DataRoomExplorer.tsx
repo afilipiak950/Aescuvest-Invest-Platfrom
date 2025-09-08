@@ -76,7 +76,11 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
   const { data: backgroundJobs } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     enabled: isOpen && !!dealId,
-    refetchInterval: 2000
+    refetchInterval: (data) => {
+      // Smart polling: faster when jobs active, slower when idle
+      const hasActiveJobs = data?.jobs?.some(job => job.status === 'processing');
+      return hasActiveJobs ? 5000 : 30000; // 5s when active, 30s when idle
+    },
   });
   
 
@@ -1059,8 +1063,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const { data: documents = [], isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
-    staleTime: 2000, // Shorter cache time for faster updates 
-    refetchInterval: 2000, // More frequent polling during processing
+    staleTime: 30000, // Better caching for performance
+    refetchInterval: 25000, // Reduced from 2s to 25s
     refetchIntervalInBackground: false, // Don't poll in background
     refetchOnWindowFocus: true, // Refetch on focus to show latest data
     retry: 2, // Limit retries
