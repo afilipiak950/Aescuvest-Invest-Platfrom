@@ -85,6 +85,9 @@ function DueDiligenceContent() {
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     });
 
+    // 🔧 DEBUG: Check selectedDeal state
+    console.log('🔧 SELECTED DEAL DEBUG:', { selectedDeal, enabled: !!selectedDeal });
+
     // Fetch real documents for selected deal - FAST non-blocking load
     // 🚀 ULTRA-FAST DOCUMENTS: Lightning-speed loading with micro-optimizations
     const { data: documentsData, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
@@ -160,7 +163,10 @@ function DueDiligenceContent() {
       documentsData: !!documentsData,
       isArray: Array.isArray(documentsData),
       count: documents.length,
-      firstDoc: documents[0]?.name || 'none'
+      firstDoc: documents[0]?.name || 'none',
+      isLoadingDocuments,
+      documentsError: documentsError?.message,
+      selectedDeal
     });
     const analyses = analysesData || [];
     const jobProgress = jobProgressData || { jobs: [] };
