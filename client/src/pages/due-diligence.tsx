@@ -77,6 +77,14 @@ function DueDiligenceContent() {
       gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
     });
 
+    // MOVED HERE FROM BOTTOM: Fetch real analysis data - FAST non-blocking load
+    const { data: analysesData, isLoading: isLoadingAnalyses } = useQuery({
+      queryKey: [`/api/analyses/${selectedDeal}`],
+      retry: false,
+      enabled: !!selectedDeal, // Load immediately but don't block UI
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    });
+
     // Fetch real documents for selected deal - FAST non-blocking load
     const { data: documentsData, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
@@ -129,6 +137,14 @@ function DueDiligenceContent() {
     const documents = documentsData || [];
     const analyses = analysesData || [];
     const jobProgress = jobProgressData || { jobs: [] };
+
+    // Debug log for analyses data with safe checks (moved after safe defaults)
+    console.log('🔍 Analyses Query Debug:', {
+      selectedDeal,
+      isLoadingAnalyses,
+      analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
+      agentTypes: (analyses && Array.isArray(analyses)) ? analyses.map((a: any) => a?.agentType || 'unknown') : 'no data'
+    });
 
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
     const legalProgress = useMemo(() => {
@@ -280,21 +296,7 @@ function DueDiligenceContent() {
   //   // Automatic analysis temporarily disabled for stability
   // }, []);
 
-  // Fetch real analysis data - FAST non-blocking load
-  const { data: analysesData, isLoading: isLoadingAnalyses } = useQuery({
-    queryKey: [`/api/analyses/${selectedDeal}`],
-    retry: false,
-    enabled: !!selectedDeal, // Load immediately but don't block UI
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  // Debug log for analyses data with safe checks
-  console.log('🔍 Analyses Query Debug:', {
-    selectedDeal,
-    isLoadingAnalyses,
-    analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
-    agentTypes: (analyses && Array.isArray(analyses)) ? analyses.map((a: any) => a?.agentType || 'unknown') : 'no data'
-  });
+  // REMOVED - Moving to top to fix hoisting issue
 
   // Fetch comprehensive analysis data for each agent - NON-BLOCKING lazy load
   const { data: clinicalAnalysisData } = useQuery({
