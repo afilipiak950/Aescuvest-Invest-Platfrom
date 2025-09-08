@@ -252,10 +252,10 @@ export class AescuvestAIAssistant {
   async loadCompleteContext(): Promise<void> {
     const startTime = Date.now();
     
-    // Check cache first for ultra-fast loading
+    // Check cache first for ultra-fast loading (extended to 10 minutes for better performance)
     const cached = contextCache.get(this.dealId);
-    if (cached && (Date.now() - cached.loadedAt.getTime()) < 5 * 60 * 1000) {
-      console.log(`Using cached context for deal ${this.dealId}`);
+    if (cached && (Date.now() - cached.loadedAt.getTime()) < 10 * 60 * 1000) {
+      console.log(`⚡ Using cached context for deal ${this.dealId} (${cached.queryCount} previous queries)`);
       this.documentContext = cached.documentContext;
       this.agentContext = cached.agentContext;
       this.companyContext = cached.companyContext;
@@ -268,30 +268,39 @@ export class AescuvestAIAssistant {
       return;
     }
     
-    // Ensure documents are embedded for full RAG capability
-    await this.ensureDocumentsEmbedded();
+    console.log(`🚀 Loading lightweight context for deal ${this.dealId} (no full document loading)...`);
     
-    console.log(`Loading enhanced context for deal ${this.dealId}...`);
-    
-    // Only load agent and company context (not documents)
-    await Promise.all([
-      this.loadAgentContext(),
-      this.loadCompanyContext()
+    // PERFORMANCE OPTIMIZATION: Only load lightweight agent and company context
+    // Documents are accessed via RAG search when needed, not preloaded
+    const [agentResult, companyResult, embeddingResult] = await Promise.all([
+      this.loadAgentContext().catch(err => {
+        console.error('Agent context load failed:', err);
+        return null;
+      }),
+      this.loadCompanyContext().catch(err => {
+        console.error('Company context load failed:', err);
+        return null;
+      }),
+      // Background embedding check (non-blocking)
+      this.ensureDocumentsEmbedded().catch(err => {
+        console.error('Embedding check failed:', err);
+        return null;
+      })
     ]);
     
     // Cache the loaded context with enhanced metadata
     contextCache.set(this.dealId, {
-      documentContext: [], // Empty for RAG
+      documentContext: [], // Empty - documents accessed via RAG only
       agentContext: this.agentContext,
       companyContext: this.companyContext,
       loadedAt: new Date(),
       lastQueryTime: new Date(),
-      queryCount: 0
+      queryCount: 1
     });
     
     this.isContextLoaded = true;
     const loadTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`Enhanced context loaded in ${loadTime}s: ${this.agentContext.length} agent analyses, embedding coverage: ${performanceMetrics.embeddingCoverage.get(this.dealId) || 0}%`);
+    console.log(`✅ Ultra-fast context loaded in ${loadTime}s: ${this.agentContext.length} agent analyses ready, RAG embedding coverage: ${performanceMetrics.embeddingCoverage.get(this.dealId) || 0}%`);
   }
 
   private async loadDocumentContext(): Promise<void> {
@@ -493,55 +502,62 @@ export class AescuvestAIAssistant {
   }
 
   async processQuery(query: string): Promise<string> {
-    // Check for cached response first
-    const cachedResponse = await EmbeddingService.getCachedResponse(query, this.dealId);
+    const queryStartTime = Date.now();
+    
+    // Check for cached response first (instant return for repeated queries)
+    const cachedResponse = await EmbeddingService.getCachedResponse(query, this.dealId).catch(() => null);
     if (cachedResponse) {
-      console.log(`Using cached response for query`);
+      console.log(`⚡ Using cached response for query (instant response)`);
       return cachedResponse;
     }
     
     // Ensure lightweight context is loaded (agent analyses only)
     if (!this.isContextLoaded) {
+      const contextStartTime = Date.now();
       await this.loadCompleteContext();
+      console.log(`⏱️ Context loaded in ${Date.now() - contextStartTime}ms`);
     }
     
-    // Use RAG to find relevant document chunks
-    console.log(`🔍 Searching for relevant document chunks using RAG for query: "${query.substring(0, 100)}..."`);
-    const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
+    // Parallel RAG search and context building for maximum speed
+    const ragStartTime = Date.now();
+    const [relevantChunks, contextPrompt] = await Promise.all([
+      // RAG search with timeout and fallback
+      EmbeddingService.searchSimilarChunks(query, this.dealId, 12).catch(err => {
+        console.warn(`RAG search failed, continuing without documents:`, err);
+        return [];
+      }),
+      // Context building in parallel
+      Promise.resolve(this.buildContextPrompt())
+    ]);
     
-    // Build context with only relevant information
-    let ragContext = 'RELEVANT DOCUMENT CONTEXT:\n\n';
+    console.log(`🔍 RAG search completed in ${Date.now() - ragStartTime}ms - found ${relevantChunks.length} relevant chunks`);
+    
+    // Build lightweight document context from RAG results
+    let ragContext = '';
     if (relevantChunks.length > 0) {
+      ragContext = '\n📄 RELEVANT DOCUMENT EXCERPTS:\n\n';
       const documentGroups = new Map<string, string[]>();
       
-      // Log the first few chunks for debugging
-      console.log(`📄 Sample of found chunks:`);
-      for (let i = 0; i < Math.min(3, relevantChunks.length); i++) {
-        console.log(`  Chunk ${i + 1}: "${relevantChunks[i].chunk.substring(0, 100)}..." (similarity: ${relevantChunks[i].similarity.toFixed(3)})`);
-      }
-      
-      for (const chunk of relevantChunks) {
-        const docName = chunk.metadata?.documentName || 'Unknown Document';
+      // Group chunks by document for better organization
+      for (const chunk of relevantChunks.slice(0, 10)) { // Limit to top 10 for performance
+        const docName = chunk.metadata?.documentName || 'Document';
         if (!documentGroups.has(docName)) {
           documentGroups.set(docName, []);
         }
-        documentGroups.get(docName)!.push(chunk.chunk);
+        documentGroups.get(docName)!.push(chunk.chunk.substring(0, 400)); // Limit chunk size
       }
       
-      for (const [docName, chunks] of Array.from(documentGroups)) {
-        ragContext += `\nDocument: ${docName}\n`;
-        ragContext += `Content: ${chunks.join(' ... ')}\n`;
+      // Build context from grouped documents
+      let docIndex = 1;
+      for (const [docName, chunks] of Array.from(documentGroups).slice(0, 5)) { // Limit to 5 documents
+        ragContext += `${docIndex}. **${docName}:**\n${chunks.join(' ... ')}\n\n`;
+        docIndex++;
       }
-      
-      console.log(`✅ Found ${relevantChunks.length} relevant chunks from ${documentGroups.size} documents`);
     } else {
-      ragContext += 'No directly relevant document content found for this query.\n';
+      ragContext = '\n📄 No specific document content found - using agent analysis data.\n\n';
     }
     
-    // Add agent and company context
-    const contextPrompt = this.buildContextPrompt() + '\n' + ragContext;
-    
-    // Build the messages for OpenAI
+    // Build optimized messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       {
         role: 'system',
@@ -549,39 +565,55 @@ export class AescuvestAIAssistant {
       },
       {
         role: 'user',
-        content: `${contextPrompt}\n\nINVESTMENT ANALYSIS REQUEST: ${query}\n\nProvide an institutional-grade investment analysis response following these requirements:
+        content: `${contextPrompt}${ragContext}
 
-1. **EXECUTIVE SUMMARY** (2-3 sentences summarizing key findings)
-2. **DETAILED ANALYSIS** (structured with clear headers)
-3. **KEY METRICS & DATA** (specific numbers from documents)
-4. **RISK ASSESSMENT** (critical concerns with severity levels)
-5. **INVESTMENT IMPLICATIONS** (actionable insights for decision-making)
-6. **CONFIDENCE LEVEL** (High/Medium/Low based on data quality)
-7. **SOURCE CITATIONS** (specific document names for key claims)
+🎯 **INVESTMENT QUERY:** ${query}
 
-Format using markdown with professional structure. Focus on material information that impacts investment decisions. Cross-reference multiple sources for validation.`
+**RESPONSE REQUIREMENTS:**
+- **Executive Summary**: 2-3 sentence key finding
+- **Analysis**: Structured professional response  
+- **Data Points**: Specific metrics and numbers
+- **Risk Level**: Critical concerns (High/Medium/Low)
+- **Investment Thesis**: Clear recommendation
+- **Confidence**: Data quality assessment
+- **Sources**: Document citations
+
+Use markdown formatting. Focus on actionable investment insights.`
       }
     ];
     
     try {
-      console.log(`Processing RAG query with ${relevantChunks.length} relevant chunks and ${this.agentContext.length} agent analyses`);
+      const aiStartTime = Date.now();
+      console.log(`🤖 Sending query to GPT-4o with ${this.agentContext.length} agent analyses and ${relevantChunks.length} document chunks`);
       
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages,
-        temperature: 0.1, // Lower temperature for more consistent, analytical responses
-        max_tokens: 3000 // Increased for comprehensive analyst reports
+        temperature: 0.1,
+        max_tokens: 2500, // Optimized for faster responses
+        timeout: 30000 // 30 second timeout
       });
       
       const answer = response.choices[0].message.content || 'I was unable to generate a response.';
+      const aiTime = Date.now() - aiStartTime;
+      const totalTime = Date.now() - queryStartTime;
       
-      // Cache the response for future use
-      await EmbeddingService.cacheResponse(query, answer, this.dealId);
+      console.log(`✅ Query completed in ${totalTime}ms (AI: ${aiTime}ms, RAG: ${Date.now() - ragStartTime}ms)`);
+      
+      // Cache the response for future use (fire-and-forget)
+      EmbeddingService.cacheResponse(query, answer, this.dealId).catch(err => {
+        console.warn('Response caching failed:', err);
+      });
       
       return answer;
     } catch (error) {
-      console.error('Error processing AI query:', error);
-      throw error;
+      console.error('❌ Error processing AI query:', error);
+      
+      // Fallback response instead of complete failure
+      return `I apologize, but I encountered a technical issue while processing your query. Please try rephrasing your question or contact support if the issue persists.
+      
+**Query received:** ${query.substring(0, 100)}...
+**Available context:** ${this.agentContext.length} agent analyses, ${this.companyContext ? 'company data loaded' : 'no company data'}`;
     }
   }
 

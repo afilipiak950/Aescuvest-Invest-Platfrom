@@ -168,6 +168,38 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     }
   ];
   
+  // PERFORMANCE OPTIMIZATION: Pre-load AI context when component mounts
+  useEffect(() => {
+    if (dealId && !isPreloading) {
+      setIsPreloading(true);
+      console.log(`🚀 Pre-loading AI context for deal ${dealId}...`);
+      
+      // Trigger background context loading for instant responses
+      fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log(`✅ AI context pre-loaded successfully for deal ${dealId}`);
+          setIsContextLoaded(true);
+          setIsPreloading(false);
+        } else {
+          console.warn(`⚠️ Context pre-loading failed, will load on first query`);
+          setIsPreloading(false);
+        }
+      })
+      .catch(error => {
+        console.error(`❌ Context pre-loading error:`, error);
+        setIsPreloading(false);
+      });
+    }
+  }, [dealId]);
+
   // Update smart suggestions when data changes
   useEffect(() => {
     if (suggestions) {
