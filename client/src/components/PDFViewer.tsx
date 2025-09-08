@@ -78,7 +78,14 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
         
       } catch (err) {
         console.error('PDF loading error:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load PDF. Please try downloading or opening in new tab.';
+        let errorMessage = 'Failed to load PDF. Please try downloading or opening in new tab.';
+        if (err instanceof Error) {
+          if (err.message.includes('Document file not available') || err.message.includes('not found')) {
+            errorMessage = `This document appears to have been removed during system maintenance. Please re-upload "${documentName}" to restore access.`;
+          } else {
+            errorMessage = err.message;
+          }
+        }
         setError(errorMessage);
         setIsLoading(false);
       }
