@@ -775,15 +775,6 @@ export class ComprehensiveFinancialAnalysisService {
         
         await progressCallback(100, 'Financial analysis completed');
         
-        // CRITICAL FIX: Set job status to completed (matches line 240 pattern)
-        if (jobId) {
-          await storage.updateBackgroundJob(jobId, {
-            status: 'completed',
-            progress: 100,
-            currentStep: 'Financial analysis completed'
-          });
-        }
-        
         this.isRunning = false;
         console.log(`✅ Financial comprehensive analysis completed for deal ${dealId}`);
         

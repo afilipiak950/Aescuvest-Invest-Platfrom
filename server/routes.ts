@@ -5258,130 +5258,6 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
     }
   });
 
-  // Legal Analysis Start Route - EXACT Clinical pattern
-  app.post('/api/deals/:dealId/legal-analysis/comprehensive', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      // Check if there's already a running comprehensive legal analysis
-      const existingLegalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_legal_analysis');
-      if (existingLegalJob) {
-        return res.json({
-          success: true,
-          message: 'Comprehensive legal analysis already running',
-          alreadyRunning: true,
-          progress: existingLegalJob.progress || 0
-        });
-      }
-      
-      // Create background job - EXACT Clinical approach
-      const jobId = `comprehensive-legal-analysis-${dealId}-${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_legal_analysis',
-        agentType: 'legal',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing legal analysis',
-        processedDocuments: 0,
-        totalDocuments: 0
-      });
-      
-      // Import and run service in background - EXACT Clinical approach
-      (async () => {
-        try {
-          console.log(`⚖️ Starting comprehensive legal analysis background process for deal ${dealId}`);
-          const { ComprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
-          
-          const legalService = new ComprehensiveLegalAnalysisService();
-          await legalService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Clinical approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
-        }
-      })();
-      
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive legal analysis started - processing legal questions across all assigned documents'
-      });
-    } catch (error) {
-      console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ success: false, error: 'Failed to start comprehensive legal analysis' });
-    }
-  });
-
-  // Financial Analysis Start Route - EXACT Clinical pattern  
-  app.post('/api/deals/:dealId/financial-analysis/comprehensive', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      // Check if there's already a running comprehensive financial analysis
-      const existingFinancialJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_financial_analysis');
-      if (existingFinancialJob) {
-        return res.json({
-          success: true,
-          message: 'Comprehensive financial analysis already running',
-          alreadyRunning: true,
-          progress: existingFinancialJob.progress || 0
-        });
-      }
-      
-      // Create background job - EXACT Clinical approach
-      const jobId = `comprehensive-financial-analysis-${dealId}-${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_financial_analysis',
-        agentType: 'financial',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing financial analysis',
-        processedDocuments: 0,
-        totalDocuments: 0
-      });
-      
-      // Import and run service in background - EXACT Clinical approach
-      (async () => {
-        try {
-          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
-          const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
-          
-          const financialService = new ComprehensiveFinancialAnalysisService();
-          await financialService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Clinical approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
-        }
-      })();
-      
-      res.json({ 
-        success: true, 
-        message: 'Comprehensive financial analysis started - processing financial questions across all assigned documents'
-      });
-    } catch (error) {
-      console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ success: false, error: 'Failed to start comprehensive financial analysis' });
-    }
-  });
-
   // Clinical Analysis Start Route
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
@@ -5398,39 +5274,18 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Create background job - EXACT Commercial approach
-      const jobId = `comprehensive-clinical-analysis-${dealId}-${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_clinical_analysis',
-        agentType: 'clinical',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing clinical analysis',
-        processedDocuments: 0,
-        totalDocuments: 0
-      });
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      // Import and run service in background - EXACT Commercial approach
+      // Run ENHANCED comprehensive clinical analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔬 Starting comprehensive clinical analysis background process for deal ${dealId}`);
-          const { ComprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
-          
-          const clinicalService = new ComprehensiveClinicalAnalysisService();
-          await clinicalService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED clinical analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Clinical');
+          console.log(`✅ Enhanced clinical analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Commercial approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
+          console.error(`❌ Error in enhanced clinical analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
@@ -6229,7 +6084,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       console.log(`💰 Fetching comprehensive financial analysis results for deal ${dealId}`);
       
       // Get comprehensive financial analysis from agent_analyses table
-      const analysis = await storage.getAgentAnalysis(dealId, 'financial');
+      const analysis = await storage.getAgentAnalysisByDealAndType(dealId, 'Financial');
       
       if (!analysis) {
         console.log(`❌ No comprehensive financial analysis found for deal ${dealId}`);
@@ -6470,39 +6325,18 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         });
       }
       
-      // Create background job - EXACT Commercial approach  
-      const jobId = `comprehensive-research-analysis-${dealId}-${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_research_analysis',
-        agentType: 'research',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing research analysis',
-        processedDocuments: 0,
-        totalDocuments: 0
-      });
+      // Import the ENHANCED research analysis service
+      const { startEnhancedResearchAnalysis } = await import('./enhancedResearchAnalysisService');
       
-      // Import and run service in background - EXACT Commercial approach
+      // Run ENHANCED research analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
-          const { ComprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
-          
-          const researchService = new ComprehensiveResearchAnalysisService();
-          await researchService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
+          await startEnhancedResearchAnalysis(dealId);
+          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive research analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Commercial approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
+          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
@@ -6524,7 +6358,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       console.log(`🔬 Fetching comprehensive research analysis results for deal ${dealId}`);
       
       // Get comprehensive research analysis from agent_analyses table
-      const analysis = await storage.getAgentAnalysis(dealId, 'research');
+      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
       
       if (!analysis) {
         console.log(`❌ No comprehensive research analysis found for deal ${dealId}`);
@@ -6557,11 +6391,11 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Enhanced response format matching Legal analysis structure
       res.json({
         success: true,
-        analysis: {
+        results: {
           status: analysis.status,
           findings: analysis.findings || [],
           recommendations: analysis.recommendations || [],
-          research_questions: researchAnswers,
+          researchAnswers,
           completedAt: analysis.completedAt,
           // Enhanced metadata for consistency with Legal
           totalQuestions: Object.keys(researchAnswers).length,
@@ -6618,57 +6452,56 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       
       console.log(`💰 Starting comprehensive financial analysis for deal ${dealId}`);
       
-      // Check if there's already a running comprehensive financial analysis - EXACT Commercial approach
-      const existingFinancialJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_financial_analysis');
+      // Check for existing Financial analysis jobs to prevent duplicates  
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingFinancialJob = existingJobs.find(job => 
+        job.agentType === 'Financial' && job.status === 'processing'
+      );
+      
       if (existingFinancialJob) {
-        return res.json({
-          success: true,
-          message: 'Comprehensive financial analysis already running',
-          alreadyRunning: true,
+        console.log(`⚠️ Financial analysis already running for deal ${dealId} (Job: ${existingFinancialJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Financial analysis already running`,
           jobId: existingFinancialJob.jobId
         });
       }
       
-      // Create background job - EXACT Commercial approach
-      const jobId = `comprehensive-financial-analysis-${dealId}-${Date.now()}`;
-      await storage.createBackgroundJob({
-        jobId,
-        dealId,
-        jobType: 'comprehensive_financial_analysis',
-        agentType: 'financial',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Initializing financial analysis',
-        processedDocuments: 0,
-        totalDocuments: 0
-      });
+      // CRITICAL FIX: Delete existing Financial analysis to allow fresh restart
+      console.log(`🗑️ Clearing any existing financial analysis data for deal ${dealId} to enable fresh restart`);
+      try {
+        await storage.deleteAgentAnalysis(dealId, 'Financial');
+        console.log(`✅ Previous financial analysis data cleared successfully`);
+      } catch (deleteError) {
+        console.log(`⚠️ No existing financial analysis to clear (this is normal for first run)`);
+      }
       
-      // Import and run service in background - EXACT Commercial approach
+      // ALSO clear any stuck background jobs that might prevent fresh start
+      try {
+        const jobId = `financial-analysis-${dealId}`;
+        await storage.deleteBackgroundJob(jobId);
+        console.log(`✅ Previous financial background job cleared successfully`);
+      } catch (jobDeleteError) {
+        console.log(`⚠️ No existing financial background job to clear (this is normal)`);
+      }
+      
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      
+      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
-          const { ComprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
-          
-          const financialService = new ComprehensiveFinancialAnalysisService();
-          await financialService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
+          console.log(`💰 Starting ENHANCED financial analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
+          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Commercial approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
+          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
         }
       })();
       
-      res.json({
-        success: true,
-        message: 'Comprehensive financial analysis started',
-        jobId
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive financial analysis started - processing 12 financial questions across all assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
