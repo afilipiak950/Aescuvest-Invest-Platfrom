@@ -991,16 +991,21 @@ function DueDiligenceContent() {
                       agentTypes.forEach(agentType => {
                         const agentLower = agentType.toLowerCase();
                         
-                        // Check comprehensive analysis first
+                        // ULTRA-SAFE: Check comprehensive analysis with null safety
                         const hasComprehensiveAnalysis = (() => {
-                          if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
-                          if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
-                          if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
-                          if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                          if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
-                          if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
-                          if (agentLower === 'legal') return legalAnalysisData?.analysis !== null;
-                          return false;
+                          try {
+                            if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
+                            if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
+                            if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
+                            if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
+                            if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
+                            if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
+                            if (agentLower === 'legal') return (typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis !== null);
+                            return false;
+                          } catch (error) {
+                            console.error('Error checking comprehensive analysis:', error);
+                            return false;
+                          }
                         })();
                         
                         // Check regular analyses
@@ -1021,7 +1026,7 @@ function DueDiligenceContent() {
                         ip: !!ipAnalysisData?.analysis,
                         research: !!researchAnalysisData?.analysis,
                         financial: !!financialAnalysisData?.analysis,
-                        legal: !!legalAnalysisData?.analysis
+                        legal: !!(typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis)
                       }});
                       
                       return completedCount;
