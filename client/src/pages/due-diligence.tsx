@@ -1171,7 +1171,7 @@ function DueDiligenceContent() {
                       }
                     }}
                     disabled={isRunningAllAnalyses || runAllAnalysesMutation.isPending}
-                    className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px]"
+                    className="bg-primary hover:bg-primary/90 pt-[19px] pb-[19px] hidden"
                     size="sm"
                   >
                     {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
