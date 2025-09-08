@@ -34,7 +34,6 @@ import { chunkedUploadService, type ChunkedUploadProgress } from '../services/ch
 interface DataRoomExplorerProps {
   dealId: number;
   onUploadComplete?: () => void;
-  isOpen?: boolean; // 🚨 FIX: Make isOpen optional
 }
 
 interface FolderNode {
@@ -47,7 +46,6 @@ interface FolderNode {
 
 interface DocumentDetailModalProps {
   document: Document;
-  isOpen: boolean;
   onClose: () => void;
   dealId: number;
   refetch: () => void;
@@ -64,19 +62,19 @@ interface AIDocumentSummary {
   confidenceScore: number;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isOpen, onClose, dealId, refetch }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onClose, dealId, refetch }) => {
   const queryClient = useQueryClient();
   
   // Fetch agent analyses to determine which agents processed this document
   const { data: agentAnalyses, refetch: refetchAnalyses } = useQuery({
     queryKey: [`/api/analyses/${dealId}`],
-    enabled: isOpen
+    enabled: !!dealId
   });
 
   // Monitor background jobs and auto-refresh when processing completes
   const { data: backgroundJobs } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    enabled: isOpen && !!dealId,
+    enabled: !!dealId,
     refetchInterval: (data) => {
       // Smart polling: faster when jobs active, slower when idle
       const hasActiveJobs = data?.jobs?.some(job => job.status === 'processing');
@@ -102,8 +100,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
       }
     }
   }, [backgroundJobs, refetchAnalyses, refetch]);
-  
-  if (!isOpen) return null;
 
   // Get the latest document data from cache to ensure real-time updates
   const documentsRawData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
@@ -965,7 +961,7 @@ const FolderTree: React.FC<{
   );
 }); // ⚡ PERFORMANCE: React.memo closing
 
-export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete, isOpen = true }) => {
+export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<Document | null>(null);
@@ -1065,7 +1061,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   };
 
   // Query setup debug
-  console.log('DataRoom Query Setup:', { dealId, isOpen });
+  console.log('DataRoom Query Setup:', { dealId });
 
   const { data: paginatedData, isLoading, error, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents-fresh`], // 🚨 RESTORED: Force fresh documents to show
@@ -3078,7 +3074,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       {selectedDocument && (
         <DocumentDetailModal
           document={selectedDocument}
-          isOpen={!!selectedDocument}
           onClose={() => setSelectedDocument(null)}
           dealId={dealId}
           refetch={refetch}

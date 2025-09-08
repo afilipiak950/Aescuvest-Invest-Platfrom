@@ -1101,6 +1101,7 @@ function DueDiligenceContent() {
                 </div>
               ) : (
                 <DataRoomExplorer 
+                  key={`dataroom-${selectedDeal}`}
                   dealId={parseInt(selectedDeal!)} 
                   onUploadComplete={() => {
                     // Refresh documents and keep data room visible
