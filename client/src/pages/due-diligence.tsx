@@ -961,25 +961,101 @@ function DueDiligenceContent() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
-                  <div className="text-2xl font-bold text-primary">{documents?.length || 0}</div>
+                  <div className="text-2xl font-bold text-primary">
+                    {(() => {
+                      // BULLETPROOF KPI FIX: Get documents count from query or fallback to 0
+                      const documentsQuery = queryClient.getQueryData([`/api/deals/${selectedDeal}/documents`]) as any;
+                      const actualDocuments = documentsQuery?.documents || documents;
+                      const count = Array.isArray(actualDocuments) ? actualDocuments.length : 0;
+                      console.log('📊 Total Documents KPI:', { count, documentsQuery: !!documentsQuery, documents: Array.isArray(documents) ? documents.length : 'not array' });
+                      return count;
+                    })()} 
+                  </div>
                   <div className="text-sm text-gray-400">Total Documents</div>
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-blue-400">
-                    {Array.isArray(analyses) ? (analyses.filter((a: any) => a.status === 'Completed' || a.status === 'completed')?.length || 0) : 0}
+                    {(() => {
+                      // BULLETPROOF KPI FIX: Count completed analyses from all available sources
+                      const agentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
+                      let completedCount = 0;
+                      
+                      agentTypes.forEach(agentType => {
+                        const agentLower = agentType.toLowerCase();
+                        
+                        // Check comprehensive analysis first
+                        const hasComprehensiveAnalysis = (() => {
+                          if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
+                          if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
+                          if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
+                          if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
+                          if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
+                          if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
+                          if (agentLower === 'legal') return legalAnalysisData?.analysis !== null;
+                          return false;
+                        })();
+                        
+                        // Check regular analyses
+                        const completedAnalysis = analyses?.find(a => 
+                          a.agentType?.toLowerCase() === agentLower && 
+                          (a.status === 'completed' || a.status === 'Completed')
+                        );
+                        
+                        if (hasComprehensiveAnalysis || completedAnalysis) {
+                          completedCount++;
+                        }
+                      });
+                      
+                      console.log('📊 Completed Analyses KPI:', { completedCount, availableAnalysisData: {
+                        clinical: !!clinicalAnalysisData?.analysis,
+                        hr: !!hrAnalysisData?.analysis,
+                        commercial: !!commercialAnalysisData?.analysis,
+                        ip: !!ipAnalysisData?.analysis,
+                        research: !!researchAnalysisData?.analysis,
+                        financial: !!financialAnalysisData?.analysis,
+                        legal: !!legalAnalysisData?.analysis
+                      }});
+                      
+                      return completedCount;
+                    })()} 
                   </div>
                   <div className="text-sm text-gray-400">Completed Analyses</div>
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-yellow-400">
-                    {jobProgress?.jobs ? (jobProgress?.jobs?.filter((job: any) => job.status === 'processing')?.length || 0) : 0}
+                    {(() => {
+                      // BULLETPROOF KPI FIX: Count running jobs accurately
+                      const runningCount = jobProgress?.jobs ? 
+                        jobProgress.jobs.filter((job: any) => job.status === 'processing').length || 0 
+                        : 0;
+                      console.log('📊 Running Analyses KPI:', { runningCount, totalJobs: jobProgress?.jobs?.length || 0 });
+                      return runningCount;
+                    })()} 
                   </div>
                   <div className="text-sm text-gray-400">Running Analyses</div>
                 </div>
                 <div className="bg-dark border border-dark-lighter rounded-lg p-3">
                   <div className="text-2xl font-bold text-green-400">
-                    {(unassignedDocs?.length || 0) === 0 && (documents?.length || 0) > 0 ? '100%' : 
-                     (documents?.length || 0) > 0 ? `${Math.round(((documents?.length || 0) - (unassignedDocs?.length || 0)) / (documents?.length || 1) * 100)}%` : '0%'}
+                    {(() => {
+                      // BULLETPROOF KPI FIX: Calculate assignment rate from actual data
+                      const documentsQuery = queryClient.getQueryData([`/api/deals/${selectedDeal}/documents`]) as any;
+                      const actualDocuments = documentsQuery?.documents || documents;
+                      const totalDocs = Array.isArray(actualDocuments) ? actualDocuments.length : 0;
+                      
+                      if (totalDocs === 0) return '0%';
+                      
+                      // Count documents with assignments (any agent or category)
+                      const assignedDocs = actualDocuments?.filter((doc: any) => 
+                        doc?.assignedAgents?.length > 0 || 
+                        doc?.category || 
+                        doc?.documentType
+                      ).length || 0;
+                      
+                      const percentage = Math.round((assignedDocs / totalDocs) * 100);
+                      console.log('📊 Assignment Rate KPI:', { assignedDocs, totalDocs, percentage });
+                      
+                      return `${percentage}%`;
+                    })()} 
                   </div>
                   <div className="text-sm text-gray-400">Assignment Rate</div>
                 </div>
