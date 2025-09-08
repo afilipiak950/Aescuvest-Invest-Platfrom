@@ -51,6 +51,7 @@ export interface IStorage {
   getDocumentById(id: number): Promise<Document | undefined>;
   getDocument(id: number): Promise<Document | undefined>;
   getDocumentsByDealId(dealId: number): Promise<Document[]>;
+  getDocumentsByDealIdPaginated(dealId: number, page: number, limit: number, summary?: boolean): Promise<{documents: Document[], total: number, page: number, totalPages: number}>;
   getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocumentStatus(id: number, status: string): Promise<Document | undefined>;
@@ -488,6 +489,69 @@ export class DatabaseStorage implements IStorage {
     console.log(`📄 Query completed: ${result.length} docs, ${summaryCount} with AI summaries`);
     
     return result;
+  }
+
+  // 🚀 CRITICAL PERFORMANCE FIX: Paginated document loading to eliminate 8.9MB responses
+  async getDocumentsByDealIdPaginated(dealId: number, page: number = 1, limit: number = 20, summary: boolean = false): Promise<{documents: Document[], total: number, page: number, totalPages: number}> {
+    console.log(`📄 DB: Starting PAGINATED documents query for deal ${dealId}, page ${page}, limit ${limit}, summary: ${summary}...`);
+    const startTime = Date.now();
+    
+    // For summary mode (dashboard), return minimal fields
+    const baseQuery = db.select({
+      id: documents.id,
+      dealId: documents.dealId,
+      name: documents.name,
+      type: documents.type,
+      size: documents.size,
+      status: documents.status,
+      uploadedAt: documents.uploadedAt,
+      folderPath: documents.folderPath,
+      isFolder: documents.isFolder,
+      category: documents.category,
+      documentType: documents.documentType,
+      aiSummaryStatus: documents.aiSummaryStatus,
+      ...(summary ? {} : {
+        // Full mode includes heavy fields
+        ocrContent: documents.ocrText,
+        parentId: documents.parentId,
+        aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
+        aiSummary: documents.aiSummary,
+        analyses: documents.analyses,
+        assignedAgents: documents.assignedAgents,
+        assignmentReason: documents.assignmentReason,
+        assignmentConfidence: documents.assignmentConfidence,
+        manuallyAssigned: documents.manuallyAssigned,
+        assignedAt: documents.assignedAt
+      })
+    });
+
+    // Get total count for pagination
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(documents)
+      .where(eq(documents.dealId, dealId));
+    
+    const total = countResult[0]?.count || 0;
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+
+    // Get paginated documents
+    const result = await baseQuery
+      .from(documents)
+      .where(eq(documents.dealId, dealId))
+      .orderBy(documents.name)
+      .limit(limit)
+      .offset(offset);
+    
+    const queryTime = Date.now() - startTime;
+    console.log(`📄 DB: Paginated query completed in ${queryTime}ms, page ${page}/${totalPages}, found ${result.length}/${total} documents`);
+    
+    return {
+      documents: result,
+      total,
+      page,
+      totalPages
+    };
   }
 
   // NEW: Get documents WITH complete OCR text for memo generation using direct database connection

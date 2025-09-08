@@ -1193,8 +1193,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // ⚡ Document Cache for Dashboard Performance (5 minute cache)
-  const documentCache = new Map<number, { data: any, timestamp: number }>();
+  // ⚡ Document Cache for Dashboard Performance (5 minute cache) - Updated for pagination
+  const documentCache = new Map<string, { data: any, timestamp: number }>();
   
   app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
     const startTime = Date.now();
