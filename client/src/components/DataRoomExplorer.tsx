@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FolderIcon, 
@@ -877,7 +877,7 @@ const FolderTree: React.FC<{
   isSelectionMode: boolean;
   selectedFiles: Set<number>;
   onFileSelection: (fileId: number, checked: boolean) => void;
-}> = ({ node, level, onToggle, onDocumentClick, isSelectionMode, selectedFiles, onFileSelection }) => {
+}> = memo(({ node, level, onToggle, onDocumentClick, isSelectionMode, selectedFiles, onFileSelection }) => {
   const hasChildren = node.children.size > 0 || node.documents.length > 0;
   const paddingLeft = level * 20;
 
@@ -962,7 +962,7 @@ const FolderTree: React.FC<{
       )}
     </div>
   );
-};
+}); // ⚡ PERFORMANCE: React.memo closing
 
 export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
@@ -2488,7 +2488,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     );
   }
 
-  const { folderTree, emailAttachments } = buildFolderTree(documents || []);
+  // ⚡ PERFORMANCE: Memoize expensive folder tree building
+  const { folderTree, emailAttachments } = useMemo(() => 
+    buildFolderTree(documents || []), 
+    [documents]
+  );
 
   return (
     <div className="space-y-6 h-full flex flex-col">
