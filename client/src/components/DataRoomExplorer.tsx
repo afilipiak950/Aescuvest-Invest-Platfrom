@@ -962,6 +962,7 @@ const FolderTree: React.FC<{
 }); // ⚡ PERFORMANCE: React.memo closing
 
 export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
+  // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<Document | null>(null);
@@ -973,10 +974,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const [showAdditionalUpload, setShowAdditionalUpload] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ fileName: string; progress: number; status: string } | null>(null);
   const [isProcessingSummaries, setIsProcessingSummaries] = useState(false);
+  const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
+  const [isChunkedUpload, setIsChunkedUpload] = useState(false);
+  const [processingComplete, setProcessingComplete] = useState(false);
+  const [processingCooldown, setProcessingCooldown] = useState(false);
+  
+  // 🚨 CRITICAL FIX: ALL useRef hooks after useState but before useQuery/useEffect
   const fileInputRef = useRef<HTMLInputElement>(null);
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
 
   // 🎯 CRITICAL: Check for active persistent uploads when component loads
   const { data: persistentUploads } = useQuery({
@@ -1052,7 +1058,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     //   return () => clearInterval(interval);
     // }
   }, [persistentUploads]);
-  const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
   // Enhanced document click handler with PDF viewing support
   const handleDocumentClick = (document: Document) => {
@@ -1508,9 +1513,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
 
 
-  // Track processing state to prevent duplicates
-  const [processingComplete, setProcessingComplete] = useState(false);
-  const [processingCooldown, setProcessingCooldown] = useState(false);
+  // Track processing state to prevent duplicates (MOVED TO TOP)
 
   // Monitor background jobs for the main component
   const { data: backgroundJobs } = useQuery({
