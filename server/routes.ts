@@ -1467,7 +1467,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analysis routes - Optimized with performance timing
+  // ⚡ Analysis Cache for Dashboard Performance (3 minute cache)
+  const analysisCache = new Map<number, { data: any, timestamp: number }>();
+  
+  // Analysis routes - Optimized with performance timing + caching
   app.get('/api/analyses/:dealId', async (req: Request, res: Response) => {
     const startTime = Date.now();
     try {
@@ -1476,14 +1479,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
       
-      console.log(`🔍 Starting optimized analyses fetch for deal ${dealId}...`);
+      // ⚡ PERFORMANCE OPTIMIZATION: Check cache first
+      const cached = analysisCache.get(dealId);
+      if (cached && (Date.now() - cached.timestamp) < 3 * 60 * 1000) { // 3 minute cache
+        console.log(`⚡ Using cached analyses for deal ${dealId} (${cached.data.length} analyses)`);
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cached.data);
+      }
+      
+      console.log(`🔍 Fetching analyses for deal ${dealId} from database...`);
       const existingAnalyses = await storage.getAnalysesByDealId(dealId);
       
       const totalTime = Date.now() - startTime;
-      console.log(`🔍 Analyses fetch completed: ${existingAnalyses.length} analyses in ${totalTime}ms`);
+      console.log(`🔍 Analyses fetch completed: ${existingAnalyses.length} analyses in ${totalTime}ms - CACHED`);
+      
+      // Cache the result for future requests
+      analysisCache.set(dealId, { data: existingAnalyses, timestamp: Date.now() });
       
       // Return real analyses if they exist
       if (existingAnalyses.length > 0) {
+        res.setHeader('X-Cache', 'MISS');
         return res.status(200).json(existingAnalyses);
       }
       
