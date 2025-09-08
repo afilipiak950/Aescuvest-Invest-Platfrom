@@ -34,6 +34,7 @@ import { chunkedUploadService, type ChunkedUploadProgress } from '../services/ch
 interface DataRoomExplorerProps {
   dealId: number;
   onUploadComplete?: () => void;
+  isOpen?: boolean; // 🚨 FIX: Make isOpen optional
 }
 
 interface FolderNode {
@@ -964,7 +965,7 @@ const FolderTree: React.FC<{
   );
 }); // ⚡ PERFORMANCE: React.memo closing
 
-export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
+export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete, isOpen = true }) => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<Document | null>(null);
@@ -1063,8 +1064,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     setSelectedDocument(document);
   };
 
-  const { data: paginatedData, isLoading, refetch } = useQuery({
+  // Query setup debug
+  console.log('DataRoom Query Setup:', { dealId, isOpen });
+
+  const { data: paginatedData, isLoading, error, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents-fresh`], // 🚨 RESTORED: Force fresh documents to show
+    enabled: !!dealId, // 🚨 FIX: Ensure query only runs when dealId exists
     staleTime: 0, // 🚨 RESTORED: Always fetch fresh data to show documents
     refetchInterval: false, // DISABLED - manual refresh only
     refetchIntervalInBackground: false, // Don't poll in background
@@ -1090,12 +1095,26 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       // Handle both old array format and new paginated format
       const documentCount = Array.isArray(data) ? data.length : data.documents?.length || 0;
       console.log(`✅ DataRoomExplorer received ${documentCount} documents for deal ${dealId}`);
+      console.log(`🔄 Full response structure:`, { 
+        isArray: Array.isArray(data), 
+        hasDocuments: !!data.documents, 
+        dataKeys: Object.keys(data || {}) 
+      });
       return data || [];
     }
   });
 
   // 🚀 CRITICAL FIX: Extract documents from paginated response for backward compatibility
   const documents = Array.isArray(paginatedData) ? paginatedData : paginatedData?.documents || [];
+
+  // State debug log
+  console.log('DataRoom State:', { 
+    dealId, 
+    isLoading, 
+    error: error?.message,
+    documentsLength: documents.length,
+    queryEnabled: !!dealId
+  });
 
   // Real-time WebSocket listener for immediate AI summary updates
   useEffect(() => {
