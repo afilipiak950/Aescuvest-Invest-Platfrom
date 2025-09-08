@@ -89,7 +89,7 @@ function DueDiligenceContent() {
       console.log(`🔄 Fetching documents for deal ${selectedDeal}...`);
       const response = await fetch(`/api/deals/${selectedDeal}/documents`, {
         credentials: 'include',
-        signal: AbortSignal.timeout(120000), // 2 minute timeout
+        signal: AbortSignal.timeout(15000), // Reduced to 15 second timeout
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -293,41 +293,47 @@ function DueDiligenceContent() {
     agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
   });
 
-  // Fetch comprehensive analysis data for each agent to detect completed analyses
+  // Fetch comprehensive analysis data for each agent - NON-BLOCKING lazy load
   const { data: clinicalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 15000, // Reduced from 2s to 15s
+    enabled: false, // Load lazily, don't block page render
+    refetchInterval: false, // No auto-refresh to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: hrAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/hr/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 15000, // Reduced from 2s to 15s
+    enabled: false, // Load lazily, don't block page render
+    refetchInterval: false, // No auto-refresh to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: ipAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/ip/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 15000, // Reduced from 2s to 15s
+    enabled: false, // Load lazily, don't block page render
+    refetchInterval: false, // No auto-refresh to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: researchAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 15000, // Reduced from 2s to 15s
+    enabled: false, // Load lazily, don't block page render
+    refetchInterval: false, // No auto-refresh to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: financialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 15000, // Reduced from 2s to 15s
+    enabled: false, // Load lazily, don't block page render
+    refetchInterval: false, // No auto-refresh to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: commercialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
-    enabled: !!selectedDeal,
-    refetchInterval: 15000, // Reduced from 2s to 15s
+    enabled: false, // Load lazily, don't block page render
+    refetchInterval: false, // No auto-refresh to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
