@@ -1206,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🚀 CRITICAL FIX: Pagination to eliminate 8.9MB responses
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(50, Math.max(10, parseInt(req.query.limit as string) || 20)); // 20 docs per page by default
+      const limit = parseInt(req.query.limit as string) || 10000; // 🚨 RESTORED: No artificial limit - return ALL documents
       const summary = req.query.summary === 'true'; // Summary mode for dashboard
       
       // Create cache key including pagination params
