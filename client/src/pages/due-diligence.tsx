@@ -419,64 +419,56 @@ function DueDiligenceContent() {
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log('🔘 Green button clicked - finding and triggering blue Research button');
+        console.log('🔘 Green button clicked - finding and triggering ALL 7 blue agent buttons');
         
         if (!selectedDeal) {
           throw new Error('No deal selected for analysis');
         }
 
         // Wait a moment for DOM to be ready
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Find the blue "Run Research Analysis" button and click it
-        // Look for the cyan Research button with specific classes and text
-        console.log('🔍 Searching for blue Research button...');
+        // Find and click ALL 7 agent analysis buttons
+        const agentTypes = [
+          'Legal Analysis', 
+          'Clinical Analysis', 
+          'Commercial Analysis', 
+          'HR Analysis', 
+          'Financial Analysis', 
+          'IP Analysis', 
+          'Research Analysis'
+        ];
         
-        // Method 1: Find by specific class combination and text
-        const cyanButtons = document.querySelectorAll('button.bg-cyan-600, button[class*="bg-cyan-600"]');
-        console.log(`🔍 Found ${cyanButtons.length} cyan buttons`);
-        
-        for (const button of cyanButtons) {
-          const buttonText = button.textContent?.trim();
-          console.log(`🔍 Cyan button text: "${buttonText}"`);
-          if (buttonText?.includes('Run Research Analysis') && !button.disabled) {
-            console.log('🔘 Found Research button by cyan class + text, clicking...');
-            (button as HTMLButtonElement).click();
-            return { success: true, triggered: true };
-          }
-        }
-        
-        // Method 2: Find by text content only
-        console.log('🔍 Cyan button not found, searching by text content...');
+        let clickedButtons = 0;
         const allButtons = document.querySelectorAll('button');
-        console.log(`🔍 Searching through ${allButtons.length} total buttons`);
+        console.log(`🔍 Searching through ${allButtons.length} total buttons for all 7 agents`);
         
-        for (const button of allButtons) {
-          const buttonText = button.textContent?.trim();
-          if (buttonText?.includes('Run Research Analysis') && !button.disabled) {
-            console.log('🔘 Found Research button by text, clicking...');
-            (button as HTMLButtonElement).click();
-            return { success: true, triggered: true };
+        for (const agentType of agentTypes) {
+          console.log(`🔍 Looking for ${agentType} button...`);
+          
+          // Find button containing this agent type
+          for (const button of allButtons) {
+            const buttonText = button.textContent?.trim();
+            
+            if (buttonText?.includes(`Run ${agentType}`) && !button.disabled) {
+              console.log(`🔘 Found and clicking ${agentType} button: "${buttonText}"`);
+              (button as HTMLButtonElement).click();
+              clickedButtons++;
+              
+              // Small delay between clicks to prevent conflicts
+              await new Promise(resolve => setTimeout(resolve, 50));
+              break;
+            }
           }
         }
         
-        // Method 3: Find by partial class match
-        console.log('🔍 Text search failed, trying partial class match...');
-        const potentialButtons = document.querySelectorAll('[class*="cyan"], [class*="research"]');
-        console.log(`🔍 Found ${potentialButtons.length} potential buttons`);
-        
-        for (const button of potentialButtons) {
-          const buttonText = button.textContent?.trim();
-          console.log(`🔍 Potential button text: "${buttonText}"`);
-          if (buttonText?.includes('Research') && !button.disabled) {
-            console.log('🔘 Found potential Research button, clicking...');
-            (button as HTMLButtonElement).click();
-            return { success: true, triggered: true };
-          }
+        if (clickedButtons === 0) {
+          console.error('❌ Could not find any agent analysis buttons');
+          throw new Error('Could not find any agent analysis buttons');
         }
         
-        console.error('❌ Could not find the blue Research Analysis button');
-        throw new Error('Could not find the blue Research Analysis button');
+        console.log(`✅ Successfully clicked ${clickedButtons} out of 7 agent buttons`);
+        return { success: true, triggered: clickedButtons, total: 7 };
         
       } catch (error) {
         console.error('❌ Error in green button mutation:', error);
@@ -484,14 +476,14 @@ function DueDiligenceContent() {
       }
     },
     onSuccess: (data) => {
-      console.log('✅ Successfully triggered blue Research button');
+      console.log(`✅ Successfully triggered ${data.triggered} out of ${data.total} agent buttons`);
       setIsRunningAllAnalyses(false);
       
-      // The blue button will handle all the analysis logic
+      // The blue buttons will handle all the analysis logic
       toast({
-        title: "Research Analysis Started",
-        description: "Triggered research analysis via blue button...",
-        duration: 2000,
+        title: "All Analyses Started",
+        description: `Triggered ${data.triggered} out of ${data.total} agent analyses...`,
+        duration: 3000,
       });
     },
     onError: (error) => {
