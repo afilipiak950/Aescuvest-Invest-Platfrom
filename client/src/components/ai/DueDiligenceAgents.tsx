@@ -42,11 +42,14 @@ export default function DueDiligenceAgents({ dealId }: DueDiligenceAgentsProps) 
     retry: false
   });
 
-  // Fetch documents for the deal
-  const { data: documents } = useQuery({
+  // Fetch documents for the deal - with pagination support  
+  const { data: documentsData } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
     retry: false
   });
+
+  // 🚀 CRITICAL FIX: Extract documents from paginated response
+  const documents = Array.isArray(documentsData) ? documentsData : documentsData?.documents || [];
 
   // Fetch existing analyses for the deal
   const { data: analyses, isLoading: analysesLoading } = useQuery({

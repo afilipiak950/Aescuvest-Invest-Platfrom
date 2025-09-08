@@ -105,7 +105,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, isO
   if (!isOpen) return null;
 
   // Get the latest document data from cache to ensure real-time updates
-  const documentsData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]) as Document[] | undefined;
+  const documentsRawData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
+  const documentsData = Array.isArray(documentsRawData) ? documentsRawData : documentsRawData?.documents || [];
   const latestDocument = documentsData?.find(doc => doc.id === document.id) || document;
   
   const analysis = latestDocument.analyses ? JSON.parse(latestDocument.analyses) : null;
@@ -1062,7 +1063,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     setSelectedDocument(document);
   };
 
-  const { data: documents = [], isLoading, refetch } = useQuery({
+  const { data: paginatedData, isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
     staleTime: 30000, // Better caching for performance
     refetchInterval: false, // DISABLED - manual refresh only
@@ -1072,7 +1073,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     retryDelay: 1000, // Faster retry
     // Custom queryFn to handle large responses properly
     queryFn: async () => {
-      const response = await fetch(`/api/deals/${dealId}/documents`, {
+      const response = await fetch(`/api/deals/${dealId}/documents?limit=50`, {
         credentials: 'include',
         signal: AbortSignal.timeout(120000), // 2 minute timeout for large responses
         headers: {
@@ -1086,10 +1087,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       }
       
       const data = await response.json();
-      console.log(`✅ DataRoomExplorer received ${data?.length || 0} documents for deal ${dealId}`);
+      // Handle both old array format and new paginated format
+      const documentCount = Array.isArray(data) ? data.length : data.documents?.length || 0;
+      console.log(`✅ DataRoomExplorer received ${documentCount} documents for deal ${dealId}`);
       return data || [];
     }
   });
+
+  // 🚀 CRITICAL FIX: Extract documents from paginated response for backward compatibility
+  const documents = Array.isArray(paginatedData) ? paginatedData : paginatedData?.documents || [];
 
   // Real-time WebSocket listener for immediate AI summary updates
   useEffect(() => {
