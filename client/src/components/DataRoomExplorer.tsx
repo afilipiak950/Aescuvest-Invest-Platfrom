@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FolderIcon, 
@@ -961,7 +961,8 @@ const FolderTree: React.FC<{
   );
 }); // ⚡ PERFORMANCE: React.memo closing
 
-export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
+// 🚀 ULTRA-FAST MEMO: Prevent unnecessary re-renders with React.memo  
+export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId, onUploadComplete }) => {
   // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -3124,4 +3125,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       )}
     </div>
   );
-};
+}); // 🚀 ULTRA-FAST: React.memo closing
+
+export default DataRoomExplorer;
