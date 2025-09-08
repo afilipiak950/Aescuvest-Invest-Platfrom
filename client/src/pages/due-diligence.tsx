@@ -118,10 +118,20 @@ function DueDiligenceContent() {
       
       const data = await response.json();
       const loadTime = performance.now() - startTime;
-      console.log(`⚡ ULTRA-FAST: Received ${data?.length || 0} documents in ${loadTime.toFixed(0)}ms`);
       
-      // 🚀 IMMEDIATE UI UPDATE: Return data instantly, process in background
-      return data;
+      // 🚀 CRITICAL FIX: Handle nested API response structure correctly
+      const documents = data?.documents || data || [];
+      const documentCount = Array.isArray(documents) ? documents.length : 0;
+      
+      console.log(`⚡ ULTRA-FAST: Received ${documentCount} documents in ${loadTime.toFixed(0)}ms`);
+      console.log(`🔧 API response structure:`, { 
+        hasDocuments: !!data?.documents, 
+        isArray: Array.isArray(documents),
+        documentCount 
+      });
+      
+      // 🚀 IMMEDIATE UI UPDATE: Return correctly structured data
+      return documents;
     }
     });
 
@@ -144,10 +154,14 @@ function DueDiligenceContent() {
     }
     });
 
-    // Provide safe defaults for all data to prevent crashes - BULLETPROOF FIX
-    const documents = Array.isArray(documentsData) ? documentsData : 
-                     documentsData?.documents ? documentsData.documents : 
-                     [];
+    // 🚀 ULTRA-FAST: Simplified since we now return documents directly from API
+    const documents = Array.isArray(documentsData) ? documentsData : [];
+    console.log(`🔧 DOCUMENTS DEBUG:`, { 
+      documentsData: !!documentsData,
+      isArray: Array.isArray(documentsData),
+      count: documents.length,
+      firstDoc: documents[0]?.name || 'none'
+    });
     const analyses = analysesData || [];
     const jobProgress = jobProgressData || { jobs: [] };
 
