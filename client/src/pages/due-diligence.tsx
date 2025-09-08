@@ -418,59 +418,70 @@ function DueDiligenceContent() {
   // Green button triggers the blue Research button click
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
-      console.log('🔘 Green button clicked - finding and triggering blue Research button');
-      
-      if (!selectedDeal) {
-        throw new Error('No deal selected for analysis');
-      }
-
-      // Find the blue "Run Research Analysis" button and click it
-      // Look for the cyan Research button with specific classes and text
-      console.log('🔍 Searching for blue Research button...');
-      
-      // Method 1: Find by specific class combination and text
-      const cyanButtons = document.querySelectorAll('button.bg-cyan-600, button[class*="bg-cyan-600"]');
-      console.log(`🔍 Found ${cyanButtons.length} cyan buttons`);
-      
-      for (const button of cyanButtons) {
-        if (button.textContent?.includes('Run Research Analysis') && !button.disabled) {
-          console.log('🔘 Found Research button by cyan class + text, clicking...');
-          (button as HTMLButtonElement).click();
-          return { success: true, triggered: true };
-        }
-      }
-      
-      // Method 2: Find by text content only
-      console.log('🔍 Cyan button not found, searching by text content...');
-      const allButtons = document.querySelectorAll('button');
-      console.log(`🔍 Searching through ${allButtons.length} total buttons`);
-      
-      for (const button of allButtons) {
-        const buttonText = button.textContent?.trim();
-        console.log(`🔍 Button text: "${buttonText}"`);
+      try {
+        console.log('🔘 Green button clicked - finding and triggering blue Research button');
         
-        if (buttonText?.includes('Run Research Analysis') && !button.disabled) {
-          console.log('🔘 Found Research button by text, clicking...');
-          (button as HTMLButtonElement).click();
-          return { success: true, triggered: true };
+        if (!selectedDeal) {
+          throw new Error('No deal selected for analysis');
         }
-      }
-      
-      // Method 3: Find by partial class match
-      console.log('🔍 Text search failed, trying partial class match...');
-      const potentialButtons = document.querySelectorAll('[class*="cyan"], [class*="research"]');
-      console.log(`🔍 Found ${potentialButtons.length} potential buttons`);
-      
-      for (const button of potentialButtons) {
-        if (button.textContent?.includes('Research') && !button.disabled) {
-          console.log('🔘 Found potential Research button, clicking...');
-          (button as HTMLButtonElement).click();
-          return { success: true, triggered: true };
+
+        // Wait a moment for DOM to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Find the blue "Run Research Analysis" button and click it
+        // Look for the cyan Research button with specific classes and text
+        console.log('🔍 Searching for blue Research button...');
+        
+        // Method 1: Find by specific class combination and text
+        const cyanButtons = document.querySelectorAll('button.bg-cyan-600, button[class*="bg-cyan-600"]');
+        console.log(`🔍 Found ${cyanButtons.length} cyan buttons`);
+        
+        for (const button of cyanButtons) {
+          const buttonText = button.textContent?.trim();
+          console.log(`🔍 Cyan button text: "${buttonText}"`);
+          if (buttonText?.includes('Run Research Analysis') && !button.disabled) {
+            console.log('🔘 Found Research button by cyan class + text, clicking...');
+            (button as HTMLButtonElement).click();
+            return { success: true, triggered: true };
+          }
         }
+        
+        // Method 2: Find by text content only
+        console.log('🔍 Cyan button not found, searching by text content...');
+        const allButtons = document.querySelectorAll('button');
+        console.log(`🔍 Searching through ${allButtons.length} total buttons`);
+        
+        for (const button of allButtons) {
+          const buttonText = button.textContent?.trim();
+          if (buttonText?.includes('Run Research Analysis') && !button.disabled) {
+            console.log('🔘 Found Research button by text, clicking...');
+            (button as HTMLButtonElement).click();
+            return { success: true, triggered: true };
+          }
+        }
+        
+        // Method 3: Find by partial class match
+        console.log('🔍 Text search failed, trying partial class match...');
+        const potentialButtons = document.querySelectorAll('[class*="cyan"], [class*="research"]');
+        console.log(`🔍 Found ${potentialButtons.length} potential buttons`);
+        
+        for (const button of potentialButtons) {
+          const buttonText = button.textContent?.trim();
+          console.log(`🔍 Potential button text: "${buttonText}"`);
+          if (buttonText?.includes('Research') && !button.disabled) {
+            console.log('🔘 Found potential Research button, clicking...');
+            (button as HTMLButtonElement).click();
+            return { success: true, triggered: true };
+          }
+        }
+        
+        console.error('❌ Could not find the blue Research Analysis button');
+        throw new Error('Could not find the blue Research Analysis button');
+        
+      } catch (error) {
+        console.error('❌ Error in green button mutation:', error);
+        throw error;
       }
-      
-      console.error('❌ Could not find the blue Research Analysis button');
-      throw new Error('Could not find the blue Research Analysis button');
     },
     onSuccess: (data) => {
       console.log('✅ Successfully triggered blue Research button');
