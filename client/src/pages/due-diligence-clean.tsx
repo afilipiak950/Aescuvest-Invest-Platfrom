@@ -46,12 +46,15 @@ export default function DueDiligence() {
     retry: false,
   });
 
-  // Fetch real documents for selected deal
-  const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
+  // Fetch real documents for selected deal - with pagination support
+  const { data: documentsData, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 3,
     enabled: !!selectedDeal,
   });
+
+  // 🚀 CRITICAL FIX: Extract documents from paginated response
+  const documents = Array.isArray(documentsData) ? documentsData : documentsData?.documents || [];
 
   // Fetch agent analyses for selected deal
   const { data: agentAnalyses, isLoading: isLoadingAnalyses } = useQuery({
