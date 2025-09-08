@@ -77,11 +77,11 @@ function DueDiligenceContent() {
       gcTime: 10 * 60 * 1000, // Keep in memory for 10 minutes
     });
 
-    // Fetch real documents for selected deal - NON-BLOCKING
-    const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
+    // Fetch real documents for selected deal - FAST non-blocking load
+    const { data: documentsData, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 1, // Reduced retries for faster failure
-    enabled: false, // Load lazily - don't block page render
+    enabled: !!selectedDeal, // Load immediately but don't block UI
     refetchInterval: false, // No auto-polling to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
@@ -106,10 +106,10 @@ function DueDiligenceContent() {
     }
     });
 
-    // Fetch job progress data - NON-BLOCKING lazy load
-    const { data: jobProgress } = useQuery({
+    // Fetch job progress data - FAST non-blocking load
+    const { data: jobProgressData } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
-    enabled: false, // Load lazily - don't block page render
+    enabled: !!selectedDeal, // Load immediately but don't block UI
     refetchInterval: false, // No auto-polling on page load
     staleTime: 30 * 1000, // Cache for 30 seconds
     queryFn: async () => {
@@ -124,6 +124,11 @@ function DueDiligenceContent() {
       return data;
     }
     });
+
+    // Provide safe defaults for all data to prevent crashes
+    const documents = documentsData || [];
+    const analyses = analysesData || [];
+    const jobProgress = jobProgressData || { jobs: [] };
 
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
     const legalProgress = useMemo(() => {
@@ -275,20 +280,20 @@ function DueDiligenceContent() {
   //   // Automatic analysis temporarily disabled for stability
   // }, []);
 
-  // Fetch real analysis data - non-blocking
-  const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
+  // Fetch real analysis data - FAST non-blocking load
+  const { data: analysesData, isLoading: isLoadingAnalyses } = useQuery({
     queryKey: [`/api/analyses/${selectedDeal}`],
     retry: false,
-    enabled: false, // Load lazily to not block page render
+    enabled: !!selectedDeal, // Load immediately but don't block UI
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Debug log for analyses data
+  // Debug log for analyses data with safe checks
   console.log('🔍 Analyses Query Debug:', {
     selectedDeal,
     isLoadingAnalyses,
     analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
-    agentTypes: Array.isArray(analyses) ? analyses.map((a: any) => a.agentType) : 'no data'
+    agentTypes: (analyses && Array.isArray(analyses)) ? analyses.map((a: any) => a?.agentType || 'unknown') : 'no data'
   });
 
   // Fetch comprehensive analysis data for each agent - NON-BLOCKING lazy load
@@ -334,7 +339,7 @@ function DueDiligenceContent() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
+  const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal?.id?.toString() === selectedDeal) : undefined;
   
   // Calculate document assignments for each agent type with comprehensive safety
   const agentDocuments = useMemo(() => {
@@ -631,8 +636,8 @@ function DueDiligenceContent() {
                 </SelectTrigger>
                 <SelectContent className="bg-dark-lighter border-dark-lighter">
                   {Array.isArray(deals) ? deals.map((deal: any) => (
-                    <SelectItem key={deal.id} value={deal.id.toString()}>
-                      {deal.companyName}
+                    <SelectItem key={deal?.id || 'unknown'} value={(deal?.id || '').toString()}>
+                      {deal?.companyName || 'Unknown Company'}
                     </SelectItem>
                   )) : null}
                 </SelectContent>
@@ -981,7 +986,7 @@ function DueDiligenceContent() {
           </Card>
           
           {/* Main Progress Bar - Restored */}
-          {jobProgress && jobProgress.jobs && (jobProgress.jobs?.length || 0) > 0 && (
+          {jobProgress && jobProgress.jobs && (jobProgress?.jobs?.length || 0) > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Analysis Progress</CardTitle>
@@ -1026,7 +1031,7 @@ function DueDiligenceContent() {
                     Documents ({documents?.length || 0})
                   </CardTitle>
                   <CardDescription>
-                    {documents?.length === 0 ? 'No documents uploaded yet' : `${documents.length} documents available for analysis`}
+                    {(documents?.length || 0) === 0 ? 'No documents uploaded yet' : `${documents?.length || 0} documents available for analysis`}
                   </CardDescription>
                 </div>
                 <div className="flex space-x-2">
@@ -1200,8 +1205,8 @@ function DueDiligenceContent() {
                     {/* Overall progress indicator */}
                     <span className="text-sm text-gray-400">Overall Progress</span>
                     <span className="text-sm font-medium text-primary">
-                      {jobProgress?.jobs && jobProgress?.jobs?.length > 0 
-                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress?.jobs?.length) 
+                      {jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
+                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
                         : 0}%
                     </span>
                   </div>
@@ -1212,8 +1217,8 @@ function DueDiligenceContent() {
                   <div 
                     className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
                     style={{ 
-                      width: `${jobProgress?.jobs && jobProgress?.jobs?.length > 0 
-                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / jobProgress?.jobs?.length) 
+                      width: `${jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
+                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
                         : 0}%` 
                     }}
                   ></div>
@@ -1445,7 +1450,7 @@ function DueDiligenceContent() {
                         setIsRunningAllAnalyses(false);
                       }
                     }}
-                    disabled={isRunningAllAnalyses || (jobProgress?.jobs && jobProgress?.jobs?.length > 0)}
+                    disabled={isRunningAllAnalyses || (jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0)}
                     className="bg-primary hover:bg-primary/80 text-white px-6 py-2"
                   >
                     {isRunningAllAnalyses ? (
