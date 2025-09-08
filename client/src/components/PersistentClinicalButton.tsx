@@ -20,10 +20,17 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
   const [isStopping, setIsStopping] = useState(false);
   const { toast } = useToast();
 
-  // Check for existing background jobs
+  // Check for existing background jobs (OPTIMIZED: Smart polling instead of every 1 second!)
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 1000,
+    refetchInterval: (data) => {
+      // Smart polling: only poll frequently when jobs are actually running
+      const hasActiveJobs = data?.jobs?.some((job: any) => 
+        job.status === 'processing' || job.status === 'pending'
+      );
+      return hasActiveJobs ? 5000 : 30000; // 5s when active, 30s when idle
+    },
+    staleTime: 10000, // Cache for 10 seconds for better performance
   });
 
   // Check if clinical analysis is already running
