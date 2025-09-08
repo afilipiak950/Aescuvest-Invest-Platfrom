@@ -80,9 +80,9 @@ function DueDiligenceContent() {
     queryKey: [`/api/deals/${selectedDeal}/documents`],
     retry: 3,
     enabled: !!selectedDeal,
-    refetchInterval: 5000, // Poll every 5 seconds for real-time AI progress
-    staleTime: 0, // Always fetch fresh data to show current AI processing status
-    gcTime: 60000, // Keep in cache for 1 minute
+    refetchInterval: 30000, // Poll every 30 seconds (much less frequent)
+    staleTime: 30000, // Cache for 30 seconds to reduce network calls
+    gcTime: 300000, // Keep in cache for 5 minutes
     queryFn: async () => {
       console.log(`🔄 Fetching documents for deal ${selectedDeal}...`);
       const response = await fetch(`/api/deals/${selectedDeal}/documents`, {
@@ -108,7 +108,11 @@ function DueDiligenceContent() {
     const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${selectedDeal}`],
     enabled: !!selectedDeal,
-    refetchInterval: 1000, // Poll every second for real-time progress
+    refetchInterval: (data) => {
+      // Smart polling: faster when jobs are running, slower when idle
+      const hasActiveJobs = data?.jobs?.some(job => job.status === 'processing');
+      return hasActiveJobs ? 2000 : 10000; // 2s when active, 10s when idle
+    },
     queryFn: async () => {
       console.log(`📊 Polling for job progress for deal ${selectedDeal}`);
       const response = await fetch(`/api/background-jobs/${selectedDeal}`);
@@ -291,37 +295,37 @@ function DueDiligenceContent() {
   const { data: clinicalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000,
+    refetchInterval: 15000, // Reduced from 2s to 15s
   });
 
   const { data: hrAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/hr/results`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000,
+    refetchInterval: 15000, // Reduced from 2s to 15s
   });
 
   const { data: ipAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/ip/results`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000,
+    refetchInterval: 15000, // Reduced from 2s to 15s
   });
 
   const { data: researchAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000,
+    refetchInterval: 15000, // Reduced from 2s to 15s
   });
 
   const { data: financialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000,
+    refetchInterval: 15000, // Reduced from 2s to 15s
   });
 
   const { data: commercialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
     enabled: !!selectedDeal,
-    refetchInterval: 2000,
+    refetchInterval: 15000, // Reduced from 2s to 15s
   });
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal.id.toString() === selectedDeal) : undefined;
