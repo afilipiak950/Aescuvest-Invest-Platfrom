@@ -419,7 +419,7 @@ function DueDiligenceContent() {
   const runAllAnalysesMutation = useMutation({
     mutationFn: async () => {
       try {
-        console.log(`🚀 Starting comprehensive analysis for all 7 agents`);
+        console.log(`🔬 Starting research analysis (perfect results as requested)`);
         
         // Validate selectedDeal is available in mutation context
         if (!selectedDeal) {
@@ -466,75 +466,30 @@ function DueDiligenceContent() {
         // Continue anyway - the analyses will be overwritten
       }
       
-      // Step 3: Run all comprehensive analyses with staggered startup to prevent race conditions
-      const comprehensiveEndpoints = [
-        `/api/deals/${selectedDeal}/clinical-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/legal-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/commercial-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/hr-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/financial-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/ip-analysis/comprehensive`,
-        `/api/deals/${selectedDeal}/research-analysis/comprehensive`
-      ];
-
-      // Use sequential startup with 500ms delays to prevent database race conditions
-      const results = [];
-      for (let i = 0; i < comprehensiveEndpoints.length; i++) {
-        const endpoint = comprehensiveEndpoints[i];
+      // Step 3: Run ONLY the research analysis (as requested by user)
+      const researchEndpoint = `/api/deals/${selectedDeal}/research-analysis/comprehensive`;
         
-        try {
-          console.log(`📊 Starting comprehensive analysis (${i+1}/7): ${endpoint}`);
-          
-          const response = await apiRequest(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          
-          // Handle "already running" responses as successes
-          if (response && (response.alreadyRunning || response.success === false)) {
-            console.log(`✅ Analysis already running for ${endpoint}:`, response.message);
-            results.push({ status: 'fulfilled', value: { success: true, alreadyRunning: true, endpoint, message: response.message } });
-          } else {
-            console.log(`✅ Analysis started successfully for ${endpoint}`);
-            results.push({ status: 'fulfilled', value: response });
-          }
-          
-          // Add 500ms delay between agent starts to prevent race conditions
-          if (i < comprehensiveEndpoints.length - 1) {
-            console.log(`⏰ Waiting 500ms before starting next agent to prevent race conditions...`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-          
-        } catch (error) {
-          console.error(`❌ Error starting analysis for ${endpoint}:`, error);
-          // Don't throw - let individual failures not break the whole process
-          results.push({ status: 'rejected', reason: { success: false, endpoint, error: (error as any)?.message || 'Unknown error' } });
-          
-          // Still add delay even for failed requests
-          if (i < comprehensiveEndpoints.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        }
-      }
-      
-      // Log results and count successes
-      let successCount = 0;
-      results.forEach((result, index) => {
-        const endpoint = comprehensiveEndpoints[index];
-        if (result.status === 'fulfilled' && (result.value?.success || result.value?.alreadyRunning)) {
-          successCount++;
-          console.log(`✅ ${endpoint}: Success`);
-        } else if (result.status === 'rejected') {
-          console.log(`❌ ${endpoint}: Failed -`, result.reason?.error || 'Unknown error');
+      try {
+        console.log(`🔬 Starting research analysis: ${researchEndpoint}`);
+        
+        const response = await apiRequest(researchEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        // Handle "already running" responses as successes
+        if (response && (response.alreadyRunning || response.success === false)) {
+          console.log(`✅ Research analysis already running:`, response.message);
+          return [{ success: true, alreadyRunning: true, endpoint: researchEndpoint, message: response.message }];
         } else {
-          console.log(`❌ ${endpoint}: Failed`);
+          console.log(`✅ Research analysis started successfully`);
+          return [response];
         }
-      });
-      
-      console.log(`📊 Analysis summary: ${successCount}/${comprehensiveEndpoints?.length || 0} analyses started/running`);
-      
-      // Return successful results (don't fail if some are already running)
-      return results.map(r => r.status === 'fulfilled' ? r.value : (r.reason || null)).filter(Boolean);
+        
+      } catch (error) {
+        console.error(`❌ Error starting research analysis:`, error);
+        throw new Error(`Research analysis failed: ${(error as any)?.message || 'Unknown error'}`);
+      }
       
       } catch (mutationError) {
         console.error('❌ Critical error in mutation function:', mutationError);
@@ -1266,12 +1221,12 @@ function DueDiligenceContent() {
                     {isRunningAllAnalyses || runAllAnalysesMutation.isPending ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Running All Analyses
+                        Running Research Analysis
                       </>
                     ) : (
                       <>
                         <Bot className="h-4 w-4 mr-2" />
-                        Reset & Run All Analyses
+                        Reset & Run Research Analysis
                       </>
                     )}
                   </Button>
