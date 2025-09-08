@@ -1073,7 +1073,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     retryDelay: 1000, // Faster retry
     // Custom queryFn to handle large responses properly
     queryFn: async () => {
-      const response = await fetch(`/api/deals/${dealId}/documents?limit=50`, {
+      const response = await fetch(`/api/deals/${dealId}/documents`, {
         credentials: 'include',
         signal: AbortSignal.timeout(120000), // 2 minute timeout for large responses
         headers: {
