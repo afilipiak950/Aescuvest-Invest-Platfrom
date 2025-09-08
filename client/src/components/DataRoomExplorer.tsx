@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { 
   FolderIcon, 
   FileTextIcon, 
@@ -1070,7 +1070,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
   console.log('DataRoom Query Setup:', { dealId });
 
   // 🚀 CRITICAL FIX: Use React Query to get EXISTING data instead of duplicate query
-  const queryClient = useQueryClient();
   const paginatedData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
   const isLoading = false; // Data is already loaded by parent component
   const error = null;
