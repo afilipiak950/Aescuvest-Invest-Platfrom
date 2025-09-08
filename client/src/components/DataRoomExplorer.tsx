@@ -983,7 +983,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   // 🎯 CRITICAL: Check for active persistent uploads when component loads
   const { data: persistentUploads } = useQuery({
     queryKey: [`/api/deals/${dealId}/persistent-uploads`],
-    refetchInterval: 2000, // Poll every 2 seconds
+    enabled: false, // DISABLED - only enable when actually uploading
+    staleTime: Infinity,
   });
 
   // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads  
@@ -1046,12 +1047,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       }
     };
 
-    // Sync immediately and then every second
-    if (persistentUploads) {
-      syncProgress();
-      const interval = setInterval(syncProgress, 1000);
-      return () => clearInterval(interval);
-    }
+    // DISABLED - sync only when uploads are active
+    // if (persistentUploads) {
+    //   syncProgress();
+    //   const interval = setInterval(syncProgress, 1000);
+    //   return () => clearInterval(interval);
+    // }
   }, [persistentUploads]);
   const [isChunkedUpload, setIsChunkedUpload] = useState(false);
 
@@ -1064,7 +1065,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const { data: documents = [], isLoading, refetch } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`],
     staleTime: 30000, // Better caching for performance
-    refetchInterval: 25000, // Reduced from 2s to 25s
+    refetchInterval: false, // DISABLED - manual refresh only
     refetchIntervalInBackground: false, // Don't poll in background
     refetchOnWindowFocus: true, // Refetch on focus to show latest data
     retry: 2, // Limit retries
@@ -1492,9 +1493,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   // Monitor background jobs for the main component
   const { data: backgroundJobs } = useQuery({
-    queryKey: [`/api/background-jobs/${dealId}`],
-    enabled: !!dealId,
-    refetchInterval: processingComplete ? false : 2000
+    queryKey: [`/api/deals/${dealId}/background-jobs`],
+    enabled: false, // DISABLED - manual refresh only
+    staleTime: Infinity,
   });
 
   // Disabled automatic AI processing to prevent infinite loops
