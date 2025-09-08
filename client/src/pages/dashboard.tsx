@@ -179,21 +179,28 @@ export default function Dashboard() {
             recentDealsChange: Math.round((recentDeals.length / dealsData.length) * 100)
           });
           
-          // Fetch real AI activities from multiple sources
+          // Fetch real AI activities from multiple sources - 🚀 PARALLEL + SUMMARY MODE
           const activitiesData: Activity[] = [];
           
-          for (const deal of dealsData) {
+          // 🚀 CRITICAL FIX: Use Promise.all for parallel fetching with summary mode
+          const documentPromises = dealsData.map(deal =>
+            fetch(`/api/deals/${deal.id}/documents?summary=true&limit=10`)
+              .then(res => res.json())
+              .then(data => ({ deal, data }))
+              .catch(err => ({ deal, data: { documents: [] }, error: err }))
+          );
+          
+          const allDocumentsResults = await Promise.all(documentPromises);
+          
+          for (const { deal, data: documentsData } of allDocumentsResults) {
             try {
-              // Fetch documents for OCR activities
-              const documentsResponse = await fetch(`/api/deals/${deal.id}/documents`);
-              const documentsData = await documentsResponse.json();
+              const documents = Array.isArray(documentsData) ? documentsData : documentsData?.documents || [];
               
-              if (documentsData.success && documentsData.documents) {
-                documentsData.documents.forEach((doc: any) => {
-                  // Add OCR activity for all processed documents
-                  activitiesData.push({
-                    id: doc.id * 1000, // Unique ID for OCR activity
-                    agentType: 'Mistral OCR',
+              documents.forEach((doc: any) => {
+                // Add OCR activity for all processed documents
+                activitiesData.push({
+                  id: doc.id * 1000, // Unique ID for OCR activity
+                  agentType: 'Mistral OCR',
                     content: `OCR text extraction from ${doc.name} (${(doc.size / 1024).toFixed(1)}KB) - ${deal.companyName}`,
                     timestamp: doc.createdAt
                   });
