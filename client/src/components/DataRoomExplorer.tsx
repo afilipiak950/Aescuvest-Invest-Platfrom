@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FolderIcon, 
   FileTextIcon, 
@@ -1069,44 +1069,19 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
   // Query setup debug
   console.log('DataRoom Query Setup:', { dealId });
 
-  const { data: paginatedData, isLoading, error, refetch } = useQuery({
-    queryKey: [`/api/deals/${dealId}/documents`], // 🚀 OPTIMIZED: Consistent key with due-diligence page
-    enabled: !!dealId,
-    staleTime: 2 * 60 * 1000, // 🚀 SMART CACHE: 2 minutes cache for faster subsequent loads
-    refetchInterval: false, // DISABLED - manual refresh only
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false, // 🚀 OPTIMIZED: Disable auto-refetch to prevent slowdowns
-    retry: 1, // 🚀 FAST FAIL: Reduce retries for quicker error handling
-    retryDelay: 500, // 🚀 FASTER: Reduce retry delay
-    queryFn: async () => {
-      const response = await fetch(`/api/deals/${dealId}/documents`, {
-        credentials: 'include',
-        signal: AbortSignal.timeout(30000), // 🚀 OPTIMIZED: 30 second timeout - fail fast
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      // Handle both old array format and new paginated format
-      const documentCount = Array.isArray(data) ? data.length : data.documents?.length || 0;
-      console.log(`✅ DataRoomExplorer received ${documentCount} documents for deal ${dealId}`);
-      console.log(`🔄 Full response structure:`, { 
-        isArray: Array.isArray(data), 
-        hasDocuments: !!data.documents, 
-        dataKeys: Object.keys(data || {}) 
-      });
-      return data || [];
-    }
-  });
+  // 🚀 CRITICAL FIX: Use React Query to get EXISTING data instead of duplicate query
+  const queryClient = useQueryClient();
+  const paginatedData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
+  const isLoading = false; // Data is already loaded by parent component
+  const error = null;
+  
+  // 🚀 Manual refetch function that invalidates the parent query
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+  }, [queryClient, dealId]);
 
-  // 🚀 BULLETPROOF FIX: Extract documents from paginated response with detailed logging
-  console.log('🔧 RAW PAGINATION DATA:', {
+  // 🚀 BULLETPROOF FIX: Use cached data from parent component query
+  console.log('🔧 CACHED DATA FROM PARENT:', {
     paginatedData,
     isArray: Array.isArray(paginatedData),
     hasDocuments: !!paginatedData?.documents,
@@ -1114,6 +1089,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
     dataKeys: paginatedData ? Object.keys(paginatedData) : 'undefined'
   });
 
+  // 🚀 IMPORTANT: Parent component already extracts documents, so paginatedData should be the documents array
   const documents = Array.isArray(paginatedData) ? paginatedData : (paginatedData?.documents || []);
   
   console.log('🔧 EXTRACTED DOCUMENTS:', {
