@@ -1064,11 +1064,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   };
 
   const { data: paginatedData, isLoading, refetch } = useQuery({
-    queryKey: [`/api/deals/${dealId}/documents-fresh`], // 🚨 FORCE CACHE INVALIDATION
-    staleTime: 0, // 🚨 FORCE FRESH FETCH - clear cache to show all documents
+    queryKey: [`/api/deals/${dealId}/documents`], // ⚡ PERFORMANCE: Use stable cache key
+    staleTime: 5 * 60 * 1000, // ⚡ PERFORMANCE: Cache for 5 minutes - documents don't change often
     refetchInterval: false, // DISABLED - manual refresh only
     refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: true, // Refetch on focus to show latest data
+    refetchOnWindowFocus: false, // ⚡ PERFORMANCE: Don't refetch on focus to reduce load
     retry: 2, // Limit retries
     retryDelay: 1000, // Faster retry
     // Custom queryFn to handle large responses properly
