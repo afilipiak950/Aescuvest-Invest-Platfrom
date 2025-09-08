@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FolderIcon, 
   FileTextIcon, 
@@ -33,7 +33,6 @@ import { chunkedUploadService, type ChunkedUploadProgress } from '../services/ch
 
 interface DataRoomExplorerProps {
   dealId: number;
-  documents?: Document[];
   onUploadComplete?: () => void;
 }
 
@@ -962,8 +961,7 @@ const FolderTree: React.FC<{
   );
 }); // ⚡ PERFORMANCE: React.memo closing
 
-// 🚀 ULTRA-FAST MEMO: Prevent unnecessary re-renders with React.memo  
-export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId, documents: propDocuments, onUploadComplete }) => {
+export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
   // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -1067,29 +1065,47 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
     setSelectedDocument(document);
   };
 
-  // 🚀 CRITICAL FIX: Use documents passed as props from parent component
-  const documents = propDocuments || [];
-  const isLoading = false; // Data is passed from parent component
-  const error = null;
-  
-  // 🚀 Manual refetch function that invalidates the parent query
-  const refetch = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-  }, [queryClient, dealId]);
+  // Query setup debug
+  console.log('DataRoom Query Setup:', { dealId });
 
-  // Debug the passed documents
-  console.log('🔧 DOCUMENTS FROM PROPS:', {
-    propDocuments: !!propDocuments,
-    isArray: Array.isArray(propDocuments),
-    documentsLength: documents.length,
-    firstDoc: documents[0]?.name || 'none'
+  const { data: paginatedData, isLoading, error, refetch } = useQuery({
+    queryKey: [`/api/deals/${dealId}/documents`], // 🚀 OPTIMIZED: Consistent key with due-diligence page
+    enabled: !!dealId,
+    staleTime: 2 * 60 * 1000, // 🚀 SMART CACHE: 2 minutes cache for faster subsequent loads
+    refetchInterval: false, // DISABLED - manual refresh only
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false, // 🚀 OPTIMIZED: Disable auto-refetch to prevent slowdowns
+    retry: 1, // 🚀 FAST FAIL: Reduce retries for quicker error handling
+    retryDelay: 500, // 🚀 FASTER: Reduce retry delay
+    queryFn: async () => {
+      const response = await fetch(`/api/deals/${dealId}/documents`, {
+        credentials: 'include',
+        signal: AbortSignal.timeout(30000), // 🚀 OPTIMIZED: 30 second timeout - fail fast
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      // Handle both old array format and new paginated format
+      const documentCount = Array.isArray(data) ? data.length : data.documents?.length || 0;
+      console.log(`✅ DataRoomExplorer received ${documentCount} documents for deal ${dealId}`);
+      console.log(`🔄 Full response structure:`, { 
+        isArray: Array.isArray(data), 
+        hasDocuments: !!data.documents, 
+        dataKeys: Object.keys(data || {}) 
+      });
+      return data || [];
+    }
   });
-  
-  console.log('🔧 EXTRACTED DOCUMENTS:', {
-    documentsLength: documents.length,
-    isArray: Array.isArray(documents),
-    firstDocName: documents[0]?.name || 'none'
-  });
+
+  // 🚀 CRITICAL FIX: Extract documents from paginated response for backward compatibility
+  const documents = Array.isArray(paginatedData) ? paginatedData : paginatedData?.documents || [];
 
   // State debug log
   console.log('DataRoom State:', { 
@@ -2369,17 +2385,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
   const hasOnlyEmailAttachments = documents && Array.isArray(documents) && documents.length > 0 && 
     documents.every(doc => doc.folderPath?.includes('email-attachments'));
 
-  // 🚨 BULLETPROOF CONDITION CHECK: Detailed logging for empty state logic
+  // 🚨 CRITICAL FIX: Store the "no documents" condition but DO NOT early return to avoid hooks violations
   const showEmptyState = (!documents || !Array.isArray(documents) || documents.length === 0) && !hasOnlyEmailAttachments;
-  
-  console.log('🔧 EMPTY STATE CHECK:', {
-    hasDocuments: !!documents,
-    isArray: Array.isArray(documents),
-    documentsLength: documents ? documents.length : 'undefined',
-    hasOnlyEmailAttachments,
-    showEmptyState,
-    willShowUpload: showEmptyState
-  });
   
   if (showEmptyState) {
     // Store the empty state JSX instead of returning early (hooks violation fix)
@@ -3117,6 +3124,4 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = memo(({ dealId,
       )}
     </div>
   );
-}); // 🚀 ULTRA-FAST: React.memo closing
-
-export default DataRoomExplorer;
+};

@@ -85,56 +85,32 @@ function DueDiligenceContent() {
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     });
 
-    // 🔧 DEBUG: Check selectedDeal state
-    console.log('🔧 SELECTED DEAL DEBUG:', { selectedDeal, enabled: !!selectedDeal });
-
     // Fetch real documents for selected deal - FAST non-blocking load
-    // 🚀 ULTRA-FAST DOCUMENTS: Lightning-speed loading with micro-optimizations
     const { data: documentsData, isLoading: isLoadingDocuments, error: documentsError } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/documents`],
-    retry: 0, // 🚀 ZERO retries for instant failure detection
-    enabled: !!selectedDeal,
-    refetchInterval: false, 
-    staleTime: 2 * 60 * 1000, // 🚀 REDUCED: 2min cache for fresher data
-    gcTime: 5 * 60 * 1000, // 🚀 REDUCED: 5min garbage collection
+    retry: 1, // Reduced retries for faster failure
+    enabled: !!selectedDeal, // Load immediately but don't block UI
+    refetchInterval: false, // No auto-polling to improve performance
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     queryFn: async () => {
-      console.log(`⚡ ULTRA-FAST: Fetching documents for deal ${selectedDeal}...`);
-      const startTime = performance.now();
-      
+      console.log(`🔄 Fetching documents for deal ${selectedDeal}...`);
       const response = await fetch(`/api/deals/${selectedDeal}/documents`, {
         credentials: 'include',
-        signal: AbortSignal.timeout(5000), // 🚀 ULTRA-FAST: 5sec timeout (down from 15s!)
+        signal: AbortSignal.timeout(15000), // Reduced to 15 second timeout
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          // 🚀 PERFORMANCE HEADERS: Request compression and caching
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Cache-Control': 'max-age=120', // 2min client cache
+          'Content-Type': 'application/json'
         }
       });
       
       if (!response.ok) {
-        const errorTime = performance.now() - startTime;
-        console.error(`❌ Documents API failed in ${errorTime.toFixed(0)}ms:`, response.status);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
-      const loadTime = performance.now() - startTime;
-      
-      // 🚀 CRITICAL FIX: Handle nested API response structure correctly
-      const documents = data?.documents || data || [];
-      const documentCount = Array.isArray(documents) ? documents.length : 0;
-      
-      console.log(`⚡ ULTRA-FAST: Received ${documentCount} documents in ${loadTime.toFixed(0)}ms`);
-      console.log(`🔧 API response structure:`, { 
-        hasDocuments: !!data?.documents, 
-        isArray: Array.isArray(documents),
-        documentCount 
-      });
-      
-      // 🚀 IMMEDIATE UI UPDATE: Return correctly structured data
-      return documents;
+      console.log(`✅ Received ${data?.length || 0} documents for deal ${selectedDeal}`);
+      return data;
     }
     });
 
@@ -157,17 +133,10 @@ function DueDiligenceContent() {
     }
     });
 
-    // 🚀 ULTRA-FAST: Simplified since we now return documents directly from API
-    const documents = Array.isArray(documentsData) ? documentsData : [];
-    console.log(`🔧 DOCUMENTS DEBUG:`, { 
-      documentsData: !!documentsData,
-      isArray: Array.isArray(documentsData),
-      count: documents.length,
-      firstDoc: documents[0]?.name || 'none',
-      isLoadingDocuments,
-      documentsError: documentsError?.message,
-      selectedDeal
-    });
+    // Provide safe defaults for all data to prevent crashes - BULLETPROOF FIX
+    const documents = Array.isArray(documentsData) ? documentsData : 
+                     documentsData?.documents ? documentsData.documents : 
+                     [];
     const analyses = analysesData || [];
     const jobProgress = jobProgressData || { jobs: [] };
 
@@ -374,13 +343,13 @@ function DueDiligenceContent() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
+  // CRITICAL FIX: Add missing legalAnalysisData query hook
   const { data: legalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/legal/results`],
     enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
-
 
   const currentDeal = Array.isArray(deals) ? deals.find((deal: any) => deal?.id?.toString() === selectedDeal) : undefined;
   
@@ -1210,7 +1179,6 @@ function DueDiligenceContent() {
                 <DataRoomExplorer 
                   key={`dataroom-${selectedDeal}`}
                   dealId={parseInt(selectedDeal!)} 
-                  documents={documents}
                   onUploadComplete={() => {
                     // Refresh documents and keep data room visible
                     queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/documents`] });
