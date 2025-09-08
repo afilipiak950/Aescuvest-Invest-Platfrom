@@ -234,7 +234,7 @@ export default function EnhancedAgentCard({
 
   // Fetch comprehensive Research analysis data directly for Research agents
   const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     enabled: agentType.toLowerCase() === 'research',
     refetchInterval: 2000, // Refresh every 2 seconds
   });
@@ -1495,87 +1495,75 @@ interface ResearchQuestion {
 }
 
 const RESEARCH_QUESTIONS: ResearchQuestion[] = [
-  // Competitive Intelligence
+  // Market Research Reports
   {
-    id: 'research_1',
-    category: 'Competitive Intelligence',
-    question: 'What competitive threats exist and how significant are they?',
-    subQuestions: ['Competitive landscape', 'Market share threats', 'Competitive advantages']
+    id: 'market_1',
+    category: 'Market Research Reports',
+    question: 'Are TAM/SAM/SOM defined with assumptions?',
+    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
   },
   {
-    id: 'research_2',
-    category: 'Competitive Intelligence',
-    question: 'What is the patent landscape and IP positioning?',
-    subQuestions: ['Patent portfolio', 'IP protection', 'Freedom to operate']
+    id: 'market_2',
+    category: 'Market Research Reports',
+    question: 'What competitive landscape analysis is provided?',
+    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
   },
   {
-    id: 'research_3',
-    category: 'Competitive Intelligence',
-    question: 'How defensible is the technology moat?',
-    subQuestions: ['Technology barriers', 'Competitive moat', 'Defensibility']
+    id: 'market_3',
+    category: 'Market Research Reports',
+    question: 'Are market growth projections validated?',
+    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
   },
-  // Market Analysis
+  // Technical Whitepapers
   {
-    id: 'research_4',
-    category: 'Market Analysis',
-    question: 'What is the Total Addressable Market (TAM) size and growth?',
-    subQuestions: ['Market size', 'Growth potential', 'Market opportunity']
-  },
-  {
-    id: 'research_5',
-    category: 'Market Analysis',
-    question: 'What are the key market trends and drivers?',
-    subQuestions: ['Industry trends', 'Growth drivers', 'Market dynamics']
+    id: 'technical_1',
+    category: 'Technical Whitepapers',
+    question: 'What technical approach/architecture is described?',
+    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
   },
   {
-    id: 'research_6',
-    category: 'Market Analysis',
-    question: 'What is the regulatory environment and compliance requirements?',
-    subQuestions: ['Regulatory framework', 'Compliance', 'Industry standards']
-  },
-  // Technology Assessment
-  {
-    id: 'research_7',
-    category: 'Technology Assessment',
-    question: 'What is the technology maturity and scalability potential?',
-    subQuestions: ['Technology readiness', 'Scalability', 'Platform maturity']
+    id: 'technical_2',
+    category: 'Technical Whitepapers',
+    question: 'Are technical risks and mitigation strategies outlined?',
+    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
   },
   {
-    id: 'research_8',
-    category: 'Technology Assessment',
-    question: 'What are the key technology dependencies and risks?',
-    subQuestions: ['Technology risks', 'Dependencies', 'Technical challenges']
+    id: 'technical_3',
+    category: 'Technical Whitepapers',
+    question: 'What scalability and performance benchmarks are provided?',
+    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
+  },
+  // Academic Publications
+  {
+    id: 'academic_1',
+    category: 'Academic Publications',
+    question: 'What peer-reviewed research supports the technology?',
+    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
   },
   {
-    id: 'research_9',
-    category: 'Technology Assessment',
-    question: 'What data quality and validation has been performed?',
-    subQuestions: ['Data integrity', 'Validation methods', 'Quality assurance']
-  },
-  // Strategic Analysis
-  {
-    id: 'research_10',
-    category: 'Strategic Analysis',
-    question: 'What are the potential exit strategies and acquirer landscape?',
-    subQuestions: ['Exit opportunities', 'Strategic buyers', 'Acquisition potential']
+    id: 'academic_2',
+    category: 'Academic Publications',
+    question: 'Are there collaborations with research institutions?',
+    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
   },
   {
-    id: 'research_11',
-    category: 'Strategic Analysis',
-    question: 'What international expansion opportunities exist?',
-    subQuestions: ['Global markets', 'International strategy', 'Geographic expansion']
+    id: 'academic_3',
+    category: 'Academic Publications',
+    question: 'What scientific evidence validates the approach?',
+    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
+  },
+  // Patent Landscape
+  {
+    id: 'patent_1',
+    category: 'Patent Landscape',
+    question: 'What patent portfolio exists and what gaps are identified?',
+    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
   },
   {
-    id: 'research_12',
-    category: 'Strategic Analysis',
-    question: 'What are the ESG considerations and sustainability factors?',
-    subQuestions: ['Environmental impact', 'Social responsibility', 'Governance']
-  },
-  {
-    id: 'research_13',
-    category: 'Strategic Analysis',
-    question: 'What customer validation and market traction evidence exists?',
-    subQuestions: ['Customer feedback', 'Market adoption', 'Revenue traction']
+    id: 'patent_2',
+    category: 'Patent Landscape',
+    question: 'Are there freedom-to-operate risks?',
+    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
   }
 ];
 
@@ -2404,12 +2392,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
   const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
 
-  // Check if research analysis is available from agent endpoint (FIXED: use same pattern as Commercial)
+  // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/research/results`],
+    queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 2000,
-    staleTime: 0, // Force fresh data
-    cacheTime: 0, // Don't cache at all
   });
 
   // Listen for research analysis start event to clear old data immediately
@@ -2457,48 +2443,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       return null;
     }
 
-    console.log('🔍 RESEARCH DEBUG: getAnswerForQuestion called for', { questionId, questionText });
-    console.log('🔍 RESEARCH DEBUG: comprehensiveResults exists?', !!comprehensiveResults);
-    console.log('🔍 RESEARCH DEBUG: research_answers exists?', !!comprehensiveResults?.analysis?.research_answers);
-    console.log('🔍 RESEARCH DEBUG: research_answers keys:', comprehensiveResults?.analysis?.research_answers ? Object.keys(comprehensiveResults.analysis.research_answers) : 'none');
-    console.log('🔍 RESEARCH DEBUG: question index in array:', RESEARCH_QUESTIONS.findIndex(q => q.id === questionId));
-
-    // PRIORITY FIX: Check actual data location first (analysis.research_answers)
-    if (comprehensiveResults?.analysis?.research_answers) {
-      console.log('✅ DEBUG: Found research_answers data!');
-      const allAnswers = comprehensiveResults.analysis.research_answers;
-      
-      // DIRECT ACCESS: Frontend now uses same IDs as API (research_1, research_2, etc.)
-      // Try by question ID first (research_1, research_2, etc.)
-      const answerById = allAnswers[questionId];
-      if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
-        console.log('✅ DEBUG: Found answer by direct ID:', { questionId, answer: answerById.substring(0, 100) + '...' });
-        return {
-          answer: answerById,
-          confidence: 85,
-          sources: [],
-          quotes: [],
-          keyFindings: [],
-          recommendations: []
-        };
-      }
-      
-      // Try by question text
-      const answerByText = allAnswers[questionText];
-      if (answerByText && typeof answerByText === 'string' && !answerByText.includes('No relevant documents found')) {
-        console.log('✅ DEBUG: Found answer by text:', { questionText, answer: answerByText.substring(0, 100) + '...' });
-        return {
-          answer: answerByText,
-          confidence: 85,
-          sources: [],
-          quotes: [],
-          keyFindings: [],
-          recommendations: []
-        };
-      }
-    }
-
-    // Try comprehensive results second - check correct API structure (results.researchAnswers)
+    // Try comprehensive results first - check correct API structure (results.researchAnswers)
     if (comprehensiveResults?.results?.researchAnswers) {
       const allAnswers = comprehensiveResults.results.researchAnswers;
       
@@ -2796,9 +2741,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                             </div>
                           ) : (
                             <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
-                              <p className="text-gray-400 text-xs">
-No research analysis available for this question yet.
-                              </p>
+                              <p className="text-gray-400 text-xs">No research analysis available for this question yet.</p>
                             </div>
                           )}
                         </div>
@@ -2865,7 +2808,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
       
       // Invalidate ALL relevant query keys to refresh the research data
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/agents/research/results`]
+        queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
@@ -2933,7 +2876,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
             
             // Force refresh of comprehensive research results
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/agents/research/results`]
+              queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
             });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
@@ -2962,7 +2905,7 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
           
           // Force refresh anyway in case results are there
           queryClient.invalidateQueries({
-            queryKey: [`/api/deals/${dealId}/agents/research/results`]
+            queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`]
           });
           queryClient.invalidateQueries({
             queryKey: ['/api/analyses', dealId]
@@ -4199,12 +4142,12 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
-  // CRITICAL FIX: Use agents endpoint EXACTLY like Commercial agent
+  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
     refetchInterval: 2000,
-    staleTime: 0, // Always treat as stale to force fresh data like Commercial
-    gcTime: 0, // Don't cache results like Commercial
+    staleTime: 0, // Always treat as stale to force fresh data like Legal
+    gcTime: 0, // Don't cache results like Legal
   });
 
   // Force refetch on component mount to ensure fresh data like Legal

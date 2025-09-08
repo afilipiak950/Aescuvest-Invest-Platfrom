@@ -289,7 +289,7 @@ function DueDiligenceContent() {
 
   // Fetch comprehensive analysis data for each agent to detect completed analyses
   const { data: clinicalAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/clinical-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
@@ -307,7 +307,7 @@ function DueDiligenceContent() {
   });
 
   const { data: researchAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/research/results`],
+    queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
     enabled: !!selectedDeal,
     refetchInterval: 2000,
   });
@@ -561,7 +561,7 @@ function DueDiligenceContent() {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/financial-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/ip-analysis/comprehensive/results`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/agents/research/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`] });
       
       // Also invalidate regular agent endpoints for backwards compatibility
       agentTypes.forEach(agentType => {
@@ -1326,11 +1326,11 @@ function DueDiligenceContent() {
                     const hasComprehensiveAnalysis = (() => {
                       const agentLower = agentType.toLowerCase();
                       // Check if we have data from the agent-specific endpoints that were added
-                      if (agentLower === 'clinical') return clinicalAnalysisData?.results?.clinicalAnswers && Object.keys(clinicalAnalysisData.results.clinicalAnswers).length > 0;
+                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
                       if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
                       if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                      if (agentLower === 'research') return researchAnalysisData?.results?.researchAnswers && Object.keys(researchAnalysisData.results.researchAnswers).length > 0;
+                      if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
                       if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
                       return false;
                     })();

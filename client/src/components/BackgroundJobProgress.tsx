@@ -98,19 +98,6 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
             // Invalidate documents cache when AI summary jobs complete
             if (dealId && result?.success) {
               queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-              
-              // CRITICAL FIX: Invalidate comprehensive analysis results to switch from progress to results display
-              if (jobId.includes('comprehensive_research')) {
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/research/results`] });
-              }
-              if (jobId.includes('comprehensive_clinical')) {
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`] });
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/clinical/results`] });
-              }
-              if (jobId.includes('comprehensive_financial')) {
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/financial/results`] });
-              }
             }
             
             // Remove completed job after a delay
