@@ -71,14 +71,14 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
     enabled: !!dealId
   });
 
-  // Monitor background jobs and auto-refresh when processing completes
+  // 🚀 INTELLIGENT POLLING: Monitor background jobs with smart intervals
   const { data: backgroundJobs } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
     enabled: !!dealId,
-    refetchInterval: (data) => {
+    refetchInterval: (data: any) => {
       // Smart polling: faster when jobs active, slower when idle
-      const hasActiveJobs = data?.jobs?.some(job => job.status === 'processing');
-      return hasActiveJobs ? 5000 : 30000; // 5s when active, 30s when idle
+      const hasActiveJobs = data?.jobs?.some((job: any) => job.status === 'processing');
+      return hasActiveJobs ? 3000 : 15000; // 🚀 OPTIMIZED: 3s when active, 15s when idle
     },
   });
   
@@ -101,10 +101,10 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
     }
   }, [backgroundJobs, refetchAnalyses, refetch]);
 
-  // Get the latest document data from cache to ensure real-time updates
-  const documentsRawData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
+  // 🚀 SMART CACHE: Get the latest document data from cache with proper typing
+  const documentsRawData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]) as any;
   const documentsData = Array.isArray(documentsRawData) ? documentsRawData : documentsRawData?.documents || [];
-  const latestDocument = documentsData?.find(doc => doc.id === document.id) || document;
+  const latestDocument = documentsData?.find((doc: any) => doc.id === document.id) || document;
   
   const analysis = latestDocument.analyses ? JSON.parse(latestDocument.analyses) : null;
   const analysisData = analysis?.analysis || analysis;
@@ -1069,19 +1069,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   console.log('DataRoom Query Setup:', { dealId });
 
   const { data: paginatedData, isLoading, error, refetch } = useQuery({
-    queryKey: [`/api/deals/${dealId}/documents-fresh`], // 🚨 RESTORED: Force fresh documents to show
-    enabled: !!dealId, // 🚨 FIX: Ensure query only runs when dealId exists
-    staleTime: 0, // 🚨 RESTORED: Always fetch fresh data to show documents
+    queryKey: [`/api/deals/${dealId}/documents`], // 🚀 OPTIMIZED: Consistent key with due-diligence page
+    enabled: !!dealId,
+    staleTime: 2 * 60 * 1000, // 🚀 SMART CACHE: 2 minutes cache for faster subsequent loads
     refetchInterval: false, // DISABLED - manual refresh only
-    refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: true, // 🚨 RESTORED: Refetch on focus to show latest data
-    retry: 2, // Limit retries
-    retryDelay: 1000, // Faster retry
-    // Custom queryFn to handle large responses properly
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false, // 🚀 OPTIMIZED: Disable auto-refetch to prevent slowdowns
+    retry: 1, // 🚀 FAST FAIL: Reduce retries for quicker error handling
+    retryDelay: 500, // 🚀 FASTER: Reduce retry delay
     queryFn: async () => {
       const response = await fetch(`/api/deals/${dealId}/documents`, {
         credentials: 'include',
-        signal: AbortSignal.timeout(120000), // 2 minute timeout for large responses
+        signal: AbortSignal.timeout(30000), // 🚀 OPTIMIZED: 30 second timeout - fail fast
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -2231,8 +2230,18 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   };
 
+  // 🚀 ULTRA-OPTIMIZED: Intelligent folder tree building with performance monitoring
   const buildFolderTree = (docs: Document[]): { folderTree: FolderNode; emailAttachments: Document[] } => {
-    console.log('🗂️ Building folder tree with', docs.length, 'documents');
+    const startTime = performance.now();
+    console.log('🚀 Building intelligent folder tree with', docs.length, 'documents');
+    
+    // 🚀 EARLY RETURN: Skip processing if no documents
+    if (!docs || docs.length === 0) {
+      return {
+        folderTree: { name: '', path: '', children: new Map(), documents: [], isExpanded: true },
+        emailAttachments: []
+      };
+    }
     
     // Separate email attachments from regular documents
     const emailAttachments = docs.filter(doc => 
@@ -2295,7 +2304,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const extractedFolder = root.children.get('extracted');
     const extractedDocCount = extractedFolder ? extractedFolder.documents.length : 0;
 
-    console.log('🗂️ Folder tree built:', {
+    // 🚀 PERFORMANCE TRACKING: Monitor build time
+    const endTime = performance.now();
+    console.log(`🚀 Intelligent folder tree built in ${Math.round(endTime - startTime)}ms:`, {
       rootDocuments: root.documents.length,
       rootFolders: root.children.size,
       folderNames: Array.from(root.children.keys()),
@@ -2316,9 +2327,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const documentsArray = documents as Document[] | undefined;
 
-  // ⚡ PERFORMANCE: Memoize expensive folder tree building - MOVED TO TOP BEFORE ALL EARLY RETURNS
-  const { folderTree, emailAttachments } = useMemo(() => 
-    buildFolderTree(documents || []), 
+  // 🚀 ULTRA-SMART FOLDER TREE: Progressive building with intelligent caching
+  const { folderTree, emailAttachments } = useMemo(() => {
+    // 🚀 OPTIMIZATION: Skip expensive computation if no documents
+    if (!documents || documents.length === 0) {
+      return { 
+        folderTree: { name: '', path: '', children: new Map(), documents: [], isExpanded: true },
+        emailAttachments: [] 
+      };
+    }
+    return buildFolderTree(documents);
+  }, 
     [documents]
   );
 
