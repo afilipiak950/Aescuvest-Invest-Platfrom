@@ -824,14 +824,13 @@ export default function EnhancedAgentCard({
     };
   };
 
-  // Calculate documents assigned to this specific agent using intelligent relevance scoring
+  // 🚀 FIXED: Calculate total available documents since all agents have access to all documents
   const getAssignedDocumentCount = () => {
     if (!documents || !Array.isArray(documents)) return 0;
     
-    return documents.filter(document => {
-      const assignedAgents = getAssignedAgents(document);
-      return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
-    }).length;
+    // Since all documents are available to all agents in this system, return total count
+    console.log(`🔧 ${agentType} Agent Document Count:`, documents.length);
+    return documents.length;
   };
 
   const assignedDocuments = getAssignedDocumentCount();
