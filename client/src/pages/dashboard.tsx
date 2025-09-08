@@ -179,95 +179,41 @@ export default function Dashboard() {
             recentDealsChange: Math.round((recentDeals.length / dealsData.length) * 100)
           });
           
-          // Fetch real AI activities from multiple sources - 🚀 PARALLEL + SUMMARY MODE
+          // 🚀 ULTRA-FAST PARALLEL DASHBOARD DATA LOADING
           const activitiesData: Activity[] = [];
           
-          // 🚀 CRITICAL FIX: Use Promise.all for parallel fetching with summary mode
+          // Parallel fetch all documents with summary mode for lightning speed
           const documentPromises = dealsData.map(deal =>
             fetch(`/api/deals/${deal.id}/documents?summary=true&limit=10`)
               .then(res => res.json())
-              .then(data => ({ deal, data }))
-              .catch(err => ({ deal, data: { documents: [] }, error: err }))
+              .then(data => ({ deal, documents: Array.isArray(data) ? data : data?.documents || [] }))
+              .catch(err => ({ deal, documents: [] }))
           );
           
-          const allDocumentsResults = await Promise.all(documentPromises);
+          const allResults = await Promise.all(documentPromises);
           
-          for (const { deal, data: documentsData } of allDocumentsResults) {
-            try {
-              const documents = Array.isArray(documentsData) ? documentsData : documentsData?.documents || [];
-              
-              documents.forEach((doc: any) => {
-                // Add OCR activity for all processed documents
-                activitiesData.push({
-                  id: doc.id * 1000, // Unique ID for OCR activity
-                  agentType: 'Mistral OCR',
-                    content: `OCR text extraction from ${doc.name} (${(doc.size / 1024).toFixed(1)}KB) - ${deal.companyName}`,
-                    timestamp: doc.createdAt
-                  });
-                  
-                  // Add AI summary activity if available
-                  if (doc.aiSummary) {
-                    activitiesData.push({
-                      id: doc.id * 1000 + 1, // Unique ID for summary activity
-                      agentType: 'GPT-4 Summary',
-                      content: `AI summary generated for ${doc.name} - ${deal.companyName}`,
-                      timestamp: doc.updatedAt || doc.createdAt
-                    });
-                  }
-                  
-                  // Add document processing activity
-                  activitiesData.push({
-                    id: doc.id * 1000 + 2, // Unique ID for processing activity
-                    agentType: 'Document Processor',
-                    content: `Document ${doc.name} processed and indexed - ${deal.companyName}`,
-                    timestamp: doc.updatedAt || doc.createdAt
-                  });
-                });
-              }
-              
-              // Fetch agent analyses for Mistral activities
-              const analysesResponse = await fetch(`/api/analyses/${deal.id}`);
-              const analysesData = await analysesResponse.json();
-              
-              if (Array.isArray(analysesData) && analysesData.length > 0) {
-                analysesData.forEach((analysis: any) => {
-                  activitiesData.push({
-                    id: Number(analysis.id),
-                    agentType: `${analysis.agentType} Agent`,
-                    content: `Specialized ${analysis.agentType.toLowerCase()} analysis completed for ${deal.companyName}`,
-                    timestamp: analysis.createdAt || new Date().toISOString()
-                  });
-                });
-              }
-              
-              // Add AI evaluation activities if deal has evaluation results
-              try {
-                const evaluationResponse = await fetch(`/api/deals/${deal.id}/evaluation-results`);
-                const evaluationData = await evaluationResponse.json();
-                
-                if (evaluationData.success && evaluationData.results) {
-                  activitiesData.push({
-                    id: deal.id * 10000, // Unique ID for evaluation
-                    agentType: 'AI Evaluator',
-                    content: `Investment evaluation completed for ${deal.companyName} (Score: ${deal.aiScore}/100)`,
-                    timestamp: evaluationData.results.createdAt || deal.updatedAt
-                  });
-                }
-              } catch (error) {
-                // Add basic evaluation activity based on aiScore
-                if (deal.aiScore) {
-                  activitiesData.push({
-                    id: deal.id * 10000,
-                    agentType: 'AI Evaluator',
-                    content: `Investment scoring completed for ${deal.companyName} (Score: ${deal.aiScore}/100)`,
-                    timestamp: deal.updatedAt || deal.createdAt
-                  });
-                }
-              }
-            } catch (error) {
-              console.log('No AI activities found for deal:', deal.id);
+          // Process results to create activity feed
+          allResults.forEach(({ deal, documents }) => {
+            // Add recent document activities
+            documents.slice(0, 3).forEach((doc: any, index: number) => {
+              activitiesData.push({
+                id: doc.id * 1000 + index,
+                agentType: 'Document Processor',
+                content: `${doc.name} processed for ${deal.companyName}`,
+                timestamp: doc.uploadedAt || doc.createdAt
+              });
+            });
+
+            // Add AI evaluation activity if deal has score
+            if (deal.aiScore) {
+              activitiesData.push({
+                id: deal.id * 10000,
+                agentType: 'AI Evaluator',
+                content: `Investment evaluation: ${deal.companyName} scored ${deal.aiScore}/100`,
+                timestamp: deal.updatedAt || deal.createdAt
+              });
             }
-          }
+          });
           
           // Sort activities by timestamp and take the latest 5
           activitiesData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
