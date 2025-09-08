@@ -3113,8 +3113,12 @@ The company maintains a strong competitive position through its technical moat a
     }
   });
 
-  // Get evaluation results for a deal
+  // ⚡ Evaluation Results Cache for Performance (2 minute cache)
+  const evaluationCache = new Map<number, { data: any, timestamp: number }>();
+  
+  // Get evaluation results for a deal (CACHED)
   app.get('/api/deals/:dealId/evaluation-results', async (req: Request, res: Response) => {
+    const startTime = Date.now();
     try {
       const dealId = parseInt(req.params.dealId);
       
@@ -3122,8 +3126,23 @@ The company maintains a strong competitive position through its technical moat a
         return res.status(400).json({ message: 'Invalid deal ID' });
       }
 
+      // ⚡ Check cache first
+      const cached = evaluationCache.get(dealId);
+      if (cached && (Date.now() - cached.timestamp) < 2 * 60 * 1000) { // 2 minute cache
+        console.log(`⚡ Using cached evaluation results for deal ${dealId}`);
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cached.data);
+      }
+
       const results = await storage.getEvaluationResultsByDealId(dealId);
       const criteria = await storage.getAllEvaluationCriteria();
+      
+      const responseData = { results, criteria };
+      evaluationCache.set(dealId, { data: responseData, timestamp: Date.now() });
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`📊 Evaluation results fetched for deal ${dealId} in ${totalTime}ms - CACHED`);
+      res.setHeader('X-Cache', 'MISS');
       
       // Enrich results with criteria information
       const enrichedResults = results.map(result => {
@@ -3143,10 +3162,23 @@ The company maintains a strong competitive position through its technical moat a
     }
   });
 
-  // Settings API routes
+  // ⚡ User Settings Cache for Performance (5 minute cache)
+  const userSettingsCache = new Map<number, { data: any, timestamp: number }>();
+  
+  // Settings API routes (CACHED)
   app.get('/api/settings/user', authenticate, async (req: any, res: Response) => {
+    const startTime = Date.now();
     try {
       const userId = req.userId;
+      
+      // ⚡ Check cache first
+      const cached = userSettingsCache.get(userId);
+      if (cached && (Date.now() - cached.timestamp) < 5 * 60 * 1000) { // 5 minute cache
+        console.log(`⚡ Using cached user settings for user ${userId}`);
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cached.data);
+      }
+      
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -3188,9 +3220,17 @@ The company maintains a strong competitive position through its technical moat a
         apiKey: user.apiKey || null
       };
 
+      // Cache the settings
+      userSettingsCache.set(userId, { data: userSettings, timestamp: Date.now() });
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`🔄 User settings fetched for user ${userId} in ${totalTime}ms - CACHED`);
+      
+      res.setHeader('X-Cache', 'MISS');
       res.json(userSettings);
     } catch (error) {
-      console.error('Error fetching user settings:', error);
+      const totalTime = Date.now() - startTime;
+      console.error(`Error fetching user settings after ${totalTime}ms:`, error);
       res.status(500).json({ message: 'Failed to fetch user settings' });
     }
   });

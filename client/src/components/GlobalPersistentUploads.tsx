@@ -43,7 +43,7 @@ export function GlobalPersistentUploadMonitor({
   
   console.log('🔍 GLOBAL WIDGET: Component rendering...');
   
-  // Fetch global uploads every 2 seconds
+  // AGGRESSIVE FIX: Disable polling entirely when no active uploads
   const { data: uploadsData, isLoading } = useQuery({
     queryKey: ['global-persistent-uploads'],
     queryFn: async () => {
@@ -51,13 +51,16 @@ export function GlobalPersistentUploadMonitor({
       if (!response.ok) throw new Error('Failed to fetch global uploads');
       return response.json();
     },
-    refetchInterval: (data) => {
-      // ULTRA-OPTIMIZED: Much longer intervals to reduce server load
-      const hasActiveUploads = data?.uploads?.some(u => u.status === 'uploading' || u.status === 'processing');
-      return hasActiveUploads ? 10000 : 300000; // 10s when active, 5m when idle
+    refetchInterval: (data, query) => {
+      const uploads = data?.uploads || [];
+      const hasActiveUploads = uploads.some((u: any) => u.status === 'uploading' || u.status === 'processing');
+      console.log(`🔍 GLOBAL UPLOADS: ${uploads.length} total, ${hasActiveUploads ? 'ACTIVE' : 'NO ACTIVE'} uploads`);
+      // AGGRESSIVE: Only poll if there are active uploads, otherwise disable completely
+      return hasActiveUploads ? 10000 : false; // 10s when active, DISABLED when idle
     },
-    refetchIntervalInBackground: false, // Don't poll in background for better performance
-    staleTime: 15000, // Cache for 15 seconds to reduce requests
+    refetchIntervalInBackground: false,
+    staleTime: 30000, // 30 second cache
+    enabled: true, // Always enabled initially to check once
   });
 
   const uploads: PersistentUploadSession[] = uploadsData?.uploads || [];
