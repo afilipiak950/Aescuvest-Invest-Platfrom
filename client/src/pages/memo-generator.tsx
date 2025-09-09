@@ -188,6 +188,14 @@ export default function MemoGenerator() {
           const docsData = await docsResponse.json();
           const analysesData = await analysesResponse.json();
           
+          // AGGRESSIVE DEBUG: Force the issue to surface
+          console.log(`🚨 AGGRESSIVE DEBUG Deal ${deal.id}:`);
+          console.log(`🚨 docsData type:`, typeof docsData);
+          console.log(`🚨 docsData keys:`, Object.keys(docsData || {}));
+          console.log(`🚨 docsData.documents exists:`, !!docsData?.documents);
+          console.log(`🚨 docsData.documents length:`, docsData?.documents?.length);
+          console.log(`🚨 docsData full:`, JSON.stringify(docsData, null, 2));
+          
           // Handle the actual API response structure: {documents: [...], total: 378, page: 1}
           const docCount = docsData?.documents ? docsData.documents.length : 
                           Array.isArray(docsData) ? docsData.length : 0;
