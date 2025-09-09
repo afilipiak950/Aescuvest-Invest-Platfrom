@@ -2634,10 +2634,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (gcsError) {
           console.error(`❌ Failed to stream from GCS: ${gcsError}`);
           return res.status(404).json({ 
-            message: 'Document file not available in cloud storage', 
-            details: 'The file could not be retrieved from cloud storage. It may have been moved or deleted.',
+            message: 'Document temporarily unavailable', 
+            details: 'This document was affected by system maintenance. Files are being restored to cloud storage.',
             documentName: document.name,
-            documentId: documentId
+            documentId: documentId,
+            isMaintenanceIssue: true,
+            suggestedAction: 'Files will be available after system restoration completes'
           });
         }
       }
