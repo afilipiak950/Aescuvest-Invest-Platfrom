@@ -50,47 +50,77 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
 
-        // 🔧 ROBUST PDF FETCHING: Try multiple endpoints and handle missing files gracefully
+        // 🔧 BULLETPROOF PDF FETCHING: Validate content type before processing
         console.log(`🔍 Attempting to fetch PDF for document ${documentId}: ${documentName}`);
         
         let response;
         let finalError = 'Failed to fetch PDF';
         
-        // Try the primary download endpoint first
+        // Fetch document with proper error handling
         try {
           response = await fetch(`/api/documents/${documentId}/download`);
-          console.log(`🔍 Primary endpoint response:`, response.status, response.statusText);
+          console.log(`🔍 Response status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
           
-          if (response.ok) {
-            // Success - proceed with PDF loading
-          } else {
-            // Parse error response
-            try {
-              const errorData = await response.json();
-              console.log(`❌ Primary endpoint error:`, errorData);
-              
-              if (errorData.message === 'Document file not available') {
-                finalError = `📄 Document "${documentName}" is temporarily unavailable.\n\n` +
-                           `This can happen when:\n` +
-                           `• Files are being processed in the background\n` +
-                           `• System maintenance is occurring\n` +
-                           `• The file needs to be re-uploaded\n\n` +
-                           `Please try again in a few moments or download the document directly.`;
-              } else {
-                finalError = errorData.message || 'Document access failed';
+          if (!response.ok) {
+            // Handle error responses
+            const contentType = response.headers.get('content-type') || '';
+            
+            if (contentType.includes('application/json')) {
+              // This is a JSON error response, not a PDF
+              try {
+                const errorData = await response.json();
+                console.log(`❌ JSON error response:`, errorData);
+                
+                if (errorData.message === 'Document file not available') {
+                  finalError = `📄 Document "${documentName}" is currently unavailable.\n\n` +
+                             `This typically happens when:\n` +
+                             `• Files were cleaned up during system maintenance\n` +
+                             `• The document needs to be re-uploaded\n` +
+                             `• File storage is being reorganized\n\n` +
+                             `💡 Try downloading the document directly - it may still be accessible.`;
+                } else {
+                  finalError = errorData.message || 'Document access failed';
+                }
+              } catch {
+                finalError = `Server error (${response.status}): Unable to access document`;
               }
-            } catch {
-              finalError = `HTTP ${response.status}: Unable to load document`;
+            } else {
+              finalError = `HTTP ${response.status}: Server error occurred`;
             }
             throw new Error(finalError);
           }
+          
+          // Validate that we received a PDF
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('application/pdf')) {
+            console.warn(`⚠️ Unexpected content type: ${contentType}`);
+            // Try to handle as PDF anyway, but with a warning
+          }
+          
         } catch (fetchError) {
           console.error('❌ PDF fetch failed:', fetchError);
           throw fetchError;
         }
         
-        const arrayBuffer = await response.arrayBuffer();
-        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        // Convert to ArrayBuffer for PDF.js
+        let arrayBuffer;
+        try {
+          arrayBuffer = await response.arrayBuffer();
+          console.log(`✅ Received PDF data: ${arrayBuffer.byteLength} bytes`);
+        } catch (bufferError) {
+          console.error('❌ Failed to convert response to ArrayBuffer:', bufferError);
+          throw new Error('Failed to process PDF data from server');
+        }
+        
+        // Load PDF with additional error handling
+        let pdf;
+        try {
+          pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          console.log(`✅ PDF loaded successfully: ${pdf.numPages} pages`);
+        } catch (pdfError) {
+          console.error('❌ PDF.js parsing failed:', pdfError);
+          throw new Error(`Unable to parse PDF file. The document may be corrupted or in an unsupported format.`);
+        }
         
         setPdfDoc(pdf);
         setPageCount(pdf.numPages);
