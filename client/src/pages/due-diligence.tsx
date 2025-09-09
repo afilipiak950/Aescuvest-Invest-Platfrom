@@ -33,7 +33,11 @@ function DueDiligenceContent() {
     const [activeAgent, setActiveAgent] = useState<string>('legal');
     const [isUploading, setIsUploading] = useState(false);
     const [showUploadField, setShowUploadField] = useState(false);
-    const [showDataRoom, setShowDataRoom] = useState(true); // Always show data room
+    // Always show data room by default, and auto-show when documents exist
+    const [showDataRoom, setShowDataRoom] = useState(() => {
+      console.log('🔧 Initializing showDataRoom state to true');
+      return true;
+    });
     const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
   const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
@@ -243,8 +247,18 @@ function DueDiligenceContent() {
 
     // Auto-show data room when documents exist (always show for immediate access)
     useEffect(() => {
-      setShowDataRoom(true); // Always show data room for immediate document access
-    }, [documents]);
+      console.log('🔧 DataRoom useEffect triggered:', { 
+        hasDocuments: !!documents, 
+        documentCount: documents?.length || 0,
+        currentShowDataRoom: showDataRoom 
+      });
+      
+      // Always show data room for immediate document access, regardless of document count
+      if (!showDataRoom) {
+        console.log('🔧 Setting showDataRoom to true');
+        setShowDataRoom(true);
+      }
+    }, [documents, showDataRoom]);
 
     // Function to trigger automated analysis for all agents
     const triggerAutomatedAnalysis = async () => {
