@@ -164,7 +164,7 @@ export default function MemoGenerator() {
   
   // Fetch document and analysis counts for each deal with real-time updates
   const { data: dealCounts, isLoading: isLoadingCounts, refetch: refetchCounts } = useQuery({
-    queryKey: ['/api/deals/counts', deals?.length, Date.now()],
+    queryKey: ['/api/deals/counts', deals?.length, Math.random()], // Force cache bust
     queryFn: async () => {
       if (!Array.isArray(deals) || deals.length === 0) return {};
       
@@ -228,8 +228,9 @@ export default function MemoGenerator() {
       return countsMap;
     },
     enabled: Array.isArray(deals) && deals.length > 0,
-    staleTime: 0, // No cache - always fetch fresh data
+    staleTime: 0, // No cache - always fetch fresh data  
     gcTime: 0, // Don't cache at all
+    cacheTime: 0, // Force no caching
     refetchOnWindowFocus: true, // Refetch when window gets focus
     refetchOnMount: true, // Always refetch on mount
     refetchInterval: 30000, // Auto-refresh every 30 seconds
