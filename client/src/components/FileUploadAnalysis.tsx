@@ -45,9 +45,10 @@ interface ProcessedDocument {
 
 interface FileUploadAnalysisProps {
   dealId?: string;
+  onUploadComplete?: () => void;
 }
 
-export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) {
+export default function FileUploadAnalysis({ dealId, onUploadComplete }: FileUploadAnalysisProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [processedDocuments, setProcessedDocuments] = useState<ProcessedDocument[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -101,6 +102,11 @@ export default function FileUploadAnalysis({ dealId }: FileUploadAnalysisProps) 
       data.files.forEach((file: any) => {
         processFileWithAnalysis(file, null);
       });
+      
+      // Notify parent component that upload is complete
+      if (onUploadComplete) {
+        onUploadComplete();
+      }
     },
     onError: (error) => {
       toast({

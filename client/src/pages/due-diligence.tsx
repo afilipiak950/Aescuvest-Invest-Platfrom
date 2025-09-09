@@ -695,7 +695,13 @@ function DueDiligenceContent() {
             <CardDescription>Upload documents for AI analysis and due diligence review</CardDescription>
           </CardHeader>
           <CardContent>
-            <FileUploadAnalysis dealId={selectedDeal} />
+            <FileUploadAnalysis 
+              dealId={selectedDeal}
+              onUploadComplete={() => {
+                setShowUploadField(false);
+                setShowDataRoom(true);
+              }}
+            />
           </CardContent>
         </Card>
       )}
