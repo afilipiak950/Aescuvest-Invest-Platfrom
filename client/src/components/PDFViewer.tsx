@@ -484,7 +484,7 @@ export function InlinePDFPreview({ document: pdfDocument, dealId, className = ""
           
           <div className="flex flex-col gap-2">
             <Button 
-              onClick={() => window.open(`/api/documents/${documentId}/download`, '_blank')} 
+              onClick={() => window.open(`/api/documents/${pdfDocument.id}/download`, '_blank')} 
               variant="outline" 
               className="bg-blue-600 border-blue-500 text-white hover:bg-blue-500"
             >
@@ -493,11 +493,11 @@ export function InlinePDFPreview({ document: pdfDocument, dealId, className = ""
             </Button>
             
             <Button 
-              onClick={() => onOpenChange(false)} 
+              onClick={() => window.location.reload()} 
               variant="outline" 
               className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
             >
-              Close Viewer
+              Refresh Page
             </Button>
           </div>
           
