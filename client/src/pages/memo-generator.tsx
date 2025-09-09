@@ -188,13 +188,6 @@ export default function MemoGenerator() {
           const docsData = await docsResponse.json();
           const analysesData = await analysesResponse.json();
           
-          // AGGRESSIVE DEBUG: Force the issue to surface
-          console.log(`🚨 AGGRESSIVE DEBUG Deal ${deal.id}:`);
-          console.log(`🚨 docsData type:`, typeof docsData);
-          console.log(`🚨 docsData keys:`, Object.keys(docsData || {}));
-          console.log(`🚨 docsData.documents exists:`, !!docsData?.documents);
-          console.log(`🚨 docsData.documents length:`, docsData?.documents?.length);
-          console.log(`🚨 docsData full:`, JSON.stringify(docsData, null, 2));
           
           // Handle the actual API response structure: {documents: [...], total: 378, page: 1}
           const docCount = docsData?.documents ? docsData.documents.length : 
@@ -382,26 +375,31 @@ export default function MemoGenerator() {
                 <Select 
                   value={selectedDeal} 
                   onValueChange={setSelectedDeal}
-                  disabled={isLoadingDeals}
+                  disabled={isLoadingDeals || isLoadingCounts}
                 >
                   <SelectTrigger className="bg-dark border-dark-lighter text-white focus:ring-primary">
                     <SelectValue placeholder="Select a deal to generate memo" />
                   </SelectTrigger>
                   <SelectContent className="bg-dark-lighter border-dark-lighter">
-                    {Array.isArray(deals) && deals.map((deal: any) => {
-                      const counts = dealCounts?.[deal.id] || { documents: 0, analyses: 0 };
-                      const hasData = counts.documents > 0 || counts.analyses > 0;
-                      const status = hasData ? "✅" : "❌";
-                      const dataInfo = hasData 
-                        ? `(${counts.documents} docs${counts.analyses > 0 ? ` + ${counts.analyses} analyses` : ''})`
-                        : "(no data)";
-                      
-                      return (
-                        <SelectItem key={deal.id} value={deal.id.toString()}>
-                          {deal.companyName} - {deal.stage} {status} {dataInfo}
-                        </SelectItem>
-                      );
-                    })}
+                    {isLoadingCounts ? (
+                      <div className="p-2 text-gray-400">Loading data...</div>
+                    ) : (
+                      Array.isArray(deals) && deals.map((deal: any) => {
+                        const counts = dealCounts?.[deal.id] || { documents: 0, analyses: 0 };
+                        const hasData = counts.documents > 0 || counts.analyses > 0;
+                        const status = hasData ? "✅" : "❌";
+                        const dataInfo = hasData 
+                          ? `(${counts.documents} docs${counts.analyses > 0 ? ` + ${counts.analyses} analyses` : ''})`
+                          : "(no data)";
+                        
+                        
+                        return (
+                          <SelectItem key={deal.id} value={deal.id.toString()}>
+                            {deal.companyName} - {deal.stage} {status} {dataInfo}
+                          </SelectItem>
+                        );
+                      })
+                    )}
                   </SelectContent>
                 </Select>
               </div>
