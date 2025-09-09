@@ -50,6 +50,7 @@ import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { chunkedUploadService } from './services/chunkedUploadService';
 import { zipProcessor } from './services/zipProcessor';
+import { gcsService } from './services/googleCloudStorage';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -2605,11 +2606,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`📄 Found document: ${document.name} at path: ${document.path}`);
 
-      // Convert database path to actual file path
+      // 🚀 ENHANCED FILE RESOLUTION: Support both GCS and filesystem paths
       let actualFilePath = document.path;
       console.log(`🔍 Initial path from database: ${document.path}`);
       
-      // Handle extracted ZIP files with nested paths
+      // ✅ PRIORITY 1: Check if path is already a GCS path
+      if (document.path.startsWith('gs://')) {
+        console.log(`☁️ Document is stored in GCS: ${document.path}`);
+        
+        try {
+          // Stream file directly from GCS
+          const stream = await gcsService.streamFile(document.path);
+          
+          const ext = path.extname(document.name).toLowerCase();
+          const mimeType = ext === '.pdf' ? 'application/pdf' : 
+                          ext === '.doc' ? 'application/msword' :
+                          ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+                          'application/octet-stream';
+          
+          res.setHeader('Content-Type', mimeType);
+          res.setHeader('Content-Disposition', isInlineView || isIframe ? 'inline' : `attachment; filename="${document.name}"`);
+          res.setHeader('Cache-Control', 'private, max-age=3600');
+          
+          console.log(`📤 Streaming from GCS: ${document.name}`);
+          stream.pipe(res);
+          return;
+        } catch (gcsError) {
+          console.error(`❌ Failed to stream from GCS: ${gcsError}`);
+          return res.status(404).json({ 
+            message: 'Document file not available in cloud storage', 
+            details: 'The file could not be retrieved from cloud storage. It may have been moved or deleted.',
+            documentName: document.name,
+            documentId: documentId
+          });
+        }
+      }
+      
+      // ✅ PRIORITY 2: Try to find file in GCS using filename mapping
+      if (document.path.startsWith('extracted/')) {
+        const fileName = path.basename(document.path);
+        console.log(`🔍 Searching for extracted file in GCS: ${fileName}`);
+        
+        // Try common GCS paths where the file might be stored
+        const possibleGcsPaths = [
+          `gs://aescuvest-documents/deals/${document.dealId}/documents/${fileName}`,
+          `gs://aescuvest-documents/uploads/deal-${document.dealId}/${fileName}`,
+          `gs://aescuvest-documents/extracted/${fileName}`
+        ];
+        
+        for (const gcsPath of possibleGcsPaths) {
+          try {
+            console.log(`🔍 Checking GCS path: ${gcsPath}`);
+            const exists = await gcsService.fileExists(gcsPath);
+            if (exists) {
+              console.log(`✅ Found file in GCS: ${gcsPath}`);
+              
+              // Stream from GCS
+              const stream = await gcsService.streamFile(gcsPath);
+              
+              const ext = path.extname(document.name).toLowerCase();
+              const mimeType = ext === '.pdf' ? 'application/pdf' : 'application/octet-stream';
+              
+              res.setHeader('Content-Type', mimeType);
+              res.setHeader('Content-Disposition', isInlineView || isIframe ? 'inline' : `attachment; filename="${document.name}"`);
+              res.setHeader('Cache-Control', 'private, max-age=3600');
+              
+              console.log(`📤 Streaming from GCS: ${document.name}`);
+              stream.pipe(res);
+              return;
+            }
+          } catch (error) {
+            console.log(`⚠️ GCS path ${gcsPath} not accessible: ${error.message}`);
+            continue;
+          }
+        }
+      }
+      
+      // ✅ PRIORITY 3: Fall back to filesystem search (legacy compatibility)
       if (document.path.startsWith('extracted/')) {
         const pathWithoutExtracted = document.path.substring('extracted/'.length);
         const fileName = path.basename(document.path);
