@@ -39,7 +39,7 @@ export default function DocumentQuoteViewer({
   documents = []
 }: DocumentQuoteViewerProps) {
 
-  const handleDocumentClick = (documentName: string) => {
+  const handleDocumentClick = async (documentName: string) => {
     // Find the document by name
     const document = documents.find(doc => 
       doc.name === documentName || 
@@ -48,10 +48,24 @@ export default function DocumentQuoteViewer({
     );
     
     if (document) {
-      // Open the document in a new tab for viewing
-      window.open(`/api/documents/${document.id}/download?inline=true`, '_blank');
+      try {
+        // Check if document is available before opening
+        const response = await fetch(`/api/documents/${document.id}/download`, { method: 'HEAD' });
+        
+        if (response.ok) {
+          // Open the document in a new tab for viewing
+          window.open(`/api/documents/${document.id}/download?inline=true`, '_blank');
+        } else {
+          // Show user-friendly error for maintenance issue
+          alert('Document temporarily unavailable\n\nThis document was affected by system maintenance and files are being restored to cloud storage. Please try again later or re-upload if needed.');
+        }
+      } catch (error) {
+        console.log(`Error accessing document "${documentName}":`, error);
+        alert('Document temporarily unavailable\n\nThis document was affected by system maintenance and files are being restored to cloud storage. Please try again later or re-upload if needed.');
+      }
     } else {
       console.log(`Document "${documentName}" not found`);
+      alert('Document not found\n\nThe requested document could not be located. Please check if it was uploaded correctly.');
     }
   };
 
