@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Upload, FileText, Eye, Download, Loader2, CheckCircle, AlertCircle, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,14 +47,16 @@ interface ProcessedDocument {
 interface FileUploadAnalysisProps {
   dealId?: string;
   onUploadComplete?: () => void;
+  onNavigateToDataroom?: () => void;
 }
 
-export default function FileUploadAnalysis({ dealId, onUploadComplete }: FileUploadAnalysisProps) {
+export default function FileUploadAnalysis({ dealId, onUploadComplete, onNavigateToDataroom }: FileUploadAnalysisProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [processedDocuments, setProcessedDocuments] = useState<ProcessedDocument[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<ProcessedDocument | null>(null);
   const [isUploadVisible, setIsUploadVisible] = useState(false);
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -313,12 +316,19 @@ export default function FileUploadAnalysis({ dealId, onUploadComplete }: FileUpl
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-white">Documents</h3>
         <Button
-          onClick={() => setIsUploadVisible(!isUploadVisible)}
+          onClick={() => {
+            // Instead of expanding upload area, navigate to dataroom
+            if (onNavigateToDataroom) {
+              onNavigateToDataroom();
+            }
+            // Keep upload element hidden
+            setIsUploadVisible(false);
+          }}
           variant="outline"
           className="bg-primary hover:bg-primary/90 text-white border-primary"
         >
           <Upload className="mr-2 h-4 w-4" />
-          {isUploadVisible ? 'Hide Upload' : 'Upload Files'}
+          Upload to Dataroom
         </Button>
       </div>
 

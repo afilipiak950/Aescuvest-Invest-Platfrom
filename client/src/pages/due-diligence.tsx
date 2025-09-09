@@ -701,6 +701,11 @@ function DueDiligenceContent() {
                 setShowUploadField(false);
                 setShowDataRoom(true);
               }}
+              onNavigateToDataroom={() => {
+                // Show dataroom and hide upload field
+                setShowDataRoom(true);
+                setShowUploadField(false);
+              }}
             />
           </CardContent>
         </Card>
