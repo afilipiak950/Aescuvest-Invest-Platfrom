@@ -188,7 +188,9 @@ export default function MemoGenerator() {
           const docsData = await docsResponse.json();
           const analysesData = await analysesResponse.json();
           
-          const docCount = Array.isArray(docsData) ? docsData.length : 0;
+          // Handle the actual API response structure: {documents: [...], total: 378, page: 1}
+          const docCount = docsData?.documents ? docsData.documents.length : 
+                          Array.isArray(docsData) ? docsData.length : 0;
           const analysisCount = Array.isArray(analysesData) ? analysesData.length : 0;
           
           console.log(`📊 Deal ${deal.id} (${deal.companyName}): ${docCount} docs, ${analysisCount} analyses`);
