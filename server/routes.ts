@@ -4391,6 +4391,45 @@ ${document.ocrText}`
     }, 5000); // 5 second delay between batches
   }
 
+  // GLOBAL ANALYSIS CONCURRENCY CONTROL
+  class AnalysisConcurrencyManager {
+    private static runningAnalyses = new Map<string, Set<string>>();
+    private static readonly MAX_CONCURRENT_ANALYSES = 1; // Only 1 analysis at a time to prevent timeouts
+    
+    static canStartAnalysis(dealId: string, analysisType: string): boolean {
+      const dealKey = `deal-${dealId}`;
+      const runningSet = this.runningAnalyses.get(dealKey) || new Set();
+      
+      if (runningSet.size >= this.MAX_CONCURRENT_ANALYSES) {
+        console.log(`⏳ Analysis queue full for deal ${dealId}. Currently running: ${Array.from(runningSet).join(', ')}`);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    static startAnalysis(dealId: string, analysisType: string): void {
+      const dealKey = `deal-${dealId}`;
+      const runningSet = this.runningAnalyses.get(dealKey) || new Set();
+      runningSet.add(analysisType);
+      this.runningAnalyses.set(dealKey, runningSet);
+      
+      console.log(`🚀 Started ${analysisType} analysis for deal ${dealId}. Running analyses: ${runningSet.size}/${this.MAX_CONCURRENT_ANALYSES}`);
+    }
+    
+    static finishAnalysis(dealId: string, analysisType: string): void {
+      const dealKey = `deal-${dealId}`;
+      const runningSet = this.runningAnalyses.get(dealKey);
+      if (runningSet) {
+        runningSet.delete(analysisType);
+        if (runningSet.size === 0) {
+          this.runningAnalyses.delete(dealKey);
+        }
+        console.log(`✅ Finished ${analysisType} analysis for deal ${dealId}. Remaining analyses: ${runningSet.size}`);
+      }
+    }
+  }
+
   // Advanced OpenAI rate limiter with conservative settings
   class OpenAIRateLimiter {
     private lastRequestTime = 0;
