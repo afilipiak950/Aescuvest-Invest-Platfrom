@@ -477,12 +477,33 @@ export function InlinePDFPreview({ document: pdfDocument, dealId, className = ""
   if (error) {
     return (
       <div className={`flex items-center justify-center bg-gray-800 ${className}`}>
-        <div className="text-center max-w-md p-6">
-          <p className="text-red-400 mb-4 text-sm">{error}</p>
-          <Button onClick={handleDownload} variant="outline" className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
-          </Button>
+        <div className="text-center max-w-lg p-6">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-4">
+            <p className="text-red-300 mb-2 text-sm whitespace-pre-line">{error}</p>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={() => window.open(`/api/documents/${documentId}/download`, '_blank')} 
+              variant="outline" 
+              className="bg-blue-600 border-blue-500 text-white hover:bg-blue-500"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Try Alternative Access
+            </Button>
+            
+            <Button 
+              onClick={() => onOpenChange(false)} 
+              variant="outline" 
+              className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+            >
+              Close Viewer
+            </Button>
+          </div>
+          
+          <p className="text-gray-400 text-xs mt-3">
+            If the document is critical, contact support for file recovery assistance.
+          </p>
         </div>
       </div>
     );
