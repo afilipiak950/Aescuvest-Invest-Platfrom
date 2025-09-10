@@ -1245,21 +1245,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete documents route
   app.delete('/api/documents/delete', async (req: Request, res: Response) => {
+    console.log('🎯 API route hit: DELETE /api/documents/delete');
+    console.log('🌐 ULTRA-DEBUG: DELETE /api/documents/delete - MIDDLEWARE HIT');
+    console.log('📋 Request body:', req.body);
+    console.log('📋 Request headers:', req.headers);
+    
     try {
       const { fileIds } = req.body;
+      console.log('📋 Extracted fileIds:', fileIds);
 
       if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        console.log('❌ Invalid fileIds - returning 400 error');
         return res.status(400).json({ message: 'File IDs are required' });
       }
 
+      console.log(`🗑️ Attempting to delete ${fileIds.length} documents`);
       const deletedCount = await storage.deleteDocuments(fileIds);
+      console.log(`✅ Successfully deleted ${deletedCount} documents`);
 
       return res.status(200).json({ 
         message: `Successfully deleted ${deletedCount} files`,
         deletedCount
       });
     } catch (error) {
-      console.error('Error deleting documents:', error);
+      console.error('❌ Error deleting documents:', error);
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
