@@ -2775,15 +2775,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Check if file exists at the resolved path
+      // 🚀 ENHANCED FILE FALLBACK: Try multiple path resolution strategies
       if (!fs.existsSync(actualFilePath)) {
-        console.log(`❌ File not found on server: ${actualFilePath}`);
+        console.log(`❌ File not found at resolved path: ${actualFilePath}`);
         console.log(`❌ Original path was: ${document.path}`);
+        
+        // 📋 FALLBACK STRATEGY 1: Try uploads directory with deal ID
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        const dealUploadsDir = path.join(uploadsDir, `deal-${document.dealId}`);
+        const fileName = path.basename(document.name);
+        
+        const fallbackPaths = [
+          path.join(uploadsDir, fileName),
+          path.join(uploadsDir, document.name),
+          path.join(dealUploadsDir, fileName),
+          path.join(dealUploadsDir, document.name),
+          path.join(uploadsDir, 'extracted', fileName),
+          path.join(uploadsDir, 'documents', fileName),
+          // Try original path as relative to uploads
+          path.join(uploadsDir, document.path),
+          // Try removing extracted/ prefix and search in uploads
+          path.join(uploadsDir, document.path.replace(/^extracted\//, ''))
+        ];
+        
+        console.log(`🔍 Trying ${fallbackPaths.length} fallback paths for ${fileName}:`);
+        
+        for (const fallbackPath of fallbackPaths) {
+          console.log(`🔍 Checking fallback: ${fallbackPath}`);
+          if (fs.existsSync(fallbackPath)) {
+            actualFilePath = fallbackPath;
+            console.log(`✅ Found file via fallback strategy: ${actualFilePath}`);
+            break;
+          }
+        }
+      }
+      
+      // 📋 FALLBACK STRATEGY 2: Recursive search in uploads directory
+      if (!fs.existsSync(actualFilePath)) {
+        console.log(`🔍 Performing recursive search in uploads directory...`);
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        const fileName = path.basename(document.name);
+        
+        function findFileRecursively(dir: string, targetFileName: string): string | null {
+          try {
+            if (!fs.existsSync(dir)) return null;
+            
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+            
+            // Check files in current directory
+            for (const item of items) {
+              if (item.isFile() && item.name === targetFileName) {
+                return path.join(dir, item.name);
+              }
+            }
+            
+            // Search subdirectories recursively
+            for (const item of items) {
+              if (item.isDirectory()) {
+                const result = findFileRecursively(path.join(dir, item.name), targetFileName);
+                if (result) return result;
+              }
+            }
+          } catch (error) {
+            console.log(`⚠️ Error searching directory ${dir}: ${error}`);
+          }
+          return null;
+        }
+        
+        const foundPath = findFileRecursively(uploadsDir, fileName);
+        if (foundPath && fs.existsSync(foundPath)) {
+          actualFilePath = foundPath;
+          console.log(`✅ Found file via recursive search: ${actualFilePath}`);
+        }
+      }
+      
+      // Final check - if still not found, return 404
+      if (!fs.existsSync(actualFilePath)) {
+        console.log(`❌ FINAL: File not found after all fallback strategies`);
+        console.log(`❌ Searched for: ${document.name} (ID: ${documentId})`);
+        console.log(`❌ Original path: ${document.path}`);
+        
+        // 🔄 TRY STATIC URL AS LAST RESORT: Return static URL for client to try
+        const staticUrl = `/uploads/${document.path}`;
+        console.log(`💡 Suggesting static URL fallback: ${staticUrl}`);
+        
         return res.status(404).json({ 
           message: 'Document file not available', 
-          details: 'This document appears to have been removed during system maintenance. Please re-upload the file if needed.',
+          details: 'This document appears to have been removed during system maintenance. Try the alternative access method below.',
           documentName: document.name,
-          documentId: documentId
+          documentId: documentId,
+          staticUrl: staticUrl,
+          suggestedAction: 'Use alternative access or re-upload the document'
         });
       }
       

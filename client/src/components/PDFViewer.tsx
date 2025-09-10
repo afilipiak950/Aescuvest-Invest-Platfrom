@@ -71,7 +71,30 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
                 const errorData = await response.json();
                 console.log(`❌ JSON error response:`, errorData);
                 
-                if (errorData.message === 'Document file not available') {
+                // 🔄 STATIC URL FALLBACK: If server provides staticUrl, try it
+                if (errorData.staticUrl && errorData.message === 'Document file not available') {
+                  console.log(`🔄 Server suggested static URL fallback: ${errorData.staticUrl}`);
+                  try {
+                    const staticResponse = await fetch(errorData.staticUrl);
+                    if (staticResponse.ok) {
+                      console.log(`✅ Static URL fallback successful`);
+                      response = staticResponse;
+                      // Continue with PDF processing using the static response
+                    } else {
+                      throw new Error(`Static URL also failed: ${staticResponse.status}`);
+                    }
+                  } catch (staticError) {
+                    console.error(`❌ Static URL fallback failed:`, staticError);
+                    // Fall through to show the original error message with enhanced details
+                    finalError = `📄 Document "${documentName}" is currently unavailable.\n\n` +
+                               `This typically happens when:\n` +
+                               `• Files were cleaned up during system maintenance\n` +
+                               `• The document needs to be re-uploaded\n` +
+                               `• File storage is being reorganized\n\n` +
+                               `💡 Try downloading the document directly - it may still be accessible.`;
+                    throw new Error(finalError);
+                  }
+                } else if (errorData.message === 'Document file not available') {
                   finalError = `📄 Document "${documentName}" is currently unavailable.\n\n` +
                              `This typically happens when:\n` +
                              `• Files were cleaned up during system maintenance\n` +
@@ -99,7 +122,28 @@ export function PDFViewer({ documentId, documentName, open, onOpenChange }: PDFV
           
         } catch (fetchError) {
           console.error('❌ PDF fetch failed:', fetchError);
-          throw fetchError;
+          
+          // 🔄 TRY STATIC URL FALLBACK: If API fetch fails, try static file access
+          if (fetchError instanceof Error && fetchError.message.includes('staticUrl')) {
+            try {
+              const errorData = JSON.parse(fetchError.message);
+              if (errorData.staticUrl) {
+                console.log(`🔄 Trying static URL fallback: ${errorData.staticUrl}`);
+                response = await fetch(errorData.staticUrl);
+                if (response.ok) {
+                  console.log(`✅ Static URL fallback successful`);
+                } else {
+                  throw fetchError;
+                }
+              } else {
+                throw fetchError;
+              }
+            } catch {
+              throw fetchError;
+            }
+          } else {
+            throw fetchError;
+          }
         }
         
         // Convert to ArrayBuffer for PDF.js
