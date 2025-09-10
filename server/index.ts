@@ -1181,6 +1181,20 @@ app.use((req, res, next) => {
 
   // Removed final API protection to allow routes to work properly
 
+  // 🚀 STATIC FILE SERVING: Enable direct access to uploaded files for PDF viewer
+  const uploadsPath = path.join(process.cwd(), 'uploads');
+  console.log(`📁 Serving static files from: ${uploadsPath}`);
+  app.use('/uploads', express.static(uploadsPath, {
+    maxAge: '1h',
+    setHeaders: (res, filePath) => {
+      // Set appropriate content type for PDFs to enable inline viewing
+      if (filePath.endsWith('.pdf')) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline');
+      }
+    }
+  }));
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
