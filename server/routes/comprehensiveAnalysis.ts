@@ -56,28 +56,21 @@ router.post('/api/deals/:dealId/comprehensive-analysis', async (req: Request, re
         const allDocs = await db.select().from(documents)
           .where(eq(documents.dealId, dealId));
         
+        // 🔧 FIX: Only count EXPLICIT assignments (case-insensitive), remove fallback heuristics
+        const normalizeAgent = (agentName: string) => agentName.toLowerCase();
+        const hasAgentAssigned = (doc: any, targetAgent: string) => {
+          if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents)) return false;
+          return doc.assignedAgents.some(agent => normalizeAgent(agent) === normalizeAgent(targetAgent));
+        };
+
         const docsByAgent = {
-          Clinical: allDocs.filter(doc => doc.assignedAgents?.includes('Clinical') || 
-                                  doc.category === 'clinical' || 
-                                  doc.documentType === 'clinical').length,
-          Legal: allDocs.filter(doc => doc.assignedAgents?.includes('Legal') || 
-                               doc.category === 'legal' || 
-                               doc.documentType === 'legal').length,
-          Commercial: allDocs.filter(doc => doc.assignedAgents?.includes('Commercial') || 
-                                    doc.category === 'commercial' || 
-                                    doc.documentType === 'commercial').length,
-          HR: allDocs.filter(doc => doc.assignedAgents?.includes('HR') || 
-                            doc.category === 'hr' || 
-                            doc.documentType === 'hr').length,
-          Financial: allDocs.filter(doc => doc.assignedAgents?.includes('Financial') || 
-                                   doc.category === 'financial' || 
-                                   doc.documentType === 'financial').length,
-          IP: allDocs.filter(doc => doc.assignedAgents?.includes('IP') || 
-                            doc.category === 'ip' || 
-                            doc.documentType === 'ip').length,
-          Research: allDocs.filter(doc => doc.assignedAgents?.includes('Research') || 
-                                  doc.category === 'research' || 
-                                  doc.documentType === 'research').length
+          Clinical: allDocs.filter(doc => hasAgentAssigned(doc, 'Clinical')).length,
+          Legal: allDocs.filter(doc => hasAgentAssigned(doc, 'Legal')).length,
+          Commercial: allDocs.filter(doc => hasAgentAssigned(doc, 'Commercial')).length,
+          HR: allDocs.filter(doc => hasAgentAssigned(doc, 'HR')).length,
+          Financial: allDocs.filter(doc => hasAgentAssigned(doc, 'Financial')).length,
+          IP: allDocs.filter(doc => hasAgentAssigned(doc, 'IP')).length,
+          Research: allDocs.filter(doc => hasAgentAssigned(doc, 'Research')).length
         };
         
         console.log(`📊 Document distribution:`, docsByAgent);
@@ -104,8 +97,15 @@ router.post('/api/deals/:dealId/comprehensive-analysis', async (req: Request, re
         for (const agentType of agentTypes) {
           try {
             const assignedDocs = (docsByAgent as any)[agentType] || 0;
+            
+            // 🔧 FIX: Only create analysis jobs for agents with assigned documents
+            if (assignedDocs === 0) {
+              console.log(`⏭️ Skipping ${agentType} agent - no documents assigned`);
+              continue;
+            }
+            
             const questions = (questionCounts as any)[agentType] || 10;
-            const totalJobs = Math.max(assignedDocs * questions, 1); // At least 1 job
+            const totalJobs = assignedDocs * questions;
             
             // Create background job with proper totals and Run ID
             const jobId = `${runId}_${agentType.toLowerCase()}`;
