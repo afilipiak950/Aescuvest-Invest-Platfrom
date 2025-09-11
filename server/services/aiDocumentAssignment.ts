@@ -8,6 +8,7 @@ import OpenAI from 'openai';
 import { db } from '../db';
 import { documents } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
+import { storage } from '../storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -314,6 +315,13 @@ Respond with JSON format:
     }
 
     console.log(`🎯 Assignment complete! Processed ${processedCount} documents, skipped ${skippedCount}, total results: ${results.length}`);
+    
+    // Clear document cache to ensure frontend gets updated assignments
+    if (dealDocuments.length > 0) {
+      const dealId = dealDocuments[0].dealId;
+      storage.invalidateDocumentCache(dealId);
+      console.log(`🗂️ Cleared document cache for deal ${dealId} after assignments`);
+    }
     
     // Log assignment summary
     const agentCounts = AVAILABLE_AGENTS.map(agent => ({
