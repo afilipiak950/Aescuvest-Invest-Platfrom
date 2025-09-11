@@ -684,7 +684,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocuments(fileIds: number[]): Promise<number> {
     if (fileIds.length === 0) return 0;
+    
+    // Get deal IDs for cache invalidation before deletion
+    const docsToDelete = await db.select({ dealId: documents.dealId })
+      .from(documents)
+      .where(inArray(documents.id, fileIds));
+    
     const result = await db.delete(documents).where(inArray(documents.id, fileIds));
+    
+    // Clear cache for all affected deals
+    const affectedDeals = [...new Set(docsToDelete.map(doc => doc.dealId))];
+    affectedDeals.forEach(dealId => {
+      if (dealId) {
+        documentCache.delete(dealId);
+        console.log(`📄 Cleared document cache for deal ${dealId} after deletion`);
+      }
+    });
+    
+    console.log(`🗑️ Deleted ${result.rowCount || 0} documents, cleared cache for ${affectedDeals.length} deals`);
     return result.rowCount || 0;
   }
 
