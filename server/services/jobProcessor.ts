@@ -497,8 +497,16 @@ class JobProcessor {
           summaryPromise,
           summaryTimeoutPromise
         ]);
-        aiSummaryStatus = 'completed';
-        await this.updateJobProgress(job.id, 90, 'AI summary generated successfully...');
+        
+        // Handle quota exceeded case (aiSummary will be null)
+        if (aiSummary === null) {
+          console.log('⚠️ AI summary skipped due to OpenAI quota limits');
+          aiSummaryStatus = 'quota_exceeded';
+          await this.updateJobProgress(job.id, 85, 'AI summary skipped due to quota limits, continuing with OCR results...');
+        } else {
+          aiSummaryStatus = 'completed';
+          await this.updateJobProgress(job.id, 90, 'AI summary generated successfully...');
+        }
       } catch (error) {
         console.error('Failed to generate AI summary during OCR:', error);
         aiSummaryStatus = 'failed';
@@ -950,7 +958,16 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
 
     } catch (error: any) {
       console.error('OpenAI API error during summary generation:', error);
-      throw new Error(`Failed to generate AI summary: ${error?.message || 'Unknown error'}`);
+      
+      // Handle quota/rate limit errors gracefully to prevent app crashes
+      if (error?.status === 429 || error?.code === 'insufficient_quota' || error?.message?.includes('quota')) {
+        console.log('⚠️ OpenAI quota exceeded - returning null to prevent app crash');
+        return null; // Return null instead of throwing to prevent app crash
+      }
+      
+      // For other errors, throw but with better error handling
+      const errorMessage = error?.message || 'Unknown OpenAI error';
+      throw new Error(`Failed to generate AI summary: ${errorMessage}`);
     }
   }
 
@@ -991,15 +1008,37 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       while (retryCount < maxRetries) {
         try {
           aiSummary = await this.generateAISummary(document.ocrText);
+          
+          // Handle quota exceeded case (aiSummary will be null)
+          if (aiSummary === null) {
+            console.log('⚠️ AI summary generation skipped due to OpenAI quota limits');
+            // Update document status to quota_exceeded and complete the job gracefully
+            await db.update(documents)
+              .set({
+                aiSummaryStatus: 'quota_exceeded',
+                updatedAt: new Date()
+              })
+              .where(eq(documents.id, documentId));
+              
+            await this.updateJobProgress(job.id, 100, 'AI summary skipped due to quota limits');
+            await this.completeJob(job.id, { 
+              success: true, 
+              documentId: documentId,
+              aiSummary: null,
+              status: 'quota_exceeded'
+            });
+            return; // Exit gracefully without error
+          }
+          
           break; // Success
         } catch (error: any) {
           retryCount++;
           console.error(`⚠️ AI summary attempt ${retryCount}/${maxRetries} failed:`, error.message);
           
-          if (error.message?.includes('rate_limit') || error.message?.includes('429')) {
-            // Rate limit hit - wait longer
+          if (error.message?.includes('rate_limit') || error.message?.includes('429') || error.message?.includes('quota')) {
+            // Rate limit or quota hit - wait longer
             const backoffDelay = Math.min(10000 * Math.pow(2, retryCount), 60000); // Max 1 minute
-            console.log(`⏳ Rate limit hit, waiting ${backoffDelay/1000}s before retry...`);
+            console.log(`⏳ Rate/quota limit hit, waiting ${backoffDelay/1000}s before retry...`);
             await new Promise(resolve => setTimeout(resolve, backoffDelay));
           } else if (retryCount < maxRetries) {
             // Other error - shorter retry
