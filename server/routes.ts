@@ -1231,6 +1231,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   (global as any).documentCache = documentCache;
   console.log('🌐 Document cache made globally accessible for ZIP upload cache clearing');
   
+  // Helper function to clear paginated document cache from other modules
+  const clearPaginatedDocumentCache = (dealId: number): void => {
+    // Clear all cache entries for this deal (across all pages/limits/summary modes)
+    const keysToDelete: string[] = [];
+    for (const [key] of documentCache) {
+      if (key.startsWith(`${dealId}-`)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => documentCache.delete(key));
+    console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
+  }
+  
   app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
     const startTime = Date.now();
     try {
@@ -9920,18 +9933,7 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ Global AI Assistant endpoints registered');
 
-  // Export function to clear paginated document cache from other modules
-  const clearPaginatedDocumentCache = (dealId: number): void => {
-    // Clear all cache entries for this deal (across all pages/limits/summary modes)
-    const keysToDelete: string[] = [];
-    for (const [key] of documentCache) {
-      if (key.startsWith(`${dealId}-`)) {
-        keysToDelete.push(key);
-      }
-    }
-    keysToDelete.forEach(key => documentCache.delete(key));
-    console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
-  }
+  // Function already moved to earlier in the file - placeholder comment
   
   // Debug endpoint to manually clear document cache
   app.post('/api/deals/:dealId/debug/clear-cache', async (req: Request, res: Response) => {

@@ -1343,12 +1343,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     onSuccess: async (data) => {
       console.log('Files deleted successfully:', data);
       
-      // Force immediate refetch to ensure UI is in sync with server
-      await refetch();
+      // CRITICAL: Complete cache clearing to prevent reappearing documents
+      // First remove the query completely to ensure no stale data
+      await queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       
-      // Invalidate and refetch any related queries
+      // Then invalidate to mark as stale
       await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/analyses`] });
+      
+      // Force immediate refetch to ensure UI is in sync with server
+      await refetch();
       
       // Show success notification with better UX
       if (data && data.deletedCount) {
