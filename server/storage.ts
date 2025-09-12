@@ -156,6 +156,7 @@ export interface IStorage {
   getComprehensiveAnalysis(dealId: number): Promise<ComprehensiveAnalysis | undefined>;
   createOrUpdateComprehensiveAnalysis(dealId: number, data: Partial<ComprehensiveAnalysis>): Promise<ComprehensiveAnalysis>;
   deleteComprehensiveAnalysesByDealId(dealId: number): Promise<number>;
+  deleteComprehensiveHrAnalysesByDealId(dealId: number): Promise<number>;
   deleteBackgroundUploadsByDealId(dealId: number): Promise<number>;
   deleteInvestorMatchesByDealId(dealId: number): Promise<number>;
   deleteInvestmentMemosByDealId(dealId: number): Promise<number>;
@@ -339,6 +340,9 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`🗑️ DatabaseStorage: Deleting analyses for deal ${id}...`);
       await this.deleteAnalysesByDealId(id);
+      
+      console.log(`🗑️ DatabaseStorage: Deleting comprehensive HR analyses for deal ${id}...`);
+      await this.deleteComprehensiveHrAnalysesByDealId(id);
       
       console.log(`🗑️ DatabaseStorage: Deleting company research for deal ${id}...`);
       await this.deleteCompanyResearchByDealId(id);
@@ -1436,6 +1440,21 @@ export class DatabaseStorage implements IStorage {
       return count;
     } catch (error) {
       console.error(`❌ DatabaseStorage: Error deleting comprehensive analysis for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteComprehensiveHrAnalysesByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting comprehensive HR analyses for deal ${dealId}...`);
+      // Import comprehensiveHrAnalyses from schema
+      const { comprehensiveHrAnalyses } = await import('../shared/schema');
+      const result = await db.delete(comprehensiveHrAnalyses).where(eq(comprehensiveHrAnalyses.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} comprehensive HR analyses record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting comprehensive HR analyses for deal ${dealId}:`, error);
       return 0;
     }
   }
