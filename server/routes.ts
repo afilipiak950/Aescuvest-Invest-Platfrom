@@ -1224,25 +1224,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // ⚡ Document Cache for Dashboard Performance (5 minute cache) - Updated for pagination
-  const documentCache = new Map<string, { data: any, timestamp: number }>();
+  // Import cache service functions
+  const { clearPaginatedDocumentCache, getPaginatedDocumentCache, setPaginatedDocumentCache } = await import('./services/cacheService');
   
-  // Make document cache globally accessible for cache clearing after ZIP uploads
-  (global as any).documentCache = documentCache;
-  console.log('🌐 Document cache made globally accessible for ZIP upload cache clearing');
-  
-  // Helper function to clear paginated document cache from other modules
-  const clearPaginatedDocumentCache = (dealId: number): void => {
-    // Clear all cache entries for this deal (across all pages/limits/summary modes)
-    const keysToDelete: string[] = [];
-    for (const [key] of documentCache) {
-      if (key.startsWith(`${dealId}-`)) {
-        keysToDelete.push(key);
-      }
-    }
-    keysToDelete.forEach(key => documentCache.delete(key));
-    console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
-  }
+  // Make cache clearing function globally accessible for backward compatibility
+  (global as any).clearPaginatedDocumentCache = clearPaginatedDocumentCache;
+  console.log('🌐 Cache service initialized for document caching');
   
   app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
     const startTime = Date.now();
@@ -1257,14 +1244,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 10000; // 🚨 RESTORED: No artificial limit - return ALL documents
       const summary = req.query.summary === 'true'; // Summary mode for dashboard
       
-      // Create cache key including pagination params
-      const cacheKey = `${dealId}-${page}-${limit}-${summary}`;
-      const cached = documentCache.get(cacheKey);
+      // Check cache first (cache service handles TTL automatically)
+      const cached = getPaginatedDocumentCache(dealId);
       
-      if (cached && (Date.now() - cached.timestamp) < 5 * 60 * 1000) { // 5 minute cache
-        console.log(`⚡ Using cached documents for deal ${dealId} page ${page} (${cached.data.documents.length} docs)`);
+      if (cached) {
+        console.log(`⚡ Using cached documents for deal ${dealId} page ${page} (${cached.documents.length} docs)`);
         res.setHeader('X-Cache', 'HIT');
-        return res.status(200).json(cached.data);
+        return res.status(200).json(cached);
       }
       
       console.log(`📄 Fetching documents for deal ${dealId} page ${page} (limit: ${limit}, summary: ${summary})...`);
@@ -1277,7 +1263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalTime = Date.now() - startTime;
       
       // Cache the result for future requests
-      documentCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      setPaginatedDocumentCache(dealId, result);
       
       console.log(`📄 Documents fetch completed for deal ${dealId} page ${page}: ${result.documents.length}/${result.total} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms) - PAGINATED`);
       
@@ -9093,11 +9079,11 @@ export async function registerAllRoutes(app: Express) {
 
       console.log(`✅ Data room ZIP upload successful: ${zipResult.processedFiles.length} documents processed`);
 
-      // CRITICAL: Clear cache after ZIP processing to ensure documents appear immediately
-      console.log(`🔄 Clearing document cache for deal ${dealId} after ZIP processing`);
-      clearPaginatedDocumentCache(dealId);
-      await storage.invalidateDocumentCache(dealId);
-      console.log(`✅ Cache cleared - documents will now appear immediately`);
+      // CRITICAL: Clear all caches after ZIP processing to ensure documents appear immediately
+      console.log(`🔄 Clearing all document caches for deal ${dealId} after ZIP processing...`);
+      const { clearAllDocumentCaches } = await import('./services/cacheService');
+      await clearAllDocumentCaches(dealId);
+      console.log(`✅ All caches cleared - documents will now appear immediately`);
 
       res.json({
         success: true,
