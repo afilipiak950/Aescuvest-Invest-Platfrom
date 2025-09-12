@@ -515,6 +515,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(diagnostics);
   });
 
+  // Data room disconnect endpoint - deletes all documents for a deal
+  app.post('/api/deals/:dealId/data-room/disconnect', async (req: Request, res: Response) => {
+    console.log('🎯 API route hit: POST /api/deals/:dealId/data-room/disconnect');
+    const dealId = parseInt(req.params.dealId);
+    
+    try {
+      // Delete all documents for this deal
+      const deletedCount = await storage.deleteDocumentsByDealId(dealId);
+      console.log(`🗑️ Deleted ${deletedCount} documents for deal ${dealId}`);
+      
+      // CRITICAL: Clear all caches for this deal so UI updates instantly
+      clearPaginatedDocumentCache(dealId);
+      await storage.invalidateDocumentCache(dealId);
+      console.log(`🧹 Cleared all caches for deal ${dealId} after disconnect`);
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: `Data room disconnected. ${deletedCount} documents removed.`,
+        deletedCount 
+      });
+    } catch (error) {
+      console.error('❌ Error disconnecting data room:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to disconnect data room',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // 🔍 OCR EXTRACTION TEST ROUTE
   app.post('/test-ocr-extraction/:dealId', async (req: Request, res: Response) => {
     const dealId = parseInt(req.params.dealId);
@@ -1263,9 +1293,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'File IDs are required' });
       }
 
-      console.log(`🗑️ Attempting to delete ${fileIds.length} documents`);
+      // Get deal IDs for the documents being deleted (for cache clearing)
+      const documentsToDelete = await storage.getDocumentsByIds(fileIds);
+      const dealIds = new Set(documentsToDelete.map((doc: any) => doc.dealId));
+      
+      console.log(`🗑️ Attempting to delete ${fileIds.length} documents from deals: ${Array.from(dealIds).join(', ')}`);
       const deletedCount = await storage.deleteDocuments(fileIds);
       console.log(`✅ Successfully deleted ${deletedCount} documents`);
+
+      // CRITICAL: Clear document cache for all affected deals so UI updates instantly
+      for (const dealId of dealIds) {
+        // Clear paginated document cache
+        clearPaginatedDocumentCache(dealId);
+        // Clear storage cache
+        await storage.invalidateDocumentCache(dealId);
+        console.log(`🧹 Cleared all caches for deal ${dealId} after deletion`);
+      }
 
       return res.status(200).json({ 
         message: `Successfully deleted ${deletedCount} files`,
