@@ -470,14 +470,14 @@ export default function EnhancedAgentCard({
   const { data: comprehensiveClinicalResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
     enabled: !!dealId && agentType.toLowerCase() === 'clinical',
-    refetchInterval: 5000, // Poll every 5 seconds to get updates
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 5s to 30s
   });
 
   // Fetch agent-specific results directly from the agent results endpoint (for non-clinical agents)
   const { data: agentResults } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/${agentType.toLowerCase()}/results`],
     enabled: !!dealId && !!agentType && agentType.toLowerCase() !== 'clinical',
-    refetchInterval: 5000, // Poll every 5 seconds to get updates
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 5s to 30s
   });
 
   // Use comprehensive clinical results if available, otherwise use agent results, fallback to passed analysis

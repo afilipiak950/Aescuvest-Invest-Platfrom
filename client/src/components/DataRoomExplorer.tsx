@@ -78,7 +78,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
     refetchInterval: (data: any) => {
       // Smart polling: faster when jobs active, slower when idle
       const hasActiveJobs = data?.jobs?.some((job: any) => job.status === 'processing');
-      return hasActiveJobs ? 3000 : 15000; // 🚀 OPTIMIZED: 3s when active, 15s when idle
+      return hasActiveJobs ? 10000 : 30000; // 🚀 OPTIMIZED: 10s when active, 30s when idle - reduced for performance
     },
   });
   
