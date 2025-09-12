@@ -1220,18 +1220,38 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (response) => {
+      const uploadCompleteTime = Date.now();
+      console.log(`⏱️ [T+0ms] Upload completed at ${new Date(uploadCompleteTime).toISOString()}`);
+      console.log(`📦 Server response:`, response);
+      
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
       
       // CRITICAL: Wait a moment for backend cache clearing to complete
-      console.log('⏳ Waiting for backend cache clearing...');
+      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Waiting for backend cache clearing...`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Increased to 1 second
+      
+      // Force clear React Query cache completely
+      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Clearing React Query cache...`);
+      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      // Wait a bit more for cache to clear
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Invalidate and immediately refetch documents
-      console.log('🔄 Invalidating and refetching documents after ZIP upload...');
+      // Now refetch with fresh data
+      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Refetching documents...`);
+      const refetchResult = await queryClient.refetchQueries({ 
+        queryKey: [`/api/deals/${dealId}/documents`],
+        exact: true 
+      });
+      
+      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Refetch complete!`);
+      console.log(`📊 Refetch result:`, refetchResult);
+      
+      // Force a re-render by updating React Query cache
       await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      console.log('✅ Documents refreshed - should now show new files');
+      
+      console.log(`✅ [T+${Date.now() - uploadCompleteTime}ms] Documents should now be visible!`);
       
       setTimeout(() => setUploadProgress(null), 3000); // Clear after 3 seconds
       if (fileInputRef.current) {

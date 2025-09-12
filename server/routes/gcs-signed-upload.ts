@@ -220,6 +220,9 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       console.log('✅ File downloaded from GCS');
 
       // Process the ZIP file
+      const zipStartTime = Date.now();
+      console.log(`⏱️ [ZIP] Starting ZIP processing at ${new Date(zipStartTime).toISOString()}`);
+      
       const processedDocs = await zipProcessor.processZipFromGCS(
         tempFilePath,
         parseInt(dealId),
@@ -227,20 +230,20 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
         gcsFileName
       );
 
-      console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted with automatic OCR and AI processing`);
+      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] ZIP processed: ${processedDocs.length} documents extracted`);
 
       // Clean up temp file
       const fs = await import('fs');
       await fs.promises.unlink(tempFilePath);
-      console.log('🧹 Temp file cleaned up');
+      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] Temp file cleaned up`);
 
       // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
       // No need for additional job creation here - the method handles everything
 
       // CRITICAL: Clear all caches after ZIP processing so documents appear instantly
-      console.log(`🔄 Clearing all document caches for deal ${dealId} after GCS ZIP processing...`);
+      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] Clearing all document caches for deal ${dealId}...`);
       await clearAllDocumentCaches(parseInt(dealId));
-      console.log(`✅ All caches cleared - documents will now appear immediately`);
+      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] ✅ All caches cleared - documents MUST appear immediately`);
 
       return res.status(200).json({
         success: true,
