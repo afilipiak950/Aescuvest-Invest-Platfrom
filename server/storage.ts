@@ -1966,7 +1966,27 @@ export class DatabaseStorage implements IStorage {
   async invalidateDocumentCache(dealId: number): Promise<void> {
     // Clear the actual document cache Map
     documentCache.delete(dealId);
-    console.log(`📄 ✅ ACTUALLY invalidated document cache for deal ${dealId} - forced cache clear`);
+    console.log(`📄 ✅ CLEARED storage document cache for deal ${dealId}`);
+    
+    // Try to clear the paginated cache in routes.ts if server is available
+    try {
+      // Access the global server instance if it exists
+      const serverModule = require('./routes');
+      if (serverModule && typeof serverModule.clearPaginatedDocumentCache === 'function') {
+        serverModule.clearPaginatedDocumentCache(dealId);
+      }
+    } catch (error) {
+      // Fallback: try to access via global if server is attached
+      try {
+        const app = global as any;
+        if (app.server && typeof app.server.clearPaginatedDocumentCache === 'function') {
+          app.server.clearPaginatedDocumentCache(dealId);
+        }
+      } catch (fallbackError) {
+        console.log(`📄 Note: Could not clear paginated cache (this is ok during startup)`);
+      }
+    }
+    
     return Promise.resolve();
   }
 
