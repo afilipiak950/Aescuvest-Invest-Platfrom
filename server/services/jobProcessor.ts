@@ -18,10 +18,10 @@ class JobProcessor {
       this.cleanupStuckJobs();
     }, 5 * 60 * 1000); // 5 minutes
     
-    // 🚀 LOAD PENDING JOBS: Check database every 5 seconds for pending jobs to enable parallel processing
+    // 🚀 LOAD PENDING JOBS: Check database every 10 seconds for pending jobs (throttled)
     setInterval(() => {
       this.loadPendingJobsFromDatabase();
-    }, 5 * 1000); // 5 seconds
+    }, 10 * 1000); // 10 seconds (was 5 seconds)
     
     // Load pending jobs immediately on startup
     setTimeout(() => {
@@ -1337,4 +1337,13 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
   }
 }
 
-export const jobProcessor = new JobProcessor();
+// Singleton pattern to prevent duplicate intervals
+let _jobProcessor: JobProcessor | null = null;
+
+export const jobProcessor = (() => {
+  if (!_jobProcessor) {
+    console.log('🔄 Creating new JobProcessor singleton instance');
+    _jobProcessor = new JobProcessor();
+  }
+  return _jobProcessor;
+})();

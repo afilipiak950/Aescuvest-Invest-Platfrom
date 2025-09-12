@@ -1,17 +1,56 @@
 import express from 'express';
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { gcsService } from '../services/googleCloudStorage';
 import { storage as dbStorage } from '../storage';
-import { backgroundJobManager } from '../services/backgroundJobManager';
+import { jobProcessor } from '../services/jobProcessor';
 import { Readable } from 'stream';
+import { optionalApiAuth } from '../middleware/apiAuth';
+import { 
+  uploadRateLimit, 
+  strictUploadRateLimit, 
+  validateFileSize, 
+  validateFilename, 
+  validateDealId, 
+  sanitizeFilename, 
+  createSecurePath 
+} from '../middleware/uploadSecurity';
 
 const router = express.Router();
 
-// Configure multer for memory storage (stream directly to GCS)
+// SECURE MULTER CONFIGURATION - Fixed DoS vulnerability
+// Switched from memory to disk storage and reduced size limit from 5TB to 500MB
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      const uploadsDir = path.join(process.cwd(), 'uploads', 'temp');
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+      // Use secure filename with timestamp
+      const timestamp = Date.now();
+      const sanitized = sanitizeFilename(file.originalname);
+      cb(null, `${timestamp}_${sanitized}`);
+    }
+  }),
   limits: {
-    fileSize: 5 * 1024 * 1024 * 1024 * 1024, // 5TB limit
+    fileSize: 500 * 1024 * 1024, // 500MB limit (was 5TB - CRITICAL FIX)
+    files: 1, // Only allow single file uploads
+    fieldSize: 1024 * 1024, // 1MB field size limit
+  },
+  fileFilter: (req, file, cb) => {
+    try {
+      // Additional filename validation
+      sanitizeFilename(file.originalname);
+      cb(null, true);
+    } catch (error) {
+      cb(new Error(`Invalid filename: ${error instanceof Error ? error.message : 'Unknown error'}`));
+    }
   }
 });
 
@@ -30,11 +69,15 @@ router.get('/api/gcs/proxy-upload/test', (req, res) => {
 });
 
 /**
- * Proxy upload endpoint - handles upload server-side to bypass CORS
- * This is the ultimate solution for production 413 and CORS issues
+ * SECURE Proxy upload endpoint - handles upload server-side to bypass CORS
+ * SECURITY FIXES: Added auth, rate limiting, filename validation, and size limits
  */
 router.post('/api/gcs/proxy-upload/:dealId', 
-  upload.single('file'),
+  uploadRateLimit, // Rate limiting to prevent DoS
+  optionalApiAuth, // Optional authentication
+  validateDealId, // Validate deal ID parameter
+  validateFileSize(500), // Validate file size (500MB max)
+  upload.single('file'), // Secure file upload
   async (req, res) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -49,9 +92,10 @@ router.post('/api/gcs/proxy-upload/:dealId',
       
       console.log(`🚀 Proxy upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB) for deal ${dealId}`);
       
-      // Generate GCS path
+      // Generate SECURE GCS path with sanitized filename
       const timestamp = Date.now();
-      const gcsFileName = `deals/${dealId}/documents/${timestamp}_${file.originalname}`;
+      const sanitizedFilename = sanitizeFilename(file.originalname);
+      const gcsFileName = `deals/${dealId}/documents/${timestamp}_${sanitizedFilename}`;
       
       // Upload directly to GCS from memory buffer
       console.log(`📤 Uploading to GCS via proxy: ${gcsFileName}`);
@@ -69,8 +113,8 @@ router.post('/api/gcs/proxy-upload/:dealId',
         const bucket = (gcsService as any).bucket;
         const gcsFile = bucket.file(gcsFileName);
         
-        // Create a stream from the buffer
-        const stream = Readable.from(file.buffer);
+        // Create a stream from the uploaded file (now using disk storage)
+        const stream = fs.createReadStream(file.path);
         
         // Upload to GCS with timeout
         await Promise.race([
@@ -111,9 +155,7 @@ router.post('/api/gcs/proxy-upload/:dealId',
         console.error('⚠️ GCS upload failed, using local storage fallback:', gcsError);
         useLocalFallback = true;
         
-        // Fallback to local storage
-        const fs = await import('fs');
-        const path = await import('path');
+        // SECURE Fallback to local storage - FIXED PATH TRAVERSAL VULNERABILITY
         const uploadDir = path.join(process.cwd(), 'uploads', 'extracted', `deal-${dealId}`);
         
         // Create directory if it doesn't exist
@@ -121,17 +163,32 @@ router.post('/api/gcs/proxy-upload/:dealId',
           fs.mkdirSync(uploadDir, { recursive: true });
         }
         
-        // Save file locally
-        const localPath = path.join(uploadDir, file.originalname);
-        fs.writeFileSync(localPath, file.buffer);
+        // SECURITY FIX: Use createSecurePath instead of direct path.join
+        const localPath = createSecurePath(
+          path.join(process.cwd(), 'uploads', 'extracted'),
+          dealId,
+          file.originalname
+        );
+        
+        // Copy from temp upload location to secure final location
+        fs.copyFileSync(file.path, localPath);
         
         gcsPath = localPath;
         console.log(`✅ File saved locally as fallback: ${localPath}`);
       }
       console.log(`✅ Proxy upload successful: ${gcsPath}`);
       
+      // Clean up temporary file if it exists
+      try {
+        if (file.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      } catch (cleanupError) {
+        console.warn('⚠️ Failed to cleanup temp file:', cleanupError);
+      }
+      
       // Check if file is a ZIP that needs extraction
-      const isZipFile = file.originalname.toLowerCase().endsWith('.zip');
+      const isZipFile = sanitizedFilename.toLowerCase().endsWith('.zip');
       
       if (isZipFile) {
         console.log(`📦 ZIP file detected - creating extraction job`);
@@ -187,12 +244,13 @@ router.post('/api/gcs/proxy-upload/:dealId',
           console.log(`🔍 ZIP UPLOAD MICRO-STEP 3: Job data:`, JSON.stringify(jobData, null, 2));
           
           // Wrap job creation with timeout to prevent hanging
-          jobId = await Promise.race([
+          const jobIdNumber = await Promise.race([
             jobProcessor.createJob(jobData),
-            new Promise<string>((_, reject) => 
+            new Promise<number>((_, reject) => 
               setTimeout(() => reject(new Error('Job creation timeout')), 5000)
             )
           ]);
+          jobId = jobIdNumber.toString();
           
           console.log(`🔍 ZIP UPLOAD MICRO-STEP 4: Job created with ID: ${jobId}`);
           console.log(`✅ ZIP extraction job created: ${jobId}`);
@@ -240,12 +298,16 @@ router.post('/api/gcs/proxy-upload/:dealId',
           console.log(`✅ Document registered: ${document.id}`);
           
           try {
-            // Create background job for OCR processing with timeout
-            jobId = await Promise.race([
-              backgroundJobManager.createJob({
+            // Create background job for OCR processing with timeout using jobProcessor
+            const jobIdNumber = await Promise.race([
+              jobProcessor.createJob({
+                jobId: `ocr_${dealId}_${document.id}_${Date.now()}`,
                 jobType: 'document_ocr',
                 dealId: dealId,
                 documentId: document.id,
+                status: 'pending',
+                progress: 0,
+                currentStep: 'Starting OCR processing...',
                 jobData: {
                   filePath: gcsPath,
                   fileName: file.originalname,
@@ -253,10 +315,11 @@ router.post('/api/gcs/proxy-upload/:dealId',
                   documentName: file.originalname
                 }
               }),
-              new Promise<string>((_, reject) => 
+              new Promise<number>((_, reject) => 
                 setTimeout(() => reject(new Error('OCR job creation timeout')), 5000)
               )
             ]);
+            jobId = jobIdNumber.toString();
             
             console.log(`✅ Processing job created: ${jobId}`);
           } catch (jobError: any) {
@@ -311,10 +374,15 @@ router.post('/api/gcs/proxy-upload/:dealId',
 );
 
 /**
- * Stream upload endpoint for very large files
- * Handles streaming directly to GCS without loading into memory
+ * SECURE Stream upload endpoint for large files
+ * SECURITY FIXES: Added authentication, rate limiting, and size validation
  */
-router.post('/api/gcs/stream-upload/:dealId', async (req, res) => {
+router.post('/api/gcs/stream-upload/:dealId', 
+  strictUploadRateLimit, // Stricter rate limiting for large files
+  optionalApiAuth, // Optional authentication
+  validateDealId, // Validate deal ID
+  validateFileSize(500), // 500MB limit for stream uploads too
+  async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);
     const fileName = req.headers['x-file-name'] as string;
@@ -327,11 +395,23 @@ router.post('/api/gcs/stream-upload/:dealId', async (req, res) => {
       });
     }
     
+    // SECURITY: Sanitize the filename
+    let sanitizedFileName: string;
+    try {
+      sanitizedFileName = sanitizeFilename(fileName);
+    } catch (error: any) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid filename',
+        error: error.message
+      });
+    }
+    
     console.log(`🌊 Stream upload: ${fileName} (${(fileSize / 1024 / 1024).toFixed(1)}MB) for deal ${dealId}`);
     
-    // Generate GCS path
+    // Generate SECURE GCS path
     const timestamp = Date.now();
-    const gcsFileName = `deals/${dealId}/documents/${timestamp}_${fileName}`;
+    const gcsFileName = `deals/${dealId}/documents/${timestamp}_${sanitizedFileName}`;
     
     // Stream directly to GCS
     const bucket = (gcsService as any).bucket;
@@ -342,7 +422,7 @@ router.post('/api/gcs/stream-upload/:dealId', async (req, res) => {
         contentType: req.headers['content-type'] || 'application/octet-stream',
         metadata: {
           dealId: dealId.toString(),
-          originalName: fileName,
+          originalName: sanitizedFileName,
           uploadedAt: new Date().toISOString()
         }
       }
@@ -368,8 +448,8 @@ router.post('/api/gcs/stream-upload/:dealId', async (req, res) => {
           // Create document record
           const document = await dbStorage.createDocument({
             dealId: dealId,
-            name: fileName,
-            type: fileName.split('.').pop() || '',
+            name: sanitizedFileName,
+            type: sanitizedFileName.split('.').pop() || '',
             path: gcsPath,
             size: fileSize,
             status: 'Pending',
@@ -377,18 +457,23 @@ router.post('/api/gcs/stream-upload/:dealId', async (req, res) => {
             isFolder: false
           } as any);
           
-          // Create background job
-          const jobId = await backgroundJobManager.createJob({
+          // Create background job using jobProcessor
+          const jobIdNumber = await jobProcessor.createJob({
+            jobId: `ocr_stream_${dealId}_${document.id}_${Date.now()}`,
             jobType: 'document_ocr',
             dealId: dealId,
             documentId: document.id,
+            status: 'pending',
+            progress: 0,
+            currentStep: 'Starting OCR processing...',
             jobData: {
               filePath: gcsPath,
-              fileName: fileName,
+              fileName: sanitizedFileName,
               documentId: document.id,
-              documentName: fileName
+              documentName: sanitizedFileName
             }
           });
+          const jobId = jobIdNumber.toString();
           
           res.json({
             success: true,

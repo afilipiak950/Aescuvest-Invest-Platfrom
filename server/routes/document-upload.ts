@@ -4,16 +4,24 @@ import path from 'path';
 import fs from 'fs';
 import { dbFileStorage } from '../services/databaseFileStorage';
 import { gcsService } from '../services/googleCloudStorage';
+import { optionalApiAuth } from '../middleware/apiAuth';
+import { 
+  uploadRateLimit, 
+  validateFileSize, 
+  validateFilename, 
+  sanitizeFilename,
+  createSecurePath 
+} from '../middleware/uploadSecurity';
 
 const router = express.Router();
 
 // Check if GCS is enabled (production always uses GCS)
 const useGCS = process.env.USE_GCS === 'true' || process.env.NODE_ENV === 'production';
 
-// Setup multer for file uploads with proper file storage
+// SECURE multer configuration with proper file storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'temp');
     // Create uploads directory if it doesn't exist
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -21,27 +29,36 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
-    // Keep original filename with timestamp to avoid conflicts
+    // SECURE filename generation with sanitization
     const timestamp = Date.now();
-    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, `${timestamp}_${originalName}`);
+    const sanitized = sanitizeFilename(file.originalname);
+    cb(null, `${timestamp}_${sanitized}`);
   }
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
+    fileSize: 500 * 1024 * 1024, // SECURITY FIX: Reduced from 1GB to 500MB
+    files: 10, // Limit number of files
+    fieldSize: 1024 * 1024, // 1MB field size limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|txt|png|jpg|jpeg/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Invalid file type'));
+    try {
+      // SECURITY: Sanitize filename first
+      sanitizeFilename(file.originalname);
+      
+      const allowedTypes = /pdf|doc|docx|txt|png|jpg|jpeg|zip/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Invalid file type'));
+      }
+    } catch (error) {
+      cb(new Error(`Invalid filename: ${error instanceof Error ? error.message : 'Unknown error'}`));
     }
   }
 });
@@ -49,9 +66,14 @@ const upload = multer({
 /**
  * @route POST /api/documents/upload-analyze
  * @desc Upload files and start analysis
- * @access Public
+ * @access SECURED with rate limiting and optional auth
  */
-router.post('/upload-analyze', upload.array('files', 10), async (req: Request, res: Response) => {
+router.post('/upload-analyze', 
+  uploadRateLimit, // Rate limiting
+  optionalApiAuth, // Optional authentication
+  validateFileSize(500), // File size validation
+  upload.array('files', 10), 
+  async (req: Request, res: Response) => {
   try {
     console.log('🎯 UPLOAD ROUTE SUCCESSFULLY HIT!');
     console.log('Method:', req.method);
@@ -77,6 +99,9 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
     const uploadedFiles = await Promise.all(files.map(async (file) => {
       console.log(`📄 File uploaded to: ${file.path}`);
       console.log(`📄 Filename on disk: ${file.filename}`);
+      
+      // SECURITY: Sanitize filename
+      const sanitizedName = sanitizeFilename(file.originalname);
       
       // Verify file was actually written
       if (fs.existsSync(file.path)) {
@@ -105,16 +130,25 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
         }
       }
       
+      // Clean up temp file after processing
+      try {
+        if (file.path && fs.existsSync(file.path) && finalPath !== file.path) {
+          fs.unlinkSync(file.path);
+        }
+      } catch (cleanupError) {
+        console.warn('⚠️ Failed to cleanup temp file:', cleanupError);
+      }
+      
       // Ensure we return the correct file information for OCR processing
       return {
         id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: file.originalname,
+        name: sanitizedName,
         size: file.size,
         type: file.mimetype,
         status: 'uploaded',
         path: finalPath,
         filename: file.filename,
-        diskPath: file.path // Keep local path for compatibility
+        diskPath: finalPath // Use final path, not temp path
       };
     }));
 
@@ -157,9 +191,14 @@ router.post('/upload-analyze', upload.array('files', 10), async (req: Request, r
 /**
  * @route POST /api/documents
  * @desc Basic document upload with background job creation
- * @access Public
+ * @access SECURED with rate limiting and optional auth
  */
-router.post('/', upload.array('files', 10), async (req: Request, res: Response) => {
+router.post('/', 
+  uploadRateLimit, // Rate limiting
+  optionalApiAuth, // Optional authentication
+  validateFileSize(500), // File size validation
+  upload.array('files', 10), 
+  async (req: Request, res: Response) => {
   try {
     console.log('📁 Basic document upload route hit');
     console.log('Files received:', req.files?.length || 0);
@@ -181,9 +220,12 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
     for (const file of files) {
       const fileExt = path.extname(file.originalname).substring(1);
       
+      // SECURITY: Sanitize filename
+      const sanitizedName = sanitizeFilename(file.originalname);
+      
       const documentData = {
         dealId: dealId ? parseInt(dealId) : null,
-        name: file.originalname,
+        name: sanitizedName,
         type: fileExt,
         path: file.path,
         size: file.size,
@@ -196,7 +238,7 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
       const storagePath = await dbFileStorage.storeFile(
         file.path,
         dealId ? parseInt(dealId) : 0,
-        file.originalname
+        sanitizedName
       );
       
       // Update document data with storage path
@@ -208,16 +250,29 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
       // Create background OCR job for progress tracking
       const jobData = { 
         filePath: storagePath, // Use storage path instead of local path
-        fileName: file.originalname,
+        fileName: sanitizedName,
         documentId: document.id,
-        documentName: file.originalname
+        documentName: sanitizedName
       };
       
+      // Clean up temp file after processing
       try {
-        const jobId = await backgroundJobManager.createJob({
+        if (file.path && fs.existsSync(file.path) && storagePath !== file.path) {
+          fs.unlinkSync(file.path);
+        }
+      } catch (cleanupError) {
+        console.warn('⚠️ Failed to cleanup temp file:', cleanupError);
+      }
+      
+      try {
+        const { jobProcessor } = await import('../services/jobProcessor');
+        const jobId = await jobProcessor.createJob({
           jobType: 'document_ocr',
           dealId: dealId ? parseInt(dealId) : null,
           documentId: document.id,
+          status: 'pending',
+          progress: 0,
+          currentStep: 'Queued for OCR processing',
           jobData: jobData
         });
         
