@@ -999,10 +999,19 @@ app.use((req, res, next) => {
         console.log('✅ ZIP processing completed successfully');
         
         // Clear document cache for this deal so new documents show up immediately
-        // The clearPaginatedDocumentCache function is attached to the server object
-        if ((server as any).clearPaginatedDocumentCache) {
-          (server as any).clearPaginatedDocumentCache(dealId);
-          console.log(`📄 Cleared document cache for deal ${dealId} after ZIP upload`);
+        // Access the global document cache directly (set in routes.ts)
+        const documentCache = (global as any).documentCache;
+        if (documentCache) {
+          const keysToDelete: string[] = [];
+          for (const key of documentCache.keys()) {
+            if (key.startsWith(`${dealId}-`)) {
+              keysToDelete.push(key);
+            }
+          }
+          keysToDelete.forEach(key => documentCache.delete(key));
+          console.log(`📄 ✅ CLEARED document cache for deal ${dealId} after ZIP upload - removed ${keysToDelete.length} cache entries`);
+        } else {
+          console.log(`⚠️ Could not clear document cache - cache not accessible`);
         }
         
         // Also invalidate storage cache

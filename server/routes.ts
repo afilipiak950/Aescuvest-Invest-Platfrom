@@ -1197,6 +1197,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ⚡ Document Cache for Dashboard Performance (5 minute cache) - Updated for pagination
   const documentCache = new Map<string, { data: any, timestamp: number }>();
   
+  // Make document cache globally accessible for cache clearing after ZIP uploads
+  (global as any).documentCache = documentCache;
+  console.log('🌐 Document cache made globally accessible for ZIP upload cache clearing');
+  
   app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
     const startTime = Date.now();
     try {
