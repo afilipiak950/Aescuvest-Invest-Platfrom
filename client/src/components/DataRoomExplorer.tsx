@@ -1282,7 +1282,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
   });
 
-  // Delete files mutation
+  // Delete files mutation with optimistic updates and immediate UI refresh
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
       return await apiRequest(`/api/documents/delete`, {
@@ -1291,20 +1291,81 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         body: JSON.stringify({ fileIds })
       });
     },
-    onSuccess: (data) => {
-      console.log('Files deleted successfully:', data);
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+    onMutate: async (fileIds) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      
+      // Snapshot the previous value for rollback
+      const previousDocuments = queryClient.getQueryData([`/api/deals/${dealId}/documents`]);
+      
+      // Optimistically update the UI by removing deleted documents immediately
+      queryClient.setQueryData([`/api/deals/${dealId}/documents`], (old: any) => {
+        if (!old) return old;
+        
+        // Handle both array and paginated response structures
+        if (Array.isArray(old)) {
+          return old.filter((doc: any) => !fileIds.includes(doc.id));
+        } else if (old?.documents) {
+          return {
+            ...old,
+            documents: old.documents.filter((doc: any) => !fileIds.includes(doc.id)),
+            total: Math.max(0, (old.total || 0) - fileIds.length)
+          };
+        }
+        return old;
+      });
+      
+      // Clear selection state immediately for better UX
       setSelectedFiles(new Set());
       setIsSelectionMode(false);
       
-      // Show success notification
+      // Return context for rollback if needed
+      return { previousDocuments };
+    },
+    onSuccess: async (data) => {
+      console.log('Files deleted successfully:', data);
+      
+      // Force immediate refetch to ensure UI is in sync with server
+      await refetch();
+      
+      // Invalidate and refetch any related queries
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/analyses`] });
+      
+      // Show success notification with better UX
       if (data && data.deletedCount) {
-        alert(`Successfully deleted ${data.deletedCount} file(s)`);
+        // Use a toast notification instead of alert if available
+        const message = `Successfully deleted ${data.deletedCount} file${data.deletedCount > 1 ? 's' : ''}`;
+        console.log('✅', message);
+        
+        // Check if all documents were deleted to show upload interface immediately
+        const currentData = queryClient.getQueryData([`/api/deals/${dealId}/documents`]) as any;
+        const hasDocuments = Array.isArray(currentData) 
+          ? currentData.length > 0 
+          : currentData?.documents?.length > 0;
+        
+        if (!hasDocuments) {
+          console.log('📤 All documents deleted - showing upload interface');
+        }
       }
     },
-    onError: (error) => {
+    onError: (error, fileIds, context) => {
       console.error('File deletion failed:', error);
+      
+      // Rollback optimistic update on error
+      if (context?.previousDocuments) {
+        queryClient.setQueryData([`/api/deals/${dealId}/documents`], context.previousDocuments);
+      }
+      
+      // Re-enable selection mode if there was an error
+      setSelectedFiles(new Set(fileIds));
+      setIsSelectionMode(true);
+      
       alert(`Failed to delete files: ${error.message}`);
+    },
+    onSettled: () => {
+      // Ensure final state is consistent after mutation completes
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
     }
   });
 
@@ -2198,7 +2259,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   const documentsArray = documents as Document[] | undefined;
 
-  // 🚀 ULTRA-SMART FOLDER TREE: Progressive building with intelligent caching
+  // 🚀 ULTRA-SMART FOLDER TREE: Progressive building with intelligent caching and deletion support
   const { folderTree, emailAttachments } = useMemo(() => {
     // 🚀 OPTIMIZATION: Skip expensive computation if no documents
     if (!documents || documents.length === 0) {
@@ -2209,7 +2270,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     }
     return buildFolderTree(documents);
   }, 
-    [documents]
+    // Force rebuild when documents change or after deletion (tracked by deletion mutation state)
+    [documents, deleteFilesMutation.isSuccess]
   );
 
   if (isLoading) {
