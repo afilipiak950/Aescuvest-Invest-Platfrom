@@ -500,62 +500,91 @@ export class DatabaseStorage implements IStorage {
     console.log(`📄 DB: Starting PAGINATED documents query for deal ${dealId}, page ${page}, limit ${limit}, summary: ${summary}...`);
     const startTime = Date.now();
     
-    // For summary mode (dashboard), return minimal fields
-    const baseQuery = db.select({
-      id: documents.id,
-      dealId: documents.dealId,
-      name: documents.name,
-      type: documents.type,
-      size: documents.size,
-      status: documents.status,
-      uploadedAt: documents.uploadedAt,
-      folderPath: documents.folderPath,
-      isFolder: documents.isFolder,
-      category: documents.category,
-      documentType: documents.documentType,
-      aiSummaryStatus: documents.aiSummaryStatus,
-      ...(summary ? {} : {
-        // Full mode includes heavy fields
-        ocrContent: documents.ocrText,
-        parentId: documents.parentId,
-        aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
-        aiSummary: documents.aiSummary,
-        analyses: documents.analyses,
-        assignedAgents: documents.assignedAgents,
-        assignmentReason: documents.assignmentReason,
-        assignmentConfidence: documents.assignmentConfidence,
-        manuallyAssigned: documents.manuallyAssigned,
-        assignedAt: documents.assignedAt
-      })
-    });
-
-    // Get total count for pagination
-    const countResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
-    
-    const total = countResult[0]?.count || 0;
-    const totalPages = Math.ceil(total / limit);
-    const offset = (page - 1) * limit;
-
-    // Get paginated documents
-    const result = await baseQuery
-      .from(documents)
-      .where(eq(documents.dealId, dealId))
-      .orderBy(documents.name)
-      .limit(limit)
-      .offset(offset);
-    
-    const queryTime = Date.now() - startTime;
-    console.log(`📄 DB: Paginated query completed in ${queryTime}ms, page ${page}/${totalPages}, found ${result.length}/${total} documents`);
-    
-    return {
-      documents: result,
-      total,
-      page,
-      totalPages
-    };
+    try {
+      // Get total count for pagination first
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(documents)
+        .where(eq(documents.dealId, dealId));
+      
+      const total = countResult[0]?.count || 0;
+      console.log(`🔍 DEBUG: Count query result for deal ${dealId}: total=${total}`);
+      
+      if (total === 0) {
+        console.log(`⚠️ WARNING: No documents found for deal ${dealId} in database`);
+        return {
+          documents: [],
+          total: 0,
+          page,
+          totalPages: 0
+        };
+      }
+      
+      const totalPages = Math.ceil(total / limit);
+      const offset = (page - 1) * limit;
+      
+      // Build complete query with all required fields
+      const selectFields = {
+        id: documents.id,
+        dealId: documents.dealId,
+        name: documents.name,
+        type: documents.type,
+        path: documents.path, // 🔥 CRITICAL FIX: Missing path field was causing empty results
+        size: documents.size,
+        status: documents.status,
+        uploadedAt: documents.uploadedAt,
+        folderPath: documents.folderPath,
+        isFolder: documents.isFolder,
+        category: documents.category,
+        documentType: documents.documentType,
+        aiSummaryStatus: documents.aiSummaryStatus
+      };
+      
+      // Add extra fields for non-summary mode
+      if (!summary) {
+        Object.assign(selectFields, {
+          ocrText: documents.ocrText,
+          parentId: documents.parentId,
+          aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
+          aiSummary: documents.aiSummary,
+          analyses: documents.analyses,
+          assignedAgents: documents.assignedAgents,
+          assignmentReason: documents.assignmentReason,
+          assignmentConfidence: documents.assignmentConfidence,
+          manuallyAssigned: documents.manuallyAssigned,
+          assignedAt: documents.assignedAt
+        });
+      }
+      
+      // Execute the complete query
+      const result = await db
+        .select(selectFields)
+        .from(documents)
+        .where(eq(documents.dealId, dealId))
+        .orderBy(documents.name)
+        .limit(limit)
+        .offset(offset);
+      
+      const queryTime = Date.now() - startTime;
+      console.log(`📄 DB: Paginated query completed in ${queryTime}ms, page ${page}/${totalPages}, found ${result.length}/${total} documents`);
+      console.log(`🔍 DEBUG: First 3 document IDs returned:`, result.slice(0, 3).map(d => ({ id: d.id, name: d.name })));
+      
+      return {
+        documents: result,
+        total,
+        page,
+        totalPages
+      };
+    } catch (error) {
+      console.error(`❌ ERROR in getDocumentsByDealIdPaginated for deal ${dealId}:`, error);
+      // Return empty result on error instead of throwing
+      return {
+        documents: [],
+        total: 0,
+        page,
+        totalPages: 0
+      };
+    }
   }
 
   // NEW: Get documents WITH complete OCR text for memo generation using direct database connection
