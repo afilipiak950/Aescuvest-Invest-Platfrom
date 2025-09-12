@@ -157,13 +157,47 @@ class JobProcessor {
 
   async loadPendingJobsFromDatabase() {
     try {
-      // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
-      // ORDER BY ensures oldest jobs get processed first (fixes deal 37 jobs being starved by deal 41)
-      const pendingJobs = await db.select()
+      // 🚀 FAIR QUEUE LOADING: Load pending jobs with ROUND-ROBIN per deal to prevent starvation
+      // First, get unique deals with pending jobs
+      const dealsWithPendingJobs = await db
+        .selectDistinct({ dealId: backgroundJobs.dealId })
         .from(backgroundJobs)
         .where(eq(backgroundJobs.status, 'pending'))
-        .orderBy(asc(backgroundJobs.createdAt), asc(backgroundJobs.id))
-        .limit(50); // Load up to 50 pending jobs at a time
+        .limit(20); // Get up to 20 different deals
+      
+      // Load 2-3 jobs per deal for fair processing (prevents one deal from starving others)
+      const jobsPerDeal = Math.max(2, Math.floor(50 / Math.max(dealsWithPendingJobs.length, 1)));
+      const pendingJobs: BackgroundJob[] = [];
+      
+      for (const { dealId } of dealsWithPendingJobs) {
+        if (dealId) {
+          const dealJobs = await db.select()
+            .from(backgroundJobs)
+            .where(and(
+              eq(backgroundJobs.status, 'pending'),
+              eq(backgroundJobs.dealId, dealId)
+            ))
+            .orderBy(asc(backgroundJobs.createdAt))
+            .limit(jobsPerDeal);
+          
+          pendingJobs.push(...dealJobs);
+          console.log(`📊 Loaded ${dealJobs.length} jobs for deal ${dealId}`);
+        }
+      }
+      
+      // If we have room, load any remaining oldest jobs
+      if (pendingJobs.length < 50) {
+        const remainingSlots = 50 - pendingJobs.length;
+        const existingJobIds = pendingJobs.map(j => j.id);
+        const moreJobs = await db.select()
+          .from(backgroundJobs)
+          .where(eq(backgroundJobs.status, 'pending'))
+          .orderBy(asc(backgroundJobs.createdAt), asc(backgroundJobs.id))
+          .limit(remainingSlots + existingJobIds.length); // Get extra to filter out duplicates
+        
+        const uniqueJobs = moreJobs.filter(j => !existingJobIds.includes(j.id)).slice(0, remainingSlots);
+        pendingJobs.push(...uniqueJobs);
+      }
       
       if (pendingJobs.length > 0) {
         console.log(`🚀 LOADING ${pendingJobs.length} pending jobs from database into memory queue for parallel processing!`);
