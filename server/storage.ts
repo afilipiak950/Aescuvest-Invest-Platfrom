@@ -685,11 +685,37 @@ export class DatabaseStorage implements IStorage {
   async deleteDocuments(fileIds: number[]): Promise<number> {
     if (fileIds.length === 0) return 0;
     
-    // Get deal IDs for cache invalidation before deletion
-    const docsToDelete = await db.select({ dealId: documents.dealId })
+    // Get document info including file paths before deletion
+    const docsToDelete = await db.select({ 
+      id: documents.id,
+      dealId: documents.dealId, 
+      path: documents.path,
+      name: documents.name
+    })
       .from(documents)
       .where(inArray(documents.id, fileIds));
     
+    console.log(`🗑️ Found ${docsToDelete.length} documents to delete from storage and database`);
+    
+    // Delete files from GCS storage first
+    const { gcsStorage } = await import('./services/gcsStorage');
+    let storageDeleteCount = 0;
+    
+    for (const doc of docsToDelete) {
+      if (doc.path) {
+        try {
+          await gcsStorage.deleteFile(doc.path);
+          storageDeleteCount++;
+          console.log(`🗑️ Deleted file from storage: ${doc.name} (${doc.path})`);
+        } catch (error) {
+          console.error(`❌ Failed to delete file from storage: ${doc.name} (${doc.path})`, error);
+        }
+      }
+    }
+    
+    console.log(`🗑️ Deleted ${storageDeleteCount}/${docsToDelete.length} files from storage`);
+    
+    // Delete database records
     const result = await db.delete(documents).where(inArray(documents.id, fileIds));
     
     // Clear cache for all affected deals
@@ -701,7 +727,7 @@ export class DatabaseStorage implements IStorage {
       }
     });
     
-    console.log(`🗑️ Deleted ${result.rowCount || 0} documents, cleared cache for ${affectedDeals.length} deals`);
+    console.log(`🗑️ Deleted ${result.rowCount || 0} documents from database, cleared cache for ${affectedDeals.length} deals`);
     return result.rowCount || 0;
   }
 
