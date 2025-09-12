@@ -9146,6 +9146,11 @@ export async function registerAllRoutes(app: Express) {
       // Clean up uploaded file
       fs.unlinkSync(file.path);
 
+      // CRITICAL: Clear cache after ZIP processing so documents appear instantly
+      clearPaginatedDocumentCache(dealId);
+      await storage.invalidateDocumentCache(dealId);
+      console.log(`🧹 Cleared all caches for deal ${dealId} after ZIP processing`);
+
       res.json({
         success: true,
         message: `ZIP file processed successfully`,
@@ -9356,6 +9361,11 @@ export async function registerAllRoutes(app: Express) {
         // Process as ZIP file
         const zipResult = await zipProcessor.processZipFile(filePath, dealId, folderName || 'Large File Upload');
         
+        // CRITICAL: Clear cache after ZIP processing so documents appear instantly
+        clearPaginatedDocumentCache(dealId);
+        await storage.invalidateDocumentCache(dealId);
+        console.log(`🧹 Cleared all caches for deal ${dealId} after large ZIP processing`);
+
         res.json({
           success: true,
           message: `Large ZIP file processed successfully`,
@@ -9911,7 +9921,7 @@ export async function registerAllRoutes(app: Express) {
   console.log('✅ Global AI Assistant endpoints registered');
 
   // Export function to clear paginated document cache from other modules
-  function clearPaginatedDocumentCache(dealId: number): void {
+  const clearPaginatedDocumentCache = (dealId: number): void => {
     // Clear all cache entries for this deal (across all pages/limits/summary modes)
     const keysToDelete: string[] = [];
     for (const [key] of documentCache) {
