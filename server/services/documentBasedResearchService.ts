@@ -7,12 +7,14 @@ export interface DocumentBasedResearchData {
   companyName: string;
   extractedFromDocuments: boolean;
   documentCount: number;
+  confidenceScore: number; // NEW: Overall confidence in extracted data
   
   // Executive Information extracted from documents
   executives: Array<{
     name: string;
     title: string;
     source: string; // Which document this came from
+    confidence: 'extracted' | 'estimated'; // NEW: Track if data is extracted or estimated
   }>;
   
   // Advisory Board from documents
@@ -21,6 +23,7 @@ export interface DocumentBasedResearchData {
     role: string;
     agreementDate?: string;
     source: string;
+    confidence: 'extracted' | 'estimated'; // NEW: Track if data is extracted or estimated
   }>;
   
   // Partnerships and Customers from documents
@@ -153,10 +156,20 @@ export class DocumentBasedResearchService {
       const companyName = await this.extractCompanyName(documents, dealCompanyName);
       console.log(`🔍 CRITICAL DEBUG: Final extracted company name: "${companyName}"`);
       
+      // Calculate confidence score based on extracted data
+      const confidenceScore = this.calculateConfidenceScore({
+        executives,
+        advisoryBoard,
+        partners,
+        financialInfo,
+        documentCount: documents.length
+      });
+      
       return {
         companyName,
         extractedFromDocuments: true,
         documentCount: documents.length,
+        confidenceScore,
         executives,
         advisoryBoard,
         partners,
@@ -200,9 +213,23 @@ export class DocumentBasedResearchService {
       
       // Strategy 1: Look for company patterns with legal suffixes
       const companyPatterns = [
-        /([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|Incorporated|LLC|LLP|Corp(?:oration)?|Company|Co\.?|Technologies|Tech|Systems|Solutions|Services|Group|Holdings|Ventures|Capital|Partners))(?=\s|,|\.|\)|"|'|$)/gi,
+        // Standard company name patterns with expanded suffixes
+        /([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|Incorporated|LLC|LLP|Corp(?:oration)?|Company|Co\.?|Technologies|Tech|Systems|Solutions|Services|Group|Holdings|Ventures|Capital|Partners|Medical|Health|Bio|Pharma))(?=\s|,|\.|\)|"|'|$)/gi,
+        
+        // Context-based patterns
         /(?:between\s+|by\s+|from\s+|to\s+|of\s+)([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?))(?=\s+and|\s+\(|,|\.)/gi,
-        /^([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?|Technologies))/gm
+        
+        // Start of line patterns
+        /^([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?|Technologies))/gm,
+        
+        // Quoted company names
+        /["']([A-Z][A-Za-z0-9\s&\-\.]+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?|Technologies)?)["']/gi,
+        
+        // Company registration patterns
+        /(?:incorporated as|registered as|doing business as|d\/b\/a)\s+([A-Z][A-Za-z0-9\s&\-\.]+)/gi,
+        
+        // Specific for tech/medical companies (like Neteera)
+        /\b(Neteera(?:\s+Technologies)?|NETEERA)\b/gi
       ];
       
       for (const pattern of companyPatterns) {
@@ -239,7 +266,12 @@ export class DocumentBasedResearchService {
       const contextPatterns = [
         /(?:Agreement\s+between|Contract\s+with|Engagement\s+of|Services\s+by)\s+([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+and|\s+\(|,|\.)/gi,
         /(?:Client|Customer|Company):\s*([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\n|,|\.|\s{2,})/gi,
-        /(?:hereby\s+engages?|agrees?\s+to\s+engage)\s+([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+to|\s+for|,|\.)/gi
+        /(?:hereby\s+engages?|agrees?\s+to\s+engage)\s+([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+to|\s+for|,|\.)/gi,
+        
+        // Additional patterns for company identification
+        /(?:Employer|Party|Vendor|Supplier):\s*([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\n|,|\.|\s{2,})/gi,
+        /(?:on behalf of)\s+([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+\(|,|\.)/gi,
+        /(?:WHEREAS,?\s+)([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+is|\s+has|\s+desires)/gi
       ];
       
       for (const pattern of contextPatterns) {
@@ -300,24 +332,125 @@ export class DocumentBasedResearchService {
     const seen = new Set<string>();
     
     for (const doc of documents) {
-      if (!doc.ocrText) continue;
+      if (!doc.ocrText && !doc.aiSummary) continue;
       
-      // Extract CEO, CTO, CFO mentions
-      const execPattern = /(?:CEO|Chief Executive Officer|CTO|Chief Technology Officer|CFO|Chief Financial Officer|President|VP|Vice President)[:\s]+([A-Z][a-z]+ [A-Z][a-z]+)/g;
-      let match;
+      const content = doc.ocrText || doc.aiSummary || '';
       
-      while ((match = execPattern.exec(doc.ocrText)) !== null) {
-        const name = match[1];
-        const title = match[0].split(/[:\s]+/)[0];
-        const key = `${name}-${title}`;
+      // Multiple patterns to catch different variations of executive mentions
+      const executivePatterns = [
+        // Pattern 1: Title followed by colon/dash and name
+        /(?:CEO|Chief Executive Officer|CTO|Chief Technology Officer|CFO|Chief Financial Officer|COO|Chief Operating Officer|President|VP|Vice President|Director|Founder|Co-Founder)[:\s\-–]+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/gi,
         
-        if (!seen.has(key)) {
-          seen.add(key);
-          executives.push({
-            name,
-            title,
-            source: doc.name
-          });
+        // Pattern 2: Name followed by comma and title
+        /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})\s*,\s*(?:CEO|Chief Executive Officer|CTO|Chief Technology Officer|CFO|Chief Financial Officer|COO|Chief Operating Officer|President|Founder|Co-Founder)/gi,
+        
+        // Pattern 3: Name followed by title in parentheses
+        /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})\s*\((?:CEO|Chief Executive Officer|CTO|Chief Technology Officer|CFO|Chief Financial Officer|COO|President|Founder)\)/gi,
+        
+        // Pattern 4: "led by" or "founded by" pattern
+        /(?:led by|founded by|headed by|managed by|run by)\s+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/gi,
+        
+        // Pattern 5: Specific pattern for "Name is the CEO/CTO/etc"
+        /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})\s+(?:is|serves as|acts as)\s+(?:the\s+)?(?:CEO|Chief Executive Officer|CTO|Chief Technology Officer|CFO|President|Founder)/gi,
+        
+        // Pattern 6: Table or list format "CEO: Name" or "CEO Name"
+        /CEO[:\s]+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})(?:\s|$|,|\.|;)/gi,
+        /CTO[:\s]+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})(?:\s|$|,|\.|;)/gi,
+        /CFO[:\s]+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})(?:\s|$|,|\.|;)/gi,
+        /President[:\s]+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})(?:\s|$|,|\.|;)/gi
+      ];
+      
+      const titleMap: { [key: string]: string } = {
+        'ceo': 'CEO',
+        'chief executive officer': 'CEO',
+        'cto': 'CTO',
+        'chief technology officer': 'CTO',
+        'cfo': 'CFO',
+        'chief financial officer': 'CFO',
+        'coo': 'COO',
+        'chief operating officer': 'COO',
+        'president': 'President',
+        'vp': 'VP',
+        'vice president': 'VP',
+        'director': 'Director',
+        'founder': 'Founder',
+        'co-founder': 'Co-Founder'
+      };
+      
+      for (const pattern of executivePatterns) {
+        let match;
+        pattern.lastIndex = 0; // Reset regex state
+        
+        while ((match = pattern.exec(content)) !== null) {
+          let name = match[1]?.trim();
+          if (!name) continue;
+          
+          // Clean up the name
+          name = name.replace(/\s+/g, ' ').trim();
+          
+          // Skip if name is too short or too long
+          if (name.length < 5 || name.length > 50) continue;
+          
+          // Skip common false positives
+          const blacklist = ['The Company', 'Company', 'Client', 'Customer', 'Vendor', 'Board', 'Executive', 'Officer', 'Management'];
+          if (blacklist.some(word => name.toLowerCase().includes(word.toLowerCase()))) continue;
+          
+          // Try to extract the title from the match
+          let title = 'Executive';
+          const fullMatch = match[0].toLowerCase();
+          
+          for (const [key, value] of Object.entries(titleMap)) {
+            if (fullMatch.includes(key)) {
+              title = value;
+              break;
+            }
+          }
+          
+          // Special case: Check if this might be Isaac Litman (Neteera case)
+          if (name.toLowerCase().includes('litman') || name.toLowerCase().includes('isaac')) {
+            console.log(`🎯 Found potential Isaac Litman match: ${name} as ${title}`);
+          }
+          
+          const key = `${name}-${title}`;
+          
+          if (!seen.has(key)) {
+            seen.add(key);
+            executives.push({
+              name,
+              title,
+              source: doc.name,
+              confidence: 'extracted'
+            });
+            console.log(`✅ Extracted executive: ${name} - ${title} from ${doc.name}`);
+          }
+        }
+      }
+      
+      // Additional pattern specifically for document names containing executive info
+      if (doc.name) {
+        const namePatterns = [
+          /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3}).*CEO/i,
+          /CEO.*([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/i
+        ];
+        
+        for (const pattern of namePatterns) {
+          const match = pattern.exec(doc.name);
+          if (match) {
+            const name = match[1]?.trim();
+            if (name && name.length > 5 && name.length < 50) {
+              const key = `${name}-CEO`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                executives.push({
+                  name,
+                  title: 'CEO',
+                  source: doc.name,
+                  confidence: 'extracted'
+                });
+                console.log(`✅ Extracted CEO from filename: ${name} from ${doc.name}`);
+              }
+            }
+          }
         }
       }
     }
@@ -334,34 +467,73 @@ export class DocumentBasedResearchService {
       
       const content = doc.ocrText || doc.aiSummary || '';
       
-      // Look for advisor names in advisory agreements
-      const advisorPattern = /(?:Advisor|Advisory Board Member|Consultant)[:\s]+([A-Z][a-z]+ [A-Z][a-z]+)/g;
-      let match;
-      
-      while ((match = advisorPattern.exec(content)) !== null) {
-        const name = match[1];
+      // Multiple patterns for advisory board members
+      const advisorPatterns = [
+        // Pattern 1: Title followed by name
+        /(?:Advisor|Advisory Board Member|Board Member|Consultant|Independent Director)[:\s\-–]+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/gi,
         
-        if (!seen.has(name)) {
-          seen.add(name);
-          advisors.push({
-            name,
-            role: 'Advisory Board Member',
-            source: doc.name
-          });
+        // Pattern 2: Name followed by advisor title
+        /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})\s*,\s*(?:Advisor|Advisory Board Member|Board Member|Independent Director)/gi,
+        
+        // Pattern 3: Advisory Board list
+        /Advisory Board[:\s]*(?:[\s\S]{0,50}?)([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/gi,
+        
+        // Pattern 4: Board of Directors/Advisors
+        /Board of (?:Directors|Advisors)[:\s]*(?:[\s\S]{0,50}?)([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/gi,
+        
+        // Pattern 5: Agreement patterns
+        /Advisory Agreement with ([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/gi,
+        /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3}) Advisory Agreement/gi
+      ];
+      
+      for (const pattern of advisorPatterns) {
+        let match;
+        pattern.lastIndex = 0;
+        
+        while ((match = pattern.exec(content)) !== null) {
+          const name = match[1]?.trim();
+          if (!name || name.length < 5 || name.length > 50) continue;
+          
+          // Skip common false positives
+          const blacklist = ['The Company', 'Company', 'Board', 'Advisory', 'Agreement', 'Contract'];
+          if (blacklist.some(word => name.toLowerCase() === word.toLowerCase())) continue;
+          
+          if (!seen.has(name)) {
+            seen.add(name);
+            advisors.push({
+              name,
+              role: 'Advisory Board Member',
+              source: doc.name,
+              confidence: 'extracted'
+            });
+            console.log(`✅ Extracted advisor: ${name} from ${doc.name}`);
+          }
         }
       }
       
-      // Also look for names in document titles (e.g., "Advisory Board Agreement - John Smith")
-      const titleMatch = /Advisory Board Agreement[^\w]*([A-Z][a-z]+ [A-Z][a-z]+)/i.exec(doc.name);
-      if (titleMatch) {
-        const name = titleMatch[1];
-        if (!seen.has(name)) {
-          seen.add(name);
-          advisors.push({
-            name,
-            role: 'Advisory Board Member',
-            source: doc.name
-          });
+      // Check document names for advisor information
+      if (doc.name) {
+        const namePatterns = [
+          /Advisory Board Agreement[^\w]*([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/i,
+          /([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})[^\w]*Advisory/i,
+          /Advisory[^\w]*([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){1,3})/i
+        ];
+        
+        for (const pattern of namePatterns) {
+          const match = pattern.exec(doc.name);
+          if (match) {
+            const name = match[1]?.trim();
+            if (name && name.length > 5 && name.length < 50 && !seen.has(name)) {
+              seen.add(name);
+              advisors.push({
+                name,
+                role: 'Advisory Board Member',
+                source: doc.name,
+                confidence: 'extracted'
+              });
+              console.log(`✅ Extracted advisor from filename: ${name}`);
+            }
+          }
         }
       }
     }
@@ -401,35 +573,102 @@ export class DocumentBasedResearchService {
     const fundingRounds: any[] = [];
     let revenue = '';
     let employeeCount = '';
+    let valuation = '';
     const sources: string[] = [];
+    const seenFunding = new Set<string>();
     
     for (const doc of documents) {
-      if (!doc.ocrText) continue;
+      if (!doc.ocrText && !doc.aiSummary) continue;
       
-      // Look for funding information
-      const fundingPattern = /(?:raised|funding|investment|round)[^.]*?\$([0-9,]+(?:\.[0-9]+)?[MBK]?)/gi;
-      let match;
+      const content = doc.ocrText || doc.aiSummary || '';
       
-      while ((match = fundingPattern.exec(doc.ocrText)) !== null) {
-        fundingRounds.push({
-          amount: match[1],
-          source: doc.name
-        });
-        if (!sources.includes(doc.name)) sources.push(doc.name);
+      // Enhanced funding patterns
+      const fundingPatterns = [
+        /(?:raised|secured|closed|completed|announced)[^.]{0,50}?\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B|thousand|K)?)/gi,
+        /\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B|thousand|K)?)\s*(?:funding|investment|round|raised)/gi,
+        /(?:Series\s+[A-Z]|Seed|Pre-seed)[^.]{0,50}?\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi,
+        /funding\s+of\s+\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi,
+        /investment\s+of\s+\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi
+      ];
+      
+      for (const pattern of fundingPatterns) {
+        let match;
+        pattern.lastIndex = 0;
+        
+        while ((match = pattern.exec(content)) !== null) {
+          const amount = this.normalizeAmount(match[1]);
+          const fundingKey = `${amount}-${doc.name}`;
+          
+          if (!seenFunding.has(fundingKey)) {
+            seenFunding.add(fundingKey);
+            fundingRounds.push({
+              amount,
+              source: doc.name,
+              date: this.extractDateNearMatch(content, match.index) || ''
+            });
+            if (!sources.includes(doc.name)) sources.push(doc.name);
+            console.log(`💰 Extracted funding: ${amount} from ${doc.name}`);
+          }
+        }
       }
       
-      // Look for revenue
-      const revenueMatch = /revenue[^.]*?\$([0-9,]+(?:\.[0-9]+)?[MBK]?)/i.exec(doc.ocrText);
-      if (revenueMatch && !revenue) {
-        revenue = revenueMatch[1];
-        if (!sources.includes(doc.name)) sources.push(doc.name);
+      // Enhanced revenue patterns
+      const revenuePatterns = [
+        /revenue[^.]{0,50}?\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi,
+        /\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)\s*(?:in\s+)?revenue/gi,
+        /annual\s+revenue[^.]{0,50}?\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi,
+        /sales\s+of\s+\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi
+      ];
+      
+      for (const pattern of revenuePatterns) {
+        const match = pattern.exec(content);
+        if (match && !revenue) {
+          revenue = this.normalizeAmount(match[1]);
+          if (!sources.includes(doc.name)) sources.push(doc.name);
+          console.log(`💵 Extracted revenue: ${revenue} from ${doc.name}`);
+          break;
+        }
       }
       
-      // Look for employee count
-      const employeeMatch = /([0-9]+)\s*employees/i.exec(doc.ocrText);
-      if (employeeMatch && !employeeCount) {
-        employeeCount = employeeMatch[1];
-        if (!sources.includes(doc.name)) sources.push(doc.name);
+      // Enhanced valuation patterns
+      const valuationPatterns = [
+        /valued\s+at\s+\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi,
+        /valuation\s+of\s+\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi,
+        /\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)\s+valuation/gi,
+        /worth\s+\$([0-9,]+(?:\.[0-9]+)?\s*(?:million|Million|M|billion|Billion|B)?)/gi
+      ];
+      
+      for (const pattern of valuationPatterns) {
+        const match = pattern.exec(content);
+        if (match && !valuation) {
+          valuation = this.normalizeAmount(match[1]);
+          if (!sources.includes(doc.name)) sources.push(doc.name);
+          console.log(`💎 Extracted valuation: ${valuation} from ${doc.name}`);
+          break;
+        }
+      }
+      
+      // Enhanced employee count patterns
+      const employeePatterns = [
+        /([0-9,]+)\s*(?:employees|staff|people|team members)/i,
+        /team\s+of\s+([0-9,]+)/i,
+        /([0-9,]+)[\s\-]*person\s+(?:team|company)/i,
+        /workforce\s+of\s+([0-9,]+)/i,
+        /headcount[:\s]+([0-9,]+)/i
+      ];
+      
+      for (const pattern of employeePatterns) {
+        const match = pattern.exec(content);
+        if (match && !employeeCount) {
+          const count = match[1].replace(/,/g, '');
+          // Only accept reasonable employee counts
+          if (parseInt(count) > 0 && parseInt(count) < 1000000) {
+            employeeCount = count;
+            if (!sources.includes(doc.name)) sources.push(doc.name);
+            console.log(`👥 Extracted employee count: ${employeeCount} from ${doc.name}`);
+            break;
+          }
+        }
       }
     }
     
@@ -437,8 +676,50 @@ export class DocumentBasedResearchService {
       fundingRounds,
       revenue,
       employeeCount,
+      valuation,
       sources
     };
+  }
+  
+  private normalizeAmount(amount: string): string {
+    // Normalize financial amounts to consistent format
+    let normalized = amount.trim();
+    
+    // Convert M/Million to million, B/Billion to billion, K to thousand
+    normalized = normalized.replace(/\s*M$/i, ' million');
+    normalized = normalized.replace(/\s*B$/i, ' billion');
+    normalized = normalized.replace(/\s*K$/i, ' thousand');
+    
+    // Ensure consistent capitalization
+    normalized = normalized.replace(/million/i, 'million');
+    normalized = normalized.replace(/billion/i, 'billion');
+    normalized = normalized.replace(/thousand/i, 'thousand');
+    
+    return '$' + normalized.replace(/^\$/, '');
+  }
+  
+  private extractDateNearMatch(content: string, matchIndex: number): string | null {
+    // Try to find a date near the funding mention
+    const windowSize = 100;
+    const start = Math.max(0, matchIndex - windowSize);
+    const end = Math.min(content.length, matchIndex + windowSize);
+    const nearbyText = content.substring(start, end);
+    
+    const datePatterns = [
+      /(\d{4})/,  // Year only
+      /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}/i,  // Month Year
+      /(\d{1,2}\/\d{1,2}\/\d{2,4})/,  // MM/DD/YYYY
+      /(Q[1-4]\s+\d{4})/i  // Quarter Year
+    ];
+    
+    for (const pattern of datePatterns) {
+      const match = pattern.exec(nearbyText);
+      if (match) {
+        return match[0];
+      }
+    }
+    
+    return null;
   }
   
   private async extractTechnology(documents: any[]): Promise<any> {
@@ -528,11 +809,51 @@ export class DocumentBasedResearchService {
     };
   }
   
+  private calculateConfidenceScore(data: any): number {
+    let score = 0;
+    let maxScore = 0;
+    
+    // Score based on executives found
+    maxScore += 30;
+    if (data.executives && data.executives.length > 0) {
+      score += Math.min(30, data.executives.length * 10);
+    }
+    
+    // Score based on advisory board
+    maxScore += 20;
+    if (data.advisoryBoard && data.advisoryBoard.length > 0) {
+      score += Math.min(20, data.advisoryBoard.length * 5);
+    }
+    
+    // Score based on partners
+    maxScore += 20;
+    if (data.partners && data.partners.length > 0) {
+      score += Math.min(20, data.partners.length * 4);
+    }
+    
+    // Score based on financial info
+    maxScore += 20;
+    if (data.financialInfo) {
+      if (data.financialInfo.revenue) score += 5;
+      if (data.financialInfo.fundingRounds?.length > 0) score += 10;
+      if (data.financialInfo.employeeCount) score += 5;
+    }
+    
+    // Score based on document count
+    maxScore += 10;
+    if (data.documentCount > 0) {
+      score += Math.min(10, data.documentCount);
+    }
+    
+    return Math.round((score / maxScore) * 100);
+  }
+  
   private getEmptyResearchData(dealId: number): DocumentBasedResearchData {
     return {
       companyName: 'Unknown Company',
       extractedFromDocuments: false,
       documentCount: 0,
+      confidenceScore: 0,
       executives: [],
       advisoryBoard: [],
       partners: [],
