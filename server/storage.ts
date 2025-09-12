@@ -1964,8 +1964,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async invalidateDocumentCache(dealId: number): Promise<void> {
-    // Simple cache invalidation - in a real implementation this would clear Redis/memcache
-    console.log(`📄 Invalidated document cache for deal ${dealId} after AI summary update`);
+    // Clear the actual document cache Map
+    documentCache.delete(dealId);
+    console.log(`📄 ✅ ACTUALLY invalidated document cache for deal ${dealId} - forced cache clear`);
     return Promise.resolve();
   }
 
