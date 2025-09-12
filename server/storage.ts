@@ -50,6 +50,7 @@ export interface IStorage {
   getAllDocuments(): Promise<Document[]>;
   getDocumentById(id: number): Promise<Document | undefined>;
   getDocument(id: number): Promise<Document | undefined>;
+  getDocumentsByIds(ids: number[]): Promise<Document[]>;
   getDocumentsByDealId(dealId: number): Promise<Document[]>;
   getDocumentsByDealIdPaginated(dealId: number, page: number, limit: number, summary?: boolean): Promise<{documents: Document[], total: number, page: number, totalPages: number}>;
   getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]>;
@@ -394,6 +395,21 @@ export class DatabaseStorage implements IStorage {
 
   async getDocument(id: number): Promise<Document | undefined> {
     return this.getDocumentById(id);
+  }
+
+  async getDocumentsByIds(ids: number[]): Promise<Document[]> {
+    if (ids.length === 0) return [];
+    
+    try {
+      const docs = await db
+        .select()
+        .from(documents)
+        .where(inArray(documents.id, ids));
+      return docs;
+    } catch (error) {
+      console.error('Error fetching documents by IDs:', error);
+      return [];
+    }
   }
 
   async getDocumentsWithOCRByDealId(dealId: number): Promise<Document[]> {
