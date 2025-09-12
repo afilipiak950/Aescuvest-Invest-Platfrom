@@ -1053,6 +1053,10 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
   console.log('✅ All API routes registered successfully before Vite middleware');
   
+  // CRITICAL: Make server object (with clearPaginatedDocumentCache) available to all routes
+  app.set('server', server);
+  console.log('🌐 Server object with cache clearing function made available globally');
+  
   // 🚀 REGISTER CHUNKED UPLOAD ROUTES
   app.use(chunkedUploadRouter);
   console.log('✅ Chunked upload routes registered');
