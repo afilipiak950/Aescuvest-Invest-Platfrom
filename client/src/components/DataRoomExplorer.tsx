@@ -1116,156 +1116,27 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     queryEnabled: !!dealId
   });
 
-  // Real-time WebSocket listener for immediate AI summary updates
+  // 🚀 CONSOLIDATION: WebSocket communication is now handled entirely by BackgroundJobProgress
+  // This eliminates conflicts and duplicate connections. Real-time updates will come through
+  // the centralized WebSocket handler which properly manages reconnections and subscriptions.
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    // All real-time updates are now handled by BackgroundJobProgress WebSocket
+    // This component will rely on query invalidation triggered by BackgroundJobProgress
     
-    let socket: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout | null = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 10;
-    
-    const connect = () => {
-      try {
-        if (reconnectAttempts >= maxReconnectAttempts) {
-          console.log('Max WebSocket reconnection attempts reached');
-          return;
-        }
-        
-        socket = new WebSocket(wsUrl);
-        
-        socket.onopen = () => {
-          console.log('WebSocket connected');
-          reconnectAttempts = 0;
-        };
-
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            
-            // Handle AI summary completion
-            if (data.type === 'ai_summary_complete' && data.dealId === dealId) {
-              console.log('🔄 AI summary completed, updating cached document...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, aiSummaryStatus: 'completed', ...data.updates }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-            
-            // Handle AI summary processing start
-            if (data.type === 'ai_summary_start' && data.dealId === dealId) {
-              console.log('🧠 AI summary started, updating status...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, aiSummaryStatus: 'analyzing' }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-            
-            // Handle OCR/text extraction start
-            if (data.type === 'ocr_start' && data.dealId === dealId) {
-              console.log('📄 OCR extraction started...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, aiSummaryStatus: 'extracting' }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-            
-            // Handle job progress updates to show which documents are being processed
-            if (data.type === 'job_progress' && data.dealId === dealId) {
-              console.log('🔄 Job progress update:', data);
-              // If there's an active processing step, show visual feedback
-              if (data.currentStep && data.currentStep.includes('summary')) {
-                // Find recently uploaded documents and mark them as processing
-                queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                  if (!oldData || !Array.isArray(oldData)) return oldData;
-                  return oldData.map((doc, index) => {
-                    // Mark first few documents without AI summaries as processing
-                    const shouldProcess = !doc.aiSummary && 
-                                        doc.ocrContent && 
-                                        doc.ocrContent.length > 0 && 
-                                        !doc.aiSummaryStatus &&
-                                        index < 3; // Process first 3 eligible documents
-                    return shouldProcess 
-                      ? { ...doc, aiSummaryStatus: 'analyzing' }
-                      : doc;
-                  });
-                });
-              }
-            }
-            
-            // Handle any document status updates
-            if (data.type === 'document_status_update' && data.dealId === dealId) {
-              console.log('🔄 Document status updated...', data);
-              queryClient.setQueryData([`/api/deals/${dealId}/documents`], (oldData: any) => {
-                if (!oldData || !Array.isArray(oldData)) return oldData;
-                return oldData.map(doc => 
-                  doc.id === data.documentId 
-                    ? { ...doc, ...data.updates }
-                    : doc
-                );
-              });
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/deals/${dealId}/documents`],
-                exact: true 
-              });
-            }
-          } catch (error) {
-            // Ignore non-JSON messages
-          }
-            };
-        
-        socket.onerror = (error) => {
-          console.error('WebSocket error:', error);
-        };
-        
-        socket.onclose = () => {
-          console.log(`WebSocket closed, attempting reconnect in ${Math.min(5 * (reconnectAttempts + 1), 30)}s...`);
-          reconnectAttempts++;
-          const delay = Math.min(5000 * (reconnectAttempts), 30000);
-          reconnectTimeout = setTimeout(connect, delay);
-        };
-      } catch (error) {
-        console.error('Failed to create WebSocket:', error);
-        reconnectAttempts++;
-        const delay = Math.min(5000 * (reconnectAttempts), 30000);
-        reconnectTimeout = setTimeout(connect, delay);
+    // Set up a fallback refresh interval for documents query as backup
+    const refreshInterval = setInterval(() => {
+      if (dealId) {
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/deals/${dealId}/documents`],
+          exact: true 
+        });
       }
-    };
+    }, 60000); // Refresh every 60 seconds as fallback only
     
-    connect();
-
     return () => {
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
+      clearInterval(refreshInterval);
     };
-  }, [dealId, queryClient, refetch]);
+  }, [dealId, queryClient]);
 
   // ZIP upload mutation with streaming progress
   const uploadZipMutation = useMutation({
