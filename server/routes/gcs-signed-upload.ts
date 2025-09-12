@@ -236,6 +236,18 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
       // No need for additional job creation here - the method handles everything
 
+      // CRITICAL: Clear cache after ZIP processing so documents appear instantly
+      // Access the server instance to clear cache
+      const server = req.app.get('server');
+      if (server && typeof server.clearPaginatedDocumentCache === 'function') {
+        server.clearPaginatedDocumentCache(parseInt(dealId));
+        console.log(`🧹 Cleared paginated cache for deal ${dealId} after GCS ZIP processing`);
+      }
+      // Also clear storage cache
+      const { storage } = await import('../storage');
+      await storage.invalidateDocumentCache(parseInt(dealId));
+      console.log(`🧹 Cleared storage cache for deal ${dealId} after GCS ZIP processing`);
+
       return res.status(200).json({
         success: true,
         message: 'ZIP file processed successfully',
