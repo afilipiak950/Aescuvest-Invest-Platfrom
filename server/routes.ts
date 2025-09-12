@@ -2441,10 +2441,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Document not found' });
       }
 
-      // Update document with assignment metadata (when database schema supports it)
+      // Update document with assignment metadata - FIXED: Use assignedAgents array
       try {
+        // Get existing assignments to preserve multiple agent assignments
+        const existingAgents = document.assignedAgents || [];
+        const updatedAgents = Array.isArray(existingAgents) ? existingAgents : [];
+        
+        // Add new agent if not already assigned
+        if (!updatedAgents.includes(agentType)) {
+          updatedAgents.push(agentType);
+        }
+        
         await storage.updateDocument(docId, {
-          assignedAgent: agentType,
+          assignedAgents: updatedAgents,
+          agentType: agentType, // Also update single field for compatibility
           assignedAt: new Date()
         });
       } catch (updateError) {
@@ -8533,17 +8543,16 @@ async function assignDocumentToAgentsAutomatically(documentId: number, document:
       console.log(`📝 No specific agent matches found for ${document.name}, defaulting to Commercial agent`);
     }
     
-    // Update document with agent assignments
-    const assignedAgents = agentAssignments.join(',');
-    await storage.updateDocument(documentId, { assignedAgents });
+    // Update document with agent assignments - FIXED: Pass array directly, not string
+    await storage.updateDocument(documentId, { assignedAgents: agentAssignments });
     
-    console.log(`✅ Document ${documentId} (${document.name}) automatically assigned to agents: ${assignedAgents}`);
+    console.log(`✅ Document ${documentId} (${document.name}) automatically assigned to agents: ${agentAssignments.join(', ')}`);
     
   } catch (error) {
     console.error(`❌ Failed to auto-assign document ${documentId} to agents:`, error);
     // Fallback to Commercial assignment on error
     try {
-      await storage.updateDocument(documentId, { assignedAgents: 'Commercial' });
+      await storage.updateDocument(documentId, { assignedAgents: ['Commercial'] });
       console.log(`🔄 Fallback: Document ${documentId} assigned to Commercial agent after error`);
     } catch (fallbackError) {
       console.error(`❌ Fallback assignment also failed for document ${documentId}:`, fallbackError);
