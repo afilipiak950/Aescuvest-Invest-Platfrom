@@ -537,7 +537,10 @@ export class DatabaseStorage implements IStorage {
         isFolder: documents.isFolder,
         category: documents.category,
         documentType: documents.documentType,
-        aiSummaryStatus: documents.aiSummaryStatus
+        aiSummaryStatus: documents.aiSummaryStatus,
+        // CRITICAL FIX: Always include assignment fields for proper UI categorization
+        assignedAgents: documents.assignedAgents,
+        agentType: documents.agentType
       };
       
       // Add extra fields for non-summary mode
@@ -548,11 +551,12 @@ export class DatabaseStorage implements IStorage {
           aiSummaryGeneratedAt: documents.aiSummaryGeneratedAt,
           aiSummary: documents.aiSummary,
           analyses: documents.analyses,
-          assignedAgents: documents.assignedAgents,
+          // Assignment fields already included in base query, only add detailed fields here
           assignmentReason: documents.assignmentReason,
           assignmentConfidence: documents.assignmentConfidence,
           manuallyAssigned: documents.manuallyAssigned,
-          assignedAt: documents.assignedAt
+          assignedAt: documents.assignedAt,
+          assignedBy: documents.assignedBy
         });
       }
       
