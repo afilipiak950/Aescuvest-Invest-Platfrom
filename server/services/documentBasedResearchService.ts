@@ -75,6 +75,10 @@ export class DocumentBasedResearchService {
     console.log(`📚 Starting document-based research extraction for deal ${dealId}`);
     
     try {
+      // Get deal information to know the expected company name
+      const deal = await storage.getDealById(dealId);
+      const dealCompanyName = deal?.companyName || '';
+      
       // Get all documents with OCR content for this deal
       const documents = await storage.getDocumentsWithOCRByDealId(dealId);
       console.log(`📄 Found ${documents.length} documents with OCR content`);
@@ -130,7 +134,7 @@ export class DocumentBasedResearchService {
       ]);
       
       // Determine the real company name from documents
-      const companyName = await this.extractCompanyName(documents);
+      const companyName = await this.extractCompanyName(documents, dealCompanyName);
       
       return {
         companyName,
@@ -150,23 +154,127 @@ export class DocumentBasedResearchService {
     }
   }
   
-  private async extractCompanyName(documents: any[]): Promise<string> {
-    // Look for company name in document titles and content
-    const nameMatches = new Set<string>();
-    
-    for (const doc of documents.slice(0, 10)) { // Check first 10 docs
-      const content = doc.ocrText || doc.aiSummary || '';
-      const fileName = doc.name || '';
+  private async extractCompanyName(documents: any[], dealCompanyName: string): Promise<string> {
+    // If we have a deal company name, verify it appears in documents
+    if (dealCompanyName && dealCompanyName !== 'Unknown Company') {
+      // Check if the deal company name appears in documents
+      const dealNamePattern = new RegExp(dealCompanyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       
-      // Look for "Neteera" or similar patterns
-      const neteeraMatch = /Neteera\s*(?:Technologies)?(?:\s*Ltd\.?|\s*LTD)?/gi.exec(content + ' ' + fileName);
-      if (neteeraMatch) {
-        nameMatches.add('Neteera Technologies');
+      for (const doc of documents.slice(0, 5)) { // Check first 5 docs for efficiency
+        const content = doc.ocrText || doc.aiSummary || '';
+        const fileName = doc.name || '';
+        
+        if (dealNamePattern.test(content + ' ' + fileName)) {
+          console.log(`✅ Confirmed company name from deal: ${dealCompanyName}`);
+          return dealCompanyName;
+        }
       }
     }
     
-    // Return the most common match or default
-    return nameMatches.size > 0 ? Array.from(nameMatches)[0] : 'Unknown Company';
+    // If deal name not found or not provided, extract from documents
+    const nameFrequency = new Map<string, number>();
+    const contextMatches = new Set<string>();
+    
+    for (const doc of documents.slice(0, 20)) { // Check first 20 docs
+      const content = doc.ocrText || doc.aiSummary || '';
+      const fileName = doc.name || '';
+      const combinedText = content + ' ' + fileName;
+      
+      // Strategy 1: Look for company patterns with legal suffixes
+      const companyPatterns = [
+        /([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|Incorporated|LLC|LLP|Corp(?:oration)?|Company|Co\.?|Technologies|Tech|Systems|Solutions|Services|Group|Holdings|Ventures|Capital|Partners))(?=\s|,|\.|\)|"|'|$)/gi,
+        /(?:between\s+|by\s+|from\s+|to\s+|of\s+)([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?))(?=\s+and|\s+\(|,|\.)/gi,
+        /^([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?|Technologies))/gm
+      ];
+      
+      for (const pattern of companyPatterns) {
+        let match;
+        while ((match = pattern.exec(combinedText)) !== null) {
+          const companyName = match[1].trim();
+          
+          // Filter out common false positives
+          const blacklist = ['The', 'This', 'That', 'These', 'Those', 'Agreement', 'Contract', 
+                            'Document', 'Party', 'Company', 'Client', 'Customer', 'Vendor', 
+                            'Supplier', 'Board', 'Advisory', 'Exhibit', 'Schedule', 'Appendix'];
+          
+          if (!blacklist.includes(companyName) && 
+              companyName.length > 2 && 
+              companyName.length < 50 &&
+              /[A-Z]/.test(companyName[0])) {
+            
+            // Track frequency
+            const normalizedName = companyName.replace(/\s+/g, ' ');
+            nameFrequency.set(normalizedName, (nameFrequency.get(normalizedName) || 0) + 1);
+          }
+        }
+      }
+      
+      // Strategy 2: Look for repeated capitalized phrases (likely company names)
+      const capitalizedPhrases = combinedText.match(/[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,3}/g) || [];
+      for (const phrase of capitalizedPhrases) {
+        if (phrase.length > 5 && phrase.length < 50) {
+          nameFrequency.set(phrase, (nameFrequency.get(phrase) || 0) + 1);
+        }
+      }
+      
+      // Strategy 3: Context-based extraction from agreements
+      const contextPatterns = [
+        /(?:Agreement\s+between|Contract\s+with|Engagement\s+of|Services\s+by)\s+([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+and|\s+\(|,|\.)/gi,
+        /(?:Client|Customer|Company):\s*([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\n|,|\.|\s{2,})/gi,
+        /(?:hereby\s+engages?|agrees?\s+to\s+engage)\s+([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\s+to|\s+for|,|\.)/gi
+      ];
+      
+      for (const pattern of contextPatterns) {
+        let match;
+        while ((match = pattern.exec(combinedText)) !== null) {
+          const companyName = match[1].trim();
+          if (companyName.length > 2 && companyName.length < 50) {
+            contextMatches.add(companyName);
+            nameFrequency.set(companyName, (nameFrequency.get(companyName) || 0) + 2); // Higher weight for context matches
+          }
+        }
+      }
+    }
+    
+    // Find the most frequent company name
+    let mostFrequentName = '';
+    let maxFrequency = 0;
+    
+    for (const [name, frequency] of nameFrequency.entries()) {
+      // Prefer names that appear in multiple documents
+      if (frequency > maxFrequency && frequency >= 2) {
+        maxFrequency = frequency;
+        mostFrequentName = name;
+      }
+    }
+    
+    // If we found a name through context that appears multiple times, prefer it
+    for (const contextName of contextMatches) {
+      const freq = nameFrequency.get(contextName) || 0;
+      if (freq >= 3 && freq >= maxFrequency * 0.8) {
+        mostFrequentName = contextName;
+        break;
+      }
+    }
+    
+    if (mostFrequentName) {
+      console.log(`🔍 Extracted company name from documents: ${mostFrequentName} (appeared ${maxFrequency} times)`);
+      
+      // Try to find the full company name with suffix
+      for (const [fullName] of nameFrequency.entries()) {
+        if (fullName.startsWith(mostFrequentName) && fullName.length > mostFrequentName.length) {
+          if (/(?:Ltd\.?|Limited|Inc\.?|LLC|Corp|Technologies|Tech|Systems|Solutions|Services)$/i.test(fullName)) {
+            console.log(`🔍 Found full company name: ${fullName}`);
+            return fullName;
+          }
+        }
+      }
+      
+      return mostFrequentName;
+    }
+    
+    // Fallback: Use deal company name if provided, otherwise Unknown
+    return dealCompanyName || 'Unknown Company';
   }
   
   private async extractExecutives(documents: any[]): Promise<any[]> {
