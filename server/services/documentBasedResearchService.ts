@@ -240,7 +240,7 @@ export class DocumentBasedResearchService {
     let mostFrequentName = '';
     let maxFrequency = 0;
     
-    for (const [name, frequency] of nameFrequency.entries()) {
+    for (const [name, frequency] of Array.from(nameFrequency.entries())) {
       // Prefer names that appear in multiple documents
       if (frequency > maxFrequency && frequency >= 2) {
         maxFrequency = frequency;
@@ -249,7 +249,7 @@ export class DocumentBasedResearchService {
     }
     
     // If we found a name through context that appears multiple times, prefer it
-    for (const contextName of contextMatches) {
+    for (const contextName of Array.from(contextMatches)) {
       const freq = nameFrequency.get(contextName) || 0;
       if (freq >= 3 && freq >= maxFrequency * 0.8) {
         mostFrequentName = contextName;
@@ -261,7 +261,7 @@ export class DocumentBasedResearchService {
       console.log(`🔍 Extracted company name from documents: ${mostFrequentName} (appeared ${maxFrequency} times)`);
       
       // Try to find the full company name with suffix
-      for (const [fullName] of nameFrequency.entries()) {
+      for (const [fullName] of Array.from(nameFrequency.entries())) {
         if (fullName.startsWith(mostFrequentName) && fullName.length > mostFrequentName.length) {
           if (/(?:Ltd\.?|Limited|Inc\.?|LLC|Corp|Technologies|Tech|Systems|Solutions|Services)$/i.test(fullName)) {
             console.log(`🔍 Found full company name: ${fullName}`);
