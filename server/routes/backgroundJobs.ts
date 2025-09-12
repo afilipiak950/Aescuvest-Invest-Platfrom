@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { backgroundJobManager } from '../services/backgroundJobManager';
 import { storage } from '../storage';
+import { jobProcessor } from '../services/jobProcessor';
 
 const router = Router();
 
@@ -53,8 +53,34 @@ router.get('/api/background-jobs/:dealId', async (req: Request, res: Response) =
 // Get all active jobs
 router.get('/api/background-jobs', async (req: Request, res: Response) => {
   try {
-    const jobs = await backgroundJobManager.getActiveJobs();
-    res.json({ success: true, jobs: Array.from(jobs.values()) });
+    // Get from database jobs (unified with jobProcessor system)
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { or, eq } = await import('drizzle-orm');
+    
+    const allJobs = await db.select().from(backgroundJobs)
+      .where(or(
+        eq(backgroundJobs.status, 'processing'),
+        eq(backgroundJobs.status, 'queued'),
+        eq(backgroundJobs.status, 'pending')
+      ));
+    
+    const jobs = allJobs.map(job => ({
+      jobId: job.jobId,
+      agentType: job.agentType,
+      progress: job.progress || 0,
+      status: job.status,
+      currentStep: job.currentStep || 'Processing...',
+      currentDocumentName: job.currentDocumentName || 'Processing',
+      totalDocuments: job.totalDocuments || 0,
+      processedDocuments: job.processedDocuments || 0,
+      runId: job.runId,
+      dealId: job.dealId,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt
+    }));
+    
+    res.json({ success: true, jobs });
   } catch (error) {
     console.error('Error fetching all background jobs:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch background jobs' });
@@ -70,8 +96,23 @@ router.post('/api/background-jobs/:jobId/cancel', async (req: Request, res: Resp
       return res.status(400).json({ success: false, error: 'Invalid job ID' });
     }
     
-    // Cancel the job via background job manager
-    const success = await backgroundJobManager.cancelJob(jobId);
+    // Cancel the job via database update
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    // Update job status to cancelled
+    const result = await db.update(backgroundJobs)
+      .set({ 
+        status: 'cancelled' as any,
+        currentStep: 'Cancelled by user',
+        completedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(backgroundJobs.id, jobId))
+      .returning();
+    
+    const success = result.length > 0;
     
     if (success) {
       console.log(`🛑 Job ${jobId} cancelled successfully`);

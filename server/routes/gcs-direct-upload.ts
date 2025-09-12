@@ -82,12 +82,15 @@ router.post('/api/gcs/register-upload', async (req, res) => {
     console.log(`✅ Registered document ${document.id} with GCS path: ${gcsPath}`);
     
     // Create background job for processing
-    const { backgroundJobManager } = await import('../services/backgroundJobManager');
+    const { jobProcessor } = await import('../services/jobProcessor');
     
-    const jobId = await backgroundJobManager.createJob({
+    const jobId = await jobProcessor.createJob({
       jobType: 'document_ocr',
       dealId: parseInt(dealId),
       documentId: document.id,
+      status: 'pending',
+      progress: 0,
+      currentStep: 'Queued for OCR processing',
       jobData: {
         filePath: gcsPath,
         fileName: fileName,
