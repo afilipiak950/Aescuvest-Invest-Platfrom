@@ -9867,6 +9867,28 @@ export async function registerAllRoutes(app: Express) {
     console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
   }
   
+  // Debug endpoint to manually clear document cache
+  app.post('/api/deals/:dealId/debug/clear-cache', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
+      
+      // Clear both caches
+      clearPaginatedDocumentCache(dealId);
+      await storage.invalidateDocumentCache(dealId);
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: `Cleared all document caches for deal ${dealId}` 
+      });
+    } catch (error) {
+      console.error('Error clearing document cache:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
   // Attach cache clearing function to server for external access
   (server as any).clearPaginatedDocumentCache = clearPaginatedDocumentCache;
 
