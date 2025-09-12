@@ -208,13 +208,13 @@ export class AuthenticResearchService {
           ...documentData.executives.map(e => ({
             name: e.name,
             role: e.title,
-            background: `Source: ${e.source}`,
+            background: `Source: ${e.source} (${e.confidence || 'extracted'})`,
             linkedinUrl: ''
           })),
           ...documentData.advisoryBoard.map(a => ({
             name: a.name,
             role: a.role,
-            background: `Advisory Board - Source: ${a.source}`,
+            background: `Advisory Board - Source: ${a.source} (${a.confidence || 'extracted'})`,
             linkedinUrl: ''
           }))
         ].slice(0, 10), // Limit to top 10
