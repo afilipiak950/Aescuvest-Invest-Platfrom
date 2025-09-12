@@ -1068,10 +1068,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   // Query setup debug
   console.log('DataRoom Query Setup:', { dealId });
 
-  const { data: paginatedData, isLoading, error, refetch } = useQuery({
+  const { data: paginatedData, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: [`/api/deals/${dealId}/documents`], // 🚀 OPTIMIZED: Consistent key with due-diligence page
     enabled: !!dealId,
     staleTime: 2 * 60 * 1000, // 🚀 SMART CACHE: 2 minutes cache for faster subsequent loads
+    gcTime: 10 * 60 * 1000, // Keep cache for 10 minutes to prevent data loss
+    placeholderData: (previousData) => previousData, // CRITICAL: Preserve previous data during refetch
     refetchInterval: false, // DISABLED - manual refresh only
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false, // 🚀 OPTIMIZED: Disable auto-refetch to prevent slowdowns
@@ -1106,6 +1108,22 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   // 🚀 CRITICAL FIX: Extract documents from paginated response for backward compatibility
   const documents = Array.isArray(paginatedData) ? paginatedData : paginatedData?.documents || [];
+  
+  // Store last non-empty documents to prevent UI flicker during processing
+  const lastNonEmptyDocumentsRef = useRef<Document[]>([]);
+  const lastNonEmptyFolderTreeRef = useRef<FolderNode | null>(null);
+  
+  // Update refs when we have valid documents
+  useEffect(() => {
+    if (documents && documents.length > 0 && !isFetching) {
+      lastNonEmptyDocumentsRef.current = documents;
+    }
+  }, [documents, isFetching]);
+  
+  // Use last known documents during fetching to prevent UI flicker
+  const stableDocuments = (isFetching && documents.length === 0) 
+    ? lastNonEmptyDocumentsRef.current 
+    : documents;
 
   // State debug log
   console.log('DataRoom State:', { 
@@ -2261,17 +2279,38 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   // 🚀 ULTRA-SMART FOLDER TREE: Progressive building with intelligent caching and deletion support
   const { folderTree, emailAttachments } = useMemo(() => {
+    // Use stable documents to prevent UI flicker
+    const docsToUse = stableDocuments;
+    
     // 🚀 OPTIMIZATION: Skip expensive computation if no documents
-    if (!documents || documents.length === 0) {
-      return { 
-        folderTree: { name: '', path: '', children: new Map(), documents: [], isExpanded: true },
-        emailAttachments: [] 
-      };
+    if (!docsToUse || docsToUse.length === 0) {
+      // Only return empty tree if we're not fetching and really have no documents
+      if (!isFetching && lastNonEmptyDocumentsRef.current.length === 0) {
+        return { 
+          folderTree: { name: '', path: '', children: new Map(), documents: [], isExpanded: true },
+          emailAttachments: [] 
+        };
+      }
+      // During fetching, preserve last known folder tree
+      if (lastNonEmptyFolderTreeRef.current) {
+        return {
+          folderTree: lastNonEmptyFolderTreeRef.current,
+          emailAttachments: []
+        };
+      }
     }
-    return buildFolderTree(documents);
+    
+    const result = buildFolderTree(docsToUse);
+    
+    // Update last non-empty folder tree
+    if (result.folderTree.documents.length > 0 || result.folderTree.children.size > 0) {
+      lastNonEmptyFolderTreeRef.current = result.folderTree;
+    }
+    
+    return result;
   }, 
-    // Force rebuild when documents change or after deletion (tracked by deletion mutation state)
-    [documents, deleteFilesMutation.isSuccess]
+    // Rebuild when stable documents change or after deletion
+    [stableDocuments, deleteFilesMutation.isSuccess, isFetching]
   );
 
   if (isLoading) {
