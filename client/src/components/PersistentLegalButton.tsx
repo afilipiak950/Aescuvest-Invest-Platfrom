@@ -45,8 +45,8 @@ export function PersistentLegalButton({
 
     checkAnalysisStatus();
 
-    // Poll for status updates every 2 seconds
-    const interval = setInterval(checkAnalysisStatus, 2000);
+    // Poll for status updates every 15 seconds to reduce server load
+    const interval = setInterval(checkAnalysisStatus, 15000);
     return () => clearInterval(interval);
   }, [dealId]);
 

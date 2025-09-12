@@ -162,26 +162,16 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
     };
   }, [dealId, onJobComplete]);
 
-  // Add polling as fallback for progress updates
+  // Light polling as fallback only when WebSocket is disconnected
   useEffect(() => {
-    if (!dealId) return;
+    if (!dealId || socket) return; // Skip polling if WebSocket is connected
 
     const pollInterval = setInterval(async () => {
       try {
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
-        if (data.success && data.jobs) {
-          // Filter out legal analysis jobs from logging since they use their own progress endpoint
-          const nonLegalJobs = data.jobs.filter((job: JobProgress) => !job.jobId.toString().includes('legal_analysis'));
-          
-          if (nonLegalJobs.length > 0) {
-            console.log(`📊 Polling found ${nonLegalJobs.length} active jobs for deal ${dealId}`);
-            nonLegalJobs.forEach((job: JobProgress) => {
-              console.log(`📋 Job ${job.jobId}: ${job.progress}% - ${job.currentStep}`);
-            });
-          }
-          
+        if (data.success && data.jobs && data.jobs.length > 0) {
           const jobsMap = new Map();
           data.jobs.forEach((job: JobProgress) => {
             jobsMap.set(job.jobId, job);
@@ -191,10 +181,10 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
       } catch (error) {
         console.error('Error polling background jobs:', error);
       }
-    }, 10000); // Poll every 10 seconds - reduced for better performance
+    }, 30000); // Only poll every 30 seconds as fallback when WebSocket disconnected
 
     return () => clearInterval(pollInterval);
-  }, [dealId]);
+  }, [dealId, socket]);
 
   const getStatusIcon = (status: string, progress: number) => {
     if (status === 'failed') {
