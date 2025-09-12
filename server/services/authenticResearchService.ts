@@ -150,12 +150,20 @@ export class AuthenticResearchService {
         throw new Error(`Deal ${dealId} not found`);
       }
 
-      const companyName = deal.companyName;
+      // FIRST: Extract REAL data from uploaded documents
+      console.log(`📚 Extracting research from uploaded documents for deal ${dealId}`);
+      const { documentBasedResearchService } = await import('./documentBasedResearchService');
+      const documentData = await documentBasedResearchService.extractResearchFromDocuments(dealId);
+      
+      // Use the company name from documents if found, otherwise fall back to deal
+      const companyName = documentData.companyName !== 'Unknown Company' 
+        ? documentData.companyName 
+        : deal.companyName;
       const website = deal.website || '';
 
-      console.log(`🔍 Researching ${companyName} with authentic data collection`);
+      console.log(`🔍 Researching ${companyName} with document-based data (${documentData.documentCount} documents)`);
 
-      // Perform authentic web scraping and research
+      // Perform authentic web scraping and research as supplementary data
       const [
         websiteContent,
         executiveData,
@@ -177,19 +185,58 @@ export class AuthenticResearchService {
       const extractedMarketData = this.extractValue(marketData);
       console.log(`🔍 DEBUG: Extracted market data:`, JSON.stringify(extractedMarketData, null, 2));
 
-      // Compile authentic research results
+      // Compile authentic research results - PRIORITIZE DOCUMENT DATA
       const researchData: AuthenticResearchData = {
-        companyName,
+        companyName,  // Already using document-extracted name
         website,
         lastUpdated: new Date().toISOString(),
         sources: this.countAuthenticSources([websiteContent, executiveData, financialData, marketData, businessIntelligence, riskFactors]),
         aiConfidenceScore: this.calculateConfidenceScore([websiteContent, executiveData, financialData, marketData, businessIntelligence, riskFactors]),
         researchStatus: 'complete',
-        ceoProfile: this.extractValue(executiveData)?.ceoProfile,
-        keyTeamMembers: this.extractValue(executiveData)?.keyTeamMembers,
-        financialData: this.extractValue(financialData),
+        // PRIORITIZE DOCUMENT DATA: Use document-extracted executives and advisors
+        ceoProfile: documentData.executives.length > 0 ? {
+          name: documentData.executives.find(e => e.title.includes('CEO'))?.name || 'Executive team from documents',
+          background: `Based on ${documentData.documentCount} documents analyzed`,
+          experience: documentData.executives.map(e => `${e.title}: ${e.name}`).join(', '),
+          education: 'See documents for details',
+          previousCompanies: [],
+          linkedinUrl: ''
+        } : this.extractValue(executiveData)?.ceoProfile,
+        
+        // Use document-extracted team members and advisory board
+        keyTeamMembers: [
+          ...documentData.executives.map(e => ({
+            name: e.name,
+            role: e.title,
+            background: `Source: ${e.source}`,
+            linkedinUrl: ''
+          })),
+          ...documentData.advisoryBoard.map(a => ({
+            name: a.name,
+            role: a.role,
+            background: `Advisory Board - Source: ${a.source}`,
+            linkedinUrl: ''
+          }))
+        ].slice(0, 10), // Limit to top 10
+        
+        // Merge financial data from documents
+        financialData: {
+          ...this.extractValue(financialData),
+          revenue: documentData.financialInfo.revenue || this.extractValue(financialData)?.revenue,
+          fundingHistory: documentData.financialInfo.fundingRounds || this.extractValue(financialData)?.fundingHistory || [],
+          employeeCount: documentData.financialInfo.employeeCount || this.extractValue(financialData)?.employeeCount
+        },
+        
         marketAnalysis: extractedMarketData,
-        businessIntelligence: this.extractValue(businessIntelligence),
+        
+        // Enhance business intelligence with document data
+        businessIntelligence: {
+          ...this.extractValue(businessIntelligence),
+          partnerships: documentData.partners.map(p => `${p.name} (${p.type})`),
+          technologyStack: documentData.technology.technologies || [],
+          patents: documentData.technology.patents?.length || 0
+        },
+        
         riskFactors: this.extractValue(riskFactors),
         investmentHighlights: await this.generateInvestmentHighlights(companyName, websiteContent),
         externalLinks: {
