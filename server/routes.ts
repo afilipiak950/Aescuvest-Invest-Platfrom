@@ -9093,6 +9093,12 @@ export async function registerAllRoutes(app: Express) {
 
       console.log(`✅ Data room ZIP upload successful: ${zipResult.processedFiles.length} documents processed`);
 
+      // CRITICAL: Clear cache after ZIP processing to ensure documents appear immediately
+      console.log(`🔄 Clearing document cache for deal ${dealId} after ZIP processing`);
+      clearPaginatedDocumentCache(dealId);
+      await storage.invalidateDocumentCache(dealId);
+      console.log(`✅ Cache cleared - documents will now appear immediately`);
+
       res.json({
         success: true,
         message: `ZIP file uploaded to GCS and processed successfully`,

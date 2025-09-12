@@ -1220,10 +1220,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
+      
+      // CRITICAL: Wait a moment for backend cache clearing to complete
+      console.log('⏳ Waiting for backend cache clearing...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Invalidate and immediately refetch documents
+      console.log('🔄 Invalidating and refetching documents after ZIP upload...');
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      console.log('✅ Documents refreshed - should now show new files');
+      
       setTimeout(() => setUploadProgress(null), 3000); // Clear after 3 seconds
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -1284,10 +1294,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
+      
+      // CRITICAL: Wait a moment for backend cache clearing to complete
+      console.log('⏳ Waiting for backend cache clearing...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Invalidate and immediately refetch documents
+      console.log('🔄 Invalidating and refetching documents after file upload...');
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      console.log('✅ Documents refreshed - should now show new files');
+      
       setTimeout(() => setUploadProgress(null), 3000);
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       if (additionalFileInputRef.current) {
         additionalFileInputRef.current.value = '';
       }
