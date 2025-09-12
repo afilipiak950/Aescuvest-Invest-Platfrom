@@ -9854,6 +9854,22 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ Global AI Assistant endpoints registered');
 
+  // Export function to clear paginated document cache from other modules
+  function clearPaginatedDocumentCache(dealId: number): void {
+    // Clear all cache entries for this deal (across all pages/limits/summary modes)
+    const keysToDelete: string[] = [];
+    for (const [key] of documentCache) {
+      if (key.startsWith(`${dealId}-`)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => documentCache.delete(key));
+    console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
+  }
+  
+  // Attach cache clearing function to server for external access
+  (server as any).clearPaginatedDocumentCache = clearPaginatedDocumentCache;
+
   // Return server immediately so routes can be accessed
   // Job manager initialization will happen in background
   console.log('🔄 Initializing persistent job manager in background...');
