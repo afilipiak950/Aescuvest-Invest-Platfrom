@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { documents as documentsTable } from '../../shared/schema';
 import { backgroundJobs, documents, InsertBackgroundJob, BackgroundJob } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 import fs from 'fs';
@@ -158,9 +158,11 @@ class JobProcessor {
   async loadPendingJobsFromDatabase() {
     try {
       // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
+      // ORDER BY ensures oldest jobs get processed first (fixes deal 37 jobs being starved by deal 41)
       const pendingJobs = await db.select()
         .from(backgroundJobs)
         .where(eq(backgroundJobs.status, 'pending'))
+        .orderBy(asc(backgroundJobs.createdAt), asc(backgroundJobs.id))
         .limit(50); // Load up to 50 pending jobs at a time
       
       if (pendingJobs.length > 0) {
