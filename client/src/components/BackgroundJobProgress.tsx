@@ -191,7 +191,7 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
       } catch (error) {
         console.error('Error polling background jobs:', error);
       }
-    }, 5000); // Poll every 5 seconds - reduced from 1s for performance
+    }, 10000); // Poll every 10 seconds - reduced for better performance
 
     return () => clearInterval(pollInterval);
   }, [dealId]);

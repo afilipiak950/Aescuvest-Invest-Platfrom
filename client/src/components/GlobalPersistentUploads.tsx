@@ -130,7 +130,7 @@ export function GlobalPersistentUploadMonitor({
     const interval = setInterval(() => {
       // Force re-render to pick up localStorage changes
       queryClient.invalidateQueries({ queryKey: ['global-persistent-uploads'] });
-    }, 1000); // Update every second for real-time sync
+    }, 5000); // Update every 5 seconds - reduced from 1s for performance
     
     return () => clearInterval(interval);
   }, [activeUploads.length, queryClient]);
