@@ -265,7 +265,7 @@ export class MistralOCRService {
       });
       
       const mistralTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Mistral API timeout after 45 seconds')), 45000);
+        setTimeout(() => reject(new Error('Mistral API timeout after 120 seconds')), 120000); // Increased to 2 minutes
       });
       
       const response = await Promise.race([mistralPromise, mistralTimeout]);
