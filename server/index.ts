@@ -998,6 +998,16 @@ app.use((req, res, next) => {
 
         console.log('✅ ZIP processing completed successfully');
         
+        // Clear document cache for this deal so new documents show up immediately
+        // The clearPaginatedDocumentCache function is attached to the server object
+        if ((server as any).clearPaginatedDocumentCache) {
+          (server as any).clearPaginatedDocumentCache(dealId);
+          console.log(`📄 Cleared document cache for deal ${dealId} after ZIP upload`);
+        }
+        
+        // Also invalidate storage cache
+        await storage.invalidateDocumentCache(dealId);
+        
         res.json({
           success: true,
           message: `ZIP file uploaded and processing started for ${file.originalname}`,
