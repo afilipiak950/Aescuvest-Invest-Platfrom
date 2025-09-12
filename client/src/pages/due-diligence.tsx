@@ -360,7 +360,7 @@ function DueDiligenceContent() {
   // CRITICAL FIX: Add missing legalAnalysisData query hook
   const { data: legalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/legal/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
@@ -1349,12 +1349,13 @@ function DueDiligenceContent() {
                     const hasComprehensiveAnalysis = (() => {
                       const agentLower = agentType.toLowerCase();
                       // Check if we have actual analysis data (not just !== null)
-                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis).length > 0;
-                      if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis).length > 0;
-                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis).length > 0;
-                      if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis).length > 0;
-                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis).length > 0;
-                      if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis).length > 0;
+                      if (agentLower === 'legal') return legalAnalysisData?.analysis && Object.keys(legalAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis || {}).length > 0;
                       return false;
                     })();
                     
