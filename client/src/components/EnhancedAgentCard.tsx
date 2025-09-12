@@ -833,7 +833,7 @@ export default function EnhancedAgentCard({
     return documents.length;
   };
 
-  const assignedDocuments = getAssignedDocumentCount();
+  const assignedDocuments = getAssignedDocumentsForAgent().length;
 
   // Helper function to get assigned documents for this agent
   const getAssignedDocumentsForAgent = () => {
