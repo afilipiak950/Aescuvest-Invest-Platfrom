@@ -15,7 +15,13 @@ import { insertDealSchema } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 
 const dealFormSchema = insertDealSchema.extend({
-  fundingAmount: z.string().optional().transform((val) => val ? parseFloat(val.replace(/[^0-9.]/g, '')) : undefined),
+  fundingAmount: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (typeof val === 'string' && val) {
+      return parseFloat(val.replace(/[^0-9.]/g, ''));
+    }
+    return typeof val === 'number' ? val : undefined;
+  }),
+  location: z.string().nullable().optional(),
 });
 
 type DealFormValues = z.infer<typeof dealFormSchema>;
@@ -70,7 +76,7 @@ export default function DealForm() {
       sector: '',
       stage: '',
       location: '',
-      fundingAmount: '',
+      fundingAmount: undefined,
       status: 'Screening',
     },
   });
@@ -207,7 +213,7 @@ export default function DealForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-white">Standort</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
                   <FormControl>
                     <SelectTrigger className="bg-dark border-dark-lighter focus:ring-primary text-white">
                       <SelectValue placeholder="Wähle einen Standort" />
