@@ -824,17 +824,6 @@ export default function EnhancedAgentCard({
     };
   };
 
-  // 🚀 FIXED: Calculate total available documents since all agents have access to all documents
-  const getAssignedDocumentCount = () => {
-    if (!documents || !Array.isArray(documents)) return 0;
-    
-    // Since all documents are available to all agents in this system, return total count
-    console.log(`🔧 ${agentType} Agent Document Count:`, documents.length);
-    return documents.length;
-  };
-
-  const assignedDocuments = getAssignedDocumentsForAgent().length;
-
   // Helper function to get assigned documents for this agent
   const getAssignedDocumentsForAgent = () => {
     if (!documents || !Array.isArray(documents)) return [];
@@ -844,6 +833,9 @@ export default function EnhancedAgentCard({
       return assignedAgents.some(agent => agent.type.toLowerCase() === agentType.toLowerCase());
     });
   };
+
+  // Calculate assigned documents count using the function above
+  const assignedDocuments = getAssignedDocumentsForAgent().length;
   
   // Calculate real progress based on current state and backend progress
   const progress = (() => {
