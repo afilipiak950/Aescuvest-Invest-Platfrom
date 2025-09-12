@@ -405,11 +405,14 @@ function DueDiligenceContent() {
           return;
         }
 
-        if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents) || (doc.assignedAgents?.length || 0) === 0) {
+        // Check both assignedAgents (array) and agentType (single) fields for maximum compatibility
+        const assignedAgents = doc.assignedAgents || (doc.agentType ? [doc.agentType] : []);
+        
+        if (!assignedAgents || !Array.isArray(assignedAgents) || assignedAgents.length === 0) {
           assignments.unassigned.push(doc);
         } else {
           // Document can be assigned to multiple agents
-          doc.assignedAgents.forEach((agent: string) => {
+          assignedAgents.forEach((agent: string) => {
             try {
               const agentKey = String(agent || '').toLowerCase();
               if (agentKey && agentKey in assignments) {
