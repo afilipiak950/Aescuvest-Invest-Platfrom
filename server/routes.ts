@@ -5157,6 +5157,12 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         jobs = [];
       }
 
+      // Disable ETAg caching for real-time job updates
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      res.set('ETag', 'W/"' + Date.now() + '-' + Math.random() + '"');
+      
       res.json({ success: true, jobs });
     } catch (error) {
       console.error('Error fetching background jobs:', error);
@@ -8778,7 +8784,12 @@ async function runSpecializedAgentAnalysis(document: any, agent: any, deal: any)
 
 Company: ${deal.companyName}
 Document: ${document.name}
-Content: ${(document.ocrText || document.aiSummary || '').substring(0, 3000) || 'No content available'}
+Content: ${(() => {
+  // BULLETPROOF FIX: Ensure content is always a string before substring
+  const rawContent = document.ocrText || document.aiSummary || '';
+  const contentStr = typeof rawContent === 'string' ? rawContent : String(rawContent || '');
+  return contentStr.substring(0, 3000) || 'No content available';
+})()}
 
 Focus on: ${agent.focus}
 
