@@ -1367,9 +1367,9 @@ function DueDiligenceContent() {
                     const currentStep = matchingJob?.currentStep || `${agentType} analysis in progress...`;
                     const currentDocumentName = matchingJob?.currentDocumentName || matchingJob?.currentDocument || '';
                     
-                    // CRITICAL FIX: Show total available documents since assignment system doesn't filter
-                    // All agents have access to all documents in this system
-                    const assignedDocs = Array.isArray(documents) ? documents.length : 0;
+                    // CRITICAL FIX: Show only documents assigned to this specific agent
+                    const agentKey = agentType.toLowerCase();
+                    const assignedDocs = agentDocuments[agentKey]?.length || 0;
                     
                     // Correct questions per agent - matching actual question counts in services  
                     const questionCounts = {
