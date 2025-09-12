@@ -73,18 +73,28 @@ export class DocumentBasedResearchService {
   
   async extractResearchFromDocuments(dealId: number): Promise<DocumentBasedResearchData> {
     console.log(`📚 Starting document-based research extraction for deal ${dealId}`);
+    console.log(`🔍 CRITICAL DEBUG: Extracting research from documents for deal ${dealId}`);
     
     try {
       // Get deal information to know the expected company name
       const deal = await storage.getDealById(dealId);
       const dealCompanyName = deal?.companyName || '';
+      console.log(`🔍 CRITICAL DEBUG: Deal company name: "${dealCompanyName}"`);
       
       // Get all documents with OCR content for this deal
       const documents = await storage.getDocumentsWithOCRByDealId(dealId);
       console.log(`📄 Found ${documents.length} documents with OCR content`);
+      console.log(`🔍 CRITICAL DEBUG: Document count for deal ${dealId}: ${documents.length}`);
+      
+      if (documents.length > 0) {
+        console.log(`🔍 CRITICAL DEBUG: First 3 document names:`, documents.slice(0, 3).map(d => d.name));
+        console.log(`🔍 CRITICAL DEBUG: First document has OCR text:`, documents[0].ocrText ? 'YES' : 'NO');
+        console.log(`🔍 CRITICAL DEBUG: First document OCR length:`, documents[0].ocrText?.length || 0);
+      }
       
       if (documents.length === 0) {
         console.log(`⚠️ No documents found for deal ${dealId}`);
+        console.log(`🔍 CRITICAL DEBUG: Returning empty research data for deal ${dealId}`);
         return this.getEmptyResearchData(dealId);
       }
       
@@ -117,6 +127,7 @@ export class DocumentBasedResearchService {
       console.log(`📊 Document breakdown: ${advisoryDocs.length} advisory, ${legalDocs.length} legal, ${financialDocs.length} financial, ${consultingDocs.length} consulting`);
       
       // Extract information from each document type
+      console.log(`🔍 CRITICAL DEBUG: Starting extraction of executives, advisors, partners, etc.`);
       const [
         executives,
         advisoryBoard,
@@ -133,8 +144,14 @@ export class DocumentBasedResearchService {
         this.extractLegalInfo(legalDocs)
       ]);
       
+      console.log(`🔍 CRITICAL DEBUG: Extracted executives:`, executives.length);
+      console.log(`🔍 CRITICAL DEBUG: Extracted advisory board:`, advisoryBoard.length);
+      console.log(`🔍 CRITICAL DEBUG: Extracted partners:`, partners.length);
+      console.log(`🔍 CRITICAL DEBUG: Financial info found:`, !!financialInfo.revenue || !!financialInfo.fundingRounds?.length);
+      
       // Determine the real company name from documents
       const companyName = await this.extractCompanyName(documents, dealCompanyName);
+      console.log(`🔍 CRITICAL DEBUG: Final extracted company name: "${companyName}"`);
       
       return {
         companyName,
@@ -150,6 +167,7 @@ export class DocumentBasedResearchService {
       
     } catch (error) {
       console.error(`❌ Error extracting research from documents:`, error);
+      console.log(`🔍 CRITICAL DEBUG: Document extraction failed for deal ${dealId}, returning empty data`);
       return this.getEmptyResearchData(dealId);
     }
   }
