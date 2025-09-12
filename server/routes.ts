@@ -1248,12 +1248,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cached = getPaginatedDocumentCache(dealId);
       
       if (cached) {
-        console.log(`⚡ Using cached documents for deal ${dealId} page ${page} (${cached.documents.length} docs)`);
+        console.log(`⚡ [CACHE HIT] Deal ${dealId}: Returning ${cached.documents.length} cached documents`);
+        console.log(`⏱️ Cache response time: ${Date.now() - startTime}ms`);
         res.setHeader('X-Cache', 'HIT');
         return res.status(200).json(cached);
       }
       
-      console.log(`📄 Fetching documents for deal ${dealId} page ${page} (limit: ${limit}, summary: ${summary})...`);
+      console.log(`📄 [CACHE MISS] Deal ${dealId}: Fetching from database...`);
       const dbStartTime = Date.now();
       
       // Get paginated documents
