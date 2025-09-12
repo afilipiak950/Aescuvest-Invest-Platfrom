@@ -1345,13 +1345,13 @@ function DueDiligenceContent() {
                     // by checking if the agent-specific results endpoint returns data
                     const hasComprehensiveAnalysis = (() => {
                       const agentLower = agentType.toLowerCase();
-                      // Check if we have data from the agent-specific endpoints that were added
-                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
-                      if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
-                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
-                      if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                      if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
-                      if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
+                      // Check if we have actual analysis data (not just !== null)
+                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis).length > 0;
+                      if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis).length > 0;
+                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis).length > 0;
+                      if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis).length > 0;
+                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis).length > 0;
+                      if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis).length > 0;
                       return false;
                     })();
                     
