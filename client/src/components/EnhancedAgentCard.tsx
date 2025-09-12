@@ -862,10 +862,13 @@ export default function EnhancedAgentCard({
       return analysisData.progress;
     }
     
-    // Default progress based on status
-    if (status === 'Completed') return 100;
+    // FIXED: Only return 100% if status is 'Completed' AND we have actual analysis data
+    // For new deals with no analysis, always show 0% progress
+    if (status === 'Completed' && analysisData && (analysisData.findings || analysisData.recommendations)) {
+      return 100;
+    }
     if (status === 'Processing') return 15; // Show some progress for processing
-    return 0;
+    return 0; // Default to 0% for new deals or "Not Started" status
   })();
   
   // Calculate how many documents were actually analyzed (have findings with document sources)
