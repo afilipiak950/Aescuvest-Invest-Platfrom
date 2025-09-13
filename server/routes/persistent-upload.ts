@@ -68,19 +68,14 @@ router.get('/api/deals/:dealId/persistent-uploads', async (req: Request, res: Re
 // ⚡ Global Upload Cache for Performance (30 second cache)
 const globalUploadCache = new Map<string, { data: any, timestamp: number }>();
 
-// TEMPORARILY DISABLED to eliminate excessive polling causing 20-second dashboard delays
-// Get all global persistent upload sessions (across all deals) - CACHED
+// Get all global persistent upload sessions (across all deals) - OPTIMIZED WITH CACHE
 router.get('/api/persistent-uploads/global', async (req: Request, res: Response) => {
-  // NUCLEAR FIX: Return empty result immediately to stop ALL polling
-  return res.json({ success: true, uploads: [] });
-  // Original code below (commented out):
-  /*
   const startTime = Date.now();
   try {
-    // ⚡ Check cache first
+    // ⚡ Check cache first for performance (5 second cache for active uploads)
     const cacheKey = 'global_uploads';
     const cached = globalUploadCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < 30 * 1000) { // 30 second cache
+    if (cached && (Date.now() - cached.timestamp) < 5 * 1000) { // 5 second cache for active uploads
       console.log(`⚡ Using cached global uploads (${cached.data.length} uploads)`);
       res.setHeader('X-Cache', 'HIT');
       return res.json({
@@ -114,7 +109,6 @@ router.get('/api/persistent-uploads/global', async (req: Request, res: Response)
       error: 'Failed to get global persistent uploads'
     });
   }
-  */
 });
 
 // Get specific upload session by ID
