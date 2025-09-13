@@ -88,6 +88,10 @@ class JobProcessor {
       if (metadata.currentDocument !== undefined) {
         updateData.currentDocumentName = metadata.currentDocument;
       }
+      // Store agent document counts in jobData for real-time tracking
+      if (metadata.agentDocumentCounts !== undefined) {
+        updateData.jobData = { ...(updateData.jobData || {}), agentDocumentCounts: metadata.agentDocumentCounts };
+      }
     }
 
     if (status) {
@@ -1315,8 +1319,8 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
     console.log(`🤖 Starting AI-powered document assignment for deal ${dealId} (Background Job: ${job.id})`);
     
     try {
-      // Create progress callback to update job progress
-      const progressCallback = async (processedCount: number, totalCount: number, currentDoc: string) => {
+      // Create progress callback to update job progress with agent counts
+      const progressCallback = async (processedCount: number, totalCount: number, currentDoc: string, agentCounts?: Record<string, number>) => {
         const progress = Math.round((processedCount / totalCount) * 100);
         await this.updateJobProgress(
           job.id, 
@@ -1326,7 +1330,8 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           {
             processedDocuments: processedCount,
             totalDocuments: totalCount,
-            currentDocument: currentDoc
+            currentDocument: currentDoc,
+            agentDocumentCounts: agentCounts
           }
         );
       };
