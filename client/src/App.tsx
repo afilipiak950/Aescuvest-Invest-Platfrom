@@ -37,6 +37,7 @@ import ProfilePage from "@/pages/profile";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
+import { FloatingUploadProgress } from "@/components/FloatingUploadProgress";
 
 function AppContent() {
   const [location, setLocation] = useLocation();
@@ -162,14 +163,8 @@ function AppContent() {
           </div>
         )}
         
-        {/* TEMPORARILY DISABLED to eliminate excessive polling causing 20-second dashboard delays */}
-        {/* {isAuthenticated && (
-          <GlobalPersistentUploadMonitor
-            isMinimized={isMinimized}
-            onToggleMinimize={toggleMinimize}
-            onClose={closeMonitor}
-          />
-        )} */}
+        {/* Global floating upload progress - shows on all pages */}
+        {isAuthenticated && <FloatingUploadProgress />}
         
         <Toaster />
       </TooltipProvider>

@@ -95,28 +95,60 @@ class BackgroundUploadService {
     dealId: number,
     file: File,
     abortController: AbortController,
-    options: BackgroundUploadOptions
+    options: BackgroundUploadOptions,
+    retryCount = 0
   ): Promise<void> {
     const { frontendPersistentUploadService } = await import('./persistentUploadService');
+    const MAX_RETRIES = 3;
     
     try {
-      // Step 1: Get signed URL
+      // Step 1: Get signed URL with retry logic
       await this.updateProgress(sessionId, 1, 'Getting upload authorization...', options);
       
-      const signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileSize: file.size
-        }),
-        signal: abortController.signal
-      });
+      let signedUrlResponse;
+      let retryAttempts = 0;
+      
+      while (retryAttempts < MAX_RETRIES) {
+        try {
+          signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileSize: file.size
+            }),
+            signal: abortController.signal
+          });
 
-      if (!signedUrlResponse.ok) {
-        throw new Error(`Failed to get signed URL: ${signedUrlResponse.statusText}`);
+          if (signedUrlResponse.ok) break;
+          
+          if (signedUrlResponse.status >= 500) {
+            // Server error - retry with exponential backoff
+            retryAttempts++;
+            if (retryAttempts < MAX_RETRIES) {
+              const delay = Math.min(1000 * Math.pow(2, retryAttempts), 10000);
+              console.log(`⚠️ Server error, retrying in ${delay}ms (attempt ${retryAttempts}/${MAX_RETRIES})`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+          }
+          
+          throw new Error(`Failed to get signed URL: ${signedUrlResponse.statusText}`);
+        } catch (error: any) {
+          if (error.name === 'AbortError') throw error;
+          if (retryAttempts >= MAX_RETRIES - 1) throw error;
+          
+          retryAttempts++;
+          const delay = Math.min(1000 * Math.pow(2, retryAttempts), 10000);
+          console.log(`⚠️ Network error, retrying in ${delay}ms (attempt ${retryAttempts}/${MAX_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+
+      if (!signedUrlResponse || !signedUrlResponse.ok) {
+        throw new Error(`Failed to get signed URL after ${MAX_RETRIES} attempts`);
       }
 
       const { signedUrl, gcsFileName, uploadId } = await signedUrlResponse.json();
@@ -124,8 +156,33 @@ class BackgroundUploadService {
 
       await this.updateProgress(sessionId, 10, 'Starting direct cloud upload...', options);
 
-      // Step 2: Upload directly to GCS in background
-      await this.uploadToGCS(sessionId, file, signedUrl, abortController, options);
+      // Step 2: Upload directly to GCS in background with retry logic
+      let uploadSuccess = false;
+      let uploadRetries = 0;
+      
+      while (!uploadSuccess && uploadRetries < MAX_RETRIES) {
+        try {
+          await this.uploadToGCS(sessionId, file, signedUrl, abortController, options);
+          uploadSuccess = true;
+        } catch (error: any) {
+          if (error.name === 'AbortError') throw error;
+          
+          uploadRetries++;
+          if (uploadRetries >= MAX_RETRIES) throw error;
+          
+          const delay = Math.min(2000 * Math.pow(2, uploadRetries), 30000);
+          console.log(`⚠️ Upload failed, retrying in ${delay}ms (attempt ${uploadRetries}/${MAX_RETRIES})`);
+          
+          await this.updateProgress(
+            sessionId, 
+            Math.max(10, (uploadRetries - 1) * 30), 
+            `Retrying upload (attempt ${uploadRetries}/${MAX_RETRIES})...`, 
+            options
+          );
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
 
       // Step 3: Notify server of completion
       await this.updateProgress(sessionId, 95, 'Processing uploaded file...', options);
@@ -158,11 +215,53 @@ class BackgroundUploadService {
         file.size,
         'Upload completed successfully'
       );
+      
+      // Store completion in localStorage for notifications
+      const completedUploads = JSON.parse(localStorage.getItem('completedUploads') || '[]');
+      completedUploads.push({
+        sessionId,
+        fileName: file.name,
+        documentsCreated: result.documentsCreated || 0,
+        completedAt: Date.now()
+      });
+      localStorage.setItem('completedUploads', JSON.stringify(completedUploads));
 
       console.log(`✅ Background upload fully completed: ${sessionId}`);
 
+      // Show notification if page visibility API supports it
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification('Upload Complete', {
+          body: `${file.name} has been uploaded successfully. ${result.documentsCreated || 0} documents extracted.`,
+          icon: '/assets/aescuvest-icon.png'
+        });
+      }
+
     } catch (error: any) {
       console.error(`❌ Background upload error: ${sessionId}`, error);
+      
+      // If we haven't exceeded max retries, try again
+      if (retryCount < MAX_RETRIES && error.name !== 'AbortError') {
+        const delay = Math.min(3000 * Math.pow(2, retryCount), 60000);
+        console.log(`🔄 Retrying entire upload process in ${delay}ms (retry ${retryCount + 1}/${MAX_RETRIES})`);
+        
+        await this.updateProgress(
+          sessionId,
+          0,
+          `Retrying upload (attempt ${retryCount + 1}/${MAX_RETRIES})...`,
+          options
+        );
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return this.executeBackgroundUpload(
+          sessionId,
+          dealId,
+          file,
+          abortController,
+          options,
+          retryCount + 1
+        );
+      }
       
       await frontendPersistentUploadService.updateProgress(
         sessionId,
