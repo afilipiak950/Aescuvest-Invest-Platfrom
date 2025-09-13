@@ -1373,7 +1373,16 @@ function DueDiligenceContent() {
                     
                     // CRITICAL FIX: Show only documents assigned to this specific agent
                     const agentKey = agentType.toLowerCase();
-                    const assignedDocs = agentDocuments[agentKey]?.length || 0;
+                    
+                    // Get real-time document count from assignment job if running
+                    const assignmentJob = findJobSafely(allJobs, ['document_assignment']);
+                    const isAssignmentRunning = assignmentJob?.status === 'processing';
+                    const realtimeAgentCounts = assignmentJob?.metadata?.agentDocumentCounts || {};
+                    
+                    // Use real-time count during assignment, otherwise use static count
+                    const assignedDocs = isAssignmentRunning && realtimeAgentCounts[agentType] !== undefined
+                      ? realtimeAgentCounts[agentType]
+                      : agentDocuments[agentKey]?.length || 0;
                     
                     // Correct questions per agent - matching actual question counts in services  
                     const questionCounts = {
@@ -1491,7 +1500,11 @@ function DueDiligenceContent() {
                           
                           {/* Documents and Questions */}
                           <div className="flex justify-between text-gray-400">
-                            <span>Docs: {assignedDocs} • Q: {totalQuestions}</span>
+                            <span>
+                              Docs: {assignedDocs} 
+                              {isAssignmentRunning && <span className="ml-1 text-xs text-yellow-400 animate-pulse">🔄</span>} 
+                              • Q: {totalQuestions}
+                            </span>
                           </div>
                         </div>
                         
@@ -1517,7 +1530,10 @@ function DueDiligenceContent() {
                         {!isCurrentlyRunning && currentProgress === 0 && (
                           <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className="text-xs text-gray-500">Not Started</div>
-                            <div className="text-xs text-gray-500">{assignedDocs} docs assigned</div>
+                            <div className="text-xs text-gray-500">
+                              {assignedDocs} docs assigned
+                              {isAssignmentRunning && <span className="ml-1 text-xs text-yellow-400">(updating...)</span>}
+                            </div>
                           </div>
                         )}
                       </div>

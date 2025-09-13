@@ -29,19 +29,32 @@ router.get('/api/background-jobs/:dealId', async (req: Request, res: Response) =
     console.log('🔍 Raw database jobs:', JSON.stringify(dbJobs.slice(0, 2), null, 2));
     
     // Transform database jobs to expected format
-    const jobs = dbJobs.map(job => ({
-      jobId: job.jobId,
-      agentType: job.agentType,
-      progress: job.progress || 0,
-      status: job.status,
-      currentStep: job.currentStep || 'Processing...',
-      currentDocumentName: job.currentDocumentName || 'Processing',
-      totalDocuments: job.totalDocuments || 0,
-      processedDocuments: job.processedDocuments || 0,
-      runId: job.runId,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt
-    }));
+    const jobs = dbJobs.map(job => {
+      const jobData = job.jobData as any || {};
+      return {
+        jobId: job.jobId,
+        jobType: job.jobType,
+        agentType: job.agentType,
+        progress: job.progress || 0,
+        status: job.status,
+        currentStep: job.currentStep || 'Processing...',
+        currentDocument: job.currentDocumentName || 'Processing',
+        totalDocuments: job.totalDocuments || 0,
+        processedDocuments: job.processedDocuments || 0,
+        runId: job.runId,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        metadata: {
+          agentType: job.agentType,
+          startTime: job.createdAt,
+          lastUpdate: job.updatedAt,
+          processedDocuments: job.processedDocuments || 0,
+          totalDocuments: job.totalDocuments || 0,
+          currentDocument: job.currentDocumentName || 'Processing',
+          agentDocumentCounts: jobData.agentDocumentCounts || {}
+        }
+      };
+    });
     
     res.json({ success: true, jobs });
   } catch (error) {
@@ -65,20 +78,33 @@ router.get('/api/background-jobs', async (req: Request, res: Response) => {
         eq(backgroundJobs.status, 'pending')
       ));
     
-    const jobs = allJobs.map(job => ({
-      jobId: job.jobId,
-      agentType: job.agentType,
-      progress: job.progress || 0,
-      status: job.status,
-      currentStep: job.currentStep || 'Processing...',
-      currentDocumentName: job.currentDocumentName || 'Processing',
-      totalDocuments: job.totalDocuments || 0,
-      processedDocuments: job.processedDocuments || 0,
-      runId: job.runId,
-      dealId: job.dealId,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt
-    }));
+    const jobs = allJobs.map(job => {
+      const jobData = job.jobData as any || {};
+      return {
+        jobId: job.jobId,
+        jobType: job.jobType,
+        agentType: job.agentType,
+        progress: job.progress || 0,
+        status: job.status,
+        currentStep: job.currentStep || 'Processing...',
+        currentDocument: job.currentDocumentName || 'Processing',
+        totalDocuments: job.totalDocuments || 0,
+        processedDocuments: job.processedDocuments || 0,
+        runId: job.runId,
+        dealId: job.dealId,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        metadata: {
+          agentType: job.agentType,
+          startTime: job.createdAt,
+          lastUpdate: job.updatedAt,
+          processedDocuments: job.processedDocuments || 0,
+          totalDocuments: job.totalDocuments || 0,
+          currentDocument: job.currentDocumentName || 'Processing',
+          agentDocumentCounts: jobData.agentDocumentCounts || {}
+        }
+      };
+    });
     
     res.json({ success: true, jobs });
   } catch (error) {
