@@ -1375,7 +1375,7 @@ function DueDiligenceContent() {
                     const agentKey = agentType.toLowerCase();
                     
                     // Get real-time document count from assignment job if running
-                    const assignmentJob = findJobSafely(allJobs, ['document_assignment']);
+                    const assignmentJob = findJobSafely(jobProgress?.jobs, ['document_assignment']);
                     const isAssignmentRunning = assignmentJob?.status === 'processing';
                     const realtimeAgentCounts = assignmentJob?.metadata?.agentDocumentCounts || {};
                     
