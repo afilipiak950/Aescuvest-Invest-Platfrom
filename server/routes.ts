@@ -5030,6 +5030,7 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
 
   // Run comprehensive analysis using specialized Mistral AI agents with persistent background jobs
   app.post('/api/deals/:dealId/run-comprehensive-analysis', async (req: Request, res: Response) => {
+    console.log(`🚀 POST /api/deals/${req.params.dealId}/run-comprehensive-analysis - Starting comprehensive analysis`);
     try {
       const dealId = parseInt(req.params.dealId);
       if (isNaN(dealId)) {
@@ -5071,21 +5072,53 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         totalDocuments: documentsWithOCR.length
       });
 
+      // Import persistent services for individual agents
+      const { persistentClinicalAnalysisService } = require('./services/persistentClinicalAnalysis');
+      const { persistentResearchAnalysisService } = require('./services/persistentResearchAnalysis');
+      const { persistentLegalAnalysisService } = require('./services/persistentLegalAnalysis');
+      const { persistentFinancialAnalysisService } = require('./services/persistentFinancialAnalysis');
+      const { persistentIpAnalysisService } = require('./services/persistentIpAnalysis');
+
       // Start persistent background jobs for all agents
       const agentTypes = ['clinical', 'legal', 'commercial', 'hr', 'financial', 'ip', 'research'];
       const startedJobs = [];
 
       for (const agentType of agentTypes) {
         try {
-          const jobId = await persistentJobManager.startAgentAnalysis(dealId, agentType, documentsWithOCR.length);
-          startedJobs.push({ agentType, jobId });
+          console.log(`🔧 Creating background job for ${agentType} agent...`);
+          let jobId;
           
-          // Start the actual analysis process in background
-          runAgentAnalysisWithPersistence(dealId, agentType, documentsWithOCR, deal, jobId)
-            .catch((error: any) => {
-              console.error(`${agentType} analysis failed for deal ${dealId}:`, error);
-              persistentJobManager.failJob(jobId, error.message);
-            });
+          // Use individual persistent services for specific agents
+          switch (agentType) {
+            case 'clinical':
+              jobId = await persistentClinicalAnalysisService.startClinicalAnalysis(dealId);
+              break;
+            case 'research':
+              jobId = await persistentResearchAnalysisService.startResearchAnalysis(dealId);
+              break;
+            case 'legal':
+              jobId = await persistentLegalAnalysisService.startLegalAnalysis(dealId);
+              break;
+            case 'financial':
+              jobId = await persistentFinancialAnalysisService.startFinancialAnalysis(dealId);
+              break;
+            case 'ip':
+              jobId = await persistentIpAnalysisService.startIpAnalysis(dealId);
+              break;
+            default:
+              // For commercial and HR, use the standard approach for now
+              jobId = await persistentJobManager.startAgentAnalysis(dealId, agentType, documentsWithOCR.length);
+              // Start the actual analysis process in background for standard agents
+              runAgentAnalysisWithPersistence(dealId, agentType, documentsWithOCR, deal, jobId)
+                .catch((error: any) => {
+                  console.error(`${agentType} analysis failed for deal ${dealId}:`, error);
+                  persistentJobManager.failJob(jobId, error.message);
+                });
+              break;
+          }
+          
+          console.log(`✅ Created job ${jobId} for ${agentType} agent`);
+          startedJobs.push({ agentType, jobId });
         } catch (error) {
           console.error(`Failed to start ${agentType} analysis job:`, error);
         }
@@ -5116,13 +5149,19 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
         return res.status(400).json({ success: false, error: 'Invalid deal ID' });
       }
 
-      // Get running background jobs from storage with error handling
+      // Get ALL background jobs for this deal, including agent analysis jobs
       let jobs = [];
       try {
-        const dbJobs = await storage.getRunningBackgroundJobs(dealId);
+        // Get both running and pending jobs to show all agent statuses
+        const dbJobs = await storage.getBackgroundJobsByDealId(dealId);
+        
+        // Filter to only include active jobs (pending, processing)
+        const activeJobs = dbJobs.filter(job => 
+          job.status === 'pending' || job.status === 'processing'
+        );
         
         // Transform to expected format
-        jobs = dbJobs.map(job => {
+        jobs = activeJobs.map(job => {
           // Extract metadata fields for assignment jobs
           const metadata = job.metadata || {};
           const processedDocs = metadata.processedDocuments || job.processedDocuments || 0;
@@ -5149,6 +5188,17 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
             }
           };
         });
+        
+        console.log(`📊 Found ${activeJobs.length} pending/running background jobs for deal ${dealId}`);
+        
+        // Log detailed job info to debug agent tracking
+        if (jobs.length > 0) {
+          jobs.forEach(job => {
+            console.log(`  Job: ${job.jobType} | Agent: ${job.agentType} | Status: ${job.status} | Progress: ${job.progress}%`);
+          });
+        } else {
+          console.log(`  ⚠️ No active jobs found for deal ${dealId}`);
+        }
         
         console.log(`📊 Found ${jobs.length} background jobs for deal ${dealId}`);
       } catch (storageError) {
