@@ -671,8 +671,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showAdditionalUpload, setShowAdditionalUpload] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ fileName: string; progress: number; status: string } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ sessionId?: string; fileName: string; progress: number; status: string } | null>(null);
   const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   
   // 🚨 CRITICAL FIX: ALL useRef hooks after useState but before useQuery/useEffect
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -715,6 +716,62 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   // Extract documents from paginated response for backward compatibility
   const documents = Array.isArray(paginatedData) ? paginatedData : paginatedData?.documents || [];
   
+  // Resume monitoring active uploads on mount or dealId change
+  useEffect(() => {
+    const checkActiveUploads = async () => {
+      const activeUploads = backgroundUploadService.getActiveUploads();
+      
+      if (activeUploads.length > 0) {
+        console.log('🔄 Found active uploads, resuming monitoring:', activeUploads);
+        
+        // Resume monitoring the first active upload
+        const sessionId = activeUploads[0];
+        
+        // Get upload details from persistent storage
+        try {
+          const response = await fetch(`/api/persistent-uploads/${sessionId}`);
+          if (response.ok) {
+            const session = await response.json();
+            
+            // Resume monitoring with progress callback
+            backgroundUploadService.resumeUploadMonitoring(sessionId, {
+              dealId,
+              file: new File([], session.fileName), // Placeholder file
+              onProgress: (progress) => {
+                console.log(`📊 Resumed upload progress: ${progress.progress}%`);
+                setUploadProgress({
+                  sessionId: progress.sessionId,
+                  fileName: progress.fileName,
+                  progress: progress.progress,
+                  status: progress.status
+                });
+                setActiveSessionId(progress.sessionId);
+              },
+              onComplete: (completedSessionId) => {
+                console.log(`✅ Resumed upload completed: ${completedSessionId}`);
+                setUploadProgress(null);
+                setActiveSessionId(null);
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+                if (onUploadComplete) {
+                  onUploadComplete();
+                }
+              },
+              onError: (error) => {
+                console.error(`❌ Resumed upload failed: ${error}`);
+                setUploadProgress(null);
+                setActiveSessionId(null);
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Failed to resume upload monitoring:', error);
+        }
+      }
+    };
+    
+    checkActiveUploads();
+  }, [dealId, onUploadComplete]); // Removed queryClient from dependencies as it doesn't change
+  
   // Store last non-empty documents to prevent UI flicker during processing
   const lastNonEmptyDocumentsRef = useRef<Document[]>([]);
   const lastNonEmptyFolderTreeRef = useRef<FolderNode | null>(null);
@@ -750,14 +807,17 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           onProgress: (progress) => {
             console.log(`📊 Upload progress: ${progress.progress}%`);
             setUploadProgress({
+              sessionId: progress.sessionId,
               fileName: progress.fileName,
               progress: progress.progress,
               status: progress.status
             });
+            setActiveSessionId(progress.sessionId);
           },
           onComplete: (sessionId) => {
             console.log(`✅ Background upload completed: ${sessionId}`);
             setUploadProgress(null);
+            setActiveSessionId(null);
             queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
             if (onUploadComplete) {
               onUploadComplete();
@@ -766,11 +826,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           onError: (error) => {
             console.error(`❌ Background upload failed: ${error}`);
             setUploadProgress(null);
+            setActiveSessionId(null);
             alert(`Upload failed: ${error}`);
           }
         });
 
         console.log(`📝 Started background upload session: ${sessionId}`);
+        setActiveSessionId(sessionId);
         return { sessionId, success: true };
       } catch (error) {
         console.error('Failed to start background upload:', error);
