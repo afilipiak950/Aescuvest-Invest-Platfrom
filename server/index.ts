@@ -27,6 +27,11 @@ import persistentUploadRouter from './routes/persistent-upload';
 
 const app = express();
 
+// 🔧 CRITICAL FIX: Configure Express to trust proxy for rate limiting
+// This fixes ValidationError: The 'X-Forwarded-For' header validation error
+app.set('trust proxy', true);
+console.log('✅ Express trust proxy enabled - rate limiting will work correctly');
+
 // 🚨 ULTRA-EARLY DEBUG: Catch ALL requests before ANY middleware
 app.use((req, res, next) => {
   console.log(`🔍 ULTRA-EARLY DEBUG: ${req.method} ${req.path} - BEFORE ALL MIDDLEWARE`);
