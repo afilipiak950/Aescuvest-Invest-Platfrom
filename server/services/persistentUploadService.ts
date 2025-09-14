@@ -113,7 +113,7 @@ export class PersistentUploadService {
         .set({
           progress,
           uploadedBytes: uploadedBytes || undefined,
-          currentStep,
+          currentStep: currentStep,
           updatedAt: new Date()
         })
         .where(eq(persistentUploadSessions.sessionId, sessionId));
@@ -395,9 +395,9 @@ export class PersistentUploadService {
       console.log(`🚑 Starting recovery for upload: ${session.sessionId} (${session.fileName})`);
       
       // Import required services
-      const { googleCloudStorage } = await import('./googleCloudStorage');
+      const { gcsService } = await import('./googleCloudStorage');
       const { zipProcessor } = await import('./zipProcessor');
-      const { documentsTable } = await import('@shared/schema');
+      const { documents } = await import('@shared/schema');
       
       // Check if we have a GCS path
       if (!session.gcsPath) {
@@ -412,7 +412,7 @@ export class PersistentUploadService {
       
       // Check if the file exists in GCS
       console.log(`☁️ Checking if file exists in GCS: ${session.gcsPath}`);
-      const fileExists = await googleCloudStorage.fileExists(session.gcsPath);
+      const fileExists = await gcsService.fileExists(session.gcsPath);
       
       if (fileExists) {
         console.log(`✅ File found in GCS! Attempting to complete upload and trigger processing...`);
@@ -426,11 +426,11 @@ export class PersistentUploadService {
         
         // Check if a document record exists
         const existingDocs = await db.select()
-          .from(documentsTable)
+          .from(documents)
           .where(
             and(
-              eq(documentsTable.dealId, session.dealId),
-              eq(documentsTable.name, session.fileName)
+              eq(documents.dealId, session.dealId),
+              eq(documents.name, session.fileName)
             )
           )
           .limit(1);
@@ -439,7 +439,7 @@ export class PersistentUploadService {
           console.log(`📄 Creating document record for recovered upload...`);
           
           // Create document record
-          const [document] = await db.insert(documentsTable).values({
+          const [document] = await db.insert(documents).values({
             dealId: session.dealId,
             name: session.fileName,
             path: session.gcsPath,
@@ -457,7 +457,7 @@ export class PersistentUploadService {
             
             // Download the file from GCS to process it
             const tempPath = `/tmp/recovered_${Date.now()}_${session.fileName}`;
-            await googleCloudStorage.downloadFile(session.gcsPath, tempPath);
+            await gcsService.downloadFile(session.gcsPath, tempPath);
             
             // Process the ZIP file
             zipProcessor.processZipFile(tempPath, session.dealId, 'Recovered Upload').catch((err: Error) => {
