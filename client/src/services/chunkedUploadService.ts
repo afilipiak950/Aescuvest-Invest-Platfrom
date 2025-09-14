@@ -1,8 +1,5 @@
-import { frontendPersistentUploadService } from './persistentUploadService';
-
 export interface ChunkedUploadProgress {
   uploadId?: string;
-  sessionId?: string; // Added for persistent tracking
   fileName: string;
   totalSize?: number;
   uploadedBytes?: number;
@@ -34,27 +31,16 @@ class ChunkedUploadService {
   }>();
 
   /**
-   * Upload a large file using chunked upload with persistent session tracking
+   * Upload a large file using chunked upload
    */
   async uploadLargeFile(
     file: File,
-    dealId: number,
     options: ChunkedUploadOptions = {}
   ): Promise<string> {
     const chunkSize = options.chunkSize || this.defaultChunkSize;
     const totalChunks = Math.ceil(file.size / chunkSize);
     
     console.log(`📁 Starting chunked upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB, ${totalChunks} chunks)`);
-
-    // Create persistent upload session for tracking
-    const sessionId = await frontendPersistentUploadService.createUploadSession(
-      dealId,
-      file.name,
-      file.size,
-      'chunked'
-    );
-    
-    console.log(`📝 Created persistent upload session for chunked upload: ${sessionId}`);
 
     try {
       // Initialize upload session
@@ -113,21 +99,8 @@ class ChunkedUploadService {
         uploadState.uploadedBytes = end;
         const progress = this.calculateProgress(uploadState, totalChunks, chunkIndex + 1);
         
-        // Add sessionId to progress for persistent tracking
-        const progressWithSession = { ...progress, sessionId };
-        
-        // Update persistent upload progress (throttled to avoid too many calls)
-        if (chunkIndex % 5 === 0 || chunkIndex === totalChunks - 1) {
-          await frontendPersistentUploadService.updateProgress(
-            sessionId,
-            progress.progress,
-            uploadState.uploadedBytes,
-            `Uploading chunk ${chunkIndex + 1}/${totalChunks}...`
-          );
-        }
-        
         if (options.onProgress) {
-          options.onProgress(progressWithSession);
+          options.onProgress(progress);
         }
       }
 
@@ -142,12 +115,6 @@ class ChunkedUploadService {
 
       console.log(`✅ Chunked upload complete: ${file.name}`);
       
-      // Mark persistent session as completed
-      await frontendPersistentUploadService.updateStatus(
-        sessionId,
-        'completed'
-      );
-      
       if (options.onComplete) {
         options.onComplete(uploadId);
       }
@@ -158,16 +125,8 @@ class ChunkedUploadService {
     } catch (error) {
       console.error('❌ Chunked upload failed:', error);
       
-      // Mark persistent session as failed
-      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-      await frontendPersistentUploadService.updateStatus(
-        sessionId,
-        'failed',
-        errorMessage
-      );
-      
       if (options.onError) {
-        options.onError(errorMessage);
+        options.onError(error instanceof Error ? error.message : 'Upload failed');
       }
       
       throw error;
@@ -523,8 +482,7 @@ class ChunkedUploadService {
   async uploadFile(
     uploadId: string,
     file: File,
-    onProgress?: (progress: ChunkedUploadProgress) => void,
-    sessionId?: string // Added for persistent tracking
+    onProgress?: (progress: ChunkedUploadProgress) => void
   ): Promise<void> {
     const chunkSize = this.defaultChunkSize;
     const totalChunks = Math.ceil(file.size / chunkSize);
@@ -554,23 +512,12 @@ class ChunkedUploadService {
           eta: 0,
           status: 'initializing',
           uploadId: uploadId,
-          sessionId: sessionId,
           totalSize: file.size,
           uploadedBytes: 0,
           isComplete: false,
           currentChunk: 0,
           totalChunks: totalChunks
         });
-      }
-
-      // Update persistent storage if sessionId provided
-      if (sessionId) {
-        await frontendPersistentUploadService.updateProgress(
-          sessionId,
-          0,
-          0,
-          'Initializing chunked upload...'
-        );
       }
 
       // Upload chunks sequentially for reliability
@@ -589,39 +536,26 @@ class ChunkedUploadService {
         // Update progress
         uploadState.uploadedBytes = end;
         
-        const now = Date.now();
-        const elapsedSeconds = (now - uploadState.startTime) / 1000;
-        const speed = elapsedSeconds > 0 ? uploadState.uploadedBytes / elapsedSeconds : 0;
-        const remainingBytes = file.size - uploadState.uploadedBytes;
-        const estimatedTimeRemaining = speed > 0 ? remainingBytes / speed : 0;
-        const progressPercent = (uploadState.uploadedBytes / file.size) * 100;
-        const statusText = chunkIndex + 1 === totalChunks ? 'assembling' : `Uploading chunk ${chunkIndex + 1} of ${totalChunks}...`;
-
         if (onProgress) {
+          const now = Date.now();
+          const elapsedSeconds = (now - uploadState.startTime) / 1000;
+          const speed = elapsedSeconds > 0 ? uploadState.uploadedBytes / elapsedSeconds : 0;
+          const remainingBytes = file.size - uploadState.uploadedBytes;
+          const estimatedTimeRemaining = speed > 0 ? remainingBytes / speed : 0;
+
           onProgress({
             fileName: file.name,
-            progress: progressPercent,
+            progress: (uploadState.uploadedBytes / file.size) * 100,
             speed: speed,
             eta: estimatedTimeRemaining,
-            status: statusText,
+            status: chunkIndex + 1 === totalChunks ? 'assembling' : 'uploading',
             uploadId: uploadId,
-            sessionId: sessionId,
             totalSize: file.size,
             uploadedBytes: uploadState.uploadedBytes,
             isComplete: chunkIndex + 1 === totalChunks,
             currentChunk: chunkIndex,
             totalChunks: totalChunks
           });
-        }
-
-        // Update persistent storage if sessionId provided
-        if (sessionId) {
-          await frontendPersistentUploadService.updateProgress(
-            sessionId,
-            Math.min(progressPercent, 99), // Cap at 99% until fully complete
-            uploadState.uploadedBytes,
-            statusText
-          );
         }
       }
 
@@ -643,7 +577,6 @@ class ChunkedUploadService {
           eta: 0,
           status: 'complete',
           uploadId: uploadId,
-          sessionId: sessionId,
           totalSize: file.size,
           uploadedBytes: file.size,
           isComplete: true,
@@ -652,27 +585,11 @@ class ChunkedUploadService {
         });
       }
 
-      // Mark as completed in persistent storage
-      if (sessionId) {
-        await frontendPersistentUploadService.updateProgress(
-          sessionId,
-          100,
-          file.size,
-          'Upload completed successfully'
-        );
-        await frontendPersistentUploadService.updateStatus(
-          sessionId,
-          'completed'
-        );
-      }
-
       this.activeUploads.delete(uploadId);
 
     } catch (error) {
       console.error('❌ Chunked upload failed:', error);
       this.activeUploads.delete(uploadId);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       
       if (onProgress) {
         onProgress({
@@ -682,22 +599,12 @@ class ChunkedUploadService {
           eta: 0,
           status: 'error',
           uploadId: uploadId,
-          sessionId: sessionId,
           totalSize: file.size,
           uploadedBytes: 0,
           isComplete: false,
           currentChunk: 0,
           totalChunks: totalChunks
         });
-      }
-      
-      // Mark as failed in persistent storage
-      if (sessionId) {
-        await frontendPersistentUploadService.updateStatus(
-          sessionId,
-          'failed',
-          errorMessage
-        );
       }
       
       throw error;
@@ -713,48 +620,14 @@ class ChunkedUploadService {
     folderName?: string,
     onProgress?: (progress: ChunkedUploadProgress) => void
   ): Promise<any> {
-    // Create persistent upload session
-    const sessionId = await frontendPersistentUploadService.createUploadSession(
-      dealId,
-      file.name,
-      file.size,
-      'chunked'
-    );
+    // Initialize upload session
+    const uploadId = await this.initializeUpload(file.name, file.size);
     
-    console.log(`📝 Created persistent upload session for chunked upload: ${sessionId}`);
-    
-    try {
-      // Initialize upload session
-      const uploadId = await this.initializeUpload(file.name, file.size);
-      
-      // Create a progress wrapper that includes sessionId
-      const progressWithSession = onProgress ? (progress: ChunkedUploadProgress) => {
-        onProgress({ ...progress, sessionId });
-      } : undefined;
-      
-      // Upload file in chunks with persistent tracking
-      await this.uploadFile(uploadId, file, progressWithSession, sessionId);
+    // Upload file in chunks
+    await this.uploadFile(uploadId, file, onProgress);
 
-      // Process the completed upload
-      const result = await this.processCompletedUpload(uploadId, dealId, folderName);
-      
-      // Mark persistent session as completed
-      await frontendPersistentUploadService.updateStatus(
-        sessionId,
-        'completed'
-      );
-      
-      return result;
-    } catch (error) {
-      // Mark persistent session as failed
-      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-      await frontendPersistentUploadService.updateStatus(
-        sessionId,
-        'failed',
-        errorMessage
-      );
-      throw error;
-    }
+    // Process the completed upload
+    return await this.processCompletedUpload(uploadId, dealId, folderName);
   }
 }
 

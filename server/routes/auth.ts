@@ -135,32 +135,20 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
  */
 router.get('/session', async (req: Request, res: Response) => {
   try {
-    console.log('🔍 Session check - req.session:', req.session ? 'exists' : 'null');
-    console.log('🔍 Session userId:', (req.session as any)?.userId);
-    console.log('🔍 Session keys:', req.session ? Object.keys(req.session) : 'no session');
-    
     // Check if user is authenticated via session
     if ((req.session as any)?.userId) {
       const userId = (req.session as any).userId;
-      console.log(`🔍 Looking up user with ID: ${userId}`);
-      
       const user = await storage.getUser(userId);
       
       if (user) {
-        console.log(`✅ User found: ${user.email}`);
         const { password, ...userWithoutPassword } = user;
         return res.json({ 
           authenticated: true, 
           user: userWithoutPassword 
         });
-      } else {
-        console.log(`❌ User not found in database for ID: ${userId}`);
       }
-    } else {
-      console.log('❌ No userId in session');
     }
     
-    console.log('🔍 Returning authenticated: false');
     res.json({ authenticated: false });
   } catch (error) {
     console.error('Error in /session:', error);
