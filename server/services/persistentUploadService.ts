@@ -35,7 +35,7 @@ export class PersistentUploadService {
   }
 
   /**
-   * Start automatic periodic cleanup of stuck uploads
+   * Start automatic periodic cleanup and recovery of stuck uploads
    */
   private startAutomaticCleanup(): void {
     // Initial cleanup on startup
@@ -45,19 +45,19 @@ export class PersistentUploadService {
       });
     }, 5000); // Wait 5 seconds after startup
 
-    // Periodic cleanup every 10 minutes
+    // Periodic cleanup every 2 minutes for faster recovery
     this.cleanupInterval = setInterval(async () => {
       try {
         const cleanedUp = await this.checkForStuckUploads();
         if (cleanedUp > 0) {
-          console.log(`🔄 Automatic cleanup: ${cleanedUp} stuck uploads cleaned up`);
+          console.log(`🔄 Automatic recovery: ${cleanedUp} stuck uploads processed`);
         }
       } catch (error) {
-        console.error('❌ Error in automatic stuck upload cleanup:', error);
+        console.error('❌ Error in automatic stuck upload recovery:', error);
       }
-    }, 10 * 60 * 1000); // Every 10 minutes
+    }, 2 * 60 * 1000); // Every 2 minutes for faster recovery
 
-    console.log('🔄 Automatic stuck upload cleanup started (checks every 10 minutes)');
+    console.log('🔄 Automatic stuck upload recovery started (checks every 2 minutes)');
   }
 
   /**
@@ -314,17 +314,17 @@ export class PersistentUploadService {
   }
 
   /**
-   * Check for stuck uploads and mark them as failed
-   * Now checks for uploads stuck for more than 15 minutes
-   * Also completes uploads that reached 100% but never transitioned to completed
+   * Check for stuck uploads and attempt recovery
+   * Checks for uploads stuck for more than 5 minutes
+   * Attempts to recover by checking GCS and triggering processing if needed
    */
   async checkForStuckUploads(): Promise<number> {
     try {
-      console.log('🔍 Starting stuck upload check...');
+      console.log('🔍 Starting stuck upload check with recovery logic...');
       
-      // 15 minute timeout for more aggressive cleanup
+      // 5 minute timeout for faster recovery
       const stuckThreshold = new Date();
-      stuckThreshold.setMinutes(stuckThreshold.getMinutes() - 15);
+      stuckThreshold.setMinutes(stuckThreshold.getMinutes() - 5);
       
       console.log(`🕒 Looking for uploads stuck since before: ${stuckThreshold.toISOString()}`);
 
@@ -333,7 +333,7 @@ export class PersistentUploadService {
         .where(
           and(
             eq(persistentUploadSessions.status, 'uploading'),
-            // Check if updated_at is older than 15 minutes
+            // Check if updated_at is older than 5 minutes
             // Note: In development, we'll check all uploading sessions for safety
           )
         );
@@ -342,7 +342,7 @@ export class PersistentUploadService {
 
       let cleanedUpCount = 0;
       for (const session of stuckSessions) {
-        // Check if this session is truly stuck (no update for 15+ minutes)
+        // Check if this session is truly stuck (no update for 5+ minutes)
         const lastUpdate = new Date(session.updatedAt || session.createdAt);
         const minutesStuck = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60);
         
@@ -357,19 +357,25 @@ export class PersistentUploadService {
             'Analysis completed, upload finished'
           );
           cleanedUpCount++;
-        } else if (minutesStuck >= 15) {
+        } else if (minutesStuck >= 5) {
           console.log(`⚠️ Found stuck upload session: ${session.sessionId} (${session.fileName}), stuck for ${minutesStuck.toFixed(1)} minutes`);
-          await this.updateStatus(
-            session.sessionId, 
-            'failed', 
-            `Upload timed out after ${Math.round(minutesStuck)} minutes - likely GCS upload failed`
-          );
+          console.log(`🔍 Attempting recovery for stuck upload...`);
+          
+          // Try to recover the upload
+          const recovered = await this.attemptUploadRecovery(session);
+          
+          if (recovered) {
+            console.log(`🎉 Successfully recovered stuck upload: ${session.sessionId}`);
+          } else {
+            console.log(`❌ Failed to recover stuck upload: ${session.sessionId}`);
+          }
+          
           cleanedUpCount++;
         }
       }
 
       if (cleanedUpCount > 0) {
-        console.log(`🧹 Processed ${cleanedUpCount} stuck upload sessions (completed or failed)`);
+        console.log(`🧹 Processed ${cleanedUpCount} stuck upload sessions (recovered, completed or failed)`);
       } else {
         console.log('✅ No stuck uploads found');
       }
@@ -378,6 +384,124 @@ export class PersistentUploadService {
     } catch (error) {
       console.error('❌ Failed to check for stuck uploads:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Attempt to recover a stuck upload by checking GCS and triggering processing
+   */
+  private async attemptUploadRecovery(session: any): Promise<boolean> {
+    try {
+      console.log(`🚑 Starting recovery for upload: ${session.sessionId} (${session.fileName})`);
+      
+      // Import required services
+      const { googleCloudStorage } = await import('./googleCloudStorage');
+      const { zipProcessor } = await import('./zipProcessor');
+      const { documentsTable } = await import('@shared/schema');
+      
+      // Check if we have a GCS path
+      if (!session.gcsPath) {
+        console.log(`❌ No GCS path found for upload ${session.sessionId} - marking as failed`);
+        await this.updateStatus(
+          session.sessionId,
+          'failed',
+          'Upload failed - no cloud storage path found after 5 minutes'
+        );
+        return false;
+      }
+      
+      // Check if the file exists in GCS
+      console.log(`☁️ Checking if file exists in GCS: ${session.gcsPath}`);
+      const fileExists = await googleCloudStorage.fileExists(session.gcsPath);
+      
+      if (fileExists) {
+        console.log(`✅ File found in GCS! Attempting to complete upload and trigger processing...`);
+        
+        // Mark upload as completed
+        await this.updateStatus(
+          session.sessionId,
+          'completed',
+          'Upload recovered - file found in cloud storage'
+        );
+        
+        // Check if a document record exists
+        const existingDocs = await db.select()
+          .from(documentsTable)
+          .where(
+            and(
+              eq(documentsTable.dealId, session.dealId),
+              eq(documentsTable.name, session.fileName)
+            )
+          )
+          .limit(1);
+        
+        if (existingDocs.length === 0) {
+          console.log(`📄 Creating document record for recovered upload...`);
+          
+          // Create document record
+          const [document] = await db.insert(documentsTable).values({
+            dealId: session.dealId,
+            name: session.fileName,
+            path: session.gcsPath,
+            type: session.fileName.toLowerCase().endsWith('.zip') ? 'application/zip' : 'application/octet-stream',
+            size: session.fileSize,
+            status: 'Processing',
+            uploadedAt: new Date()
+          }).returning();
+          
+          console.log(`📄 Document created with ID: ${document.id}`);
+          
+          // If it's a ZIP file, trigger processing
+          if (session.fileName.toLowerCase().endsWith('.zip')) {
+            console.log(`🗂️ Triggering ZIP processing for recovered upload...`);
+            
+            // Download the file from GCS to process it
+            const tempPath = `/tmp/recovered_${Date.now()}_${session.fileName}`;
+            await googleCloudStorage.downloadFile(session.gcsPath, tempPath);
+            
+            // Process the ZIP file
+            zipProcessor.processZipFile(tempPath, session.dealId, 'Recovered Upload').catch((err: Error) => {
+              console.error('❌ ZIP processing failed for recovered upload:', err);
+            });
+            
+            console.log(`🎉 Successfully triggered processing for recovered upload`);
+          }
+        } else {
+          console.log(`📄 Document record already exists for this upload`);
+        }
+        
+        // Broadcast success to clients
+        this.broadcastStatusUpdate(
+          session.sessionId,
+          'completed',
+          'Upload recovered successfully'
+        );
+        
+        return true;
+      } else {
+        console.log(`❌ File NOT found in GCS: ${session.gcsPath}`);
+        console.log(`📊 Upload was at ${session.progress}% when it got stuck`);
+        
+        // Mark as failed since file doesn't exist
+        await this.updateStatus(
+          session.sessionId,
+          'failed',
+          `Upload failed - file not found in cloud storage after ${session.progress}% progress`
+        );
+        
+        return false;
+      }
+    } catch (error) {
+      console.error(`❌ Error during upload recovery for ${session.sessionId}:`, error);
+      
+      // Mark as failed if recovery fails
+      await this.updateStatus(
+        session.sessionId,
+        'failed',
+        `Upload recovery failed: ${error.message}`
+      );
+      
+      return false;
     }
   }
 }

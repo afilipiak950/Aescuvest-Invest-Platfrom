@@ -146,7 +146,10 @@ export const FloatingUploadProgress: React.FC = () => {
   }, [uploadSessions]);
 
   // Poll for active uploads from backend
-  const { data: globalUploads } = useQuery({
+  const { data: globalUploads } = useQuery<{
+    success: boolean;
+    uploads: any[];
+  }>({
     queryKey: ['/api/persistent-uploads/global'],
     refetchInterval: 2000,
     enabled: true
@@ -201,7 +204,7 @@ export const FloatingUploadProgress: React.FC = () => {
 
   // Sync with backend upload sessions
   useEffect(() => {
-    if (globalUploads?.uploads) {
+    if (globalUploads?.uploads && Array.isArray(globalUploads.uploads)) {
       console.log('🔄 FloatingUploadProgress: Syncing with backend uploads:', globalUploads.uploads);
       const activeSessions = globalUploads.uploads.filter(
         (u: any) => u.status === 'uploading' || u.status === 'processing'
@@ -272,7 +275,11 @@ export const FloatingUploadProgress: React.FC = () => {
         setTimeout(() => {
           setUploadSessions(prev => {
             const newMap = new Map(prev);
-            newMap.delete(session.sessionId);
+            // Only delete if the status hasn't changed
+            const currentSession = newMap.get(session.sessionId);
+            if (currentSession && (currentSession.status === 'completed' || currentSession.status === 'failed')) {
+              newMap.delete(session.sessionId);
+            }
             return newMap;
           });
         }, 5000); // Keep completed/failed uploads visible for 5 seconds
@@ -395,8 +402,20 @@ export const FloatingUploadProgress: React.FC = () => {
     }
   }, []);
 
+  // Debug logging for visibility issues
+  console.log('📊 FloatingUploadProgress render check:', {
+    sessionCount: uploadSessions.size,
+    sessions: Array.from(uploadSessions.values()).map(s => ({
+      sessionId: s.sessionId,
+      fileName: s.fileName,
+      progress: s.progress,
+      status: s.status
+    }))
+  });
+
   // Don't render if no active uploads
   if (uploadSessions.size === 0) {
+    console.log('❌ FloatingUploadProgress: No sessions to display');
     return null;
   }
 
