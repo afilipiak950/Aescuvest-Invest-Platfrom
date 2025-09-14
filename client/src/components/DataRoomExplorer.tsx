@@ -808,18 +808,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           file,
           onProgress: (progress) => {
             console.log(`📊 Upload progress: ${progress.progress}%`);
-            // Update both local state for immediate feedback
-            setUploadProgress({
-              sessionId: progress.sessionId,
-              fileName: progress.fileName,
-              progress: progress.progress,
-              status: progress.status
-            });
-            // Also update chunkedUploadProgress for the green progress bar UI
+            // 🔧 FIX: Only show ONE upload progress bar to avoid duplication
+            setUploadProgress(null); // Clear the blue progress bar
             setChunkedUploadProgress({
               fileName: progress.fileName,
               progress: progress.progress,
-              status: progress.status,
+              status: progress.status === 'uploading' ? `Uploading to cloud (${progress.progress}%)...` : progress.status,
               speed: 0,
               currentChunk: undefined,
               totalChunks: undefined
