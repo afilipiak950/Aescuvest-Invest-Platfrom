@@ -78,23 +78,42 @@ export class PersistentUploadService {
     console.log(`🚀 Creating persistent upload session: ${session.fileName} for deal ${session.dealId}`);
     
     const [created] = await db.insert(persistentUploadSessions).values({
-      sessionId: session.sessionId,
-      dealId: session.dealId,
-      fileName: session.fileName,
-      fileSize: session.fileSize,
-      uploadType: session.uploadType,
+      session_id: session.sessionId,
+      deal_id: session.dealId,
+      file_name: session.fileName,
+      file_size: session.fileSize,
+      upload_type: session.uploadType,
       status: session.status,
       progress: session.progress,
-      uploadedBytes: session.uploadedBytes,
-      gcsPath: session.gcsPath,
-      jobId: session.jobId,
-      currentStep: session.currentStep,
-      errorMessage: session.errorMessage,
+      uploaded_bytes: session.uploadedBytes,
+      gcs_path: session.gcsPath,
+      job_id: session.jobId,
+      current_step: session.currentStep,
+      error_message: session.errorMessage,
       metadata: session.metadata
     }).returning();
 
-    console.log(`✅ Created persistent upload session: ${created.sessionId}`);
-    return created as PersistentUploadSession;
+    console.log(`✅ Created persistent upload session: ${created.session_id}`);
+    // Map the database columns (snake_case) to TypeScript interface (camelCase)
+    return {
+      id: created.id,
+      sessionId: created.session_id,
+      dealId: created.deal_id,
+      fileName: created.file_name,
+      fileSize: created.file_size,
+      uploadType: created.upload_type,
+      status: created.status,
+      progress: created.progress,
+      uploadedBytes: created.uploaded_bytes,
+      gcsPath: created.gcs_path,
+      jobId: created.job_id,
+      currentStep: created.current_step,
+      errorMessage: created.error_message,
+      metadata: created.metadata,
+      createdAt: created.created_at,
+      updatedAt: created.updated_at,
+      completedAt: created.completed_at
+    } as PersistentUploadSession;
   }
 
   /**
@@ -112,11 +131,11 @@ export class PersistentUploadService {
       const updateResult = await db.update(persistentUploadSessions)
         .set({
           progress,
-          uploadedBytes: uploadedBytes || undefined,
-          currentStep: currentStep,
-          updatedAt: new Date()
+          uploaded_bytes: uploadedBytes || undefined,
+          current_step: currentStep,
+          updated_at: new Date()
         })
-        .where(eq(persistentUploadSessions.sessionId, sessionId));
+        .where(eq(persistentUploadSessions.session_id, sessionId));
 
       console.log(`✅ Progress update successful for ${sessionId}: ${progress}%`);
       console.log(`📊 Update result:`, updateResult);
@@ -144,17 +163,17 @@ export class PersistentUploadService {
     
     const updateData: any = {
       status,
-      updatedAt: new Date()
+      updated_at: new Date()
     };
 
-    if (errorMessage) updateData.errorMessage = errorMessage;
-    if (jobId) updateData.jobId = jobId;
-    if (gcsPath) updateData.gcsPath = gcsPath;
-    if (status === 'completed') updateData.completedAt = new Date();
+    if (errorMessage) updateData.error_message = errorMessage;
+    if (jobId) updateData.job_id = jobId;
+    if (gcsPath) updateData.gcs_path = gcsPath;
+    if (status === 'completed') updateData.completed_at = new Date();
 
     await db.update(persistentUploadSessions)
       .set(updateData)
-      .where(eq(persistentUploadSessions.sessionId, sessionId));
+      .where(eq(persistentUploadSessions.session_id, sessionId));
 
     // Broadcast status update to all connected clients
     this.broadcastStatusUpdate(sessionId, status, errorMessage);
@@ -166,10 +185,31 @@ export class PersistentUploadService {
   async getSession(sessionId: string): Promise<PersistentUploadSession | null> {
     const [session] = await db.select()
       .from(persistentUploadSessions)
-      .where(eq(persistentUploadSessions.sessionId, sessionId))
+      .where(eq(persistentUploadSessions.session_id, sessionId))
       .limit(1);
 
-    return session as PersistentUploadSession || null;
+    if (!session) return null;
+    
+    // Map database columns to TypeScript interface
+    return {
+      id: session.id,
+      sessionId: session.session_id,
+      dealId: session.deal_id,
+      fileName: session.file_name,
+      fileSize: session.file_size,
+      uploadType: session.upload_type,
+      status: session.status,
+      progress: session.progress,
+      uploadedBytes: session.uploaded_bytes,
+      gcsPath: session.gcs_path,
+      jobId: session.job_id,
+      currentStep: session.current_step,
+      errorMessage: session.error_message,
+      metadata: session.metadata,
+      createdAt: session.created_at,
+      updatedAt: session.updated_at,
+      completedAt: session.completed_at
+    } as PersistentUploadSession;
   }
 
   /**
@@ -180,13 +220,31 @@ export class PersistentUploadService {
       .from(persistentUploadSessions)
       .where(
         and(
-          eq(persistentUploadSessions.dealId, dealId),
+          eq(persistentUploadSessions.deal_id, dealId),
           eq(persistentUploadSessions.status, 'uploading')
         )
       )
       .orderBy(desc(persistentUploadSessions.createdAt));
 
-    return sessions as PersistentUploadSession[];
+    return sessions.map(session => ({
+      id: session.id,
+      sessionId: session.session_id,
+      dealId: session.deal_id,
+      fileName: session.file_name,
+      fileSize: session.file_size,
+      uploadType: session.upload_type,
+      status: session.status,
+      progress: session.progress,
+      uploadedBytes: session.uploaded_bytes,
+      gcsPath: session.gcs_path,
+      jobId: session.job_id,
+      currentStep: session.current_step,
+      errorMessage: session.error_message,
+      metadata: session.metadata,
+      createdAt: session.created_at,
+      updatedAt: session.updated_at,
+      completedAt: session.completed_at
+    } as PersistentUploadSession));
   }
 
   /**
@@ -197,13 +255,31 @@ export class PersistentUploadService {
       .from(persistentUploadSessions)
       .where(
         and(
-          eq(persistentUploadSessions.dealId, dealId),
+          eq(persistentUploadSessions.deal_id, dealId),
           eq(persistentUploadSessions.status, 'processing')
         )
       )
       .orderBy(desc(persistentUploadSessions.createdAt));
 
-    return sessions as PersistentUploadSession[];
+    return sessions.map(session => ({
+      id: session.id,
+      sessionId: session.session_id,
+      dealId: session.deal_id,
+      fileName: session.file_name,
+      fileSize: session.file_size,
+      uploadType: session.upload_type,
+      status: session.status,
+      progress: session.progress,
+      uploadedBytes: session.uploaded_bytes,
+      gcsPath: session.gcs_path,
+      jobId: session.job_id,
+      currentStep: session.current_step,
+      errorMessage: session.error_message,
+      metadata: session.metadata,
+      createdAt: session.created_at,
+      updatedAt: session.updated_at,
+      completedAt: session.completed_at
+    } as PersistentUploadSession));
   }
 
   /**
@@ -212,10 +288,28 @@ export class PersistentUploadService {
   async getAllSessionsForDeal(dealId: number): Promise<PersistentUploadSession[]> {
     const sessions = await db.select()
       .from(persistentUploadSessions)
-      .where(eq(persistentUploadSessions.dealId, dealId))
+      .where(eq(persistentUploadSessions.deal_id, dealId))
       .orderBy(desc(persistentUploadSessions.createdAt));
 
-    return sessions as PersistentUploadSession[];
+    return sessions.map(session => ({
+      id: session.id,
+      sessionId: session.session_id,
+      dealId: session.deal_id,
+      fileName: session.file_name,
+      fileSize: session.file_size,
+      uploadType: session.upload_type,
+      status: session.status,
+      progress: session.progress,
+      uploadedBytes: session.uploaded_bytes,
+      gcsPath: session.gcs_path,
+      jobId: session.job_id,
+      currentStep: session.current_step,
+      errorMessage: session.error_message,
+      metadata: session.metadata,
+      createdAt: session.created_at,
+      updatedAt: session.updated_at,
+      completedAt: session.completed_at
+    } as PersistentUploadSession));
   }
 
   /**
@@ -244,13 +338,31 @@ export class PersistentUploadService {
     // Filter recent failed uploads in JavaScript
     const filteredSessions = sessions.filter((session: any) => {
       if (session.status === 'failed') {
-        const updatedAt = new Date(session.updatedAt);
+        const updatedAt = new Date(session.updated_at);
         return updatedAt > thirtyMinutesAgo;
       }
       return true;
     });
 
-    return filteredSessions as PersistentUploadSession[];
+    return filteredSessions.map(session => ({
+      id: session.id,
+      sessionId: session.session_id,
+      dealId: session.deal_id,
+      fileName: session.file_name,
+      fileSize: session.file_size,
+      uploadType: session.upload_type,
+      status: session.status,
+      progress: session.progress,
+      uploadedBytes: session.uploaded_bytes,
+      gcsPath: session.gcs_path,
+      jobId: session.job_id,
+      currentStep: session.current_step,
+      errorMessage: session.error_message,
+      metadata: session.metadata,
+      createdAt: session.created_at,
+      updatedAt: session.updated_at,
+      completedAt: session.completed_at
+    } as PersistentUploadSession));
   }
 
   /**
@@ -261,7 +373,7 @@ export class PersistentUploadService {
     
     try {
       const result = await db.delete(persistentUploadSessions)
-        .where(eq(persistentUploadSessions.sessionId, sessionId));
+        .where(eq(persistentUploadSessions.session_id, sessionId));
 
       console.log(`✅ DATABASE DELETION RESULT:`, result);
       
@@ -366,31 +478,31 @@ export class PersistentUploadService {
       let cleanedUpCount = 0;
       for (const session of stuckSessions) {
         // Check if this session is truly stuck (no update for 5+ minutes)
-        const lastUpdate = new Date(session.updatedAt || session.createdAt);
+        const lastUpdate = new Date(session.updated_at || session.created_at);
         const minutesStuck = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60);
         
-        console.log(`📊 Session ${session.sessionId} (${session.fileName}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${session.progress}%`);
+        console.log(`📊 Session ${session.session_id} (${session.file_name}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${session.progress}%`);
         
         // 🎯 CRITICAL: If upload reached 100% but never got marked as completed, complete it now
         if (session.progress >= 100) {
-          console.log(`✅ Upload reached 100% but never completed: ${session.sessionId} (${session.fileName}) - marking as completed`);
+          console.log(`✅ Upload reached 100% but never completed: ${session.session_id} (${session.file_name}) - marking as completed`);
           await this.updateStatus(
-            session.sessionId, 
+            session.session_id, 
             'completed', 
             'Analysis completed, upload finished'
           );
           cleanedUpCount++;
         } else if (minutesStuck >= 5) {
-          console.log(`⚠️ Found stuck upload session: ${session.sessionId} (${session.fileName}), stuck for ${minutesStuck.toFixed(1)} minutes`);
+          console.log(`⚠️ Found stuck upload session: ${session.session_id} (${session.file_name}), stuck for ${minutesStuck.toFixed(1)} minutes`);
           console.log(`🔍 Attempting recovery for stuck upload...`);
           
           // Try to recover the upload
           const recovered = await this.attemptUploadRecovery(session);
           
           if (recovered) {
-            console.log(`🎉 Successfully recovered stuck upload: ${session.sessionId}`);
+            console.log(`🎉 Successfully recovered stuck upload: ${session.session_id}`);
           } else {
-            console.log(`❌ Failed to recover stuck upload: ${session.sessionId}`);
+            console.log(`❌ Failed to recover stuck upload: ${session.session_id}`);
           }
           
           cleanedUpCount++;
@@ -415,7 +527,7 @@ export class PersistentUploadService {
    */
   private async attemptUploadRecovery(session: any): Promise<boolean> {
     try {
-      console.log(`🚑 Starting recovery for upload: ${session.sessionId} (${session.fileName})`);
+      console.log(`🚑 Starting recovery for upload: ${session.session_id} (${session.file_name})`);
       
       // Import required services
       const { gcsService } = await import('./googleCloudStorage');
@@ -423,10 +535,10 @@ export class PersistentUploadService {
       const { documents } = await import('@shared/schema');
       
       // Check if we have a GCS path
-      if (!session.gcsPath) {
-        console.log(`❌ No GCS path found for upload ${session.sessionId} - marking as failed`);
+      if (!session.gcs_path) {
+        console.log(`❌ No GCS path found for upload ${session.session_id} - marking as failed`);
         await this.updateStatus(
-          session.sessionId,
+          session.session_id,
           'failed',
           'Upload failed - no cloud storage path found after 5 minutes'
         );
@@ -434,15 +546,15 @@ export class PersistentUploadService {
       }
       
       // Check if the file exists in GCS
-      console.log(`☁️ Checking if file exists in GCS: ${session.gcsPath}`);
-      const fileExists = await gcsService.fileExists(session.gcsPath);
+      console.log(`☁️ Checking if file exists in GCS: ${session.gcs_path}`);
+      const fileExists = await gcsService.fileExists(session.gcs_path);
       
       if (fileExists) {
         console.log(`✅ File found in GCS! Attempting to complete upload and trigger processing...`);
         
         // Mark upload as completed
         await this.updateStatus(
-          session.sessionId,
+          session.session_id,
           'completed',
           'Upload recovered - file found in cloud storage'
         );
@@ -452,8 +564,8 @@ export class PersistentUploadService {
           .from(documents)
           .where(
             and(
-              eq(documents.dealId, session.dealId),
-              eq(documents.name, session.fileName)
+              eq(documents.dealId, session.deal_id),
+              eq(documents.name, session.file_name)
             )
           )
           .limit(1);
@@ -463,11 +575,11 @@ export class PersistentUploadService {
           
           // Create document record
           const [document] = await db.insert(documents).values({
-            dealId: session.dealId,
-            name: session.fileName,
-            path: session.gcsPath,
-            type: session.fileName.toLowerCase().endsWith('.zip') ? 'application/zip' : 'application/octet-stream',
-            size: session.fileSize,
+            dealId: session.deal_id,
+            name: session.file_name,
+            path: session.gcs_path,
+            type: session.file_name.toLowerCase().endsWith('.zip') ? 'application/zip' : 'application/octet-stream',
+            size: session.file_size,
             status: 'Processing',
             uploadedAt: new Date()
           }).returning();
@@ -475,15 +587,15 @@ export class PersistentUploadService {
           console.log(`📄 Document created with ID: ${document.id}`);
           
           // If it's a ZIP file, trigger processing
-          if (session.fileName.toLowerCase().endsWith('.zip')) {
+          if (session.file_name.toLowerCase().endsWith('.zip')) {
             console.log(`🗂️ Triggering ZIP processing for recovered upload...`);
             
             // Download the file from GCS to process it
-            const tempPath = `/tmp/recovered_${Date.now()}_${session.fileName}`;
-            await gcsService.downloadFile(session.gcsPath, tempPath);
+            const tempPath = `/tmp/recovered_${Date.now()}_${session.file_name}`;
+            await gcsService.downloadFile(session.gcs_path, tempPath);
             
             // Process the ZIP file
-            zipProcessor.processZipFile(tempPath, session.dealId, 'Recovered Upload').catch((err: Error) => {
+            zipProcessor.processZipFile(tempPath, session.deal_id, 'Recovered Upload').catch((err: Error) => {
               console.error('❌ ZIP processing failed for recovered upload:', err);
             });
             
@@ -495,19 +607,19 @@ export class PersistentUploadService {
         
         // Broadcast success to clients
         this.broadcastStatusUpdate(
-          session.sessionId,
+          session.session_id,
           'completed',
           'Upload recovered successfully'
         );
         
         return true;
       } else {
-        console.log(`❌ File NOT found in GCS: ${session.gcsPath}`);
+        console.log(`❌ File NOT found in GCS: ${session.gcs_path}`);
         console.log(`📊 Upload was at ${session.progress}% when it got stuck`);
         
         // Mark as failed since file doesn't exist
         await this.updateStatus(
-          session.sessionId,
+          session.session_id,
           'failed',
           `Upload failed - file not found in cloud storage after ${session.progress}% progress`
         );
@@ -515,11 +627,11 @@ export class PersistentUploadService {
         return false;
       }
     } catch (error) {
-      console.error(`❌ Error during upload recovery for ${session.sessionId}:`, error);
+      console.error(`❌ Error during upload recovery for ${session.session_id}:`, error);
       
       // Mark as failed if recovery fails
       await this.updateStatus(
-        session.sessionId,
+        session.session_id,
         'failed',
         `Upload recovery failed: ${error.message}`
       );
