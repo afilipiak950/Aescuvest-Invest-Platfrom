@@ -999,20 +999,71 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const fileNames = Array.from(files).map(f => f.name).join(', ');
-    setUploadProgress({
-      fileName: files.length > 1 ? `${files.length} files: ${fileNames}` : files[0].name,
-      progress: 0,
-      status: 'Starting upload...'
-    });
+    // Check if any file is large enough to require chunked upload
+    const largeFiles = Array.from(files).filter(file => chunkedUploadService.isLargeFile(file));
+    const smallFiles = Array.from(files).filter(file => !chunkedUploadService.isLargeFile(file));
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      formData.append('files', file);
-    });
-    formData.append('dealId', dealId.toString());
+    // Handle large files with chunked upload and persistent tracking
+    if (largeFiles.length > 0) {
+      for (const file of largeFiles) {
+        console.log(`🚀 Using chunked upload for large file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+        
+        try {
+          // Use chunkedUploadService which now creates persistent sessions automatically
+          await chunkedUploadService.uploadFileComplete(
+            file,
+            dealId,
+            'Large Files',
+            (progress) => {
+              console.log(`📊 Chunked upload progress: ${progress.progress}%`);
+              setChunkedUploadProgress({
+                ...progress,
+                sessionId: progress.sessionId // Include sessionId for tracking
+              });
+              
+              // Clear regular upload progress to avoid confusion
+              setUploadProgress(null);
+              
+              // Store the active session ID for potential cancellation
+              if (progress.sessionId) {
+                setActiveSessionId(progress.sessionId);
+              }
+            }
+          );
+          
+          // Clear progress on completion
+          setChunkedUploadProgress(null);
+          setActiveSessionId(null);
+          
+          // Refresh documents list
+          await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+          
+        } catch (error) {
+          console.error(`❌ Chunked upload failed for ${file.name}:`, error);
+          setChunkedUploadProgress(null);
+          setActiveSessionId(null);
+          alert(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+    }
 
-    uploadFilesMutation.mutate(formData);
+    // Handle small files with regular upload
+    if (smallFiles.length > 0) {
+      const fileNames = smallFiles.map(f => f.name).join(', ');
+      setUploadProgress({
+        fileName: smallFiles.length > 1 ? `${smallFiles.length} files: ${fileNames}` : smallFiles[0].name,
+        progress: 0,
+        status: 'Starting upload...'
+      });
+
+      const formData = new FormData();
+      smallFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+      formData.append('dealId', dealId.toString());
+
+      uploadFilesMutation.mutate(formData);
+    }
   };
 
   const handleFileSelection = (fileId: number, checked: boolean) => {
