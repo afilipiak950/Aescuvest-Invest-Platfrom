@@ -146,7 +146,7 @@ export const FloatingUploadProgress: React.FC = () => {
   }, [uploadSessions]);
 
   // Poll for active uploads from backend
-  const { data: globalUploads } = useQuery<{
+  const { data: globalUploads, isLoading: isLoadingGlobal } = useQuery<{
     success: boolean;
     uploads: any[];
   }>({
@@ -154,43 +154,41 @@ export const FloatingUploadProgress: React.FC = () => {
     refetchInterval: 2000,
     enabled: true
   });
+  
+  // Debug log query results
+  console.log('🔍 FloatingUploadProgress Query Status:', { 
+    isLoadingGlobal, 
+    hasData: !!globalUploads, 
+    success: globalUploads?.success,
+    uploadsCount: globalUploads?.uploads?.length || 0,
+    uploads: globalUploads?.uploads
+  });
 
-  // 🔧 CRITICAL FIX: Sync localStorage with backend state to prevent stale uploads
-  // FIXED INFINITE LOOP: Only depend on globalUploads, not uploadSessions
+  // 🔧 FIXED: Combined sync logic to prevent race conditions
+  // This single useEffect handles all backend sync to avoid conflicts
   useEffect(() => {
-    if (globalUploads?.success) {
-      const activeBackendSessions = globalUploads.uploads || [];
-      
-      if (activeBackendSessions.length === 0) {
-        // Backend has no active uploads - clear localStorage and component state
-        // Only clear if we actually have sessions to clear
-        setUploadSessions(prev => {
-          if (prev.size > 0) {
-            console.log('🧹 Backend has no active uploads - clearing all local data');
-            localStorage.removeItem('activeUploadSessions');
-            return new Map();
-          }
-          return prev;
-        });
-      } else {
-        // Sync local state with backend state
-        setUploadSessions(prev => {
-          const backendSessionIds = new Set(activeBackendSessions.map(u => u.sessionId));
-          const localSessionIds = new Set(prev.keys());
-          
-          // Remove local sessions that don't exist on backend
-          const toRemove = Array.from(localSessionIds).filter(id => !backendSessionIds.has(id));
-          if (toRemove.length > 0) {
-            console.log(`🧹 Removing ${toRemove.length} stale local sessions:`, toRemove);
-            const newSessions = new Map(prev);
-            toRemove.forEach(id => newSessions.delete(id));
-            return newSessions;
-          }
-          return prev;
-        });
-      }
+    // Skip if query is still loading or errored
+    if (!globalUploads?.success || !globalUploads?.uploads) {
+      return;
     }
-  }, [globalUploads]); // FIX: Only depend on globalUploads to prevent infinite loop
+
+    const activeBackendSessions = globalUploads.uploads || [];
+    console.log('🔄 FloatingUploadProgress: Processing backend sessions:', activeBackendSessions.length);
+
+    if (activeBackendSessions.length === 0) {
+      // Backend has no active uploads - clear everything
+      setUploadSessions(prev => {
+        if (prev.size > 0) {
+          console.log('🧹 Backend has no active uploads - clearing all local data');
+          localStorage.removeItem('activeUploadSessions');
+          return new Map();
+        }
+        return prev;
+      });
+    }
+    // If there are backend sessions, let the main sync effect handle them
+    // Don't do any cleanup here to avoid race conditions
+  }, [globalUploads]);
 
   // Poll for background processing jobs
   const pollBackgroundJobs = useCallback(async () => {
@@ -241,131 +239,151 @@ export const FloatingUploadProgress: React.FC = () => {
 
   // Sync with backend upload sessions
   useEffect(() => {
-    if (globalUploads?.uploads && Array.isArray(globalUploads.uploads)) {
-      console.log('🔄 FloatingUploadProgress: Syncing with backend uploads:', globalUploads.uploads);
-      
-      // 🔧 CRITICAL FIX: Validate backend sessions before processing
-      const validActiveSessions = globalUploads.uploads.filter((session: any) => {
-        // Validate required fields
-        if (!session.sessionId || !session.fileName) {
-          console.log(`❌ FloatingUploadProgress: Invalid session filtered out:`, {
-            sessionId: session.sessionId,
-            fileName: session.fileName,
-            hasSessionId: !!session.sessionId,
-            hasFileName: !!session.fileName
-          });
-          return false;
-        }
-        
-        // Validate numeric fields
-        if (typeof session.fileSize !== 'number' || session.fileSize <= 0) {
-          console.log(`❌ FloatingUploadProgress: Invalid fileSize for ${session.sessionId}:`, session.fileSize);
-          return false;
-        }
-        
-        if (typeof session.progress !== 'number' || session.progress < 0 || session.progress > 100) {
-          console.log(`❌ FloatingUploadProgress: Invalid progress for ${session.sessionId}:`, session.progress);
-          return false;
-        }
-        
-        return true;
-      });
+    // Only process if we have valid data from backend
+    if (!globalUploads?.success || !globalUploads?.uploads || !Array.isArray(globalUploads.uploads)) {
+      return;
+    }
 
-      console.log(`📊 FloatingUploadProgress: Found ${validActiveSessions.length} valid active sessions (filtered from ${globalUploads.uploads.length})`);
-      
-      // Auto-show if there are active uploads
-      if (validActiveSessions.length > 0 && isMinimized) {
-        setIsMinimized(false);
-        setIsExpanded(true);
+    const backendSessions = globalUploads.uploads;
+    console.log('🔄 FloatingUploadProgress: Syncing with backend uploads:', backendSessions);
+    
+    // Skip clearing logic if there are sessions from backend
+    if (backendSessions.length === 0) {
+      return; // Let the other useEffect handle clearing
+    }
+    
+    // Validate and process backend sessions
+    const validActiveSessions = backendSessions.filter((session: any) => {
+      // Validate required fields
+      if (!session.sessionId || !session.fileName) {
+        console.log(`❌ FloatingUploadProgress: Invalid session filtered out:`, {
+          sessionId: session.sessionId,
+          fileName: session.fileName,
+          hasSessionId: !!session.sessionId,
+          hasFileName: !!session.fileName
+        });
+        return false;
       }
       
+      // Validate numeric fields
+      if (typeof session.fileSize !== 'number' || session.fileSize <= 0) {
+        console.log(`❌ FloatingUploadProgress: Invalid fileSize for ${session.sessionId}:`, session.fileSize);
+        return false;
+      }
+      
+      if (typeof session.progress !== 'number' || session.progress < 0 || session.progress > 100) {
+        console.log(`❌ FloatingUploadProgress: Invalid progress for ${session.sessionId}:`, session.progress);
+        return false;
+      }
+      
+      return true;
+    });
+
+    console.log(`📊 FloatingUploadProgress: Found ${validActiveSessions.length} valid active sessions (filtered from ${backendSessions.length})`);
+    
+    // Auto-show if there are active uploads
+    if (validActiveSessions.length > 0 && isMinimized) {
+      setIsMinimized(false);
+      setIsExpanded(true);
+    }
+    
+    // Process all valid sessions in a single state update
+    setUploadSessions(prev => {
+      const newMap = new Map(prev);
+      
+      // First, remove any sessions not in backend anymore
+      const backendSessionIds = new Set(validActiveSessions.map((s: any) => s.sessionId));
+      Array.from(newMap.keys()).forEach(id => {
+        if (!backendSessionIds.has(id)) {
+          console.log(`🧹 Removing stale session: ${id}`);
+          newMap.delete(id);
+        }
+      });
+      
+      // Then add/update all backend sessions
       validActiveSessions.forEach((backendSession: any) => {
-        setUploadSessions(prev => {
-          const newMap = new Map(prev);
-          const existingSession = newMap.get(backendSession.sessionId);
+        const existingSession = newMap.get(backendSession.sessionId);
+        
+        console.log(`📝 Processing backend session ${backendSession.sessionId}:`, {
+          existingSession: !!existingSession,
+          backendProgress: backendSession.progress,
+          existingProgress: existingSession?.progress,
+          backendStatus: backendSession.status,
+          existingStatus: existingSession?.status,
+          shouldUpdate: !existingSession || existingSession.progress !== backendSession.progress || existingSession.status !== backendSession.status
+        });
+        
+        if (!existingSession || existingSession.progress !== backendSession.progress || existingSession.status !== backendSession.status) {
+          // Calculate upload speed
+          const now = Date.now();
+          const lastTime = lastUpdateTime.get(backendSession.sessionId) || now;
+          const timeDiff = (now - lastTime) / 1000; // seconds
           
-          if (!existingSession || existingSession.progress !== backendSession.progress) {
-            // Calculate upload speed
-            const now = Date.now();
-            const lastTime = lastUpdateTime.get(backendSession.sessionId) || now;
-            const timeDiff = (now - lastTime) / 1000; // seconds
+          let uploadSpeed = 0;
+          let timeRemaining = Infinity;
+          
+          if (timeDiff > 0 && existingSession) {
+            const bytesDiff = (backendSession.progress - existingSession.progress) / 100 * backendSession.fileSize;
+            const speed = Math.max(0, bytesDiff / timeDiff); // bytes per second
             
-            if (timeDiff > 0 && existingSession) {
-              const bytesDiff = (backendSession.progress - existingSession.progress) / 100 * backendSession.fileSize;
-              const speed = Math.max(0, bytesDiff / timeDiff); // bytes per second
-              
-              // Store speed samples for averaging
-              const speeds = uploadSpeeds.get(backendSession.sessionId) || [];
-              speeds.push(speed);
-              if (speeds.length > 10) speeds.shift(); // Keep last 10 samples
-              setUploadSpeeds(prev => new Map(prev).set(backendSession.sessionId, speeds));
-              
-              // 🔧 CRITICAL FIX: Validate speed calculation
-              const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
-              
-              // Calculate time remaining
-              const bytesRemaining = Math.max(0, backendSession.fileSize * (1 - backendSession.progress / 100));
-              const timeRemaining = (avgSpeed > 0 && bytesRemaining > 0) ? bytesRemaining / avgSpeed : Infinity;
-              
-              // 🔧 CRITICAL FIX: Validate time remaining
-              const validTimeRemaining = (isNaN(timeRemaining) || !isFinite(timeRemaining)) ? Infinity : timeRemaining;
-              
-              newMap.set(backendSession.sessionId, {
-                ...existingSession,
-                progress: Math.max(0, Math.min(100, backendSession.progress || 0)),
-                status: backendSession.status || 'unknown',
-                uploadSpeed: Math.max(0, avgSpeed || 0),
-                timeRemaining: validTimeRemaining
-              });
-            } else {
-              // New session or first update
-              newMap.set(backendSession.sessionId, {
-                sessionId: backendSession.sessionId,
-                fileName: backendSession.fileName || 'Unknown File',
-                fileSize: Math.max(0, backendSession.fileSize || 0),
-                progress: Math.max(0, Math.min(100, backendSession.progress || 0)),
-                status: backendSession.status || 'unknown',
-                startTime: existingSession?.startTime || Date.now(),
-                dealId: backendSession.dealId || 0,
-                uploadSpeed: 0,
-                timeRemaining: Infinity
-              });
-            }
+            // Store speed samples for averaging
+            const speeds = uploadSpeeds.get(backendSession.sessionId) || [];
+            speeds.push(speed);
+            if (speeds.length > 10) speeds.shift(); // Keep last 10 samples
+            setUploadSpeeds(prev => new Map(prev).set(backendSession.sessionId, speeds));
             
-            setLastUpdateTime(prev => new Map(prev).set(backendSession.sessionId, now));
+            uploadSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+            
+            // Calculate time remaining
+            const bytesRemaining = Math.max(0, backendSession.fileSize * (1 - backendSession.progress / 100));
+            timeRemaining = (uploadSpeed > 0 && bytesRemaining > 0) ? bytesRemaining / uploadSpeed : Infinity;
+            
+            // Validate time remaining
+            timeRemaining = (isNaN(timeRemaining) || !isFinite(timeRemaining)) ? Infinity : timeRemaining;
           }
           
+          // Update or create session
+          newMap.set(backendSession.sessionId, {
+            sessionId: backendSession.sessionId,
+            fileName: backendSession.fileName || 'Unknown File',
+            fileSize: Math.max(0, backendSession.fileSize || 0),
+            progress: Math.max(0, Math.min(100, backendSession.progress || 0)),
+            status: backendSession.status || 'unknown',
+            startTime: existingSession?.startTime || Date.now(),
+            dealId: backendSession.dealId || 0,
+            uploadSpeed: Math.max(0, uploadSpeed),
+            timeRemaining: timeRemaining,
+            error: backendSession.errorMessage
+          });
+          
+          setLastUpdateTime(prev => new Map(prev).set(backendSession.sessionId, now));
+        }
+      });
+      
+      return newMap;
+    });
+
+    // Handle completed sessions removal after delay
+    const completedSessions = validActiveSessions.filter(
+      (u: any) => u.status === 'completed' || u.status === 'failed'
+    );
+
+    completedSessions.forEach((session: any) => {
+      if (!session.sessionId) return;
+      
+      setTimeout(() => {
+        setUploadSessions(prev => {
+          const newMap = new Map(prev);
+          const currentSession = newMap.get(session.sessionId);
+          if (currentSession && (currentSession.status === 'completed' || currentSession.status === 'failed')) {
+            console.log(`🗑️ FloatingUploadProgress: Removing completed session: ${session.sessionId}`);
+            newMap.delete(session.sessionId);
+          }
           return newMap;
         });
-      });
-
-      // 🔧 CRITICAL FIX: Remove completed sessions after a delay with validation
-      const completedSessions = validActiveSessions.filter(
-        (u: any) => u.status === 'completed' || u.status === 'failed'
-      );
-
-      completedSessions.forEach((session: any) => {
-        // 🔧 CRITICAL FIX: Validate session ID before setting timeout
-        if (!session.sessionId) {
-          console.log(`❌ FloatingUploadProgress: Skipping timeout for invalid sessionId`);
-          return;
-        }
-        
-        setTimeout(() => {
-          setUploadSessions(prev => {
-            const newMap = new Map(prev);
-            // Only delete if the status hasn't changed
-            const currentSession = newMap.get(session.sessionId);
-            if (currentSession && (currentSession.status === 'completed' || currentSession.status === 'failed')) {
-              console.log(`🗑️ FloatingUploadProgress: Removing completed session: ${session.sessionId}`);
-              newMap.delete(session.sessionId);
-            }
-            return newMap;
-          });
-        }, 5000); // Keep completed/failed uploads visible for 5 seconds
-      });
-    }
-  }, [globalUploads]);
+      }, 5000); // Keep completed/failed uploads visible for 5 seconds
+    });
+  }, [globalUploads, isMinimized]);
 
   // Handle upload pause
   const pauseUpload = useCallback(async (sessionId: string, isNetworkPause = false) => {
