@@ -335,12 +335,36 @@ export class PersistentUploadService {
       )
       .orderBy(desc(persistentUploadSessions.createdAt));
 
-    // Filter recent failed uploads in JavaScript
+    // 🔧 CRITICAL FIX: Filter recent failed uploads AND validate session data
     const filteredSessions = sessions.filter((session: any) => {
+      // 🔧 CRITICAL VALIDATION: Ensure session has required fields
+      if (!session.session_id || !session.file_name) {
+        console.log(`❌ CORRUPTED SESSION FILTERED OUT: session_id=${session.session_id}, file_name=${session.file_name}, id=${session.id}`);
+        
+        // 🧹 CLEANUP: Delete corrupted session in the background
+        this.deleteSession(session.session_id || `corrupted_${session.id}`).catch(err => {
+          console.error(`❌ Failed to delete corrupted session ${session.id}:`, err);
+        });
+        
+        return false;
+      }
+      
+      // 🔧 CRITICAL VALIDATION: Ensure valid date fields
+      if (!session.created_at || isNaN(new Date(session.created_at).getTime())) {
+        console.log(`❌ SESSION WITH INVALID CREATED_AT FILTERED OUT: ${session.session_id}`);
+        return false;
+      }
+      
+      // Filter failed uploads by date
       if (session.status === 'failed') {
-        const updatedAt = new Date(session.updated_at);
+        const updatedAt = new Date(session.updated_at || session.created_at);
+        if (isNaN(updatedAt.getTime())) {
+          console.log(`❌ SESSION WITH INVALID DATE FILTERED OUT: ${session.session_id}`);
+          return false;
+        }
         return updatedAt > thirtyMinutesAgo;
       }
+      
       return true;
     });
 
@@ -349,11 +373,11 @@ export class PersistentUploadService {
       sessionId: session.session_id,
       dealId: session.deal_id,
       fileName: session.file_name,
-      fileSize: session.file_size,
+      fileSize: session.file_size || 0,
       uploadType: session.upload_type,
       status: session.status,
-      progress: session.progress,
-      uploadedBytes: session.uploaded_bytes,
+      progress: session.progress || 0,
+      uploadedBytes: session.uploaded_bytes || 0,
       gcsPath: session.gcs_path,
       jobId: session.job_id,
       currentStep: session.current_step,
@@ -372,13 +396,35 @@ export class PersistentUploadService {
     console.log(`🗑️ DELETING SESSION: ${sessionId} from database`);
     
     try {
-      const result = await db.delete(persistentUploadSessions)
-        .where(eq(persistentUploadSessions.session_id, sessionId));
+      // 🔧 CRITICAL FIX: Handle deletion by session_id OR by ID for corrupted records
+      let result;
+      
+      if (sessionId && sessionId.startsWith('corrupted_')) {
+        // Extract the ID for corrupted sessions
+        const id = parseInt(sessionId.replace('corrupted_', ''));
+        if (!isNaN(id)) {
+          console.log(`🧹 Deleting corrupted session by ID: ${id}`);
+          result = await db.delete(persistentUploadSessions)
+            .where(eq(persistentUploadSessions.id, id));
+        } else {
+          console.log(`❌ Invalid corrupted session ID: ${sessionId}`);
+          return false;
+        }
+      } else if (sessionId) {
+        // Normal deletion by session_id
+        result = await db.delete(persistentUploadSessions)
+          .where(eq(persistentUploadSessions.session_id, sessionId));
+      } else {
+        console.log(`❌ Cannot delete session with invalid sessionId: ${sessionId}`);
+        return false;
+      }
 
       console.log(`✅ DATABASE DELETION RESULT:`, result);
       
-      // Broadcast deletion to all clients
-      this.broadcastStatusUpdate(sessionId, 'failed', 'Upload canceled by user');
+      // Broadcast deletion to all clients (only if it's a real session_id)
+      if (sessionId && !sessionId.startsWith('corrupted_')) {
+        this.broadcastStatusUpdate(sessionId, 'failed', 'Upload canceled by user');
+      }
       
       return true;
     } catch (error) {
@@ -476,33 +522,78 @@ export class PersistentUploadService {
       console.log(`🔍 Found ${stuckSessions.length} potentially stuck upload sessions`);
 
       let cleanedUpCount = 0;
-      for (const session of stuckSessions) {
-        // Check if this session is truly stuck (no update for 5+ minutes)
-        const lastUpdate = new Date(session.updated_at || session.created_at);
-        const minutesStuck = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60);
+      for (const dbSession of stuckSessions) {
+        // 🔧 CRITICAL FIX: Validate session data before processing
+        if (!dbSession.session_id || !dbSession.file_name) {
+          console.log(`❌ CORRUPTED SESSION DETECTED: session_id=${dbSession.session_id}, file_name=${dbSession.file_name}, id=${dbSession.id}`);
+          console.log(`🧹 Deleting corrupted session record...`);
+          
+          // Delete the corrupted record
+          await db.delete(persistentUploadSessions)
+            .where(eq(persistentUploadSessions.id, dbSession.id));
+          
+          console.log(`✅ Deleted corrupted session record with ID: ${dbSession.id}`);
+          cleanedUpCount++;
+          continue;
+        }
+
+        // 🔧 CRITICAL FIX: Validate date values before calculations
+        const updatedAt = dbSession.updated_at;
+        const createdAt = dbSession.created_at;
         
-        console.log(`📊 Session ${session.session_id} (${session.file_name}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${session.progress}%`);
+        if (!updatedAt && !createdAt) {
+          console.log(`❌ SESSION WITH INVALID DATES: ${dbSession.session_id} - deleting`);
+          await db.delete(persistentUploadSessions)
+            .where(eq(persistentUploadSessions.id, dbSession.id));
+          cleanedUpCount++;
+          continue;
+        }
+        
+        const lastUpdate = new Date(updatedAt || createdAt);
+        const currentTime = new Date();
+        
+        // 🔧 CRITICAL FIX: Validate date calculation
+        if (isNaN(lastUpdate.getTime()) || isNaN(currentTime.getTime())) {
+          console.log(`❌ SESSION WITH INVALID DATE CALCULATION: ${dbSession.session_id} - deleting`);
+          await db.delete(persistentUploadSessions)
+            .where(eq(persistentUploadSessions.id, dbSession.id));
+          cleanedUpCount++;
+          continue;
+        }
+        
+        const minutesStuck = (currentTime.getTime() - lastUpdate.getTime()) / (1000 * 60);
+        
+        // 🔧 CRITICAL FIX: Validate calculated minutes
+        if (isNaN(minutesStuck) || minutesStuck < 0) {
+          console.log(`❌ SESSION WITH INVALID TIME CALCULATION: ${dbSession.session_id}, minutesStuck=${minutesStuck} - deleting`);
+          await db.delete(persistentUploadSessions)
+            .where(eq(persistentUploadSessions.id, dbSession.id));
+          cleanedUpCount++;
+          continue;
+        }
+        
+        console.log(`📊 Session ${dbSession.session_id} (${dbSession.file_name}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${dbSession.progress || 0}%`);
         
         // 🎯 CRITICAL: If upload reached 100% but never got marked as completed, complete it now
-        if (session.progress >= 100) {
-          console.log(`✅ Upload reached 100% but never completed: ${session.session_id} (${session.file_name}) - marking as completed`);
+        if ((dbSession.progress || 0) >= 100) {
+          console.log(`✅ Upload reached 100% but never completed: ${dbSession.session_id} (${dbSession.file_name}) - marking as completed`);
           await this.updateStatus(
-            session.session_id, 
+            dbSession.session_id, 
             'completed', 
             'Analysis completed, upload finished'
           );
           cleanedUpCount++;
         } else if (minutesStuck >= 5) {
-          console.log(`⚠️ Found stuck upload session: ${session.session_id} (${session.file_name}), stuck for ${minutesStuck.toFixed(1)} minutes`);
+          console.log(`⚠️ Found stuck upload session: ${dbSession.session_id} (${dbSession.file_name}), stuck for ${minutesStuck.toFixed(1)} minutes`);
           console.log(`🔍 Attempting recovery for stuck upload...`);
           
           // Try to recover the upload
-          const recovered = await this.attemptUploadRecovery(session);
+          const recovered = await this.attemptUploadRecovery(dbSession);
           
           if (recovered) {
-            console.log(`🎉 Successfully recovered stuck upload: ${session.session_id}`);
+            console.log(`🎉 Successfully recovered stuck upload: ${dbSession.session_id}`);
           } else {
-            console.log(`❌ Failed to recover stuck upload: ${session.session_id}`);
+            console.log(`❌ Failed to recover stuck upload: ${dbSession.session_id}`);
           }
           
           cleanedUpCount++;
