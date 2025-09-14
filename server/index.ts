@@ -279,10 +279,9 @@ app.use((req, res, next) => {
     return express.json({ limit: '10mb' })(req, res, next);
   }
   // PRODUCTION FIX: Completely skip ALL body parsing for upload routes
-  // EXCEPT for PATCH progress/status routes AND POST create routes which need body parsing
+  // EXCEPT for PATCH progress/status routes which need body parsing
   if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
-      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))
-      && !(req.method === 'POST' && req.path === '/api/persistent-uploads/create')) {
+      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
     console.log(`🔧 BYPASSING body parsing for upload route: ${req.path}`);
     return next();
   }
@@ -292,10 +291,9 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   // PRODUCTION FIX: Completely skip ALL body parsing for upload routes  
-  // EXCEPT for PATCH progress/status routes AND POST create routes which need body parsing
+  // EXCEPT for PATCH progress/status routes which need body parsing
   if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
-      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))
-      && !(req.method === 'POST' && req.path === '/api/persistent-uploads/create')) {
+      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
     return next();
   }
   // Apply minimal URL-encoded parser for non-upload routes only
@@ -304,10 +302,9 @@ app.use((req, res, next) => {
 
 // COMPLETELY SKIP raw parser for upload routes
 app.use((req, res, next) => {
-  // Skip raw parsing for upload routes but allow PATCH persistent-upload routes AND POST create routes
+  // Skip raw parsing for upload routes but allow PATCH persistent-upload routes
   if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
-      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))
-      && !(req.method === 'POST' && req.path === '/api/persistent-uploads/create')) {
+      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
     return next(); // Skip raw parsing too
   }
   if (req.path.includes('/api/webhooks')) {

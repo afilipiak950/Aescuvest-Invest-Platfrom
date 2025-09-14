@@ -63,9 +63,7 @@ export function BackgroundJobProgress({ dealId, onJobComplete }: BackgroundJobPr
 
       isConnecting = true;
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = window.location.hostname;
-      const port = window.location.port || (protocol === "wss:" ? "443" : "80");
-      const wsUrl = `${protocol}//${host}:${port}/ws`;
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
       
       ws = new WebSocket(wsUrl);
       
