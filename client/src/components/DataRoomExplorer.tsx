@@ -1554,29 +1554,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     </div>
                   </div>
 
-                  {/* Upload Progress */}
-                  {uploadProgress && (
-                    <div className="space-y-3 p-4 bg-dark-lighter/50 border border-gray-600/50 rounded-xl backdrop-blur-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-white font-medium">{uploadProgress.fileName}</p>
-                            <p className="text-xs text-gray-400">{uploadProgress.status}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm text-gray-400 font-medium">{uploadProgress.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${uploadProgress.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
+                  {/* 🔧 FIX: Removed duplicate blue upload progress - only show chunked progress below */}
 
                   {/* Chunked Upload Progress */}
                   {chunkedUploadProgress && (
