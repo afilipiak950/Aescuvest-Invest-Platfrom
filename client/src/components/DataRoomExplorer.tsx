@@ -30,6 +30,7 @@ import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
+import { frontendPersistentUploadService } from '../services/persistentUploadService';
 import { backgroundUploadService } from '../services/backgroundUploadService';
 
 interface DataRoomExplorerProps {
@@ -672,6 +673,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showAdditionalUpload, setShowAdditionalUpload] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ sessionId?: string; fileName: string; progress: number; status: string } | null>(null);
+  // Local state for immediate UI feedback - synced with persistent upload service
   const [chunkedUploadProgress, setChunkedUploadProgress] = useState<ChunkedUploadProgress | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   
@@ -800,23 +802,34 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       console.log(`🚀 Starting background ZIP upload: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
 
       try {
-        // Use background upload service for all ZIP uploads
+        // ALL ZIP uploads use background service which creates persistent sessions
         const sessionId = await backgroundUploadService.startZipUpload({
           dealId,
           file,
           onProgress: (progress) => {
             console.log(`📊 Upload progress: ${progress.progress}%`);
+            // Update both local state for immediate feedback
             setUploadProgress({
               sessionId: progress.sessionId,
               fileName: progress.fileName,
               progress: progress.progress,
               status: progress.status
             });
+            // Also update chunkedUploadProgress for the green progress bar UI
+            setChunkedUploadProgress({
+              fileName: progress.fileName,
+              progress: progress.progress,
+              status: progress.status,
+              speed: 0,
+              currentChunk: undefined,
+              totalChunks: undefined
+            });
             setActiveSessionId(progress.sessionId);
           },
           onComplete: (sessionId) => {
             console.log(`✅ Background upload completed: ${sessionId}`);
             setUploadProgress(null);
+            setChunkedUploadProgress(null);
             setActiveSessionId(null);
             queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
             if (onUploadComplete) {
@@ -826,6 +839,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           onError: (error) => {
             console.error(`❌ Background upload failed: ${error}`);
             setUploadProgress(null);
+            setChunkedUploadProgress(null);
             setActiveSessionId(null);
             alert(`Upload failed: ${error}`);
           }
