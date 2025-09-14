@@ -128,14 +128,22 @@ export class PersistentUploadService {
     console.log(`📊 Updating upload progress: ${sessionId} -> ${progress}%`);
     
     try {
+      const updateData: any = {
+        progress,
+        updatedAt: new Date()
+      };
+      
+      // Only add optional fields if they have values
+      if (uploadedBytes !== undefined) {
+        updateData.uploadedBytes = uploadedBytes;
+      }
+      if (currentStep !== undefined) {
+        updateData.currentStep = currentStep;
+      }
+      
       const updateResult = await db.update(persistentUploadSessions)
-        .set({
-          progress,
-          uploaded_bytes: uploadedBytes || undefined,
-          current_step: currentStep,
-          updated_at: new Date()
-        })
-        .where(eq(persistentUploadSessions.session_id, sessionId));
+        .set(updateData)
+        .where(eq(persistentUploadSessions.sessionId, sessionId));
 
       console.log(`✅ Progress update successful for ${sessionId}: ${progress}%`);
       console.log(`📊 Update result:`, updateResult);
@@ -163,17 +171,17 @@ export class PersistentUploadService {
     
     const updateData: any = {
       status,
-      updated_at: new Date()
+      updatedAt: new Date()
     };
 
-    if (errorMessage) updateData.error_message = errorMessage;
-    if (jobId) updateData.job_id = jobId;
-    if (gcsPath) updateData.gcs_path = gcsPath;
-    if (status === 'completed') updateData.completed_at = new Date();
+    if (errorMessage) updateData.errorMessage = errorMessage;
+    if (jobId) updateData.jobId = jobId;
+    if (gcsPath) updateData.gcsPath = gcsPath;
+    if (status === 'completed') updateData.completedAt = new Date();
 
     await db.update(persistentUploadSessions)
       .set(updateData)
-      .where(eq(persistentUploadSessions.session_id, sessionId));
+      .where(eq(persistentUploadSessions.sessionId, sessionId));
 
     // Broadcast status update to all connected clients
     this.broadcastStatusUpdate(sessionId, status, errorMessage);
