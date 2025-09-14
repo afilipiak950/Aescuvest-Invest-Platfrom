@@ -2,29 +2,14 @@
 // Ensures uploads NEVER stop even when leaving page, refreshing, or switching deals
 
 import { db } from '../db';
-import { persistentUploadSessions } from '@shared/schema';
+import { persistentUploadSessions, insertPersistentUploadSessionSchema } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
+import { z } from 'zod';
 
-export interface PersistentUploadSession {
-  id?: number;
-  sessionId: string;
-  dealId: number;
-  fileName: string;
-  fileSize: number;
-  uploadType: 'gcs_direct' | 'chunked' | 'zip_processing';
-  status: 'uploading' | 'processing' | 'completed' | 'failed';
-  progress: number;
-  uploadedBytes: number;
-  gcsPath?: string;
-  jobId?: string;
-  currentStep?: string;
-  errorMessage?: string;
-  metadata?: any;
-  createdAt?: Date;
-  updatedAt?: Date;
-  completedAt?: Date;
-}
+// Use schema-derived types as single source of truth
+export type PersistentUploadSession = typeof persistentUploadSessions.$inferSelect;
+export type InsertPersistentUploadSession = z.infer<typeof insertPersistentUploadSessionSchema>;
 
 export class PersistentUploadService {
   private cleanupInterval?: NodeJS.Timeout;
@@ -322,9 +307,9 @@ export class PersistentUploadService {
     try {
       console.log('🔍 Starting stuck upload check...');
       
-      // 15 minute timeout for more aggressive cleanup
+      // 3 minute timeout for much faster recovery - uploads should progress every 30 seconds
       const stuckThreshold = new Date();
-      stuckThreshold.setMinutes(stuckThreshold.getMinutes() - 15);
+      stuckThreshold.setMinutes(stuckThreshold.getMinutes() - 3);
       
       console.log(`🕒 Looking for uploads stuck since before: ${stuckThreshold.toISOString()}`);
 
@@ -342,7 +327,7 @@ export class PersistentUploadService {
 
       let cleanedUpCount = 0;
       for (const session of stuckSessions) {
-        // Check if this session is truly stuck (no update for 15+ minutes)
+        // Check if this session is truly stuck (no update for 3+ minutes)
         const lastUpdate = new Date(session.updatedAt || session.createdAt);
         const minutesStuck = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60);
         
@@ -357,12 +342,12 @@ export class PersistentUploadService {
             'Analysis completed, upload finished'
           );
           cleanedUpCount++;
-        } else if (minutesStuck >= 15) {
+        } else if (minutesStuck >= 3) {
           console.log(`⚠️ Found stuck upload session: ${session.sessionId} (${session.fileName}), stuck for ${minutesStuck.toFixed(1)} minutes`);
           await this.updateStatus(
             session.sessionId, 
             'failed', 
-            `Upload timed out after ${Math.round(minutesStuck)} minutes - likely GCS upload failed`
+            `Upload connection lost after ${Math.round(minutesStuck)} minutes - please try again. Upload may resume when you return to this page.`
           );
           cleanedUpCount++;
         }
