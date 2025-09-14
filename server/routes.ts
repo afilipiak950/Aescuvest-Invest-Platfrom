@@ -51,6 +51,7 @@ import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { chunkedUploadService } from './services/chunkedUploadService';
 import { zipProcessor } from './services/zipProcessor';
 import { gcsService } from './services/googleCloudStorage';
+import gcsReliabilityRoutes from './routes/gcs-reliability-validation';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
