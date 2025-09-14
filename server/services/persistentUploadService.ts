@@ -78,18 +78,18 @@ export class PersistentUploadService {
     console.log(`🚀 Creating persistent upload session: ${session.fileName} for deal ${session.dealId}`);
     
     const [created] = await db.insert(persistentUploadSessions).values({
-      session_id: session.sessionId,
-      deal_id: session.dealId,
-      file_name: session.fileName,
-      file_size: session.fileSize,
-      upload_type: session.uploadType,
+      sessionId: session.sessionId,
+      dealId: session.dealId,
+      fileName: session.fileName,
+      fileSize: session.fileSize,
+      uploadType: session.uploadType,
       status: session.status,
       progress: session.progress,
-      uploaded_bytes: session.uploadedBytes,
-      gcs_path: session.gcsPath,
-      job_id: session.jobId,
-      current_step: session.currentStep,
-      error_message: session.errorMessage,
+      uploadedBytes: session.uploadedBytes,
+      gcsPath: session.gcsPath,
+      jobId: session.jobId,
+      currentStep: session.currentStep,
+      errorMessage: session.errorMessage,
       metadata: session.metadata
     }).returning();
 
@@ -128,6 +128,7 @@ export class PersistentUploadService {
     console.log(`📊 Updating upload progress: ${sessionId} -> ${progress}%`);
     
     try {
+      // Create update object with proper schema references
       const updateData: any = {
         progress,
         updatedAt: new Date()
