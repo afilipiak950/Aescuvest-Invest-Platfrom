@@ -202,10 +202,12 @@ export const FloatingUploadProgress: React.FC = () => {
   // Sync with backend upload sessions
   useEffect(() => {
     if (globalUploads?.uploads) {
+      console.log('🔄 FloatingUploadProgress: Syncing with backend uploads:', globalUploads.uploads);
       const activeSessions = globalUploads.uploads.filter(
         (u: any) => u.status === 'uploading' || u.status === 'processing'
       );
 
+      console.log(`📊 FloatingUploadProgress: Found ${activeSessions.length} active sessions`);
       activeSessions.forEach((backendSession: any) => {
         setUploadSessions(prev => {
           const newMap = new Map(prev);
@@ -406,7 +408,7 @@ export const FloatingUploadProgress: React.FC = () => {
   return (
     <div 
       className={cn(
-        "fixed bottom-4 right-4 z-50 transition-all duration-300",
+        "fixed bottom-4 right-4 z-[9999] transition-all duration-300",
         isMinimized ? "w-16" : "w-96"
       )}
     >
