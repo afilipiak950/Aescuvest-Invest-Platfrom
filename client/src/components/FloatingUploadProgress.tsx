@@ -206,18 +206,43 @@ export const FloatingUploadProgress: React.FC = () => {
   useEffect(() => {
     if (globalUploads?.uploads && Array.isArray(globalUploads.uploads)) {
       console.log('🔄 FloatingUploadProgress: Syncing with backend uploads:', globalUploads.uploads);
-      // Don't filter here - backend already filters for active sessions
-      const activeSessions = globalUploads.uploads;
+      
+      // 🔧 CRITICAL FIX: Validate backend sessions before processing
+      const validActiveSessions = globalUploads.uploads.filter((session: any) => {
+        // Validate required fields
+        if (!session.sessionId || !session.fileName) {
+          console.log(`❌ FloatingUploadProgress: Invalid session filtered out:`, {
+            sessionId: session.sessionId,
+            fileName: session.fileName,
+            hasSessionId: !!session.sessionId,
+            hasFileName: !!session.fileName
+          });
+          return false;
+        }
+        
+        // Validate numeric fields
+        if (typeof session.fileSize !== 'number' || session.fileSize <= 0) {
+          console.log(`❌ FloatingUploadProgress: Invalid fileSize for ${session.sessionId}:`, session.fileSize);
+          return false;
+        }
+        
+        if (typeof session.progress !== 'number' || session.progress < 0 || session.progress > 100) {
+          console.log(`❌ FloatingUploadProgress: Invalid progress for ${session.sessionId}:`, session.progress);
+          return false;
+        }
+        
+        return true;
+      });
 
-      console.log(`📊 FloatingUploadProgress: Found ${activeSessions.length} active sessions`);
+      console.log(`📊 FloatingUploadProgress: Found ${validActiveSessions.length} valid active sessions (filtered from ${globalUploads.uploads.length})`);
       
       // Auto-show if there are active uploads
-      if (activeSessions.length > 0 && isMinimized) {
+      if (validActiveSessions.length > 0 && isMinimized) {
         setIsMinimized(false);
         setIsExpanded(true);
       }
       
-      activeSessions.forEach((backendSession: any) => {
+      validActiveSessions.forEach((backendSession: any) => {
         setUploadSessions(prev => {
           const newMap = new Map(prev);
           const existingSession = newMap.get(backendSession.sessionId);
@@ -230,7 +255,7 @@ export const FloatingUploadProgress: React.FC = () => {
             
             if (timeDiff > 0 && existingSession) {
               const bytesDiff = (backendSession.progress - existingSession.progress) / 100 * backendSession.fileSize;
-              const speed = bytesDiff / timeDiff; // bytes per second
+              const speed = Math.max(0, bytesDiff / timeDiff); // bytes per second
               
               // Store speed samples for averaging
               const speeds = uploadSpeeds.get(backendSession.sessionId) || [];
@@ -238,30 +263,35 @@ export const FloatingUploadProgress: React.FC = () => {
               if (speeds.length > 10) speeds.shift(); // Keep last 10 samples
               setUploadSpeeds(prev => new Map(prev).set(backendSession.sessionId, speeds));
               
-              // Calculate average speed
-              const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+              // 🔧 CRITICAL FIX: Validate speed calculation
+              const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
               
               // Calculate time remaining
-              const bytesRemaining = backendSession.fileSize * (1 - backendSession.progress / 100);
-              const timeRemaining = avgSpeed > 0 ? bytesRemaining / avgSpeed : Infinity;
+              const bytesRemaining = Math.max(0, backendSession.fileSize * (1 - backendSession.progress / 100));
+              const timeRemaining = (avgSpeed > 0 && bytesRemaining > 0) ? bytesRemaining / avgSpeed : Infinity;
+              
+              // 🔧 CRITICAL FIX: Validate time remaining
+              const validTimeRemaining = (isNaN(timeRemaining) || !isFinite(timeRemaining)) ? Infinity : timeRemaining;
               
               newMap.set(backendSession.sessionId, {
                 ...existingSession,
-                progress: backendSession.progress,
-                status: backendSession.status,
-                uploadSpeed: avgSpeed,
-                timeRemaining
+                progress: Math.max(0, Math.min(100, backendSession.progress || 0)),
+                status: backendSession.status || 'unknown',
+                uploadSpeed: Math.max(0, avgSpeed || 0),
+                timeRemaining: validTimeRemaining
               });
             } else {
               // New session or first update
               newMap.set(backendSession.sessionId, {
                 sessionId: backendSession.sessionId,
-                fileName: backendSession.fileName,
-                fileSize: backendSession.fileSize,
-                progress: backendSession.progress,
-                status: backendSession.status,
+                fileName: backendSession.fileName || 'Unknown File',
+                fileSize: Math.max(0, backendSession.fileSize || 0),
+                progress: Math.max(0, Math.min(100, backendSession.progress || 0)),
+                status: backendSession.status || 'unknown',
                 startTime: existingSession?.startTime || Date.now(),
-                dealId: backendSession.dealId
+                dealId: backendSession.dealId || 0,
+                uploadSpeed: 0,
+                timeRemaining: Infinity
               });
             }
             
@@ -272,18 +302,25 @@ export const FloatingUploadProgress: React.FC = () => {
         });
       });
 
-      // Remove completed sessions after a delay
-      const completedSessions = globalUploads.uploads.filter(
+      // 🔧 CRITICAL FIX: Remove completed sessions after a delay with validation
+      const completedSessions = validActiveSessions.filter(
         (u: any) => u.status === 'completed' || u.status === 'failed'
       );
 
       completedSessions.forEach((session: any) => {
+        // 🔧 CRITICAL FIX: Validate session ID before setting timeout
+        if (!session.sessionId) {
+          console.log(`❌ FloatingUploadProgress: Skipping timeout for invalid sessionId`);
+          return;
+        }
+        
         setTimeout(() => {
           setUploadSessions(prev => {
             const newMap = new Map(prev);
             // Only delete if the status hasn't changed
             const currentSession = newMap.get(session.sessionId);
             if (currentSession && (currentSession.status === 'completed' || currentSession.status === 'failed')) {
+              console.log(`🗑️ FloatingUploadProgress: Removing completed session: ${session.sessionId}`);
               newMap.delete(session.sessionId);
             }
             return newMap;
