@@ -155,6 +155,33 @@ export const FloatingUploadProgress: React.FC = () => {
     enabled: true
   });
 
+  // 🔧 CRITICAL FIX: Sync localStorage with backend state to prevent stale uploads
+  useEffect(() => {
+    if (globalUploads?.success) {
+      const activeBackendSessions = globalUploads.uploads || [];
+      
+      if (activeBackendSessions.length === 0) {
+        // Backend has no active uploads - clear localStorage and component state
+        console.log('🧹 Backend has no active uploads - clearing all local data');
+        setUploadSessions(new Map());
+        localStorage.removeItem('activeUploadSessions');
+      } else {
+        // Sync local state with backend state
+        const backendSessionIds = new Set(activeBackendSessions.map(u => u.sessionId));
+        const localSessionIds = new Set(uploadSessions.keys());
+        
+        // Remove local sessions that don't exist on backend
+        const toRemove = Array.from(localSessionIds).filter(id => !backendSessionIds.has(id));
+        if (toRemove.length > 0) {
+          console.log(`🧹 Removing ${toRemove.length} stale local sessions:`, toRemove);
+          const newSessions = new Map(uploadSessions);
+          toRemove.forEach(id => newSessions.delete(id));
+          setUploadSessions(newSessions);
+        }
+      }
+    }
+  }, [globalUploads, uploadSessions]);
+
   // Poll for background processing jobs
   const pollBackgroundJobs = useCallback(async () => {
     const completedSessions = Array.from(uploadSessions.values()).filter(
