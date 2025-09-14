@@ -962,6 +962,8 @@ const FolderTree: React.FC<{
 }); // ⚡ PERFORMANCE: React.memo closing
 
 export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
+  console.log(`🎯 DataRoomExplorer rendering for deal ${dealId}`);
+  
   // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -985,11 +987,33 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const queryClient = useQueryClient();
 
   // 🎯 CRITICAL: Check for active persistent uploads when component loads
-  const { data: persistentUploads } = useQuery({
+  const { data: persistentUploads, isLoading: isLoadingUploads, error: uploadsError } = useQuery({
     queryKey: [`/api/deals/${dealId}/persistent-uploads`],
-    enabled: false, // DISABLED - only enable when actually uploading
-    staleTime: Infinity,
+    enabled: true, // ✅ ENABLED - automatically restore progress bars after page refresh
+    staleTime: 5000, // Refresh every 5 seconds to track upload progress
+    refetchInterval: 5000, // Auto-refresh to show live progress updates
   });
+
+  // 🔧 DEBUG: Log query state to understand why it's not working
+  console.log('🔧 IMMEDIATE PERSISTENT UPLOADS DEBUG:', {
+    dealId,
+    isLoadingUploads,
+    uploadsError: uploadsError?.message,
+    persistentUploads,
+    queryEnabled: true,
+    queryKey: `/api/deals/${dealId}/persistent-uploads`
+  });
+  
+  useEffect(() => {
+    console.log('🔧 USEEFFECT PERSISTENT UPLOADS DEBUG:', {
+      dealId,
+      isLoadingUploads,
+      uploadsError: uploadsError?.message,
+      persistentUploads,
+      queryEnabled: true,
+      queryKey: `/api/deals/${dealId}/persistent-uploads`
+    });
+  }, [dealId, isLoadingUploads, uploadsError, persistentUploads]);
 
   // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads  
   useEffect(() => {
