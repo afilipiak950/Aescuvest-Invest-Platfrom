@@ -2046,10 +2046,100 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           }
         });
         
-        // 🚀 CRITICAL: Send directly to GCS using PUT method
+        // 🚀 CRITICAL: Send directly to GCS using PUT method with TIMEOUT
         console.log('🚀 Opening PUT request to GCS signed URL');
         xhr.open('PUT', signedUrl);
         xhr.setRequestHeader('Content-Type', 'application/zip');
+        
+        // 🚨 CRITICAL TIMEOUT FIX: Prevent infinite hanging
+        // Set 2-minute timeout for large files
+        xhr.timeout = 120000; // 2 minutes in milliseconds
+        
+        xhr.addEventListener('timeout', function() {
+          console.error('❌ GCS direct upload TIMED OUT after 2 minutes - implementing fallback');
+          setUploadProgress({
+            fileName: file.name,
+            progress: 0,
+            status: 'GCS timeout - trying proxy upload...'
+          });
+          
+          // Trigger proxy fallback after timeout
+          setTimeout(async () => {
+            console.log('🔄 TIMEOUT FALLBACK: Attempting proxy upload through server...');
+            
+            try {
+              const proxyFormData = new FormData();
+              proxyFormData.append('file', file);
+              
+              setUploadProgress({
+                fileName: file.name,
+                progress: 10,
+                status: 'Using proxy upload (server will handle GCS)...'
+              });
+              
+              const proxyXhr = new XMLHttpRequest();
+              
+              // Track proxy upload progress
+              proxyXhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                  const percentComplete = Math.round((e.loaded / e.total) * 100);
+                  setUploadProgress({
+                    fileName: file.name,
+                    progress: percentComplete,
+                    status: `Proxy upload: ${percentComplete}%`
+                  });
+                }
+              });
+              
+              // Handle proxy completion
+              proxyXhr.addEventListener('load', function() {
+                if (proxyXhr.status === 200 || proxyXhr.status === 201) {
+                  try {
+                    const result = JSON.parse(proxyXhr.responseText);
+                    console.log('✅ Proxy upload successful after GCS timeout:', result);
+                    setUploadProgress({
+                      fileName: file.name,
+                      progress: 100,
+                      status: 'Upload complete via proxy!'
+                    });
+                    
+                    setTimeout(() => {
+                      setUploadProgress(null);
+                      refetch();
+                    }, 2000);
+                  } catch (e) {
+                    console.error('Proxy response parse error:', e);
+                    setUploadProgress({
+                      fileName: file.name,
+                      progress: 0,
+                      status: 'Proxy upload failed - response error'
+                    });
+                  }
+                } else {
+                  console.error('Proxy upload failed after timeout:', proxyXhr.status);
+                  setUploadProgress({
+                    fileName: file.name,
+                    progress: 0,
+                    status: `Proxy failed: ${proxyXhr.statusText}`
+                  });
+                }
+              });
+              
+              // Send proxy request after timeout
+              proxyXhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
+              proxyXhr.send(proxyFormData);
+              
+            } catch (proxyError) {
+              console.error('Proxy upload setup failed after timeout:', proxyError);
+              setUploadProgress({
+                fileName: file.name,
+                progress: 0,
+                status: 'Upload timeout - please try a smaller file'
+              });
+            }
+          }, 1000);
+        });
+        
         xhr.send(file);
         
         return; // Exit here, upload is handled asynchronously
