@@ -194,30 +194,30 @@ export class PersistentUploadService {
   async getSession(sessionId: string): Promise<PersistentUploadSession | null> {
     const [session] = await db.select()
       .from(persistentUploadSessions)
-      .where(eq(persistentUploadSessions.session_id, sessionId))
+      .where(eq(persistentUploadSessions.sessionId, sessionId))
       .limit(1);
 
     if (!session) return null;
     
-    // Map database columns to TypeScript interface
+    // Map database columns to TypeScript interface  
     return {
       id: session.id,
-      sessionId: session.session_id,
-      dealId: session.deal_id,
-      fileName: session.file_name,
-      fileSize: session.file_size,
-      uploadType: session.upload_type,
+      sessionId: session.sessionId,
+      dealId: session.dealId,
+      fileName: session.fileName,
+      fileSize: session.fileSize,
+      uploadType: session.uploadType,
       status: session.status,
       progress: session.progress,
-      uploadedBytes: session.uploaded_bytes,
-      gcsPath: session.gcs_path,
-      jobId: session.job_id,
-      currentStep: session.current_step,
-      errorMessage: session.error_message,
+      uploadedBytes: session.uploadedBytes,
+      gcsPath: session.gcsPath,
+      jobId: session.jobId,
+      currentStep: session.currentStep,
+      errorMessage: session.errorMessage,
       metadata: session.metadata,
-      createdAt: session.created_at,
-      updatedAt: session.updated_at,
-      completedAt: session.completed_at
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      completedAt: session.completedAt
     } as PersistentUploadSession;
   }
 
@@ -229,7 +229,7 @@ export class PersistentUploadService {
       .from(persistentUploadSessions)
       .where(
         and(
-          eq(persistentUploadSessions.deal_id, dealId),
+          eq(persistentUploadSessions.dealId, dealId),
           eq(persistentUploadSessions.status, 'uploading')
         )
       )
@@ -237,22 +237,22 @@ export class PersistentUploadService {
 
     return sessions.map(session => ({
       id: session.id,
-      sessionId: session.session_id,
-      dealId: session.deal_id,
-      fileName: session.file_name,
-      fileSize: session.file_size,
-      uploadType: session.upload_type,
+      sessionId: session.sessionId,
+      dealId: session.dealId,
+      fileName: session.fileName,
+      fileSize: session.fileSize,
+      uploadType: session.uploadType,
       status: session.status,
       progress: session.progress,
-      uploadedBytes: session.uploaded_bytes,
-      gcsPath: session.gcs_path,
-      jobId: session.job_id,
-      currentStep: session.current_step,
-      errorMessage: session.error_message,
+      uploadedBytes: session.uploadedBytes,
+      gcsPath: session.gcsPath,
+      jobId: session.jobId,
+      currentStep: session.currentStep,
+      errorMessage: session.errorMessage,
       metadata: session.metadata,
-      createdAt: session.created_at,
-      updatedAt: session.updated_at,
-      completedAt: session.completed_at
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      completedAt: session.completedAt
     } as PersistentUploadSession));
   }
 
