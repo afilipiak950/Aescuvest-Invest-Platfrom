@@ -334,32 +334,38 @@ export class PersistentUploadService {
         )
       )
       .orderBy(desc(persistentUploadSessions.createdAt));
+      
+    console.log(`🔍 getAllActiveSessions RAW query returned ${sessions.length} sessions`);
+    if (sessions.length > 0) {
+      console.log(`🔍 First session raw data:`, JSON.stringify(sessions[0], null, 2));
+    }
 
     // 🔧 CRITICAL FIX: Filter recent failed uploads AND validate session data
     const filteredSessions = sessions.filter((session: any) => {
-      // 🔧 CRITICAL VALIDATION: Ensure session has required fields
-      if (!session.session_id || !session.file_name) {
-        console.log(`❌ CORRUPTED SESSION FILTERED OUT: session_id=${session.session_id}, file_name=${session.file_name}, id=${session.id}`);
-        
-        // 🧹 CLEANUP: Delete corrupted session in the background
-        this.deleteSession(session.session_id || `corrupted_${session.id}`).catch(err => {
-          console.error(`❌ Failed to delete corrupted session ${session.id}:`, err);
-        });
-        
+      // 🔧 CRITICAL VALIDATION: Skip sessions with NULL/undefined required fields
+      // NOTE: Drizzle ORM maps snake_case DB columns to camelCase properties!
+      if (!session || typeof session !== 'object') {
+        console.log(`❌ INVALID SESSION OBJECT FILTERED OUT`);
         return false;
       }
       
-      // 🔧 CRITICAL VALIDATION: Ensure valid date fields
-      if (!session.created_at || isNaN(new Date(session.created_at).getTime())) {
-        console.log(`❌ SESSION WITH INVALID CREATED_AT FILTERED OUT: ${session.session_id}`);
+      // Skip sessions without required fields (using camelCase properties from Drizzle)
+      if (!session.sessionId || !session.fileName) {
+        console.log(`❌ Session missing required fields: sessionId=${session.sessionId}, fileName=${session.fileName}`);
+        return false;
+      }
+      
+      // 🔧 CRITICAL VALIDATION: Ensure valid date fields (using camelCase)
+      if (!session.createdAt || isNaN(new Date(session.createdAt).getTime())) {
+        console.log(`❌ SESSION WITH INVALID CREATED_AT FILTERED OUT: ${session.sessionId}`);
         return false;
       }
       
       // Filter failed uploads by date
       if (session.status === 'failed') {
-        const updatedAt = new Date(session.updated_at || session.created_at);
+        const updatedAt = new Date(session.updatedAt || session.createdAt);
         if (isNaN(updatedAt.getTime())) {
-          console.log(`❌ SESSION WITH INVALID DATE FILTERED OUT: ${session.session_id}`);
+          console.log(`❌ SESSION WITH INVALID DATE FILTERED OUT: ${session.sessionId}`);
           return false;
         }
         return updatedAt > thirtyMinutesAgo;
@@ -368,24 +374,25 @@ export class PersistentUploadService {
       return true;
     });
 
+    // Sessions already have camelCase properties from Drizzle ORM
     return filteredSessions.map(session => ({
       id: session.id,
-      sessionId: session.session_id,
-      dealId: session.deal_id,
-      fileName: session.file_name,
-      fileSize: session.file_size || 0,
-      uploadType: session.upload_type,
+      sessionId: session.sessionId,
+      dealId: session.dealId,
+      fileName: session.fileName,
+      fileSize: session.fileSize || 0,
+      uploadType: session.uploadType,
       status: session.status,
       progress: session.progress || 0,
-      uploadedBytes: session.uploaded_bytes || 0,
-      gcsPath: session.gcs_path,
-      jobId: session.job_id,
-      currentStep: session.current_step,
-      errorMessage: session.error_message,
+      uploadedBytes: session.uploadedBytes || 0,
+      gcsPath: session.gcsPath,
+      jobId: session.jobId,
+      currentStep: session.currentStep,
+      errorMessage: session.errorMessage,
       metadata: session.metadata,
-      createdAt: session.created_at,
-      updatedAt: session.updated_at,
-      completedAt: session.completed_at
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      completedAt: session.completedAt
     } as PersistentUploadSession));
   }
 
@@ -523,30 +530,21 @@ export class PersistentUploadService {
 
       let cleanedUpCount = 0;
       for (const dbSession of stuckSessions) {
-        // 🔧 CRITICAL FIX: Validate session data before processing
-        if (!dbSession.session_id || !dbSession.file_name) {
-          console.log(`❌ CORRUPTED SESSION DETECTED: session_id=${dbSession.session_id}, file_name=${dbSession.file_name}, id=${dbSession.id}`);
-          console.log(`🧹 Deleting corrupted session record...`);
-          
-          // Delete the corrupted record
-          await db.delete(persistentUploadSessions)
-            .where(eq(persistentUploadSessions.id, dbSession.id));
-          
-          console.log(`✅ Deleted corrupted session record with ID: ${dbSession.id}`);
-          cleanedUpCount++;
+        // Database columns use snake_case, not camelCase
+        // Skip sessions without required fields (but don't delete them)
+        if (!dbSession || !dbSession.id) {
+          console.log(`❌ Invalid session object found, skipping...`);
           continue;
         }
 
         // 🔧 CRITICAL FIX: Validate date values before calculations
-        const updatedAt = dbSession.updated_at;
-        const createdAt = dbSession.created_at;
+        // NOTE: Drizzle ORM maps snake_case to camelCase (updatedAt, createdAt, sessionId)
+        const updatedAt = dbSession.updatedAt;
+        const createdAt = dbSession.createdAt;
         
         if (!updatedAt && !createdAt) {
-          console.log(`❌ SESSION WITH INVALID DATES: ${dbSession.session_id} - deleting`);
-          await db.delete(persistentUploadSessions)
-            .where(eq(persistentUploadSessions.id, dbSession.id));
-          cleanedUpCount++;
-          continue;
+          console.log(`❌ SESSION WITH INVALID DATES: ${dbSession.sessionId} - skipping`);
+          continue; // Skip instead of delete - might be a mapping issue
         }
         
         const lastUpdate = new Date(updatedAt || createdAt);
@@ -554,37 +552,31 @@ export class PersistentUploadService {
         
         // 🔧 CRITICAL FIX: Validate date calculation
         if (isNaN(lastUpdate.getTime()) || isNaN(currentTime.getTime())) {
-          console.log(`❌ SESSION WITH INVALID DATE CALCULATION: ${dbSession.session_id} - deleting`);
-          await db.delete(persistentUploadSessions)
-            .where(eq(persistentUploadSessions.id, dbSession.id));
-          cleanedUpCount++;
-          continue;
+          console.log(`❌ SESSION WITH INVALID DATE CALCULATION: ${dbSession.sessionId} - skipping`);
+          continue; // Skip instead of delete
         }
         
         const minutesStuck = (currentTime.getTime() - lastUpdate.getTime()) / (1000 * 60);
         
         // 🔧 CRITICAL FIX: Validate calculated minutes
         if (isNaN(minutesStuck) || minutesStuck < 0) {
-          console.log(`❌ SESSION WITH INVALID TIME CALCULATION: ${dbSession.session_id}, minutesStuck=${minutesStuck} - deleting`);
-          await db.delete(persistentUploadSessions)
-            .where(eq(persistentUploadSessions.id, dbSession.id));
-          cleanedUpCount++;
-          continue;
+          console.log(`❌ SESSION WITH INVALID TIME CALCULATION: ${dbSession.sessionId}, minutesStuck=${minutesStuck} - skipping`);
+          continue; // Skip instead of delete
         }
         
-        console.log(`📊 Session ${dbSession.session_id} (${dbSession.file_name}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${dbSession.progress || 0}%`);
+        console.log(`📊 Session ${dbSession.sessionId} (${dbSession.fileName}): ${minutesStuck.toFixed(1)} minutes since last update, progress: ${dbSession.progress || 0}%`);
         
         // 🎯 CRITICAL: If upload reached 100% but never got marked as completed, complete it now
         if ((dbSession.progress || 0) >= 100) {
-          console.log(`✅ Upload reached 100% but never completed: ${dbSession.session_id} (${dbSession.file_name}) - marking as completed`);
+          console.log(`✅ Upload reached 100% but never completed: ${dbSession.sessionId} (${dbSession.fileName}) - marking as completed`);
           await this.updateStatus(
-            dbSession.session_id, 
+            dbSession.sessionId, 
             'completed', 
             'Analysis completed, upload finished'
           );
           cleanedUpCount++;
         } else if (minutesStuck >= 5) {
-          console.log(`⚠️ Found stuck upload session: ${dbSession.session_id} (${dbSession.file_name}), stuck for ${minutesStuck.toFixed(1)} minutes`);
+          console.log(`⚠️ Found stuck upload session: ${dbSession.sessionId} (${dbSession.fileName}), stuck for ${minutesStuck.toFixed(1)} minutes`);
           console.log(`🔍 Attempting recovery for stuck upload...`);
           
           // Try to recover the upload

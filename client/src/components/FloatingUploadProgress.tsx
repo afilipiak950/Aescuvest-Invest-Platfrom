@@ -156,31 +156,41 @@ export const FloatingUploadProgress: React.FC = () => {
   });
 
   // 🔧 CRITICAL FIX: Sync localStorage with backend state to prevent stale uploads
+  // FIXED INFINITE LOOP: Only depend on globalUploads, not uploadSessions
   useEffect(() => {
     if (globalUploads?.success) {
       const activeBackendSessions = globalUploads.uploads || [];
       
       if (activeBackendSessions.length === 0) {
         // Backend has no active uploads - clear localStorage and component state
-        console.log('🧹 Backend has no active uploads - clearing all local data');
-        setUploadSessions(new Map());
-        localStorage.removeItem('activeUploadSessions');
+        // Only clear if we actually have sessions to clear
+        setUploadSessions(prev => {
+          if (prev.size > 0) {
+            console.log('🧹 Backend has no active uploads - clearing all local data');
+            localStorage.removeItem('activeUploadSessions');
+            return new Map();
+          }
+          return prev;
+        });
       } else {
         // Sync local state with backend state
-        const backendSessionIds = new Set(activeBackendSessions.map(u => u.sessionId));
-        const localSessionIds = new Set(uploadSessions.keys());
-        
-        // Remove local sessions that don't exist on backend
-        const toRemove = Array.from(localSessionIds).filter(id => !backendSessionIds.has(id));
-        if (toRemove.length > 0) {
-          console.log(`🧹 Removing ${toRemove.length} stale local sessions:`, toRemove);
-          const newSessions = new Map(uploadSessions);
-          toRemove.forEach(id => newSessions.delete(id));
-          setUploadSessions(newSessions);
-        }
+        setUploadSessions(prev => {
+          const backendSessionIds = new Set(activeBackendSessions.map(u => u.sessionId));
+          const localSessionIds = new Set(prev.keys());
+          
+          // Remove local sessions that don't exist on backend
+          const toRemove = Array.from(localSessionIds).filter(id => !backendSessionIds.has(id));
+          if (toRemove.length > 0) {
+            console.log(`🧹 Removing ${toRemove.length} stale local sessions:`, toRemove);
+            const newSessions = new Map(prev);
+            toRemove.forEach(id => newSessions.delete(id));
+            return newSessions;
+          }
+          return prev;
+        });
       }
     }
-  }, [globalUploads, uploadSessions]);
+  }, [globalUploads]); // FIX: Only depend on globalUploads to prevent infinite loop
 
   // Poll for background processing jobs
   const pollBackgroundJobs = useCallback(async () => {
