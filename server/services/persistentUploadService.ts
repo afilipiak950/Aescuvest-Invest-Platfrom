@@ -3,7 +3,7 @@
 
 import { db } from '../db';
 import { persistentUploadSessions } from '@shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, or } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 
 export interface PersistentUploadSession {
@@ -222,12 +222,35 @@ export class PersistentUploadService {
    * Get all active sessions across all deals (for global monitoring)
    */
   async getAllActiveSessions(): Promise<PersistentUploadSession[]> {
+    // Include failed uploads from the last 30 minutes so users can retry them
+    const thirtyMinutesAgo = new Date();
+    thirtyMinutesAgo.setMinutes(thirtyMinutesAgo.getMinutes() - 30);
+    
     const sessions = await db.select()
       .from(persistentUploadSessions)
-      .where(eq(persistentUploadSessions.status, 'uploading'))
+      .where(
+        or(
+          eq(persistentUploadSessions.status, 'uploading'),
+          eq(persistentUploadSessions.status, 'processing'),
+          // Include recent failed uploads for retry
+          and(
+            eq(persistentUploadSessions.status, 'failed'),
+            // Note: We'll filter by date in JS since Drizzle date comparisons can be tricky
+          )
+        )
+      )
       .orderBy(desc(persistentUploadSessions.createdAt));
 
-    return sessions as PersistentUploadSession[];
+    // Filter recent failed uploads in JavaScript
+    const filteredSessions = sessions.filter((session: any) => {
+      if (session.status === 'failed') {
+        const updatedAt = new Date(session.updatedAt);
+        return updatedAt > thirtyMinutesAgo;
+      }
+      return true;
+    });
+
+    return filteredSessions as PersistentUploadSession[];
   }
 
   /**

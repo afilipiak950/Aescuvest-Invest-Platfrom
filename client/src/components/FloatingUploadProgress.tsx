@@ -206,11 +206,17 @@ export const FloatingUploadProgress: React.FC = () => {
   useEffect(() => {
     if (globalUploads?.uploads && Array.isArray(globalUploads.uploads)) {
       console.log('🔄 FloatingUploadProgress: Syncing with backend uploads:', globalUploads.uploads);
-      const activeSessions = globalUploads.uploads.filter(
-        (u: any) => u.status === 'uploading' || u.status === 'processing'
-      );
+      // Don't filter here - backend already filters for active sessions
+      const activeSessions = globalUploads.uploads;
 
       console.log(`📊 FloatingUploadProgress: Found ${activeSessions.length} active sessions`);
+      
+      // Auto-show if there are active uploads
+      if (activeSessions.length > 0 && isMinimized) {
+        setIsMinimized(false);
+        setIsExpanded(true);
+      }
+      
       activeSessions.forEach((backendSession: any) => {
         setUploadSessions(prev => {
           const newMap = new Map(prev);
