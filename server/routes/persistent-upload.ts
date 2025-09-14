@@ -212,8 +212,27 @@ router.delete('/api/persistent-uploads/:sessionId', async (req: Request, res: Re
     const { sessionId } = req.params;
     console.log(`🗑️ DELETE ENDPOINT HIT: Canceling upload session: ${sessionId}`);
     
+    // Validate sessionId parameter
+    if (!sessionId || typeof sessionId !== 'string') {
+      console.log(`❌ Invalid session ID: ${sessionId}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid session ID provided'
+      });
+    }
+    
     // Get session info before deleting
-    const session = await persistentUploadService.getSession(sessionId);
+    let session;
+    try {
+      session = await persistentUploadService.getSession(sessionId);
+    } catch (dbError) {
+      console.error(`❌ Database error fetching session ${sessionId}:`, dbError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error while fetching session'
+      });
+    }
+    
     if (!session) {
       console.log(`❌ Upload session not found: ${sessionId}`);
       return res.status(404).json({
@@ -224,11 +243,28 @@ router.delete('/api/persistent-uploads/:sessionId', async (req: Request, res: Re
     
     console.log(`🗑️ Deleting upload session: ${session.fileName} (${session.status})`);
     
-    // Delete the database record
-    const deleted = await persistentUploadService.deleteSession(sessionId);
+    // Delete the database record with better error handling
+    let deleted = false;
+    try {
+      deleted = await persistentUploadService.deleteSession(sessionId);
+    } catch (deleteError) {
+      console.error(`❌ Database error deleting session ${sessionId}:`, deleteError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error while deleting session'
+      });
+    }
     
     if (deleted) {
       console.log(`✅ Upload session deleted successfully: ${sessionId}`);
+      
+      // Clear any cached data for this session
+      try {
+        globalUploadCache.delete('global_uploads');
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to clear cache:', cacheError);
+      }
+      
       res.json({
         success: true,
         message: 'Upload session canceled and deleted successfully'
@@ -243,9 +279,11 @@ router.delete('/api/persistent-uploads/:sessionId', async (req: Request, res: Re
     
   } catch (error) {
     console.error('❌ Error deleting upload session:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Failed to cancel upload session'
+      error: 'Failed to cancel upload session',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
