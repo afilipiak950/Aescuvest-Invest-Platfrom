@@ -144,7 +144,16 @@ function DueDiligenceContent() {
                      documentsData?.documents ? documentsData.documents : 
                      [];
     const analyses = analysesData || [];
-    const jobProgress = jobProgressData || { jobs: [] };
+    
+    // CRITICAL FIX: Normalize jobProgressData to plain array and compute visibility
+    // Server returns { success: true, jobs: [...] }, extract just the jobs array
+    const jobs = Array.isArray(jobProgressData?.jobs) ? jobProgressData.jobs : [];
+    
+    // Compute visibility for Analysis Progress section based on OCR jobs
+    const hasProcessingOcrJobs = jobs.some(j => j.jobType === 'document_ocr' && j.status === 'processing');
+    
+    // Keep jobProgress for backwards compatibility with other code
+    const jobProgress = { jobs };
 
     // Debug log for analyses data with safe checks (moved after safe defaults)
     console.log('🔍 Analyses Query Debug:', {
@@ -153,6 +162,17 @@ function DueDiligenceContent() {
       analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
       agentTypes: (analyses && Array.isArray(analyses)) ? analyses.map((a: any) => a?.agentType || 'unknown') : 'no data'
     });
+    
+    // Debug log for Analysis Progress visibility
+    useEffect(() => {
+      console.log('🚀 Analysis Progress Visibility Check:', {
+        totalJobs: jobs.length,
+        processingOcrJobs: jobs.filter(j => j.jobType === 'document_ocr' && j.status === 'processing').length,
+        hasProcessingOcrJobs,
+        firstOcrJob: jobs.find(j => j.jobType === 'document_ocr'),
+        shouldShowSection: hasProcessingOcrJobs
+      });
+    }, [jobs, hasProcessingOcrJobs]);
 
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
     const legalProgress = useMemo(() => {
@@ -1093,8 +1113,8 @@ function DueDiligenceContent() {
             </CardContent>
           </Card>
           
-          {/* Main Progress Bar - Restored */}
-          {jobProgress && jobProgress.jobs && (jobProgress?.jobs?.length || 0) > 0 && (
+          {/* Analysis Progress Section - Shows when OCR jobs are processing */}
+          {hasProcessingOcrJobs && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
