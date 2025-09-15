@@ -1370,10 +1370,9 @@ function DueDiligenceContent() {
                   </div>
                 </div>
                 
-                {/* Collapsible Content */}
-                {isAnalysisProgressExpanded && (
-                  <>
-                    {/* Overall Progress Bar */}
+                {/* Progress Content - Always Visible */}
+                <>
+                  {/* Overall Progress Bar */}
                     <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
                       <div 
                         className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
@@ -1595,7 +1594,6 @@ function DueDiligenceContent() {
                   })}
                     </div>
                   </>
-                )}
               
                 {/* Action Buttons - HIDDEN PER USER REQUEST 
                 <div className="flex justify-center space-x-4 mt-6">
