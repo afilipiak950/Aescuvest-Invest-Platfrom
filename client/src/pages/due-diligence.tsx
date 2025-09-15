@@ -42,6 +42,7 @@ function DueDiligenceContent() {
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
   const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
   const [isAnalysisProgressExpanded, setIsAnalysisProgressExpanded] = useState(false);
+  const [isAnalysisProgressCollapsed, setIsAnalysisProgressCollapsed] = useState(true); // Default: eingeklappt
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -1096,12 +1097,38 @@ function DueDiligenceContent() {
           {jobProgress && jobProgress.jobs && (jobProgress?.jobs?.length || 0) > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Analysis Progress</CardTitle>
-                <CardDescription>
-                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
-                </CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-lg">Analysis Progress</CardTitle>
+                    <CardDescription>
+                      {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      console.log('🔄 Analysis Progress Toggle clicked, current state:', isAnalysisProgressCollapsed);
+                      setIsAnalysisProgressCollapsed(!isAnalysisProgressCollapsed);
+                    }}
+                    className="px-3 py-1 bg-dark-lighter hover:bg-gray-700 border-gray-600 text-gray-300 hover:text-white flex items-center space-x-1"
+                  >
+                    {isAnalysisProgressCollapsed ? (
+                      <>
+                        <ChevronDown className="h-4 w-4" />
+                        <span className="text-xs">Ausklappen</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp className="h-4 w-4" />
+                        <span className="text-xs">Inklappen</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              {!isAnalysisProgressCollapsed && (
+                <CardContent className="space-y-4">
                 <div className="space-y-3">
                   {jobProgress?.jobs?.map((job: any) => (
                     <div key={job.jobId} className="space-y-2">
@@ -1125,7 +1152,8 @@ function DueDiligenceContent() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           )}
 
