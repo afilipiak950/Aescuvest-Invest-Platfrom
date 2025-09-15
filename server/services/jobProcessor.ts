@@ -271,18 +271,26 @@ class JobProcessor {
     this.isProcessing = true;
     console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🔥 BULLETPROOF PROCESSING: Process up to 3 jobs simultaneously to avoid rate limits and memory issues
-    // CRITICAL: Reduced from 10 to 3 to prevent OpenAI rate limits at ~125 documents
-    const MAX_CONCURRENT_JOBS = 3; // Safe limit to prevent production failures
+    // 🚀 ENHANCED PARALLEL PROCESSING: Process up to 12 jobs with intelligent rate limiting
+    // Uses token-bucket algorithm for optimal throughput without hitting rate limits
+    const MAX_CONCURRENT_JOBS = 12; // Enhanced limit with smart rate limiting
     
     while (this.jobQueue.length > 0) {
       // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
       const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
       
-      // MEMORY MANAGEMENT: Add delay between batches to prevent memory buildup
+      // ADAPTIVE RATE LIMITING: Check rate limiter for optimal batch timing
       if (this.processingJobs.size > 0) {
-        console.log(`⏳ Waiting 1 second between batches for memory management...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const rateLimiterStatus = bulletproofRateLimiter.getStatus('openai');
+        
+        // Only add delay if we have low token availability or recent rate limit hits
+        if (rateLimiterStatus.availableTokens < 3 || rateLimiterStatus.recentHits > 0) {
+          const adaptiveDelay = Math.min(rateLimiterStatus.estimatedWait, 2000); // Cap at 2 seconds
+          if (adaptiveDelay > 0) {
+            console.log(`⏳ Adaptive rate limiting delay: ${adaptiveDelay}ms (tokens: ${rateLimiterStatus.availableTokens}, hits: ${rateLimiterStatus.recentHits})`);
+            await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
+          }
+        }
       }
       
       if (batch.length === 1) {
@@ -306,13 +314,18 @@ class JobProcessor {
           await this.completeJob(job.id, null, String(error));
         }
       } else {
-        // Multiple jobs - BULLETPROOF PARALLEL PROCESSING with rate limiting
-        console.log(`🛡️ BULLETPROOF PROCESSING: Starting ${batch.length} jobs with rate limiting protection`);
+        // Multiple jobs - ENHANCED PARALLEL PROCESSING with intelligent token bucket rate limiting
+        console.log(`🚀 ENHANCED PROCESSING: Starting ${batch.length} jobs with intelligent rate limiting`);
+        
+        // Get suggested batch size from rate limiter
+        const suggestedBatchSize = bulletproofRateLimiter.getSuggestedBatchSize('openai', this.jobQueue.length);
+        console.log(`🎯 Rate limiter suggests batch size: ${suggestedBatchSize} (current: ${batch.length})`);
         
         const parallelPromises = batch.map(async (job, index) => {
-          // Stagger job starts to prevent API rate limit bursts
-          if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, index * 500)); // 500ms between each job start
+          // Adaptive stagger delay based on token availability and rate limit status
+          const staggerDelay = bulletproofRateLimiter.getOptimalStaggerDelay('openai', index);
+          if (staggerDelay > 0) {
+            await new Promise(resolve => setTimeout(resolve, staggerDelay));
           }
           if (this.processingJobs.has(job.id)) {
             console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
@@ -338,10 +351,13 @@ class JobProcessor {
         const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
         const failed = results.length - successful;
         
-        console.log(`🎉 BULLETPROOF BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
+        console.log(`🎉 ENHANCED BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
         
         if (successful > 0) {
-          console.log(`✅ PRODUCTION SAFE: ${successful} documents processed without hitting rate limits!`);
+          console.log(`✅ INTELLIGENT PROCESSING: ${successful} documents processed with adaptive rate limiting!`);
+          
+          // Log rate limiter status after batch completion
+          bulletproofRateLimiter.logStatus();
         }
         
         // Force garbage collection hint after batch processing
@@ -353,7 +369,7 @@ class JobProcessor {
     }
 
     this.isProcessing = false;
-    console.log(`🏁 PARALLEL queue processing completed - MASSIVE speed improvement achieved!`);
+    console.log(`🏁 ENHANCED queue processing completed - INTELLIGENT rate limiting with maximum throughput achieved!`);
   }
 
   private async processJob(job: BackgroundJob) {
@@ -1014,10 +1030,8 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
   private async processAISummaryGeneration(job: BackgroundJob) {
     console.log(`🤖 Processing AI summary generation for job ${job.id}`);
     
-    // RATE LIMITING: Add delay to prevent hitting OpenAI rate limits
-    // Critical for processing 300+ documents without getting stuck
-    const RATE_LIMIT_DELAY = 2000; // 2 seconds between AI calls
-    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
+    // ENHANCED RATE LIMITING: Use token bucket algorithm instead of fixed delays
+    // The rate limiter is automatically used within generateAISummary -> openai service
     
     try {
       const documentId = job.documentId;
@@ -1076,10 +1090,9 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           console.error(`⚠️ AI summary attempt ${retryCount}/${maxRetries} failed:`, error.message);
           
           if (error.message?.includes('rate_limit') || error.message?.includes('429') || error.message?.includes('quota')) {
-            // Rate limit or quota hit - wait longer
-            const backoffDelay = Math.min(10000 * Math.pow(2, retryCount), 60000); // Max 1 minute
-            console.log(`⏳ Rate/quota limit hit, waiting ${backoffDelay/1000}s before retry...`);
-            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+            // Rate limit or quota hit - the enhanced rate limiter handles backoff automatically
+            console.log(`⏳ Rate/quota limit hit, letting enhanced rate limiter handle backoff...`);
+            // The bulletproofRateLimiter will handle adaptive backoff in the next attempt
           } else if (retryCount < maxRetries) {
             // Other error - shorter retry
             await new Promise(resolve => setTimeout(resolve, 3000));
