@@ -1358,27 +1358,6 @@ function DueDiligenceContent() {
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center space-x-2">
                     <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        console.log('🔄 Toggle clicked, current state:', isAnalysisProgressExpanded);
-                        setIsAnalysisProgressExpanded(!isAnalysisProgressExpanded);
-                      }}
-                      className="px-3 py-1 bg-dark-lighter hover:bg-gray-700 border-gray-600 text-gray-300 hover:text-white flex items-center space-x-1"
-                    >
-                      {isAnalysisProgressExpanded ? (
-                        <>
-                          <ChevronUp className="h-4 w-4" />
-                          <span className="text-xs">Hide</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-4 w-4" />
-                          <span className="text-xs">Show</span>
-                        </>
-                      )}
-                    </Button>
                   </div>
                   <div className="flex items-center space-x-2">
                     {/* Overall progress indicator */}
