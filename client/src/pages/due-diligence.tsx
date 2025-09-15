@@ -1311,15 +1311,24 @@ function DueDiligenceContent() {
                   <div className="flex items-center space-x-2">
                     <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={() => setIsAnalysisProgressExpanded(!isAnalysisProgressExpanded)}
-                      className="p-1 h-6 w-6 hover:bg-dark-lighter"
+                      onClick={() => {
+                        console.log('🔄 Toggle clicked, current state:', isAnalysisProgressExpanded);
+                        setIsAnalysisProgressExpanded(!isAnalysisProgressExpanded);
+                      }}
+                      className="px-3 py-1 bg-dark-lighter hover:bg-gray-700 border-gray-600 text-gray-300 hover:text-white flex items-center space-x-1"
                     >
                       {isAnalysisProgressExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                        <>
+                          <ChevronUp className="h-4 w-4" />
+                          <span className="text-xs">Hide</span>
+                        </>
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          <span className="text-xs">Show</span>
+                        </>
                       )}
                     </Button>
                   </div>
