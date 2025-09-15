@@ -41,7 +41,7 @@ function DueDiligenceContent() {
     const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
   const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
-  const [isAnalysisProgressExpanded, setIsAnalysisProgressExpanded] = useState(true);
+  const [isAnalysisProgressExpanded, setIsAnalysisProgressExpanded] = useState(false);
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
