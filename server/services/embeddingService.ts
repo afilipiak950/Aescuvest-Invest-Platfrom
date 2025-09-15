@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 import { db } from '../db';
 import { documentEmbeddings, queryCache } from '@shared/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
@@ -37,9 +38,12 @@ export class EmbeddingService {
     return chunks;
   }
 
-  // Generate embedding for text
+  // Generate embedding for text with enhanced rate limiting
   static async generateEmbedding(text: string): Promise<number[]> {
     try {
+      // Enhanced rate limiting with token bucket algorithm
+      await bulletproofRateLimiter.waitForRateLimit('embeddings');
+      
       const response = await openai.embeddings.create({
         model: EMBEDDING_MODEL,
         input: text,
@@ -261,7 +265,6 @@ export class EmbeddingService {
       queryText: query,
       queryEmbedding: queryEmbedding as any,
       response,
-      similarity: 1.0,
       expiresAt,
     });
     
