@@ -42,6 +42,7 @@ function DueDiligenceContent() {
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
     const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
     const [isAnalysisProgressExpanded, setIsAnalysisProgressExpanded] = useState(true);
+    const [isJobProgressExpanded, setIsJobProgressExpanded] = useState(true);
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -1095,13 +1096,31 @@ function DueDiligenceContent() {
           {/* Main Progress Bar - Restored */}
           {jobProgress && jobProgress.jobs && (jobProgress?.jobs?.length || 0) > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Analysis Progress</CardTitle>
-                <CardDescription>
-                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
-                </CardDescription>
+              <CardHeader 
+                className="pb-3 cursor-pointer hover:bg-dark-lighter/30 rounded-lg transition-all duration-200"
+                onClick={() => setIsJobProgressExpanded(!isJobProgressExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <ChevronDown 
+                      className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isJobProgressExpanded ? 'rotate-0' : '-rotate-90'}`}
+                    />
+                    <div>
+                      <CardTitle className="text-lg">Analysis Progress</CardTitle>
+                      <CardDescription>
+                        {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
+                      </CardDescription>
+                    </div>
+                  </div>
+                  {!isJobProgressExpanded && (
+                    <Badge variant="secondary" className="bg-dark-lighter text-gray-300 text-xs">
+                      {jobProgress?.jobs?.length || 0} jobs
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              {isJobProgressExpanded && (
+                <CardContent className="space-y-4">
                 <div className="space-y-3">
                   {jobProgress?.jobs?.map((job: any) => (
                     <div key={job.jobId} className="space-y-2">
@@ -1125,7 +1144,8 @@ function DueDiligenceContent() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           )}
 
@@ -1307,21 +1327,8 @@ function DueDiligenceContent() {
             <CardContent>
               {/* All Agents Progress Overview - Horizontal 7-Card Layout */}
               <div className="mb-8">
-                <div 
-                  className="flex justify-between items-center mb-4 cursor-pointer hover:bg-dark-lighter/30 rounded-lg p-2 transition-all duration-200"
-                  onClick={() => setIsAnalysisProgressExpanded(!isAnalysisProgressExpanded)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <ChevronDown 
-                      className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isAnalysisProgressExpanded ? 'rotate-0' : '-rotate-90'}`}
-                    />
-                    <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
-                    {!isAnalysisProgressExpanded && (
-                      <Badge variant="secondary" className="bg-dark-lighter text-gray-300 text-xs">
-                        7 agents
-                      </Badge>
-                    )}
-                  </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
                   <div className="flex items-center space-x-2">
                     {/* Overall progress indicator */}
                     <span className="text-sm text-gray-400">Overall Progress</span>
@@ -1539,10 +1546,8 @@ function DueDiligenceContent() {
                         )}
                       </div>
                     );
-                    })}
-                    </div>
-                  </div>
-                )}
+                  })}
+                </div>
                 
                 {/* Action Buttons - HIDDEN PER USER REQUEST 
                 <div className="flex justify-center space-x-4 mt-6">
