@@ -99,27 +99,32 @@ class JobProcessor {
       }
     }
 
-    await db.update(backgroundJobs)
+    // ⚡ ZERO-ROW HANDLING: Use atomic update with RETURNING to handle deleted jobs
+    const updateResult = await db.update(backgroundJobs)
       .set(updateData)
-      .where(eq(backgroundJobs.id, jobId));
+      .where(eq(backgroundJobs.id, jobId))
+      .returning();
 
-    // Get the updated job for broadcasting
-    const [updatedJob] = await db.select()
-      .from(backgroundJobs)
-      .where(eq(backgroundJobs.id, jobId));
-
-    if (updatedJob) {
-      const jobData = updatedJob.jobData as any || {};
-      websocketManager.broadcastJobProgress({
-        jobId,
-        progress,
-        status: status || updatedJob.status,
-        currentStep,
-        documentName: jobData?.documentName || jobData?.fileName || 'Unknown document'
-      }, updatedJob.dealId || undefined);
+    const updatedJob = updateResult[0];
+    
+    if (!updatedJob) {
+      // Zero rows updated = job was deleted (skipped outcome, not error)
+      console.log(`⏭️ Job ${jobId} progress update skipped: job no longer exists (0 rows affected)`);
+      return { updated: false, reason: 'job_deleted' };
     }
 
+    // Broadcast progress for existing job
+    const jobData = updatedJob.jobData as any || {};
+    websocketManager.broadcastJobProgress({
+      jobId,
+      progress,
+      status: status || updatedJob.status,
+      currentStep,
+      documentName: jobData?.documentName || jobData?.fileName || 'Unknown document'
+    }, updatedJob.dealId || undefined);
+
     console.log(`📊 Job ${jobId} progress: ${progress}% - ${currentStep}`);
+    return { updated: true, job: updatedJob };
   }
 
   async completeJob(jobId: number, result: any, error?: string) {
@@ -134,25 +139,31 @@ class JobProcessor {
     if (result) updateData.result = result;
     if (error) updateData.error = error;
 
-    await db.update(backgroundJobs)
+    // ⚡ ZERO-ROW HANDLING: Use atomic update with RETURNING to handle deleted jobs
+    const updateResult = await db.update(backgroundJobs)
       .set(updateData)
-      .where(eq(backgroundJobs.id, jobId));
+      .where(eq(backgroundJobs.id, jobId))
+      .returning();
 
-    // Get the updated job for broadcasting
-    const [updatedJob] = await db.select()
-      .from(backgroundJobs)
-      .where(eq(backgroundJobs.id, jobId));
-
-    if (updatedJob) {
-      websocketManager.broadcastJobComplete(
-        jobId,
-        result,
-        updatedJob.dealId || undefined
-      );
+    const updatedJob = updateResult[0];
+    
+    if (!updatedJob) {
+      // Zero rows updated = job was deleted (skipped outcome, not error)
+      console.log(`⏭️ Job ${jobId} completion skipped: job no longer exists (0 rows affected)`);
+      this.processingJobs.delete(jobId);
+      return { completed: false, reason: 'job_deleted' };
     }
+
+    // Broadcast completion for existing job
+    websocketManager.broadcastJobComplete(
+      jobId,
+      result,
+      updatedJob.dealId || undefined
+    );
 
     this.processingJobs.delete(jobId);
     console.log(`✅ Job ${jobId} ${status}: ${error || 'Success'}`);
+    return { completed: true, job: updatedJob };
   }
 
   async loadPendingJobsFromDatabase() {

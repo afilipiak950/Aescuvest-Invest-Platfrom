@@ -46,6 +46,7 @@ import { persistentResearchRoutes } from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
+import { safeString, safeTruncate, safeContentExcerpt } from './utils/safeString';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
 import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { chunkedUploadService } from './services/chunkedUploadService';
@@ -298,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Message is required' });
       }
 
-      console.log(`🤖 Global AI Assistant request: "${message.slice(0, 100)}..." (context: ${context})`);
+      console.log(`🤖 Global AI Assistant request: "${safeString(message, 0, 100)}..." (context: ${context})`);
       
       // Set up streaming response with proper headers
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -861,19 +862,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const ocrResult = await mistralOCRService.extractText(file.path, fileType);
               console.log(`✅ OCR extracted ${ocrResult.extractedText?.length || 0} characters`);
               
-              // Update document with results (race condition protected)
+              // ⚡ IMPROVED ERROR HANDLING: Distinguish deleted vs error
               const updateResult = await storage.updateDocumentWithOCR(document.id, ocrResult.extractedText, 'Analyzed');
               if (!updateResult) {
-                console.log(`🔒 Document ${document.id} no longer exists, OCR update skipped`);
+                console.log(`⏭️ Document ${document.id} OCR update skipped: document was deleted (normal outcome)`);
                 return;
               }
               
               console.log(`✅ IMMEDIATE OCR completed for job ${jobId} - document ${document.id} updated`);
             } catch (error) {
               console.error(`❌ IMMEDIATE OCR failed for job ${jobId}:`, error);
+              
+              // ⚡ IMPROVED ERROR HANDLING: Distinguish deleted vs actual OCR failure
               const failResult = await storage.updateDocumentWithOCR(document.id, '', 'Failed');
               if (!failResult) {
-                console.log(`🔒 Document ${document.id} no longer exists, failure status update skipped`);
+                console.log(`⏭️ Document ${document.id} failure status update skipped: document was deleted (normal outcome)`);
+              } else {
+                console.log(`📝 Document ${document.id} marked as Failed due to OCR error: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
           })();
@@ -9878,7 +9883,7 @@ export async function registerAllRoutes(app: Express) {
         return res.status(400).json({ error: 'Message is required' });
       }
 
-      console.log(`🤖 Global AI Assistant request: "${message.slice(0, 100)}..." (context: ${context})`);
+      console.log(`🤖 Global AI Assistant request: "${safeString(message, 0, 100)}..." (context: ${context})`);
       
       // Set up streaming response with proper headers to avoid HTML injection
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
