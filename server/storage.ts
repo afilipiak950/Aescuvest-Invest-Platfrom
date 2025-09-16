@@ -704,39 +704,75 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocumentWithOCR(id: number, ocrText: string, status: string): Promise<Document | undefined> {
-    // First check if document exists to prevent race condition with deletion
-    const [existingDoc] = await db.select().from(documents).where(eq(documents.id, id));
+    // ⚡ ATOMIC UPDATE: Use single SQL statement with condition to prevent race conditions
+    // This eliminates the TOCTTOU window by checking existence in the WHERE clause
+    console.log(`🔄 Attempting atomic OCR update for document ${id}`);
     
-    if (!existingDoc) {
-      console.log(`🔒 Race condition prevented: Document ${id} no longer exists, skipping OCR update`);
+    const updateResult = await db
+      .update(documents)
+      .set({ 
+        ocrText, 
+        status,
+        updatedAt: new Date() 
+      })
+      .where(eq(documents.id, id))
+      .returning();
+    
+    const updatedDocument = updateResult[0];
+    
+    if (!updatedDocument) {
+      // Zero rows updated = document was deleted (skipped outcome, not error)
+      console.log(`⏭️ Document ${id} update skipped: document no longer exists (0 rows affected)`);
       return undefined;
     }
     
-    const [updatedDocument] = await db
-      .update(documents)
-      .set({ ocrText, status })
-      .where(eq(documents.id, id))
-      .returning();
-    return updatedDocument || undefined;
+    // 🔥 CACHE CONSISTENCY FIX: Ensure cache invalidation happens on OCR updates
+    if (updatedDocument.dealId) {
+      const cached = documentCache.get(updatedDocument.dealId);
+      if (cached && cached.data) {
+        // Update the specific document in cache
+        const docIndex = cached.data.findIndex(doc => doc.id === id);
+        if (docIndex !== -1) {
+          cached.data[docIndex] = { ...cached.data[docIndex], ...updatedDocument };
+          console.log(`📄 Updated document ${id} OCR in cache for deal ${updatedDocument.dealId}`);
+        } else {
+          // Document not in cache, invalidate to force refresh
+          documentCache.delete(updatedDocument.dealId);
+          console.log(`💨 Invalidated document cache for deal ${updatedDocument.dealId} after OCR update`);
+        }
+      }
+    }
+    
+    console.log(`✅ Atomic OCR update successful for document ${id}`);
+    return updatedDocument;
   }
 
   async updateDocument(id: number, updates: Partial<Document>): Promise<Document | undefined> {
-    // First check if document exists to prevent race condition with deletion
-    const [existingDoc] = await db.select().from(documents).where(eq(documents.id, id));
+    // ⚡ ATOMIC UPDATE: Use single SQL statement with condition to prevent race conditions
+    // This eliminates the TOCTTOU window by checking existence in the WHERE clause
+    console.log(`🔄 Attempting atomic update for document ${id}`);
     
-    if (!existingDoc) {
-      console.log(`🔒 Race condition prevented: Document ${id} no longer exists, skipping update`);
-      return undefined;
-    }
+    const updateData = {
+      ...updates,
+      updatedAt: new Date()
+    };
     
-    const [updatedDocument] = await db
+    const updateResult = await db
       .update(documents)
-      .set(updates)
+      .set(updateData)
       .where(eq(documents.id, id))
       .returning();
     
-    // Smart cache update: Update individual document instead of invalidating entire cache
-    if (updatedDocument?.dealId) {
+    const updatedDocument = updateResult[0];
+    
+    if (!updatedDocument) {
+      // Zero rows updated = document was deleted (skipped outcome, not error)
+      console.log(`⏭️ Document ${id} update skipped: document no longer exists (0 rows affected)`);
+      return undefined;
+    }
+    
+    // 🔥 CACHE CONSISTENCY FIX: Ensure proper cache handling for all updates
+    if (updatedDocument.dealId) {
       const cached = documentCache.get(updatedDocument.dealId);
       if (cached && cached.data) {
         // Update the specific document in cache
@@ -744,11 +780,16 @@ export class DatabaseStorage implements IStorage {
         if (docIndex !== -1) {
           cached.data[docIndex] = { ...cached.data[docIndex], ...updatedDocument };
           console.log(`📄 Updated document ${id} in cache for deal ${updatedDocument.dealId}`);
+        } else {
+          // Document not in cache, invalidate to force refresh
+          documentCache.delete(updatedDocument.dealId);
+          console.log(`💨 Invalidated document cache for deal ${updatedDocument.dealId} after update`);
         }
       }
     }
     
-    return updatedDocument || undefined;
+    console.log(`✅ Atomic update successful for document ${id}`);
+    return updatedDocument;
   }
 
   async deleteDocuments(fileIds: number[]): Promise<number> {

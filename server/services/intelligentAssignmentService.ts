@@ -230,9 +230,10 @@ export class IntelligentAssignmentService {
       if (summary.documentType) parts.push(`Document Type: ${summary.documentType}`);
     }
 
-    // Add OCR text as fallback (truncated)
+    // Add OCR text as fallback (safely truncated)
     if (document.ocrText && typeof document.ocrText === 'string' && parts.length === 1) {
-      parts.push(`Content: ${document.ocrText.substring(0, 2000)}`);
+      const { safeContentExcerpt } = await import('../utils/safeString');
+      parts.push(`Content: ${safeContentExcerpt(document.ocrText, 2000)}`);
     }
 
     // Add document description if available
