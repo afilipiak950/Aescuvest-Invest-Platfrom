@@ -231,9 +231,9 @@ class JobProcessor {
     this.isProcessing = true;
     console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🔥 BULLETPROOF PROCESSING: Process up to 3 jobs simultaneously to avoid rate limits and memory issues
-    // CRITICAL: Reduced from 10 to 3 to prevent OpenAI rate limits at ~125 documents
-    const MAX_CONCURRENT_JOBS = 3; // Safe limit to prevent production failures
+    // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
+    // OPTIMIZED: Increased from 3 to 10 to handle 264+ documents efficiently
+    const MAX_CONCURRENT_JOBS = 10; // Balanced limit for speed vs stability
     
     while (this.jobQueue.length > 0) {
       // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
@@ -272,7 +272,7 @@ class JobProcessor {
         const parallelPromises = batch.map(async (job, index) => {
           // Stagger job starts to prevent API rate limit bursts
           if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, index * 500)); // 500ms between each job start
+            await new Promise(resolve => setTimeout(resolve, index * 200)); // 200ms between each job start
           }
           if (this.processingJobs.has(job.id)) {
             console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
@@ -975,8 +975,8 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
     console.log(`🤖 Processing AI summary generation for job ${job.id}`);
     
     // RATE LIMITING: Add delay to prevent hitting OpenAI rate limits
-    // Critical for processing 300+ documents without getting stuck
-    const RATE_LIMIT_DELAY = 2000; // 2 seconds between AI calls
+    // Optimized for processing 300+ documents efficiently
+    const RATE_LIMIT_DELAY = 1000; // 1 second between AI calls (reduced for speed)
     await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
     
     try {
