@@ -697,32 +697,6 @@ class JobProcessor {
     await this.completeJob(job.id, analysisResult);
   }
 
-  private async processZipFile(job: BackgroundJob) {
-    const { zipPath, dealId, folderName } = job.jobData as any;
-    
-    console.log(`🔍 MICRO-STEP 1: processZipFile called with:`, {
-      jobId: job.id,
-      zipPath,
-      dealId,
-      folderName
-    });
-    
-    await this.updateJobProgress(job.id, 10, 'Extracting ZIP file...', 'processing');
-
-    console.log(`🔍 MICRO-STEP 2: Loading zipProcessor module...`);
-    // Import and use zip processor
-    const { zipProcessor } = await import('./zipProcessor');
-    
-    console.log(`🔍 MICRO-STEP 3: Calling zipProcessor.processZipFile...`);
-    const result = await zipProcessor.processZipFile(zipPath, dealId, folderName);
-    
-    console.log(`🔍 MICRO-STEP 4: ZIP processing result:`, result);
-    
-    await this.updateJobProgress(job.id, 100, 'ZIP processing completed');
-    await this.completeJob(job.id, result);
-    
-    console.log(`🔍 MICRO-STEP 5: ZIP job completed successfully`);
-  }
 
   private async performAIAnalysis(document: any, analysisTypes: string[]) {
     // Simulate AI analysis - in production, this would call actual AI services
