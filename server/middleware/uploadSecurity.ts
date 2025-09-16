@@ -88,6 +88,17 @@ export const uploadRateLimit = rateLimit({
   skipSuccessfulRequests: false,
   // Don't count failed requests 
   skipFailedRequests: true,
+  // Fix for trust proxy issue - use user ID or session instead of IP
+  keyGenerator: (req: Request) => {
+    // Use session ID or user ID if available, fallback to IP
+    const sessionId = req.sessionID || req.session?.id;
+    const userId = (req as any).user?.id;
+    return userId || sessionId || req.ip;
+  },
+  // Skip validation for trust proxy
+  validate: {
+    trustProxy: false,  // Skip trust proxy validation
+  }
 });
 
 /**
@@ -104,6 +115,17 @@ export const strictUploadRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Fix for trust proxy issue - use user ID or session instead of IP
+  keyGenerator: (req: Request) => {
+    // Use session ID or user ID if available, fallback to IP
+    const sessionId = req.sessionID || req.session?.id;
+    const userId = (req as any).user?.id;
+    return userId || sessionId || req.ip;
+  },
+  // Skip validation for trust proxy
+  validate: {
+    trustProxy: false,  // Skip trust proxy validation
+  }
 });
 
 /**

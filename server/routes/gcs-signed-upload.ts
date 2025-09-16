@@ -157,7 +157,11 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       progress: 100,
       uploadedBytes: fileSize,
       gcsPath: gcsFileName,
-      currentStep: 'Upload completed, starting processing...'
+      currentStep: 'Upload completed, starting processing...',
+      metadata: null,
+      completedAt: null,
+      jobId: null,
+      errorMessage: null
     };
     
     await persistentUploadService.createSession(sessionData);
@@ -204,53 +208,44 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
 
     // Process ZIP file if it's a ZIP
     if (fileName.toLowerCase().endsWith('.zip')) {
-      console.log('📦 Processing ZIP file from GCS...');
+      console.log('📦 ZIP file detected - creating background processing job...');
       
-      // Download file from GCS to process with timeout
-      const tempFilePath = `/tmp/${uploadId}-${fileName}`;
-      console.log(`📥 Downloading to temp: ${tempFilePath}`);
+      // 🎯 CRITICAL FIX: Create background job instead of synchronous processing
+      // This prevents timeout issues in production GCP Cloud Run environment
+      const folderName = `deal-${dealId}-${Date.now()}`;
       
-      // Add timeout for production reliability
-      await Promise.race([
-        file.download({ destination: tempFilePath }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Download timeout')), 60000) // 1 minute timeout
-        )
-      ]);
-      console.log('✅ File downloaded from GCS');
+      console.log(`🎯 Creating ZIP processing background job for: ${fileName}`);
+      const job = await jobProcessor.createJob({
+        jobType: 'zip_processing',
+        status: 'pending' as const,
+        dealId: parseInt(dealId),
+        priority: 1,
+        jobData: {
+          gcsStoragePath: gcsFileName,
+          parentDocumentId: document.id,
+          folderName,
+          fileName,
+          fileSize: parseInt(metadata.size)
+        }
+      });
 
-      // Process the ZIP file
-      const zipStartTime = Date.now();
-      console.log(`⏱️ [ZIP] Starting ZIP processing at ${new Date(zipStartTime).toISOString()}`);
+      console.log(`✅ Background ZIP processing job created: ${job}`);
       
-      const processedDocs = await zipProcessor.processZipFromGCS(
-        tempFilePath,
-        parseInt(dealId),
-        document.id,
-        gcsFileName
-      );
-
-      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] ZIP processed: ${processedDocs.length} documents extracted`);
-
-      // Clean up temp file
-      const fs = await import('fs');
-      await fs.promises.unlink(tempFilePath);
-      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] Temp file cleaned up`);
-
-      // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
-      // No need for additional job creation here - the method handles everything
-
-      // CRITICAL: Clear all caches after ZIP processing so documents appear instantly
-      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] Clearing all document caches for deal ${dealId}...`);
-      await clearAllDocumentCaches(parseInt(dealId));
-      console.log(`⏱️ [ZIP+${Date.now() - zipStartTime}ms] ✅ All caches cleared - documents MUST appear immediately`);
+      // Update persistent upload session to show background processing status
+      await persistentUploadService.updateSessionProgress(sessionId, {
+        progress: 100,
+        status: 'processing' as const,
+        currentStep: 'Processing in background...',
+        jobId: job
+      });
 
       return res.status(200).json({
         success: true,
-        message: 'ZIP file processed successfully',
+        message: 'ZIP file uploaded successfully - processing in background',
         documentId: document.id,
-        documentsCreated: processedDocs.length,
-        gcsPath: gcsFileName
+        jobId: job,
+        gcsPath: gcsFileName,
+        status: 'processing_in_background'
       });
     }
 
