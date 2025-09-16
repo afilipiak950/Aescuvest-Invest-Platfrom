@@ -1630,6 +1630,7 @@ function DueDiligenceContent() {
                 </div>
                 */}
               </div>
+              )}
 
               
               <Tabs value={activeAgent} onValueChange={setActiveAgent} className="w-full">
