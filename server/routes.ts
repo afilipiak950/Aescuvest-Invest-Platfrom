@@ -5152,11 +5152,21 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
       // Get ALL background jobs for this deal, including agent analysis jobs
       let jobs = [];
       try {
-        // Get both running and pending jobs to show all agent statuses
-        const dbJobs = await storage.getBackgroundJobsByDealId(dealId);
+        // 🎯 CRITICAL FIX: Query jobProcessor instead of storage to fix dual job systems bug
+        // Jobs are created via jobProcessor.createJob() but were being queried from storage
+        console.log(`🔍 Querying jobProcessor for background jobs on deal ${dealId}`);
+        const processorJobs = await jobProcessor.getJobHistory(dealId, 100);
+        console.log(`📊 JobProcessor returned ${processorJobs.length} jobs for deal ${dealId}`);
         
-        // Filter to only include active jobs (pending, processing)
-        const activeJobs = dbJobs.filter(job => 
+        // Also get database jobs for agent analysis (legacy jobs)
+        const dbJobs = await storage.getBackgroundJobsByDealId(dealId);
+        console.log(`📊 Storage returned ${dbJobs.length} legacy jobs for deal ${dealId}`);
+        
+        // Combine both job systems
+        const allJobs = [...processorJobs, ...dbJobs];
+        
+        // Filter to only include active jobs (pending, processing) from combined results
+        const activeJobs = allJobs.filter(job => 
           job.status === 'pending' || job.status === 'processing'
         );
         
@@ -5189,12 +5199,13 @@ ${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text availab
           };
         });
         
+        console.log(`📊 Combined jobs: processor=${processorJobs.length}, storage=${dbJobs.length}, active=${activeJobs.length}`);
         console.log(`📊 Found ${activeJobs.length} pending/running background jobs for deal ${dealId}`);
         
         // Log detailed job info to debug agent tracking
         if (jobs.length > 0) {
           jobs.forEach(job => {
-            console.log(`  Job: ${job.jobType} | Agent: ${job.agentType} | Status: ${job.status} | Progress: ${job.progress}%`);
+            console.log(`  Job: ${job.jobType} | Agent: ${job.agentType || 'N/A'} | Status: ${job.status} | Progress: ${job.progress || 0}%`);
           });
         } else {
           console.log(`  ⚠️ No active jobs found for deal ${dealId}`);
