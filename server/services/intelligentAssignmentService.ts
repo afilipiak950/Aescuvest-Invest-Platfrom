@@ -231,7 +231,7 @@ export class IntelligentAssignmentService {
     }
 
     // Add OCR text as fallback (truncated)
-    if (document.ocrText && parts.length === 1) {
+    if (document.ocrText && typeof document.ocrText === 'string' && parts.length === 1) {
       parts.push(`Content: ${document.ocrText.substring(0, 2000)}`);
     }
 

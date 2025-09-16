@@ -861,13 +861,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const ocrResult = await mistralOCRService.extractText(file.path, fileType);
               console.log(`✅ OCR extracted ${ocrResult.extractedText?.length || 0} characters`);
               
-              // Update document with results
-              await storage.updateDocumentWithOCR(document.id, ocrResult.extractedText, 'Analyzed');
+              // Update document with results (race condition protected)
+              const updateResult = await storage.updateDocumentWithOCR(document.id, ocrResult.extractedText, 'Analyzed');
+              if (!updateResult) {
+                console.log(`🔒 Document ${document.id} no longer exists, OCR update skipped`);
+                return;
+              }
               
               console.log(`✅ IMMEDIATE OCR completed for job ${jobId} - document ${document.id} updated`);
             } catch (error) {
               console.error(`❌ IMMEDIATE OCR failed for job ${jobId}:`, error);
-              await storage.updateDocumentWithOCR(document.id, '', 'Failed');
+              const failResult = await storage.updateDocumentWithOCR(document.id, '', 'Failed');
+              if (!failResult) {
+                console.log(`🔒 Document ${document.id} no longer exists, failure status update skipped`);
+              }
             }
           })();
           
@@ -2245,7 +2252,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const fileExtension = document.name.split('.').pop()?.toLowerCase() || 'pdf';
           try {
             const ocrResult = await mistralOCRService.extractText(document.filePath, fileExtension);
-            await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
+            const updateResult = await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
+            if (!updateResult) {
+              console.log(`🔒 Document ${documentId} no longer exists during OCR processing, update skipped`);
+            }
             console.log('✅ OCR completed for document', documentId);
           } catch (ocrError) {
             console.error('❌ OCR failed:', ocrError);
@@ -2311,7 +2321,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         const ocrResult = await mistralOCRService.extractText(document.filePath, fileExtension);
-        await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
+        const updateResult = await storage.updateDocumentWithOCR(documentId, ocrResult.extractedText, 'Analyzed');
+        if (!updateResult) {
+          console.log(`🔒 Document ${documentId} no longer exists during Mistral OCR, update skipped`);
+          return res.status(404).json({
+            success: false,
+            error: 'Document no longer exists'
+          });
+        }
         
         console.log('✅ Mistral OCR completed for document', documentId, 'extracted', ocrResult.extractedText?.length || 0, 'characters');
         
@@ -2324,7 +2341,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (ocrError) {
         console.error('❌ Mistral OCR failed:', ocrError);
-        await storage.updateDocumentWithOCR(documentId, '', 'Failed');
+        const failResult = await storage.updateDocumentWithOCR(documentId, '', 'Failed');
+        if (!failResult) {
+          console.log(`🔒 Document ${documentId} no longer exists, failure status update skipped`);
+        }
         
         return res.status(500).json({ 
           success: false, 
@@ -4715,7 +4735,7 @@ Be thorough, professional, and focus on investment-relevant insights.`
               role: "user",
               content: `Please analyze this document titled "${document.name}" and provide a comprehensive summary:
 
-${document.ocrText ? document.ocrText.substring(0, 15000) : 'No OCR text available'}`
+${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.substring(0, 15000) : 'No OCR text available'}`
             }
           ],
           response_format: { type: "json_object" },
@@ -8090,7 +8110,7 @@ async function checkDocumentRelevanceToAgent(document: any, agent: any): Promise
           messages: [{
             role: 'user',
             content: `Document: "${document.name}"
-Content preview: "${document.ocrText && document.ocrText.length > 0 ? document.ocrText.substring(0, 800) : 'No content available'}" 
+Content preview: "${document.ocrText && typeof document.ocrText === 'string' && document.ocrText.length > 0 ? document.ocrText.substring(0, 800) : 'No content available'}" 
 
 ${agent.prompts.categorization}
 
@@ -8778,7 +8798,10 @@ async function runSpecializedAgentAnalysis(document: any, agent: any, deal: any)
 
 Company: ${deal.companyName}
 Document: ${document.name}
-Content: ${(document.ocrText || document.aiSummary || '').substring(0, 3000) || 'No content available'}
+Content: ${(() => {
+  const content = document.ocrText || document.aiSummary || '';
+  return typeof content === 'string' ? content.substring(0, 3000) : 'No content available';
+})()}
 
 Focus on: ${agent.focus}
 

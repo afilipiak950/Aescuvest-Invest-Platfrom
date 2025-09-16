@@ -625,6 +625,16 @@ class JobProcessor {
     
     await this.updateJobProgress(job.id, 80, 'Saving analysis results...');
 
+    // Check if document still exists before updating to prevent race condition
+    const [documentStillExists] = await db.select()
+      .from(documents)
+      .where(eq(documents.id, documentId));
+
+    if (!documentStillExists) {
+      console.log(`🔒 Race condition prevented: Document ${documentId} no longer exists during analysis, skipping update`);
+      return analysisResult;
+    }
+
     // Update document with analysis
     await db.update(documents)
       .set({
