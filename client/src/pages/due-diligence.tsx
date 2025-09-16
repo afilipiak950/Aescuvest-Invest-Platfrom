@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -40,7 +40,8 @@ function DueDiligenceContent() {
     });
     const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
-  const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
+    const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
+    const [isAnalysisProgressExpanded, setIsAnalysisProgressExpanded] = useState(true);
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -1306,8 +1307,21 @@ function DueDiligenceContent() {
             <CardContent>
               {/* All Agents Progress Overview - Horizontal 7-Card Layout */}
               <div className="mb-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
+                <div 
+                  className="flex justify-between items-center mb-4 cursor-pointer hover:bg-dark-lighter/30 rounded-lg p-2 transition-all duration-200"
+                  onClick={() => setIsAnalysisProgressExpanded(!isAnalysisProgressExpanded)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <ChevronDown 
+                      className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isAnalysisProgressExpanded ? 'rotate-0' : '-rotate-90'}`}
+                    />
+                    <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
+                    {!isAnalysisProgressExpanded && (
+                      <Badge variant="secondary" className="bg-dark-lighter text-gray-300 text-xs">
+                        7 agents
+                      </Badge>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-2">
                     {/* Overall progress indicator */}
                     <span className="text-sm text-gray-400">Overall Progress</span>
@@ -1319,20 +1333,23 @@ function DueDiligenceContent() {
                   </div>
                 </div>
                 
-                {/* Overall Progress Bar */}
-                <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
-                  <div 
-                    className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
-                    style={{ 
-                      width: `${jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
-                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
-                        : 0}%` 
-                    }}
-                  ></div>
-                </div>
                 
-                {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
-                <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
+                {isAnalysisProgressExpanded && (
+                  <div className="space-y-6">
+                    {/* Overall Progress Bar */}
+                    <div className="w-full bg-dark-lighter rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
+                            ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
+                            : 0}%` 
+                        }}
+                      ></div>
+                    </div>
+                    
+                    {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
+                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
                     // Find matching job from backend data
                     const matchingJob = jobProgress?.jobs?.find(j => 
@@ -1522,8 +1539,10 @@ function DueDiligenceContent() {
                         )}
                       </div>
                     );
-                  })}
-                </div>
+                    })}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Action Buttons - HIDDEN PER USER REQUEST 
                 <div className="flex justify-center space-x-4 mt-6">
