@@ -1871,6 +1871,7 @@ function DueDiligenceContent() {
                   </div>
                 </TabsContent>
               </Tabs>
+              </div> {/* closes <div className="mb-8"> opened at 1329 */}
             </CardContent>
           </Card>
 
@@ -1883,7 +1884,7 @@ function DueDiligenceContent() {
             <p className="text-gray-400 mb-4">Please select a deal to view its due diligence analysis.</p>
           </CardContent>
         </Card>
-        )}
+      )}
       </div>
     );
 
