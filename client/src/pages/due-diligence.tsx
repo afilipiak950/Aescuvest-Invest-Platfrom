@@ -1095,13 +1095,31 @@ function DueDiligenceContent() {
           {/* Main Progress Bar - Restored */}
           {jobProgress && jobProgress.jobs && (jobProgress?.jobs?.length || 0) > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Analysis Progress</CardTitle>
-                <CardDescription>
-                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
-                </CardDescription>
+              <CardHeader 
+                className="pb-3 cursor-pointer hover:bg-dark-lighter/30 rounded-lg transition-all duration-200"
+                onClick={() => setIsAnalysisProgressExpanded(!isAnalysisProgressExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <ChevronDown 
+                      className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isAnalysisProgressExpanded ? 'rotate-0' : '-rotate-90'}`}
+                    />
+                    <div>
+                      <CardTitle className="text-lg">Analysis Progress</CardTitle>
+                      <CardDescription>
+                        {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
+                      </CardDescription>
+                    </div>
+                  </div>
+                  {!isAnalysisProgressExpanded && (
+                    <Badge variant="secondary" className="bg-dark-lighter text-gray-300 text-xs">
+                      {jobProgress?.jobs?.length || 0} jobs
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              {isAnalysisProgressExpanded && (
+                <CardContent className="space-y-4">
                 <div className="space-y-3">
                   {jobProgress?.jobs?.map((job: any) => (
                     <div key={job.jobId} className="space-y-2">
@@ -1125,7 +1143,8 @@ function DueDiligenceContent() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           )}
 
