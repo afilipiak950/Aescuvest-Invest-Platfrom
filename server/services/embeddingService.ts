@@ -261,7 +261,6 @@ export class EmbeddingService {
       queryText: query,
       queryEmbedding: queryEmbedding as any,
       response,
-      similarity: 1.0,
       expiresAt,
     });
     
