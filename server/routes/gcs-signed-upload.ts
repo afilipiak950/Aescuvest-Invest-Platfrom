@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { documents } from '@shared/schema';
+import { and, eq } from 'drizzle-orm';
 import { gcsService } from '../services/googleCloudStorage';
 import { zipProcessor } from '../services/zipProcessor';
 import { jobProcessor } from '../services/jobProcessor';
@@ -232,12 +233,8 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       console.log(`✅ Background ZIP processing job created: ${job}`);
       
       // Update persistent upload session to show background processing status
-      await persistentUploadService.updateSessionProgress(sessionId, {
-        progress: 100,
-        status: 'processing' as const,
-        currentStep: 'Processing in background...',
-        jobId: job
-      });
+      await persistentUploadService.updateStatus(sessionId, 'processing', undefined, job.toString());
+      await persistentUploadService.updateProgress(sessionId, 100, fileSize, 'Processing in background...');
 
       return res.status(200).json({
         success: true,
@@ -325,6 +322,115 @@ router.get('/api/gcs/signed-upload/health', (req: Request, res: Response) => {
       'AI processing integration'
     ]
   });
+});
+
+/**
+ * RECOVERY ENDPOINT: Create missing background jobs for stuck uploads
+ * This fixes uploads that completed to GCS but never got processed
+ */
+router.post('/api/gcs/recover-stuck-uploads/:dealId', async (req: Request, res: Response) => {
+  console.log('🚑 RECOVERY: Creating missing background jobs for stuck uploads');
+  
+  try {
+    const { dealId } = req.params;
+    const { persistentUploadService } = await import('../services/persistentUploadService');
+    
+    // Get all uploads for this deal that are stuck in processing with 100% progress but no jobId
+    const uploads = await persistentUploadService.getAllSessionsForDeal(parseInt(dealId));
+    const stuckUploads = uploads.filter(upload => 
+      upload.status === 'processing' && 
+      upload.progress === 100 && 
+      upload.gcsPath && 
+      !upload.jobId
+    );
+    
+    console.log(`🔍 Found ${stuckUploads.length} stuck uploads to recover`);
+    
+    let recovered = 0;
+    const results = [];
+    
+    for (const upload of stuckUploads) {
+      try {
+        if (upload.fileName.toLowerCase().endsWith('.zip')) {
+          console.log(`🔧 Creating missing background job for: ${upload.fileName}`);
+          
+          // Find the document in the database
+          const documentsResult = await db.select().from(documents).where(
+            and(
+              eq(documents.dealId, parseInt(dealId)),
+              eq(documents.name, upload.fileName)
+            )
+          );
+          
+          if (documentsResult.length === 0) {
+            console.log(`⚠️ No document found for ${upload.fileName}, skipping`);
+            continue;
+          }
+          
+          const document = documentsResult[0];
+          const folderName = `deal-${dealId}-${Date.now()}`;
+          
+          // Create the missing background job
+          const job = await jobProcessor.createJob({
+            jobType: 'zip_processing',
+            status: 'pending' as const,
+            dealId: parseInt(dealId),
+            priority: 1,
+            jobData: {
+              gcsStoragePath: upload.gcsPath!,
+              parentDocumentId: document.id,
+              folderName,
+              fileName: upload.fileName,
+              fileSize: upload.fileSize
+            }
+          });
+          
+          console.log(`✅ Created recovery job: ${job} for ${upload.fileName}`);
+          
+          // Update the persistent upload session with the jobId
+          await persistentUploadService.updateStatus(upload.sessionId, 'processing', undefined, job.toString());
+          await persistentUploadService.updateProgress(upload.sessionId, 100, upload.fileSize, 'Background processing started (recovered)...');
+          
+          recovered++;
+          results.push({
+            fileName: upload.fileName,
+            sessionId: upload.sessionId,
+            jobId: job,
+            status: 'recovered'
+          });
+          
+        } else {
+          console.log(`⚠️ Skipping non-ZIP file: ${upload.fileName}`);
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to recover upload ${upload.fileName}:`, error);
+        results.push({
+          fileName: upload.fileName,
+          sessionId: upload.sessionId,
+          status: 'failed',
+          error: error.message
+        });
+      }
+    }
+    
+    console.log(`🚑 Recovery completed: ${recovered}/${stuckUploads.length} uploads recovered`);
+    
+    return res.status(200).json({
+      success: true,
+      message: `Successfully recovered ${recovered} stuck uploads`,
+      totalFound: stuckUploads.length,
+      recovered,
+      results
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Recovery process failed:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Recovery process failed',
+      error: error.message
+    });
+  }
 });
 
 export default router;
