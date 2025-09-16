@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { documents } from '@shared/schema';
-import { and, eq } from 'drizzle-orm';
 import { gcsService } from '../services/googleCloudStorage';
 import { zipProcessor } from '../services/zipProcessor';
 import { jobProcessor } from '../services/jobProcessor';
-import { clearAllDocumentCaches } from '../services/cacheService';
 
 const router = Router();
 
@@ -158,11 +156,7 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       progress: 100,
       uploadedBytes: fileSize,
       gcsPath: gcsFileName,
-      currentStep: 'Upload completed, starting processing...',
-      metadata: null,
-      completedAt: null,
-      jobId: null,
-      errorMessage: null
+      currentStep: 'Upload completed, starting processing...'
     };
     
     await persistentUploadService.createSession(sessionData);
@@ -209,40 +203,57 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
 
     // Process ZIP file if it's a ZIP
     if (fileName.toLowerCase().endsWith('.zip')) {
-      console.log('📦 ZIP file detected - creating background processing job...');
+      console.log('📦 Processing ZIP file from GCS...');
       
-      // 🎯 CRITICAL FIX: Create background job instead of synchronous processing
-      // This prevents timeout issues in production GCP Cloud Run environment
-      const folderName = `deal-${dealId}-${Date.now()}`;
+      // Download file from GCS to process with timeout
+      const tempFilePath = `/tmp/${uploadId}-${fileName}`;
+      console.log(`📥 Downloading to temp: ${tempFilePath}`);
       
-      console.log(`🎯 Creating ZIP processing background job for: ${fileName}`);
-      const job = await jobProcessor.createJob({
-        jobType: 'zip_processing',
-        status: 'pending' as const,
-        dealId: parseInt(dealId),
-        priority: 1,
-        jobData: {
-          gcsStoragePath: gcsFileName,
-          parentDocumentId: document.id,
-          folderName,
-          fileName,
-          fileSize: parseInt(metadata.size)
-        }
-      });
+      // Add timeout for production reliability
+      await Promise.race([
+        file.download({ destination: tempFilePath }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Download timeout')), 60000) // 1 minute timeout
+        )
+      ]);
+      console.log('✅ File downloaded from GCS');
 
-      console.log(`✅ Background ZIP processing job created: ${job}`);
-      
-      // Update persistent upload session to show background processing status
-      await persistentUploadService.updateStatus(sessionId, 'processing', undefined, job.toString());
-      await persistentUploadService.updateProgress(sessionId, 100, fileSize, 'Processing in background...');
+      // Process the ZIP file
+      const processedDocs = await zipProcessor.processZipFromGCS(
+        tempFilePath,
+        parseInt(dealId),
+        document.id,
+        gcsFileName
+      );
+
+      console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted with automatic OCR and AI processing`);
+
+      // Clean up temp file
+      const fs = await import('fs');
+      await fs.promises.unlink(tempFilePath);
+      console.log('🧹 Temp file cleaned up');
+
+      // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
+      // No need for additional job creation here - the method handles everything
+
+      // CRITICAL: Clear cache after ZIP processing so documents appear instantly
+      // Access the server instance to clear cache
+      const server = req.app.get('server');
+      if (server && typeof server.clearPaginatedDocumentCache === 'function') {
+        server.clearPaginatedDocumentCache(parseInt(dealId));
+        console.log(`🧹 Cleared paginated cache for deal ${dealId} after GCS ZIP processing`);
+      }
+      // Also clear storage cache
+      const { storage } = await import('../storage');
+      await storage.invalidateDocumentCache(parseInt(dealId));
+      console.log(`🧹 Cleared storage cache for deal ${dealId} after GCS ZIP processing`);
 
       return res.status(200).json({
         success: true,
-        message: 'ZIP file uploaded successfully - processing in background',
+        message: 'ZIP file processed successfully',
         documentId: document.id,
-        jobId: job,
-        gcsPath: gcsFileName,
-        status: 'processing_in_background'
+        documentsCreated: processedDocs.length,
+        gcsPath: gcsFileName
       });
     }
 
@@ -322,115 +333,6 @@ router.get('/api/gcs/signed-upload/health', (req: Request, res: Response) => {
       'AI processing integration'
     ]
   });
-});
-
-/**
- * RECOVERY ENDPOINT: Create missing background jobs for stuck uploads
- * This fixes uploads that completed to GCS but never got processed
- */
-router.post('/api/gcs/recover-stuck-uploads/:dealId', async (req: Request, res: Response) => {
-  console.log('🚑 RECOVERY: Creating missing background jobs for stuck uploads');
-  
-  try {
-    const { dealId } = req.params;
-    const { persistentUploadService } = await import('../services/persistentUploadService');
-    
-    // Get all uploads for this deal that are stuck in processing with 100% progress but no jobId
-    const uploads = await persistentUploadService.getAllSessionsForDeal(parseInt(dealId));
-    const stuckUploads = uploads.filter(upload => 
-      upload.status === 'processing' && 
-      upload.progress === 100 && 
-      upload.gcsPath && 
-      !upload.jobId
-    );
-    
-    console.log(`🔍 Found ${stuckUploads.length} stuck uploads to recover`);
-    
-    let recovered = 0;
-    const results = [];
-    
-    for (const upload of stuckUploads) {
-      try {
-        if (upload.fileName.toLowerCase().endsWith('.zip')) {
-          console.log(`🔧 Creating missing background job for: ${upload.fileName}`);
-          
-          // Find the document in the database
-          const documentsResult = await db.select().from(documents).where(
-            and(
-              eq(documents.dealId, parseInt(dealId)),
-              eq(documents.name, upload.fileName)
-            )
-          );
-          
-          if (documentsResult.length === 0) {
-            console.log(`⚠️ No document found for ${upload.fileName}, skipping`);
-            continue;
-          }
-          
-          const document = documentsResult[0];
-          const folderName = `deal-${dealId}-${Date.now()}`;
-          
-          // Create the missing background job
-          const job = await jobProcessor.createJob({
-            jobType: 'zip_processing',
-            status: 'pending' as const,
-            dealId: parseInt(dealId),
-            priority: 1,
-            jobData: {
-              gcsStoragePath: upload.gcsPath!,
-              parentDocumentId: document.id,
-              folderName,
-              fileName: upload.fileName,
-              fileSize: upload.fileSize
-            }
-          });
-          
-          console.log(`✅ Created recovery job: ${job} for ${upload.fileName}`);
-          
-          // Update the persistent upload session with the jobId
-          await persistentUploadService.updateStatus(upload.sessionId, 'processing', undefined, job.toString());
-          await persistentUploadService.updateProgress(upload.sessionId, 100, upload.fileSize, 'Background processing started (recovered)...');
-          
-          recovered++;
-          results.push({
-            fileName: upload.fileName,
-            sessionId: upload.sessionId,
-            jobId: job,
-            status: 'recovered'
-          });
-          
-        } else {
-          console.log(`⚠️ Skipping non-ZIP file: ${upload.fileName}`);
-        }
-      } catch (error: any) {
-        console.error(`❌ Failed to recover upload ${upload.fileName}:`, error);
-        results.push({
-          fileName: upload.fileName,
-          sessionId: upload.sessionId,
-          status: 'failed',
-          error: error.message
-        });
-      }
-    }
-    
-    console.log(`🚑 Recovery completed: ${recovered}/${stuckUploads.length} uploads recovered`);
-    
-    return res.status(200).json({
-      success: true,
-      message: `Successfully recovered ${recovered} stuck uploads`,
-      totalFound: stuckUploads.length,
-      recovered,
-      results
-    });
-    
-  } catch (error: any) {
-    console.error('❌ Recovery process failed:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Recovery process failed',
-      error: error.message
-    });
-  }
 });
 
 export default router;

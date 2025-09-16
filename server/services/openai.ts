@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 
 // Initialize the OpenAI client with the API key from environment variables
 const openai = new OpenAI({
@@ -43,9 +42,6 @@ export async function generateResponse(
     if (jsonResponse) {
       apiOptions.response_format = { type: "json_object" };
     }
-    
-    // Enhanced rate limiting with token bucket algorithm
-    await bulletproofRateLimiter.waitForRateLimit('openai');
     
     const response = await openai.chat.completions.create(apiOptions);
     

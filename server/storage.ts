@@ -2095,12 +2095,11 @@ export class DatabaseStorage implements IStorage {
 
   async getRunningBackgroundJobs(dealId?: number): Promise<BackgroundJob[]> {
     try {
-      // Include 'pending', 'processing' and recently 'completed' jobs for frontend visibility
+      // Include both 'processing' and recently 'completed' jobs for frontend visibility
       let whereConditions = [];
       
-      // Base condition: pending, processing OR recently completed
+      // Base condition: either processing OR recently completed
       const statusCondition = or(
-        eq(backgroundJobs.status, 'pending'),
         eq(backgroundJobs.status, 'processing'),
         and(
           eq(backgroundJobs.status, 'completed'),
@@ -2119,7 +2118,7 @@ export class DatabaseStorage implements IStorage {
         .where(and(...whereConditions))
         .orderBy(backgroundJobs.createdAt);
       
-      console.log(`📊 Found ${jobs.length} pending/running background jobs${dealId ? ` for deal ${dealId}` : ''}`);
+      console.log(`📊 Found ${jobs.length} running background jobs${dealId ? ` for deal ${dealId}` : ''}`);
       return jobs;
     } catch (error) {
       console.error('Error fetching running background jobs:', error);

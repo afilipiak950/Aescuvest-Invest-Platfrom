@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Upload, Link as LinkIcon, Bot, AlertCircle, X, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Deal, AgentAnalysis, Document } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -41,8 +41,6 @@ function DueDiligenceContent() {
     const [isRunningAllAnalyses, setIsRunningAllAnalyses] = useState(false);
     const [clinicalAnalysisStarted, setClinicalAnalysisStarted] = useState(false);
   const [researchAnalysisStarted, setResearchAnalysisStarted] = useState(false);
-  const [isAnalysisProgressExpanded, setIsAnalysisProgressExpanded] = useState(false);
-  const [isAnalysisProgressCollapsed, setIsAnalysisProgressCollapsed] = useState(true); // Default: eingeklappt
 
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -144,16 +142,7 @@ function DueDiligenceContent() {
                      documentsData?.documents ? documentsData.documents : 
                      [];
     const analyses = analysesData || [];
-    
-    // CRITICAL FIX: Normalize jobProgressData to plain array and compute visibility
-    // Server returns { success: true, jobs: [...] }, extract just the jobs array
-    const jobs = Array.isArray(jobProgressData?.jobs) ? jobProgressData.jobs : [];
-    
-    // Compute visibility for Analysis Progress section based on OCR jobs
-    const hasProcessingOcrJobs = jobs.some(j => j.jobType === 'document_ocr' && j.status === 'processing');
-    
-    // Keep jobProgress for backwards compatibility with other code
-    const jobProgress = { jobs };
+    const jobProgress = jobProgressData || { jobs: [] };
 
     // Debug log for analyses data with safe checks (moved after safe defaults)
     console.log('🔍 Analyses Query Debug:', {
@@ -162,17 +151,6 @@ function DueDiligenceContent() {
       analysesLength: (analyses && Array.isArray(analyses)) ? (analyses?.length || 0) : 'not array',
       agentTypes: (analyses && Array.isArray(analyses)) ? analyses.map((a: any) => a?.agentType || 'unknown') : 'no data'
     });
-    
-    // Debug log for Analysis Progress visibility
-    useEffect(() => {
-      console.log('🚀 Analysis Progress Visibility Check:', {
-        totalJobs: jobs.length,
-        processingOcrJobs: jobs.filter(j => j.jobType === 'document_ocr' && j.status === 'processing').length,
-        hasProcessingOcrJobs,
-        firstOcrJob: jobs.find(j => j.jobType === 'document_ocr'),
-        shouldShowSection: hasProcessingOcrJobs
-      });
-    }, [jobs, hasProcessingOcrJobs]);
 
     // Create progress states from jobProgress data instead of separate queries to prevent UI interference
     const legalProgress = useMemo(() => {
@@ -1113,42 +1091,16 @@ function DueDiligenceContent() {
             </CardContent>
           </Card>
           
-          {/* Analysis Progress Section - Shows when OCR jobs are processing */}
-          {hasProcessingOcrJobs && (
+          {/* Main Progress Bar - Restored */}
+          {jobProgress && jobProgress.jobs && (jobProgress?.jobs?.length || 0) > 0 && (
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-lg">Analysis Progress</CardTitle>
-                    <CardDescription>
-                      {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      console.log('🔄 Analysis Progress Toggle clicked, current state:', isAnalysisProgressCollapsed);
-                      setIsAnalysisProgressCollapsed(!isAnalysisProgressCollapsed);
-                    }}
-                    className="px-3 py-1 bg-dark-lighter hover:bg-gray-700 border-gray-600 text-gray-300 hover:text-white flex items-center space-x-1"
-                  >
-                    {isAnalysisProgressCollapsed ? (
-                      <>
-                        <ChevronDown className="h-4 w-4" />
-                        <span className="text-xs">Ausklappen</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronUp className="h-4 w-4" />
-                        <span className="text-xs">Inklappen</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <CardTitle className="text-lg">Analysis Progress</CardTitle>
+                <CardDescription>
+                  {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
+                </CardDescription>
               </CardHeader>
-              {!isAnalysisProgressCollapsed && (
-                <CardContent className="space-y-4">
+              <CardContent className="space-y-4">
                 <div className="space-y-3">
                   {jobProgress?.jobs?.map((job: any) => (
                     <div key={job.jobId} className="space-y-2">
@@ -1172,8 +1124,7 @@ function DueDiligenceContent() {
                     </div>
                   ))}
                 </div>
-                </CardContent>
-              )}
+              </CardContent>
             </Card>
           )}
 
@@ -1356,9 +1307,7 @@ function DueDiligenceContent() {
               {/* All Agents Progress Overview - Horizontal 7-Card Layout */}
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center space-x-2">
-                    <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
-                  </div>
+                  <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
                   <div className="flex items-center space-x-2">
                     {/* Overall progress indicator */}
                     <span className="text-sm text-gray-400">Overall Progress</span>
@@ -1370,22 +1319,20 @@ function DueDiligenceContent() {
                   </div>
                 </div>
                 
-                {/* Progress Content - Always Visible */}
-                <>
-                  {/* Overall Progress Bar */}
-                    <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
-                      <div 
-                        className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
-                        style={{ 
-                          width: `${jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
-                            ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
-                            : 0}%` 
-                        }}
-                      ></div>
-                    </div>
-                    
-                    {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
-                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
+                {/* Overall Progress Bar */}
+                <div className="w-full bg-dark-lighter rounded-full h-2 mb-6">
+                  <div 
+                    className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full"
+                    style={{ 
+                      width: `${jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
+                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
+                        : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                
+                {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
+                <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
                     // Find matching job from backend data
                     const matchingJob = jobProgress?.jobs?.find(j => 
@@ -1426,16 +1373,7 @@ function DueDiligenceContent() {
                     
                     // CRITICAL FIX: Show only documents assigned to this specific agent
                     const agentKey = agentType.toLowerCase();
-                    
-                    // Get real-time document count from assignment job if running
-                    const assignmentJob = findJobSafely(jobProgress?.jobs, ['document_assignment']);
-                    const isAssignmentRunning = assignmentJob?.status === 'processing';
-                    const realtimeAgentCounts = assignmentJob?.metadata?.agentDocumentCounts || {};
-                    
-                    // Use real-time count during assignment, otherwise use static count
-                    const assignedDocs = isAssignmentRunning && realtimeAgentCounts[agentType] !== undefined
-                      ? realtimeAgentCounts[agentType]
-                      : agentDocuments[agentKey]?.length || 0;
+                    const assignedDocs = agentDocuments[agentKey]?.length || 0;
                     
                     // Correct questions per agent - matching actual question counts in services  
                     const questionCounts = {
@@ -1553,11 +1491,7 @@ function DueDiligenceContent() {
                           
                           {/* Documents and Questions */}
                           <div className="flex justify-between text-gray-400">
-                            <span>
-                              Docs: {assignedDocs} 
-                              {isAssignmentRunning && <span className="ml-1 text-xs text-yellow-400 animate-pulse">🔄</span>} 
-                              • Q: {totalQuestions}
-                            </span>
+                            <span>Docs: {assignedDocs} • Q: {totalQuestions}</span>
                           </div>
                         </div>
                         
@@ -1583,18 +1517,14 @@ function DueDiligenceContent() {
                         {!isCurrentlyRunning && currentProgress === 0 && (
                           <div className="mt-3 pt-2 border-t border-opacity-20">
                             <div className="text-xs text-gray-500">Not Started</div>
-                            <div className="text-xs text-gray-500">
-                              {assignedDocs} docs assigned
-                              {isAssignmentRunning && <span className="ml-1 text-xs text-yellow-400">(updating...)</span>}
-                            </div>
+                            <div className="text-xs text-gray-500">{assignedDocs} docs assigned</div>
                           </div>
                         )}
                       </div>
                     );
                   })}
-                    </div>
-                  </>
-              
+                </div>
+                
                 {/* Action Buttons - HIDDEN PER USER REQUEST 
                 <div className="flex justify-center space-x-4 mt-6">
                   <Button

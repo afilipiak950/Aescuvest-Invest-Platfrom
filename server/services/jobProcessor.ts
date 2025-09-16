@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { documents as documentsTable } from '../../shared/schema';
 import { backgroundJobs, documents, InsertBackgroundJob, BackgroundJob } from '@shared/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 import fs from 'fs';
@@ -88,10 +88,6 @@ class JobProcessor {
       if (metadata.currentDocument !== undefined) {
         updateData.currentDocumentName = metadata.currentDocument;
       }
-      // Store agent document counts in jobData for real-time tracking
-      if (metadata.agentDocumentCounts !== undefined) {
-        updateData.jobData = { ...(updateData.jobData || {}), agentDocumentCounts: metadata.agentDocumentCounts };
-      }
     }
 
     if (status) {
@@ -161,47 +157,11 @@ class JobProcessor {
 
   async loadPendingJobsFromDatabase() {
     try {
-      // 🚀 FAIR QUEUE LOADING: Load pending jobs with ROUND-ROBIN per deal to prevent starvation
-      // First, get unique deals with pending jobs
-      const dealsWithPendingJobs = await db
-        .selectDistinct({ dealId: backgroundJobs.dealId })
+      // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
+      const pendingJobs = await db.select()
         .from(backgroundJobs)
         .where(eq(backgroundJobs.status, 'pending'))
-        .limit(20); // Get up to 20 different deals
-      
-      // Load 2-3 jobs per deal for fair processing (prevents one deal from starving others)
-      const jobsPerDeal = Math.max(2, Math.floor(50 / Math.max(dealsWithPendingJobs.length, 1)));
-      const pendingJobs: BackgroundJob[] = [];
-      
-      for (const { dealId } of dealsWithPendingJobs) {
-        if (dealId) {
-          const dealJobs = await db.select()
-            .from(backgroundJobs)
-            .where(and(
-              eq(backgroundJobs.status, 'pending'),
-              eq(backgroundJobs.dealId, dealId)
-            ))
-            .orderBy(asc(backgroundJobs.createdAt))
-            .limit(jobsPerDeal);
-          
-          pendingJobs.push(...dealJobs);
-          console.log(`📊 Loaded ${dealJobs.length} jobs for deal ${dealId}`);
-        }
-      }
-      
-      // If we have room, load any remaining oldest jobs
-      if (pendingJobs.length < 50) {
-        const remainingSlots = 50 - pendingJobs.length;
-        const existingJobIds = pendingJobs.map(j => j.id);
-        const moreJobs = await db.select()
-          .from(backgroundJobs)
-          .where(eq(backgroundJobs.status, 'pending'))
-          .orderBy(asc(backgroundJobs.createdAt), asc(backgroundJobs.id))
-          .limit(remainingSlots + existingJobIds.length); // Get extra to filter out duplicates
-        
-        const uniqueJobs = moreJobs.filter(j => !existingJobIds.includes(j.id)).slice(0, remainingSlots);
-        pendingJobs.push(...uniqueJobs);
-      }
+        .limit(50); // Load up to 50 pending jobs at a time
       
       if (pendingJobs.length > 0) {
         console.log(`🚀 LOADING ${pendingJobs.length} pending jobs from database into memory queue for parallel processing!`);
@@ -271,26 +231,18 @@ class JobProcessor {
     this.isProcessing = true;
     console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🚀 ENHANCED PARALLEL PROCESSING: Process up to 12 jobs with intelligent rate limiting
-    // Uses token-bucket algorithm for optimal throughput without hitting rate limits
-    const MAX_CONCURRENT_JOBS = 12; // Enhanced limit with smart rate limiting
+    // 🔥 BULLETPROOF PROCESSING: Process up to 3 jobs simultaneously to avoid rate limits and memory issues
+    // CRITICAL: Reduced from 10 to 3 to prevent OpenAI rate limits at ~125 documents
+    const MAX_CONCURRENT_JOBS = 3; // Safe limit to prevent production failures
     
     while (this.jobQueue.length > 0) {
       // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
       const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
       
-      // ADAPTIVE RATE LIMITING: Check rate limiter for optimal batch timing
+      // MEMORY MANAGEMENT: Add delay between batches to prevent memory buildup
       if (this.processingJobs.size > 0) {
-        const rateLimiterStatus = bulletproofRateLimiter.getStatus('openai');
-        
-        // Only add delay if we have low token availability or recent rate limit hits
-        if (rateLimiterStatus.availableTokens < 3 || rateLimiterStatus.recentHits > 0) {
-          const adaptiveDelay = Math.min(rateLimiterStatus.estimatedWait, 2000); // Cap at 2 seconds
-          if (adaptiveDelay > 0) {
-            console.log(`⏳ Adaptive rate limiting delay: ${adaptiveDelay}ms (tokens: ${rateLimiterStatus.availableTokens}, hits: ${rateLimiterStatus.recentHits})`);
-            await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
-          }
-        }
+        console.log(`⏳ Waiting 1 second between batches for memory management...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
       if (batch.length === 1) {
@@ -314,18 +266,13 @@ class JobProcessor {
           await this.completeJob(job.id, null, String(error));
         }
       } else {
-        // Multiple jobs - ENHANCED PARALLEL PROCESSING with intelligent token bucket rate limiting
-        console.log(`🚀 ENHANCED PROCESSING: Starting ${batch.length} jobs with intelligent rate limiting`);
-        
-        // Get suggested batch size from rate limiter
-        const suggestedBatchSize = bulletproofRateLimiter.getSuggestedBatchSize('openai', this.jobQueue.length);
-        console.log(`🎯 Rate limiter suggests batch size: ${suggestedBatchSize} (current: ${batch.length})`);
+        // Multiple jobs - BULLETPROOF PARALLEL PROCESSING with rate limiting
+        console.log(`🛡️ BULLETPROOF PROCESSING: Starting ${batch.length} jobs with rate limiting protection`);
         
         const parallelPromises = batch.map(async (job, index) => {
-          // Adaptive stagger delay based on token availability and rate limit status
-          const staggerDelay = bulletproofRateLimiter.getOptimalStaggerDelay('openai', index);
-          if (staggerDelay > 0) {
-            await new Promise(resolve => setTimeout(resolve, staggerDelay));
+          // Stagger job starts to prevent API rate limit bursts
+          if (index > 0) {
+            await new Promise(resolve => setTimeout(resolve, index * 500)); // 500ms between each job start
           }
           if (this.processingJobs.has(job.id)) {
             console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
@@ -351,13 +298,10 @@ class JobProcessor {
         const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
         const failed = results.length - successful;
         
-        console.log(`🎉 ENHANCED BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
+        console.log(`🎉 BULLETPROOF BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
         
         if (successful > 0) {
-          console.log(`✅ INTELLIGENT PROCESSING: ${successful} documents processed with adaptive rate limiting!`);
-          
-          // Log rate limiter status after batch completion
-          bulletproofRateLimiter.logStatus();
+          console.log(`✅ PRODUCTION SAFE: ${successful} documents processed without hitting rate limits!`);
         }
         
         // Force garbage collection hint after batch processing
@@ -369,7 +313,7 @@ class JobProcessor {
     }
 
     this.isProcessing = false;
-    console.log(`🏁 ENHANCED queue processing completed - INTELLIGENT rate limiting with maximum throughput achieved!`);
+    console.log(`🏁 PARALLEL queue processing completed - MASSIVE speed improvement achieved!`);
   }
 
   private async processJob(job: BackgroundJob) {
@@ -697,6 +641,32 @@ class JobProcessor {
     await this.completeJob(job.id, analysisResult);
   }
 
+  private async processZipFile(job: BackgroundJob) {
+    const { zipPath, dealId, folderName } = job.jobData as any;
+    
+    console.log(`🔍 MICRO-STEP 1: processZipFile called with:`, {
+      jobId: job.id,
+      zipPath,
+      dealId,
+      folderName
+    });
+    
+    await this.updateJobProgress(job.id, 10, 'Extracting ZIP file...', 'processing');
+
+    console.log(`🔍 MICRO-STEP 2: Loading zipProcessor module...`);
+    // Import and use zip processor
+    const { zipProcessor } = await import('./zipProcessor');
+    
+    console.log(`🔍 MICRO-STEP 3: Calling zipProcessor.processZipFile...`);
+    const result = await zipProcessor.processZipFile(zipPath, dealId, folderName);
+    
+    console.log(`🔍 MICRO-STEP 4: ZIP processing result:`, result);
+    
+    await this.updateJobProgress(job.id, 100, 'ZIP processing completed');
+    await this.completeJob(job.id, result);
+    
+    console.log(`🔍 MICRO-STEP 5: ZIP job completed successfully`);
+  }
 
   private async performAIAnalysis(document: any, analysisTypes: string[]) {
     // Simulate AI analysis - in production, this would call actual AI services
@@ -1004,8 +974,10 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
   private async processAISummaryGeneration(job: BackgroundJob) {
     console.log(`🤖 Processing AI summary generation for job ${job.id}`);
     
-    // ENHANCED RATE LIMITING: Use token bucket algorithm instead of fixed delays
-    // The rate limiter is automatically used within generateAISummary -> openai service
+    // RATE LIMITING: Add delay to prevent hitting OpenAI rate limits
+    // Critical for processing 300+ documents without getting stuck
+    const RATE_LIMIT_DELAY = 2000; // 2 seconds between AI calls
+    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
     
     try {
       const documentId = job.documentId;
@@ -1064,9 +1036,10 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           console.error(`⚠️ AI summary attempt ${retryCount}/${maxRetries} failed:`, error.message);
           
           if (error.message?.includes('rate_limit') || error.message?.includes('429') || error.message?.includes('quota')) {
-            // Rate limit or quota hit - the enhanced rate limiter handles backoff automatically
-            console.log(`⏳ Rate/quota limit hit, letting enhanced rate limiter handle backoff...`);
-            // The bulletproofRateLimiter will handle adaptive backoff in the next attempt
+            // Rate limit or quota hit - wait longer
+            const backoffDelay = Math.min(10000 * Math.pow(2, retryCount), 60000); // Max 1 minute
+            console.log(`⏳ Rate/quota limit hit, waiting ${backoffDelay/1000}s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
           } else if (retryCount < maxRetries) {
             // Other error - shorter retry
             await new Promise(resolve => setTimeout(resolve, 3000));
@@ -1306,8 +1279,8 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
     console.log(`🤖 Starting AI-powered document assignment for deal ${dealId} (Background Job: ${job.id})`);
     
     try {
-      // Create progress callback to update job progress with agent counts
-      const progressCallback = async (processedCount: number, totalCount: number, currentDoc: string, agentCounts?: Record<string, number>) => {
+      // Create progress callback to update job progress
+      const progressCallback = async (processedCount: number, totalCount: number, currentDoc: string) => {
         const progress = Math.round((processedCount / totalCount) * 100);
         await this.updateJobProgress(
           job.id, 
@@ -1317,8 +1290,7 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
           {
             processedDocuments: processedCount,
             totalDocuments: totalCount,
-            currentDocument: currentDoc,
-            agentDocumentCounts: agentCounts
+            currentDocument: currentDoc
           }
         );
       };
@@ -1361,77 +1333,6 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
     } catch (error) {
       console.error(`❌ Background assignment failed for deal ${dealId}:`, error);
       await this.completeJob(job.id, null, `Assignment failed: ${error.message}`);
-    }
-  }
-
-  private async processZipFile(job: BackgroundJob) {
-    console.log(`📦 Starting background ZIP processing for job ${job.id}`);
-    
-    const { gcsStoragePath, folderName, fileName, fileSize } = job.jobData as any;
-    const dealId = job.dealId;
-    
-    if (!dealId) {
-      throw new Error('Missing dealId for ZIP processing job');
-    }
-    
-    if (!gcsStoragePath) {
-      throw new Error('Missing gcsStoragePath for ZIP processing job');
-    }
-
-    try {
-      await this.updateJobProgress(job.id, 5, 'Starting ZIP processing...', 'processing');
-      
-      await this.updateJobProgress(job.id, 10, 'Importing ZIP processor...');
-      
-      // Import zipProcessor to handle the actual processing
-      const { zipProcessor } = await import('./zipProcessor');
-      
-      await this.updateJobProgress(job.id, 15, `Processing ZIP file: ${fileName}...`);
-      
-      console.log(`📦 Processing ZIP file from GCS: ${gcsStoragePath}`);
-      
-      // Use existing zipProcessor to handle the ZIP file processing
-      // This includes extraction, document creation, OCR job creation
-      const zipResult = await zipProcessor.processZipFile(gcsStoragePath, dealId, folderName || 'Data Room');
-      
-      await this.updateJobProgress(job.id, 90, 'Clearing document caches...');
-      
-      // Clear caches to ensure documents appear immediately
-      const { clearAllDocumentCaches } = await import('./cacheService');
-      await clearAllDocumentCaches(dealId);
-      
-      await this.updateJobProgress(job.id, 95, 'Cleaning up extraction folder...');
-      
-      // 🧹 RESOURCE CLEANUP: Remove extracted ZIP folder after processing
-      if (zipResult.extractPath && fs.existsSync(zipResult.extractPath)) {
-        try {
-          fs.rmSync(zipResult.extractPath, { recursive: true, force: true });
-          console.log(`🧹 Cleaned up extraction folder: ${zipResult.extractPath}`);
-        } catch (cleanupError) {
-          console.error(`⚠️ Failed to cleanup extraction folder: ${cleanupError}`);
-          // Don't fail the job due to cleanup error, just log it
-        }
-      }
-      
-      await this.updateJobProgress(job.id, 100, `ZIP processing completed: ${zipResult.processedFiles?.length || 0} documents processed`);
-      
-      // Complete the job with success
-      await this.completeJob(job.id, {
-        success: true,
-        message: `ZIP file processed successfully`,
-        fileName,
-        documentsProcessed: zipResult.processedFiles?.length || 0,
-        totalFiles: zipResult.totalFiles || 0,
-        connectionId: zipResult.connection?.id,
-        storageLocation: 'gcs',
-        processedSize: `${(fileSize / 1024 / 1024).toFixed(1)}MB`
-      });
-      
-      console.log(`✅ Background ZIP processing completed for job ${job.id}: ${zipResult.processedFiles?.length || 0} documents processed`);
-      
-    } catch (error) {
-      console.error(`❌ Background ZIP processing failed for job ${job.id}:`, error);
-      await this.completeJob(job.id, null, `ZIP processing failed: ${error.message}`);
     }
   }
 }

@@ -217,7 +217,7 @@ Respond with JSON format:
   /**
    * Process all documents for a deal and assign agents automatically
    */
-  async assignAgentsForAllDocuments(dealId: number, progressCallback?: (processedCount: number, totalCount: number, currentDoc: string, agentCounts?: Record<string, number>) => Promise<void>): Promise<DocumentAssignmentAnalysis[]> {
+  async assignAgentsForAllDocuments(dealId: number, progressCallback?: (processedCount: number, totalCount: number, currentDoc: string) => Promise<void>): Promise<DocumentAssignmentAnalysis[]> {
     console.log(`🤖 Starting AI-powered document assignment for deal ${dealId}`);
     
     // Get all documents for the deal
@@ -231,16 +231,6 @@ Respond with JSON format:
     const results: DocumentAssignmentAnalysis[] = [];
     let processedCount = 0;
     let skippedCount = 0;
-    // Track per-agent document counts for real-time updates
-    const agentDocumentCounts: Record<string, number> = {
-      Legal: 0,
-      Clinical: 0,
-      Commercial: 0,
-      HR: 0,
-      Financial: 0,
-      IP: 0,
-      Research: 0
-    };
 
     for (const doc of dealDocuments) {
       try {
@@ -263,9 +253,9 @@ Respond with JSON format:
 
         console.log(`🔍 Analyzing document ${++processedCount}/${dealDocuments.length}: ${doc.name}`);
         
-        // Update progress with agent counts if callback provided
+        // Update progress if callback provided
         if (progressCallback) {
-          await progressCallback(processedCount, dealDocuments.length, doc.name, agentDocumentCounts);
+          await progressCallback(processedCount, dealDocuments.length, doc.name);
         }
 
         // Get document content for analysis
@@ -278,13 +268,6 @@ Respond with JSON format:
           doc.aiSummary
         );
 
-        // Update agent document counts for real-time tracking
-        assignment.agents.forEach(agent => {
-          if (agentDocumentCounts[agent] !== undefined) {
-            agentDocumentCounts[agent]++;
-          }
-        });
-        
         // Update document with new agent assignments
         await db
           .update(documents)
@@ -312,8 +295,6 @@ Respond with JSON format:
         console.error(`❌ Error processing document ${doc.name}:`, error);
         
         // Fallback to Legal assignment if error occurs
-        agentDocumentCounts['Legal']++;
-        
         await db
           .update(documents)
           .set({

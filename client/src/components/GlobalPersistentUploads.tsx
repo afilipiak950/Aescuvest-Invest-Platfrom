@@ -138,7 +138,7 @@ export function GlobalPersistentUploadMonitor({
   // Listen for WebSocket updates
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}`;
     
     try {
       const ws = new WebSocket(wsUrl);
