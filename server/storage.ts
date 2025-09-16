@@ -704,6 +704,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocumentWithOCR(id: number, ocrText: string, status: string): Promise<Document | undefined> {
+    // First check if document exists to prevent race condition with deletion
+    const [existingDoc] = await db.select().from(documents).where(eq(documents.id, id));
+    
+    if (!existingDoc) {
+      console.log(`🔒 Race condition prevented: Document ${id} no longer exists, skipping OCR update`);
+      return undefined;
+    }
+    
     const [updatedDocument] = await db
       .update(documents)
       .set({ ocrText, status })
@@ -713,6 +721,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocument(id: number, updates: Partial<Document>): Promise<Document | undefined> {
+    // First check if document exists to prevent race condition with deletion
+    const [existingDoc] = await db.select().from(documents).where(eq(documents.id, id));
+    
+    if (!existingDoc) {
+      console.log(`🔒 Race condition prevented: Document ${id} no longer exists, skipping update`);
+      return undefined;
+    }
+    
     const [updatedDocument] = await db
       .update(documents)
       .set(updates)
