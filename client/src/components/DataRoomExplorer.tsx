@@ -962,8 +962,6 @@ const FolderTree: React.FC<{
 }); // ⚡ PERFORMANCE: React.memo closing
 
 export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
-  console.log(`🎯 DataRoomExplorer rendering for deal ${dealId}`);
-  
   // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -987,33 +985,11 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const queryClient = useQueryClient();
 
   // 🎯 CRITICAL: Check for active persistent uploads when component loads
-  const { data: persistentUploads, isLoading: isLoadingUploads, error: uploadsError } = useQuery({
+  const { data: persistentUploads } = useQuery({
     queryKey: [`/api/deals/${dealId}/persistent-uploads`],
-    enabled: true, // ✅ ENABLED - automatically restore progress bars after page refresh
-    staleTime: 5000, // Refresh every 5 seconds to track upload progress
-    refetchInterval: 5000, // Auto-refresh to show live progress updates
+    enabled: false, // DISABLED - only enable when actually uploading
+    staleTime: Infinity,
   });
-
-  // 🔧 DEBUG: Log query state to understand why it's not working
-  console.log('🔧 IMMEDIATE PERSISTENT UPLOADS DEBUG:', {
-    dealId,
-    isLoadingUploads,
-    uploadsError: uploadsError?.message,
-    persistentUploads,
-    queryEnabled: true,
-    queryKey: `/api/deals/${dealId}/persistent-uploads`
-  });
-  
-  useEffect(() => {
-    console.log('🔧 USEEFFECT PERSISTENT UPLOADS DEBUG:', {
-      dealId,
-      isLoadingUploads,
-      uploadsError: uploadsError?.message,
-      persistentUploads,
-      queryEnabled: true,
-      queryKey: `/api/deals/${dealId}/persistent-uploads`
-    });
-  }, [dealId, isLoadingUploads, uploadsError, persistentUploads]);
 
   // 🎯 CRITICAL: Restore progress bars from persistent uploads when component loads  
   useEffect(() => {
@@ -1244,79 +1220,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: async (response) => {
-      const uploadCompleteTime = Date.now();
-      console.log(`⏱️ [T+0ms] Upload completed at ${new Date(uploadCompleteTime).toISOString()}`);
-      console.log(`📦 Server response:`, response);
-      
-      // 🚀 NEW: Check if response indicates background processing
-      if (response.status === 'processing_in_background' && response.backgroundJobId) {
-        console.log(`🚀 Background processing detected! Job ID: ${response.backgroundJobId}`);
-        console.log(`⏱️ Estimated processing time: ${response.estimatedProcessingTime}`);
-        
-        // Update upload progress to show background processing status
-        setUploadProgress(prev => prev ? { 
-          ...prev, 
-          status: `File uploaded successfully! Processing ${response.fileName} in background...`, 
-          progress: 100,
-          isBackgroundProcessing: true,
-          backgroundJobId: response.backgroundJobId,
-          estimatedTime: response.estimatedProcessingTime
-        } : null);
-        
-        // Clear file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-        // Don't call onUploadComplete yet - wait for background job to finish
-        // The background job progress will be monitored via WebSocket in BackgroundJobProgress component
-        console.log(`🎯 Background processing initiated. WebSocket monitoring will handle job progress.`);
-        
-        // Keep the progress indicator visible longer for background processing
-        setTimeout(() => {
-          setUploadProgress(prev => {
-            if (prev?.isBackgroundProcessing) {
-              return { ...prev, status: 'Processing in background... (may take several minutes)' };
-            }
-            return prev;
-          });
-        }, 3000);
-        
-        return; // Exit early - don't do immediate document refresh
-      }
-      
-      // 🔄 LEGACY: Handle immediate processing completion (backward compatibility)
-      console.log(`📦 Immediate processing completed (legacy flow)`);
+    onSuccess: () => {
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
-      
-      // CRITICAL: Wait a moment for backend cache clearing to complete
-      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Waiting for backend cache clearing...`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Increased to 1 second
-      
-      // Force clear React Query cache completely
-      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Clearing React Query cache...`);
-      queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      
-      // Wait a bit more for cache to clear
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Now refetch with fresh data
-      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Refetching documents...`);
-      const refetchResult = await queryClient.refetchQueries({ 
-        queryKey: [`/api/deals/${dealId}/documents`],
-        exact: true 
-      });
-      
-      console.log(`⏱️ [T+${Date.now() - uploadCompleteTime}ms] Refetch complete!`);
-      console.log(`📊 Refetch result:`, refetchResult);
-      
-      // Force a re-render by updating React Query cache
-      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      
-      console.log(`✅ [T+${Date.now() - uploadCompleteTime}ms] Documents should now be visible!`);
-      
       setTimeout(() => setUploadProgress(null), 3000); // Clear after 3 seconds
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -1377,20 +1284,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
-      
-      // CRITICAL: Wait a moment for backend cache clearing to complete
-      console.log('⏳ Waiting for backend cache clearing...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Invalidate and immediately refetch documents
-      console.log('🔄 Invalidating and refetching documents after file upload...');
-      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      await queryClient.refetchQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      console.log('✅ Documents refreshed - should now show new files');
-      
       setTimeout(() => setUploadProgress(null), 3000);
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
       if (additionalFileInputRef.current) {
         additionalFileInputRef.current.value = '';
       }
@@ -1446,16 +1343,12 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     onSuccess: async (data) => {
       console.log('Files deleted successfully:', data);
       
-      // CRITICAL: Complete cache clearing to prevent reappearing documents
-      // First remove the query completely to ensure no stale data
-      await queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      
-      // Then invalidate to mark as stale
-      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/analyses`] });
-      
       // Force immediate refetch to ensure UI is in sync with server
       await refetch();
+      
+      // Invalidate and refetch any related queries
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+      await queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/analyses`] });
       
       // Show success notification with better UX
       if (data && data.deletedCount) {
@@ -2109,100 +2002,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           }
         });
         
-        // 🚀 CRITICAL: Send directly to GCS using PUT method with TIMEOUT
+        // 🚀 CRITICAL: Send directly to GCS using PUT method
         console.log('🚀 Opening PUT request to GCS signed URL');
         xhr.open('PUT', signedUrl);
         xhr.setRequestHeader('Content-Type', 'application/zip');
-        
-        // 🚨 CRITICAL TIMEOUT FIX: Prevent infinite hanging
-        // Set 2-minute timeout for large files
-        xhr.timeout = 120000; // 2 minutes in milliseconds
-        
-        xhr.addEventListener('timeout', function() {
-          console.error('❌ GCS direct upload TIMED OUT after 2 minutes - implementing fallback');
-          setUploadProgress({
-            fileName: file.name,
-            progress: 0,
-            status: 'GCS timeout - trying proxy upload...'
-          });
-          
-          // Trigger proxy fallback after timeout
-          setTimeout(async () => {
-            console.log('🔄 TIMEOUT FALLBACK: Attempting proxy upload through server...');
-            
-            try {
-              const proxyFormData = new FormData();
-              proxyFormData.append('file', file);
-              
-              setUploadProgress({
-                fileName: file.name,
-                progress: 10,
-                status: 'Using proxy upload (server will handle GCS)...'
-              });
-              
-              const proxyXhr = new XMLHttpRequest();
-              
-              // Track proxy upload progress
-              proxyXhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                  const percentComplete = Math.round((e.loaded / e.total) * 100);
-                  setUploadProgress({
-                    fileName: file.name,
-                    progress: percentComplete,
-                    status: `Proxy upload: ${percentComplete}%`
-                  });
-                }
-              });
-              
-              // Handle proxy completion
-              proxyXhr.addEventListener('load', function() {
-                if (proxyXhr.status === 200 || proxyXhr.status === 201) {
-                  try {
-                    const result = JSON.parse(proxyXhr.responseText);
-                    console.log('✅ Proxy upload successful after GCS timeout:', result);
-                    setUploadProgress({
-                      fileName: file.name,
-                      progress: 100,
-                      status: 'Upload complete via proxy!'
-                    });
-                    
-                    setTimeout(() => {
-                      setUploadProgress(null);
-                      refetch();
-                    }, 2000);
-                  } catch (e) {
-                    console.error('Proxy response parse error:', e);
-                    setUploadProgress({
-                      fileName: file.name,
-                      progress: 0,
-                      status: 'Proxy upload failed - response error'
-                    });
-                  }
-                } else {
-                  console.error('Proxy upload failed after timeout:', proxyXhr.status);
-                  setUploadProgress({
-                    fileName: file.name,
-                    progress: 0,
-                    status: `Proxy failed: ${proxyXhr.statusText}`
-                  });
-                }
-              });
-              
-              // Send proxy request after timeout
-              proxyXhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
-              proxyXhr.send(proxyFormData);
-              
-            } catch (proxyError) {
-              console.error('Proxy upload setup failed after timeout:', proxyError);
-              setUploadProgress({
-                fileName: file.name,
-                progress: 0,
-                status: 'Upload timeout - please try a smaller file'
-              });
-            }
-          }, 1000);
-        });
-        
         xhr.send(file);
         
         return; // Exit here, upload is handled asynchronously

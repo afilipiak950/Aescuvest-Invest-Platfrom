@@ -182,7 +182,7 @@ export class PersistentResearchAnalysisService {
         progress: 100,
         currentStep: 'Research analysis completed',
         completedAt: new Date(),
-        result: result !== null && result !== undefined ? JSON.stringify(result) : null
+        result: result ? JSON.stringify(result) : null
       });
 
       console.log(`✅ Research analysis completed for deal ${dealId}`);
@@ -303,7 +303,7 @@ export class PersistentResearchAnalysisService {
    * Check if a deal has an active research analysis
    */
   hasActiveResearchAnalysis(dealId: number): boolean {
-    for (const jobState of Array.from(this.activeJobs.values())) {
+    for (const jobState of this.activeJobs.values()) {
       if (jobState.dealId === dealId) {
         return true;
       }
