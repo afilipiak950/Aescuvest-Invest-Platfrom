@@ -9133,29 +9133,40 @@ export async function registerAllRoutes(app: Express) {
       
       console.log(`☁️ ZIP file stored in GCS at: ${gcsStoragePath}`);
 
-      // Process the ZIP file directly from GCS
-      const zipResult = await zipProcessor.processZipFile(gcsStoragePath, dealId, folderName || 'Data Room');
+      // 🚀 FIXED: Queue ZIP processing as background job using jobProcessor (ensures 'pending' status)
+      console.log(`🚀 Creating background job for ZIP processing using jobProcessor...`);
+      
+      const { jobProcessor } = await import('./services/jobProcessor');
+      const jobId = await jobProcessor.createJob({
+        jobType: 'zip_processing',
+        dealId: dealId,
+        status: 'pending', // Ensures jobProcessor picks it up
+        progress: 0,
+        currentStep: 'Queued for ZIP processing',
+        jobData: {
+          gcsStoragePath,
+          folderName: folderName || 'Data Room',
+          fileName: file.originalname,
+          fileSize: file.size,
+          originalUploadPath: file.path
+        }
+      });
 
-      // Clean up temporary file
+      // Clean up temporary file immediately (GCS upload complete)
       fs.unlinkSync(file.path);
 
-      console.log(`✅ Data room ZIP upload successful: ${zipResult.processedFiles.length} documents processed`);
+      console.log(`✅ ZIP upload to GCS complete, background job ${jobId} created for processing`);
 
-      // CRITICAL: Clear all caches after ZIP processing to ensure documents appear immediately
-      console.log(`🔄 Clearing all document caches for deal ${dealId} after ZIP processing...`);
-      const { clearAllDocumentCaches } = await import('./services/cacheService');
-      await clearAllDocumentCaches(dealId);
-      console.log(`✅ All caches cleared - documents will now appear immediately`);
-
+      // 🚀 IMMEDIATE RESPONSE: Return success immediately after GCS upload + job creation
       res.json({
         success: true,
-        message: `ZIP file uploaded to GCS and processed successfully`,
+        message: `ZIP file uploaded to GCS successfully. Processing in background...`,
         fileName: file.originalname,
-        documentsProcessed: zipResult.processedFiles.length,
-        totalFiles: zipResult.totalFiles,
-        connectionId: zipResult.connection.id,
+        uploadSize: `${(file.size / 1024 / 1024).toFixed(1)}MB`,
         storageLocation: 'gcs',
-        uploadSize: `${(file.size / 1024 / 1024).toFixed(1)}MB`
+        backgroundJobId: jobId,
+        status: 'processing_in_background',
+        estimatedProcessingTime: `${Math.ceil(file.size / 1024 / 1024 / 10)} minutes` // Rough estimate: 10MB/min
       });
 
     } catch (error) {

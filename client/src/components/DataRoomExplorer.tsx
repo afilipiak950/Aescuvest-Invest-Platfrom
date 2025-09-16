@@ -1249,6 +1249,45 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       console.log(`⏱️ [T+0ms] Upload completed at ${new Date(uploadCompleteTime).toISOString()}`);
       console.log(`📦 Server response:`, response);
       
+      // 🚀 NEW: Check if response indicates background processing
+      if (response.status === 'processing_in_background' && response.backgroundJobId) {
+        console.log(`🚀 Background processing detected! Job ID: ${response.backgroundJobId}`);
+        console.log(`⏱️ Estimated processing time: ${response.estimatedProcessingTime}`);
+        
+        // Update upload progress to show background processing status
+        setUploadProgress(prev => prev ? { 
+          ...prev, 
+          status: `File uploaded successfully! Processing ${response.fileName} in background...`, 
+          progress: 100,
+          isBackgroundProcessing: true,
+          backgroundJobId: response.backgroundJobId,
+          estimatedTime: response.estimatedProcessingTime
+        } : null);
+        
+        // Clear file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        
+        // Don't call onUploadComplete yet - wait for background job to finish
+        // The background job progress will be monitored via WebSocket in BackgroundJobProgress component
+        console.log(`🎯 Background processing initiated. WebSocket monitoring will handle job progress.`);
+        
+        // Keep the progress indicator visible longer for background processing
+        setTimeout(() => {
+          setUploadProgress(prev => {
+            if (prev?.isBackgroundProcessing) {
+              return { ...prev, status: 'Processing in background... (may take several minutes)' };
+            }
+            return prev;
+          });
+        }, 3000);
+        
+        return; // Exit early - don't do immediate document refresh
+      }
+      
+      // 🔄 LEGACY: Handle immediate processing completion (backward compatibility)
+      console.log(`📦 Immediate processing completed (legacy flow)`);
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
       
       // CRITICAL: Wait a moment for backend cache clearing to complete

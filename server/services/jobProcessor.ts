@@ -1389,6 +1389,77 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       await this.completeJob(job.id, null, `Assignment failed: ${error.message}`);
     }
   }
+
+  private async processZipFile(job: BackgroundJob) {
+    console.log(`📦 Starting background ZIP processing for job ${job.id}`);
+    
+    const { gcsStoragePath, folderName, fileName, fileSize } = job.jobData as any;
+    const dealId = job.dealId;
+    
+    if (!dealId) {
+      throw new Error('Missing dealId for ZIP processing job');
+    }
+    
+    if (!gcsStoragePath) {
+      throw new Error('Missing gcsStoragePath for ZIP processing job');
+    }
+
+    try {
+      await this.updateJobProgress(job.id, 5, 'Starting ZIP processing...', 'processing');
+      
+      await this.updateJobProgress(job.id, 10, 'Importing ZIP processor...');
+      
+      // Import zipProcessor to handle the actual processing
+      const { zipProcessor } = await import('./zipProcessor');
+      
+      await this.updateJobProgress(job.id, 15, `Processing ZIP file: ${fileName}...`);
+      
+      console.log(`📦 Processing ZIP file from GCS: ${gcsStoragePath}`);
+      
+      // Use existing zipProcessor to handle the ZIP file processing
+      // This includes extraction, document creation, OCR job creation
+      const zipResult = await zipProcessor.processZipFile(gcsStoragePath, dealId, folderName || 'Data Room');
+      
+      await this.updateJobProgress(job.id, 90, 'Clearing document caches...');
+      
+      // Clear caches to ensure documents appear immediately
+      const { clearAllDocumentCaches } = await import('./cacheService');
+      await clearAllDocumentCaches(dealId);
+      
+      await this.updateJobProgress(job.id, 95, 'Cleaning up extraction folder...');
+      
+      // 🧹 RESOURCE CLEANUP: Remove extracted ZIP folder after processing
+      if (zipResult.extractPath && fs.existsSync(zipResult.extractPath)) {
+        try {
+          fs.rmSync(zipResult.extractPath, { recursive: true, force: true });
+          console.log(`🧹 Cleaned up extraction folder: ${zipResult.extractPath}`);
+        } catch (cleanupError) {
+          console.error(`⚠️ Failed to cleanup extraction folder: ${cleanupError}`);
+          // Don't fail the job due to cleanup error, just log it
+        }
+      }
+      
+      await this.updateJobProgress(job.id, 100, `ZIP processing completed: ${zipResult.processedFiles?.length || 0} documents processed`);
+      
+      // Complete the job with success
+      await this.completeJob(job.id, {
+        success: true,
+        message: `ZIP file processed successfully`,
+        fileName,
+        documentsProcessed: zipResult.processedFiles?.length || 0,
+        totalFiles: zipResult.totalFiles || 0,
+        connectionId: zipResult.connection?.id,
+        storageLocation: 'gcs',
+        processedSize: `${(fileSize / 1024 / 1024).toFixed(1)}MB`
+      });
+      
+      console.log(`✅ Background ZIP processing completed for job ${job.id}: ${zipResult.processedFiles?.length || 0} documents processed`);
+      
+    } catch (error) {
+      console.error(`❌ Background ZIP processing failed for job ${job.id}:`, error);
+      await this.completeJob(job.id, null, `ZIP processing failed: ${error.message}`);
+    }
+  }
 }
 
 // Singleton pattern to prevent duplicate intervals

@@ -183,7 +183,10 @@ export class ZipProcessor {
     connection: any;
     processedFiles: ProcessedFile[];
     totalFiles: number;
+    extractPath?: string; // Add extractPath to result for cleanup
   }> {
+    let extractPath: string | null = null; // Track extraction path for cleanup
+    
     try {
       console.log(`🔄 Processing ZIP file for deal ${dealId}: ${zipPath}`);
       
@@ -236,7 +239,7 @@ export class ZipProcessor {
       };
 
       // Extract ZIP file
-      const extractPath = connection.connectionData.extractPath;
+      extractPath = connection.connectionData.extractPath;
       fs.mkdirSync(extractPath, { recursive: true });
       
       const zip = new AdmZip(actualZipPath);
@@ -379,11 +382,21 @@ export class ZipProcessor {
       return {
         connection,
         processedFiles,
-        totalFiles: allFiles.length
+        totalFiles: allFiles.length,
+        extractPath // Include extractPath for cleanup
       };
 
     } catch (error) {
       console.error('❌ Error processing ZIP file:', error);
+      // Clean up extraction folder on error if it exists
+      if (extractPath && fs.existsSync(extractPath)) {
+        try {
+          fs.rmSync(extractPath, { recursive: true, force: true });
+          console.log(`🧹 Cleaned up extraction folder after error: ${extractPath}`);
+        } catch (cleanupError) {
+          console.error(`⚠️ Failed to cleanup extraction folder: ${cleanupError}`);
+        }
+      }
       throw error;
     }
   }
