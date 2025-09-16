@@ -1635,14 +1635,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             console.error('Failed to update progress after fetch:', e);
           }
           
-        } catch (fetchError) {
+        } catch (fetchError: unknown) {
           clearTimeout(timeoutId);
-          console.error('❌ CRITICAL: Signed URL fetch failed completely:', fetchError);
-          console.error('❌ Error name:', fetchError.name);
-          console.error('❌ Error message:', fetchError.message);
-          console.error('❌ Error stack:', fetchError.stack);
+          const error = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+          console.error('❌ CRITICAL: Signed URL fetch failed completely:', error);
+          console.error('❌ Error name:', error.name);
+          console.error('❌ Error message:', error.message);
+          console.error('❌ Error stack:', error.stack);
           
-          if (fetchError.name === 'AbortError') {
+          if (error.name === 'AbortError') {
             console.error('❌ Request was ABORTED due to timeout');
           }
           
@@ -1652,13 +1653,13 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
               sessionId,
               0,
               0,
-              `Network error: ${fetchError.message}`
+              `Network error: ${error.message}`
             );
           } catch (e) {
             console.error('Failed to update error status:', e);
           }
           
-          throw new Error(`Signed URL request failed: ${fetchError.message}`);
+          throw new Error(`Signed URL request failed: ${error.message}`);
         }
 
         if (!signedUrlResponse.ok) {
@@ -1690,9 +1691,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         try {
           signedUrlData = await signedUrlResponse.json();
           console.log('✅ JSON parsing successful:', signedUrlData);
-        } catch (jsonError) {
-          console.error('❌ Failed to parse JSON response:', jsonError);
-          throw new Error(`Invalid JSON response: ${jsonError.message}`);
+        } catch (jsonError: unknown) {
+          const error = jsonError instanceof Error ? jsonError : new Error(String(jsonError));
+          console.error('❌ Failed to parse JSON response:', error);
+          throw new Error(`Invalid JSON response: ${error.message}`);
         }
         
         const { signedUrl, gcsFileName, uploadId } = signedUrlData;
@@ -2558,9 +2560,9 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       )}
 
       {/* Document Assignment Progress Bar */}
-      {backgroundJobs?.jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
+      {backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) && backgroundJobs.jobs.some((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
         <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
-          {backgroundJobs?.jobs?.filter(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map(job => (
+          {backgroundJobs.jobs.filter((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map((job: any) => (
             <div key={job.jobId}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-purple-400">
@@ -2631,7 +2633,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                     onClick={() => assignAgentsMutation.mutate()}
                     size="sm"
                     variant="outline" 
-                    disabled={assignAgentsMutation.isPending || backgroundJobs?.jobs?.some(job => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending'))}
+                    disabled={assignAgentsMutation.isPending || (backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) && backgroundJobs.jobs.some((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')))}
                     className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px]"
                   >
                     {assignAgentsMutation.isPending ? (
@@ -2640,10 +2642,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                         Starting...
                       </>
                     ) : (() => {
-                      const assignmentJob = backgroundJobs?.jobs?.find(job => 
+                      const assignmentJob = backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) ? backgroundJobs.jobs.find((job: any) => 
                         job.jobType === 'document_assignment' && 
                         (job.status === 'processing' || job.status === 'pending')
-                      );
+                      ) : null;
                       
                       if (assignmentJob) {
                         const processedCount = assignmentJob.processedDocuments || 0;
