@@ -243,152 +243,182 @@ class InvestmentMemoService {
   }
 
   /**
-   * MULTI-PASS COMPREHENSIVE DATA EXTRACTION - Uses ALL documents, every line of OCR text, and all agent analyses
-   * This method processes documents in multiple passes to ensure maximum information extraction
+   * OPTIMIZED: Smart document filtering and token-budgeted context extraction
+   * Filters documents by relevance and creates efficient, section-specific contexts
+   */
+  private filterAndPrioritizeDocuments(documents: any[]): any[] {
+    console.log(`🔍 Filtering ${documents.length} documents for relevance`);
+    
+    // Filter out obsolete/irrelevant documents
+    const filtered = documents.filter(doc => {
+      const name = doc.name?.toLowerCase() || '';
+      const path = doc.path?.toLowerCase() || '';
+      
+      // Exclude obsolete/temp folders
+      if (path.includes('obsolete') || path.includes('/old/') || path.includes('temp') || 
+          path.includes('draft') || path.includes('backup') || name.includes('copy')) {
+        return false;
+      }
+      
+      // Require meaningful OCR content
+      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+      return ocrText && typeof ocrText === 'string' && ocrText.trim().length > 200;
+    });
+    
+    // Prioritize by document type and importance
+    const prioritized = filtered.sort((a, b) => {
+      const aName = a.name?.toLowerCase() || '';
+      const bName = b.name?.toLowerCase() || '';
+      
+      // Executive/summary documents first
+      if (aName.includes('executive') || aName.includes('summary')) return -1;
+      if (bName.includes('executive') || bName.includes('summary')) return 1;
+      
+      // Financial documents high priority
+      if (aName.includes('financial') || aName.includes('forecast')) return -1;
+      if (bName.includes('financial') || bName.includes('forecast')) return 1;
+      
+      // Agreements and final documents over drafts
+      if (aName.includes('agreement') || aName.includes('executed') || aName.includes('signed')) return -1;
+      if (bName.includes('agreement') || bName.includes('executed') || bName.includes('signed')) return 1;
+      
+      return 0;
+    });
+    
+    // Limit to top 50 most relevant documents
+    const limited = prioritized.slice(0, 50);
+    console.log(`✅ Filtered from ${documents.length} to ${limited.length} relevant documents`);
+    
+    return limited;
+  }
+  
+  /**
+   * OPTIMIZED: Section-specific context retrieval with token budgets
+   * Replaces massive context extraction with smart, targeted retrieval
+   */
+  private getSectionContext(documents: any[], agentAnalyses: any[], sectionKey: string, maxTokens: number = 1500): string {
+    const sectionKeywords = this.getSectionKeywords(sectionKey);
+    const targetChars = maxTokens * 4; // Rough token-to-char conversion
+    
+    console.log(`📊 Getting optimized context for ${sectionKey} (max ${maxTokens} tokens, ~${targetChars} chars)`);
+    
+    // Get relevant chunks from documents and analyses
+    const chunks: { content: string; score: number; source: string }[] = [];
+    
+    // Extract from agent analyses (high priority)
+    agentAnalyses.forEach(analysis => {
+      const content = this.extractAnalysisContent(analysis);
+      if (content.length > 100) {
+        const score = this.scoreRelevance(content, sectionKeywords);
+        if (score > 0.3) {
+          chunks.push({ content: content.substring(0, 1000), score: score + 0.5, source: `${analysis.agentType} Analysis` });
+        }
+      }
+    });
+    
+    // Extract from filtered documents
+    documents.forEach(doc => {
+      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+      if (ocrText && typeof ocrText === 'string') {
+        // Split into smaller chunks for better relevance scoring
+        const docChunks = this.chunkText(ocrText, 800);
+        docChunks.forEach(chunk => {
+          const score = this.scoreRelevance(chunk, sectionKeywords);
+          if (score > 0.2) {
+            chunks.push({ content: chunk, score, source: doc.name });
+          }
+        });
+      }
+    });
+    
+    // Sort by relevance and build context within token budget
+    chunks.sort((a, b) => b.score - a.score);
+    
+    let context = '';
+    let currentLength = 0;
+    const usedSources = new Set<string>();
+    
+    for (const chunk of chunks) {
+      if (currentLength + chunk.content.length > targetChars) break;
+      
+      // Avoid duplicate content from same source
+      if (!usedSources.has(chunk.source + chunk.content.substring(0, 50))) {
+        context += `\n=== ${chunk.source} ===\n${chunk.content}\n`;
+        currentLength += chunk.content.length;
+        usedSources.add(chunk.source + chunk.content.substring(0, 50));
+      }
+    }
+    
+    console.log(`✅ Built ${sectionKey} context: ${context.length} chars from ${usedSources.size} sources`);
+    return context;
+  }
+  
+  private getSectionKeywords(sectionKey: string): string[] {
+    const keywordMap: { [key: string]: string[] } = {
+      'executiveSummary': ['executive', 'summary', 'overview', 'company', 'business', 'opportunity'],
+      'marketAnalysis': ['market', 'competitive', 'industry', 'TAM', 'SAM', 'SOM', 'customer', 'segment'],
+      'financialAnalysis': ['revenue', 'financial', 'projection', 'funding', 'valuation', 'growth'],
+      'productAnalysis': ['product', 'technology', 'platform', 'technical', 'innovation', 'development'],
+      'teamAssessment': ['management', 'team', 'CEO', 'CTO', 'executive', 'leadership', 'founder'],
+      'riskAssessment': ['risk', 'challenge', 'regulatory', 'competitive', 'technical', 'barrier'],
+      'legalAssessment': ['legal', 'IP', 'patent', 'regulatory', 'compliance', 'agreement']
+    };
+    
+    return keywordMap[sectionKey] || ['investment', 'analysis', 'assessment'];
+  }
+  
+  private scoreRelevance(text: string, keywords: string[]): number {
+    const lowerText = text.toLowerCase();
+    let score = 0;
+    
+    keywords.forEach(keyword => {
+      const count = (lowerText.match(new RegExp(keyword.toLowerCase(), 'g')) || []).length;
+      score += count * (1 / text.length) * 1000; // Normalize by text length
+    });
+    
+    return Math.min(score, 1); // Cap at 1
+  }
+  
+  private chunkText(text: string, chunkSize: number): string[] {
+    const chunks: string[] = [];
+    for (let i = 0; i < text.length; i += chunkSize) {
+      chunks.push(text.substring(i, i + chunkSize));
+    }
+    return chunks;
+  }
+  
+  /**
+   * OPTIMIZED: Compact context preparation using new filtering and token-budgeted retrieval
+   * Replaces massive 8.4M character processing with smart, efficient context building
    */
   private async prepareComprehensiveAnalysisContext(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`🔍 Starting MULTI-PASS extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+    console.log(`🚀 Starting optimized context preparation for ${data.companyName}`);
     
-    // First pass: Extract and log all OCR content lengths
-    let totalOcrLength = 0;
-    const documentOcrLengths: number[] = [];
+    // Filter and prioritize documents (from 378 to ~50 relevant docs)
+    const filtered = this.filterAndPrioritizeDocuments(data.documents);
     
-    data.documents.forEach((doc, index) => {
-      // Fix field mapping: database uses snake_case but code expects camelCase
-      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
-      if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
-        const ocrLength = ocrText.length;
-        documentOcrLengths.push(ocrLength);
-        totalOcrLength += ocrLength;
-        console.log(`📄 Document ${index + 1} (${doc.name}): ${ocrLength.toLocaleString()} characters of OCR text`);
-      } else {
-        documentOcrLengths.push(0);
-        console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available - Field check: ocrText=${!!doc.ocrText}, ocr_text=${!!doc.ocr_text}, type=${typeof doc.ocrText}`);
-      }
-    });
+    // Define sections with token budgets
+    const sections = ['executiveSummary', 'marketAnalysis', 'financialAnalysis', 'productAnalysis', 'teamAssessment', 'riskAssessment', 'legalAssessment'];
+    const totalBudget = 6000; // Total token cap for entire context (~24k chars)
+    const budgetPer = Math.max(500, Math.floor(totalBudget / sections.length));
     
-    console.log(`📊 TOTAL OCR CONTENT: ${totalOcrLength.toLocaleString()} characters across ${data.documents.length} documents`);
+    console.log(`📊 Building context: ${filtered.length} docs, ${sections.length} sections, ${budgetPer} tokens each`);
     
-    // Build comprehensive context with ALL content
-    let context = `
-COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
-=========================================================
-TOTAL OCR CONTENT: ${totalOcrLength.toLocaleString()} characters
-TOTAL DOCUMENTS: ${data.documents.length}
-TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
-=========================================================
-
-=== COMPLETE DOCUMENT OCR CONTENT - ALL ${data.documents.length} DOCUMENTS ===
-`;
-
-    // Second pass: Include COMPLETE OCR content from ALL documents
-    data.documents.forEach((doc, index) => {
-      // Fix field mapping: database uses snake_case but code expects camelCase
-      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
-      if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
-        context += `
-
->>>>>>> DOCUMENT ${index + 1}: ${doc.name} <<<<<<<
-OCR LENGTH: ${ocrText.length.toLocaleString()} characters
-FILE TYPE: ${doc.contentType || doc.content_type || doc.type || 'Unknown'}
-
-COMPLETE OCR CONTENT:
-${ocrText}
-
-`;
-        
-        // Also include AI summary if available
-        if (doc.aiSummary) {
-          try {
-            let summaryText = '';
-            if (typeof doc.aiSummary === 'string') {
-              summaryText = doc.aiSummary;
-            } else if (typeof doc.aiSummary === 'object') {
-              if (doc.aiSummary.executiveSummary) summaryText += `EXECUTIVE SUMMARY: ${doc.aiSummary.executiveSummary}\n`;
-              if (doc.aiSummary.criticalFindings) summaryText += `CRITICAL FINDINGS: ${Array.isArray(doc.aiSummary.criticalFindings) ? doc.aiSummary.criticalFindings.join('\n') : doc.aiSummary.criticalFindings}\n`;
-              if (doc.aiSummary.keyFinancialData) summaryText += `FINANCIAL DATA: ${Array.isArray(doc.aiSummary.keyFinancialData) ? doc.aiSummary.keyFinancialData.join('\n') : doc.aiSummary.keyFinancialData}\n`;
-              if (doc.aiSummary.strategicImplications) summaryText += `STRATEGIC IMPLICATIONS: ${doc.aiSummary.strategicImplications}\n`;
-            }
-            if (summaryText.trim().length > 50) {
-              context += `AI ANALYSIS SUMMARY:
-${summaryText}
-
-`;
-            }
-          } catch (e) {
-            console.warn(`Error extracting AI summary for document ${index + 1}:`, e);
-          }
-        }
-        
-        context += `======================================\n`;
-      }
-    });
-
-    // Third pass: Include ALL agent analysis content
-    context += `\n\n=== COMPLETE AGENT ANALYSES - ALL ${data.agentAnalyses.length} ANALYSES ===\n`;
+    // Build optimized context within token budget
+    let context = `OPTIMIZED ANALYSIS CONTEXT FOR ${data.companyName}\n`;
+    context += `===============================================\n`;
+    context += `FILTERED DOCUMENTS: ${filtered.length} (from ${data.documents.length} total)\n`;
+    context += `AGENT ANALYSES: ${data.agentAnalyses.length}\n`;
+    context += `TOKEN BUDGET: ${totalBudget} tokens (~${totalBudget * 4} chars)\n`;
+    context += `===============================================\n`;
     
-    data.agentAnalyses.forEach(analysis => {
-      context += `\n>>>>>>> ${analysis.agentType.toUpperCase()} AGENT ANALYSIS <<<<<<<\n`;
-      context += `STATUS: ${analysis.status}\n`;
-      context += `FINDINGS COUNT: ${analysis.findings?.length || 0}\n`;
-      context += `RECOMMENDATIONS COUNT: ${analysis.recommendations?.length || 0}\n\n`;
-
-      // Extract COMPLETE analysis content for each agent type
-      const extractCompleteAnalysisContent = (answers: any, label: string) => {
-        if (!answers) return;
-        
-        try {
-          const data = typeof answers === 'string' ? JSON.parse(answers) : answers;
-          context += `${label} COMPLETE ANALYSIS:\n`;
-          
-          if (typeof data === 'object' && data !== null) {
-            Object.entries(data).forEach(([key, value]) => {
-              const content = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-              context += `${key.toUpperCase()}: ${content}\n\n`;
-            });
-          } else {
-            context += `${data}\n\n`;
-          }
-        } catch (e) {
-          if (answers) {
-            context += `${label} RAW CONTENT: ${answers.toString()}\n\n`;
-          }
-        }
-      };
-
-      // Extract COMPLETE content from all agent types (no truncation)
-      extractCompleteAnalysisContent(analysis.legalAnswers, 'LEGAL');
-      extractCompleteAnalysisContent(analysis.clinicalAnswers, 'CLINICAL');
-      extractCompleteAnalysisContent(analysis.commercialAnswers, 'COMMERCIAL');
-      extractCompleteAnalysisContent(analysis.hrAnswers, 'HR');
-      extractCompleteAnalysisContent(analysis.financialAnswers, 'FINANCIAL');
-      extractCompleteAnalysisContent(analysis.ipAnswers, 'IP');
-      extractCompleteAnalysisContent(analysis.researchAnswers, 'RESEARCH');
-
-      // Include ALL findings with complete content
-      if (analysis.findings && Array.isArray(analysis.findings)) {
-        context += `COMPLETE FINDINGS (${analysis.findings.length}):\n`;
-        analysis.findings.forEach((finding: any, index: number) => {
-          const content = typeof finding === 'string' ? finding : (finding.content || JSON.stringify(finding, null, 2));
-          context += `FINDING ${index + 1}: ${content}\n\n`;
-        });
-      }
-      
-      // Include ALL recommendations with complete content  
-      if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
-        context += `COMPLETE RECOMMENDATIONS (${analysis.recommendations.length}):\n`;
-        analysis.recommendations.forEach((rec: any, index: number) => {
-          const content = typeof rec === 'string' ? rec : (rec.content || rec.description || JSON.stringify(rec, null, 2));
-          context += `RECOMMENDATION ${index + 1}: ${content}\n\n`;
-        });
-      }
-      
-      context += `=======================================\n`;
-    });
-
-    const finalContextLength = context.length;
-    console.log(`📊 FINAL CONTEXT LENGTH: ${finalContextLength.toLocaleString()} characters for comprehensive analysis`);
+    // Generate section-specific contexts within budget
+    for (const sectionKey of sections) {
+      const sectionContext = this.getSectionContext(filtered, data.agentAnalyses, sectionKey, budgetPer);
+      context += `\n\n=== ${sectionKey.toUpperCase()} CONTEXT ===\n${sectionContext}`;
+    }
     
+    console.log(`✅ Optimized context built: ${context.length} chars (target: ~${totalBudget * 4})`);
     return context;
   }
 
@@ -1993,34 +2023,16 @@ ${fullContext.substring(0, 45000)}`
     return response.choices[0].message.content || '';
   }
 
-  // Enhanced context extraction method to find relevant content across ALL 12.3M OCR characters
+  // DEPRECATED: Replaced with optimized getSectionContext method
+  // This method is kept for backward compatibility but should not be used
   private extractRelevantContext(fullContext: string, keywords: string[], maxLength: number): string {
-    const sections: string[] = [];
-    const lowerContext = fullContext.toLowerCase();
-    const lowerKeywords = keywords.map(k => k.toLowerCase());
+    console.warn('⚠️ Using deprecated extractRelevantContext - should use getSectionContext instead');
     
-    // Split context into chunks for processing
-    const chunkSize = 10000;
-    for (let i = 0; i < fullContext.length; i += chunkSize) {
-      const chunk = fullContext.substring(i, i + chunkSize);
-      const lowerChunk = chunk.toLowerCase();
-      
-      // Check if chunk contains any keywords
-      const hasKeywords = lowerKeywords.some(keyword => lowerChunk.includes(keyword));
-      
-      if (hasKeywords) {
-        // Expand context around keyword matches
-        const start = Math.max(0, i - 500);
-        const end = Math.min(fullContext.length, i + chunkSize + 500);
-        sections.push(fullContext.substring(start, end));
-      }
-    }
+    // Return a much smaller subset to avoid performance issues
+    const limitedContext = fullContext.substring(0, Math.min(maxLength, 6000));
+    console.log(`📊 Legacy context extraction: ${limitedContext.length} characters (limited for performance)`);
     
-    // Join and trim to max length
-    const relevantContext = sections.join('\n\n').substring(0, maxLength);
-    console.log(`📊 Context extraction: Found ${sections.length} relevant sections, total ${relevantContext.length} characters`);
-    
-    return relevantContext;
+    return limitedContext;
   }
 
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
