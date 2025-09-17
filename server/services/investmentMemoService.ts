@@ -147,99 +147,154 @@ class InvestmentMemoService {
   }
 
   private async generateComprehensiveMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
-    console.log(`🧠 Generating AI-powered memo sections for ${data.companyName}`);
+    console.log(`🚀 Generating optimized memo sections for ${data.companyName} with concurrency limits`);
 
-    // Prepare comprehensive context using COMPLETE OCR extraction system
+    // Prepare comprehensive context using OPTIMIZED extraction system
     const context = await this.prepareComprehensiveAnalysisContext(data);
     
-    // Generate ALL comprehensive sections matching BAIBYS PDF structure for 30-50 page memo
-    const [
-      coverPage,
-      executiveSummary,
-      investmentHighlights,
-      swotAnalysis,
-      marketAnalysis,
-      tamSamSomAnalysis,
-      competitiveAnalysis,
-      technologyAssessment,
-      productAnalysis,
-      businessModel,
-      commercialStrategy,
-      teamAssessment,
-      managementAnalysis,
-      financialAnalysis,
-      financialProjections,
-      valuationAnalysis,
-      legalAssessment,
-      regulatoryAnalysis,
-      clinicalAssessment,
-      ipAnalysis,
-      researchInsights,
-      riskAssessment,
-      mitigationStrategies,
-      investmentTerms,
-      exitStrategy,
-      recommendation,
-      appendices
-    ] = await Promise.all([
-      this.generateCoverPage(data),
-      this.generateExecutiveSummary(context),
-      this.generateInvestmentHighlights(context),
-      this.generateSWOTAnalysis(context),
-      this.generateMarketAnalysis(context),
-      this.generateTAMSAMSOMAnalysis(context),
-      this.generateCompetitiveAnalysis(context),
-      this.generateTechnologyAssessment(context),
-      this.generateProductAnalysis(context),
-      this.generateBusinessModel(context),
-      this.generateCommercialStrategy(context),
-      this.generateTeamAssessment(context),
-      this.generateManagementAnalysis(context),
-      this.generateFinancialAnalysis(context),
-      this.generateFinancialProjections(context),
-      this.generateValuationAnalysis(context),
-      this.generateLegalAssessment(context),
-      this.generateRegulatoryAnalysis(context),
-      this.generateClinicalAssessment(context),
-      this.generateIPAnalysis(context),
-      this.generateResearchInsights(context),
-      this.generateRiskAssessment(context),
-      this.generateMitigationStrategies(context),
-      this.generateInvestmentTerms(context),
-      this.generateExitStrategy(context),
-      this.generateRecommendation(context),
-      this.generateAppendices(data)
+    // OPTIMIZED: Generate sections with concurrency limits (3 concurrent calls max)
+    // Split into strategic batches to prevent timeout and quota issues
+    console.log(`⏱️ Processing memo sections in batches with 3 concurrent calls...`);
+    
+    // Batch 1: Core business sections (most important first)
+    const batch1 = await this.processSectionBatch([
+      { key: 'executiveSummary', fn: () => this.generateExecutiveSummary(context) },
+      { key: 'investmentHighlights', fn: () => this.generateInvestmentHighlights(context) },
+      { key: 'marketAnalysis', fn: () => this.generateMarketAnalysis(context) }
     ]);
+    
+    // Batch 2: Financial and business model
+    const batch2 = await this.processSectionBatch([
+      { key: 'financialAnalysis', fn: () => this.generateFinancialAnalysis(context) },
+      { key: 'businessModel', fn: () => this.generateBusinessModel(context) },
+      { key: 'productAnalysis', fn: () => this.generateProductAnalysis(context) }
+    ]);
+    
+    // Batch 3: Team and strategic analysis  
+    const batch3 = await this.processSectionBatch([
+      { key: 'teamAssessment', fn: () => this.generateTeamAssessment(context) },
+      { key: 'swotAnalysis', fn: () => this.generateSWOTAnalysis(context) },
+      { key: 'competitiveAnalysis', fn: () => this.generateCompetitiveAnalysis(context) }
+    ]);
+    
+    // Batch 4: Risk and legal assessment
+    const batch4 = await this.processSectionBatch([
+      { key: 'riskAssessment', fn: () => this.generateRiskAssessment(context) },
+      { key: 'legalAssessment', fn: () => this.generateLegalAssessment(context) },
+      { key: 'recommendation', fn: () => this.generateRecommendation(context) }
+    ]);
+    
+    // Batch 5: Extended analysis sections
+    const batch5 = await this.processSectionBatch([
+      { key: 'tamSamSomAnalysis', fn: () => this.generateTAMSAMSOMAnalysis(context) },
+      { key: 'technologyAssessment', fn: () => this.generateTechnologyAssessment(context) },
+      { key: 'commercialStrategy', fn: () => this.generateCommercialStrategy(context) }
+    ]);
+    
+    // Batch 6: Specialized assessments
+    const batch6 = await this.processSectionBatch([
+      { key: 'managementAnalysis', fn: () => this.generateManagementAnalysis(context) },
+      { key: 'regulatoryAnalysis', fn: () => this.generateRegulatoryAnalysis(context) },
+      { key: 'clinicalAssessment', fn: () => this.generateClinicalAssessment(context) }
+    ]);
+    
+    // Batch 7: Final sections and projections
+    const batch7 = await this.processSectionBatch([
+      { key: 'financialProjections', fn: () => this.generateFinancialProjections(context) },
+      { key: 'valuationAnalysis', fn: () => this.generateValuationAnalysis(context) },
+      { key: 'ipAnalysis', fn: () => this.generateIPAnalysis(context) }
+    ]);
+    
+    // Batch 8: Closing sections
+    const batch8 = await this.processSectionBatch([
+      { key: 'researchInsights', fn: () => this.generateResearchInsights(context) },
+      { key: 'mitigationStrategies', fn: () => this.generateMitigationStrategies(context) },
+      { key: 'investmentTerms', fn: () => this.generateInvestmentTerms(context) }
+    ]);
+    
+    // Batch 9: Final sections (less AI-intensive)
+    const batch9 = await this.processSectionBatch([
+      { key: 'exitStrategy', fn: () => this.generateExitStrategy(context) },
+      { key: 'coverPage', fn: () => this.generateCoverPage(data) },
+      { key: 'appendices', fn: () => this.generateAppendices(data) }
+    ]);
+    
+    // Combine all batched results
+    const allResults = { ...batch1, ...batch2, ...batch3, ...batch4, ...batch5, ...batch6, ...batch7, ...batch8, ...batch9 };
+    
+    console.log(`✅ Memo generation completed with optimized batching for ${data.companyName}`);
 
     return {
-      coverPage,
-      executiveSummary,
-      investmentHighlights,
-      swotAnalysis,
-      marketAnalysis,
-      tamSamSomAnalysis,
-      competitiveAnalysis,
-      technologyAssessment,
-      productAnalysis,
-      businessModel,
-      commercialStrategy,
-      teamAssessment,
-      managementAnalysis,
-      financialAnalysis,
-      financialProjections,
-      valuationAnalysis,
-      legalAssessment,
-      regulatoryAnalysis,
-      clinicalAssessment,
-      ipAnalysis,
-      researchInsights,
-      riskAssessment,
-      mitigationStrategies,
-      investmentTerms,
-      exitStrategy,
-      recommendation,
-      appendices
+      coverPage: allResults.coverPage,
+      executiveSummary: allResults.executiveSummary,
+      investmentHighlights: allResults.investmentHighlights,
+      swotAnalysis: allResults.swotAnalysis,
+      marketAnalysis: allResults.marketAnalysis,
+      tamSamSomAnalysis: allResults.tamSamSomAnalysis,
+      competitiveAnalysis: allResults.competitiveAnalysis,
+      technologyAssessment: allResults.technologyAssessment,
+      productAnalysis: allResults.productAnalysis,
+      businessModel: allResults.businessModel,
+      commercialStrategy: allResults.commercialStrategy,
+      teamAssessment: allResults.teamAssessment,
+      managementAnalysis: allResults.managementAnalysis,
+      financialAnalysis: allResults.financialAnalysis,
+      financialProjections: allResults.financialProjections,
+      valuationAnalysis: allResults.valuationAnalysis,
+      legalAssessment: allResults.legalAssessment,
+      regulatoryAnalysis: allResults.regulatoryAnalysis,
+      clinicalAssessment: allResults.clinicalAssessment,
+      ipAnalysis: allResults.ipAnalysis,
+      researchInsights: allResults.researchInsights,
+      riskAssessment: allResults.riskAssessment,
+      mitigationStrategies: allResults.mitigationStrategies,
+      investmentTerms: allResults.investmentTerms,
+      exitStrategy: allResults.exitStrategy,
+      recommendation: allResults.recommendation,
+      appendices: allResults.appendices
     };
+  }
+
+  /**
+   * Process a batch of sections with concurrency limits (3 max concurrent calls)
+   * This prevents API timeouts and quota issues from unbounded parallelism
+   */
+  private async processSectionBatch(sections: Array<{ key: string; fn: () => Promise<any> }>): Promise<Record<string, any>> {
+    const CONCURRENCY_LIMIT = 3;
+    const results: Record<string, any> = {};
+    
+    console.log(`🔄 Processing batch of ${sections.length} sections with ${CONCURRENCY_LIMIT} concurrent calls`);
+    
+    // Process sections in chunks of CONCURRENCY_LIMIT
+    for (let i = 0; i < sections.length; i += CONCURRENCY_LIMIT) {
+      const chunk = sections.slice(i, i + CONCURRENCY_LIMIT);
+      const chunkStart = Date.now();
+      
+      console.log(`⏳ Processing chunk ${Math.floor(i/CONCURRENCY_LIMIT) + 1}: ${chunk.map(s => s.key).join(', ')}`);
+      
+      // Execute chunk with limited concurrency
+      const chunkPromises = chunk.map(async (section) => {
+        try {
+          const result = await section.fn();
+          return { key: section.key, result };
+        } catch (error) {
+          console.error(`❌ Error generating ${section.key}:`, error);
+          return { key: section.key, result: `Error generating ${section.key}: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        }
+      });
+      
+      const chunkResults = await Promise.all(chunkPromises);
+      
+      // Store results
+      chunkResults.forEach(({ key, result }) => {
+        results[key] = result;
+      });
+      
+      const chunkDuration = Date.now() - chunkStart;
+      console.log(`✅ Chunk completed in ${chunkDuration}ms: ${chunk.map(s => s.key).join(', ')}`);
+    }
+    
+    return results;
   }
 
   /**
