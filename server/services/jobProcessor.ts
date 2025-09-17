@@ -242,9 +242,9 @@ class JobProcessor {
     this.isProcessing = true;
     console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
-    // OPTIMIZED: Increased from 3 to 10 to handle 264+ documents efficiently
-    const MAX_CONCURRENT_JOBS = 10; // Balanced limit for speed vs stability
+    // 🛡️ RATE LIMIT PROTECTION: Reduced concurrency to prevent API rate limits
+    // BULLETPROOF: Decreased from 10 to 4 to prevent OpenAI/Mistral rate limit errors
+    const MAX_CONCURRENT_JOBS = 4; // Optimized for API stability vs empty summaries
     
     while (this.jobQueue.length > 0) {
       // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
@@ -281,9 +281,9 @@ class JobProcessor {
         console.log(`🛡️ BULLETPROOF PROCESSING: Starting ${batch.length} jobs with rate limiting protection`);
         
         const parallelPromises = batch.map(async (job, index) => {
-          // Stagger job starts to prevent API rate limit bursts
+          // Stagger job starts to prevent API rate limit bursts  
           if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, index * 200)); // 200ms between each job start
+            await new Promise(resolve => setTimeout(resolve, index * 500)); // 500ms between each job start (increased from 200ms)
           }
           if (this.processingJobs.has(job.id)) {
             console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
