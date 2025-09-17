@@ -276,25 +276,139 @@ class InvestmentMemoService {
       const chunkPromises = chunk.map(async (section) => {
         try {
           const result = await section.fn();
-          return { key: section.key, result };
+          return { key: section.key, result, success: true };
         } catch (error) {
           console.error(`❌ Error generating ${section.key}:`, error);
-          return { key: section.key, result: `Error generating ${section.key}: ${error instanceof Error ? error.message : 'Unknown error'}` };
+          // Return typed fallbacks matching InvestmentMemoSections interface
+          const fallback = this.getTypedSectionFallback(section.key, error);
+          return { key: section.key, result: fallback, success: false };
         }
       });
       
       const chunkResults = await Promise.all(chunkPromises);
       
-      // Store results
-      chunkResults.forEach(({ key, result }) => {
+      // Store results and track failures
+      chunkResults.forEach(({ key, result, success }) => {
         results[key] = result;
+        if (!success) {
+          console.warn(`⚠️ Section ${key} failed - using typed fallback`);
+        }
       });
       
       const chunkDuration = Date.now() - chunkStart;
-      console.log(`✅ Chunk completed in ${chunkDuration}ms: ${chunk.map(s => s.key).join(', ')}`);
+      const failedSections = chunkResults.filter(r => !r.success).map(r => r.key);
+      if (failedSections.length > 0) {
+        console.log(`✅ Chunk completed in ${chunkDuration}ms with ${failedSections.length} failures: ${failedSections.join(', ')}`);
+      } else {
+        console.log(`✅ Chunk completed in ${chunkDuration}ms: ${chunk.map(s => s.key).join(', ')}`);
+      }
     }
     
     return results;
+  }
+  
+  /**
+   * Returns typed fallbacks matching InvestmentMemoSections interface EXACTLY
+   * Ensures production safety when sections fail to generate
+   */
+  private getTypedSectionFallback(sectionKey: string, error: any): any {
+    const errorMsg = `[Generation failed: ${error instanceof Error ? error.message : 'Unknown error'}]`;
+    
+    // Return proper types matching InvestmentMemoSections interface EXACTLY
+    switch (sectionKey) {
+      case 'investmentHighlights':
+        return [errorMsg];
+      
+      case 'swotAnalysis':
+        return {
+          strengths: [errorMsg],
+          weaknesses: [errorMsg], 
+          opportunities: [errorMsg],
+          threats: [errorMsg]
+        };
+      
+      case 'marketAnalysis':
+        return {
+          marketContext: errorMsg,
+          marketSize: {
+            tam: errorMsg,
+            sam: errorMsg,
+            som: errorMsg
+          },
+          competitiveLandscape: errorMsg,
+          marketTiming: errorMsg
+        };
+      
+      case 'productAnalysis': 
+        return {
+          productOverview: errorMsg,
+          technologyAdvantage: errorMsg,
+          competitiveEdge: errorMsg,
+          developmentStage: errorMsg
+        };
+      
+      case 'teamAssessment':
+        return {
+          management: errorMsg,
+          keyPersonnel: [errorMsg],
+          advisors: errorMsg,
+          boardComposition: errorMsg
+        };
+      
+      case 'financialAnalysis':
+        return {
+          currentFinancials: errorMsg,
+          projections: errorMsg,
+          fundingHistory: errorMsg,
+          useOfFunds: errorMsg
+        };
+      
+      case 'legalAssessment':
+        return {
+          corporateStructure: errorMsg,
+          ipProtection: errorMsg,
+          regulatoryCompliance: errorMsg,
+          contractualObligations: errorMsg
+        };
+      
+      case 'riskAssessment':
+        return {
+          technicalRisks: [errorMsg],
+          marketRisks: [errorMsg], 
+          competitiveRisks: [errorMsg],
+          regulatoryRisks: [errorMsg],
+          managementRisks: [errorMsg]
+        };
+      
+      case 'businessModel':
+        return {
+          revenueModel: errorMsg,
+          pricingStrategy: errorMsg,
+          salesChannels: errorMsg,
+          customerAcquisition: errorMsg
+        };
+      
+      case 'investmentTerms':
+        return {
+          valuation: errorMsg,
+          fundingAmount: errorMsg,
+          securities: errorMsg,
+          boardRights: errorMsg,
+          liquidationPreference: errorMsg
+        };
+      
+      case 'recommendation':
+        return {
+          investment_recommendation: errorMsg,
+          rationale: errorMsg,
+          keyMilestones: [errorMsg],
+          exitStrategy: errorMsg
+        };
+      
+      // String sections (coverPage, executiveSummary, etc.)
+      default:
+        return errorMsg;
+    }
   }
 
   /**
