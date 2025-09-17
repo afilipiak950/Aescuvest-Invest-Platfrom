@@ -4,13 +4,11 @@
  * Uses document summaries and content to determine optimal agent assignments
  */
 
-import OpenAI from 'openai';
 import { db } from '../db';
 import { documents } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { storage } from '../storage';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { aiClientWrapper } from './aiClientWrapper';
 
 // Available agents for assignment
 export const AVAILABLE_AGENTS = [
@@ -97,14 +95,17 @@ Respond with JSON format:
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.3 // Lower temperature for more consistent assignments
-      });
+      const responseContent = await aiClientWrapper.generateOpenAIResponse(
+        "You are an AI investment analyst specializing in document classification and agent assignment for due diligence processes.",
+        prompt,
+        {
+          model: "gpt-4o",
+          temperature: 0.3,
+          jsonResponse: true
+        }
+      );
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      const result = JSON.parse(responseContent);
       
       // Validate and clean the response
       const validAgents = result.agents?.filter((agent: string) => 
@@ -288,8 +289,8 @@ Respond with JSON format:
 
         console.log(`✅ Document "${doc.name}" assigned to: ${assignment.agents.join(', ')} (confidence: ${Math.round(assignment.confidence * 100)}%)`);
 
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Rate limiting is now handled by aiClientWrapper, so reduced delay
+        await new Promise(resolve => setTimeout(resolve, 100));
 
       } catch (error) {
         console.error(`❌ Error processing document ${doc.name}:`, error);
