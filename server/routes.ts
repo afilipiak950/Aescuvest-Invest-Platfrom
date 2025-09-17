@@ -2437,7 +2437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const jobData = {
             jobType: 'document_ocr',
             jobData: {
-              filePath: document.path,
+              filePath: document.filePath || document.path,
               fileName: document.name,
               fileType: document.type,
               documentId: document.id
