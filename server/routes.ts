@@ -377,6 +377,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 📊 AI PROCESSING MONITORING ENDPOINT - Live system health visibility
+  app.get('/api/monitoring/ai', async (req: Request, res: Response) => {
+    try {
+      console.log('📊 AI Processing monitoring endpoint hit');
+      
+      // Import services dynamically to avoid circular dependencies
+      const { jobProcessor } = await import('./services/jobProcessor');
+      const { aiClientWrapper } = await import('./services/aiClientWrapper');
+      
+      // Get comprehensive monitoring data
+      const jobMetrics = jobProcessor.getMetrics();
+      const rateLimitStatus = aiClientWrapper.getRateLimitStatus();
+      
+      // Get current queue status from database
+      const [queueStats] = await db.select({
+        total: sql`count(*)`,
+        pending: sql`count(*) filter (where status = 'pending')`,
+        processing: sql`count(*) filter (where status = 'processing')`,
+        failed: sql`count(*) filter (where status = 'failed')`
+      }).from(backgroundJobs);
+      
+      const monitoring = {
+        timestamp: new Date().toISOString(),
+        system: {
+          status: jobMetrics.activeJobs === 0 ? 'idle' : 'processing',
+          uptime: jobMetrics.uptime,
+          lastReset: jobMetrics.lastReset
+        },
+        jobProcessor: {
+          successRate: jobMetrics.successRatePercent,
+          apiCalls: jobMetrics.apiSuccessRate,
+          activeJobs: jobMetrics.activeJobs,
+          queueLength: jobMetrics.queueLength,
+          processingTimes: {
+            avg: Math.round(jobMetrics.processingTimes.avg),
+            min: jobMetrics.processingTimes.min === Number.MAX_VALUE ? 0 : jobMetrics.processingTimes.min,
+            max: jobMetrics.processingTimes.max
+          }
+        },
+        rateLimiting: rateLimitStatus,
+        emptySummaryPrevention: jobMetrics.emptySummaryPrevented,
+        rateLimitHits: jobMetrics.rateLimitHits,
+        databaseQueue: {
+          total: Number(queueStats.total),
+          pending: Number(queueStats.pending),
+          processing: Number(queueStats.processing),
+          failed: Number(queueStats.failed)
+        }
+      };
+      
+      res.json({
+        success: true,
+        monitoring
+      });
+      
+      console.log(`✅ Monitoring data returned: ${jobMetrics.successRatePercent} success rate, ${jobMetrics.activeJobs} active jobs`);
+      
+    } catch (error) {
+      console.error('❌ AI Processing monitoring error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get AI processing monitoring data',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Global AI Assistant Stats Endpoint - Enhanced with real service integration
   app.get('/api/ai-assistant/global/stats', async (req: Request, res: Response) => {
     try {
