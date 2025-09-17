@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { gcsService } from './googleCloudStorage';
+import { aiClientWrapper } from './aiClientWrapper';
 
 const mistral = new Mistral({
   apiKey: process.env.MISTRAL_API_KEY || '',
@@ -242,35 +243,37 @@ export class MistralOCRService {
       
       const base64Image = imageBuffer.toString('base64');
       
-      // Add timeout wrapper for Mistral API call
-      const mistralPromise = mistral.chat.complete({
-        model: 'pixtral-12b-2409',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. Include all visible text, numbers, and readable content. If the image contains tables, preserve the table structure. Return only the extracted text without any commentary.'
-              },
-              {
-                type: 'image_url',
-                imageUrl: `data:image/jpeg;base64,${base64Image}`
-              }
-            ]
-          }
-        ],
-        maxTokens: 4000,
-        // Note: Mistral client doesn't support timeout parameter directly
+      // Use AI client wrapper with rate limiting and retry logic for Mistral API call
+      const content = await aiClientWrapper.callMistral(async () => {
+        const response = await mistral.chat.complete({
+          model: 'pixtral-12b-2409',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. Include all visible text, numbers, and readable content. If the image contains tables, preserve the table structure. Return only the extracted text without any commentary.'
+                },
+                {
+                  type: 'image_url',
+                  imageUrl: `data:image/jpeg;base64,${base64Image}`
+                }
+              ]
+            }
+          ],
+          maxTokens: 4000,
+        });
+        
+        const content = response.choices[0]?.message?.content;
+        if (!content || typeof content !== 'string' || content.trim().length === 0) {
+          throw new Error('Mistral returned empty content for image OCR');
+        }
+        
+        return content;
       });
       
-      const mistralTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Mistral API timeout after 45 seconds')), 45000);
-      });
-      
-      const response = await Promise.race([mistralPromise, mistralTimeout]);
-      const content = response.choices[0]?.message?.content;
-      return typeof content === 'string' ? content : '';
+      return content;
     } catch (error) {
       console.error('Error in Mistral image OCR:', error);
       throw error;

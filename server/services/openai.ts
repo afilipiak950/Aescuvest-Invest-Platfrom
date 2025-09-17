@@ -1,9 +1,4 @@
-import OpenAI from "openai";
-
-// Initialize the OpenAI client with the API key from environment variables
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+import { aiClientWrapper } from "./aiClientWrapper";
 
 // This is the newest OpenAI model (May 2024) which provides the best performance
 const DEFAULT_MODEL = "gpt-4o";
@@ -27,25 +22,12 @@ export async function generateResponse(
   try {
     const { model = DEFAULT_MODEL, temperature = 0.7, jsonResponse = false } = options;
     
-    const messages = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage }
-    ];
-    
-    const apiOptions: any = {
+    // Use the AI client wrapper with rate limiting and retry logic
+    return await aiClientWrapper.generateOpenAIResponse(systemPrompt, userMessage, {
       model,
-      messages,
-      temperature
-    };
-    
-    // If JSON response is requested, specify the response format
-    if (jsonResponse) {
-      apiOptions.response_format = { type: "json_object" };
-    }
-    
-    const response = await openai.chat.completions.create(apiOptions);
-    
-    return response.choices[0].message.content || "";
+      temperature,
+      jsonResponse
+    });
   } catch (error) {
     console.error("OpenAI API error:", error);
     throw new Error(`Failed to generate AI response: ${error.message}`);

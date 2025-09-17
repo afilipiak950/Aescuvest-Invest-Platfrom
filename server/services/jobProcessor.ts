@@ -12,6 +12,15 @@ class JobProcessor {
   private jobQueue: BackgroundJob[] = [];
   private isProcessing = false;
   
+  // 📊 MONITORING METRICS: Track system health and API performance
+  private metrics = {
+    apiSuccessRate: { total: 0, success: 0, failures: 0 },
+    rateLimitHits: { openai: 0, mistral: 0, total: 0 },
+    emptySummaryPrevented: { insufficientContent: 0, emptyObject: 0, quotaExceeded: 0 },
+    processingTimes: { avg: 0, min: Number.MAX_VALUE, max: 0, samples: [] as number[] },
+    lastReset: new Date()
+  };
+  
   constructor() {
     // Start automatic cleanup of stuck jobs every 5 minutes
     setInterval(() => {
@@ -163,7 +172,72 @@ class JobProcessor {
 
     this.processingJobs.delete(jobId);
     console.log(`✅ Job ${jobId} ${status}: ${error || 'Success'}`);
+    
+    // 📊 TRACK METRICS: Record job completion for monitoring
+    this.trackJobCompletion(status === 'completed', error);
+    
     return { completed: true, job: updatedJob };
+  }
+
+  // 📊 MONITORING METHODS: Track system health and performance
+  private trackJobCompletion(success: boolean, error?: string) {
+    this.metrics.apiSuccessRate.total++;
+    if (success) {
+      this.metrics.apiSuccessRate.success++;
+    } else {
+      this.metrics.apiSuccessRate.failures++;
+      
+      // Track specific error types for debugging
+      if (error?.includes('429') || error?.includes('rate limit')) {
+        this.metrics.rateLimitHits.total++;
+        if (error.includes('openai')) this.metrics.rateLimitHits.openai++;
+        if (error.includes('mistral')) this.metrics.rateLimitHits.mistral++;
+      }
+    }
+  }
+
+  private trackEmptySummaryPrevention(type: 'insufficientContent' | 'emptyObject' | 'quotaExceeded') {
+    this.metrics.emptySummaryPrevented[type]++;
+    console.log(`🛡️ EMPTY SUMMARY PREVENTED: ${type} (Total prevented: ${Object.values(this.metrics.emptySummaryPrevented).reduce((a, b) => a + b, 0)})`);
+  }
+
+  private trackProcessingTime(duration: number) {
+    this.metrics.processingTimes.samples.push(duration);
+    this.metrics.processingTimes.min = Math.min(this.metrics.processingTimes.min, duration);
+    this.metrics.processingTimes.max = Math.max(this.metrics.processingTimes.max, duration);
+    
+    // Keep only last 100 samples for average calculation
+    if (this.metrics.processingTimes.samples.length > 100) {
+      this.metrics.processingTimes.samples = this.metrics.processingTimes.samples.slice(-100);
+    }
+    
+    this.metrics.processingTimes.avg = this.metrics.processingTimes.samples.reduce((a, b) => a + b, 0) / this.metrics.processingTimes.samples.length;
+  }
+
+  // 🔍 PUBLIC MONITORING API: Expose metrics for debugging and health checks
+  getMetrics() {
+    const successRate = this.metrics.apiSuccessRate.total > 0 
+      ? (this.metrics.apiSuccessRate.success / this.metrics.apiSuccessRate.total * 100).toFixed(1)
+      : '0';
+    
+    return {
+      ...this.metrics,
+      successRatePercent: `${successRate}%`,
+      queueLength: this.jobQueue.length,
+      activeJobs: this.processingJobs.size,
+      uptime: Date.now() - this.metrics.lastReset.getTime()
+    };
+  }
+
+  resetMetrics() {
+    this.metrics = {
+      apiSuccessRate: { total: 0, success: 0, failures: 0 },
+      rateLimitHits: { openai: 0, mistral: 0, total: 0 },
+      emptySummaryPrevented: { insufficientContent: 0, emptyObject: 0, quotaExceeded: 0 },
+      processingTimes: { avg: 0, min: Number.MAX_VALUE, max: 0, samples: [] },
+      lastReset: new Date()
+    };
+    console.log('📊 Metrics reset');
   }
 
   async loadPendingJobsFromDatabase() {
@@ -509,14 +583,28 @@ class JobProcessor {
           summaryTimeoutPromise
         ]);
         
-        // Handle quota exceeded case (aiSummary will be null)
-        if (aiSummary === null) {
+        // CRITICAL: Validate AI summary content to prevent empty summaries
+        if (aiSummary === null || aiSummary === undefined) {
           console.log('⚠️ AI summary skipped due to OpenAI quota limits');
           aiSummaryStatus = 'quota_exceeded';
+          this.trackEmptySummaryPrevention('quotaExceeded');
           await this.updateJobProgress(job.id, 85, 'AI summary skipped due to quota limits, continuing with OCR results...');
+        } else if (typeof aiSummary === 'string' && aiSummary.trim().length < 20) {
+          console.error('🚫 PREVENTING EMPTY SUMMARY: AI returned insufficient content, marking for retry');
+          aiSummaryStatus = 'insufficient_content';
+          this.trackEmptySummaryPrevention('insufficientContent');
+          aiSummary = null; // Don't save empty/minimal content
+          await this.updateJobProgress(job.id, 85, 'AI summary insufficient, will retry on next processing...');
+        } else if (typeof aiSummary === 'object' && (!aiSummary || Object.keys(aiSummary).length === 0)) {
+          console.error('🚫 PREVENTING EMPTY SUMMARY: AI returned empty object, marking for retry');
+          aiSummaryStatus = 'empty_object';
+          this.trackEmptySummaryPrevention('emptyObject');
+          aiSummary = null; // Don't save empty objects
+          await this.updateJobProgress(job.id, 85, 'AI summary empty object, will retry on next processing...');
         } else {
           aiSummaryStatus = 'completed';
           await this.updateJobProgress(job.id, 90, 'AI summary generated successfully...');
+          console.log(`✅ VALID AI SUMMARY: Content length ${typeof aiSummary === 'string' ? aiSummary.length : JSON.stringify(aiSummary).length} characters`);
         }
       } catch (error) {
         console.error('Failed to generate AI summary during OCR:', error);
