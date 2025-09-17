@@ -286,18 +286,50 @@ export class MistralOCRService {
       
       const { execSync } = await import('child_process');
       
-      // First try direct text extraction with pdftotext
+      // ENHANCED: Multiple PDF extraction methods with better fallbacks
+      let extractedText = '';
+      
+      // Method 1: Direct text extraction with pdftotext
       try {
-        console.log(`🔍 Attempting direct text extraction from PDF`);
+        console.log(`🔍 Method 1: Attempting direct text extraction from PDF`);
         const textOutput = execSync(`pdftotext "${filePath}" -`, { encoding: 'utf8', timeout: 30000 });
         
         if (textOutput && textOutput.trim().length > 50) {
           console.log(`✅ Successfully extracted ${textOutput.length} characters via direct text extraction`);
           return textOutput.trim();
         }
-        console.log(`⚠️ Direct text extraction returned insufficient content, trying OCR approach`);
+        console.log(`⚠️ Direct text extraction returned insufficient content (${textOutput ? textOutput.length : 0} chars)`);
+        extractedText = textOutput || '';
       } catch (directError) {
-        console.log(`⚠️ Direct text extraction failed, using OCR: ${directError}`);
+        console.log(`⚠️ Direct text extraction failed: ${directError}`);
+      }
+      
+      // Method 2: Try alternative PDF text extraction with different options
+      try {
+        console.log(`🔍 Method 2: Attempting PDF text extraction with layout preservation`);
+        const layoutTextOutput = execSync(`pdftotext -layout "${filePath}" -`, { encoding: 'utf8', timeout: 30000 });
+        
+        if (layoutTextOutput && layoutTextOutput.trim().length > extractedText.length + 50) {
+          console.log(`✅ Layout extraction provided better results (${layoutTextOutput.length} chars vs ${extractedText.length})`);
+          return layoutTextOutput.trim();
+        }
+      } catch (layoutError) {
+        console.log(`⚠️ Layout text extraction failed: ${layoutError}`);
+      }
+      
+      // Method 3: Try with poppler-utils pdfinfo to check if PDF is readable
+      try {
+        console.log(`🔍 Method 3: Checking PDF structure and readability`);
+        const pdfInfo = execSync(`pdfinfo "${filePath}"`, { encoding: 'utf8', timeout: 10000 });
+        console.log(`📄 PDF Info extracted successfully, PDF appears to be readable`);
+        
+        // If we have some text from previous methods, use it
+        if (extractedText && extractedText.trim().length > 20) {
+          console.log(`✅ Using previously extracted text (${extractedText.length} chars) since PDF is readable`);
+          return extractedText.trim();
+        }
+      } catch (infoError) {
+        console.log(`⚠️ PDF info extraction failed, PDF may be corrupted: ${infoError}`);
       }
       
       // Fallback to PDF-to-image OCR conversion

@@ -52,6 +52,7 @@ import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { chunkedUploadService } from './services/chunkedUploadService';
 import { zipProcessor } from './services/zipProcessor';
 import { gcsService } from './services/googleCloudStorage';
+import { jobProcessor } from './services/jobProcessor';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -2349,6 +2350,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         success: false, 
         error: 'Failed to process AI summary' 
+      });
+    }
+  });
+
+  // 🔄 RE-PROCESS DOCUMENTS WITH FAILED OCR OR EMPTY AI SUMMARIES
+  app.post('/api/deals/:dealId/documents/reprocess-failed', async (req: Request, res: Response) => {
+    console.log('🔄 Re-processing failed documents endpoint hit');
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { documentIds, forceReprocess = false } = req.body;
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID' 
+        });
+      }
+      
+      console.log(`🔄 Re-processing documents for deal ${dealId}, force: ${forceReprocess}`);
+      
+      // Get documents to reprocess
+      let documentsToProcess;
+      
+      if (documentIds && Array.isArray(documentIds)) {
+        // Specific documents requested
+        const documents = await Promise.all(
+          documentIds.map(id => storage.getDocumentById(parseInt(id)))
+        );
+        documentsToProcess = documents.filter(doc => doc && doc.dealId === dealId);
+        console.log(`🎯 Re-processing ${documentsToProcess.length} specific documents`);
+      } else {
+        // Find documents with failed OCR or empty AI summaries
+        const allDocuments = await storage.getDocumentsByDealId(dealId);
+        
+        documentsToProcess = allDocuments.filter(doc => {
+          // Check for OCR errors or missing content
+          const hasOcrError = doc.ocrText && doc.ocrText.toLowerCase().includes('extraction failed');
+          const hasProcessingError = doc.ocrText && doc.ocrText.toLowerCase().includes('processing failed');
+          const hasMissingOcr = !doc.ocrText || doc.ocrText.trim().length < 50;
+          
+          // Check for empty or problematic AI summaries
+          const aiSummary = doc.aiSummary as any;
+          const hasEmptyAiSummary = !aiSummary || 
+                                    (aiSummary.executiveSummary && aiSummary.executiveSummary.toLowerCase().includes('empty')) ||
+                                    (aiSummary.criticalFindings && aiSummary.criticalFindings.some((f: string) => f.toLowerCase().includes('empty'))) ||
+                                    doc.aiSummaryStatus === 'failed' ||
+                                    doc.aiSummaryStatus === 'quota_exceeded';
+          
+          return forceReprocess || hasOcrError || hasProcessingError || hasMissingOcr || hasEmptyAiSummary;
+        });
+        
+        console.log(`🔍 Found ${documentsToProcess.length} documents needing re-processing out of ${allDocuments.length} total`);
+      }
+      
+      if (documentsToProcess.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: 'No documents found that need re-processing',
+          reprocessed: 0
+        });
+      }
+      
+      // Queue documents for re-processing
+      let reprocessedCount = 0;
+      const errors = [];
+      
+      for (const document of documentsToProcess) {
+        try {
+          console.log(`🔄 Re-processing document ${document.id}: ${document.name}`);
+          
+          // Reset document status and clear previous results
+          await db.update(documents)
+            .set({
+              status: 'Pending',
+              ocrText: null,
+              aiSummary: null,
+              aiSummaryStatus: 'pending',
+              updatedAt: new Date()
+            })
+            .where(eq(documents.id, document.id));
+          
+          // Create new OCR job
+          const jobData = {
+            jobType: 'document_ocr',
+            jobData: {
+              filePath: document.path,
+              fileName: document.name,
+              fileType: document.type,
+              documentId: document.id
+            },
+            dealId: dealId,
+            priority: 5, // Medium priority
+            status: 'pending' as const,
+            progress: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+          
+          await db.insert(backgroundJobs).values(jobData);
+          
+          console.log(`✅ Queued document ${document.id} for re-processing`);
+          reprocessedCount++;
+          
+        } catch (docError) {
+          console.error(`❌ Failed to queue document ${document.id}:`, docError);
+          errors.push({
+            documentId: document.id,
+            documentName: document.name,
+            error: docError instanceof Error ? docError.message : 'Unknown error'
+          });
+        }
+      }
+      
+      // Start job processing immediately
+      setImmediate(async () => {
+        try {
+          console.log('🚀 Starting job processing for re-queued documents...');
+          await jobProcessor.processJobs();
+          console.log('✅ Job processing initiated successfully');
+        } catch (error) {
+          console.error('❌ Error starting job processing after reprocessing:', error);
+        }
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: `Re-processing started for ${reprocessedCount} documents`,
+        reprocessed: reprocessedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        dealId
+      });
+      
+    } catch (error) {
+      console.error('❌ Document re-processing error:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Document re-processing failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
