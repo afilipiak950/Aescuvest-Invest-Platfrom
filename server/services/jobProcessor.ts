@@ -972,16 +972,20 @@ class JobProcessor {
         };
       }
       
-      // For PDFs, try simple pdftotext without OCR
+      // For PDFs, try multiple simplified extraction methods
       if (fileExtension === '.pdf') {
         const { execSync } = await import('child_process');
+        
+        // Try basic pdftotext
         try {
+          console.log(`🔄 Simplified Method 1: Basic pdftotext extraction`);
           const textOutput = execSync(`pdftotext "${filePath}" -`, { 
             encoding: 'utf8', 
-            timeout: 15000 // 15 second timeout
+            timeout: 15000
           });
           
           if (textOutput && textOutput.trim().length > 10) {
+            console.log(`✅ Basic pdftotext succeeded: ${textOutput.length} chars`);
             return {
               extractedText: textOutput.substring(0, 10000),
               confidence: 0.7,
@@ -989,7 +993,48 @@ class JobProcessor {
             };
           }
         } catch (pdfError) {
-          console.log(`⚠️ Simple PDF extraction also failed: ${pdfError}`);
+          console.log(`⚠️ Basic pdftotext failed: ${pdfError}`);
+        }
+        
+        // Try pdftotext with layout option
+        try {
+          console.log(`🔄 Simplified Method 2: Layout-preserving pdftotext`);
+          const layoutOutput = execSync(`pdftotext -layout "${filePath}" -`, { 
+            encoding: 'utf8', 
+            timeout: 15000
+          });
+          
+          if (layoutOutput && layoutOutput.trim().length > 10) {
+            console.log(`✅ Layout pdftotext succeeded: ${layoutOutput.length} chars`);
+            return {
+              extractedText: layoutOutput.substring(0, 10000),
+              confidence: 0.6,
+              processingTime: '0.7s'
+            };
+          }
+        } catch (layoutError) {
+          console.log(`⚠️ Layout pdftotext failed: ${layoutError}`);
+        }
+        
+        // Try to get basic PDF info to confirm it's a valid PDF
+        try {
+          console.log(`🔄 Simplified Method 3: PDF structure validation`);
+          const pdfInfo = execSync(`pdfinfo "${filePath}"`, { 
+            encoding: 'utf8', 
+            timeout: 10000
+          });
+          
+          if (pdfInfo && pdfInfo.includes('Pages:')) {
+            const pages = pdfInfo.match(/Pages:\s*(\d+)/)?.[1] || 'unknown';
+            console.log(`✅ PDF is valid with ${pages} pages, but text extraction failed`);
+            return {
+              extractedText: `Valid PDF document with ${pages} pages detected, but text extraction failed. Document may contain primarily images or have text embedded as graphics. Manual review recommended for: ${path.basename(filePath)}`,
+              confidence: 0.3,
+              processingTime: '0.3s'
+            };
+          }
+        } catch (infoError) {
+          console.log(`⚠️ PDF info extraction failed: ${infoError}`);
         }
       }
       
@@ -1016,10 +1061,52 @@ class JobProcessor {
       apiKey: process.env.OPENAI_API_KEY 
     });
 
+    // CRITICAL FIX: Validate input text to prevent analyzing error messages
+    const cleanText = text.trim();
+    
+    // Check if this looks like an OCR error message rather than document content
+    const errorIndicators = [
+      'extraction failed',
+      'processing failed',
+      'OCR processing',
+      'timeout',
+      'unable to extract',
+      'failed to process',
+      'not found during OCR',
+      'corrupted or inaccessible',
+      'simplified extraction attempted',
+      'both standard and simplified extraction failed'
+    ];
+    
+    const hasErrorIndicators = errorIndicators.some(indicator => 
+      cleanText.toLowerCase().includes(indicator.toLowerCase())
+    );
+    
+    // If text is too short or contains error messages, mark as insufficient content
+    if (cleanText.length < 50 || hasErrorIndicators) {
+      console.log(`🚫 PREVENTING AI ANALYSIS OF ERROR MESSAGE: Text appears to be OCR error (${cleanText.length} chars, hasErrors: ${hasErrorIndicators})`);
+      console.log(`📝 Error text preview: "${cleanText.substring(0, 200)}..."`);
+      
+      // Return null to trigger quota_exceeded handling (which marks as failed gracefully)
+      return null;
+    }
+
     const prompt = `Analyze this investment-related document and provide a comprehensive summary in JSON format.
 
+IMPORTANT: If the document text below appears to be an error message, extraction failure notice, or contains mostly technical processing information rather than actual document content, respond with:
+{
+  "executiveSummary": "Document processing error detected - content appears to be system error messages rather than actual document content",
+  "criticalFindings": ["Document requires re-processing with alternative extraction methods"],
+  "keyFinancialData": ["No financial data available due to processing errors"],
+  "riskAssessment": ["Risk assessment unavailable due to content extraction issues"],
+  "neutralFindings": ["Document processing failed - manual review required"],
+  "strategicImplications": "Cannot provide strategic analysis due to content extraction failure",
+  "documentType": "Processing Error",
+  "confidenceScore": 0.0
+}
+
 Document text:
-${text.substring(0, 8000)} ${text.length > 8000 ? '...(truncated)' : ''}
+${cleanText.substring(0, 8000)} ${cleanText.length > 8000 ? '...(truncated)' : ''}
 
 Please provide your analysis in exactly this JSON structure:
 {
@@ -1033,7 +1120,7 @@ Please provide your analysis in exactly this JSON structure:
   "confidenceScore": 0.85
 }
 
-Focus on investment-relevant information. Be concise but comprehensive. Only include factual information from the document.`;
+Focus on investment-relevant information. Be concise but comprehensive. Only include factual information from the document. If the text appears to be error messages or processing failures, use the error response format above.`;
 
     try {
       const response = await openai.chat.completions.create({
