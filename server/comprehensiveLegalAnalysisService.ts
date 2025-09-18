@@ -307,15 +307,21 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for legal analysis - EXACT COPY from Clinical
+   * Get all documents suitable for legal analysis - FIXED to use proper storage method
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`🔧 FIXED: Using storage.getDocumentsWithOCRByDealId for legal analysis deal ${dealId}`);
+    
+    // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
+    const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // Log OCR text availability for debugging
+    const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
+    const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
+    console.log(`📊 Legal: Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
+    console.log(`📊 Legal: Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
     
     // First try documents explicitly assigned to legal agent
     let legalDocuments = allDocuments.filter(doc => 
@@ -330,13 +336,21 @@ class ComprehensiveLegalAnalysisService {
       console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
       
       legalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
+        if (!doc.ocrText && !doc.aiSummary) {
+          console.log(`⚠️ Legal: Document ${doc.name} has no OCR text or AI summary - skipping`);
+          return false;
+        }
         
         const docName = doc.name.toLowerCase();
         const docContent = (doc.ocrText || '').toLowerCase();
         const aiSummary = doc.aiSummary;
         
-        // Legal document keywords - EXACT Clinical approach
+        // Log OCR text length for debugging
+        if (doc.ocrText) {
+          console.log(`📄 Legal: Document ${doc.name}: OCR text length = ${doc.ocrText.length}`);
+        }
+        
+        // Legal document keywords
         const legalKeywords = [
           'legal', 'contract', 'agreement', 'license', 'patent', 'trademark', 'copyright',
           'litigation', 'lawsuit', 'compliance', 'regulatory', 'governance', 'corporate',
