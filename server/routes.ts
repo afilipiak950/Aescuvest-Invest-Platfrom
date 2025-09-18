@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { documents, systemSettings, backgroundJobs } from "../shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNotNull, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { authenticate } from "./middleware/auth";
@@ -2350,6 +2350,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         success: false, 
         error: 'Failed to process AI summary' 
+      });
+    }
+  });
+
+  // 🔄 RESUME PROCESSING - Queue AI summaries for documents with OCR but no summary  
+  app.post('/api/deals/:dealId/documents/resume-processing', async (req: Request, res: Response) => {
+    console.log('🔄 Resume processing endpoint hit');
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Find documents that have OCR text but no AI summary
+      const incompleteDocuments = await db.select()
+        .from(documents)
+        .where(and(
+          eq(documents.dealId, dealId),
+          // Has OCR text
+          isNotNull(documents.ocrText),
+          // But missing AI summary or has error status
+          or(
+            isNull(documents.aiSummary),
+            eq(documents.aiSummaryStatus, 'failed'),
+            eq(documents.aiSummaryStatus, 'quota_exceeded'),
+            eq(documents.aiSummaryStatus, 'pending')
+          )
+        ));
+      
+      console.log(`🔍 Found ${incompleteDocuments.length} documents needing AI summaries`);
+      
+      let queuedCount = 0;
+      for (const document of incompleteDocuments) {
+        // Skip if OCR text is empty or an error message
+        if (!document.ocrText || document.ocrText.trim().length < 50) {
+          console.log(`⏭️ Skipping document ${document.id} - insufficient OCR text`);
+          continue;
+        }
+        
+        // Check if this looks like an error message
+        const lowerText = document.ocrText.toLowerCase();
+        if (lowerText.includes('extraction failed') || 
+            lowerText.includes('timeout') || 
+            lowerText.includes('corrupted') ||
+            lowerText.includes('unable to extract')) {
+          console.log(`⏭️ Skipping document ${document.id} - OCR error detected`);
+          continue;
+        }
+        
+        // Create AI summary job
+        const jobId = `ai_summary_resume_${document.id}_${Date.now()}`;
+        try {
+          await db.insert(backgroundJobs).values({
+            jobId: jobId,
+            jobType: 'ai_summary_generation',
+            status: 'pending',
+            dealId: dealId,
+            documentId: document.id,
+            jobData: JSON.stringify({
+              documentId: document.id,
+              dealId: dealId,
+              resumeType: 'missing_summary'
+            }),
+            progress: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          queuedCount++;
+          console.log(`✅ Queued AI summary job for document ${document.id}: ${document.name}`);
+        } catch (error) {
+          console.error(`❌ Failed to queue job for document ${document.id}:`, error);
+        }
+      }
+      
+      // Trigger job processing
+      if (queuedCount > 0) {
+        const { jobProcessor } = await import('./services/jobProcessor');
+        await jobProcessor.loadPendingJobsFromDatabase();
+        console.log(`🚀 Triggered job processing for ${queuedCount} AI summary jobs`);
+      }
+      
+      res.json({
+        success: true,
+        message: `Resume processing started for ${queuedCount} documents`,
+        queuedJobs: queuedCount,
+        totalIncomplete: incompleteDocuments.length,
+        dealId: dealId
+      });
+      
+    } catch (error) {
+      console.error('❌ Resume processing failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
       });
     }
   });
