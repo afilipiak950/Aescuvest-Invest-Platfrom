@@ -2515,160 +2515,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 🔍 DIAGNOSTIC ENDPOINT - Detailed analysis of incomplete documents
+  // 🔍 BASIC DIAGNOSTIC ENDPOINT - Analyze incomplete documents  
   app.get('/api/deals/:dealId/documents/diagnostic', async (req: Request, res: Response) => {
-    console.log('🔍 Diagnostic endpoint hit');
+    console.log('🔍 Basic diagnostic endpoint hit');
     res.setHeader('Content-Type', 'application/json');
     
     try {
       const dealId = parseInt(req.params.dealId);
+      console.log(`🔍 Running basic diagnostics for deal ${dealId}`);
       
-      // 1. Find documents that have OCR completed but no AI summary
-      const ocrCompleteNoSummary = await db.select({
-        id: documents.id,
-        name: documents.name,
-        size: documents.size,
-        mimeType: documents.mimeType,
-        ocrStatus: documents.ocrStatus,
-        aiSummaryStatus: documents.aiSummaryStatus,
-        ocrTextLength: sql<number>`LENGTH(${documents.ocrText})`,
-        hasOcrText: sql<boolean>`${documents.ocrText} IS NOT NULL`,
-        ocrText: sql<string>`SUBSTRING(${documents.ocrText}, 1, 200)` // First 200 chars for preview
-      })
-      .from(documents)
-      .leftJoin(backgroundJobs, and(
-        eq(backgroundJobs.documentId, documents.id),
-        eq(backgroundJobs.jobType, 'ai_summary_generation'),
-        eq(backgroundJobs.status, 'completed')
-      ))
-      .where(and(
-        eq(documents.dealId, dealId),
-        or(
-          eq(documents.ocrStatus, 'completed'),
-          eq(documents.ocrStatus, 'success')
-        ),
-        isNull(backgroundJobs.id) // No completed AI summary job
-      ));
+      // Step 1: Get document counts directly from storage interface (bypassing Drizzle issues)
+      console.log('🔍 Getting documents via storage interface...');
+      const allDocuments = await storage.getDocumentsByDealId(dealId);
+      console.log(`🔍 Found ${allDocuments.length} total documents`);
 
-      // 2. Find failed jobs with error details
-      const failedJobs = await db.select({
-        documentId: backgroundJobs.documentId,
-        jobType: backgroundJobs.jobType,
-        status: backgroundJobs.status,
-        error: backgroundJobs.error,
-        startedAt: backgroundJobs.startedAt,
-        completedAt: backgroundJobs.completedAt,
-        retryCount: backgroundJobs.retryCount
-      })
-      .from(backgroundJobs)
-      .innerJoin(documents, eq(documents.id, backgroundJobs.documentId))
-      .where(and(
-        eq(documents.dealId, dealId),
-        eq(backgroundJobs.status, 'failed')
-      ))
-      .orderBy(backgroundJobs.documentId);
+      // Step 2: Analyze document states
+      let completed = 0;
+      let incomplete = 0;
+      let noOcr = 0;
+      let insufficientContent = 0;
+      let ocrErrors = 0;
+      let readyForProcessing = 0;
 
-      // 3. Find stale processing jobs (stuck for >20 minutes)
-      const staleJobs = await db.select({
-        id: backgroundJobs.id,
-        documentId: backgroundJobs.documentId,
-        jobType: backgroundJobs.jobType,
-        status: backgroundJobs.status,
-        startedAt: backgroundJobs.startedAt,
-        progress: backgroundJobs.progress,
-        minutesStuck: sql<number>`EXTRACT(EPOCH FROM (NOW() - ${backgroundJobs.startedAt})) / 60`
-      })
-      .from(backgroundJobs)
-      .innerJoin(documents, eq(documents.id, backgroundJobs.documentId))
-      .where(and(
-        eq(documents.dealId, dealId),
-        eq(backgroundJobs.status, 'processing'),
-        sql`${backgroundJobs.startedAt} < NOW() - INTERVAL '20 minutes'`
-      ));
+      const incompleteDetails: any[] = [];
 
-      // 4. Analyze skip reasons for incomplete documents
-      const skipAnalysis = ocrCompleteNoSummary.map(doc => {
+      for (const doc of allDocuments) {
+        // Check if document has AI summary
+        if (doc.aiSummary && doc.aiSummary.trim().length > 0) {
+          completed++;
+          continue;
+        }
+
+        // Document is incomplete - analyze why
+        incomplete++;
+        
         let skipReason = 'unknown';
         let canForce = false;
-        
-        if (!doc.hasOcrText || !doc.ocrTextLength) {
+
+        if (!doc.ocrText || doc.ocrText.trim().length === 0) {
           skipReason = 'no_ocr_text';
-        } else if (doc.ocrTextLength < 50) {
+          noOcr++;
+        } else if (doc.ocrText.length < 50) {
           skipReason = 'insufficient_content';
+          insufficientContent++;
           canForce = true;
-        } else if (doc.ocrText) {
+        } else {
           const lowerText = doc.ocrText.toLowerCase();
-          if (lowerText.includes('extraction failed')) {
-            skipReason = 'ocr_extraction_failed';
-          } else if (lowerText.includes('timeout')) {
-            skipReason = 'ocr_timeout';
-            canForce = true;
-          } else if (lowerText.includes('corrupted')) {
-            skipReason = 'file_corrupted';
-          } else if (lowerText.includes('unable to extract')) {
-            skipReason = 'extraction_error';
+          if (lowerText.includes('extraction failed') || 
+              lowerText.includes('timeout') || 
+              lowerText.includes('corrupted') ||
+              lowerText.includes('unable to extract')) {
+            skipReason = 'ocr_error';
+            ocrErrors++;
           } else {
             skipReason = 'ready_for_processing';
+            readyForProcessing++;
             canForce = true;
           }
         }
-        
-        return {
-          ...doc,
+
+        incompleteDetails.push({
+          id: doc.id,
+          name: doc.name,
+          size: doc.size,
+          ocrStatus: doc.ocrStatus,
+          aiSummaryStatus: doc.aiSummaryStatus,
+          ocrTextLength: doc.ocrText ? doc.ocrText.length : 0,
           skipReason,
-          canForce
-        };
-      });
+          canForce,
+          ocrPreview: doc.ocrText ? doc.ocrText.substring(0, 100) + '...' : null
+        });
+      }
 
-      // 5. Get total document counts
-      const totalDocs = await db.select({ count: sql<number>`COUNT(*)` })
-        .from(documents)
-        .where(eq(documents.dealId, dealId));
+      const skipReasonSummary = {
+        no_ocr_text: noOcr,
+        insufficient_content: insufficientContent,
+        ocr_error: ocrErrors,
+        ready_for_processing: readyForProcessing
+      };
 
-      const completedSummaries = await db.select({ count: sql<number>`COUNT(*)` })
-        .from(documents)
-        .innerJoin(backgroundJobs, and(
-          eq(backgroundJobs.documentId, documents.id),
-          eq(backgroundJobs.jobType, 'ai_summary_generation'),
-          eq(backgroundJobs.status, 'completed')
-        ))
-        .where(eq(documents.dealId, dealId));
-
-      // 6. Summary by skip reason
-      const skipReasonSummary = skipAnalysis.reduce((acc, doc) => {
-        acc[doc.skipReason] = (acc[doc.skipReason] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      console.log(`🔍 Diagnostic complete: ${allDocuments.length} total, ${completed} completed, ${incomplete} incomplete`);
 
       return res.status(200).json({
         success: true,
         dealId,
         summary: {
-          totalDocuments: totalDocs[0].count,
-          completedSummaries: completedSummaries[0].count,
-          incompleteDocuments: ocrCompleteNoSummary.length,
-          failedJobs: failedJobs.length,
-          staleJobs: staleJobs.length
+          totalDocuments: allDocuments.length,
+          completedSummaries: completed,
+          incompleteDocuments: incomplete,
+          analysis: `${incomplete} documents need AI summaries (${readyForProcessing} ready, ${insufficientContent} insufficient content, ${ocrErrors} OCR errors, ${noOcr} no OCR)`
         },
         skipReasonSummary,
-        incompleteDetails: skipAnalysis.map(doc => ({
-          id: doc.id,
-          name: doc.name,
-          size: doc.size,
-          mimeType: doc.mimeType,
-          ocrStatus: doc.ocrStatus,
-          aiSummaryStatus: doc.aiSummaryStatus,
-          ocrTextLength: doc.ocrTextLength,
-          skipReason: doc.skipReason,
-          canForce: doc.canForce,
-          ocrPreview: doc.ocrText?.substring(0, 100) + '...' || null
-        })),
-        failedJobs,
-        staleJobs
+        incompleteDetails: incompleteDetails.slice(0, 20), // Limit to first 20 for brevity
+        readyForProcessing: incompleteDetails.filter(d => d.skipReason === 'ready_for_processing').length,
+        canBeForced: incompleteDetails.filter(d => d.canForce).length,
+        totalIncompleteShown: Math.min(incompleteDetails.length, 20)
       });
       
     } catch (error) {
-      console.error('Error in diagnostic endpoint:', error);
+      console.error('Error in basic diagnostic endpoint:', error);
       return res.status(500).json({ 
         success: false, 
         error: 'Failed to run diagnostics',
