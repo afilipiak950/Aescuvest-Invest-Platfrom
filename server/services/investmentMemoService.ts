@@ -416,26 +416,33 @@ class InvestmentMemoService {
    * Filters documents by relevance and creates efficient, section-specific contexts
    */
   private filterAndPrioritizeDocuments(documents: any[]): any[] {
-    console.log(`🔍 Filtering ${documents.length} documents for relevance`);
+    console.log(`🔍 Processing ALL ${documents.length} documents for comprehensive analysis`);
     
-    // Filter out obsolete/irrelevant documents
-    const filtered = documents.filter(doc => {
+    // COMPREHENSIVE: Use ALL documents with valid content, no arbitrary limits
+    const validDocuments = documents.filter(doc => {
       const name = doc.name?.toLowerCase() || '';
       const path = doc.path?.toLowerCase() || '';
       
-      // Exclude obsolete/temp folders
-      if (path.includes('obsolete') || path.includes('/old/') || path.includes('temp') || 
-          path.includes('draft') || path.includes('backup') || name.includes('copy')) {
+      // Only exclude truly obsolete files (keep drafts as they may contain important info)
+      if (path.includes('obsolete') || path.includes('/old/') || path.includes('backup')) {
+        console.log(`⚠️ Excluding obsolete file: ${doc.name}`);
         return false;
       }
       
-      // Require meaningful OCR content
-      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
-      return ocrText && typeof ocrText === 'string' && ocrText.trim().length > 200;
+      // Include document if it has OCR text OR AI summary (use everything available)
+      const hasOCR = doc.ocrText && doc.ocrText.trim().length > 0;
+      const hasSummary = doc.aiSummary && doc.aiSummary.length > 0;
+      
+      if (!hasOCR && !hasSummary) {
+        console.log(`⚠️ Skipping ${doc.name}: No OCR text or AI summary available`);
+        return false;
+      }
+      
+      return true;
     });
     
-    // Prioritize by document type and importance
-    const prioritized = filtered.sort((a, b) => {
+    // Prioritize by document type for better organization (but keep ALL documents)
+    const prioritized = validDocuments.sort((a, b) => {
       const aName = a.name?.toLowerCase() || '';
       const bName = b.name?.toLowerCase() || '';
       
@@ -447,25 +454,25 @@ class InvestmentMemoService {
       if (aName.includes('financial') || aName.includes('forecast')) return -1;
       if (bName.includes('financial') || bName.includes('forecast')) return 1;
       
-      // Agreements and final documents over drafts
+      // Agreements and final documents
       if (aName.includes('agreement') || aName.includes('executed') || aName.includes('signed')) return -1;
       if (bName.includes('agreement') || bName.includes('executed') || bName.includes('signed')) return 1;
       
       return 0;
     });
     
-    // Limit to top 50 most relevant documents
-    const limited = prioritized.slice(0, 50);
-    console.log(`✅ Filtered from ${documents.length} to ${limited.length} relevant documents`);
+    // NO LIMIT - USE ALL VALID DOCUMENTS FOR COMPREHENSIVE ANALYSIS
+    console.log(`✅ Using ALL ${prioritized.length} documents with valid content (from ${documents.length} total)`);
+    console.log(`📊 Document coverage: ${((prioritized.length / documents.length) * 100).toFixed(1)}% of all documents have usable content`);
     
-    return limited;
+    return prioritized; // Return ALL valid documents, not just 50!
   }
   
   /**
    * OPTIMIZED: Section-specific context retrieval with token budgets
    * Replaces massive context extraction with smart, targeted retrieval
    */
-  private getSectionContext(documents: any[], agentAnalyses: any[], sectionKey: string, maxTokens: number = 1500): string {
+  private getSectionContext(documents: any[], agentAnalyses: any[], sectionKey: string, maxTokens: number = 3333): string {
     const sectionKeywords = this.getSectionKeywords(sectionKey);
     const targetChars = maxTokens * 4; // Rough token-to-char conversion
     
@@ -561,33 +568,68 @@ class InvestmentMemoService {
    * Replaces massive 8.4M character processing with smart, efficient context building
    */
   private async prepareComprehensiveAnalysisContext(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`🚀 Starting optimized context preparation for ${data.companyName}`);
+    console.log(`🚀 Starting COMPREHENSIVE context preparation for ${data.companyName}`);
     
-    // Filter and prioritize documents (from 378 to ~50 relevant docs)
-    const filtered = this.filterAndPrioritizeDocuments(data.documents);
+    // USE ALL DOCUMENTS - No arbitrary filtering!
+    const allDocuments = this.filterAndPrioritizeDocuments(data.documents);
     
-    // Define sections with token budgets
-    const sections = ['executiveSummary', 'marketAnalysis', 'financialAnalysis', 'productAnalysis', 'teamAssessment', 'riskAssessment', 'legalAssessment'];
-    const totalBudget = 6000; // Total token cap for entire context (~24k chars)
-    const budgetPer = Math.max(500, Math.floor(totalBudget / sections.length));
+    // EXPANDED: All sections for comprehensive coverage
+    const sections = [
+      'executiveSummary', 'marketAnalysis', 'financialAnalysis', 'productAnalysis', 
+      'teamAssessment', 'riskAssessment', 'legalAssessment', 'clinicalAssessment',
+      'ipAnalysis', 'commercialStrategy', 'regulatoryAnalysis', 'competitiveAnalysis',
+      'technologyAssessment', 'businessModel', 'investmentHighlights'
+    ];
     
-    console.log(`📊 Building context: ${filtered.length} docs, ${sections.length} sections, ${budgetPer} tokens each`);
+    // MASSIVELY INCREASED BUDGET: 50,000 tokens (~200k characters) for comprehensive analysis
+    const totalBudget = 50000; // 8x increase from 6000!
+    const budgetPer = Math.floor(totalBudget / sections.length); // ~3333 tokens per section
     
-    // Build optimized context within token budget
-    let context = `OPTIMIZED ANALYSIS CONTEXT FOR ${data.companyName}\n`;
+    console.log(`📊 Building COMPREHENSIVE context: ${allDocuments.length} docs, ${sections.length} sections, ${budgetPer} tokens each`);
+    console.log(`📈 Using ${((allDocuments.length / data.documents.length) * 100).toFixed(1)}% of all documents`);
+    
+    // Build comprehensive context with ALL available data
+    let context = `COMPREHENSIVE INVESTMENT ANALYSIS CONTEXT FOR ${data.companyName}\n`;
     context += `===============================================\n`;
-    context += `FILTERED DOCUMENTS: ${filtered.length} (from ${data.documents.length} total)\n`;
-    context += `AGENT ANALYSES: ${data.agentAnalyses.length}\n`;
-    context += `TOKEN BUDGET: ${totalBudget} tokens (~${totalBudget * 4} chars)\n`;
-    context += `===============================================\n`;
+    context += `TOTAL DOCUMENTS ANALYZED: ${allDocuments.length} of ${data.documents.length}\n`;
+    context += `AGENT ANALYSES INCLUDED: ${data.agentAnalyses.length}\n`;
+    context += `CONTEXT SIZE: Up to ${totalBudget} tokens (~${(totalBudget * 4 / 1000).toFixed(0)}k characters)\n`;
+    context += `===============================================\n\n`;
     
-    // Generate section-specific contexts within budget
-    for (const sectionKey of sections) {
-      const sectionContext = this.getSectionContext(filtered, data.agentAnalyses, sectionKey, budgetPer);
-      context += `\n\n=== ${sectionKey.toUpperCase()} CONTEXT ===\n${sectionContext}`;
+    // Include ALL agent analyses comprehensively
+    if (data.agentAnalyses.length > 0) {
+      context += `=== COMPREHENSIVE AGENT ANALYSES ===\n`;
+      data.agentAnalyses.forEach(analysis => {
+        context += `\n[${analysis.agentType.toUpperCase()} AGENT ANALYSIS]\n`;
+        context += `Status: ${analysis.status}\n`;
+        
+        // Include all agent findings and recommendations
+        if (analysis.findings) {
+          context += `Findings: ${JSON.stringify(analysis.findings, null, 2)}\n`;
+        }
+        if (analysis.recommendations) {
+          context += `Recommendations: ${JSON.stringify(analysis.recommendations, null, 2)}\n`;
+        }
+        
+        // Include all agent-specific answers
+        ['legalAnswers', 'clinicalAnswers', 'commercialAnswers', 'financialAnswers', 'ipAnswers', 'hrAnswers', 'researchAnswers'].forEach(field => {
+          if (analysis[field]) {
+            context += `${field}: ${JSON.stringify(analysis[field], null, 2)}\n`;
+          }
+        });
+      });
+      context += `\n===============================================\n`;
     }
     
-    console.log(`✅ Optimized context built: ${context.length} chars (target: ~${totalBudget * 4})`);
+    // Generate comprehensive section-specific contexts with increased budgets
+    for (const sectionKey of sections) {
+      const sectionContext = this.getSectionContext(allDocuments, data.agentAnalyses, sectionKey, budgetPer);
+      context += `\n\n=== ${sectionKey.toUpperCase()} COMPREHENSIVE CONTEXT ===\n${sectionContext}`;
+    }
+    
+    console.log(`✅ COMPREHENSIVE context built: ${context.length.toLocaleString()} characters (target: ~${(totalBudget * 4 / 1000).toFixed(0)}k)`);
+    console.log(`📊 Context includes: ${allDocuments.length} documents + ${data.agentAnalyses.length} agent analyses`);
+    
     return context;
   }
 
@@ -707,26 +749,41 @@ ${companyInfo}`
       
       let batchContent = '';
       batch.forEach((doc, index) => {
-        // Use AI summary as primary content source (OCR text field not available)
+        batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
+        
+        // PRIORITY 1: Use FULL OCR TEXT (most comprehensive data source)
+        if (doc.ocrText && doc.ocrText.trim().length > 0) {
+          const ocrLength = doc.ocrText.length;
+          console.log(`📄 Using OCR text for ${doc.name}: ${ocrLength.toLocaleString()} characters`);
+          
+          // Include FULL OCR text for maximum information extraction
+          batchContent += `FULL OCR TEXT (${ocrLength} chars):\n${doc.ocrText}\n`;
+        }
+        
+        // PRIORITY 2: Also include AI Summary for additional insights
         if (doc.aiSummary) {
-          batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
           try {
             const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary, null, 2);
-            batchContent += `AI SUMMARY CONTENT (${summary.length} chars):\n${summary}\n`;
-            
-            // Add additional document metadata
-            if (doc.documentType) {
-              batchContent += `DOCUMENT TYPE: ${doc.documentType}\n`;
-            }
-            if (doc.category) {
-              batchContent += `CATEGORY: ${doc.category}\n`;
-            }
+            batchContent += `\nAI SUMMARY ANALYSIS:\n${summary}\n`;
           } catch (e) {
             console.warn(`Error extracting AI summary for ${doc.name}:`, e);
-            batchContent += `AI SUMMARY: ${String(doc.aiSummary)}\n`;
           }
-          batchContent += `\n`;
         }
+        
+        // PRIORITY 3: Include document metadata for context
+        if (doc.documentType) {
+          batchContent += `DOCUMENT TYPE: ${doc.documentType}\n`;
+        }
+        if (doc.category) {
+          batchContent += `CATEGORY: ${doc.category}\n`;
+        }
+        
+        // Log if document has no useful content
+        if ((!doc.ocrText || doc.ocrText.trim().length === 0) && !doc.aiSummary) {
+          console.warn(`⚠️ Document ${doc.name} has no OCR text or AI summary - skipping`);
+        }
+        
+        batchContent += `\n`;
       });
       
       if (batchContent.trim().length > 100) {
