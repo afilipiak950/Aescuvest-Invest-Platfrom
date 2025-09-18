@@ -2448,6 +2448,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔍 DIAGNOSTIC ENDPOINT - Detailed analysis of incomplete documents
+  app.get('/api/deals/:dealId/documents/diagnostic', async (req: Request, res: Response) => {
+    console.log('🔍 Diagnostic endpoint hit');
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // 1. Find documents that have OCR completed but no AI summary
+      const ocrCompleteNoSummary = await db.select({
+        id: documents.id,
+        name: documents.name,
+        size: documents.size,
+        mimeType: documents.mimeType,
+        ocrStatus: documents.ocrStatus,
+        aiSummaryStatus: documents.aiSummaryStatus,
+        ocrTextLength: sql<number>`LENGTH(${documents.ocrText})`,
+        hasOcrText: sql<boolean>`${documents.ocrText} IS NOT NULL`,
+        ocrText: sql<string>`SUBSTRING(${documents.ocrText}, 1, 200)` // First 200 chars for preview
+      })
+      .from(documents)
+      .leftJoin(backgroundJobs, and(
+        eq(backgroundJobs.documentId, documents.id),
+        eq(backgroundJobs.jobType, 'ai_summary_generation'),
+        eq(backgroundJobs.status, 'completed')
+      ))
+      .where(and(
+        eq(documents.dealId, dealId),
+        or(
+          eq(documents.ocrStatus, 'completed'),
+          eq(documents.ocrStatus, 'success')
+        ),
+        isNull(backgroundJobs.id) // No completed AI summary job
+      ));
+
+      // 2. Find failed jobs with error details
+      const failedJobs = await db.select({
+        documentId: backgroundJobs.documentId,
+        jobType: backgroundJobs.jobType,
+        status: backgroundJobs.status,
+        error: backgroundJobs.error,
+        startedAt: backgroundJobs.startedAt,
+        completedAt: backgroundJobs.completedAt,
+        retryCount: backgroundJobs.retryCount
+      })
+      .from(backgroundJobs)
+      .innerJoin(documents, eq(documents.id, backgroundJobs.documentId))
+      .where(and(
+        eq(documents.dealId, dealId),
+        eq(backgroundJobs.status, 'failed')
+      ))
+      .orderBy(backgroundJobs.documentId);
+
+      // 3. Find stale processing jobs (stuck for >20 minutes)
+      const staleJobs = await db.select({
+        id: backgroundJobs.id,
+        documentId: backgroundJobs.documentId,
+        jobType: backgroundJobs.jobType,
+        status: backgroundJobs.status,
+        startedAt: backgroundJobs.startedAt,
+        progress: backgroundJobs.progress,
+        minutesStuck: sql<number>`EXTRACT(EPOCH FROM (NOW() - ${backgroundJobs.startedAt})) / 60`
+      })
+      .from(backgroundJobs)
+      .innerJoin(documents, eq(documents.id, backgroundJobs.documentId))
+      .where(and(
+        eq(documents.dealId, dealId),
+        eq(backgroundJobs.status, 'processing'),
+        sql`${backgroundJobs.startedAt} < NOW() - INTERVAL '20 minutes'`
+      ));
+
+      // 4. Analyze skip reasons for incomplete documents
+      const skipAnalysis = ocrCompleteNoSummary.map(doc => {
+        let skipReason = 'unknown';
+        let canForce = false;
+        
+        if (!doc.hasOcrText || !doc.ocrTextLength) {
+          skipReason = 'no_ocr_text';
+        } else if (doc.ocrTextLength < 50) {
+          skipReason = 'insufficient_content';
+          canForce = true;
+        } else if (doc.ocrText) {
+          const lowerText = doc.ocrText.toLowerCase();
+          if (lowerText.includes('extraction failed')) {
+            skipReason = 'ocr_extraction_failed';
+          } else if (lowerText.includes('timeout')) {
+            skipReason = 'ocr_timeout';
+            canForce = true;
+          } else if (lowerText.includes('corrupted')) {
+            skipReason = 'file_corrupted';
+          } else if (lowerText.includes('unable to extract')) {
+            skipReason = 'extraction_error';
+          } else {
+            skipReason = 'ready_for_processing';
+            canForce = true;
+          }
+        }
+        
+        return {
+          ...doc,
+          skipReason,
+          canForce
+        };
+      });
+
+      // 5. Get total document counts
+      const totalDocs = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(documents)
+        .where(eq(documents.dealId, dealId));
+
+      const completedSummaries = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(documents)
+        .innerJoin(backgroundJobs, and(
+          eq(backgroundJobs.documentId, documents.id),
+          eq(backgroundJobs.jobType, 'ai_summary_generation'),
+          eq(backgroundJobs.status, 'completed')
+        ))
+        .where(eq(documents.dealId, dealId));
+
+      // 6. Summary by skip reason
+      const skipReasonSummary = skipAnalysis.reduce((acc, doc) => {
+        acc[doc.skipReason] = (acc[doc.skipReason] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      return res.status(200).json({
+        success: true,
+        dealId,
+        summary: {
+          totalDocuments: totalDocs[0].count,
+          completedSummaries: completedSummaries[0].count,
+          incompleteDocuments: ocrCompleteNoSummary.length,
+          failedJobs: failedJobs.length,
+          staleJobs: staleJobs.length
+        },
+        skipReasonSummary,
+        incompleteDetails: skipAnalysis.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          size: doc.size,
+          mimeType: doc.mimeType,
+          ocrStatus: doc.ocrStatus,
+          aiSummaryStatus: doc.aiSummaryStatus,
+          ocrTextLength: doc.ocrTextLength,
+          skipReason: doc.skipReason,
+          canForce: doc.canForce,
+          ocrPreview: doc.ocrText?.substring(0, 100) + '...' || null
+        })),
+        failedJobs,
+        staleJobs
+      });
+      
+    } catch (error) {
+      console.error('Error in diagnostic endpoint:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to run diagnostics',
+        details: error.message
+      });
+    }
+  });
+
   // 🔄 RE-PROCESS DOCUMENTS WITH FAILED OCR OR EMPTY AI SUMMARIES
   app.post('/api/deals/:dealId/documents/reprocess-failed', async (req: Request, res: Response) => {
     console.log('🔄 Re-processing failed documents endpoint hit');
