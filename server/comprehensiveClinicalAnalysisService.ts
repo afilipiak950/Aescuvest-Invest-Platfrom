@@ -300,15 +300,21 @@ export class ComprehensiveClinicalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for clinical analysis
+   * Get all documents suitable for clinical analysis - FIXED to use proper storage method
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`🔧 FIXED: Using storage.getDocumentsWithOCRByDealId for deal ${dealId}`);
+    
+    // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
+    const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // Log OCR text availability for debugging
+    const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
+    const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
+    console.log(`📊 Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
+    console.log(`📊 Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
     
     // First try documents explicitly assigned to clinical agent
     let clinicalDocuments = allDocuments.filter(doc => 
@@ -323,11 +329,19 @@ export class ComprehensiveClinicalAnalysisService {
       console.log('📄 No documents explicitly assigned to clinical agent, identifying clinical-related documents...');
       
       clinicalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
+        if (!doc.ocrText && !doc.aiSummary) {
+          console.log(`⚠️ Document ${doc.name} has no OCR text or AI summary - skipping`);
+          return false;
+        }
         
         const docName = doc.name.toLowerCase();
         const docContent = (doc.ocrText || '').toLowerCase();
         const aiSummary = doc.aiSummary;
+        
+        // Log OCR text length for debugging
+        if (doc.ocrText) {
+          console.log(`📄 Document ${doc.name}: OCR text length = ${doc.ocrText.length}`);
+        }
         
         // Clinical document keywords
         const clinicalKeywords = [
