@@ -16,7 +16,7 @@ class BulletproofRateLimiter {
     });
     
     this.rateLimits.set('mistral', { 
-      calls: 50,  // 50 calls per minute
+      calls: 10,  // REDUCED: Mistral has stricter limits than documented
       window: 60000 
     });
     
