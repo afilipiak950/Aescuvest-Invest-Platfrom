@@ -143,15 +143,27 @@ export class ComprehensiveCommercialAnalysisService {
   }
 
   async getAssignedCommercialDocuments(dealId: number): Promise<any[]> {
-    console.log(`🏢 Finding assigned commercial documents for deal ${dealId}`);
+    console.log(`🏢 FIXED: Finding assigned commercial documents for deal ${dealId}`);
     
     try {
-      // Get ALL documents for the deal with AI summaries - same approach as Legal and Clinical
-      const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
+      // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
+      const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
-      // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
-      const documentsWithAI = allDocuments.filter(doc => {
+      // Log OCR text availability for debugging
+      const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
+      const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
+      console.log(`📊 Commercial: Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
+      console.log(`📊 Commercial: Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
+      
+      // Filter to include documents with OCR text OR AI summaries for analysis
+      const documentsWithContent = allDocuments.filter(doc => {
+        // Prioritize OCR text, fallback to AI summary
+        if (doc.ocrText && doc.ocrText.length > 100) {
+          console.log(`📄 Commercial: Document ${doc.name}: Using OCR text (${doc.ocrText.length} chars)`);
+          return true;
+        }
+        
         // Check if aiSummary exists and is valid (could be object or string)
         if (!doc.aiSummary) return false;
         
@@ -168,10 +180,10 @@ export class ComprehensiveCommercialAnalysisService {
         return false;
       });
       
-      console.log(`🏢 Commercial analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
+      console.log(`🏢 Commercial analysis will process ALL ${documentsWithContent.length} documents with content (OCR + AI summaries)`);
       
-      // Return ALL documents with AI summaries for maximum coverage
-      return documentsWithAI;
+      // Return ALL documents with content for maximum coverage
+      return documentsWithContent;
       
     } catch (error) {
       console.error(`❌ Error finding commercial documents:`, error);
