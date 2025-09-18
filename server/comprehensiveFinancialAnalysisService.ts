@@ -263,12 +263,18 @@ export class ComprehensiveFinancialAnalysisService {
   }
 
   private async getAssignedDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`💰 FIXED: Using storage.getDocumentsWithOCRByDealId for financial analysis deal ${dealId}`);
+    
+    // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
+    const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // Log OCR text availability for debugging
+    const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
+    const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
+    console.log(`📊 Financial: Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
+    console.log(`📊 Financial: Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
     
     // First try documents explicitly assigned to financial agent
     let financialDocuments = allDocuments.filter(doc => 
@@ -283,7 +289,17 @@ export class ComprehensiveFinancialAnalysisService {
       console.log('📄 No documents explicitly assigned to financial agent, identifying financial-related documents...');
       
       financialDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
+        if (!doc.ocrText && !doc.aiSummary) {
+          console.log(`⚠️ Financial: Document ${doc.name} has no OCR text or AI summary - skipping`);
+          return false;
+        }
+        
+        // Log OCR text length for debugging
+        if (doc.ocrText) {
+          console.log(`📄 Financial: Document ${doc.name}: OCR text length = ${doc.ocrText.length}`);
+        }
+        
+        return doc.ocrText || doc.aiSummary; // Include all documents with content for comprehensive analysis
         
         const docName = doc.name.toLowerCase();
         const docContent = (doc.ocrText || '').toLowerCase();
