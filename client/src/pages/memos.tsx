@@ -30,48 +30,13 @@ export default function Memos() {
     enabled: true
   });
 
-  // Mock data for demonstration
-  const mockMemos: InvestmentMemo[] = [
-    {
-      id: 1,
-      dealId: 21,
-      companyName: 'Tesla Company',
-      executiveSummary: 'Tesla is a leading electric vehicle and clean energy company with strong market position...',
-      investmentThesis: 'Compelling investment opportunity in the rapidly growing EV market with innovative technology...',
-      recommendation: 'INVEST',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      updatedAt: new Date(Date.now() - 3600000).toISOString(),
-      status: 'REVIEW',
-      aiScore: 92,
-      riskLevel: 'MEDIUM'
-    },
-    {
-      id: 2,
-      dealId: 20,
-      companyName: 'NeuroTech Solutions',
-      executiveSummary: 'Innovative medical technology company developing brain-computer interfaces...',
-      investmentThesis: 'Revolutionary technology with significant medical applications and market potential...',
-      recommendation: 'WATCH',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      updatedAt: new Date(Date.now() - 86400000).toISOString(),
-      status: 'DRAFT',
-      aiScore: 78,
-      riskLevel: 'HIGH'
-    },
-    {
-      id: 3,
-      dealId: 19,
-      companyName: 'GreenEnergy Systems',
-      executiveSummary: 'Renewable energy infrastructure company with focus on solar and wind solutions...',
-      investmentThesis: 'Strong fundamentals in growing renewable energy sector with proven technology...',
-      recommendation: 'INVEST',
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-      updatedAt: new Date(Date.now() - 172800000).toISOString(),
-      status: 'APPROVED',
-      aiScore: 88,
-      riskLevel: 'LOW'
-    }
-  ];
+  // Detailed logging for debugging API response
+  console.log('📝 Memos Query Debug:', {
+    isLoading,
+    memosLength: memos?.length || 0,
+    memosData: memos?.slice(0, 2), // Show first 2 memos for debugging
+    queryKey: '/api/memos'
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,7 +66,18 @@ export default function Memos() {
     }
   };
 
-  const displayMemos = mockMemos;
+  // Use real data from API, or empty array if loading/error
+  const displayMemos = memos || [];
+  
+  // Enhanced debugging for display logic
+  console.log('🔍 Display Logic Debug:', {
+    isLoading,
+    hasRealData: !!memos,
+    realMemosCount: memos?.length || 0,
+    displayMemosCount: displayMemos.length,
+    willShowRealData: !isLoading && memos && memos.length > 0,
+    willShowEmptyState: !isLoading && (!memos || memos.length === 0)
+  });
   const filteredMemos = filter === 'all' ? displayMemos : displayMemos.filter((memo: InvestmentMemo) => memo.status.toLowerCase() === filter);
 
   return (

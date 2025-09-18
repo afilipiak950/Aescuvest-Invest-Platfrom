@@ -2154,6 +2154,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Investment Memo routes
+  // Get all investment memos for memos list page
+  app.get('/api/memos', async (req: Request, res: Response) => {
+    console.log('🎯 API route hit: GET /api/memos');
+    console.log('🌐 ULTRA-DEBUG: GET /api/memos - MIDDLEWARE HIT');
+    
+    try {
+      console.log('📝 Fetching all investment memos...');
+      const memos = await storage.getAllMemos();
+      console.log(`✅ Found ${memos.length} investment memos`);
+      
+      // Enhanced logging to debug what's being returned
+      if (memos.length > 0) {
+        console.log('📋 Sample memo data:', {
+          id: memos[0].id,
+          dealId: memos[0].dealId,
+          companyName: memos[0].companyName || 'No company name',
+          status: memos[0].status || 'No status',
+          createdAt: memos[0].createdAt
+        });
+      }
+      
+      return res.status(200).json(memos);
+    } catch (error) {
+      console.error('Error fetching all investment memos:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Get specific memo by deal ID
   app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
