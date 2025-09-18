@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { documents as documentsTable } from '../../shared/schema';
 import { backgroundJobs, documents, InsertBackgroundJob, BackgroundJob } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, isNotNull, isNull } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 import fs from 'fs';
@@ -22,6 +22,11 @@ class JobProcessor {
   };
   
   constructor() {
+    // 🚀 STARTUP: Detect and queue missing AI summaries on initialization
+    setTimeout(() => {
+      this.detectAndQueueMissingAISummaries().catch(console.error);
+    }, 2000); // Delay startup by 2 seconds to allow system to stabilize
+    
     // Start automatic cleanup of stuck jobs every 5 minutes
     setInterval(() => {
       this.cleanupStuckJobs();
@@ -1451,6 +1456,15 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
       await this.completeJob(jobId, result);
       console.log(`✅ DIRECT OCR SUCCESS: Job ${jobId} completed with ${ocrResult.extractedText?.length || 0} characters extracted`);
       
+      // 🔄 AUTO-CHAIN: Automatically create AI summary job after successful OCR
+      if (ocrResult.extractedText && ocrResult.extractedText.trim().length > 0) {
+        const dealId = (job.jobData as any)?.dealId || job.dealId || 44; // Fallback to default deal
+        await this.createAISummaryJob(documentId, dealId);
+        console.log(`🔗 AUTO-CHAIN: AI summary job queued for document ${documentId}`);
+      } else {
+        console.log(`⚠️ Skipping AI summary job - no OCR text extracted for document ${documentId}`);
+      }
+      
     } catch (error) {
       console.error(`❌ DIRECT OCR FAILED: Job ${jobId} error:`, error);
       await this.completeJob(jobId, null, String(error));
@@ -1529,6 +1543,182 @@ Focus on investment-relevant information. Be concise but comprehensive. Only inc
     } catch (error) {
       console.error(`❌ Background assignment failed for deal ${dealId}:`, error);
       await this.completeJob(job.id, null, `Assignment failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create AI summary job for a document
+   */
+  private async createAISummaryJob(documentId: number, dealId: number): Promise<number | null> {
+    try {
+      // Check if document already has AI summary or if job already exists
+      const [existingDoc] = await db.select()
+        .from(documents)
+        .where(eq(documents.id, documentId));
+
+      if (!existingDoc) {
+        console.log(`⚠️ Document ${documentId} not found - skipping AI summary job`);
+        return null;
+      }
+
+      // Skip if already has AI summary
+      if (existingDoc.aiSummaryStatus === 'completed' && existingDoc.aiSummary) {
+        console.log(`⏭️ Document ${documentId} already has AI summary - skipping`);
+        return null;
+      }
+
+      // Check if AI summary job already pending/processing
+      const existingJob = await db.select()
+        .from(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.documentId, documentId),
+          eq(backgroundJobs.jobType, 'ai_summary_generation'),
+          or(
+            eq(backgroundJobs.status, 'pending'),
+            eq(backgroundJobs.status, 'processing')
+          )
+        ));
+
+      if (existingJob.length > 0) {
+        console.log(`⏭️ AI summary job already exists for document ${documentId} - skipping`);
+        return null;
+      }
+
+      // Create new AI summary job
+      const jobId = `ai_summary_${documentId}_${Date.now()}`;
+      const [newJob] = await db.insert(backgroundJobs).values({
+        jobId: jobId,
+        jobType: 'ai_summary_generation',
+        status: 'pending',
+        dealId: dealId,
+        documentId: documentId,
+        jobData: JSON.stringify({
+          documentId: documentId,
+          dealId: dealId
+        }),
+        progress: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+
+      console.log(`✅ Created AI summary job ${newJob.id} for document ${documentId}`);
+      
+      // Add to queue immediately for processing
+      this.jobQueue.push(newJob);
+      
+      // Trigger processing if not already running
+      setImmediate(() => {
+        this.processQueue();
+      });
+
+      return newJob.id;
+    } catch (error) {
+      console.error(`❌ Failed to create AI summary job for document ${documentId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Startup detection: Find documents that have OCR but missing AI summaries and queue them
+   */
+  private async detectAndQueueMissingAISummaries() {
+    try {
+      console.log('🔍 STARTUP: Detecting documents with missing AI summaries...');
+      
+      // Find documents that have OCR text but no AI summary across all deals
+      const incompleteDocuments = await db.select()
+        .from(documents)
+        .where(and(
+          // Has OCR text that's not empty
+          isNotNull(documents.ocrText),
+          // But missing AI summary or has error status
+          or(
+            isNull(documents.aiSummary),
+            eq(documents.aiSummaryStatus, 'failed'),
+            eq(documents.aiSummaryStatus, 'quota_exceeded'),
+            eq(documents.aiSummaryStatus, 'pending')
+          )
+        ))
+        .limit(100); // Limit to avoid overwhelming the system on startup
+      
+      console.log(`🔍 STARTUP: Found ${incompleteDocuments.length} documents needing AI summaries`);
+      
+      if (incompleteDocuments.length === 0) {
+        console.log('✅ STARTUP: All documents have AI summaries - no action needed');
+        return;
+      }
+      
+      let queuedCount = 0;
+      for (const document of incompleteDocuments) {
+        // Skip if OCR text is empty or too short
+        if (!document.ocrText || document.ocrText.trim().length < 100) {
+          continue;
+        }
+        
+        // Skip if this looks like an error message
+        const lowerText = document.ocrText.toLowerCase();
+        if (lowerText.includes('extraction failed') || 
+            lowerText.includes('timeout') || 
+            lowerText.includes('corrupted') ||
+            lowerText.includes('unable to extract') ||
+            lowerText.includes('file appears corrupted')) {
+          continue;
+        }
+        
+        // Check if AI summary job already exists
+        const existingJob = await db.select()
+          .from(backgroundJobs)
+          .where(and(
+            eq(backgroundJobs.documentId, document.id),
+            eq(backgroundJobs.jobType, 'ai_summary_generation'),
+            or(
+              eq(backgroundJobs.status, 'pending'),
+              eq(backgroundJobs.status, 'processing')
+            )
+          ));
+
+        if (existingJob.length > 0) {
+          continue; // Job already exists
+        }
+        
+        // Create AI summary job
+        const jobId = `ai_summary_startup_${document.id}_${Date.now()}`;
+        try {
+          await db.insert(backgroundJobs).values({
+            jobId: jobId,
+            jobType: 'ai_summary_generation',
+            status: 'pending',
+            dealId: document.dealId,
+            documentId: document.id,
+            jobData: JSON.stringify({
+              documentId: document.id,
+              dealId: document.dealId,
+              source: 'startup_detection'
+            }),
+            progress: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          queuedCount++;
+          console.log(`✅ STARTUP: Queued AI summary job for document ${document.id}: ${document.name}`);
+        } catch (error) {
+          console.error(`❌ STARTUP: Failed to queue job for document ${document.id}:`, error);
+        }
+      }
+      
+      if (queuedCount > 0) {
+        console.log(`🚀 STARTUP: Successfully queued ${queuedCount} AI summary jobs for missing summaries`);
+        // Trigger immediate processing
+        setTimeout(() => {
+          this.loadPendingJobsFromDatabase();
+        }, 1000);
+      } else {
+        console.log('ℹ️ STARTUP: No new AI summary jobs needed');
+      }
+      
+    } catch (error) {
+      console.error('❌ STARTUP: Error during missing AI summary detection:', error);
     }
   }
 }
