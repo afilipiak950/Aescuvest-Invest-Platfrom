@@ -2354,47 +2354,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 🔄 RESUME PROCESSING - Queue AI summaries for documents with OCR but no summary  
+  // 🔄 ENHANCED RESUME PROCESSING - Queue AI summaries with detailed skip reasons and force override
   app.post('/api/deals/:dealId/documents/resume-processing', async (req: Request, res: Response) => {
-    console.log('🔄 Resume processing endpoint hit');
+    console.log('🔄 Enhanced resume processing endpoint hit');
     res.setHeader('Content-Type', 'application/json');
     
     try {
       const dealId = parseInt(req.params.dealId);
+      const { force = false, documentIds = [] } = req.body;
+      
+      console.log(`🔄 Resume processing for deal ${dealId}, force: ${force}, specific docs: ${documentIds.length}`);
       
       // Find documents that have OCR text but no AI summary
-      const incompleteDocuments = await db.select()
+      let whereConditions = and(
+        eq(documents.dealId, dealId),
+        // Has OCR text or force mode
+        force ? undefined : isNotNull(documents.ocrText),
+        // But missing AI summary or has error status
+        or(
+          isNull(documents.aiSummary),
+          eq(documents.aiSummaryStatus, 'failed'),
+          eq(documents.aiSummaryStatus, 'quota_exceeded'),
+          eq(documents.aiSummaryStatus, 'pending')
+        )
+      );
+      
+      // Filter by specific document IDs if provided
+      if (documentIds.length > 0) {
+        whereConditions = and(
+          whereConditions,
+          sql`${documents.id} = ANY(${documentIds})`
+        );
+      }
+      
+      const incompleteDocuments = await db.select({
+        id: documents.id,
+        name: documents.name,
+        ocrText: documents.ocrText,
+        aiSummary: documents.aiSummary,
+        aiSummaryStatus: documents.aiSummaryStatus,
+        ocrTextLength: sql<number>`LENGTH(${documents.ocrText})`
+      })
         .from(documents)
-        .where(and(
-          eq(documents.dealId, dealId),
-          // Has OCR text
-          isNotNull(documents.ocrText),
-          // But missing AI summary or has error status
-          or(
-            isNull(documents.aiSummary),
-            eq(documents.aiSummaryStatus, 'failed'),
-            eq(documents.aiSummaryStatus, 'quota_exceeded'),
-            eq(documents.aiSummaryStatus, 'pending')
-          )
-        ));
+        .where(whereConditions);
       
       console.log(`🔍 Found ${incompleteDocuments.length} documents needing AI summaries`);
       
       let queuedCount = 0;
+      const skippedDetails: any[] = [];
+      
       for (const document of incompleteDocuments) {
-        // Skip if OCR text is empty or an error message
-        if (!document.ocrText || document.ocrText.trim().length < 50) {
-          console.log(`⏭️ Skipping document ${document.id} - insufficient OCR text`);
-          continue;
+        let skipReason: string | null = null;
+        let canProcess = true;
+        
+        // Analyze why document might be skipped
+        if (!force) {
+          if (!document.ocrText) {
+            skipReason = 'no_ocr_text';
+            canProcess = false;
+          } else if (document.ocrTextLength < 50) {
+            skipReason = 'insufficient_content';
+            canProcess = false;
+          } else if (document.ocrText) {
+            const lowerText = document.ocrText.toLowerCase();
+            if (lowerText.includes('extraction failed')) {
+              skipReason = 'ocr_extraction_failed';
+              canProcess = false;
+            } else if (lowerText.includes('timeout')) {
+              skipReason = 'ocr_timeout';
+              canProcess = false;
+            } else if (lowerText.includes('corrupted')) {
+              skipReason = 'file_corrupted';
+              canProcess = false;
+            } else if (lowerText.includes('unable to extract')) {
+              skipReason = 'extraction_error';
+              canProcess = false;
+            }
+          }
         }
         
-        // Check if this looks like an error message
-        const lowerText = document.ocrText.toLowerCase();
-        if (lowerText.includes('extraction failed') || 
-            lowerText.includes('timeout') || 
-            lowerText.includes('corrupted') ||
-            lowerText.includes('unable to extract')) {
-          console.log(`⏭️ Skipping document ${document.id} - OCR error detected`);
+        if (!canProcess && !force) {
+          console.log(`⏭️ Skipping document ${document.id} (${document.name}) - ${skipReason}`);
+          skippedDetails.push({
+            id: document.id,
+            name: document.name,
+            skipReason,
+            ocrTextLength: document.ocrTextLength,
+            canForce: true
+          });
           continue;
         }
         
@@ -2410,7 +2457,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             jobData: JSON.stringify({
               documentId: document.id,
               dealId: dealId,
-              resumeType: 'missing_summary'
+              resumeType: 'missing_summary',
+              forceProcessed: force
             }),
             progress: 0,
             createdAt: new Date(),
@@ -2418,9 +2466,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           queuedCount++;
-          console.log(`✅ Queued AI summary job for document ${document.id}: ${document.name}`);
+          console.log(`✅ Queued AI summary job for document ${document.id}: ${document.name} ${force ? '(FORCED)' : ''}`);
         } catch (error) {
           console.error(`❌ Failed to queue job for document ${document.id}:`, error);
+          skippedDetails.push({
+            id: document.id,
+            name: document.name,
+            skipReason: 'job_creation_failed',
+            error: error.message,
+            canForce: false
+          });
         }
       }
       
@@ -2436,7 +2491,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Resume processing started for ${queuedCount} documents`,
         queuedJobs: queuedCount,
         totalIncomplete: incompleteDocuments.length,
-        dealId: dealId
+        skippedDocuments: skippedDetails.length,
+        dealId: dealId,
+        force: force,
+        skippedDetails: skippedDetails,
+        summary: {
+          found: incompleteDocuments.length,
+          queued: queuedCount,
+          skipped: skippedDetails.length,
+          skipReasons: skippedDetails.reduce((acc, doc) => {
+            acc[doc.skipReason] = (acc[doc.skipReason] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        }
       });
       
     } catch (error) {
