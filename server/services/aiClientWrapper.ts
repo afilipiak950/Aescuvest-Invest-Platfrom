@@ -56,12 +56,18 @@ class AIClientWrapper {
     apiCall: () => Promise<T>,
     config: Partial<RetryConfig> = {}
   ): Promise<T> {
-    const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
+    // Use longer delays for Mistral due to stricter rate limits
+    const mistralConfig = { 
+      ...DEFAULT_RETRY_CONFIG, 
+      baseDelay: 3000,  // 3 seconds base delay for Mistral
+      maxDelay: 30000,  // 30 seconds max delay for Mistral
+      ...config 
+    };
     
     // Wait for rate limit clearance
     await bulletproofRateLimiter.waitForRateLimit('mistral');
     
-    return this.executeWithRetry(apiCall, 'Mistral', retryConfig);
+    return this.executeWithRetry(apiCall, 'Mistral', mistralConfig);
   }
 
   /**
