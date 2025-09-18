@@ -274,12 +274,18 @@ export class ComprehensiveIpAnalysisService {
   }
 
   private async getAssignedDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`🔬 FIXED: Using storage.getDocumentsWithOCRByDealId for IP analysis deal ${dealId}`);
+    
+    // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
+    const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    
+    // Log OCR text availability for debugging
+    const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
+    const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
+    console.log(`📊 IP: Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
+    console.log(`📊 IP: Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
     
     // First try documents explicitly assigned to IP agent
     let ipDocuments = allDocuments.filter(doc => 
@@ -294,7 +300,17 @@ export class ComprehensiveIpAnalysisService {
       console.log('📄 No documents explicitly assigned to IP agent, identifying IP-related documents...');
       
       ipDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
+        if (!doc.ocrText && !doc.aiSummary) {
+          console.log(`⚠️ IP: Document ${doc.name} has no OCR text or AI summary - skipping`);
+          return false;
+        }
+        
+        // Log OCR text length for debugging
+        if (doc.ocrText) {
+          console.log(`📄 IP: Document ${doc.name}: OCR text length = ${doc.ocrText.length}`);
+        }
+        
+        return doc.ocrText || doc.aiSummary; // Include all documents with content for comprehensive analysis
         
         const docName = doc.name.toLowerCase();
         const docContent = (doc.ocrText || '').toLowerCase();
