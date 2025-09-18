@@ -706,7 +706,7 @@ Respond in JSON format:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        commercialAnswers: JSON.stringify(commercialAnswers),
+        commercial_answers: JSON.stringify(commercialAnswers), // FIXED: Use snake_case for database field
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
