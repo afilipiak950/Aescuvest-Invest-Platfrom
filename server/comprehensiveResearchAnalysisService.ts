@@ -12,18 +12,21 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_1', 
     question: 'What competitive threats exist and how significant are they?', 
     category: 'Competitive Intelligence',
+    analysisPrompt: 'Identify competitive threats, competitor analysis, market positioning, and competitive risk assessment.',
     keywords: ['competitive threat', 'competitor', 'competition', 'competitive landscape', 'market share', 'competitive advantage', 'threat assessment', 'competitive risk']
   },
   { 
     id: 'research_2', 
     question: 'What is the patent landscape and IP positioning?', 
     category: 'Competitive Intelligence',
+    analysisPrompt: 'Analyze patent landscape, IP positioning, intellectual property strategy, and freedom to operate assessments.',
     keywords: ['patent landscape', 'ip position', 'intellectual property', 'patent portfolio', 'patent protection', 'ip strategy', 'patent analysis', 'freedom to operate']
   },
   { 
     id: 'research_3', 
     question: 'How defensible is the technology moat?', 
     category: 'Competitive Intelligence',
+    analysisPrompt: 'Assess technology moat defensibility, competitive barriers, technological advantages, and proprietary differentiation.',
     keywords: ['technology moat', 'defensibility', 'competitive moat', 'barrier to entry', 'technological advantage', 'proprietary technology', 'technical differentiation']
   },
   // Market Analysis
@@ -31,18 +34,21 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_4', 
     question: 'What is the Total Addressable Market (TAM) size and growth?', 
     category: 'Market Analysis',
+    analysisPrompt: 'Identify Total Addressable Market size, growth projections, market opportunity, and expansion potential.',
     keywords: ['total addressable market', 'tam', 'market size', 'market growth', 'market opportunity', 'addressable market', 'market potential', 'market expansion']
   },
   { 
     id: 'research_5', 
     question: 'What are the key market trends and drivers?', 
     category: 'Market Analysis',
+    analysisPrompt: 'Analyze market trends, growth drivers, industry dynamics, and market evolution factors.',
     keywords: ['market trends', 'market drivers', 'industry trends', 'growth drivers', 'market dynamics', 'trend analysis', 'market forces', 'industry evolution']
   },
   { 
     id: 'research_6', 
     question: 'What is the regulatory environment and compliance requirements?', 
     category: 'Market Analysis',
+    analysisPrompt: 'Examine regulatory environment, compliance requirements, regulatory frameworks, and industry standards.',
     keywords: ['regulatory environment', 'compliance requirements', 'regulation', 'regulatory risk', 'compliance', 'regulatory framework', 'industry standards']
   },
   // Technology Assessment
@@ -50,18 +56,21 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_7', 
     question: 'What is the technology maturity and scalability potential?', 
     category: 'Technology Assessment',
+    analysisPrompt: 'Assess technology maturity, scalability potential, technological readiness, and technical risk factors.',
     keywords: ['technology maturity', 'scalability', 'technological readiness', 'scale potential', 'technical scalability', 'platform scalability', 'technology risk']
   },
   { 
     id: 'research_8', 
     question: 'What are the key technology dependencies and risks?', 
     category: 'Technology Assessment',
+    analysisPrompt: 'Identify technology dependencies, technical risks, platform dependencies, and technology stack vulnerabilities.',
     keywords: ['technology dependencies', 'technology risk', 'technical dependencies', 'platform dependencies', 'technology stack', 'technical risk assessment']
   },
   { 
     id: 'research_9', 
     question: 'What data quality and validation has been performed?', 
     category: 'Technology Assessment',
+    analysisPrompt: 'Review data quality processes, validation procedures, data integrity measures, and governance frameworks.',
     keywords: ['data quality', 'data validation', 'data integrity', 'data accuracy', 'data governance', 'data verification', 'quality assurance', 'data standards']
   },
   // Strategic Analysis
@@ -69,24 +78,28 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_10', 
     question: 'What are the potential exit strategies and acquirer landscape?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Analyze potential exit strategies, acquirer landscape, strategic buyers, and M&A opportunities.',
     keywords: ['exit strategy', 'acquirer', 'acquisition', 'strategic buyer', 'exit opportunity', 'merger', 'acquisition target', 'strategic partnership']
   },
   { 
     id: 'research_11', 
     question: 'What international expansion opportunities exist?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Evaluate international expansion opportunities, global market potential, geographic strategies, and market entry approaches.',
     keywords: ['international expansion', 'global expansion', 'international market', 'geographic expansion', 'global opportunity', 'international strategy', 'market expansion']
   },
   { 
     id: 'research_12', 
     question: 'What are the ESG considerations and sustainability factors?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Assess ESG factors, sustainability initiatives, environmental impact, social responsibility, and governance practices.',
     keywords: ['esg', 'sustainability', 'environmental impact', 'social responsibility', 'governance', 'sustainable business', 'environmental considerations', 'social impact']
   },
   { 
     id: 'research_13', 
     question: 'What customer validation and market traction evidence exists?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Review customer validation evidence, market traction metrics, product-market fit indicators, and adoption signals.',
     keywords: ['customer validation', 'market traction', 'product market fit', 'customer feedback', 'market adoption', 'user engagement', 'customer retention', 'revenue traction', 'growth metrics']
   }
 ];
@@ -127,8 +140,8 @@ export class ComprehensiveResearchAnalysisService {
       
       await this.updateJobProgress(20, 'Processing documents');
       
-      // Process each research question
-      const researchAnswers: Record<string, string> = {};
+      // Process each research question - EXACT CLINICAL APPROACH
+      const researchAnswers: Record<string, any> = {};
       const findings: string[] = [];
       const recommendations: string[] = [];
       
@@ -139,10 +152,16 @@ export class ComprehensiveResearchAnalysisService {
         await this.updateJobProgress(progress, `Analyzing: ${question.question}`);
         
         try {
-          const answer = await this.analyzeQuestion(question, docs);
-          if (answer && answer.trim()) {
+          // Extract evidence from documents - EXACT CLINICAL APPROACH
+          const evidence = await this.extractEvidence(docs, question);
+          
+          if (evidence.length > 0) {
+            // Compile comprehensive answer - EXACT CLINICAL APPROACH  
+            const answer = await this.compileComprehensiveAnswer(question, evidence);
             researchAnswers[question.id] = answer;
-            console.log(`✅ Research question ${question.id} answered successfully`);
+            console.log(`✅ Research question ${question.id} answered with evidence from ${evidence.length} documents`);
+          } else {
+            console.log(`⚠️ No evidence found for research question: ${question.question}`);
           }
         } catch (error) {
           console.error(`❌ Error analyzing research question ${question.id}:`, error);
@@ -176,83 +195,220 @@ export class ComprehensiveResearchAnalysisService {
     }
   }
 
-  private async analyzeQuestion(question: any, docs: any[]) {
+  /**
+   * Extract evidence from multiple documents for a question - EXACT CLINICAL APPROACH
+   */
+  private async extractEvidence(
+    documents: any[], 
+    question: any
+  ): Promise<any[]> {
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    
+    // Process documents in batches to avoid overwhelming the system - EXACT Clinical approach
+    const batchSize = 10;
+    const evidence = [];
+    
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (doc) => {
+          console.log(`🔎 Extracting evidence from: ${doc.name}`);
+          return this.extractEvidenceFromDocument(doc, question);
+        })
+      );
+      
+      // Filter out null results and add to evidence - EXACT Clinical approach
+      const validEvidence = batchResults.filter(docEvidence => 
+        docEvidence && docEvidence.relevantContent.length > 0
+      );
+      evidence.push(...validEvidence);
+      
+      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+    }
+    
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    return evidence;
+  }
+
+  /**
+   * Extract specific evidence from a single document - EXACT CLINICAL APPROACH
+   */
+  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    
+    if (!content) return null;
+    
+    const prompt = `You are an expert research analyst conducting comprehensive investment analysis. Your task is to find ANY research, market, competitive, strategic, or technological information, even if indirectly related.
+
+DOCUMENT: ${document.name}
+CONTENT: ${content.substring(0, 4000)}
+
+QUESTION: "${question.question}"
+ANALYSIS TASK: ${question.analysisPrompt}
+
+Instructions:
+- Look for DIRECT research terms: market analysis, competitive intelligence, technology assessment, strategic planning
+- Look for INDIRECT research information: business intelligence, market data, industry reports, strategic documents
+- Consider business documents that mention research findings, market insights, competitive analysis
+- Even general business context often has research implications for investment due diligence
+- For investment companies, most business documents contain research information relevant to investors
+
+Respond in JSON format:
+{
+  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "hasRelevantInfo": true/false,
+  "confidence": 0-100,
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "documentSummary": "Brief summary of what this document contains relevant to the question",
+  "researchContext": "How this document relates to research/strategic aspects of the business"
+}
+
+Be thorough in finding relevance - most business documents have research implications for investment analysis.`;
+
     try {
-      // Find relevant documents based on keywords
-      const relevantDocs = docs.filter(doc => {
-        const text = (doc.ocrText || '').toLowerCase();
-        
-        // Handle aiSummary safely - it might be an object or string
-        let summary = '';
-        if (typeof doc.aiSummary === 'string') {
-          summary = doc.aiSummary.toLowerCase();
-        } else if (doc.aiSummary && typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-          summary = doc.aiSummary.executiveSummary.toLowerCase();
-        }
-        
-        return question.keywords.some((keyword: string) => 
-          text.includes(keyword.toLowerCase()) || 
-          summary.includes(keyword.toLowerCase())
-        );
-      });
-      
-      if (relevantDocs.length === 0) {
-        return `No relevant documents found for analysis of: ${question.question}`;
-      }
-      
-      // Prepare context from relevant documents
-      const context = relevantDocs.map(doc => {
-        // Handle aiSummary safely - it might be an object or string
-        let summaryText = 'No summary available';
-        if (typeof doc.aiSummary === 'string' && doc.aiSummary.trim()) {
-          summaryText = doc.aiSummary;
-        } else if (doc.aiSummary && typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-          summaryText = doc.aiSummary.executiveSummary;
-        }
-        
-        return {
-          filename: doc.filename,
-          content: doc.ocrText || summaryText || 'No content available',
-          summary: summaryText
-        };
-      }).slice(0, 5); // Limit to top 5 relevant docs
-      
-      const prompt = `You are a research analyst conducting comprehensive due diligence research analysis.
-
-RESEARCH QUESTION: ${question.question}
-CATEGORY: ${question.category}
-
-Based on the following documents, provide a detailed analysis answering the research question:
-
-DOCUMENTS:
-${context.map((doc, idx) => `
-Document ${idx + 1}: ${doc.filename}
-Summary: ${doc.summary}
-Content Preview: ${doc.content.substring(0, 1000)}...
-`).join('\n')}
-
-Please provide:
-1. A direct answer to the research question
-2. Key evidence from the documents
-3. Any data points, metrics, or specific findings
-4. Risk factors or concerns identified
-5. Confidence level in your analysis
-
-Answer format: Provide a comprehensive but concise analysis (200-400 words).`;
-
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 800
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 1500
       });
-
-      return response.choices[0]?.message?.content || 'Analysis could not be completed';
+      
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      
+      return {
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: analysis.relevantContent || [],
+        hasRelevantInfo: analysis.hasRelevantInfo || false,
+        confidence: analysis.confidence || 0,
+        keyFindings: analysis.keyFindings || [],
+        documentSummary: analysis.documentSummary || '',
+        fullContent: content.substring(0, 1000) // Keep sample for reference
+      };
       
     } catch (error) {
-      console.error(`Error analyzing research question ${question.id}:`, error);
-      return `Error analyzing: ${question.question}`;
+      console.error(`Error extracting evidence from ${document.name}:`, error);
+      return {
+        documentName: document.name,
+        documentId: document.id,
+        relevantContent: [],
+        hasRelevantInfo: false,
+        confidence: 0,
+        keyFindings: [],
+        documentSummary: 'Analysis failed',
+        fullContent: content.substring(0, 1000)
+      };
     }
+  }
+
+  /**
+   * Compile comprehensive answer based on all evidence - EXACT CLINICAL APPROACH
+   */
+  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+    console.log(`🔍 Compiling answer for: ${question.question}`);
+    console.log(`📊 Using evidence from ${evidence.length} documents`);
+    
+    // Prepare evidence summary for AI analysis
+    const evidenceSummary = evidence.map(doc => {
+      return `Document: ${doc.documentName}
+Key Findings: ${doc.keyFindings.join('; ')}
+Content: ${doc.relevantContent.join(' | ')}
+Summary: ${doc.documentSummary}`;
+    }).join('\n\n');
+    
+    const prompt = `You are an expert research analyst providing comprehensive investment analysis. Based on the evidence extracted from documents, provide a detailed answer to the research question.
+
+QUESTION: "${question.question}"
+CATEGORY: ${question.category}
+ANALYSIS TASK: ${question.analysisPrompt}
+
+EVIDENCE FROM DOCUMENTS:
+${evidenceSummary}
+
+Please provide a comprehensive analysis including:
+1. Direct answer to the question based on evidence
+2. Key insights and findings from the documents
+3. Data points, metrics, or specific evidence found
+4. Risk factors or concerns identified
+5. Confidence level in your analysis (0-100)
+6. Specific recommendations for investment consideration
+
+Format your response to be detailed yet concise, focusing on actionable insights for investment decision-making.`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 1200
+      });
+      
+      const answer = response.choices[0]?.message?.content || 'Unable to compile comprehensive answer';
+      
+      return {
+        question: question.question,
+        answer: answer,
+        confidence: this.calculateConfidence(evidence),
+        sources: evidence.map(e => e.documentName),
+        detailedEvidence: evidence,
+        keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 10),
+        evidenceSummary: `Analysis based on ${evidence.length} documents with ${evidence.reduce((acc, e) => acc + e.relevantContent.length, 0)} pieces of evidence`,
+        researchAssessment: this.generateResearchAssessment(evidence, answer),
+        recommendations: this.extractRecommendations(answer)
+      };
+      
+    } catch (error) {
+      console.error(`Error compiling comprehensive answer:`, error);
+      return {
+        question: question.question,
+        answer: 'Error occurred during analysis compilation',
+        confidence: 0,
+        sources: evidence.map(e => e.documentName),
+        detailedEvidence: evidence,
+        keyFindings: [],
+        evidenceSummary: 'Analysis compilation failed',
+        researchAssessment: 'Unable to generate research assessment',
+        recommendations: []
+      };
+    }
+  }
+
+  private calculateConfidence(evidence: any[]): number {
+    if (evidence.length === 0) return 0;
+    const avgConfidence = evidence.reduce((sum, e) => sum + e.confidence, 0) / evidence.length;
+    const documentBonus = Math.min(evidence.length * 5, 20); // Up to 20% bonus for multiple documents
+    return Math.min(Math.round(avgConfidence + documentBonus), 100);
+  }
+
+  private generateResearchAssessment(evidence: any[], answer: string): string {
+    const docCount = evidence.length;
+    const totalFindings = evidence.reduce((acc, e) => acc + e.keyFindings.length, 0);
+    
+    return `Research analysis based on ${docCount} documents with ${totalFindings} key findings. ${
+      docCount >= 3 ? 'Strong' : docCount >= 2 ? 'Moderate' : 'Limited'
+    } evidence base supports research conclusions.`;
+  }
+
+  private extractRecommendations(answer: string): string[] {
+    // Simple extraction of recommendation-like content
+    const recommendations = [];
+    const lines = answer.split(/[.\n]/).filter(line => 
+      line.toLowerCase().includes('recommend') || 
+      line.toLowerCase().includes('should') ||
+      line.toLowerCase().includes('consider') ||
+      line.toLowerCase().includes('suggest')
+    );
+    
+    recommendations.push(...lines.slice(0, 3).map(line => line.trim()));
+    
+    if (recommendations.length === 0) {
+      recommendations.push('Review detailed research analysis for investment decision making');
+    }
+    
+    return recommendations;
   }
 
   private async generateFindingsAndRecommendations(researchAnswers: Record<string, string>) {
