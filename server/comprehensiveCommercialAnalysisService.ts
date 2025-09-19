@@ -12,18 +12,21 @@ const COMMERCIAL_QUESTIONS = [
     id: 'competitive_1', 
     question: 'Is the differentiation clearly articulated?', 
     category: 'Competitive Analysis Decks',
+    analysisPrompt: 'Identify competitive differentiation, unique value propositions, competitive advantages, and market positioning strategies.',
     keywords: ['competitive', 'differentiation', 'competitive advantage', 'unique value', 'positioning', 'competitor', 'comparison', 'market position', 'value prop', 'usp']
   },
   { 
     id: 'competitive_2', 
     question: 'Are comparison matrices based on price/features?', 
     category: 'Competitive Analysis Decks',
+    analysisPrompt: 'Find comparison matrices, competitive benchmarking, price/feature analysis, and competitive positioning data.',
     keywords: ['comparison matrix', 'price comparison', 'feature comparison', 'competitive matrix', 'pricing table', 'feature set', 'competitive analysis', 'benchmark']
   },
   { 
     id: 'competitive_3', 
     question: 'Is switching cost vs. competitors assessed?', 
     category: 'Competitive Analysis Decks',
+    analysisPrompt: 'Analyze switching costs, customer lock-in factors, migration barriers, and competitive stickiness assessments.',
     keywords: ['switching cost', 'migration cost', 'switching barrier', 'customer retention', 'lock-in', 'stickiness', 'churn prevention', 'switching friction']
   },
   // Pricing Models
@@ -31,18 +34,21 @@ const COMMERCIAL_QUESTIONS = [
     id: 'pricing_1', 
     question: 'What pricing logic is used (usage-based, tiered, per-seat)?', 
     category: 'Pricing Models',
+    analysisPrompt: 'Identify pricing models, billing structures, subscription tiers, usage-based pricing, and monetization strategies.',
     keywords: ['pricing model', 'usage-based', 'tiered pricing', 'per-seat', 'subscription', 'freemium', 'pricing strategy', 'pricing tier', 'billing model']
   },
   { 
     id: 'pricing_2', 
     question: 'Are discount policies documented?', 
     category: 'Pricing Models',
+    analysisPrompt: 'Look for discount policies, pricing flexibility, volume discounts, enterprise pricing, and promotional strategies.',
     keywords: ['discount policy', 'pricing discount', 'volume discount', 'enterprise discount', 'promotional pricing', 'pricing flexibility', 'discount structure']
   },
   { 
     id: 'pricing_3', 
     question: 'Is net revenue retention tracked?', 
     category: 'Pricing Models',
+    analysisPrompt: 'Find net revenue retention metrics, expansion revenue data, upsell/cross-sell performance, and customer growth indicators.',
     keywords: ['net revenue retention', 'nrr', 'revenue retention', 'expansion revenue', 'upsell', 'cross-sell', 'customer growth', 'retention rate']
   },
   // Sales Pipeline & CRM Data
@@ -50,18 +56,21 @@ const COMMERCIAL_QUESTIONS = [
     id: 'sales_1', 
     question: 'What are win/loss rates?', 
     category: 'Sales Pipeline & CRM Data',
+    analysisPrompt: 'Identify win/loss rates, sales conversion metrics, deal closure statistics, and sales performance indicators.',
     keywords: ['win rate', 'loss rate', 'conversion rate', 'close rate', 'win/loss', 'sales conversion', 'deal closure', 'sales performance']
   },
   { 
     id: 'sales_2', 
     question: 'What\'s the sales cycle per segment?', 
     category: 'Sales Pipeline & CRM Data',
+    analysisPrompt: 'Analyze sales cycles, deal velocity, time-to-close metrics, and segment-specific sales performance data.',
     keywords: ['sales cycle', 'sales process', 'deal cycle', 'time to close', 'sales velocity', 'pipeline velocity', 'segment analysis', 'sales funnel']
   },
   { 
     id: 'sales_3', 
     question: 'Are conversion rates stable or improving?', 
     category: 'Sales Pipeline & CRM Data',
+    analysisPrompt: 'Track conversion rate trends, sales performance improvements, optimization metrics, and KPI trajectory analysis.',
     keywords: ['conversion rate', 'conversion trend', 'sales trend', 'performance trend', 'improvement', 'optimization', 'sales metrics', 'kpi trend']
   },
   // Customer Lists / Key Account Summaries
@@ -69,18 +78,21 @@ const COMMERCIAL_QUESTIONS = [
     id: 'customer_1', 
     question: 'What share of revenue is concentrated on top 10 customers?', 
     category: 'Customer Lists / Key Account Summaries',
+    analysisPrompt: 'Identify customer concentration risk, revenue distribution, key account dependencies, and customer diversification metrics.',
     keywords: ['customer concentration', 'revenue concentration', 'top customers', 'key accounts', 'customer dependence', 'revenue distribution', 'customer risk']
   },
   { 
     id: 'customer_2', 
     question: 'What is churn over last 12 months?', 
     category: 'Customer Lists / Key Account Summaries',
+    analysisPrompt: 'Analyze customer churn rates, attrition patterns, retention metrics, and customer lifetime value data.',
     keywords: ['churn', 'churn rate', 'customer churn', 'attrition', 'customer retention', 'customer loss', 'retention rate', 'customer lifetime']
   },
   { 
     id: 'customer_3', 
     question: 'Are customer satisfaction/NPS tracked?', 
     category: 'Customer Lists / Key Account Summaries',
+    analysisPrompt: 'Find customer satisfaction metrics, NPS scores, customer feedback data, and customer experience measurement systems.',
     keywords: ['customer satisfaction', 'nps', 'net promoter score', 'customer feedback', 'satisfaction score', 'customer survey', 'customer experience', 'csat']
   }
 ];
@@ -432,7 +444,7 @@ DOCUMENT: ${document.name}
 CONTENT: ${content.substring(0, 4000)}
 
 QUESTION: "${question.question}"
-CATEGORY: ${question.category}
+ANALYSIS TASK: ${question.analysisPrompt}
 
 Instructions:
 - Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
