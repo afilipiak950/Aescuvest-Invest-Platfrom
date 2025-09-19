@@ -696,7 +696,7 @@ Respond in JSON format:
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      legal_answers: JSON.stringify(legalAnswers), // FIXED: Use snake_case for database field
+      legal_answers: legalAnswers, // FIXED: Store as object (not JSON string) for consistent field mapping
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()

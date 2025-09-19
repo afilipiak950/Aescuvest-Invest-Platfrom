@@ -696,7 +696,7 @@ Requirements:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        ip_answers: JSON.stringify(ipAnswers), // CRITICAL: Use snake_case field name like other agents
+        ip_answers: ipAnswers, // CRITICAL: Store as object (not JSON string) for consistent field mapping
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
