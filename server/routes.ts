@@ -6704,7 +6704,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       console.log(`🏢 Fetching comprehensive commercial analysis results for deal ${dealId}`);
       
       // Get comprehensive commercial analysis from agent_analyses table - EXACT Clinical approach
-      const analysis = await storage.getAgentAnalysis(dealId, 'Commercial');
+      const analysis = await storage.getAgentAnalysis(dealId, 'commercial');
       console.log(`🏢 Raw analysis data from storage:`, analysis);
       
       if (!analysis) {

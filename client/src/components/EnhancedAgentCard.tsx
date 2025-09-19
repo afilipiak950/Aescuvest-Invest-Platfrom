@@ -4970,7 +4970,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
+    queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
