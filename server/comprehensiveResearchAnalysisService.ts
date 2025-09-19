@@ -342,6 +342,7 @@ Format your response to be detailed yet concise, focusing on actionable insights
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 1200
       });
@@ -446,7 +447,8 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
+        response_format: { type: "json_object" },
+        temperature: 0.1,
         max_tokens: 1000
       });
 
