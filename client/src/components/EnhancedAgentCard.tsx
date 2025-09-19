@@ -4974,6 +4974,9 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
+  // Use comprehensive results if available, fallback to analysisData (SAME AS LEGAL)
+  const commercialData = comprehensiveResults?.analysis || analysisData || null;
+
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(category)) {
@@ -5009,8 +5012,9 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.analysis?.commercialAnswers) return null;
-    return comprehensiveResults.analysis.commercialAnswers[questionId] || null;
+    // FIXED: Use commercialData instead of comprehensiveResults directly (SAME AS LEGAL)
+    if (!commercialData?.commercialAnswers) return null;
+    return commercialData.commercialAnswers[questionId] || null;
   };
 
   return (
