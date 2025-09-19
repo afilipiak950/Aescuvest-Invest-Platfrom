@@ -353,7 +353,7 @@ function DueDiligenceContent() {
   });
 
   const { data: commercialAnalysisData } = useQuery({
-    queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
+    queryKey: [`/api/deals/${selectedDeal}/commercial-analysis/comprehensive/results`],
     enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
