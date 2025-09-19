@@ -718,7 +718,7 @@ Respond in JSON format:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        commercial_answers: commercialAnswers, // FIXED: Store as object (not JSON string) for consistent field mapping
+        commercialAnswers: commercialAnswers, // FIXED: Use camelCase to match database schema
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
