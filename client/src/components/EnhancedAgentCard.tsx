@@ -2156,19 +2156,39 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
-      // FIXED: Question-specific keywords instead of using same keywords for all questions
+      // FIXED: Question-specific keywords for ALL 11 clinical questions
       const getQuestionSpecificKeywords = (qId: string): string[] => {
         switch (qId) {
+          // Clinical Trial Protocols (3 questions)
           case 'trial_1': // "Are trial phases and designs clearly defined?"
             return ['phase', 'design', 'protocol', 'randomized', 'controlled', 'blinded', 'study design', 'methodology', 'recruitment'];
           case 'trial_2': // "What are primary and secondary endpoints?"
             return ['endpoint', 'primary', 'secondary', 'outcome', 'measurement', 'assessment', 'metric', 'target'];
           case 'trial_3': // "How is efficacy/safety assessed?"
             return ['efficacy', 'safety', 'adverse', 'sae', 'monitoring', 'assessment', 'evaluation', 'toxicity'];
-          case 'trial_4': // "Are fast-track or orphan designations received?"
-            return ['fast-track', 'orphan', 'designation', 'breakthrough', 'fda', 'ema', 'approval', 'regulatory'];
-          case 'trial_5': // "What regulatory submissions were made?"
-            return ['regulatory', 'submission', 'fda', 'ema', 'application', 'filing', 'approval', 'clearance'];
+          
+          // Regulatory Filings (3 questions)  
+          case 'regulatory_1': // "What is current approval status?"
+            return ['approval', 'status', 'regulatory', 'fda', 'ema', 'submission', 'clearance', 'pending', 'granted'];
+          case 'regulatory_2': // "Are fast-track or orphan designations received?"
+            return ['fast-track', 'orphan', 'designation', 'breakthrough', 'priority', 'review', 'incentive', 'therapy'];
+          case 'regulatory_3': // "Are adverse events disclosed?"
+            return ['adverse', 'events', 'disclosed', 'reported', 'safety', 'sae', 'serious', 'disclosure', 'documentation'];
+          
+          // Investigator Brochures & Study Reports (3 questions)
+          case 'study_1': // "Are inclusion/exclusion criteria consistent?"
+            return ['inclusion', 'exclusion', 'criteria', 'patient', 'selection', 'eligibility', 'enrollment', 'population'];
+          case 'study_2': // "What patient population is used?"
+            return ['population', 'patient', 'demographic', 'characteristics', 'disease', 'stage', 'severity', 'cohort'];
+          case 'study_3': // "Are SAE (Serious Adverse Events) tracked?"
+            return ['sae', 'serious', 'adverse', 'events', 'tracked', 'reporting', 'procedures', 'classification', 'signals'];
+          
+          // Scientific Advisory Board Notes (2 questions)
+          case 'advisory_1': // "Are trial results debated by experts?"
+            return ['results', 'debated', 'experts', 'advisory', 'independent', 'opinions', 'concerns', 'feedback'];
+          case 'advisory_2': // "Are post-trial steps described?"
+            return ['post-trial', 'next', 'steps', 'phase', 'readiness', 'development', 'planning', 'strategy'];
+          
           default:
             return ['clinical', 'trial', 'study']; // Basic fallback
         }
@@ -2193,16 +2213,36 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     if (relevantFindings.length === 0) {
       const getQuestionSpecificEmptyMessage = (qId: string): string => {
         switch (qId) {
+          // Clinical Trial Protocols
           case 'trial_1':
             return 'Clinical trial phases and study designs are not clearly documented in the available materials. Additional protocol documentation may be required.';
           case 'trial_2':
             return 'Primary and secondary endpoints are not clearly defined in the reviewed documents. Detailed study protocol documentation is needed.';
           case 'trial_3':
             return 'Efficacy and safety assessment methodologies are not adequately described in the available documentation.';
-          case 'trial_4':
-            return 'No evidence of fast-track or orphan drug designations found in the regulatory documentation.';
-          case 'trial_5':
-            return 'Regulatory submission details are not documented in the available materials.';
+          
+          // Regulatory Filings
+          case 'regulatory_1':
+            return 'Current regulatory approval status is not documented in the available materials. Regulatory correspondence and submission tracking is needed.';
+          case 'regulatory_2':
+            return 'No evidence of fast-track, orphan, or breakthrough therapy designations found in the regulatory documentation.';
+          case 'regulatory_3':
+            return 'Adverse event disclosure documentation is not available or adequately detailed in the reviewed materials.';
+          
+          // Investigator Brochures & Study Reports
+          case 'study_1':
+            return 'Patient inclusion and exclusion criteria are not consistently documented across study materials. Detailed protocol review is needed.';
+          case 'study_2':
+            return 'Patient population characteristics and demographics are not clearly described in the available study documentation.';
+          case 'study_3':
+            return 'Serious Adverse Event (SAE) tracking and reporting procedures are not adequately documented in the available materials.';
+          
+          // Scientific Advisory Board Notes
+          case 'advisory_1':
+            return 'Expert opinions and advisory board discussions regarding trial results are not documented in the available materials.';
+          case 'advisory_2':
+            return 'Post-trial development steps and Phase 3 readiness planning are not described in the advisory documentation.';
+          
           default:
             return 'Relevant clinical information for this question is not available in the current documentation.';
         }
