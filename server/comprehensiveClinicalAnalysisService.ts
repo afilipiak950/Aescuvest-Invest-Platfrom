@@ -708,6 +708,12 @@ Respond in JSON format:
       updatedAt: new Date()
     };
     
+    // DIAGNOSTIC: Log what we're actually saving
+    console.log(`🔍 DIAGNOSTIC: Clinical answers being saved:`);
+    for (const [questionId, answer] of Object.entries(clinicalAnswers)) {
+      console.log(`  ${questionId}: "${answer.answer?.substring(0, 60)}..."`);
+    }
+    
     await db
       .insert(agentAnalyses)
       .values(analysisData);
