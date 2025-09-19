@@ -665,7 +665,7 @@ export class ComprehensiveFinancialAnalysisService {
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        financial_answers: JSON.stringify(financialAnswers), // CRITICAL: Use snake_case field name like other agents
+        financial_answers: financialAnswers, // CRITICAL: Store as object (not JSON string) for consistent field mapping
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()

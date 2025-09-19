@@ -718,7 +718,7 @@ Respond in JSON format:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        hr_answers: JSON.stringify(hrAnswers), // CRITICAL FIX: Use snake_case field name like other agents
+        hr_answers: hrAnswers, // CRITICAL FIX: Store as object (not JSON string) for consistent field mapping
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()

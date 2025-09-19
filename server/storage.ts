@@ -174,6 +174,121 @@ export interface IStorage {
 
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
+  
+  /**
+   * Transform snake_case analysis fields to camelCase for frontend compatibility
+   * Ensures all *_answers fields are properly parsed as objects
+   */
+  private toCamelAnalysis(dbRow: any): any {
+    if (!dbRow) return dbRow;
+    
+    const transformed = { ...dbRow };
+    
+    // Field mappings from snake_case to camelCase
+    const fieldMappings = {
+      clinical_answers: 'clinicalAnswers',
+      hr_answers: 'hrAnswers', 
+      legal_answers: 'legalAnswers',
+      financial_answers: 'financialAnswers',
+      research_answers: 'researchAnswers',
+      product_answers: 'productAnswers',
+      risk_answers: 'riskAnswers',
+      ip_answers: 'ipAnswers',
+      commercial_answers: 'commercialAnswers'
+    };
+    
+    // Transform each field mapping
+    for (const [snakeField, camelField] of Object.entries(fieldMappings)) {
+      if (transformed[snakeField] !== undefined) {
+        let value = transformed[snakeField];
+        
+        // If it's a string, try to parse it as JSON safely
+        if (typeof value === 'string') {
+          try {
+            value = JSON.parse(value);
+            console.log(`🔧 Parsed ${snakeField} from JSON string to object`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to parse ${snakeField} as JSON:`, error.message);
+            // Keep original string value if parsing fails
+          }
+        }
+        
+        // Set camelCase field and remove snake_case field
+        transformed[camelField] = value;
+        delete transformed[snakeField];
+      }
+    }
+    
+    return transformed;
+  }
+  
+  /**
+   * Transform camelCase analysis fields to snake_case for database storage
+   * Ensures all *_answers fields are stored as objects (not JSON strings)
+   */
+  private toDbAnalysisPayload(dto: any): any {
+    if (!dto) return dto;
+    
+    const transformed = { ...dto };
+    
+    // Field mappings from camelCase to snake_case  
+    const fieldMappings = {
+      clinicalAnswers: 'clinical_answers',
+      hrAnswers: 'hr_answers',
+      legalAnswers: 'legal_answers', 
+      financialAnswers: 'financial_answers',
+      researchAnswers: 'research_answers',
+      productAnswers: 'product_answers',
+      riskAnswers: 'risk_answers',
+      ipAnswers: 'ip_answers',
+      commercialAnswers: 'commercial_answers'
+    };
+    
+    // Transform each field mapping
+    for (const [camelField, snakeField] of Object.entries(fieldMappings)) {
+      if (transformed[camelField] !== undefined) {
+        let value = transformed[camelField];
+        
+        // If it's a JSON string, parse it to object
+        if (typeof value === 'string') {
+          try {
+            value = JSON.parse(value);
+            console.log(`🔧 Parsed ${camelField} from JSON string to object for DB storage`);
+          } catch (error) {
+            console.error(`❌ Failed to parse ${camelField} JSON string, setting to undefined:`, error.message);
+            value = undefined; // Don't store invalid JSON strings
+          }
+        }
+        
+        // Store as object directly (no JSON.stringify)
+        if (value && typeof value === 'object') {
+          transformed[snakeField] = value;
+          console.log(`🔧 Storing ${snakeField} as object (${Object.keys(value).length} keys)`);
+        } else if (value) {
+          console.warn(`⚠️ Expected object for ${camelField}, got ${typeof value}, setting to undefined`);
+          transformed[snakeField] = undefined; // Don't store non-objects
+        } else {
+          transformed[snakeField] = value; // Allow null/undefined for explicit clearing
+        }
+        
+        // Remove camelCase field
+        delete transformed[camelField];
+      }
+    }
+    
+    // Only remove null/undefined fields if they weren't explicitly set for clearing
+    Object.keys(transformed).forEach(key => {
+      if (transformed[key] === null || transformed[key] === undefined) {
+        // Keep explicit nulls for *_answers fields to allow clearing
+        if (!key.endsWith('_answers')) {
+          delete transformed[key];
+        }
+      }
+    });
+    
+    return transformed;
+  }
+
   async getAllUsers(): Promise<User[]> {
     const result = await db.select().from(users);
     return result;
@@ -1117,7 +1232,7 @@ export class DatabaseStorage implements IStorage {
     
     if (cached && (now - cached.timestamp) < CACHE_TTL) {
       console.log(`💨 Using cached analyses for deal ${dealId} (${cached.data.length} analyses)`);
-      return cached.data;
+      return cached.data.map(analysis => this.toCamelAnalysis(analysis));
     }
     
     console.log(`🔍 Querying agent analyses for deal ${dealId}`);
@@ -1133,10 +1248,13 @@ export class DatabaseStorage implements IStorage {
     const queryTime = Date.now() - startTime;
     console.log(`🔍 Found ${analysisList.length} analyses for deal ${dealId} in ${queryTime}ms`);
     
-    // Cache the result
-    analysesCache.set(dealId, { data: analysisList, timestamp: now });
+    // Apply transformation to convert snake_case to camelCase
+    const transformedAnalyses = analysisList.map(analysis => this.toCamelAnalysis(analysis));
     
-    return analysisList;
+    // Cache the transformed result
+    analysesCache.set(dealId, { data: transformedAnalyses, timestamp: now });
+    
+    return transformedAnalyses;
   }
 
   async getAnalysisByDealAndAgent(dealId: number, agentType: string): Promise<AgentAnalysis | undefined> {
@@ -1146,7 +1264,9 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(agentAnalyses.dealId, dealId), eq(agentAnalyses.agentType, agentType)))
       .orderBy(desc(agentAnalyses.createdAt))
       .limit(1);
-    return analysis || undefined;
+    
+    // Apply transformation to convert snake_case to camelCase
+    return analysis ? this.toCamelAnalysis(analysis) : undefined;
   }
 
   async getAnalysis(dealId: number, agentType: string): Promise<AgentAnalysis | undefined> {
@@ -1154,7 +1274,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAgentAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis> {
-    const [newAnalysis] = await db.insert(agentAnalyses).values(analysis).returning();
+    // Transform camelCase to snake_case for database storage
+    const dbPayload = this.toDbAnalysisPayload(analysis);
+    const [newAnalysis] = await db.insert(agentAnalyses).values(dbPayload).returning();
     
     // Invalidate analyses cache when new analysis is created
     if (newAnalysis.dealId) {
@@ -1162,30 +1284,43 @@ export class DatabaseStorage implements IStorage {
       console.log(`💨 Invalidated analyses cache for deal ${newAnalysis.dealId}`);
     }
     
-    return newAnalysis;
+    // Return transformed result with camelCase
+    return this.toCamelAnalysis(newAnalysis);
   }
 
   async createAnalysis(analysis: InsertAgentAnalysis): Promise<AgentAnalysis> {
-    const [newAnalysis] = await db.insert(agentAnalyses).values(analysis).returning();
-    return newAnalysis;
+    // Transform camelCase to snake_case for database storage
+    const dbPayload = this.toDbAnalysisPayload(analysis);
+    const [newAnalysis] = await db.insert(agentAnalyses).values(dbPayload).returning();
+    
+    // Return transformed result with camelCase
+    return this.toCamelAnalysis(newAnalysis);
   }
 
   async updateAgentAnalysis(id: number, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
+    // Transform camelCase to snake_case for database storage
+    const dbPayload = this.toDbAnalysisPayload(data);
     const [updatedAnalysis] = await db
       .update(agentAnalyses)
-      .set(data)
+      .set(dbPayload)
       .where(eq(agentAnalyses.id, id))
       .returning();
-    return updatedAnalysis || undefined;
+    
+    // Return transformed result with camelCase
+    return updatedAnalysis ? this.toCamelAnalysis(updatedAnalysis) : undefined;
   }
 
   async updateAnalysis(id: number, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
+    // Transform camelCase to snake_case for database storage
+    const dbPayload = this.toDbAnalysisPayload(data);
     const [updatedAnalysis] = await db
       .update(agentAnalyses)
-      .set(data)
+      .set(dbPayload)
       .where(eq(agentAnalyses.id, id))
       .returning();
-    return updatedAnalysis || undefined;
+    
+    // Return transformed result with camelCase
+    return updatedAnalysis ? this.toCamelAnalysis(updatedAnalysis) : undefined;
   }
 
   async deleteAnalysesByDealId(dealId: number): Promise<number> {
