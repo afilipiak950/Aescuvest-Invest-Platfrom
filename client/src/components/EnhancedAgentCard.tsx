@@ -1753,47 +1753,191 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     // Check if findings exist before filtering
     if (!legalData?.findings || !Array.isArray(legalData.findings)) return null;
     
-    // Search through findings for relevant content
+    // Search through findings for relevant content with question-specific keywords
     const relevantFindings = legalData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
-      // Check for keyword matches
-      const keywordMatches = [
-        'shares', 'liquidation', 'preferences', 'anti-dilution', 'drag-along', 'tag-along', 
-        'board', 'voting', 'veto', 'warrants', 'valuation', 'interest', 'maturity',
-        'conversion', 'ip assignment', 'founders', 'personnel', 'commercial', 'sla',
-        'distributor', 'termination', 'exclusivity', 'nda', 'confidentiality', 'litigation',
-        'regulatory', 'fda', 'clinical', 'data use'
-      ];
+      // FIXED: Question-specific keywords for ALL 13 legal questions
+      const getQuestionSpecificKeywords = (qId: string): string[] => {
+        switch (qId) {
+          // Contracts & Agreements (3 questions)
+          case 'contracts_1': // "Are key commercial contracts clearly defined?"
+            return ['commercial', 'contract', 'agreement', 'terms', 'payment', 'deliverables', 'scope', 'defined', 'clear'];
+          case 'contracts_2': // "What are the key contractual obligations and terms?"
+            return ['obligations', 'terms', 'conditions', 'performance', 'requirements', 'duties', 'responsibilities', 'covenants'];
+          case 'contracts_3': // "Are there any concerning contract provisions or risks?"
+            return ['risk', 'provisions', 'liability', 'termination', 'breach', 'penalties', 'indemnification', 'limitation'];
+          
+          // Corporate Governance (3 questions)
+          case 'governance_1': // "What is the corporate governance structure?"
+            return ['board', 'governance', 'directors', 'officers', 'composition', 'structure', 'bylaws', 'charter'];
+          case 'governance_2': // "Are there adequate governance controls and oversight?"
+            return ['controls', 'oversight', 'compliance', 'internal', 'audit', 'monitoring', 'procedures', 'framework'];
+          case 'governance_3': // "What are the key governance risks and mitigation strategies?"
+            return ['governance', 'risks', 'mitigation', 'control', 'weaknesses', 'remediation', 'strategy', 'safeguards'];
+          
+          // Intellectual Property (3 questions)
+          case 'ip_1': // "What is the intellectual property portfolio?"
+            return ['patent', 'trademark', 'copyright', 'trade secret', 'portfolio', 'ip', 'intellectual property', 'registration'];
+          case 'ip_2': // "Are there any IP ownership or infringement issues?"
+            return ['ownership', 'infringement', 'freedom to operate', 'assignment', 'license', 'dispute', 'chain of title'];
+          case 'ip_3': // "What IP protection and enforcement strategies are in place?"
+            return ['protection', 'enforcement', 'strategy', 'filing', 'prosecution', 'defense', 'monitoring', 'policing'];
+          
+          // Litigation & Legal Risks (2 questions)
+          case 'litigation_1': // "Are there any pending or threatened litigations?"
+            return ['litigation', 'lawsuit', 'dispute', 'pending', 'threatened', 'claim', 'action', 'proceeding'];
+          case 'litigation_2': // "What are the key legal risks and potential exposures?"
+            return ['legal', 'risk', 'exposure', 'contingent', 'liability', 'damages', 'settlement', 'judgment'];
+          
+          // Regulatory Compliance (2 questions)
+          case 'regulatory_1': // "What regulatory requirements apply to the business?"
+            return ['regulatory', 'requirements', 'compliance', 'regulation', 'fda', 'ema', 'framework', 'standards'];
+          case 'regulatory_2': // "Are there any regulatory compliance issues or violations?"
+            return ['violation', 'non-compliance', 'enforcement', 'warning', 'citation', 'inspection', 'audit', 'deficiency'];
+          
+          default:
+            return ['legal', 'agreement', 'contract']; // Basic fallback
+        }
+      };
       
-      return keywordMatches.some(keyword => 
-        findingText.includes(keyword) || questionText.includes(keyword)
+      const questionSpecificKeywords = getQuestionSpecificKeywords(questionId);
+      
+      // Match finding text against question-specific keywords OR exact question text similarity
+      const keywordMatch = questionSpecificKeywords.some(keyword => 
+        findingText.includes(keyword)
       );
+      
+      const questionMatch = findingText.includes(questionText.replace(/\?/g, '')) || 
+                           questionText.replace(/\?/g, '').split(' ').some(word => 
+                             word.length > 3 && findingText.includes(word.toLowerCase())
+                           );
+      
+      return keywordMatch || questionMatch;
     });
     
-    if (relevantFindings.length === 0) return null;
+    // IMPROVED: Better handling for empty findings with question-specific messages
+    if (relevantFindings.length === 0) {
+      const getQuestionSpecificEmptyMessage = (qId: string): string => {
+        switch (qId) {
+          // Contracts & Agreements
+          case 'contracts_1':
+            return 'Key commercial contracts are not clearly documented in the available materials. Additional contract documentation may be required.';
+          case 'contracts_2':
+            return 'Contractual obligations and terms are not adequately detailed in the reviewed documents. Comprehensive contract review is needed.';
+          case 'contracts_3':
+            return 'Contract risk provisions and concerning terms are not sufficiently documented for assessment.';
+          
+          // Corporate Governance
+          case 'governance_1':
+            return 'Corporate governance structure is not clearly defined in the available documentation. Board composition and governance policies need review.';
+          case 'governance_2':
+            return 'Governance controls and oversight mechanisms are not adequately documented. Internal control documentation is needed.';
+          case 'governance_3':
+            return 'Governance risks and mitigation strategies are not sufficiently detailed in the available materials.';
+          
+          // Intellectual Property
+          case 'ip_1':
+            return 'Intellectual property portfolio is not comprehensively documented. Patent, trademark, and trade secret inventories are needed.';
+          case 'ip_2':
+            return 'IP ownership and potential infringement issues are not clearly addressed in the available documentation.';
+          case 'ip_3':
+            return 'IP protection and enforcement strategies are not adequately described in the reviewed materials.';
+          
+          // Litigation & Legal Risks
+          case 'litigation_1':
+            return 'No pending or threatened litigation is documented in the available materials. Legal dispute disclosure may be incomplete.';
+          case 'litigation_2':
+            return 'Legal risks and potential exposures are not comprehensively assessed in the available documentation.';
+          
+          // Regulatory Compliance
+          case 'regulatory_1':
+            return 'Applicable regulatory requirements are not clearly documented. Regulatory framework analysis is needed.';
+          case 'regulatory_2':
+            return 'Regulatory compliance status and any violations are not adequately documented in the available materials.';
+          
+          default:
+            return 'Relevant legal information for this question is not available in the current documentation.';
+        }
+      };
+      
+      return {
+        answer: getQuestionSpecificEmptyMessage(questionId),
+        confidence: 30,
+        sources: [],
+        keyFindings: [`Insufficient legal information for: ${questionKeywords.question}. Additional documentation may be required.`],
+        recommendations: ['Obtain detailed legal documentation and contracts for comprehensive review'],
+        legalAssessment: 'Analysis limited by availability of legal documentation.'
+      };
+    }
     
     // Combine relevant findings into a comprehensive answer
     const combinedAnswer = relevantFindings
       .map((finding: any) => finding.content || finding.description || finding.title)
+      .filter(content => content && content.length > 0)
       .join(' ');
     
-    // Calculate average confidence
+    // Calculate average confidence based on finding quality
     const avgConfidence = relevantFindings.length > 0 
       ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
-      : 80;
+      : 60;
     
     // Extract source document names
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
       .filter((source: string) => source)
-      .slice(0, 3); // Limit to 3 sources
+      .slice(0, 5); // Increased to 5 sources for better transparency
+    
+    // Extract key findings specific to this question
+    const keyFindings = relevantFindings
+      .map((finding: any) => finding.content || finding.description)
+      .filter(content => content && content.length > 20)
+      .slice(0, 3)
+      .map(content => content.substring(0, 150) + (content.length > 150 ? '...' : ''));
+    
+    // Function to get question-specific empty message (same as above)
+    const getQuestionSpecificEmptyMessage = (qId: string): string => {
+      switch (qId) {
+        case 'contracts_1':
+          return 'Key commercial contracts are not clearly documented in the available materials.';
+        case 'contracts_2':
+          return 'Contractual obligations and terms are not adequately detailed in the reviewed documents.';
+        case 'contracts_3':
+          return 'Contract risk provisions and concerning terms are not sufficiently documented for assessment.';
+        case 'governance_1':
+          return 'Corporate governance structure is not clearly defined in the available documentation.';
+        case 'governance_2':
+          return 'Governance controls and oversight mechanisms are not adequately documented.';
+        case 'governance_3':
+          return 'Governance risks and mitigation strategies are not sufficiently detailed in the available materials.';
+        case 'ip_1':
+          return 'Intellectual property portfolio is not comprehensively documented.';
+        case 'ip_2':
+          return 'IP ownership and potential infringement issues are not clearly addressed in the available documentation.';
+        case 'ip_3':
+          return 'IP protection and enforcement strategies are not adequately described in the reviewed materials.';
+        case 'litigation_1':
+          return 'No pending or threatened litigation is documented in the available materials.';
+        case 'litigation_2':
+          return 'Legal risks and potential exposures are not comprehensively assessed in the available documentation.';
+        case 'regulatory_1':
+          return 'Applicable regulatory requirements are not clearly documented.';
+        case 'regulatory_2':
+          return 'Regulatory compliance status and any violations are not adequately documented in the available materials.';
+        default:
+          return 'Relevant legal information for this question is not available in the current documentation.';
+      }
+    };
     
     return {
-      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
+      answer: combinedAnswer.length > 10 ? 
+        (combinedAnswer.substring(0, 800) + (combinedAnswer.length > 800 ? '...' : '')) :
+        getQuestionSpecificEmptyMessage(questionId),
       confidence: avgConfidence,
-      sources: sources
+      sources: sources,
+      keyFindings: keyFindings.length > 0 ? keyFindings : [`Limited information available for: ${questionKeywords.question}`],
+      legalAssessment: `Analysis based on ${relevantFindings.length} relevant finding${relevantFindings.length > 1 ? 's' : ''} from legal documentation.`
     };
   };
 
