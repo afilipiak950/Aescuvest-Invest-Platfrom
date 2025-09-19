@@ -2151,46 +2151,105 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     // Check if findings exist before filtering
     if (!clinicalData?.findings || !Array.isArray(clinicalData.findings)) return null;
     
-    // Search through findings for relevant content
+    // Search through findings for relevant content with question-specific keywords
     const relevantFindings = clinicalData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
-      // Clinical-specific keywords
-      const keywordMatches = [
-        'trial', 'phase', 'clinical', 'regulatory', 'fda', 'ema', 'endpoint', 
-        'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol',
-        'approval', 'designation', 'orphan', 'breakthrough', 'inclusion',
-        'exclusion', 'population', 'advisory', 'sae', 'serious adverse'
-      ];
+      // FIXED: Question-specific keywords instead of using same keywords for all questions
+      const getQuestionSpecificKeywords = (qId: string): string[] => {
+        switch (qId) {
+          case 'trial_1': // "Are trial phases and designs clearly defined?"
+            return ['phase', 'design', 'protocol', 'randomized', 'controlled', 'blinded', 'study design', 'methodology', 'recruitment'];
+          case 'trial_2': // "What are primary and secondary endpoints?"
+            return ['endpoint', 'primary', 'secondary', 'outcome', 'measurement', 'assessment', 'metric', 'target'];
+          case 'trial_3': // "How is efficacy/safety assessed?"
+            return ['efficacy', 'safety', 'adverse', 'sae', 'monitoring', 'assessment', 'evaluation', 'toxicity'];
+          case 'trial_4': // "Are fast-track or orphan designations received?"
+            return ['fast-track', 'orphan', 'designation', 'breakthrough', 'fda', 'ema', 'approval', 'regulatory'];
+          case 'trial_5': // "What regulatory submissions were made?"
+            return ['regulatory', 'submission', 'fda', 'ema', 'application', 'filing', 'approval', 'clearance'];
+          default:
+            return ['clinical', 'trial', 'study']; // Basic fallback
+        }
+      };
       
-      return keywordMatches.some(keyword => 
-        findingText.includes(keyword) || questionText.includes(keyword)
+      const questionSpecificKeywords = getQuestionSpecificKeywords(questionId);
+      
+      // Match finding text against question-specific keywords OR exact question text similarity
+      const keywordMatch = questionSpecificKeywords.some(keyword => 
+        findingText.includes(keyword)
       );
+      
+      const questionMatch = findingText.includes(questionText.replace(/\?/g, '')) || 
+                           questionText.replace(/\?/g, '').split(' ').some(word => 
+                             word.length > 3 && findingText.includes(word.toLowerCase())
+                           );
+      
+      return keywordMatch || questionMatch;
     });
     
-    if (relevantFindings.length === 0) return null;
+    // IMPROVED: Better handling for empty findings with question-specific messages
+    if (relevantFindings.length === 0) {
+      const getQuestionSpecificEmptyMessage = (qId: string): string => {
+        switch (qId) {
+          case 'trial_1':
+            return 'Clinical trial phases and study designs are not clearly documented in the available materials. Additional protocol documentation may be required.';
+          case 'trial_2':
+            return 'Primary and secondary endpoints are not clearly defined in the reviewed documents. Detailed study protocol documentation is needed.';
+          case 'trial_3':
+            return 'Efficacy and safety assessment methodologies are not adequately described in the available documentation.';
+          case 'trial_4':
+            return 'No evidence of fast-track or orphan drug designations found in the regulatory documentation.';
+          case 'trial_5':
+            return 'Regulatory submission details are not documented in the available materials.';
+          default:
+            return 'Relevant clinical information for this question is not available in the current documentation.';
+        }
+      };
+      
+      return {
+        answer: getQuestionSpecificEmptyMessage(questionId),
+        confidence: 30,
+        sources: [],
+        keyFindings: [`Insufficient clinical information for: ${questionKeywords.question}. Additional documentation may be required.`],
+        recommendations: ['Obtain detailed clinical trial protocols and regulatory documentation'],
+        clinicalAssessment: 'Analysis limited by availability of clinical documentation.'
+      };
+    }
     
     // Combine relevant findings into a comprehensive answer
     const combinedAnswer = relevantFindings
       .map((finding: any) => finding.content || finding.description || finding.title)
+      .filter(content => content && content.length > 0)
       .join(' ');
     
-    // Calculate average confidence
+    // Calculate average confidence based on finding quality
     const avgConfidence = relevantFindings.length > 0 
       ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
-      : 80;
+      : 60;
     
     // Extract source document names
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
       .filter((source: string) => source)
-      .slice(0, 3); // Limit to 3 sources
+      .slice(0, 5); // Increased to 5 sources for better transparency
+    
+    // Extract key findings specific to this question
+    const keyFindings = relevantFindings
+      .map((finding: any) => finding.content || finding.description)
+      .filter(content => content && content.length > 20)
+      .slice(0, 3)
+      .map(content => content.substring(0, 150) + (content.length > 150 ? '...' : ''));
     
     return {
-      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
+      answer: combinedAnswer.length > 10 ? 
+        (combinedAnswer.substring(0, 800) + (combinedAnswer.length > 800 ? '...' : '')) :
+        getQuestionSpecificEmptyMessage(questionId),
       confidence: avgConfidence,
-      sources: sources
+      sources: sources,
+      keyFindings: keyFindings.length > 0 ? keyFindings : [`Limited information available for: ${questionKeywords.question}`],
+      clinicalAssessment: `Analysis based on ${relevantFindings.length} relevant finding${relevantFindings.length > 1 ? 's' : ''} from clinical documentation.`
     };
   };
 
