@@ -12,18 +12,21 @@ const HR_QUESTIONS = [
     id: 'hr_1',
     question: "What is the current team size and organizational structure?",
     category: "Team Structure",
+    analysisPrompt: 'Identify team size, headcount, organizational structure, reporting hierarchy, and departmental organization.',
     keywords: ['team size', 'organizational structure', 'org chart', 'reporting structure', 'headcount', 'workforce', 'department', 'roles', 'hierarchy']
   },
   {
     id: 'hr_2',
     question: "Are there key person dependencies or single points of failure?",
     category: "Risk Assessment", 
+    analysisPrompt: 'Identify key person dependencies, single points of failure, critical roles, and succession planning gaps.',
     keywords: ['key person', 'dependencies', 'single point of failure', 'critical roles', 'key employee', 'succession', 'risk', 'backup', 'redundancy']
   },
   {
     id: 'hr_3',
     question: "What is the leadership experience and track record?",
     category: "Leadership Assessment",
+    analysisPrompt: 'Analyze leadership experience, executive backgrounds, track records, qualifications, and senior team expertise.',
     keywords: ['leadership', 'executive', 'management', 'experience', 'track record', 'background', 'ceo', 'founder', 'senior team', 'qualifications']
   },
   // Leadership Gaps  
@@ -31,18 +34,21 @@ const HR_QUESTIONS = [
     id: 'hr_4',
     question: "Are there gaps in the leadership team?",
     category: "Leadership Gaps",
+    analysisPrompt: 'Identify leadership gaps, missing roles, skill deficiencies, vacant positions, and recruitment needs.',
     keywords: ['leadership gaps', 'missing roles', 'hiring needs', 'expertise gaps', 'skill gaps', 'vacant positions', 'recruitment', 'team building']
   },
   {
     id: 'hr_5',
     question: "What is the employee retention and turnover rate?",
     category: "Retention Analysis",
+    analysisPrompt: 'Analyze employee retention rates, turnover statistics, attrition patterns, and workforce stability metrics.',
     keywords: ['retention', 'turnover', 'attrition', 'churn', 'employee satisfaction', 'tenure', 'stability', 'departure', 'resignation']
   },
   {
     id: 'hr_6',
     question: "Are compensation and equity structures competitive?",
     category: "Compensation Review",
+    analysisPrompt: 'Review compensation packages, salary structures, equity plans, stock options, and benefits competitiveness.',
     keywords: ['compensation', 'salary', 'equity', 'stock options', 'benefits', 'competitive pay', 'market rate', 'incentives', 'package']
   },
   // Culture Assessment
@@ -50,18 +56,21 @@ const HR_QUESTIONS = [
     id: 'hr_7',
     question: "What is the company culture and employee engagement?",
     category: "Culture Assessment",
+    analysisPrompt: 'Assess company culture, employee engagement levels, workplace values, and organizational morale indicators.',
     keywords: ['culture', 'engagement', 'employee satisfaction', 'values', 'work environment', 'morale', 'team dynamics', 'workplace', 'culture fit']
   },
   {
     id: 'hr_8',
     question: "What are the talent acquisition and hiring strategies?",
     category: "Talent Strategy",
+    analysisPrompt: 'Analyze talent acquisition strategies, hiring processes, recruitment methods, and talent pipeline development.',
     keywords: ['talent acquisition', 'hiring strategy', 'recruitment', 'talent pipeline', 'sourcing', 'onboarding', 'hiring process', 'talent management']
   },
   {
     id: 'hr_9',
     question: "Are there documented HR policies and procedures?",
     category: "HR Operations",
+    analysisPrompt: 'Review HR policies, procedures documentation, employee handbooks, and compliance frameworks.',
     keywords: ['hr policies', 'procedures', 'employee handbook', 'compliance', 'hr documentation', 'policies manual', 'hr processes', 'governance']
   },
   // Performance Management
@@ -69,18 +78,21 @@ const HR_QUESTIONS = [
     id: 'hr_10',
     question: "What performance management systems are in place?",
     category: "Performance Management",
+    analysisPrompt: 'Examine performance management systems, review processes, goal setting mechanisms, and evaluation frameworks.',
     keywords: ['performance management', 'performance review', 'goal setting', 'feedback', 'performance metrics', 'evaluation', 'development', 'career growth']
   },
   {
     id: 'hr_11',
     question: "Are there skills development and training programs?",
     category: "Training & Development",
+    analysisPrompt: 'Identify training programs, skills development initiatives, learning opportunities, and professional development frameworks.',
     keywords: ['training', 'development', 'skills development', 'learning', 'education', 'professional development', 'upskilling', 'career development']
   },
   {
     id: 'hr_12',
     question: "What is the workforce diversity and inclusion status?",
     category: "Diversity & Inclusion",
+    analysisPrompt: 'Assess workforce diversity metrics, inclusion initiatives, DEI programs, and representation across organizational levels.',
     keywords: ['diversity', 'inclusion', 'dei', 'workforce diversity', 'equality', 'representation', 'inclusive culture', 'bias', 'belonging']
   }
 ];
@@ -432,7 +444,7 @@ DOCUMENT: ${document.name}
 CONTENT: ${content.substring(0, 4000)}
 
 QUESTION: "${question.question}"
-CATEGORY: ${question.category}
+ANALYSIS TASK: ${question.analysisPrompt}
 
 Instructions:
 - Look for DIRECT HR terms: team size, employees, leadership, management, hiring, compensation, culture, retention
