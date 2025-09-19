@@ -702,7 +702,7 @@ Respond in JSON format:
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      clinical_answers: JSON.stringify(clinicalAnswers), // FIXED: Use snake_case for database field
+      clinical_answers: clinicalAnswers, // FIXED: Store as object like Research agent (not JSON string)
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()
