@@ -963,27 +963,35 @@ Format as JSON object with "highlights" array of detailed strings.`
   async generateSWOTOnly(dealId: number): Promise<InvestmentMemoSections['swotAnalysis']> {
     console.log(`🎯 Starting SWOT-only generation for deal ${dealId}`);
     
-    // Get deal context
-    const context = await this.buildDealContext(dealId);
-    
-    // Generate SWOT analysis
-    const swotAnalysis = await this.generateSWOTAnalysis(context);
-    
-    // Update existing memo with SWOT analysis
-    const existingMemo = await storage.getMemoByDealId(dealId);
-    if (existingMemo && existingMemo.memo) {
-      const updatedMemo = {
-        ...existingMemo.memo as any,
-        swotAnalysis
-      };
+    try {
+      // Get comprehensive deal data
+      const data = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
-      await storage.updateMemo(existingMemo.id, { memo: updatedMemo });
-      console.log(`✅ Updated existing memo ${existingMemo.id} with SWOT analysis`);
-    } else {
-      console.log(`⚠️ No existing memo found for deal ${dealId}, SWOT not saved to memo`);
+      // Prepare analysis context
+      const context = await this.prepareComprehensiveAnalysisContext(data);
+      
+      // Generate SWOT analysis
+      const swotAnalysis = await this.generateSWOTAnalysis(context);
+      
+      // Update existing memo with SWOT analysis
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (existingMemo && existingMemo.memo) {
+        const updatedMemo = {
+          ...existingMemo.memo as any,
+          swotAnalysis
+        };
+        
+        await storage.updateMemo(existingMemo.id, { memo: updatedMemo });
+        console.log(`✅ Updated existing memo ${existingMemo.id} with SWOT analysis`);
+      } else {
+        console.log(`⚠️ No existing memo found for deal ${dealId}, SWOT not saved to memo`);
+      }
+      
+      return swotAnalysis;
+    } catch (error) {
+      console.error(`❌ Error generating SWOT analysis for deal ${dealId}:`, error);
+      throw new Error(`Failed to generate SWOT analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    return swotAnalysis;
   }
 
   private async generateSWOTAnalysis(context: string): Promise<InvestmentMemoSections['swotAnalysis']> {
