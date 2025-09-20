@@ -2225,7 +2225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/memos', async (req: Request, res: Response) => {
+  app.post('/api/memos', authenticate, async (req: Request, res: Response) => {
     try {
       const result = insertInvestmentMemoSchema.safeParse(req.body);
       
@@ -2237,6 +2237,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(201).json(memo);
     } catch (error) {
       console.error('Error creating memo:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Update existing memo by ID
+  app.patch('/api/memos/:id', authenticate, async (req: Request, res: Response) => {
+    try {
+      const memoId = parseInt(req.params.id);
+      if (isNaN(memoId)) {
+        return res.status(400).json({ message: 'Invalid memo ID' });
+      }
+
+      // Validate request body using partial schema
+      const result = insertInvestmentMemoSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return handleValidationError(res, result.error);
+      }
+
+      console.log(`📝 Updating memo ${memoId} with data:`, result.data);
+      const updatedMemo = await storage.updateMemo(memoId, result.data);
+      
+      if (!updatedMemo) {
+        return res.status(404).json({ message: 'Memo not found' });
+      }
+
+      console.log(`✅ Memo ${memoId} updated successfully`);
+      return res.status(200).json(updatedMemo);
+    } catch (error) {
+      console.error('Error updating memo:', error);
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
