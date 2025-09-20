@@ -118,7 +118,9 @@ Respond in JSON format:
       }
 
       try {
-        const result = JSON.parse(content);
+        // 🔧 CRITICAL FIX: Strip markdown code fences before parsing JSON
+        const cleanContent = content.replace(/```json\s*|\s*```/g, '').trim();
+        const result = JSON.parse(cleanContent);
         
         // Validate the result
         if (!Array.isArray(result.categories) || typeof result.confidence !== 'number') {
