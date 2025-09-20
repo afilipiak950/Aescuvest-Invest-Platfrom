@@ -1423,6 +1423,56 @@ export default function MemoGenerator() {
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
                                   }}
                                 />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    try {
+                                      toast({
+                                        title: "Generating SWOT Analysis",
+                                        description: "Creating SWOT analysis for this deal...",
+                                      });
+                                      
+                                      const response = await fetch(`/api/deals/${selectedDeal}/memo/generate-swot`, {
+                                        method: 'POST',
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                        },
+                                      });
+                                      
+                                      if (!response.ok) {
+                                        throw new Error('Failed to generate SWOT analysis');
+                                      }
+                                      
+                                      const result = await response.json();
+                                      
+                                      if (result.success && result.swotAnalysis) {
+                                        // Update the memo with new SWOT analysis
+                                        setGeneratedMemo(prev => prev ? { ...prev, swotAnalysis: result.swotAnalysis } : null);
+                                        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                        
+                                        toast({
+                                          title: "SWOT Analysis Generated",
+                                          description: "SWOT analysis has been successfully generated and added to the memo.",
+                                        });
+                                      } else {
+                                        throw new Error(result.error || 'No SWOT content received');
+                                      }
+                                    } catch (error) {
+                                      console.error('SWOT generation failed:', error);
+                                      toast({
+                                        title: "Generation Failed",
+                                        description: "Failed to generate SWOT analysis. Please try again.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
+                                  className="text-xs"
+                                  data-testid="button-generate-swot"
+                                >
+                                  <Brain className="h-3 w-3 mr-1" />
+                                  Generate SWOT
+                                </Button>
                               </div>
                             </div>
                           </CardHeader>
