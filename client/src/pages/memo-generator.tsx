@@ -115,10 +115,10 @@ export default function MemoGenerator() {
     const dealParam = searchParams.get('deal');
     const editParam = searchParams.get('edit');
     
-    console.log('📝 URL Parameters:', { deal: dealParam, edit: editParam });
+    console.log('📝 URL Parameters:', { deal: dealParam, edit: editParam, currentLocation: location });
     
     // Set the deal if provided in URL
-    if (dealParam && dealParam !== selectedDeal) {
+    if (dealParam) {
       console.log('🎯 Preselecting deal from URL:', dealParam);
       setSelectedDeal(dealParam);
     }
@@ -128,7 +128,7 @@ export default function MemoGenerator() {
       console.log('✏️ Setting edit mode for memo:', editParam);
       setEditingMemoId(editParam);
     }
-  }, [location, selectedDeal]);
+  }, [location]); // Removed selectedDeal from dependencies to avoid circular dependency
 
   // Load existing memo content when editing
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function MemoGenerator() {
       const loadExistingMemo = async () => {
         try {
           console.log(`📖 Loading existing memo ${editingMemoId} for deal ${selectedDeal}`);
-          const response = await apiRequest(`/api/deals/${selectedDeal}/memos/${editingMemoId}`);
+          const response = await apiRequest(`/api/memos/id/${editingMemoId}`);
           if (response.success && response.memo) {
             console.log('✅ Loaded existing memo:', response.memo);
             setGeneratedMemo(response.memo);

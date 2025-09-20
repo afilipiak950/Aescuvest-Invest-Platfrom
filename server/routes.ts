@@ -2182,6 +2182,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific memo by memo ID
+  app.get('/api/memos/id/:memoId', async (req: Request, res: Response) => {
+    console.log('🎯 API route hit: GET /api/memos/id/:memoId');
+    console.log('🌐 ULTRA-DEBUG: GET /api/memos/id/:memoId - MIDDLEWARE HIT');
+    
+    try {
+      const memoId = parseInt(req.params.memoId);
+      if (isNaN(memoId)) {
+        return res.status(400).json({ message: 'Invalid memo ID' });
+      }
+      
+      console.log(`📖 Loading memo by ID: ${memoId}`);
+      const memo = await storage.getMemoById(memoId);
+      
+      if (!memo) {
+        console.log(`❌ Memo ${memoId} not found`);
+        return res.status(404).json({ message: 'Memo not found' });
+      }
+      
+      console.log(`✅ Found memo: ${memo.id} for deal ${memo.dealId}`);
+      return res.status(200).json({ success: true, memo });
+    } catch (error) {
+      console.error('Error fetching memo by ID:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Get specific memo by deal ID
   app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
     try {
