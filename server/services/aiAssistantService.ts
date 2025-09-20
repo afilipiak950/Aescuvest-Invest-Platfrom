@@ -640,12 +640,10 @@ Use markdown formatting. Focus on actionable investment insights.`
    */
   private async generateContextHash(): Promise<string> {
     try {
-      // Get latest timestamps from database for proper cache invalidation
-      const [dealInfo, latestDocUpdate, latestAgentUpdate] = await Promise.all([
-        db.select({ updatedAt: deals.updatedAt }).from(deals).where(eq(deals.id, this.dealId)).limit(1),
-        db.select({ updatedAt: documents.updatedAt }).from(documents).where(eq(documents.dealId, this.dealId)).orderBy(desc(documents.updatedAt)).limit(1),
-        db.select({ updatedAt: agentAnalyses.updatedAt }).from(agentAnalyses).where(eq(agentAnalyses.dealId, this.dealId)).orderBy(desc(agentAnalyses.updatedAt)).limit(1)
-      ]);
+      // 🔧 CRITICAL FIX: Add error handling for database queries
+      const dealInfo = await db.select({ updatedAt: deals.updatedAt }).from(deals).where(eq(deals.id, this.dealId)).limit(1).catch(() => []);
+      const latestDocUpdate = await db.select({ updatedAt: documents.updatedAt }).from(documents).where(eq(documents.dealId, this.dealId)).orderBy(desc(documents.updatedAt)).limit(1).catch(() => []);
+      const latestAgentUpdate = await db.select({ updatedAt: agentAnalyses.updatedAt }).from(agentAnalyses).where(eq(agentAnalyses.dealId, this.dealId)).orderBy(desc(agentAnalyses.updatedAt)).limit(1).catch(() => []);
 
       const contextData = {
         dealId: this.dealId,
