@@ -1028,7 +1028,7 @@ function DueDiligenceContent() {
                             if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
                             if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
                             if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                            if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
+                            if (agentLower === 'research') return researchAnalysisData?.results !== null;
                             if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
                             if (agentLower === 'legal') return (typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis !== null);
                             return false;
@@ -1054,7 +1054,7 @@ function DueDiligenceContent() {
                         hr: !!hrAnalysisData?.analysis,
                         commercial: !!commercialAnalysisData?.analysis,
                         ip: !!ipAnalysisData?.analysis,
-                        research: !!researchAnalysisData?.analysis,
+                        research: !!researchAnalysisData?.results,
                         financial: !!financialAnalysisData?.analysis,
                         legal: !!(typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis)
                       }});
@@ -1378,7 +1378,7 @@ function DueDiligenceContent() {
                       if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'research') return researchAnalysisData?.results && Object.keys(researchAnalysisData.results || {}).length > 0;
                       if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis || {}).length > 0;
                       return false;
                     })();
