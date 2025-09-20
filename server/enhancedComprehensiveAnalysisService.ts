@@ -231,7 +231,7 @@ export class EnhancedComprehensiveAnalysisService {
   }
 
   /**
-   * Extract detailed evidence from a single document
+   * Extract detailed evidence from a single document with robust fallback
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<DocumentEvidence | null> {
     // Use full OCR text or AI summary for analysis
@@ -302,8 +302,165 @@ Be thorough - extract ALL relevant information, not just the most obvious points
 
     } catch (error) {
       console.error(`Error extracting evidence from ${document.name}:`, error);
+      
+      // ROBUST FALLBACK: Use keyword-based analysis when OpenAI fails
+      const isQuotaError = error.message?.includes('exceeded your current quota') || 
+                          error.message?.includes('insufficient_quota') ||
+                          (error as any)?.code === 'insufficient_quota';
+                          
+      if (isQuotaError) {
+        console.log(`🔄 OpenAI quota exceeded for ${document.name} - using fallback analysis`);
+        return this.extractEvidenceWithFallback(document, question, analysisContent);
+      }
+      
       return null;
     }
+  }
+
+  /**
+   * ROBUST FALLBACK: Extract evidence using keyword matching and content analysis when AI fails
+   */
+  private extractEvidenceWithFallback(document: any, question: any, content: string): DocumentEvidence | null {
+    console.log(`🛠️ Using fallback analysis for: ${document.name}`);
+    
+    // Get keywords for this question
+    const keywords = question.keywords || [];
+    const questionWords = question.question.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+    const allKeywords = [...keywords, ...questionWords].map(k => k.toLowerCase());
+    
+    // Find relevant content sections
+    const contentLower = content.toLowerCase();
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    
+    const relevantSentences = sentences.filter(sentence => {
+      const sentenceLower = sentence.toLowerCase();
+      return allKeywords.some(keyword => sentenceLower.includes(keyword));
+    });
+    
+    if (relevantSentences.length === 0) return null;
+    
+    // Extract key findings based on content patterns
+    const keyFindings = [];
+    const relevantQuotes = relevantSentences.slice(0, 5).map(s => s.trim());
+    
+    // Look for specific patterns relevant to research analysis
+    if (this.agentType.toLowerCase() === 'research') {
+      // Market size patterns
+      if (question.question.includes('TAM') || question.question.includes('market')) {
+        const marketFindings = this.extractMarketFindings(content);
+        keyFindings.push(...marketFindings);
+      }
+      
+      // Technical patterns
+      if (question.question.includes('technical') || question.question.includes('architecture')) {
+        const techFindings = this.extractTechnicalFindings(content);
+        keyFindings.push(...techFindings);
+      }
+      
+      // Competitive patterns
+      if (question.question.includes('competitive') || question.question.includes('competitor')) {
+        const compFindings = this.extractCompetitiveFindings(content);
+        keyFindings.push(...compFindings);
+      }
+    }
+    
+    // Calculate confidence based on keyword matches and content relevance
+    const keywordMatches = allKeywords.filter(keyword => contentLower.includes(keyword)).length;
+    const confidence = Math.min(30 + (keywordMatches * 10) + (relevantSentences.length * 5), 85);
+    
+    return {
+      documentId: document.id,
+      documentName: document.name,
+      relevantQuotes: relevantQuotes,
+      keyFindings: keyFindings.length > 0 ? keyFindings : [`Relevant ${this.agentType.toLowerCase()} information found in document`],
+      confidence: confidence,
+      pageReferences: ['Content analysis'],
+      analysis: `Fallback analysis identified ${relevantSentences.length} relevant sections containing ${keywordMatches} matching keywords related to: ${question.question}`,
+      fullContent: content
+    };
+  }
+
+  /**
+   * Extract market-related findings from content
+   */
+  private extractMarketFindings(content: string): string[] {
+    const findings = [];
+    const contentLower = content.toLowerCase();
+    
+    // Look for market size indicators
+    const marketSizePatterns = [/\$[\d.,]+\s*(billion|million|trillion)/gi, /[\d.,]+\s*billion/gi, /market.*size/gi];
+    marketSizePatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) findings.push(`Market size referenced: ${matches.join(', ')}`);
+    });
+    
+    // Look for growth rates
+    const growthPatterns = [/[\d.]+%.*growth/gi, /growing.*[\d.]+%/gi, /cagr.*[\d.]+%/gi];
+    growthPatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) findings.push(`Growth rate mentioned: ${matches.join(', ')}`);
+    });
+    
+    return findings;
+  }
+
+  /**
+   * Extract technical findings from content
+   */
+  private extractTechnicalFindings(content: string): string[] {
+    const findings = [];
+    
+    // Look for technical terms
+    const techTerms = ['algorithm', 'machine learning', 'ai', 'artificial intelligence', 'deep learning', 'neural network', 'api', 'cloud', 'scalability', 'architecture'];
+    const foundTerms = techTerms.filter(term => content.toLowerCase().includes(term));
+    if (foundTerms.length > 0) {
+      findings.push(`Technical approach includes: ${foundTerms.join(', ')}`);
+    }
+    
+    return findings;
+  }
+
+  /**
+   * Extract competitive findings from content
+   */
+  private extractCompetitiveFindings(content: string): string[] {
+    const findings = [];
+    
+    // Look for competitive terms
+    const compTerms = ['competitor', 'competition', 'market share', 'competitive advantage', 'differentiation'];
+    const foundTerms = compTerms.filter(term => content.toLowerCase().includes(term));
+    if (foundTerms.length > 0) {
+      findings.push(`Competitive analysis mentions: ${foundTerms.join(', ')}`);
+    }
+    
+    return findings;
+  }
+
+  /**
+   * Attempt direct document analysis when AI fails completely
+   */
+  private async attemptDirectDocumentAnalysis(question: any): Promise<DocumentEvidence[]> {
+    console.log(`🔄 Attempting direct document analysis for: ${question.question}`);
+    
+    // Get all assigned documents for this agent
+    const documents = await this.getAssignedDocuments(parseInt(process.env.CURRENT_DEAL_ID || '0'));
+    if (documents.length === 0) return [];
+    
+    const evidence: DocumentEvidence[] = [];
+    
+    // Process each document with fallback analysis only
+    for (const document of documents.slice(0, 10)) { // Limit to first 10 docs for performance
+      const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+      if (!content || content.length < 50) continue;
+      
+      const fallbackEvidence = this.extractEvidenceWithFallback(document, question, content.substring(0, 8000));
+      if (fallbackEvidence) {
+        evidence.push(fallbackEvidence);
+      }
+    }
+    
+    console.log(`📄 Direct analysis found evidence in ${evidence.length}/${Math.min(documents.length, 10)} documents`);
+    return evidence;
   }
 
   /**
@@ -317,18 +474,27 @@ Be thorough - extract ALL relevant information, not just the most obvious points
     console.log(`📋 Evidence from ${evidence.length} documents`);
 
     if (evidence.length === 0) {
-      return {
-        question: question.question,
-        category: question.category,
-        answer: `No relevant information found in the assigned ${this.agentType.toLowerCase()} documents for this question.`,
-        confidence: 5,
-        sources: [],
-        evidence: [],
-        keyFindings: [],
-        recommendations: [`Obtain additional documentation related to ${question.category.toLowerCase()}`],
-        gaps: [`No information available for: ${question.question}`],
-        crossReferences: []
-      };
+      // IMPROVED FALLBACK: Try to extract basic information from document content even without AI
+      console.log(`🔄 No AI-extracted evidence found - attempting direct document analysis`);
+      const fallbackEvidence = await this.attemptDirectDocumentAnalysis(question);
+      
+      if (fallbackEvidence.length > 0) {
+        console.log(`✅ Found ${fallbackEvidence.length} pieces of evidence using direct analysis`);
+        evidence = fallbackEvidence;
+      } else {
+        return {
+          question: question.question,
+          category: question.category,
+          answer: `No relevant information found in the assigned ${this.agentType.toLowerCase()} documents for this question.`,
+          confidence: 5,
+          sources: [],
+          evidence: [],
+          keyFindings: [],
+          recommendations: [`Obtain additional documentation related to ${question.category.toLowerCase()}`],
+          gaps: [`No information available for: ${question.question}`],
+          crossReferences: []
+        };
+      }
     }
 
     // Sort evidence by confidence
