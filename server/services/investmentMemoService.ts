@@ -1042,13 +1042,37 @@ Extract specific, actionable points with authentic data. Format as JSON with det
       }
     ) as Promise<string>;
 
-    const result = JSON.parse(await response);
-    return {
-      strengths: result.strengths || [],
-      weaknesses: result.weaknesses || [],
-      opportunities: result.opportunities || [],
-      threats: result.threats || []
-    };
+    try {
+      const result = JSON.parse(await response);
+      
+      // Ensure arrays are clean and contain no error messages
+      const cleanArray = (arr: any): string[] => {
+        if (!Array.isArray(arr)) return [];
+        return arr.filter((item: any) => 
+          typeof item === 'string' && 
+          item.length > 0 && 
+          !item.includes('[Generation failed') &&
+          !item.includes('temporarily unavailable') &&
+          !item.includes('No information available')
+        );
+      };
+
+      return {
+        strengths: cleanArray(result.strengths),
+        weaknesses: cleanArray(result.weaknesses), 
+        opportunities: cleanArray(result.opportunities),
+        threats: cleanArray(result.threats)
+      };
+    } catch (parseError) {
+      console.error('❌ Failed to parse SWOT analysis JSON:', parseError);
+      // Return empty arrays on parsing failure to prevent error strings in UI
+      return {
+        strengths: [],
+        weaknesses: [],
+        opportunities: [],
+        threats: []
+      };
+    }
   }
 
   private async generateMarketAnalysis(context: string): Promise<InvestmentMemoSections['marketAnalysis']> {
