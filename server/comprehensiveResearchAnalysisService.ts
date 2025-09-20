@@ -489,15 +489,23 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         ));
 
       // Save the new analysis - ONLY VALID SCHEMA FIELDS
-      await db.insert(agentAnalyses).values({
+      const insertData = {
         dealId,
         agentType: 'research',
-        status: 'completed',
+        status: 'completed' as const,
         progress: 100,
-        findings: JSON.stringify(findings),
-        recommendations: JSON.stringify(recommendations),
-        research_answers: researchAnswers
-      });
+        findings: findings.length > 0 ? findings.map((f, i) => ({ id: i, content: f, type: 'positive' })) : undefined,
+        recommendations: recommendations.length > 0 ? recommendations.map((r, i) => ({ 
+          title: `Recommendation ${i + 1}`, 
+          description: r, 
+          priority: 'medium', 
+          category: 'research', 
+          impact: 'medium' 
+        })) : undefined,
+        research_answers: Object.keys(researchAnswers).length > 0 ? researchAnswers : undefined
+      };
+
+      await db.insert(agentAnalyses).values(insertData);
 
       // Update job as completed
       await this.storage.updateBackgroundJob(this.jobId, {
