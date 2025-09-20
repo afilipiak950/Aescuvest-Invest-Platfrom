@@ -7605,6 +7605,42 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
+  // Generate SWOT Analysis for existing memo
+  app.post('/api/deals/:dealId/memo/generate-swot', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid deal ID' 
+        });
+      }
+      
+      console.log(`🎯 Generating SWOT analysis for deal ${dealId}`);
+      
+      // Import the service here to avoid circular dependencies
+      const { investmentMemoService } = await import('./services/investmentMemoService');
+      
+      // Generate SWOT analysis specifically
+      const swotContent = await investmentMemoService.generateSWOTOnly(dealId);
+      
+      console.log(`✅ SWOT analysis generated for deal ${dealId}:`, swotContent);
+      
+      res.json({ 
+        success: true, 
+        swotAnalysis: swotContent,
+        message: "SWOT analysis generated successfully"
+      });
+    } catch (error) {
+      console.error('SWOT generation failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to generate SWOT analysis' 
+      });
+    }
+  });
+
   // Regenerate individual memo section with custom prompt
   app.post('/api/deals/:dealId/memo/regenerate-section', async (req: Request, res: Response) => {
     try {
