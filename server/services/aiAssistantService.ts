@@ -5,11 +5,12 @@
 
 import { db } from '../db';
 import { documents, agentAnalyses, deals } from '../../shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from '../storage';
 import { EmbeddingService } from './embeddingService';
 import { semanticCacheService } from './semanticCacheService';
+import { IntentClassifierService } from './intentClassifierService';
 import crypto from 'crypto';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -709,10 +710,68 @@ Use markdown formatting. Focus on actionable investment insights.`
     
     console.log(`❌ Cache miss - proceeding with AI generation`);
     
-    // Use RAG to find relevant document chunks
-    console.log(`🔍 Searching for relevant document chunks using RAG...`);
-    const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
-    console.log(`📄 Found ${relevantChunks.length} relevant chunks`);
+    // 🎯 INTENT CLASSIFICATION - Reduce search space by 80-90%
+    console.log(`🎯 Classifying query intent to optimize search...`);
+    const intentResult = await IntentClassifierService.classifyQuery(query);
+    console.log(`✅ Intent classification: ${intentResult.categories.join(', ')} (${intentResult.method}, confidence: ${intentResult.confidence})`);
+    
+    // Use RAG to find relevant document chunks with conditional intent-based filtering
+    console.log(`🔍 Searching for relevant document chunks using targeted RAG...`);
+    
+    // Only apply filtering if we have specific intent categories (not fallback)
+    const shouldFilter = intentResult.method !== 'fallback' && 
+                        intentResult.confidence > 0.5 && 
+                        intentResult.agentTypes.length > 0 && 
+                        intentResult.agentTypes.length < 7; // Don't filter if all categories selected
+    
+    let relevantChunks;
+    try {
+      relevantChunks = await EmbeddingService.searchSimilarChunks(
+        query, 
+        this.dealId, 
+        15, 
+        shouldFilter ? intentResult.agentTypes : undefined
+      );
+      console.log(`📄 Found ${relevantChunks.length} relevant chunks`);
+    } catch (error) {
+      console.warn(`⚠️ Intent-filtered search failed, falling back to unfiltered search:`, error);
+      // Fallback to unfiltered search on any error
+      relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
+      console.log(`📄 Found ${relevantChunks.length} chunks (unfiltered fallback)`);
+    }
+    
+    // Calculate and log actual space reduction metrics
+    if (shouldFilter) {
+      try {
+        // Count total documents for this deal
+        const totalDocsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT d.id) as total 
+          FROM documents d 
+          WHERE d.deal_id = ${this.dealId} AND d.agent_type IS NOT NULL
+        `);
+        
+        // Count filtered documents 
+        const filteredDocsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT d.id) as filtered 
+          FROM documents d 
+          WHERE d.deal_id = ${this.dealId} AND d.agent_type = ANY(${intentResult.agentTypes}::text[])
+        `);
+        
+        const totalDocs = (totalDocsResult.rows[0] as any)?.total || 0;
+        const filteredDocs = (filteredDocsResult.rows[0] as any)?.filtered || 0;
+        
+        const metrics = IntentClassifierService.calculateSpaceReduction(totalDocs, filteredDocs);
+        
+        console.log(`⚡ Search optimized by intent classification: focusing on ${intentResult.agentTypes.join(', ')} documents`);
+        console.log(`📊 Space reduction: ${metrics.reductionPercentage}% (${metrics.documentsSearched}/${totalDocs} documents)`);
+        console.log(`📋 Intent description: ${IntentClassifierService.getIntentDescription(intentResult.categories)}`);
+      } catch (error) {
+        console.warn('Failed to calculate space reduction metrics:', error);
+        console.log(`⚡ Search optimized by intent classification: focusing on ${intentResult.agentTypes.join(', ')} documents`);
+      }
+    } else {
+      console.log(`🔄 Using unfiltered search (${intentResult.method} classification, confidence: ${intentResult.confidence})`);
+    }
     
     // Build context with only relevant information
     let ragContext = 'RELEVANT DOCUMENT CONTEXT:\n\n';
