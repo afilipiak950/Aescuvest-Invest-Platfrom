@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import PageHeader from '@/components/layout/page-header';
@@ -103,8 +104,60 @@ export default function MemoGenerator() {
   const [selectedDeal, setSelectedDeal] = useState<string>('');
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
+  const [editingMemoId, setEditingMemoId] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location] = useLocation();
+
+  // Handle URL parameters for editing existing memos
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const dealParam = searchParams.get('deal');
+    const editParam = searchParams.get('edit');
+    
+    console.log('📝 URL Parameters:', { deal: dealParam, edit: editParam });
+    
+    // Set the deal if provided in URL
+    if (dealParam && dealParam !== selectedDeal) {
+      console.log('🎯 Preselecting deal from URL:', dealParam);
+      setSelectedDeal(dealParam);
+    }
+    
+    // Set the memo ID for editing if provided
+    if (editParam) {
+      console.log('✏️ Setting edit mode for memo:', editParam);
+      setEditingMemoId(editParam);
+    }
+  }, [location, selectedDeal]);
+
+  // Load existing memo content when editing
+  useEffect(() => {
+    if (editingMemoId && selectedDeal) {
+      const loadExistingMemo = async () => {
+        try {
+          console.log(`📖 Loading existing memo ${editingMemoId} for deal ${selectedDeal}`);
+          const response = await apiRequest(`/api/deals/${selectedDeal}/memos/${editingMemoId}`);
+          if (response.success && response.memo) {
+            console.log('✅ Loaded existing memo:', response.memo);
+            setGeneratedMemo(response.memo);
+            toast({
+              title: "Memo Loaded",
+              description: `Loaded existing memo for editing: ${response.memo.companyName || 'Memo'}`,
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load existing memo:', error);
+          toast({
+            title: "Load Failed",
+            description: "Failed to load existing memo for editing",
+            variant: "destructive",
+          });
+        }
+      };
+      
+      loadExistingMemo();
+    }
+  }, [editingMemoId, selectedDeal, toast]);
 
   // Load section sources when deal is selected (with cache busting)
   useEffect(() => {
