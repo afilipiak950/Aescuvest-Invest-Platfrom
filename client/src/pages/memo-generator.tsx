@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
+import { Loader2, FileText, Brain, TrendingUp, Download, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
@@ -105,6 +105,8 @@ export default function MemoGenerator() {
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
   const [editingMemoId, setEditingMemoId] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [savedMemoId, setSavedMemoId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [location] = useLocation();
@@ -152,12 +154,31 @@ export default function MemoGenerator() {
           console.log(`📖 Loading existing memo ${editingMemoId} for deal ${selectedDeal}`);
           const response = await apiRequest(`/api/memos/id/${editingMemoId}`);
           if (response.success && response.memo) {
-            console.log('✅ Loaded existing memo:', response.memo);
-            setGeneratedMemo(response.memo);
-            toast({
-              title: "Memo Loaded",
-              description: `Loaded existing memo for editing: ${response.memo.companyName || 'Memo'}`,
-            });
+            console.log('✅ Loaded existing memo record:', response.memo);
+            
+            // Extract the actual comprehensive memo content from the database record
+            const comprehensiveMemo = response.memo.memo;
+            if (comprehensiveMemo) {
+              console.log('✅ Setting comprehensive memo for editing:', Object.keys(comprehensiveMemo));
+              setGeneratedMemo(comprehensiveMemo);
+              
+              // Ensure editingMemoId is set if not already
+              if (!editingMemoId) {
+                setEditingMemoId(response.memo.id.toString());
+              }
+              
+              toast({
+                title: "Memo Loaded",
+                description: `Loaded existing memo for editing`,
+              });
+            } else {
+              console.error('❌ No memo content found in record');
+              toast({
+                title: "Load Warning",
+                description: "Memo record found but no content available",
+                variant: "destructive",
+              });
+            }
           }
         } catch (error) {
           console.error('Failed to load existing memo:', error);
@@ -216,12 +237,13 @@ export default function MemoGenerator() {
   }, [selectedDeal]);
   
   // Clear generated memo state when deal changes to ensure fresh loading from database
+  // But don't clear when in edit mode to prevent race conditions
   useEffect(() => {
-    if (selectedDeal) {
+    if (selectedDeal && !editingMemoId) {
       setGeneratedMemo(null); // Clear local state to force database fetch
       console.log(`🔄 Deal changed to ${selectedDeal}, clearing local memo state`);
     }
-  }, [selectedDeal]);
+  }, [selectedDeal, editingMemoId]);
   
   // Fetch real deals from API with document and analysis counts
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
@@ -392,11 +414,99 @@ export default function MemoGenerator() {
 
     generateMemoMutation.mutate(selectedDeal);
   };
+
+  const handleSaveMemo = async () => {
+    if (!currentMemo || !selectedDeal) {
+      toast({
+        title: "Cannot Save",
+        description: "No memo to save or deal not selected.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      
+      const isUpdating = !!editingMemoId;
+      console.log('💾 Saving memo for deal:', selectedDeal, { isUpdating, editingMemoId });
+
+      // Transform memo data to match database schema
+      const memoData = {
+        dealId: parseInt(selectedDeal),
+        executiveSummary: currentMemo.executiveSummary || '',
+        memo: currentMemo, // Store the full comprehensive memo in JSON field
+        status: 'Draft'
+      };
+
+      console.log('📝 Memo data prepared for save:', { 
+        dealId: memoData.dealId, 
+        hasExecutiveSummary: !!memoData.executiveSummary,
+        hasMemo: !!memoData.memo,
+        memoKeys: memoData.memo ? Object.keys(memoData.memo) : [],
+        isUpdating
+      });
+
+      // Choose endpoint and method based on whether we're updating or creating
+      const endpoint = isUpdating ? `/api/memos/${editingMemoId}` : '/api/memos';
+      const method = isUpdating ? 'PATCH' : 'POST';
+
+      const response = await apiRequest(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(memoData)
+      });
+
+      console.log('✅ Save response:', response);
+
+      // Handle different response structures: response.id or response.memo?.id
+      const memoId = response?.id || response?.memo?.id;
+      
+      if (memoId) {
+        setSavedMemoId(memoId);
+        
+        // Set editingMemoId if this was a new memo
+        if (!isUpdating) {
+          setEditingMemoId(memoId.toString());
+        }
+        
+        toast({
+          title: "Success!",
+          description: isUpdating 
+            ? `Investment memo updated successfully`
+            : `Investment memo saved successfully with ID ${memoId}`,
+        });
+
+        // Comprehensive cache invalidation to ensure memos list updates
+        queryClient.invalidateQueries({ queryKey: ['/api/memos'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/memos', 'list'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/memos', selectedDeal] });
+        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        
+        console.log('🔄 Cache invalidated, memo should appear in memos list');
+      } else {
+        throw new Error('Save succeeded but no memo ID returned in response');
+      }
+    } catch (error) {
+      console.error('❌ Failed to save memo:', error);
+      toast({
+        title: isUpdating ? "Update Failed" : "Save Failed",
+        description: error instanceof Error ? error.message : "Failed to save investment memo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
   
   const isLoading = isLoadingDeals || isLoadingMemo || isLoadingCounts;
   const isGenerating = generateMemoMutation.isPending;
-  // Use existing memo from database first, then fallback to newly generated memo
-  const currentMemo = existingMemo?.memo || generatedMemo;
+  
+  // Fix critical memo shape derivation - extract comprehensive memo from database record
+  const dbMemo = existingMemo?.memo?.memo; // existingMemo.memo is database record, .memo is comprehensive memo
+  const currentMemo = dbMemo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
   // Debug logging
@@ -1610,6 +1720,25 @@ export default function MemoGenerator() {
                   
                   {currentMemo && (
                     <div className="space-y-2">
+                      <Button 
+                        onClick={handleSaveMemo}
+                        disabled={isSaving}
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        data-testid="button-save-memo"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Memo
+                          </>
+                        )}
+                      </Button>
+
                       <Button 
                         variant="outline" 
                         className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
