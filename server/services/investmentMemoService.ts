@@ -2386,13 +2386,13 @@ ${fullContext.substring(0, 45000)}`
   }
 
   /**
-   * NEW: Intelligent OCR extraction system that processes EVERY character of OCR text
+   * OPTIMIZED: Fast OCR extraction using existing database OCR text (NO API calls)
    */
   private async prepareIntelligentOCRExtractionContext(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`🔍 MULTI-PASS company information extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+    console.log(`⚡ FAST OCR extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses (using existing OCR)`);
     
-    // PASS 1: Extract from agent analyses first (structured data)
-    console.log(`🔍 PASS 1: Extracting from ${data.agentAnalyses.length} agent analyses`);
+    // OPTIMIZED: Extract from agent analyses (structured data)
+    console.log(`📊 Processing ${data.agentAnalyses.length} agent analyses`);
     let agentContext = '';
     let totalAgentChars = 0;
     
@@ -2404,75 +2404,47 @@ ${fullContext.substring(0, 45000)}`
       }
     });
     
-    console.log(`🔍 Extracting from agent analyses (${totalAgentChars.toLocaleString()} characters)`);
+    console.log(`📊 Processed ${data.agentAnalyses.length} agent analyses (${totalAgentChars.toLocaleString()} characters)`);
 
-    // PASS 2: Process ALL documents with OCR text in intelligent batches
-    console.log(`🔍 PASS 2: Processing ${data.documents.length} documents in 10 batches of 10`);
+    // OPTIMIZED: Directly use existing OCR text from database (NO API calls)
+    console.log(`📄 Using existing OCR text from ${data.documents.length} documents`);
     const documentsWithOCR = data.documents.filter(doc => {
       const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
       return ocrText && typeof ocrText === 'string' && ocrText.length > 100;
     });
-    const totalBatches = Math.ceil(documentsWithOCR.length / 10);
-    console.log(`📄 Found ${documentsWithOCR.length} documents with substantial OCR content`);
     
-    let allExtractions: string[] = [];
+    let allOcrContent = '';
     let totalOcrChars = 0;
     
-    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-      const startIndex = batchIndex * 10;
-      const endIndex = Math.min(startIndex + 10, documentsWithOCR.length);
-      const batch = documentsWithOCR.slice(startIndex, endIndex);
-      
-      console.log(`🔍 Processing batch ${batchIndex + 1}/${totalBatches}: documents ${startIndex + 1}-${endIndex}`);
-      
-      let batchOcrContent = '';
-      batch.forEach((doc) => {
-        // Handle both camelCase and snake_case field names
-        const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
-        if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
-          totalOcrChars += ocrText.length;
-          batchOcrContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
-          batchOcrContent += `OCR CONTENT (${ocrText.length} chars):\n${ocrText}\n`;
-          console.log(`📄 Document ${doc.name}: ${ocrText.length.toLocaleString()} OCR characters`);
-        }
-      });
-
-      // Extract specific company information from this batch
-      if (batchOcrContent.length > 500) {
-        try {
-          const extraction = await this.extractCompanyDetailsFromBatch(batchOcrContent, data.companyName);
-          if (extraction && extraction.length > 200) {
-            allExtractions.push(extraction);
-          }
-        } catch (error) {
-          console.warn(`Batch ${batchIndex + 1} extraction failed:`, error);
-        }
+    // Build OCR content directly from database (no batching or API calls needed)
+    documentsWithOCR.forEach((doc) => {
+      const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
+      if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
+        totalOcrChars += ocrText.length;
+        allOcrContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
+        allOcrContent += `${ocrText}\n`;
+        console.log(`📄 Using OCR text for ${doc.name}: ${ocrText.length.toLocaleString()} characters`);
       }
-    }
+    });
+    
+    console.log(`✅ Fast OCR extraction completed for ${data.companyName}: ${totalOcrChars.toLocaleString()} characters processed instantly`);
 
-    // PASS 3: Synthesize all extractions into comprehensive company profile
-    console.log(`🔍 PASS 3: Synthesizing ${allExtractions.length} extraction results`);
-    const synthesizedProfile = await this.synthesizeCompanyProfile(allExtractions, data.companyName);
-    console.log(`✅ Multi-pass extraction completed for ${data.companyName} IM`);
-
-    // Build final comprehensive context
+    // Build final comprehensive context using existing OCR data
     const finalContext = `
 COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
 =========================================================
-TOTAL OCR PROCESSED: ${totalOcrChars.toLocaleString()} characters
+TOTAL OCR PROCESSED: ${totalOcrChars.toLocaleString()} characters (from existing database)
 TOTAL DOCUMENTS: ${data.documents.length}
+TOTAL DOCUMENTS WITH OCR: ${documentsWithOCR.length}
 TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
-EXTRACTION PASSES: 3 (Agent Analyses → Document Batches → Synthesis)
+PROCESSING METHOD: Optimized (using existing OCR, no API calls)
 =========================================================
-
-=== SYNTHESIZED COMPANY PROFILE ===
-${synthesizedProfile}
 
 === AGENT ANALYSES SUMMARY ===
 ${agentContext}
 
-=== EXTRACTED COMPANY INFORMATION ===
-${allExtractions.join('\n\n')}
+=== COMPREHENSIVE DOCUMENT OCR CONTENT ===
+${allOcrContent}
 `;
 
     return finalContext;
