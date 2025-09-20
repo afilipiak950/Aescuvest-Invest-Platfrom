@@ -200,7 +200,7 @@ export default function MemoGenerator() {
       const loadSectionSources = async () => {
         try {
           console.log(`🔄 Loading section sources for deal ${selectedDeal}`);
-          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
+          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'swotAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
           const sourcePromises = mainSections.map(async (sectionKey) => {
             try {
               // Add cache busting parameter to ensure fresh data
@@ -1376,71 +1376,138 @@ export default function MemoGenerator() {
 
                       {/* SWOT Analysis */}
                       {currentMemo?.swotAnalysis && (
-                        <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">SWOT Analysis</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.strengths) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.strengths.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-green-400 mr-2">+</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.strengths) || 'No strengths identified'}</div>
-                              )}
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">SWOT Analysis</CardTitle>
+                                  <p className="text-slate-400 text-sm">Strengths, weaknesses, opportunities, and threats analysis</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.swotAnalysis || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="swotAnalysis"
+                                  sectionTitle="SWOT Analysis"
+                                  currentContent={typeof currentMemo.swotAnalysis === 'object' ? JSON.stringify(currentMemo.swotAnalysis, null, 2) : currentMemo.swotAnalysis}
+                                  onUpdate={(newContent) => {
+                                    try {
+                                      // Parse JSON and validate SWOT structure
+                                      const parsedContent = JSON.parse(newContent);
+                                      
+                                      // Validate required SWOT structure
+                                      if (typeof parsedContent === 'object' && parsedContent !== null) {
+                                        const validatedSWOT = {
+                                          strengths: Array.isArray(parsedContent.strengths) ? parsedContent.strengths : [],
+                                          weaknesses: Array.isArray(parsedContent.weaknesses) ? parsedContent.weaknesses : [],
+                                          opportunities: Array.isArray(parsedContent.opportunities) ? parsedContent.opportunities : [],
+                                          threats: Array.isArray(parsedContent.threats) ? parsedContent.threats : []
+                                        };
+                                        setGeneratedMemo(prev => prev ? { ...prev, swotAnalysis: validatedSWOT } : null);
+                                      } else {
+                                        throw new Error('Invalid SWOT structure');
+                                      }
+                                    } catch (error) {
+                                      // Show error and don't save invalid content
+                                      console.error('Invalid SWOT JSON format:', error);
+                                      toast({
+                                        title: "Invalid SWOT Format",
+                                        description: "SWOT Analysis must be valid JSON with strengths, weaknesses, opportunities, and threats arrays.",
+                                        variant: "destructive",
+                                      });
+                                      return; // Don't update state with invalid content
+                                    }
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.weaknesses) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.weaknesses.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-red-400 mr-2">-</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.weaknesses) || 'No weaknesses identified'}</div>
-                              )}
+                          </CardHeader>
+                          <CardContent>
+                            {(() => {
+                              // Runtime normalization to ensure SWOT structure
+                              const normalizedSWOT = typeof currentMemo.swotAnalysis === 'object' && currentMemo.swotAnalysis !== null ? {
+                                strengths: Array.isArray(currentMemo.swotAnalysis.strengths) ? currentMemo.swotAnalysis.strengths : [],
+                                weaknesses: Array.isArray(currentMemo.swotAnalysis.weaknesses) ? currentMemo.swotAnalysis.weaknesses : [],
+                                opportunities: Array.isArray(currentMemo.swotAnalysis.opportunities) ? currentMemo.swotAnalysis.opportunities : [],
+                                threats: Array.isArray(currentMemo.swotAnalysis.threats) ? currentMemo.swotAnalysis.threats : []
+                              } : {
+                                strengths: typeof currentMemo.swotAnalysis === 'string' ? [currentMemo.swotAnalysis] : [],
+                                weaknesses: [],
+                                opportunities: [],
+                                threats: []
+                              };
+                              
+                              return (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div>
+                                <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
+                                {Array.isArray(normalizedSWOT.strengths) ? (
+                                  <ul className="space-y-2">
+                                    {normalizedSWOT.strengths.map((item: string, index: number) => (
+                                      <li key={index} className="text-gray-300 text-sm flex items-start">
+                                        <span className="text-green-400 mr-2">+</span>
+                                        {item}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.strengths.join('\n')) || 'No strengths identified'}</div>
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
+                                {Array.isArray(normalizedSWOT.weaknesses) ? (
+                                  <ul className="space-y-2">
+                                    {normalizedSWOT.weaknesses.map((item: string, index: number) => (
+                                      <li key={index} className="text-gray-300 text-sm flex items-start">
+                                        <span className="text-red-400 mr-2">-</span>
+                                        {item}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.weaknesses.join('\n')) || 'No weaknesses identified'}</div>
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
+                                {Array.isArray(normalizedSWOT.opportunities) ? (
+                                  <ul className="space-y-2">
+                                    {normalizedSWOT.opportunities.map((item: string, index: number) => (
+                                      <li key={index} className="text-gray-300 text-sm flex items-start">
+                                        <span className="text-blue-400 mr-2">↗</span>
+                                        {item}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.opportunities.join('\n')) || 'No opportunities identified'}</div>
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
+                                {Array.isArray(normalizedSWOT.threats) ? (
+                                  <ul className="space-y-2">
+                                    {normalizedSWOT.threats.map((item: string, index: number) => (
+                                      <li key={index} className="text-gray-300 text-sm flex items-start">
+                                        <span className="text-yellow-400 mr-2">⚠</span>
+                                        {item}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.threats.join('\n')) || 'No threats identified'}</div>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.opportunities) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.opportunities.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-blue-400 mr-2">↗</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.opportunities) || 'No opportunities identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.threats) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.threats.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-yellow-400 mr-2">⚠</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.threats) || 'No threats identified'}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                              );
+                            })()}
+                          </CardContent>
+                        </Card>
                       )}
                       
                       {/* Fallback content if no risk sections exist */}
