@@ -347,7 +347,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                   // ⚡ REAL-TIME TOKEN STREAMING for 50-80% speed improvement
                   if (parsed.type === 'status') {
                     console.log(`📊 Status update: ${parsed.message} (setup: ${parsed.setupTime}ms)`);
-                  } else if (parsed.type === 'token') {
+                  } else if (parsed.type === 'content') {
                     // Add individual token immediately for real-time response
                     fullContent += parsed.content;
                     setMessages(prev => prev.map(msg => 
@@ -357,8 +357,8 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                     ));
                     
                     // Performance logging every 50 tokens
-                    if (parsed.tokenCount % 50 === 0) {
-                      console.log(`⚡ Streaming progress: ${parsed.tokenCount} tokens received`);
+                    if (fullContent.length % 100 === 0) {
+                      console.log(`⚡ Streaming progress: ${fullContent.length} characters received`);
                     }
                   } else if (parsed.type === 'done') {
                     console.log(`✅ Streaming completed: ${parsed.timing?.tokensPerSecond || 0} tokens/sec`);
