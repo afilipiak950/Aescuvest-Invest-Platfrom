@@ -593,8 +593,7 @@ Use markdown formatting. Focus on actionable investment insights.`
         model: 'gpt-4o',
         messages,
         temperature: 0.1,
-        max_tokens: 2500, // Optimized for faster responses
-        timeout: 30000 // 30 second timeout
+        max_tokens: 2500 // Optimized for faster responses
       });
       
       const answer = response.choices[0].message.content || 'I was unable to generate a response.';
@@ -655,7 +654,7 @@ Use markdown formatting. Focus on actionable investment insights.`
         latestAgentUpdate: latestAgentUpdate[0]?.updatedAt?.getTime() || 0,
         agentAnalysesCount: this.agentContext.length,
         companyContextExists: !!this.companyContext,
-        documentsCount: this.agentContext.reduce((sum, agent) => sum + (agent.documentCount || 0), 0),
+        documentsCount: this.agentContext.length,
         // Include recent conversation context
         recentQueries: this.conversationMemory.slice(-3).map(m => m.query)
       };
