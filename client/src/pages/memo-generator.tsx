@@ -111,22 +111,36 @@ export default function MemoGenerator() {
 
   // Handle URL parameters for editing existing memos
   useEffect(() => {
+    console.log('🔧 URL Parameter useEffect triggered!', { location });
+    console.log('🔧 window.location.search:', window.location.search);
+    console.log('🔧 window.location.href:', window.location.href);
+    
     const searchParams = new URLSearchParams(window.location.search);
     const dealParam = searchParams.get('deal');
     const editParam = searchParams.get('edit');
     
-    console.log('📝 URL Parameters:', { deal: dealParam, edit: editParam, currentLocation: location });
+    console.log('📝 URL Parameters Parsed:', { 
+      deal: dealParam, 
+      edit: editParam, 
+      currentLocation: location,
+      searchString: window.location.search,
+      allParams: Object.fromEntries(searchParams.entries())
+    });
     
     // Set the deal if provided in URL
     if (dealParam) {
       console.log('🎯 Preselecting deal from URL:', dealParam);
       setSelectedDeal(dealParam);
+    } else {
+      console.log('❌ No deal parameter found in URL');
     }
     
     // Set the memo ID for editing if provided
     if (editParam) {
       console.log('✏️ Setting edit mode for memo:', editParam);
       setEditingMemoId(editParam);
+    } else {
+      console.log('❌ No edit parameter found in URL');
     }
   }, [location]); // Removed selectedDeal from dependencies to avoid circular dependency
 
