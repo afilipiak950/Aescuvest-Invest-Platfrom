@@ -9,6 +9,8 @@ import { eq, and, desc } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from '../storage';
 import { EmbeddingService } from './embeddingService';
+import { semanticCacheService } from './semanticCacheService';
+import crypto from 'crypto';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -632,6 +634,44 @@ Use markdown formatting. Focus on actionable investment insights.`
     return 'English';
   }
 
+  /**
+   * Generate context hash for semantic caching
+   * This ensures cache invalidation when context changes
+   */
+  private async generateContextHash(): Promise<string> {
+    try {
+      // Get latest timestamps from database for proper cache invalidation
+      const [dealInfo, latestDocUpdate, latestAgentUpdate] = await Promise.all([
+        db.select({ updatedAt: deals.updatedAt }).from(deals).where(eq(deals.id, this.dealId)).limit(1),
+        db.select({ updatedAt: documents.updatedAt }).from(documents).where(eq(documents.dealId, this.dealId)).orderBy(desc(documents.updatedAt)).limit(1),
+        db.select({ updatedAt: agentAnalyses.updatedAt }).from(agentAnalyses).where(eq(agentAnalyses.dealId, this.dealId)).orderBy(desc(agentAnalyses.updatedAt)).limit(1)
+      ]);
+
+      const contextData = {
+        dealId: this.dealId,
+        dealUpdatedAt: dealInfo[0]?.updatedAt?.getTime() || 0,
+        latestDocumentUpdate: latestDocUpdate[0]?.updatedAt?.getTime() || 0,
+        latestAgentUpdate: latestAgentUpdate[0]?.updatedAt?.getTime() || 0,
+        agentAnalysesCount: this.agentContext.length,
+        companyContextExists: !!this.companyContext,
+        documentsCount: this.agentContext.reduce((sum, agent) => sum + (agent.documentCount || 0), 0),
+        // Include recent conversation context
+        recentQueries: this.conversationMemory.slice(-3).map(m => m.query)
+      };
+      
+      return crypto.createHash('sha256').update(JSON.stringify(contextData)).digest('hex').substring(0, 16);
+    } catch (error) {
+      console.warn('Failed to generate context hash:', error);
+      // Fallback to simpler hash if database queries fail
+      const fallbackData = {
+        dealId: this.dealId,
+        agentAnalysesCount: this.agentContext.length,
+        timestamp: Date.now() // Force cache miss on errors
+      };
+      return crypto.createHash('sha256').update(JSON.stringify(fallbackData)).digest('hex').substring(0, 16);
+    }
+  }
+
   async streamQuery(query: string): Promise<AsyncIterable<string>> {
     console.log(`🎯 streamQuery called for deal ${this.dealId} with query: "${query}"`);
     
@@ -647,6 +687,27 @@ Use markdown formatting. Focus on actionable investment insights.`
     } else {
       console.log('✅ Context already loaded');
     }
+    
+    // ⚡ SEMANTIC CACHE CHECK - Check for similar queries before expensive operations
+    const contextHash = await this.generateContextHash();
+    console.log(`🔑 Generated context hash: ${contextHash}`);
+    
+    const cacheEntry = await semanticCacheService.checkCache(query, this.dealId, contextHash, queryLanguage);
+    if (cacheEntry) {
+      console.log(`🚀 CACHE HIT! Similarity: ${cacheEntry.similarity?.toFixed(3)} - Returning cached response instantly`);
+      
+      // Store in conversation memory for consistency
+      this.conversationMemory.push({
+        query: query,
+        response: cacheEntry.response,
+        timestamp: new Date()
+      });
+      
+      // Return cached response as streaming tokens for consistent UX
+      return semanticCacheService.streamCachedResponse(cacheEntry);
+    }
+    
+    console.log(`❌ Cache miss - proceeding with AI generation`);
     
     // Use RAG to find relevant document chunks
     console.log(`🔍 Searching for relevant document chunks using RAG...`);
@@ -712,14 +773,14 @@ Use markdown formatting. Focus on actionable investment insights.`
         stream: true
       });
       
-      return this.processStream(stream, query);
+      return this.processStream(stream, query, contextHash, queryLanguage);
     } catch (error) {
       console.error('Error streaming AI query:', error);
       throw error;
     }
   }
 
-  private async *processStream(stream: any, originalQuery: string): AsyncIterable<string> {
+  private async *processStream(stream: any, originalQuery: string, contextHash: string, queryLanguage: string): AsyncIterable<string> {
     let fullResponse = '';
     
     for await (const chunk of stream) {
@@ -730,7 +791,7 @@ Use markdown formatting. Focus on actionable investment insights.`
       }
     }
     
-    // Store completed response in conversation memory
+    // Store completed response in conversation memory and semantic cache
     if (fullResponse) {
       this.conversationMemory.push({
         query: originalQuery,
@@ -741,6 +802,22 @@ Use markdown formatting. Focus on actionable investment insights.`
       // Keep only last 10 conversations
       if (this.conversationMemory.length > 10) {
         this.conversationMemory = this.conversationMemory.slice(-10);
+      }
+      
+      // ⚡ SEMANTIC CACHE STORAGE - Store successful response for future instant retrieval
+      try {
+        console.log(`💾 Storing response in semantic cache for future queries`);
+        await semanticCacheService.storeResponse(
+          originalQuery, 
+          fullResponse, 
+          this.dealId, 
+          contextHash, 
+          queryLanguage
+        );
+        console.log(`✅ Response cached successfully`);
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to cache response:', cacheError);
+        // Don't throw - caching failure shouldn't break the main flow
       }
     }
   }
