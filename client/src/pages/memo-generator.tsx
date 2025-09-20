@@ -1445,7 +1445,7 @@ export default function MemoGenerator() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div>
                                 <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
-                                {Array.isArray(normalizedSWOT.strengths) ? (
+                                {Array.isArray(normalizedSWOT.strengths) && normalizedSWOT.strengths.length > 0 ? (
                                   <ul className="space-y-2">
                                     {normalizedSWOT.strengths.map((item: string, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
@@ -1455,12 +1455,12 @@ export default function MemoGenerator() {
                                     ))}
                                   </ul>
                                 ) : (
-                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.strengths.join('\n')) || 'No strengths identified'}</div>
+                                  <div className="text-gray-400 text-sm italic">No strengths identified yet. Generate memo or edit to add content.</div>
                                 )}
                               </div>
                               <div>
                                 <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
-                                {Array.isArray(normalizedSWOT.weaknesses) ? (
+                                {Array.isArray(normalizedSWOT.weaknesses) && normalizedSWOT.weaknesses.length > 0 ? (
                                   <ul className="space-y-2">
                                     {normalizedSWOT.weaknesses.map((item: string, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
@@ -1470,12 +1470,12 @@ export default function MemoGenerator() {
                                     ))}
                                   </ul>
                                 ) : (
-                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.weaknesses.join('\n')) || 'No weaknesses identified'}</div>
+                                  <div className="text-gray-400 text-sm italic">No weaknesses identified yet. Generate memo or edit to add content.</div>
                                 )}
                               </div>
                               <div>
                                 <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
-                                {Array.isArray(normalizedSWOT.opportunities) ? (
+                                {Array.isArray(normalizedSWOT.opportunities) && normalizedSWOT.opportunities.length > 0 ? (
                                   <ul className="space-y-2">
                                     {normalizedSWOT.opportunities.map((item: string, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
@@ -1485,12 +1485,12 @@ export default function MemoGenerator() {
                                     ))}
                                   </ul>
                                 ) : (
-                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.opportunities.join('\n')) || 'No opportunities identified'}</div>
+                                  <div className="text-gray-400 text-sm italic">No opportunities identified yet. Generate memo or edit to add content.</div>
                                 )}
                               </div>
                               <div>
                                 <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
-                                {Array.isArray(normalizedSWOT.threats) ? (
+                                {Array.isArray(normalizedSWOT.threats) && normalizedSWOT.threats.length > 0 ? (
                                   <ul className="space-y-2">
                                     {normalizedSWOT.threats.map((item: string, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
@@ -1500,7 +1500,7 @@ export default function MemoGenerator() {
                                     ))}
                                   </ul>
                                 ) : (
-                                  <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(normalizedSWOT.threats.join('\n')) || 'No threats identified'}</div>
+                                  <div className="text-gray-400 text-sm italic">No threats identified yet. Generate memo or edit to add content.</div>
                                 )}
                               </div>
                             </div>
