@@ -2612,24 +2612,24 @@ Generate only the content for this specific section based on your custom enhance
       if (existingMemo) {
         const updatedMemo = { ...existingMemo.memo };
         
-        // Special handling for SWOT analysis to parse JSON structure
-        if (sectionKey === 'swotAnalysis') {
+        // Special handling for structured sections to parse JSON
+        if (sectionKey === 'swotAnalysis' || sectionKey === 'legalAssessment') {
           try {
             // Extract JSON from code blocks and parse it
             const jsonMatch = regeneratedContent.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch) {
               const parsedContent = JSON.parse(jsonMatch[1]);
-              // Extract the nested swotAnalysis object or use the root level
-              updatedMemo[sectionKey] = parsedContent.swotAnalysis || parsedContent;
-              console.log(`✅ Parsed SWOT analysis JSON structure successfully`);
+              // Extract the nested object or use the root level
+              updatedMemo[sectionKey] = parsedContent[sectionKey] || parsedContent;
+              console.log(`✅ Parsed ${sectionKey} JSON structure successfully`);
             } else {
               // Try to parse as direct JSON
               const directParsed = JSON.parse(regeneratedContent);
-              updatedMemo[sectionKey] = directParsed.swotAnalysis || directParsed;
-              console.log(`✅ Parsed direct SWOT analysis JSON successfully`);
+              updatedMemo[sectionKey] = directParsed[sectionKey] || directParsed;
+              console.log(`✅ Parsed direct ${sectionKey} JSON successfully`);
             }
           } catch (parseError) {
-            console.warn(`⚠️ Failed to parse SWOT JSON, saving as text:`, parseError);
+            console.warn(`⚠️ Failed to parse ${sectionKey} JSON, saving as text:`, parseError);
             updatedMemo[sectionKey] = regeneratedContent;
           }
         } else {
