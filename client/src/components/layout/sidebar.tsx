@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileUp, Search, FileText, Users, GitBranch, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight, Database, Bot } from 'lucide-react';
+import { LayoutDashboard, FileUp, Search, FileText, Users, Settings, User, Mail, Briefcase, List, Kanban, Menu, X, ChevronLeft, ChevronRight, Database, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/contexts/SidebarContext';
 // Using public path for logo
@@ -15,7 +15,6 @@ const menuItems = [
   { icon: FileText, label: 'Memos', href: '/memos' },
   { icon: Bot, label: 'AI Assistant', href: '/ai-assistant' },
   { icon: Users, label: 'Investor Matching', href: '/investor-matching' },
-  { icon: GitBranch, label: 'Workflow', href: '/workflow' },
 ];
 
 export default function Sidebar() {
