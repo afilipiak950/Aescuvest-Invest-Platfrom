@@ -20,6 +20,7 @@ import {
 } from "@shared/schema";
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { semanticCacheService } from './services/semanticCacheService';
 
 // In-memory cache for better performance across queries
 const documentCache = new Map<number, { data: Document[], timestamp: number }>();
@@ -462,6 +463,11 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`🗑️ DatabaseStorage: Deleting company research for deal ${id}...`);
       await this.deleteCompanyResearchByDealId(id);
+      
+      // CRITICAL FIX: Delete AI query cache entries that reference this deal
+      console.log(`🗑️ DatabaseStorage: Clearing AI query cache for deal ${id}...`);
+      await semanticCacheService.clearDealCache(id);
+      console.log(`✅ DatabaseStorage: AI query cache cleared for deal ${id}`);
       
       // Delete the deal using returning() to confirm deletion
       console.log(`🗑️ DatabaseStorage: Executing DELETE query for deal ${id}...`);
