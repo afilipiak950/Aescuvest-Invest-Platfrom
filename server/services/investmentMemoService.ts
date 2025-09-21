@@ -1000,7 +1000,16 @@ Format as JSON object with "highlights" array of detailed strings.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional SWOT analysis matching BAIBYS PDF format with specific, investment-relevant points:
+          content: `Generate professional SWOT analysis in STRICT JSON format only. Return a JSON object with exactly this structure:
+
+{
+  "strengths": ["specific strength 1", "specific strength 2", ...],
+  "weaknesses": ["specific weakness 1", "specific weakness 2", ...], 
+  "opportunities": ["specific opportunity 1", "specific opportunity 2", ...],
+  "threats": ["specific threat 1", "specific threat 2", ...]
+}
+
+**CONTENT REQUIREMENTS:**
 
 **STRENGTHS** - Extract authentic competitive advantages:
 - IP position (specific patents, AI training data size)
@@ -1027,7 +1036,7 @@ Format as JSON object with "highlights" array of detailed strings.`
 - Competitive threats and barriers
 - Technical or operational risks
 
-Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
+CRITICAL: Return ONLY the JSON object with no additional text, markdown, or formatting.`
         }, {
           role: "user",
           content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${this.extractRelevantContext(context, ['strength', 'weakness', 'opportunity', 'threat', 'SWOT', 'competitive', 'advantage', 'challenge', 'risk'], 65000)}`
@@ -2602,7 +2611,30 @@ Generate only the content for this specific section based on your custom enhance
       const existingMemo = await storage.getMemoByDealId(dealId);
       if (existingMemo) {
         const updatedMemo = { ...existingMemo.memo };
-        updatedMemo[sectionKey] = regeneratedContent;
+        
+        // Special handling for SWOT analysis to parse JSON structure
+        if (sectionKey === 'swotAnalysis') {
+          try {
+            // Extract JSON from code blocks and parse it
+            const jsonMatch = regeneratedContent.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+              const parsedContent = JSON.parse(jsonMatch[1]);
+              // Extract the nested swotAnalysis object or use the root level
+              updatedMemo[sectionKey] = parsedContent.swotAnalysis || parsedContent;
+              console.log(`✅ Parsed SWOT analysis JSON structure successfully`);
+            } else {
+              // Try to parse as direct JSON
+              const directParsed = JSON.parse(regeneratedContent);
+              updatedMemo[sectionKey] = directParsed.swotAnalysis || directParsed;
+              console.log(`✅ Parsed direct SWOT analysis JSON successfully`);
+            }
+          } catch (parseError) {
+            console.warn(`⚠️ Failed to parse SWOT JSON, saving as text:`, parseError);
+            updatedMemo[sectionKey] = regeneratedContent;
+          }
+        } else {
+          updatedMemo[sectionKey] = regeneratedContent;
+        }
         
         await storage.updateMemo(existingMemo.id, { memo: updatedMemo });
         console.log(`✅ Updated section "${sectionKey}" in database for deal ${dealId}`);

@@ -1447,10 +1447,10 @@ export default function MemoGenerator() {
                                 <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
                                 {Array.isArray(normalizedSWOT.strengths) && normalizedSWOT.strengths.length > 0 ? (
                                   <ul className="space-y-2">
-                                    {normalizedSWOT.strengths.map((item: string, index: number) => (
+                                    {normalizedSWOT.strengths.map((item: any, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
                                         <span className="text-green-400 mr-2">+</span>
-                                        {item}
+                                        {typeof item === 'object' && item.description ? item.description : item}
                                       </li>
                                     ))}
                                   </ul>
@@ -1462,10 +1462,10 @@ export default function MemoGenerator() {
                                 <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
                                 {Array.isArray(normalizedSWOT.weaknesses) && normalizedSWOT.weaknesses.length > 0 ? (
                                   <ul className="space-y-2">
-                                    {normalizedSWOT.weaknesses.map((item: string, index: number) => (
+                                    {normalizedSWOT.weaknesses.map((item: any, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
                                         <span className="text-red-400 mr-2">-</span>
-                                        {item}
+                                        {typeof item === 'object' && item.description ? item.description : item}
                                       </li>
                                     ))}
                                   </ul>
@@ -1477,10 +1477,10 @@ export default function MemoGenerator() {
                                 <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
                                 {Array.isArray(normalizedSWOT.opportunities) && normalizedSWOT.opportunities.length > 0 ? (
                                   <ul className="space-y-2">
-                                    {normalizedSWOT.opportunities.map((item: string, index: number) => (
+                                    {normalizedSWOT.opportunities.map((item: any, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
                                         <span className="text-blue-400 mr-2">↗</span>
-                                        {item}
+                                        {typeof item === 'object' && item.description ? item.description : item}
                                       </li>
                                     ))}
                                   </ul>
@@ -1492,10 +1492,10 @@ export default function MemoGenerator() {
                                 <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
                                 {Array.isArray(normalizedSWOT.threats) && normalizedSWOT.threats.length > 0 ? (
                                   <ul className="space-y-2">
-                                    {normalizedSWOT.threats.map((item: string, index: number) => (
+                                    {normalizedSWOT.threats.map((item: any, index: number) => (
                                       <li key={index} className="text-gray-300 text-sm flex items-start">
                                         <span className="text-yellow-400 mr-2">⚠</span>
-                                        {item}
+                                        {typeof item === 'object' && item.description ? item.description : item}
                                       </li>
                                     ))}
                                   </ul>
