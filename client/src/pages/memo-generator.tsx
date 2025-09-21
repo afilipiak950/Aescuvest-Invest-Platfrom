@@ -8,6 +8,7 @@ import MemoSection from '@/components/memo-generator/memo-section';
 import MemoControls from '@/components/memo-generator/memo-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Brain, TrendingUp, Download, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
