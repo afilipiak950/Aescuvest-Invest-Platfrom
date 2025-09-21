@@ -84,8 +84,7 @@ export default function Memos() {
         title="Investment Memos" 
         description="Comprehensive investment analysis and recommendations"
         actions={[
-          { label: 'New Memo', icon: 'Plus', href: '/memo-generator', variant: 'default' },
-          { label: 'Templates', icon: 'FileText', href: '/memo-templates', variant: 'outline' }
+          { label: 'New Memo', icon: 'Plus', href: '/memo-generator', variant: 'default' }
         ]}
       />
 
