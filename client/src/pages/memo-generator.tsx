@@ -1375,7 +1375,7 @@ export default function MemoGenerator() {
                       )}
 
                       {/* SWOT Analysis */}
-                      {currentMemo?.swotAnalysis && (
+                      {currentMemo?.swotAnalysis && currentMemo.swotAnalysis !== null && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
