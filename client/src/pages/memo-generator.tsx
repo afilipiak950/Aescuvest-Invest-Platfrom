@@ -8,7 +8,6 @@ import MemoSection from '@/components/memo-generator/memo-section';
 import MemoControls from '@/components/memo-generator/memo-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Brain, TrendingUp, Download, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -582,21 +581,8 @@ export default function MemoGenerator() {
           <div className="lg:col-span-2">
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardContent className="pt-6">
-                <div className="flex justify-between items-center mb-6">
+                <div className="mb-6">
                   <h2 className="text-2xl font-bold">Investment Memo</h2>
-                  <div>
-                    <Select defaultValue="standard">
-                      <SelectTrigger className="bg-dark-lighter border-dark-lighter text-white focus:ring-primary">
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-dark-lighter border-dark-lighter">
-                        <SelectItem value="standard">Standard VC Memo</SelectItem>
-                        <SelectItem value="term-sheet">Term Sheet Memo</SelectItem>
-                        <SelectItem value="executive">Executive Brief (2-3 pages)</SelectItem>
-                        <SelectItem value="comprehensive">Comprehensive Analysis</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
                 
 {!selectedDeal ? (
