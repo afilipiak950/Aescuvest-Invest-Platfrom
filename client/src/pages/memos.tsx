@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import PageHeader from '@/components/layout/page-header';
@@ -23,7 +22,6 @@ interface InvestmentMemo {
 }
 
 export default function Memos() {
-  const [filter, setFilter] = useState<string>('all');
 
   const { data: memos = [], isLoading } = useQuery({
     queryKey: ['/api/memos'],
@@ -78,7 +76,7 @@ export default function Memos() {
     willShowRealData: !isLoading && memos && memos.length > 0,
     willShowEmptyState: !isLoading && (!memos || memos.length === 0)
   });
-  const filteredMemos = filter === 'all' ? displayMemos : displayMemos.filter((memo: InvestmentMemo) => memo.status.toLowerCase() === filter);
+  const filteredMemos = displayMemos;
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -91,25 +89,6 @@ export default function Memos() {
         ]}
       />
 
-      {/* Filters */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-300">Filter by status:</span>
-          <div className="flex gap-2">
-            {['all', 'draft', 'review', 'approved', 'published'].map((status) => (
-              <Button
-                key={status}
-                variant={filter === status ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter(status)}
-                className="capitalize"
-              >
-                {status}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* Memos Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -210,10 +189,7 @@ export default function Memos() {
           <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-300 mb-2">No memos found</h3>
           <p className="text-gray-500 mb-4">
-            {filter === 'all' 
-              ? 'No investment memos have been created yet.' 
-              : `No memos with status "${filter}" found.`
-            }
+            No investment memos have been created yet.
           </p>
           <Link href="/memo-generator">
             <Button>
