@@ -23,9 +23,9 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
   // Check for existing background jobs (OPTIMIZED: Smart polling instead of every 1 second!)
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: (data) => {
+    refetchInterval: (data: any) => {
       // Smart polling: only poll frequently when jobs are actually running
-      const hasActiveJobs = data?.data?.jobs?.some((job: any) => 
+      const hasActiveJobs = data?.jobs?.some((job: any) => 
         job.status === 'processing' || job.status === 'pending'
       );
       return hasActiveJobs ? 5000 : 30000; // 5s when active, 30s when idle
@@ -35,8 +35,8 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
 
   // Check if clinical analysis is already running
   const isAnalysisRunning = (() => {
-    if (jobProgress?.data?.jobs) {
-      const clinicalJob = jobProgress.data.jobs.find((job: any) => job.agentType === 'clinical');
+    if ((jobProgress as any)?.jobs) {
+      const clinicalJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'clinical');
       return !!clinicalJob && clinicalJob.status === 'processing';
     }
     return false;
@@ -93,7 +93,7 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
     try {
       console.log(`🛑 Stopping persistent clinical analysis for deal ${dealId}...`);
       
-      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/persistent/stop`, {
+      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive/stop`, {
         method: 'POST',
         body: JSON.stringify({})
       });
