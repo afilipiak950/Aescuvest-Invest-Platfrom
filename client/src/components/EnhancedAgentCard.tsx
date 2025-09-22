@@ -1887,7 +1887,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
       .filter((source: string) => source)
-      .slice(0, 25); // ENTERPRISE FIX: Show comprehensive source coverage
+; // ENTERPRISE FIX: Show ALL sources without limits
     
     // Extract key findings specific to this question
     const keyFindings = relevantFindings
@@ -2417,7 +2417,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
       .filter((source: string) => source)
-      .slice(0, 25); // ENTERPRISE FIX: Show comprehensive source coverage
+; // ENTERPRISE FIX: Show ALL sources without limits
     
     // Extract key findings specific to this question
     const keyFindings = relevantFindings
