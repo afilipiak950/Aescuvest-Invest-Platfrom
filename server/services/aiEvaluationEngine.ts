@@ -1,9 +1,4 @@
-import OpenAI from 'openai';
-
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 
 interface EvaluationCriteria {
   id: number;
@@ -44,25 +39,33 @@ export class AIEvaluationEngine {
       
       const prompt = this.buildEvaluationPrompt(company, criteria, companyResearch);
       
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert venture capital analyst specializing in investment evaluation. 
+      // Ultra-Intelligent Financial Analysis Configuration for Criteria Evaluation
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'financial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.90,
+        maxTokens: 1000,
+        temperature: 0.3,
+        responseFormat: { type: "json_object" }
+      };
+
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        {
+          role: "system",
+          content: `You are an expert venture capital analyst specializing in investment evaluation. 
             Analyze companies against specific investment criteria with precision and provide detailed, data-driven assessments.
             Always provide realistic scores based on actual market conditions and company performance.`
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-      });
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ], ultraIntelligentConfig);
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      console.log(`🤖 Ultra-Intelligent Criteria Evaluation: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      const result = JSON.parse(response.content || '{}');
       
       return {
         criteriaId: criteria.id,
