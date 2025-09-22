@@ -10,100 +10,101 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
+import { ENTERPRISE_AGENT_PROMPTS, ENTERPRISE_PROMPT_FRAMEWORK } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Enhanced IP questions for comprehensive analysis - 12 questions exactly like Financial
+// Enhanced Patent Landscape Analysis Questions - Enterprise-Grade IP Due Diligence
 export const COMPREHENSIVE_IP_QUESTIONS = [
-  // Patent Portfolio
+  // Patent Portfolio Strength Analysis
   { 
-    id: 'patents_1', 
-    question: 'What patents are owned or pending?', 
-    category: 'Patent Portfolio',
-    analysisPrompt: 'Identify owned patents, pending patent applications, and intellectual property portfolio details.',
-    keywords: ['patent', 'application', 'intellectual', 'property', 'pending', 'portfolio', 'invention', 'innovation', 'technology', 'system', 'method', 'device', 'process', 'design', 'product', 'solution', 'development', 'research']
+    id: 'portfolio_strength_1', 
+    question: 'What is the patent portfolio composition and claims strength analysis?', 
+    category: 'Patent Portfolio Strength',
+    analysisPrompt: 'Analyze patent portfolio composition, claims breadth, enforcement potential, and defensibility. Rate patent strength (1-10) based on claims quality, prior art analysis, and enforceability.',
+    keywords: ['patent', 'portfolio', 'claims', 'strength', 'enforcement', 'defensibility', 'breadth', 'quality', 'prior art', 'enforceability', 'composition', 'analysis', 'technical', 'innovation']
   },
   { 
-    id: 'patents_2', 
-    question: 'Are core technologies protected?', 
-    category: 'Patent Portfolio',
-    analysisPrompt: 'Find technology protection strategies, core technology patents, and proprietary technology coverage.',
-    keywords: ['technology', 'protection', 'core', 'proprietary', 'patent', 'system', 'method', 'process', 'device', 'innovation', 'product', 'solution', 'development', 'design', 'technical', 'engineering']
+    id: 'portfolio_strength_2', 
+    question: 'How strong are the core technology patent claims and what is their revenue attribution?', 
+    category: 'Patent Portfolio Strength',
+    analysisPrompt: 'Evaluate core technology patents, claims strength scoring, revenue attribution percentage, and commercialization potential. Quantify IP value with specific dollar ranges.',
+    keywords: ['core', 'technology', 'patent', 'claims', 'strength', 'revenue', 'attribution', 'commercialization', 'value', 'dollar', 'ranges', 'monetization', 'licensing', 'product']
   },
   { 
-    id: 'patents_3', 
-    question: 'What is the patent landscape analysis?', 
-    category: 'Patent Portfolio',
-    analysisPrompt: 'Look for patent landscape analyses, prior art searches, and freedom to operate assessments.',
-    keywords: ['patent', 'landscape', 'prior', 'art', 'search', 'freedom', 'operate', 'analysis', 'competitive', 'market', 'technology', 'review', 'assessment', 'study', 'evaluation']
+    id: 'portfolio_expiration_1', 
+    question: 'What is the patent expiration timeline and portfolio lifecycle analysis?', 
+    category: 'Patent Portfolio Strength',
+    analysisPrompt: 'Map patent expiration dates, portfolio lifecycle, renewal strategies, and market exclusivity periods. Assess timing impact on competitive position.',
+    keywords: ['expiration', 'timeline', 'lifecycle', 'renewal', 'exclusivity', 'competitive', 'position', 'timing', 'market', 'protection', 'dates', 'strategy']
   },
-  // Trademarks & Branding
+  // Freedom-to-Operate Risk Assessment
   { 
-    id: 'trademarks_1', 
-    question: 'Are trademarks registered and protected?', 
-    category: 'Trademarks & Branding',
-    analysisPrompt: 'Identify trademark registrations, service marks, and brand protection measures.',
-    keywords: ['trademark', 'service', 'mark', 'brand', 'protection', 'registration', 'logo', 'name', 'identity', 'commercial', 'business', 'product', 'marketing', 'legal']
-  },
-  { 
-    id: 'trademarks_2', 
-    question: 'Is brand identity legally secure?', 
-    category: 'Trademarks & Branding',
-    analysisPrompt: 'Find brand identity protection, logo protection, and brand security measures.',
-    keywords: ['brand', 'identity', 'protection', 'logo', 'security', 'trademark', 'name', 'commercial', 'business', 'marketing', 'product', 'legal', 'registration']
-  },
-  // Technology Licensing
-  { 
-    id: 'licensing_1', 
-    question: 'What licensing agreements are in place?', 
-    category: 'Technology Licensing',
-    analysisPrompt: 'Identify licensing agreements, technology licenses, and IP licensing deals.',
-    keywords: ['licensing', 'agreement', 'technology', 'license', 'deal', 'contract', 'legal', 'business', 'commercial', 'terms', 'conditions', 'transfer', 'intellectual', 'property']
+    id: 'fto_risk_1', 
+    question: 'What are the freedom-to-operate risks and blocking patent analysis?', 
+    category: 'Freedom-to-Operate Assessment',
+    analysisPrompt: 'Identify blocking patents, assess infringement risks, litigation probability (1-10), and design-around feasibility. Quantify FTO risk with specific percentages and mitigation costs.',
+    keywords: ['freedom', 'operate', 'fto', 'blocking', 'patents', 'infringement', 'litigation', 'probability', 'design-around', 'mitigation', 'risk', 'assessment', 'clearance']
   },
   { 
-    id: 'licensing_2', 
-    question: 'Are there any IP infringement risks?', 
-    category: 'Technology Licensing',
-    analysisPrompt: 'Look for IP infringement risks, patent infringement issues, and IP risk assessments.',
-    keywords: ['infringement', 'risk', 'patent', 'trademark', 'intellectual', 'property', 'legal', 'litigation', 'compliance', 'analysis', 'assessment', 'evaluation', 'review']
+    id: 'fto_risk_2', 
+    question: 'What licensing requirements and IP clearance costs are needed for market entry?', 
+    category: 'Freedom-to-Operate Assessment',
+    analysisPrompt: 'Assess required licensing agreements, IP clearance costs, royalty obligations, and market entry barriers. Provide specific cost estimates and timeline analysis.',
+    keywords: ['licensing', 'requirements', 'clearance', 'costs', 'market', 'entry', 'royalty', 'obligations', 'barriers', 'agreements', 'timeline', 'estimates']
   },
-  // IP Strategy & Valuation
+  // IP Valuation & Revenue Attribution
   { 
-    id: 'strategy_1', 
-    question: 'What is the IP strategy and roadmap?', 
-    category: 'IP Strategy & Valuation',
-    analysisPrompt: 'Find IP strategy documents, intellectual property roadmaps, and IP development plans.',
-    keywords: ['strategy', 'intellectual', 'property', 'roadmap', 'development', 'patent', 'plan', 'innovation', 'technology', 'business', 'commercial', 'research', 'product']
-  },
-  { 
-    id: 'strategy_2', 
-    question: 'How is IP valued and monetized?', 
-    category: 'IP Strategy & Valuation',
-    analysisPrompt: 'Analyze IP valuation methods, IP monetization strategies, and intellectual property value.',
-    keywords: ['valuation', 'value', 'monetization', 'intellectual', 'property', 'patent', 'financial', 'revenue', 'commercial', 'business', 'assessment', 'analysis', 'evaluation']
-  },
-  // Trade Secrets & Confidentiality
-  { 
-    id: 'secrets_1', 
-    question: 'What trade secrets are protected?', 
-    category: 'Trade Secrets & Confidentiality',
-    analysisPrompt: 'Identify trade secrets, confidential information protection, and proprietary know-how.',
-    keywords: ['trade', 'secret', 'confidential', 'information', 'proprietary', 'know-how', 'confidentiality', 'technology', 'process', 'method', 'business', 'commercial', 'data']
+    id: 'ip_valuation_1', 
+    question: 'What is the IP portfolio valuation and revenue attribution analysis?', 
+    category: 'IP Valuation & Revenue Attribution',
+    analysisPrompt: 'Calculate IP portfolio market value, revenue attribution percentages, licensing income potential, and asset-based valuation. Provide specific dollar ranges and ROI metrics.',
+    keywords: ['valuation', 'revenue', 'attribution', 'market', 'value', 'licensing', 'income', 'asset-based', 'roi', 'metrics', 'dollar', 'ranges', 'monetization']
   },
   { 
-    id: 'secrets_2', 
-    question: 'Are confidentiality measures adequate?', 
-    category: 'Trade Secrets & Confidentiality',
-    analysisPrompt: 'Assess confidentiality agreements, non-disclosure agreements, and information security measures.',
-    keywords: ['confidentiality', 'agreement', 'nda', 'non-disclosure', 'information', 'security', 'data', 'protection', 'legal', 'contract', 'terms', 'business', 'commercial']
+    id: 'ip_valuation_2', 
+    question: 'How does IP contribute to competitive moat and market differentiation value?', 
+    category: 'IP Valuation & Revenue Attribution',
+    analysisPrompt: 'Assess IP contribution to competitive advantages, market differentiation, pricing power, and customer retention. Quantify defensive value and exclusivity benefits.',
+    keywords: ['competitive', 'moat', 'differentiation', 'pricing', 'power', 'retention', 'defensive', 'value', 'exclusivity', 'benefits', 'advantages', 'market']
   },
-  // Competitive IP Position
+  // Competitive IP Landscape Mapping
   { 
-    id: 'competitive_1', 
-    question: 'What is the competitive IP landscape?', 
-    category: 'Competitive IP Position',
-    analysisPrompt: 'Analyze competitive patent landscape, competitor IP positions, and market IP dynamics.',
-    keywords: ['competitive', 'landscape', 'competitor', 'market', 'analysis', 'patent', 'technology', 'business', 'commercial', 'industry', 'product', 'innovation', 'research', 'development']
+    id: 'competitive_landscape_1', 
+    question: 'What is the competitive patent landscape and market positioning analysis?', 
+    category: 'Competitive IP Landscape',
+    analysisPrompt: 'Map competitor patent filings, market share protection, patent thickets, and strategic IP positioning. Analyze competitive barriers and market exclusivity periods.',
+    keywords: ['competitive', 'landscape', 'competitor', 'filings', 'market', 'share', 'thickets', 'positioning', 'barriers', 'exclusivity', 'periods', 'analysis']
+  },
+  { 
+    id: 'competitive_landscape_2', 
+    question: 'How strong is the competitive IP position and what are the entry barriers?', 
+    category: 'Competitive IP Landscape',
+    analysisPrompt: 'Assess competitive IP strength, market entry barriers height, competitor patent quality, and strategic IP gaps. Rate competitive position (1-10) with specific metrics.',
+    keywords: ['competitive', 'strength', 'entry', 'barriers', 'height', 'quality', 'gaps', 'position', 'metrics', 'strategic', 'assessment']
+  },
+  // Patent Landscape Opportunities & Gaps
+  { 
+    id: 'landscape_opportunities_1', 
+    question: 'What patent filing opportunities and strategic IP gaps exist in the market?', 
+    category: 'Patent Landscape Opportunities',
+    analysisPrompt: 'Identify patent white spaces, filing opportunities, strategic gaps in competitor coverage, and innovation areas for IP development. Prioritize by commercial potential.',
+    keywords: ['opportunities', 'gaps', 'white', 'spaces', 'filing', 'strategic', 'coverage', 'innovation', 'development', 'commercial', 'potential', 'prioritize']
+  },
+  { 
+    id: 'landscape_opportunities_2', 
+    question: 'What is the IP enforcement and litigation landscape analysis?', 
+    category: 'Patent Landscape Opportunities',
+    analysisPrompt: 'Analyze patent litigation trends, enforcement actions, NPE activity, and litigation risk factors. Assess enforcement potential and defensive strategies.',
+    keywords: ['enforcement', 'litigation', 'trends', 'actions', 'npe', 'activity', 'risk', 'factors', 'potential', 'defensive', 'strategies', 'analysis']
+  },
+  // Technology Evolution & Future IP Strategy
+  { 
+    id: 'technology_evolution_1', 
+    question: 'How is the patent landscape evolving and what are the future IP strategy implications?', 
+    category: 'Technology Evolution & Strategy',
+    analysisPrompt: 'Analyze patent filing trends, technology evolution patterns, emerging IP areas, and future competitive dynamics. Assess strategic IP investment priorities.',
+    keywords: ['evolution', 'trends', 'patterns', 'emerging', 'areas', 'future', 'dynamics', 'strategic', 'investment', 'priorities', 'competitive', 'analysis']
   }
 ];
 
@@ -122,6 +123,10 @@ interface IpEvidence {
   relevantContent: string[];
   keyFindings: string[];
   confidence: number;
+  patentStrength?: number; // 1-10 scale for patent claim strength
+  ftoRisk?: number; // 1-10 scale for freedom-to-operate risk
+  ipValuation?: string; // Estimated IP value and revenue attribution
+  competitivePosition?: string; // Competitive IP landscape position
 }
 
 interface IpAnswer {
@@ -134,6 +139,15 @@ interface IpAnswer {
   evidenceSummary: string;
   ipAssessment: string;
   recommendations: string[];
+  // Enterprise IP Analysis Fields
+  patentStrength: number; // 1-10 scale: patent claims strength and defensibility
+  ftoRisk: number; // 1-10 scale: freedom-to-operate litigation risk probability
+  ipValuation: string; // IP portfolio value with revenue attribution
+  competitivePosition: string; // Market IP landscape competitive positioning
+  executiveSummary: string; // Executive summary with quantitative impact
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'; // Investment risk level
+  investmentImplication: string; // Direct impact on investment decision
+  actionRequired: string[]; // Specific next steps for investors
 }
 
 export class ComprehensiveIpAnalysisService {
@@ -554,7 +568,16 @@ If no relevant content is found, respond with:
         keyFindings: [],
         evidenceSummary: 'No evidence available',
         ipAssessment: 'Unable to assess due to lack of relevant documentation',
-        recommendations: ['Obtain relevant IP documentation for comprehensive analysis']
+        recommendations: ['Obtain relevant IP documentation for comprehensive analysis'],
+        // Enterprise IP Analysis Fields - Default values for no evidence
+        patentStrength: 0,
+        ftoRisk: 10, // High risk when no FTO analysis available
+        ipValuation: 'Unable to assess - insufficient documentation',
+        competitivePosition: 'Unknown - requires comprehensive IP analysis',
+        executiveSummary: 'Critical Gap: No IP documentation available for analysis',
+        riskLevel: 'HIGH' as const,
+        investmentImplication: 'Unable to assess IP risks and opportunities without documentation',
+        actionRequired: ['Immediate: Obtain comprehensive IP documentation', 'Priority: Conduct professional IP audit']
       };
     }
 
@@ -563,8 +586,13 @@ If no relevant content is found, respond with:
     const allContent = evidence.flatMap(e => e.relevantContent);
     const sources = evidence.map(e => e.documentName);
 
-    const prompt = `
-You are an expert IP analyst. Based on the following evidence, provide a comprehensive answer to this IP question:
+    // Use Enterprise IP Prompts Framework
+    const systemPrompt = ENTERPRISE_AGENT_PROMPTS.IP.SYSTEM_PROMPT;
+    const analysisPrompt = ENTERPRISE_AGENT_PROMPTS.IP.ANALYSIS_PROMPT;
+    
+    const prompt = `${systemPrompt}
+
+${analysisPrompt}
 
 QUESTION: ${question.question}
 CATEGORY: ${question.category}
@@ -577,21 +605,37 @@ Key Findings: ${e.keyFindings.join('; ')}
 Relevant Content: ${e.relevantContent.join('; ')}
 `).join('\n')}
 
-Provide a comprehensive analysis in JSON format:
+${ENTERPRISE_PROMPT_FRAMEWORK.QUANTITATIVE_FOCUS}
+
+${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}
+
+Provide comprehensive institutional-grade IP analysis in JSON format:
 {
-  "answer": "Detailed answer based on evidence",
+  "answer": "Detailed evidence-based answer with specific quantitative data",
   "confidence": 85,
-  "keyFindings": ["finding1", "finding2"],
-  "evidenceSummary": "Summary of all evidence",
-  "ipAssessment": "Professional IP assessment",
-  "recommendations": ["recommendation1", "recommendation2"]
+  "keyFindings": ["Quantified finding with metrics", "Evidence-based insight with percentages"],
+  "evidenceSummary": "Summary with confidence intervals and statistical data",
+  "ipAssessment": "Professional assessment with risk scoring",
+  "recommendations": ["Actionable recommendation with priority", "Due diligence step with timeline"],
+  "patentStrength": 7,
+  "ftoRisk": 4,
+  "ipValuation": "$2.5M-$4.2M portfolio value with 15-25% revenue attribution",
+  "competitivePosition": "Strong defensive position with 3-year market exclusivity",
+  "executiveSummary": "Key finding with quantitative impact and investment implication",
+  "riskLevel": "MEDIUM",
+  "investmentImplication": "Direct impact on valuation and market entry strategy",
+  "actionRequired": ["Specific investor action with timeline", "Due diligence priority"]
 }
 
-Requirements:
-- Provide specific, detailed answers based on the evidence
-- Include confidence level (0-100)
-- Give practical IP recommendations
-- Focus on IP-specific insights and analysis`;
+REQUIREMENTS:
+• Patent Strength (1-10): Rate patent claims breadth, prior art strength, enforceability
+• FTO Risk (1-10): Assess blocking patents, litigation probability, licensing needs
+• IP Valuation: Provide specific dollar range with revenue attribution percentage
+• Competitive Position: Quantify market advantages and exclusivity periods
+• Executive Summary: Lead with most material finding and quantitative impact
+• Risk Level: HIGH (7-10), MEDIUM (4-6), LOW (1-3) based on investment impact
+• Investment Implication: Direct effect on valuation, market strategy, or deal structure
+• Action Required: Specific, prioritized next steps for investors with timelines`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -634,7 +678,16 @@ Requirements:
             keyFindings: allFindings.slice(0, 5),
             evidenceSummary: `Analysis based on ${evidence.length} documents with ${allFindings.length} findings.`,
             ipAssessment: `IP assessment completed for: ${question.question}`,
-            recommendations: evidence.length > 0 ? ['Review additional documentation for completeness', 'Consider IP protection measures'] : ['Gather more documentation for comprehensive analysis']
+            recommendations: evidence.length > 0 ? ['Review additional documentation for completeness', 'Consider IP protection measures'] : ['Gather more documentation for comprehensive analysis'],
+            // Enterprise IP Analysis Fields - Fallback values
+            patentStrength: evidence.length > 0 ? 6 : 3,
+            ftoRisk: evidence.length > 0 ? 5 : 7,
+            ipValuation: evidence.length > 0 ? 'Preliminary assessment completed - detailed valuation required' : 'Insufficient data for valuation',
+            competitivePosition: evidence.length > 0 ? 'Initial competitive analysis completed' : 'Competitive analysis pending',
+            executiveSummary: `${question.category}: ${allFindings.length > 0 ? allFindings[0] : 'Basic analysis completed'}`,
+            riskLevel: evidence.length > 0 ? 'MEDIUM' : 'HIGH',
+            investmentImplication: evidence.length > 0 ? 'Review findings for investment impact' : 'Insufficient data for investment assessment',
+            actionRequired: evidence.length > 0 ? ['Detailed review of findings', 'Additional IP documentation needed'] : ['Obtain comprehensive IP documentation', 'Conduct professional IP audit']
           };
         }
       }
@@ -648,7 +701,16 @@ Requirements:
         keyFindings: result.keyFindings || allFindings,
         evidenceSummary: result.evidenceSummary || 'Evidence compiled from multiple sources',
         ipAssessment: result.ipAssessment || 'Assessment completed',
-        recommendations: result.recommendations || []
+        recommendations: result.recommendations || [],
+        // Enterprise IP Analysis Fields
+        patentStrength: result.patentStrength || 5,
+        ftoRisk: result.ftoRisk || 5,
+        ipValuation: result.ipValuation || 'Assessment required - insufficient data for valuation',
+        competitivePosition: result.competitivePosition || 'Competitive analysis required',
+        executiveSummary: result.executiveSummary || `${question.category}: ${result.answer?.substring(0, 100) || 'Analysis completed'}...`,
+        riskLevel: result.riskLevel || 'MEDIUM',
+        investmentImplication: result.investmentImplication || 'Requires further analysis for investment decision',
+        actionRequired: result.actionRequired || ['Review detailed findings', 'Conduct additional IP due diligence']
       };
     } catch (error) {
       console.error(`Error compiling answer for question ${question.question}:`, error);
@@ -662,7 +724,16 @@ Requirements:
         keyFindings: allFindings,
         evidenceSummary: 'Error in analysis compilation',
         ipAssessment: 'Unable to complete assessment due to processing error',
-        recommendations: ['Manual review recommended due to processing error']
+        recommendations: ['Manual review recommended due to processing error'],
+        // Enterprise IP Analysis Fields - Error defaults
+        patentStrength: 0,
+        ftoRisk: 10, // High risk when analysis fails
+        ipValuation: 'Unable to assess due to processing error',
+        competitivePosition: 'Analysis failed - manual review required',
+        executiveSummary: 'Critical Error: IP analysis failed during processing',
+        riskLevel: 'HIGH' as const,
+        investmentImplication: 'Unable to assess IP impact on investment due to analysis failure',
+        actionRequired: ['Immediate: Retry IP analysis', 'Escalate: Manual expert review required']
       };
     }
   }

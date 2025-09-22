@@ -3,97 +3,98 @@ import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { ENTERPRISE_AGENT_PROMPTS, ENTERPRISE_PROMPT_FRAMEWORK } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const HR_QUESTIONS = [
-  // Team Structure
+  // ENTERPRISE LEADERSHIP ASSESSMENT - Track Record Quantification
   {
     id: 'hr_1',
-    question: "What is the current team size and organizational structure?",
-    category: "Team Structure",
-    analysisPrompt: 'Identify team size, headcount, organizational structure, reporting hierarchy, and departmental organization.',
-    keywords: ['team size', 'organizational structure', 'org chart', 'reporting structure', 'headcount', 'workforce', 'department', 'roles', 'hierarchy']
+    question: "What is the CEO/founder track record with quantifiable business achievements?",
+    category: "Leadership Track Record",
+    analysisPrompt: 'Quantify CEO/founder achievements: previous company exits, revenue growth %, team scaling metrics, fundraising amounts, market share gains, and execution milestones with specific dates and figures.',
+    keywords: ['ceo track record', 'founder experience', 'previous exits', 'revenue growth', 'fundraising', 'execution milestones', 'business achievements', 'leadership success', 'quantifiable results']
   },
   {
     id: 'hr_2',
-    question: "Are there key person dependencies or single points of failure?",
-    category: "Risk Assessment", 
-    analysisPrompt: 'Identify key person dependencies, single points of failure, critical roles, and succession planning gaps.',
-    keywords: ['key person', 'dependencies', 'single point of failure', 'critical roles', 'key employee', 'succession', 'risk', 'backup', 'redundancy']
+    question: "What is the leadership team depth and domain expertise scoring (1-10)?",
+    category: "Leadership Assessment",
+    analysisPrompt: 'Rate leadership team effectiveness (1-10 scale) across: domain expertise, execution capability, track record, team chemistry, and succession planning. Include specific expertise gaps and hiring priorities.',
+    keywords: ['leadership depth', 'domain expertise', 'execution capability', 'leadership scoring', 'team effectiveness', 'succession planning', 'expertise gaps']
   },
   {
     id: 'hr_3',
-    question: "What is the leadership experience and track record?",
-    category: "Leadership Assessment",
-    analysisPrompt: 'Analyze leadership experience, executive backgrounds, track records, qualifications, and senior team expertise.',
-    keywords: ['leadership', 'executive', 'management', 'experience', 'track record', 'background', 'ceo', 'founder', 'senior team', 'qualifications']
+    question: "What are the key person risks with quantified impact assessment?",
+    category: "Key Person Risk", 
+    analysisPrompt: 'Identify critical single points of failure, quantify business impact if key personnel leave (revenue %, operational disruption), assess succession planning, and calculate key person insurance coverage.',
+    keywords: ['key person risk', 'single point failure', 'succession planning', 'business continuity', 'key person insurance', 'impact assessment', 'retention risk']
   },
-  // Leadership Gaps  
+  // ORGANIZATIONAL SCALING READINESS
   {
     id: 'hr_4',
-    question: "Are there gaps in the leadership team?",
-    category: "Leadership Gaps",
-    analysisPrompt: 'Identify leadership gaps, missing roles, skill deficiencies, vacant positions, and recruitment needs.',
-    keywords: ['leadership gaps', 'missing roles', 'hiring needs', 'expertise gaps', 'skill gaps', 'vacant positions', 'recruitment', 'team building']
+    question: "What is the current team size vs revenue productivity ratio?",
+    category: "Scaling Readiness",
+    analysisPrompt: 'Calculate revenue per employee, assess team productivity metrics, identify optimal team size for growth stage, and benchmark against industry standards with specific ratios and percentages.',
+    keywords: ['revenue per employee', 'team productivity', 'scaling metrics', 'headcount efficiency', 'growth stage optimization', 'industry benchmarks']
   },
   {
     id: 'hr_5',
-    question: "What is the employee retention and turnover rate?",
-    category: "Retention Analysis",
-    analysisPrompt: 'Analyze employee retention rates, turnover statistics, attrition patterns, and workforce stability metrics.',
-    keywords: ['retention', 'turnover', 'attrition', 'churn', 'employee satisfaction', 'tenure', 'stability', 'departure', 'resignation']
+    question: "What is the hiring velocity and critical hiring timeline with cost estimates?",
+    category: "Hiring Velocity",
+    analysisPrompt: 'Assess current hiring rate (hires per month), identify critical hiring needs with timeline and budget, calculate time-to-hire metrics, and evaluate talent acquisition effectiveness.',
+    keywords: ['hiring velocity', 'hiring timeline', 'recruiting metrics', 'time-to-hire', 'hiring costs', 'talent acquisition', 'critical hires', 'hiring budget']
   },
   {
     id: 'hr_6',
-    question: "Are compensation and equity structures competitive?",
-    category: "Compensation Review",
-    analysisPrompt: 'Review compensation packages, salary structures, equity plans, stock options, and benefits competitiveness.',
-    keywords: ['compensation', 'salary', 'equity', 'stock options', 'benefits', 'competitive pay', 'market rate', 'incentives', 'package']
+    question: "What are the employee retention rates and turnover cost analysis?",
+    category: "Retention Metrics",
+    analysisPrompt: 'Calculate annual turnover rate %, retention rates by role/department, cost per turnover event, identify retention risk factors, and assess talent stability for scaling.',
+    keywords: ['retention rate', 'turnover cost', 'talent stability', 'churn analysis', 'retention risk', 'employee tenure', 'turnover metrics']
   },
-  // Culture Assessment
+  // CULTURE ASSESSMENT WITH ENGAGEMENT SCORES
   {
     id: 'hr_7',
-    question: "What is the company culture and employee engagement?",
+    question: "What are the employee satisfaction and engagement scores with benchmarks?",
     category: "Culture Assessment",
-    analysisPrompt: 'Assess company culture, employee engagement levels, workplace values, and organizational morale indicators.',
-    keywords: ['culture', 'engagement', 'employee satisfaction', 'values', 'work environment', 'morale', 'team dynamics', 'workplace', 'culture fit']
+    analysisPrompt: 'Quantify employee engagement scores, satisfaction ratings, NPS scores, compare to industry benchmarks, identify culture strengths/weaknesses, and assess cultural alignment with growth strategy.',
+    keywords: ['engagement scores', 'employee satisfaction', 'nps score', 'culture assessment', 'employee surveys', 'engagement metrics', 'cultural alignment']
   },
   {
     id: 'hr_8',
-    question: "What are the talent acquisition and hiring strategies?",
-    category: "Talent Strategy",
-    analysisPrompt: 'Analyze talent acquisition strategies, hiring processes, recruitment methods, and talent pipeline development.',
-    keywords: ['talent acquisition', 'hiring strategy', 'recruitment', 'talent pipeline', 'sourcing', 'onboarding', 'hiring process', 'talent management']
+    question: "What is the organizational structure effectiveness for current growth stage?",
+    category: "Organizational Design",
+    analysisPrompt: 'Assess organizational design fit for growth stage, evaluate reporting structure efficiency, identify structural bottlenecks, and recommend org design changes with implementation timeline.',
+    keywords: ['organizational design', 'reporting structure', 'growth stage fit', 'structural efficiency', 'org chart optimization', 'management layers']
   },
   {
     id: 'hr_9',
-    question: "Are there documented HR policies and procedures?",
-    category: "HR Operations",
-    analysisPrompt: 'Review HR policies, procedures documentation, employee handbooks, and compliance frameworks.',
-    keywords: ['hr policies', 'procedures', 'employee handbook', 'compliance', 'hr documentation', 'policies manual', 'hr processes', 'governance']
+    question: "What is the compensation benchmarking and equity structure competitiveness?",
+    category: "Compensation Strategy",
+    analysisPrompt: 'Benchmark compensation vs market rates (percentile ranking), assess equity pool allocation, evaluate incentive structure effectiveness, and identify compensation risks for talent retention.',
+    keywords: ['compensation benchmark', 'market rates', 'equity structure', 'incentive design', 'talent retention', 'pay equity', 'compensation risk']
   },
-  // Performance Management
+  // TALENT STRATEGY AND DEVELOPMENT
   {
     id: 'hr_10',
-    question: "What performance management systems are in place?",
-    category: "Performance Management",
-    analysisPrompt: 'Examine performance management systems, review processes, goal setting mechanisms, and evaluation frameworks.',
-    keywords: ['performance management', 'performance review', 'goal setting', 'feedback', 'performance metrics', 'evaluation', 'development', 'career growth']
+    question: "What is the talent development ROI and career progression framework?",
+    category: "Talent Development",
+    analysisPrompt: 'Assess training program ROI, internal promotion rates, skills development initiatives, career progression paths, and leadership development pipeline effectiveness.',
+    keywords: ['talent development', 'training roi', 'career progression', 'internal promotion', 'skills development', 'leadership pipeline', 'development programs']
   },
   {
     id: 'hr_11',
-    question: "Are there skills development and training programs?",
-    category: "Training & Development",
-    analysisPrompt: 'Identify training programs, skills development initiatives, learning opportunities, and professional development frameworks.',
-    keywords: ['training', 'development', 'skills development', 'learning', 'education', 'professional development', 'upskilling', 'career development']
+    question: "What is the workforce diversity metrics and inclusion program effectiveness?",
+    category: "Diversity & Inclusion",
+    analysisPrompt: 'Quantify diversity metrics across levels (%, representation), assess inclusion program impact, evaluate DEI initiative ROI, and identify diversity hiring targets and timelines.',
+    keywords: ['diversity metrics', 'inclusion programs', 'representation data', 'dei initiatives', 'diversity hiring', 'inclusion effectiveness', 'bias mitigation']
   },
   {
     id: 'hr_12',
-    question: "What is the workforce diversity and inclusion status?",
-    category: "Diversity & Inclusion",
-    analysisPrompt: 'Assess workforce diversity metrics, inclusion initiatives, DEI programs, and representation across organizational levels.',
-    keywords: ['diversity', 'inclusion', 'dei', 'workforce diversity', 'equality', 'representation', 'inclusive culture', 'bias', 'belonging']
+    question: "What are the HR technology and process automation capabilities?",
+    category: "HR Operations",
+    analysisPrompt: 'Evaluate HR technology stack efficiency, process automation level, HRIS capabilities, compliance framework strength, and operational scalability for growth.',
+    keywords: ['hr technology', 'process automation', 'hris systems', 'hr operations', 'compliance framework', 'operational efficiency', 'scalability']
   }
 ];
 
@@ -431,39 +432,47 @@ export class ComprehensiveHRAnalysisService {
   }
 
   /**
-   * Extract specific evidence from a single document - EXACT Clinical approach
+   * Extract specific evidence from a single document - ENTERPRISE HR INTELLIGENCE APPROACH
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
     const content = document.ocrText || document.aiSummary?.executiveSummary || '';
     
     if (!content) return null;
     
-    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY human resources, organizational, team, leadership, or management information, even if indirectly related.
+    const prompt = `${ENTERPRISE_AGENT_PROMPTS.HR.SYSTEM_PROMPT}
 
-DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
+${ENTERPRISE_PROMPT_FRAMEWORK.QUANTITATIVE_FOCUS}
 
-QUESTION: "${question.question}"
-ANALYSIS TASK: ${question.analysisPrompt}
+${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}
 
-Instructions:
-- Look for DIRECT HR terms: team size, employees, leadership, management, hiring, compensation, culture, retention
-- Look for INDIRECT HR information: organizational structure, roles, departments, executives, workforce data
-- Consider business documents that mention HR milestones, team growth, leadership changes, hiring plans
-- Even general business context often has HR implications for investment due diligence
-- For investment companies, most business documents contain HR information relevant to investors
+DOCUMENT ANALYSIS:
+Document: ${document.name}
+Content: ${content.substring(0, 120000)} ${content.length > 120000 ? '\n[Document truncated - processing first 120k characters for institutional-grade analysis...]' : ''}
 
-Respond in JSON format:
+ORGANIZATIONAL INTELLIGENCE QUESTION: "${question.question}"
+CATEGORY: ${question.category}
+ANALYSIS FRAMEWORK: ${question.analysisPrompt}
+
+EXECUTE HUMAN CAPITAL ASSESSMENT:
+• Quantify leadership metrics (track record %, growth achievements, team scaling numbers)
+• Identify organizational health indicators (retention rates, engagement scores, productivity metrics)
+• Assess scaling readiness with specific hiring velocity and capacity metrics
+• Extract talent strategy data (compensation benchmarks, development ROI, succession depth)
+• Rate organizational risks (1-10 scale) with supporting quantitative evidence
+
+FINDINGS OUTPUT (JSON FORMAT):
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["Exact quantitative quote 1 with numbers/percentages", "Specific organizational data quote 2"],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "commercialContext": "How this document relates to HR/business aspects"
+  "keyFindings": ["Quantified finding 1 with metrics", "Organizational insight 2 with data"],
+  "documentSummary": "Executive summary of organizational intelligence found",
+  "organizationalContext": "How this relates to human capital and scaling readiness",
+  "quantitativeMetrics": ["Specific numbers, percentages, ratios found"],
+  "riskIndicators": ["Risk factors identified with severity assessment"]
 }
 
-Be thorough in finding relevance - most business documents have HR implications for investment analysis.`;
+PRIORITIZE: Quantitative data, specific metrics, measurable outcomes, and institutional-grade evidence.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -471,7 +480,7 @@ Be thorough in finding relevance - most business documents have HR implications 
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500 // Increased for full document comprehensive extraction
+        max_tokens: 3500 // Increased for enterprise-grade organizational intelligence extraction
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -484,6 +493,9 @@ Be thorough in finding relevance - most business documents have HR implications 
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
+        organizationalContext: analysis.organizationalContext || '',
+        quantitativeMetrics: analysis.quantitativeMetrics || [],
+        riskIndicators: analysis.riskIndicators || [],
         fullContent: content.substring(0, 2000) // Keep larger sample for reference
       };
       
@@ -503,65 +515,111 @@ Be thorough in finding relevance - most business documents have HR implications 
   }
 
   /**
-   * Compile comprehensive answer based on all evidence - EXACT Clinical approach
+   * Compile comprehensive answer based on all evidence - ENTERPRISE ORGANIZATIONAL INTELLIGENCE
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
-    console.log(`🔍 Compiling answer for: ${question.question}`);
-    console.log(`📋 Evidence count: ${evidence.length}`);
+    console.log(`🏢 ENTERPRISE: Compiling organizational intelligence for: ${question.question}`);
+    console.log(`📊 Evidence count: ${evidence.length}`);
     
     if (evidence.length === 0) {
-      console.log(`⚠️ No evidence found for question: ${question.question}`);
+      console.log(`⚠️ No organizational intelligence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No relevant HR information found in the assigned HR documents for this question.`,
+        answer: `No relevant organizational intelligence found in available documents for this enterprise assessment.`,
         confidence: 10,
         sources: [],
         evidenceCount: 0,
         keyFindings: [],
-        gaps: ['No relevant HR information found'],
-        category: question.category
+        gaps: ['No relevant organizational data found'],
+        category: question.category,
+        hrRiskScore: 8,
+        leadershipScore: 0,
+        organizationalHealth: 0,
+        scalingReadiness: 0,
+        talentStrategy: 0
       };
     }
 
-    // Prepare evidence summary for AI compilation - EXACT Clinical approach
+    // Prepare enterprise evidence summary with quantitative metrics
     const evidenceSummary = evidence.map(ev => ({
       document: ev.documentName,
       content: ev.relevantContent.join(' '),
       findings: ev.keyFindings.join(' '),
-      confidence: ev.confidence
+      confidence: ev.confidence,
+      quantitativeMetrics: ev.quantitativeMetrics || [],
+      riskIndicators: ev.riskIndicators || [],
+      organizationalContext: ev.organizationalContext || ''
     }));
 
-    const prompt = `You are an expert HR due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
+    const prompt = `${ENTERPRISE_AGENT_PROMPTS.HR.SYSTEM_PROMPT}
+
+${ENTERPRISE_AGENT_PROMPTS.HR.ANALYSIS_PROMPT}
+
+${ENTERPRISE_PROMPT_FRAMEWORK.QUANTITATIVE_FOCUS}
+
+${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}
+
+ORGANIZATIONAL INTELLIGENCE COMPILATION:
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
+ANALYSIS FRAMEWORK: Execute comprehensive human capital assessment
 
-EVIDENCE FROM DOCUMENTS:
+EVIDENCE FROM INSTITUTIONAL ANALYSIS:
 ${evidenceSummary.map(ev => `
-DOCUMENT: ${ev.document}
-CONTENT: ${ev.content}
-KEY FINDINGS: ${ev.findings}
-CONFIDENCE: ${ev.confidence}%
+📊 DOCUMENT: ${ev.document}
+📈 QUANTITATIVE METRICS: ${ev.quantitativeMetrics.join(', ')}
+🔍 ORGANIZATIONAL CONTEXT: ${ev.organizationalContext}
+📋 KEY FINDINGS: ${ev.findings}
+⚠️ RISK INDICATORS: ${ev.riskIndicators.join(', ')}
+🎯 CONFIDENCE: ${ev.confidence}%
+💼 EVIDENCE: ${ev.content}
 `).join('\n')}
 
-Instructions:
-1. Synthesize ALL evidence into a comprehensive answer
-2. Cite specific documents and quotes
-3. Identify gaps in information
-4. Provide confidence assessment
-5. Include HR recommendations
+${ENTERPRISE_PROMPT_FRAMEWORK.EXECUTIVE_STRUCTURE}
 
-Respond in JSON format:
+INSTITUTIONAL-GRADE OUTPUT REQUIREMENTS:
+
+1. QUANTIFIED LEADERSHIP ASSESSMENT (1-10 scoring):
+   - CEO/founder track record with specific achievements
+   - Leadership team depth and domain expertise
+   - Executive succession planning and key person risks
+
+2. ORGANIZATIONAL HEALTH METRICS:
+   - Employee retention rates and engagement scores
+   - Productivity ratios and scaling capacity
+   - Cultural strength indicators with benchmarks
+
+3. SCALING READINESS ANALYSIS:
+   - Hiring velocity and critical hiring timeline
+   - Organizational structure effectiveness
+   - Talent pipeline and development ROI
+
+4. HR RISK SCORING (1-10 scale):
+   - Key person dependencies and mitigation
+   - Talent retention risks and succession gaps
+   - Organizational scaling bottlenecks
+
+ENTERPRISE JSON OUTPUT:
 {
-  "answer": "Comprehensive answer synthesizing all evidence",
+  "answer": "Executive summary with quantified organizational intelligence insights",
   "confidence": 0-100,
-  "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "gaps": ["Missing information 1", "Missing information 2"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "HRAssessment": "Overall HR assessment based on evidence",
+  "sources": ["Document references with page numbers"],
+  "keyFindings": ["Quantified finding 1 with metrics", "Strategic insight 2 with data"],
+  "gaps": ["Missing critical data with impact assessment"],
+  "recommendations": ["Strategic recommendation 1 with timeline", "Investment implication 2"],
+  "hrRiskScore": 1-10,
+  "leadershipScore": 1-10,
+  "organizationalHealth": 1-10,
+  "scalingReadiness": 1-10,
+  "talentStrategy": 1-10,
+  "executiveSummary": "Investment-grade organizational assessment",
+  "quantitativeMetrics": ["Key ratios, percentages, and benchmarks"],
+  "riskAssessment": "Comprehensive risk analysis with mitigation strategies",
   "evidenceCount": ${evidence.length}
-}`;
+}
+
+PRIORITIZE: Quantitative insights, institutional-quality recommendations, measurable risk assessments.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -569,7 +627,7 @@ Respond in JSON format:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 4000 // Increased for comprehensive HR analysis synthesis
+        max_tokens: 5000 // Increased for enterprise organizational intelligence synthesis
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
@@ -577,13 +635,22 @@ Respond in JSON format:
       return {
         question: question.question,
         category: question.category,
-        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        answer: compiledAnswer.answer || 'Unable to compile organizational intelligence from available evidence',
         confidence: compiledAnswer.confidence || 30,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
-        HRAssessment: compiledAnswer.HRAssessment || '',
+        // ENTERPRISE SCORING FIELDS
+        hrRiskScore: compiledAnswer.hrRiskScore || 5,
+        leadershipScore: compiledAnswer.leadershipScore || 5,
+        organizationalHealth: compiledAnswer.organizationalHealth || 5,
+        scalingReadiness: compiledAnswer.scalingReadiness || 5,
+        talentStrategy: compiledAnswer.talentStrategy || 5,
+        // ENHANCED ENTERPRISE FIELDS
+        executiveSummary: compiledAnswer.executiveSummary || compiledAnswer.HRAssessment || '',
+        quantitativeMetrics: compiledAnswer.quantitativeMetrics || [],
+        riskAssessment: compiledAnswer.riskAssessment || '',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -593,12 +660,20 @@ Respond in JSON format:
       return {
         question: question.question,
         category: question.category,
-        answer: `Error compiling answer: ${error.message}`,
+        answer: `Error compiling organizational intelligence: ${error.message}`,
         confidence: 0,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: [],
-        gaps: ['Analysis compilation failed'],
-        recommendations: ['Manual review required'],
+        gaps: ['Organizational analysis compilation failed'],
+        recommendations: ['Manual enterprise review required'],
+        hrRiskScore: 8,
+        leadershipScore: 0,
+        organizationalHealth: 0,
+        scalingReadiness: 0,
+        talentStrategy: 0,
+        executiveSummary: 'Analysis failed - manual review required',
+        quantitativeMetrics: [],
+        riskAssessment: 'High risk due to analysis failure',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -606,7 +681,7 @@ Respond in JSON format:
   }
 
   /**
-   * Generate comprehensive findings - EXACT Clinical approach
+   * Generate enterprise-grade organizational intelligence findings
    */
   private generateComprehensiveFindings(answers: Record<string, any>): any[] {
     const findings = [];
@@ -615,28 +690,35 @@ Respond in JSON format:
       const question = HR_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
-      // High confidence findings
+      // ENTERPRISE: High confidence organizational insights
       if (answer.confidence > 70) {
         findings.push({
           id: findings.length + 1,
-          type: 'positive',
-          content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
-          source: answer.sources.length > 0 ? answer.sources[0] : 'HR Documents',
+          type: 'organizational_strength',
+          content: `${question.question}: ${answer.answer.substring(0, 200)}...`,
+          source: answer.sources.length > 0 ? answer.sources[0] : 'Organizational Analysis',
           confidence: answer.confidence / 100,
           category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-          evidenceCount: answer.evidenceCount || 0
+          evidenceCount: answer.evidenceCount || 0,
+          leadershipScore: answer.leadershipScore || null,
+          organizationalHealth: answer.organizationalHealth || null,
+          scalingReadiness: answer.scalingReadiness || null,
+          hrRiskScore: answer.hrRiskScore || null,
+          quantitativeMetrics: answer.quantitativeMetrics || []
         });
       }
       
-      // Risk findings for low confidence or gaps
+      // ENTERPRISE: Risk findings for low confidence or organizational gaps
       if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
         findings.push({
           id: findings.length + 1,
-          type: 'risk',
-          content: `Insufficient HR information for: ${question.question}. Additional documentation may be required.`,
-          source: 'HR Analysis',
+          type: 'organizational_risk',
+          content: `Insufficient organizational intelligence for: ${question.question}. Enhanced due diligence required for institutional investment assessment.`,
+          source: 'Organizational Intelligence Gap Analysis',
           confidence: 0.3,
-          category: 'gaps',
+          category: 'organizational_gaps',
+          hrRiskScore: answer.hrRiskScore || 7,
+          riskAssessment: answer.riskAssessment || 'Data insufficiency increases investment risk',
           evidenceCount: answer.evidenceCount || 0
         });
       }
@@ -648,6 +730,9 @@ Respond in JSON format:
   /**
    * Generate comprehensive recommendations - EXACT Clinical approach
    */
+  /**
+   * Generate enterprise-grade organizational intelligence recommendations
+   */
   private generateComprehensiveRecommendations(answers: Record<string, any>): any[] {
     const recommendations = [];
     
@@ -655,36 +740,88 @@ Respond in JSON format:
       const question = HR_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
-      // Add specific recommendations from the answer
+      // ENTERPRISE: Strategic recommendations with priority and impact assessment
       if (answer.recommendations && answer.recommendations.length > 0) {
         answer.recommendations.forEach((rec: string, index: number) => {
+          const priority = this.assessRecommendationPriority(answer, question);
+          const impact = this.assessBusinessImpact(answer, question);
+          
           recommendations.push({
             id: recommendations.length + 1,
-            type: answer.confidence > 70 ? 'positive' : 'neutral',
+            type: answer.confidence > 70 ? 'strategic_enhancement' : 'organizational_improvement',
             content: `${question.category}: ${rec}`,
-            source: 'HR Analysis',
+            source: 'Organizational Intelligence Analysis',
             confidence: Math.max(answer.confidence / 100, 0.3),
             category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-            questionId: questionId
+            questionId: questionId,
+            priority: priority,
+            businessImpact: impact,
+            leadershipScore: answer.leadershipScore || null,
+            hrRiskScore: answer.hrRiskScore || null,
+            timeline: this.getRecommendationTimeline(question.category),
+            quantitativeMetrics: answer.quantitativeMetrics || []
           });
         });
       }
       
-      // Add gap-based recommendations for low confidence answers
+      // ENTERPRISE: Critical gap-based recommendations for investment decisions
       if (answer.confidence < 50) {
         recommendations.push({
           id: recommendations.length + 1,
-          type: 'improvement',
-          content: `Improve documentation for ${question.category} to enable thorough analysis of: ${question.question}`,
-          source: 'Gap Analysis',
-          confidence: 0.4,
-          category: 'documentation_gap',
-          questionId: questionId
+          type: 'due_diligence_requirement',
+          content: `CRITICAL: Enhanced organizational intelligence required for ${question.category}. Recommend focused management interviews and supplementary documentation review for: ${question.question}`,
+          source: 'Investment Due Diligence Gap Analysis',
+          confidence: 0.8, // High confidence that this is a real gap
+          category: 'investment_risk_mitigation',
+          questionId: questionId,
+          priority: 'HIGH',
+          businessImpact: 'HIGH',
+          hrRiskScore: answer.hrRiskScore || 7,
+          timeline: 'Pre-investment (30 days)'
         });
       }
     }
     
     return recommendations;
+  }
+
+  /**
+   * Assess recommendation priority based on organizational impact
+   */
+  private assessRecommendationPriority(answer: any, question: any): string {
+    if (question.category.includes('Leadership') || question.category.includes('Risk')) {
+      return 'HIGH';
+    }
+    if (answer.confidence > 80) {
+      return 'MEDIUM';
+    }
+    return 'LOW';
+  }
+
+  /**
+   * Assess business impact of organizational findings
+   */
+  private assessBusinessImpact(answer: any, question: any): string {
+    if (question.category.includes('Leadership') || question.category.includes('Scaling') || question.category.includes('Risk')) {
+      return 'HIGH';
+    }
+    if (question.category.includes('Culture') || question.category.includes('Talent')) {
+      return 'MEDIUM';
+    }
+    return 'LOW';
+  }
+
+  /**
+   * Get recommended timeline for addressing organizational issues
+   */
+  private getRecommendationTimeline(category: string): string {
+    if (category.includes('Leadership') || category.includes('Risk')) {
+      return 'Immediate (0-30 days)';
+    }
+    if (category.includes('Scaling') || category.includes('Hiring')) {
+      return 'Short-term (30-90 days)';
+    }
+    return 'Medium-term (90-180 days)';
   }
 
   /**

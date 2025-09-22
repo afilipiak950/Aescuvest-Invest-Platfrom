@@ -6669,9 +6669,9 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       (async () => {
         try {
           console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
-          const { ComprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+          const { MarketStrategyExpertService } = await import('./comprehensiveCommercialAnalysisService');
           
-          const commercialService = new ComprehensiveCommercialAnalysisService();
+          const commercialService = new MarketStrategyExpertService();
           await commercialService.runComprehensiveAnalysis(dealId, storage, jobId);
           
           console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
