@@ -387,7 +387,7 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
         model: "gpt-4",
         messages: [{ role: "user", content: synthesisPrompt }],
         temperature: 0.3,
-        max_tokens: 2000
+        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
       });
 
       const analysisResponse = completion.choices[0]?.message?.content;
@@ -438,7 +438,7 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
         keyFindings: [`Evidence collected from ${allEvidence.length} sources`],
         recommendations: ['Detailed manual analysis recommended due to synthesis limitations'],
         confidenceScore: 0.6,
-        documentSources: [...new Set(allEvidence.map(e => e.source))]
+        documentSources: Array.from(new Set(allEvidence.map(e => e.source)))
       };
     }
   }

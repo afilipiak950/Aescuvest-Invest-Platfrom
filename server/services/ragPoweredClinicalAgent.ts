@@ -447,7 +447,7 @@ Provide investment-relevant clinical intelligence, not generic summaries.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{"findings": []}');
@@ -522,7 +522,7 @@ ENTERPRISE REQUIREMENTS:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 16000  // ✅ FIXED: Increased from 4000 to 16000 for full answers
+        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
