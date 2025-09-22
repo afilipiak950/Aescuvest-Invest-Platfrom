@@ -892,7 +892,7 @@ PRIORITIZE: Quantitative insights, institutional-quality recommendations, measur
       confidence: evidence.length > 0 ? 0.6 : 0.1,
       sources: evidence.map(e => e.documentName),
       detailedEvidence: evidence,
-      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
+      keyFindings: evidence.flatMap(e => e.keyFindings), // ENTERPRISE: Show ALL findings without limits
       evidenceSummary: `Analyzed ${evidence.length} HR documents`,
       HRAssessment: 'HR analysis completed with available documentation',
       recommendations: ['Consider additional HR documentation for more comprehensive analysis']

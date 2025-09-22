@@ -632,7 +632,7 @@ Respond in JSON format:
       const answer = compiledAnswer.answer || 
         (evidence.length > 0 ? 
           `Based on analysis of ${evidence.length} documents, the following legal information was identified: ` + 
-          evidence.filter(e => e.documentSummary).slice(0, 10).map(e => e.documentSummary).join(' ') // ENTERPRISE: More comprehensive summary
+          evidence.filter(e => e.documentSummary).map(e => e.documentSummary).join(' ') // ENTERPRISE: Use ALL evidence summaries
           : 'No relevant legal information found in available documentation');
 
       return {
@@ -641,7 +641,7 @@ Respond in JSON format:
         answer: answer,
         confidence: Math.max(compiledAnswer.confidence || 30, evidence.length > 0 ? 50 : 20),
         sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
-        keyFindings: compiledAnswer.keyFindings || evidence.flatMap(e => e.keyFindings || []).slice(0, 15), // ENTERPRISE: Show more findings
+        keyFindings: compiledAnswer.keyFindings || evidence.flatMap(e => e.keyFindings || []), // ENTERPRISE: Show ALL findings without limits
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || ['Consider obtaining additional legal documentation for comprehensive analysis'],
         legalAssessment: compiledAnswer.legalAssessment || `Analysis based on review of ${evidence.length} available documents`,

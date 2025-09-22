@@ -302,7 +302,7 @@ export class MarketStrategyExpertService {
           
           // Extract evidence from ALL documents for this question - EXACT Clinical approach with SPEED OPTIMIZATION
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
-            assignedDocuments.slice(0, 30), // SPEED: Use only first 30 documents for faster processing
+            assignedDocuments, // ENTERPRISE FIX: Process ALL documents for comprehensive analysis
             question
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
@@ -860,7 +860,7 @@ Respond in JSON format:
       confidence: evidence.length > 0 ? 0.6 : 0.1,
       sources: evidence.map(e => e.documentName),
       detailedEvidence: evidence,
-      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
+      keyFindings: evidence.flatMap(e => e.keyFindings), // ENTERPRISE: Show ALL findings without limits
       evidenceSummary: `Analyzed ${evidence.length} commercial documents`,
       commercialAssessment: 'Commercial analysis completed with available documentation',
       recommendations: ['Consider additional commercial documentation for more comprehensive analysis']

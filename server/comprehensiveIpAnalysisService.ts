@@ -489,7 +489,7 @@ QUESTION: ${question.question}
 ANALYSIS FOCUS: ${question.analysisPrompt}
 
 DOCUMENT: ${doc.name}
-CONTENT: ${content.slice(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
+CONTENT: ${content}
 
 Extract specific IP-related evidence for this question. Provide exact quotes, specific findings, and numerical data where available.
 
@@ -545,7 +545,7 @@ If no relevant content is found, respond with:
 
       return {
         documentName: doc.name,
-        documentSummary: typeof doc.aiSummary === 'string' ? doc.aiSummary.slice(0, 500) : '',
+        documentSummary: typeof doc.aiSummary === 'string' ? doc.aiSummary : '', // ENTERPRISE: Full summary without truncation
         relevantContent: result.relevantContent || [],
         keyFindings: result.keyFindings || [],
         confidence: result.confidence || 0
@@ -675,7 +675,7 @@ REQUIREMENTS:
           result = {
             answer: allFindings.length > 0 ? allFindings.join('. ') : 'Analysis completed with available evidence.',
             confidence: evidence.length > 0 ? 75 : 50,
-            keyFindings: allFindings.slice(0, 5),
+            keyFindings: allFindings, // ENTERPRISE: Show ALL findings without limits
             evidenceSummary: `Analysis based on ${evidence.length} documents with ${allFindings.length} findings.`,
             ipAssessment: `IP assessment completed for: ${question.question}`,
             recommendations: evidence.length > 0 ? ['Review additional documentation for completeness', 'Consider IP protection measures'] : ['Gather more documentation for comprehensive analysis'],
