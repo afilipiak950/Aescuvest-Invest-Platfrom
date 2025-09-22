@@ -7,6 +7,23 @@ export function FormattedAnswer({ text, className = "" }: FormattedAnswerProps) 
   if (!text) return <p className={className}>No analysis available</p>;
 
   const enhanceTextWithFormatting = (text: string): JSX.Element => {
+    // Sanitize HTML and apply safe formatting
+    const sanitizeHtml = (html: string): string => {
+      // Allow only safe tags: strong, em, span with specific classes
+      return html
+        .replace(/<(?!\/?(?:strong|em|span)\b)[^>]*>/gi, '') // Remove all tags except strong, em, span
+        .replace(/(<span[^>]*class=["'][^"']*["'][^>]*>)/gi, (match) => {
+          // Only allow specific safe classes
+          if (/class=["']font-semibold text-white["']/.test(match)) {
+            return match;
+          }
+          return '<span>'; // Remove unsafe class attributes
+        })
+        .replace(/on\w+="[^"]*"/gi, '') // Remove event handlers
+        .replace(/javascript:/gi, '') // Remove javascript: URLs
+        .replace(/<script[^>]*>.*?<\/script>/gi, ''); // Remove script tags
+    };
+
     // Bold key-value pairs and labels
     let enhancedText = text
       // Bold labels like "Trial:", "Study:", "Device:", etc.
@@ -16,10 +33,13 @@ export function FormattedAnswer({ text, className = "" }: FormattedAnswerProps) 
       // Emphasize numbers, percentages, dates
       .replace(/(\b\d{1,3}(,\d{3})*(\.\d+)?%?\b|\b(N=|n=)?\d+\b|\b20\d{2}\b|\bK\d+\b)/g, '<span class="font-semibold text-white">$1</span>');
 
+    // Sanitize the enhanced text
+    const safeHtml = sanitizeHtml(enhancedText);
+
     return (
       <span 
         dangerouslySetInnerHTML={{ 
-          __html: enhancedText 
+          __html: safeHtml 
         }} 
       />
     );
