@@ -9,6 +9,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
+import { ENTERPRISE_AGENT_PROMPTS, EVIDENCE_SYNTHESIS_PROMPT } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
