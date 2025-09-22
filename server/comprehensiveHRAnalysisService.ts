@@ -242,7 +242,7 @@ export class ComprehensiveHRAnalysisService {
       });
       
       // Process each question systematically - EXACT Clinical approach
-      const hrAnswers: Record<string, any> = {};
+      const hr_answers: Record<string, any> = {};
       
       for (let i = 0; i < HR_QUESTIONS.length; i++) {
         const question = HR_QUESTIONS[i];
@@ -273,7 +273,7 @@ export class ComprehensiveHRAnalysisService {
             this.compileComprehensiveAnswer(question, documentEvidence),
             new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
           ]);
-          hrAnswers[question.id] = answer;
+          hr_answers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
           console.log(`✅ Completed question ${i + 1}/${HR_QUESTIONS.length}: ${question.question}`);
@@ -284,7 +284,7 @@ export class ComprehensiveHRAnalysisService {
           console.error(`❌ Error processing question "${question.question}":`, questionError);
           
           // Store partial answer for this question - EXACT Clinical approach
-          hrAnswers[question.id] = {
+          hr_answers[question.id] = {
             question: question.question,
             category: question.category,
             answer: `Error processing this question: ${questionError.message}`,
@@ -317,11 +317,11 @@ export class ComprehensiveHRAnalysisService {
         });
         
         // Generate comprehensive findings and recommendations - EXACT Clinical approach
-        const findings = this.generateComprehensiveFindings(hrAnswers);
-        const recommendations = this.generateComprehensiveRecommendations(hrAnswers);
+        const findings = this.generateComprehensiveFindings(hr_answers);
+        const recommendations = this.generateComprehensiveRecommendations(hr_answers);
         
         // Store the analysis results - EXACT Clinical approach
-        await this.storeComprehensiveResults(dealId, hrAnswers, findings, recommendations, assignedDocuments);
+        await this.storeComprehensiveResults(dealId, hr_answers, findings, recommendations, assignedDocuments);
         
         // Mark job as completed - EXACT Clinical approach
         await storageService.updateBackgroundJob(jobId, {
@@ -334,7 +334,7 @@ export class ComprehensiveHRAnalysisService {
         return {
           success: true,
           documentsAnalyzed: assignedDocuments.length,
-          questionsAnswered: Object.keys(hrAnswers).length,
+          questionsAnswered: Object.keys(hr_answers).length,
           findings: findings.length,
           recommendations: recommendations.length
         };
@@ -343,9 +343,9 @@ export class ComprehensiveHRAnalysisService {
         
         // Still try to save what we have - EXACT Clinical approach
         try {
-          const partialFindings = this.generateComprehensiveFindings(hrAnswers);
-          const partialRecommendations = this.generateComprehensiveRecommendations(hrAnswers);
-          await this.storeComprehensiveResults(dealId, hrAnswers, partialFindings, partialRecommendations, assignedDocuments);
+          const partialFindings = this.generateComprehensiveFindings(hr_answers);
+          const partialRecommendations = this.generateComprehensiveRecommendations(hr_answers);
+          await this.storeComprehensiveResults(dealId, hr_answers, partialFindings, partialRecommendations, assignedDocuments);
           
           // Mark as completed with error - EXACT Clinical approach
           await storageService.updateBackgroundJob(jobId, {
@@ -357,7 +357,7 @@ export class ComprehensiveHRAnalysisService {
           return {
             success: true,
             documentsAnalyzed: assignedDocuments.length,
-            questionsAnswered: Object.keys(hrAnswers).length,
+            questionsAnswered: Object.keys(hr_answers).length,
             findings: partialFindings.length,
             recommendations: partialRecommendations.length,
             warning: 'Analysis completed with some errors'
@@ -692,7 +692,7 @@ Respond in JSON format:
    */
   private async storeComprehensiveResults(
     dealId: number, 
-    hrAnswers: Record<string, any>, 
+    hr_answers: Record<string, any>, 
     findings: any[], 
     recommendations: any[], 
     assignedDocuments: any[]
@@ -718,7 +718,7 @@ Respond in JSON format:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        hr_answers: hrAnswers, // CRITICAL FIX: Store as object (not JSON string) for consistent field mapping
+        hr_answers: hr_answers, // CRITICAL FIX: Store as object (not JSON string) for consistent field mapping
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
@@ -728,7 +728,7 @@ Respond in JSON format:
         .insert(agentAnalyses)
         .values(analysisData);
       
-      console.log(`📊 Created fresh comprehensive HR analysis for deal ${dealId} with ${Object.keys(hrAnswers).length} questions answered`);
+      console.log(`📊 Created fresh comprehensive HR analysis for deal ${dealId} with ${Object.keys(hr_answers).length} questions answered`);
     } catch (error) {
       console.error(`❌ Error storing HR analysis results:`, error);
       throw error;
@@ -794,7 +794,7 @@ Respond in JSON format:
         progress: 100,
         findings,
         recommendations,
-        hrAnswers: answers
+        hr_answers: answers
       });
     } else {
       await storage.createAgentAnalysis({
@@ -804,7 +804,7 @@ Respond in JSON format:
         progress: 100,
         findings,
         recommendations,
-        hrAnswers: answers
+        hr_answers: answers
       });
     }
 
@@ -815,12 +815,12 @@ Respond in JSON format:
     try {
       const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'HR');
       
-      if (!analysis || !analysis.hrAnswers) {
+      if (!analysis || !analysis.hr_answers) {
         return null;
       }
       
       return {
-        hrAnswers: analysis.hrAnswers,
+        hr_answers: analysis.hr_answers,
         findings: analysis.findings || [],
         recommendations: analysis.recommendations || [],
         status: analysis.status,
