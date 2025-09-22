@@ -515,7 +515,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2000
+        max_tokens: 16000  // ✅ FIXED: Increased from 2000 to 16000 for full enterprise answers
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
