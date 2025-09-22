@@ -597,9 +597,9 @@ CRITICAL INSTRUCTIONS:
 • Provide confidence intervals where applicable
 • Compare to industry benchmarks with specific data
 
-Respond in JSON format with enhanced clinical intelligence:
+Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 500-800 words for answer field):
 {
-  "answer": "Comprehensive clinical analysis with quantitative evidence",
+  "answer": "ULTRA-COMPREHENSIVE clinical analysis with quantitative evidence, detailed methodology, statistical rigor, industry benchmarking, risk assessment, investment implications, and actionable insights. Include specific data points, percentages, timelines, costs, regulatory pathways, competitive analysis, and strategic recommendations with executive-level depth.",
   "confidence": 0-100,
   "sources": ["Document name 1", "Document name 2"],
   "keyFindings": ["Finding 1 with specific metrics", "Finding 2 with statistical data"],
@@ -637,7 +637,7 @@ Respond in JSON format with enhanced clinical intelligence:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 4000 // Increased for comprehensive analysis synthesis
+        max_tokens: 8000 // ULTRA INCREASED for comprehensive enterprise analysis synthesis
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
