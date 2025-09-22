@@ -44,22 +44,22 @@ class UltraIntelligentEnvironment {
 
   private loadConfiguration(): UltraIntelligentEnvironmentConfig {
     return {
-      // Current Model Selection (Ready for GPT-5 Migration)
-      ENABLE_GPT5_MODELS: process.env.ENABLE_GPT5_MODELS || 'false',
-      LEGAL_MODEL: process.env.LEGAL_MODEL || 'gpt-4o',
-      CLINICAL_MODEL: process.env.CLINICAL_MODEL || 'gpt-4o',
-      COMMERCIAL_MODEL: process.env.COMMERCIAL_MODEL || 'gpt-4',
-      RESEARCH_MODEL: process.env.RESEARCH_MODEL || 'gpt-4o',
-      FINANCIAL_MODEL: process.env.FINANCIAL_MODEL || 'gpt-4o',
-      DEFAULT_MODEL: process.env.DEFAULT_MODEL || 'gpt-4o',
+      // GPT-5 Models Enabled (Released August 7, 2025 - Latest Models)
+      ENABLE_GPT5_MODELS: process.env.ENABLE_GPT5_MODELS || 'true',
+      LEGAL_MODEL: process.env.LEGAL_MODEL || 'gpt-5',
+      CLINICAL_MODEL: process.env.CLINICAL_MODEL || 'gpt-5',
+      COMMERCIAL_MODEL: process.env.COMMERCIAL_MODEL || 'gpt-5-mini',
+      RESEARCH_MODEL: process.env.RESEARCH_MODEL || 'gpt-5',
+      FINANCIAL_MODEL: process.env.FINANCIAL_MODEL || 'gpt-5',
+      DEFAULT_MODEL: process.env.DEFAULT_MODEL || 'gpt-5',
       
       // Ultra-Intelligence Configuration
       ULTRA_INTELLIGENCE_MODE: process.env.ULTRA_INTELLIGENCE_MODE || 'true',
       MAX_QUALITY_THRESHOLD: process.env.MAX_QUALITY_THRESHOLD || '0.95',
       PERFORMANCE_MONITORING: process.env.PERFORMANCE_MONITORING || 'true',
       
-      // Future GPT-5 Settings (Ready for Migration)
-      GPT5_API_KEY: process.env.GPT5_API_KEY,
+      // GPT-5 Settings (Active - Using OPENAI_API_KEY)
+      GPT5_API_KEY: process.env.OPENAI_API_KEY,
       GPT5_ENDPOINT: process.env.GPT5_ENDPOINT,
       GPT5_MINI_ENDPOINT: process.env.GPT5_MINI_ENDPOINT
     };
@@ -82,7 +82,9 @@ class UltraIntelligentEnvironment {
       console.log('🚀 GPT-5 Models: ENABLED for ultra-intelligent analysis');
       
       if (!this.config.GPT5_API_KEY) {
-        console.warn('⚠️ GPT-5 enabled but GPT5_API_KEY not configured');
+        console.warn('⚠️ GPT-5 enabled but OPENAI_API_KEY not configured');
+      } else {
+        console.log('✅ GPT-5 API Key: Configured and ready');
       }
     } else {
       console.log('📋 GPT-5 Models: Ready for migration (currently disabled)');
@@ -113,6 +115,13 @@ class UltraIntelligentEnvironment {
   }
 
   /**
+   * GET OPENAI API KEY
+   */
+  public getOpenAIKey(): string | undefined {
+    return this.config.GPT5_API_KEY;
+  }
+
+  /**
    * GET MODEL FOR DOMAIN
    */
   public getModelForDomain(domain: string): string {
@@ -125,7 +134,7 @@ class UltraIntelligentEnvironment {
       general: this.config.DEFAULT_MODEL
     };
 
-    return models[domain] || this.config.DEFAULT_MODEL || 'gpt-4o';
+    return models[domain] || this.config.DEFAULT_MODEL || 'gpt-5';
   }
 
   /**
