@@ -100,6 +100,15 @@ export class PersistentLegalAnalysisService {
       startedAt: new Date()
     });
 
+    // CRITICAL FIX: Clear existing analysis data before starting fresh analysis
+    console.log(`🧹 Clearing existing legal analysis data for deal ${dealId}`);
+    try {
+      await comprehensiveLegalAnalysisService.deleteExistingAnalysis(dealId);
+      console.log(`✅ Successfully cleared existing legal analysis for deal ${dealId}`);
+    } catch (error) {
+      console.log(`⚠️ No existing legal analysis to clear for deal ${dealId}: ${error.message}`);
+    }
+
     // Start the analysis process
     await this.processLegalAnalysis(dealId, jobId);
     

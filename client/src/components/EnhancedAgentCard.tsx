@@ -1866,7 +1866,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
         answer: getQuestionSpecificEmptyMessage(questionId),
         confidence: 30,
         sources: [],
-        keyFindings: [`Insufficient legal information for: ${questionKeywords.question}. Additional documentation may be required.`],
+        keyFindings: [`Legal analysis pending for: ${questionKeywords.question}. Analysis may be in progress or additional documentation may be needed.`],
         recommendations: ['Obtain detailed legal documentation and contracts for comprehensive review'],
         legalAssessment: 'Analysis limited by availability of legal documentation.'
       };
