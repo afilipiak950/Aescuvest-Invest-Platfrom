@@ -449,7 +449,9 @@ Provide investment-relevant legal intelligence, not generic summaries.`;
         { role: "user", content: prompt }
       ], ultraIntelligentConfig);
       
-      const analysis = JSON.parse(response.content || '{"findings": []}');
+      // Clean markdown formatting from AI response to fix JSON parsing errors
+      const cleanedContent = this.cleanJsonResponse(response.content || '{"findings": []}');
+      const analysis = JSON.parse(cleanedContent);
       return analysis.findings || [];
       
     } catch (error) {
@@ -531,7 +533,9 @@ Provide precise legal intelligence with specific contractual terms, compliance s
 
       console.log(`🚀 Ultra-Intelligent Legal Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
       
-      const analysis = JSON.parse(response.content || '{}');
+      // Clean markdown formatting from AI response
+      const cleanedContent = this.cleanJsonResponse(response.content || '{}');
+      const analysis = JSON.parse(cleanedContent);
       
       return {
         question: question.question,
@@ -561,6 +565,28 @@ Provide precise legal intelligence with specific contractual terms, compliance s
         evidenceBase
       };
     }
+  }
+
+  /**
+   * CLEAN JSON RESPONSE
+   * Remove markdown formatting from AI responses to fix JSON parsing errors
+   */
+  private cleanJsonResponse(content: string): string {
+    // Remove markdown JSON code blocks
+    content = content.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '');
+    
+    // Remove any leading/trailing whitespace
+    content = content.trim();
+    
+    // If content doesn't start with { or [, try to find the JSON part
+    if (!content.startsWith('{') && !content.startsWith('[')) {
+      const jsonMatch = content.match(/(\{.*\}|\[.*\])/s);
+      if (jsonMatch) {
+        content = jsonMatch[1];
+      }
+    }
+    
+    return content;
   }
 
   /**
