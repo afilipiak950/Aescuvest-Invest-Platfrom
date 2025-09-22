@@ -15,6 +15,38 @@ import { eq, and } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
 
+/**
+ * Clean JSON response by removing markdown code fences and other formatting
+ */
+function cleanJsonResponse(response: string): string {
+  // Remove markdown code blocks
+  let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+  
+  // Remove leading/trailing whitespace
+  cleaned = cleaned.trim();
+  
+  // Find the first { or [ to start of JSON
+  const jsonStart = Math.min(
+    cleaned.indexOf('{') !== -1 ? cleaned.indexOf('{') : Infinity,
+    cleaned.indexOf('[') !== -1 ? cleaned.indexOf('[') : Infinity
+  );
+  
+  if (jsonStart !== Infinity) {
+    cleaned = cleaned.substring(jsonStart);
+  }
+  
+  // Find the last } or ] for end of JSON
+  const lastBrace = cleaned.lastIndexOf('}');
+  const lastBracket = cleaned.lastIndexOf(']');
+  const jsonEnd = Math.max(lastBrace, lastBracket);
+  
+  if (jsonEnd !== -1) {
+    cleaned = cleaned.substring(0, jsonEnd + 1);
+  }
+  
+  return cleaned;
+}
+
 // CORRECT 12 COMMERCIAL QUESTIONS - Exactly matching frontend EnhancedAgentCard.tsx COMMERCIAL_QUESTIONS
 export const RAG_COMMERCIAL_QUESTIONS = [
   // Competitive Analysis Decks (3 questions)
@@ -409,7 +441,8 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
         throw new Error('No valid JSON found in analysis response');
       }
 
-      const analysisData = JSON.parse(jsonMatch[0]);
+      const cleanedResponse = cleanJsonResponse(jsonMatch[0]);
+      const analysisData = JSON.parse(cleanedResponse);
 
       const result: CommercialQuestionResult = {
         questionId,
