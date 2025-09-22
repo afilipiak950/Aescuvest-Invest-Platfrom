@@ -15,6 +15,7 @@ export interface UltraIntelligentConfig {
   contextSize?: number;
   maxTokens?: number;
   temperature?: number;
+  responseFormat?: { type: "json_object" | "text" };
 }
 
 export interface IntelligentResponse {
@@ -99,14 +100,22 @@ class UltraIntelligentAIService {
         requestOptions.temperature = optimizedTemperature;
       }
 
+      // Add response format if specified (for JSON mode)
+      if (config.responseFormat) {
+        requestOptions.response_format = config.responseFormat;
+      }
+
       const completion = await this.openai.chat.completions.create(requestOptions);
 
       const responseTime = Date.now() - startTime;
       const content = completion.choices[0]?.message?.content || '';
       const tokensUsed = completion.usage?.total_tokens || 0;
 
-      // Step 6: Assess quality and record performance
-      const qualityScore = this.assessResponseQuality(content, config);
+      // Step 6: Sanitize JSON response if needed
+      const finalContent = this.sanitizeJSONResponse(content, config);
+
+      // Step 7: Assess quality and record performance
+      const qualityScore = this.assessResponseQuality(finalContent, config);
       
       intelligentModelManager.recordPerformanceMetrics(
         selectedModel,
@@ -122,7 +131,7 @@ class UltraIntelligentAIService {
       console.log(`✨ Ultra-Intelligent Response: ${intelligenceLevel} | Quality: ${qualityScore.toFixed(3)} | Time: ${responseTime}ms`);
 
       return {
-        content,
+        content: finalContent,
         model: selectedModel,
         tokensUsed,
         responseTime,
@@ -155,15 +164,23 @@ class UltraIntelligentAIService {
           fallbackOptions.presence_penalty = 0.1;
         }
 
+        // Add response format for fallback too
+        if (config.responseFormat) {
+          fallbackOptions.response_format = config.responseFormat;
+        }
+
         const fallbackCompletion = await this.openai.chat.completions.create(fallbackOptions);
 
         const responseTime = Date.now() - startTime;
         const content = fallbackCompletion.choices[0]?.message?.content || '';
         const tokensUsed = fallbackCompletion.usage?.total_tokens || 0;
-        const qualityScore = this.assessResponseQuality(content, config);
+        
+        // Sanitize JSON response for fallback too
+        const finalContent = this.sanitizeJSONResponse(content, config);
+        const qualityScore = this.assessResponseQuality(finalContent, config);
 
         return {
-          content,
+          content: finalContent,
           model: fallbackModel,
           tokensUsed,
           responseTime,
@@ -354,6 +371,35 @@ Remember: Your accuracy directly impacts critical investment decisions. Err on t
       }
       return size;
     }, 0);
+  }
+
+  /**
+   * SANITIZE JSON RESPONSE
+   * Removes markdown code fences and ensures clean JSON for parsing
+   */
+  private sanitizeJSONResponse(content: string, config: UltraIntelligentConfig): string {
+    if (!config.responseFormat || config.responseFormat.type !== 'json_object') {
+      return content; // No sanitization needed for text responses
+    }
+
+    // Remove markdown code fences if present
+    let sanitized = content.trim();
+    
+    // Remove opening code fence
+    if (sanitized.startsWith('```json') || sanitized.startsWith('```')) {
+      const lines = sanitized.split('\n');
+      lines.shift(); // Remove first line (opening fence)
+      sanitized = lines.join('\n');
+    }
+    
+    // Remove closing code fence
+    if (sanitized.endsWith('```')) {
+      const lines = sanitized.split('\n');
+      lines.pop(); // Remove last line (closing fence)
+      sanitized = lines.join('\n');
+    }
+    
+    return sanitized.trim();
   }
 
   /**
