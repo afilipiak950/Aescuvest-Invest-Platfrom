@@ -25,52 +25,125 @@ export function FormattedAnswer({ text, className = "" }: FormattedAnswerProps) 
     );
   };
 
-  const formatTextToBullets = (text: string): JSX.Element[] => {
+  const createStructuredContent = (text: string): JSX.Element => {
     const cleanText = text.trim();
     
-    // Split into sentences using multiple patterns
+    // Split into sentences
     let sentences = cleanText.split(/[.!?]+\s+(?=[A-Z])/);
     
-    // If we get one big block, try splitting by common clinical phrases
+    // If single block, try better splitting
     if (sentences.length === 1 && cleanText.length > 200) {
       sentences = cleanText.split(/\.\s+(?=The\s|It\s|This\s|A\s|An\s|Additionally|Furthermore|Moreover|However|Nevertheless)/);
     }
     
-    // If still one block, split by length at logical points
-    if (sentences.length === 1 && cleanText.length > 200) {
-      const words = cleanText.split(' ');
-      sentences = [];
-      let current = '';
+    // Group sentences into topics based on keywords
+    const topics: { [key: string]: string[] } = {};
+    let currentTopic = 'Overview';
+    
+    sentences.forEach(sentence => {
+      const trimmed = sentence.trim();
+      if (!trimmed || trimmed.length < 10) return;
       
-      for (const word of words) {
-        if (current.length + word.length > 150 && current.includes(',')) {
-          sentences.push(current.trim());
-          current = word;
-        } else {
-          current += (current ? ' ' : '') + word;
+      // Detect new topics based on keywords
+      const topicKeywords = {
+        'Study Design': /study design|trial design|methodology|randomized|blinded|controlled/i,
+        'Regulatory Status': /FDA|EMA|regulatory|approval|clearance|510\(k\)|orphan|breakthrough/i,
+        'Patient Population': /patient|population|inclusion|exclusion|criteria|subjects|enrollment/i,
+        'Endpoints & Outcomes': /endpoint|primary|secondary|outcome|efficacy|measurement/i,
+        'Safety & Monitoring': /safety|adverse|monitoring|SAE|serious adverse events|compliance/i,
+        'Clinical Data': /accuracy|performance|data|results|analysis|assessment/i,
+        'Risk Assessment': /risk|concern|limitation|challenge|issues/i,
+        'Recommendations': /recommend|suggest|consider|should|need to|investment/i
+      };
+      
+      // Find matching topic
+      let foundTopic = false;
+      for (const [topic, regex] of Object.entries(topicKeywords)) {
+        if (regex.test(trimmed)) {
+          currentTopic = topic;
+          foundTopic = true;
+          break;
         }
       }
-      if (current) sentences.push(current.trim());
-    }
+      
+      if (!topics[currentTopic]) {
+        topics[currentTopic] = [];
+      }
+      topics[currentTopic].push(trimmed);
+    });
 
-    return sentences
-      .filter(sentence => sentence.trim().length > 10)
-      .map((sentence, index) => {
-        const trimmed = sentence.trim();
-        // Add period if missing
-        const finalSentence = trimmed.endsWith('.') || trimmed.endsWith('!') || trimmed.endsWith('?') 
-          ? trimmed 
-          : trimmed + '.';
-
-        return (
-          <div key={index} className="flex items-start gap-2 mb-2">
-            <span className="text-cyan-400 mt-1 text-xs">•</span>
-            <div className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
-              {enhanceTextWithFormatting(finalSentence)}
+    // Render structured content
+    return (
+      <div className="space-y-4">
+        {Object.entries(topics).map(([topic, topicSentences], topicIndex) => {
+          if (topicSentences.length === 0) return null;
+          
+          return (
+            <div key={topicIndex} className="space-y-2">
+              {/* Topic Heading */}
+              <h4 className="text-cyan-400 font-semibold text-sm border-l-2 border-cyan-400 pl-2">
+                {topic}
+              </h4>
+              
+              {/* Topic Content */}
+              <div className="ml-4 space-y-2">
+                {topicSentences.map((sentence, sentenceIndex) => {
+                  const finalSentence = sentence.endsWith('.') || sentence.endsWith('!') || sentence.endsWith('?') 
+                    ? sentence 
+                    : sentence + '.';
+                  
+                  // Detect if this sentence has sub-points
+                  const hasSubPoints = finalSentence.includes(',') && finalSentence.length > 100;
+                  
+                  if (hasSubPoints) {
+                    // Split at commas for sub-bullets
+                    const parts = finalSentence.split(',').map(part => part.trim()).filter(part => part.length > 5);
+                    const mainPoint = parts[0];
+                    const subPoints = parts.slice(1);
+                    
+                    return (
+                      <div key={sentenceIndex} className="space-y-1">
+                        {/* Main bullet */}
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-400 mt-1 text-xs">•</span>
+                          <div className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
+                            {enhanceTextWithFormatting(mainPoint)}
+                          </div>
+                        </div>
+                        
+                        {/* Sub-bullets */}
+                        {subPoints.length > 0 && (
+                          <div className="ml-4 space-y-1">
+                            {subPoints.map((subPoint, subIndex) => (
+                              <div key={subIndex} className="flex items-start gap-2">
+                                <span className="text-blue-400 mt-1 text-xs">‣</span>
+                                <div className={`text-gray-400 text-xs leading-relaxed flex-1 ${className}`}>
+                                  {enhanceTextWithFormatting(subPoint.replace(/\.$/, ''))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    // Simple bullet
+                    return (
+                      <div key={sentenceIndex} className="flex items-start gap-2">
+                        <span className="text-green-400 mt-1 text-xs">•</span>
+                        <div className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
+                          {enhanceTextWithFormatting(finalSentence)}
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
             </div>
-          </div>
-        );
-      });
+          );
+        })}
+      </div>
+    );
   };
 
   // Check if text already has explicit formatting (bullets, numbers, etc.)
@@ -103,12 +176,6 @@ export function FormattedAnswer({ text, className = "" }: FormattedAnswerProps) 
     );
   }
 
-  // Auto-convert plain prose to bullets
-  const elements = formatTextToBullets(text);
-  
-  return (
-    <div className="space-y-1">
-      {elements}
-    </div>
-  );
+  // Create structured content with headings and hierarchy
+  return createStructuredContent(text);
 }
