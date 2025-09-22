@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
-import OpenAI from 'openai';
 import { storage } from '../storage';
 import { InsertInvestmentMemo } from '../../shared/schema';
 import { safeGetDocumentContent } from '../utils/documentUtils';
 import { openaiQuotaManager } from './openaiQuotaManager';
 import { getMemoFallback } from './memoFallbackContent';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 
 export interface ComprehensiveMemoData {
   dealId: number;
@@ -641,12 +639,60 @@ class InvestmentMemoService {
     // Extract comprehensive company information from ALL sources
     const companyInfo = await this.extractComprehensiveCompanyInformation(data);
     
-    return await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
+    const config: UltraIntelligentConfig = {
+      domain: 'financial',
+      complexity: 'ultra',
+      speedPriority: 'quality',
+      qualityThreshold: 0.95,
+      maxTokens: 16384
+    };
+
+    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{
+      role: "system",
+      content: `You are a world-class investment analyst specializing in comprehensive company information extraction.
+      
+Your task is to analyze all provided data sources and extract detailed company information for: ${data.companyName}
+
+Sources to analyze:
+- Document OCR content (${totalOcrChars.toLocaleString()} characters)
+- Agent analyses (Legal, Clinical, Commercial, Financial, Research)
+- Company research data
+- AI evaluation results
+
+Extract comprehensive information about:
+1. Company overview and business model
+2. Products/services and technology
+3. Market positioning and competitive advantage
+4. Financial performance and projections
+5. Leadership team and governance
+6. Risk factors and challenges
+7. Growth strategy and expansion plans
+8. Regulatory and compliance status
+9. Intellectual property and patents
+10. Partnership and customer relationships
+
+Be thorough and specific. Include exact figures, dates, names, and quotes when available.
+If information is not available in the sources, explicitly state "Information not available in provided documents."`
+    }, {
+      role: "user", 
+      content: fullContext
+    }], config);
+
+    return response.content;
+  }
+
+  private async generateCoverPageFromCompanyInfo(data: ComprehensiveMemoData, companyInfo: string): Promise<string> {
+    const config: UltraIntelligentConfig = {
+      domain: 'financial',
+      complexity: 'ultra',
+      speedPriority: 'quality',
+      qualityThreshold: 0.95,
+      maxTokens: 16384
+    };
+
+    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{
+      role: "system",
+      content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
 
 LEFT COLUMN - "The Company":
 - Headquarters: [Extract exact address from documents]
@@ -671,23 +717,16 @@ CRITICAL REQUIREMENTS:
 6. Include investment-specific language (liquidation preferences, board rights, etc.)
 
 Format as professional markdown with clear headers and bullet points.`
-        }, {
-          role: "user",
-          content: `Generate comprehensive cover page for ${data.companyName} investment memo.
+    }, {
+      role: "user",
+      content: `Generate comprehensive cover page for ${data.companyName} investment memo.
 
 Use this extracted company information:
 
 ${companyInfo}`
-        }],
-        temperature: 0.2,
-        max_tokens: 2500
-      }).then(response => response.choices[0].message.content || ''),
-      {
-        description: 'Cover Page Generation',
-        priority: 'high',
-        fallbackContent: getMemoFallback('coverPage', data.companyName)
-      }
-    ) as Promise<string>;
+    }], config);
+
+    return response.content;
   }
 
   private async extractComprehensiveCompanyInformation(data: ComprehensiveMemoData): Promise<string> {
