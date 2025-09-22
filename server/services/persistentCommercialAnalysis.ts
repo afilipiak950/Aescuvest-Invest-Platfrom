@@ -284,7 +284,7 @@ export class PersistentCommercialAnalysisService {
       jobState.currentStep = 'Running comprehensive commercial analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
-      // Call the new RAG-powered commercial analysis agent
+      // Call the RAG-powered commercial analysis agent
       const ragAgent = new RAGPoweredCommercialAgent(dealId, jobId);
       await ragAgent.runComprehensiveAnalysis();
 
