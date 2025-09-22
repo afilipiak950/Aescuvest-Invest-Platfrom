@@ -2402,11 +2402,24 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       };
     }
     
-    // Combine relevant findings into a comprehensive answer
-    const combinedAnswer = relevantFindings
-      .map((finding: any) => finding.content || finding.description || finding.title)
-      .filter(content => content && content.length > 0)
-      .join(' ');
+    // ✅ FIXED: Extract clean answers from RAG findings by removing question repetition
+    const cleanAnswers = relevantFindings
+      .map((finding: any) => {
+        const content = finding.content || finding.description || finding.title || '';
+        
+        // Remove question prefix if present (e.g. "Are trial phases...?: Answer")
+        const questionSeparatorIndex = content.indexOf(': ');
+        if (questionSeparatorIndex > 0) {
+          // Extract everything after the first ": " separator
+          return content.substring(questionSeparatorIndex + 2).trim();
+        }
+        
+        return content.trim();
+      })
+      .filter(content => content && content.length > 0);
+    
+    // ✅ FIXED: Show FULL answer without truncation for complete RAG responses
+    const combinedAnswer = cleanAnswers.join(' ');
     
     // Calculate average confidence based on finding quality
     const avgConfidence = relevantFindings.length > 0 
@@ -2419,21 +2432,20 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       .filter((source: string) => source)
 ; // ENTERPRISE FIX: Show ALL sources without limits
     
-    // Extract key findings specific to this question
-    const keyFindings = relevantFindings
-      .map((finding: any) => finding.content || finding.description)
+    // ✅ FIXED: Extract key findings with clean content (no question repetition)
+    const keyFindings = cleanAnswers
       .filter(content => content && content.length > 20)
       .slice(0, 3)
-      .map(content => content.substring(0, 150) + (content.length > 150 ? '...' : ''));
+      .map(content => content.substring(0, 200) + (content.length > 200 ? '...' : ''));
     
     return {
       answer: combinedAnswer.length > 10 ? 
-        (combinedAnswer.substring(0, 800) + (combinedAnswer.length > 800 ? '...' : '')) :
+        combinedAnswer : // ✅ FIXED: No truncation - show full RAG answer
         getQuestionSpecificEmptyMessage(questionId),
       confidence: avgConfidence,
       sources: sources,
       keyFindings: keyFindings.length > 0 ? keyFindings : [`Limited information available for: ${questionKeywords.question}`],
-      clinicalAssessment: `Analysis based on ${relevantFindings.length} relevant finding${relevantFindings.length > 1 ? 's' : ''} from clinical documentation.`
+      clinicalAssessment: `RAG-powered analysis based on ${relevantFindings.length} relevant finding${relevantFindings.length > 1 ? 's' : ''} from clinical documentation.`
     };
   };
 
