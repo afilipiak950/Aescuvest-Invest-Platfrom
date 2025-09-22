@@ -70,22 +70,29 @@ class UltraIntelligentAIService {
     // Step 3: Enhance prompt for maximum intelligence
     const enhancedMessages = this.enhanceMessagesForIntelligence(messages, selectedModel, requirements);
 
-    // Step 4: Optimize temperature based on task type
-    const optimizedTemperature = this.optimizeTemperature(config);
+    // Step 4: Optimize parameters based on model type
+    const optimizedTemperature = this.optimizeTemperature(config, selectedModel);
 
-    console.log(`🚀 Ultra-Intelligent AI: ${selectedModel} | Tokens: ${optimizedTokens} | Temp: ${optimizedTemperature}`);
+    console.log(`🚀 Ultra-Intelligent AI: ${selectedModel} | Tokens: ${optimizedTokens} | ${selectedModel.startsWith('gpt-5') ? 'GPT-5 Mode' : `Temp: ${optimizedTemperature}`}`);
 
-    // Step 5: Execute with intelligence monitoring
+    // Step 5: Execute with intelligence monitoring and GPT-5 compatibility
     try {
-      const completion = await this.openai.chat.completions.create({
+      // GPT-5 doesn't support temperature parameter (released August 7, 2025)
+      const requestOptions: any = {
         model: selectedModel,
         messages: enhancedMessages,
         max_tokens: optimizedTokens,
-        temperature: optimizedTemperature,
         top_p: 0.95, // Optimize for quality
         frequency_penalty: 0.1, // Reduce repetition
         presence_penalty: 0.1, // Encourage diverse content
-      });
+      };
+
+      // Only add temperature for non-GPT-5 models
+      if (!selectedModel.startsWith('gpt-5')) {
+        requestOptions.temperature = optimizedTemperature;
+      }
+
+      const completion = await this.openai.chat.completions.create(requestOptions);
 
       const responseTime = Date.now() - startTime;
       const content = completion.choices[0]?.message?.content || '';
@@ -124,12 +131,19 @@ class UltraIntelligentAIService {
       if (fallbackModel && fallbackModel !== selectedModel) {
         console.log(`🔄 Falling back to ${fallbackModel}`);
         
-        const fallbackCompletion = await this.openai.chat.completions.create({
+        // GPT-5 compatibility for fallback models
+        const fallbackOptions: any = {
           model: fallbackModel,
           messages: enhancedMessages,
           max_tokens: Math.min(optimizedTokens, 16384),
-          temperature: optimizedTemperature,
-        });
+        };
+
+        // Only add temperature for non-GPT-5 models
+        if (!fallbackModel.startsWith('gpt-5')) {
+          fallbackOptions.temperature = optimizedTemperature;
+        }
+
+        const fallbackCompletion = await this.openai.chat.completions.create(fallbackOptions);
 
         const responseTime = Date.now() - startTime;
         const content = fallbackCompletion.choices[0]?.message?.content || '';
@@ -185,8 +199,14 @@ class UltraIntelligentAIService {
 
   /**
    * INTELLIGENT TEMPERATURE OPTIMIZATION
+   * GPT-5 doesn't support temperature (released August 7, 2025)
    */
-  private optimizeTemperature(config: UltraIntelligentConfig): number {
+  private optimizeTemperature(config: UltraIntelligentConfig, model?: string): number | undefined {
+    // GPT-5 models don't support temperature parameter
+    if (model && model.startsWith('gpt-5')) {
+      return undefined;
+    }
+
     let baseTemp = config.temperature || 0.1;
 
     // Adjust based on task type
@@ -273,16 +293,20 @@ class UltraIntelligentAIService {
 
   /**
    * GET FALLBACK MODEL
+   * Updated for GPT-5 release (August 7, 2025)
    */
   private getFallbackModel(failedModel: string, domain: string): string {
     const fallbacks = {
-      'gpt-5': 'gpt-4o',
-      'gpt-5-mini': 'gpt-4',
+      'gpt-5': 'gpt-4o', // Fallback from GPT-5 to best GPT-4 variant
+      'gpt-5-mini': 'gpt-4', // Fallback from GPT-5 Mini to GPT-4
       'gpt-4o': 'gpt-4',
       'gpt-4': 'gpt-4o'
     };
 
-    return fallbacks[failedModel] || 'gpt-4o';
+    const fallback = fallbacks[failedModel];
+    console.log(`🔄 Fallback mapping: ${failedModel} → ${fallback || 'gpt-4o'}`);
+    
+    return fallback || 'gpt-4o';
   }
 
   /**
