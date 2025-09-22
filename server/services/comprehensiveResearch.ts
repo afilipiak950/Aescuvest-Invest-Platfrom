@@ -1,7 +1,4 @@
-import OpenAI from "openai";
-
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 
 interface CompanyResearchData {
   companyName: string;
@@ -28,7 +25,6 @@ interface ResearchResult {
 }
 
 export class ComprehensiveResearchService {
-  private rateLimiter = new OpenAIRateLimiter();
 
   async conductComprehensiveResearch(data: CompanyResearchData): Promise<ResearchResult> {
     console.log(`🔍 Starting comprehensive research for ${data.companyName}`);
@@ -107,7 +103,7 @@ export class ComprehensiveResearchService {
       return `No website provided for ${data.companyName}. Unable to conduct website analysis.`;
     }
 
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Analyze the company "${data.companyName}" with website ${data.website}. 
       
       Provide a comprehensive website analysis including:
@@ -121,18 +117,31 @@ export class ComprehensiveResearchService {
       
       Focus on extracting factual information that would be relevant for investment analysis. Be specific and detailed.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Research Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'research',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 2000,
+        temperature: 0.3
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`🧠 Ultra-Intelligent Website Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ Website analysis failed for ${data.companyName}:`, error);
+      return `Website analysis temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async gatherNewsAndPress(data: CompanyResearchData): Promise<string> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Research recent news, press releases, and media coverage for "${data.companyName}" in the ${data.sector || 'technology'} sector.
       
       Provide analysis on:
@@ -146,18 +155,31 @@ export class ComprehensiveResearchService {
       
       Focus on information from the last 2 years that would impact investment decisions.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Research Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'research',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 2000,
+        temperature: 0.3
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`📰 Ultra-Intelligent News Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ News analysis failed for ${data.companyName}:`, error);
+      return `News and press analysis temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async researchFunding(data: CompanyResearchData): Promise<string> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Research the funding history and financial status of "${data.companyName}".
       
       Analyze:
@@ -171,18 +193,31 @@ export class ComprehensiveResearchService {
       
       Provide specific details where available, including amounts, dates, and investor names.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Financial Research Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'financial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.90,
+        maxTokens: 2500,
+        temperature: 0.2
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`💰 Ultra-Intelligent Funding Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ Funding research failed for ${data.companyName}:`, error);
+      return `Funding research temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async analyzeLeadership(data: CompanyResearchData): Promise<string> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Research the leadership team and key personnel of "${data.companyName}".
       
       Focus on:
@@ -196,18 +231,31 @@ export class ComprehensiveResearchService {
       
       Emphasize experience relevant to the ${data.sector || 'technology'} sector and startup success factors.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Research Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'research',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 2000,
+        temperature: 0.3
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`👥 Ultra-Intelligent Leadership Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ Leadership analysis failed for ${data.companyName}:`, error);
+      return `Leadership analysis temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async classifyIndustry(data: CompanyResearchData): Promise<string> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Provide a detailed industry classification and market analysis for "${data.companyName}" in the ${data.sector || 'technology'} sector.
       
       Include:
@@ -222,18 +270,31 @@ export class ComprehensiveResearchService {
       
       Focus on investment-relevant industry dynamics and positioning.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Commercial Analysis Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 2000,
+        temperature: 0.3
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`🏭 Ultra-Intelligent Industry Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ Industry analysis failed for ${data.companyName}:`, error);
+      return `Industry analysis temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async analyzeTechnology(data: CompanyResearchData): Promise<string> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Analyze the technology stack, intellectual property, and technical capabilities of "${data.companyName}".
       
       Research:
@@ -248,18 +309,31 @@ export class ComprehensiveResearchService {
       
       Assess technical differentiation and competitive advantages from a technology perspective.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Research Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'research',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 2000,
+        temperature: 0.3
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`🔬 Ultra-Intelligent Technology Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ Technology analysis failed for ${data.companyName}:`, error);
+      return `Technology analysis temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async assessCompliance(data: CompanyResearchData): Promise<string> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Assess the regulatory compliance and legal considerations for "${data.companyName}" in the ${data.sector || 'technology'} sector.
       
       Analyze:
@@ -274,14 +348,27 @@ export class ComprehensiveResearchService {
       
       Focus on regulatory factors that could impact business operations or investment risk.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1000
-      });
+      // Ultra-Intelligent Legal Analysis Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'legal',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.90,
+        maxTokens: 2000,
+        temperature: 0.2
+      };
 
-      return response.choices[0].message.content || "";
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`⚖️ Ultra-Intelligent Compliance Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return response.content || "";
+    } catch (error) {
+      console.error(`❌ Compliance assessment failed for ${data.companyName}:`, error);
+      return `Compliance assessment temporarily unavailable for ${data.companyName}. Please try again later.`;
+    }
   }
 
   private async generateEnhancedInsights(data: CompanyResearchData, basicResearch: ResearchResult): Promise<Partial<ResearchResult>> {
@@ -316,7 +403,7 @@ export class ComprehensiveResearchService {
   }
 
   private async generateCEOProfile(data: CompanyResearchData): Promise<any> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Create a detailed CEO profile for the company "${data.companyName}". Respond with JSON in this format:
       {
         "name": "CEO Name",
@@ -327,18 +414,39 @@ export class ComprehensiveResearchService {
         "industry_expertise": "Relevant industry knowledge and connections"
       }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
+      // Ultra-Intelligent Research Configuration for CEO Analysis
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'research',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 1500,
+        temperature: 0.3,
+        responseFormat: { type: "json_object" }
+      };
 
-      return JSON.parse(response.choices[0].message.content || "{}");
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`👤 Ultra-Intelligent CEO Profile: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return JSON.parse(response.content || "{}");
+    } catch (error) {
+      console.error(`❌ CEO profile generation failed for ${data.companyName}:`, error);
+      return {
+        name: "CEO profile temporarily unavailable",
+        background: "Please try again later",
+        experience: "Data collection in progress",
+        achievements: [],
+        leadership_style: "Analysis pending",
+        industry_expertise: "Research ongoing"
+      };
+    }
   }
 
   private async generateFinancialData(data: CompanyResearchData): Promise<any> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Generate financial analysis for "${data.companyName}". Respond with JSON in this format:
       {
         "revenue_model": "Description of how the company makes money",
@@ -351,18 +459,41 @@ export class ComprehensiveResearchService {
         "financial_health": "Overall financial health assessment"
       }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
+      // Ultra-Intelligent Financial Analysis Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'financial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.90,
+        maxTokens: 2000,
+        temperature: 0.2,
+        responseFormat: { type: "json_object" }
+      };
 
-      return JSON.parse(response.choices[0].message.content || "{}");
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`💰 Ultra-Intelligent Financial Data: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return JSON.parse(response.content || "{}");
+    } catch (error) {
+      console.error(`❌ Financial data generation failed for ${data.companyName}:`, error);
+      return {
+        revenue_model: "Financial analysis temporarily unavailable",
+        funding_stage: "Data collection in progress", 
+        total_funding: "Please try again later",
+        latest_valuation: "Analysis pending",
+        burn_rate: "Research ongoing",
+        runway: "Data processing",
+        key_metrics: [],
+        financial_health: "Assessment unavailable"
+      };
+    }
   }
 
   private async generateExternalLinks(data: CompanyResearchData): Promise<any> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Generate relevant external links and sources for "${data.companyName}". Respond with JSON in this format:
       {
         "company_website": "${data.website || ''}",
@@ -377,18 +508,43 @@ export class ComprehensiveResearchService {
         "regulatory_filings": ["Filing URL 1", "Filing URL 2"]
       }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
+      // Ultra-Intelligent Research Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'research',
+        complexity: 'medium',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.80,
+        maxTokens: 1000,
+        temperature: 0.3,
+        responseFormat: { type: "json_object" }
+      };
 
-      return JSON.parse(response.choices[0].message.content || "{}");
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`🔗 Ultra-Intelligent External Links: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return JSON.parse(response.content || "{}");
+    } catch (error) {
+      console.error(`❌ External links generation failed for ${data.companyName}:`, error);
+      return {
+        company_website: data.website || "Website unavailable",
+        linkedin: "Research in progress",
+        crunchbase: "Data collection pending",
+        news_articles: [],
+        industry_reports: [],
+        social_media: {
+          twitter: "Analysis ongoing",
+          linkedin: "Please try again later"
+        },
+        regulatory_filings: []
+      };
+    }
   }
 
   private async generateBusinessIntelligence(data: CompanyResearchData, research: ResearchResult): Promise<any> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Generate business intelligence analysis for "${data.companyName}" based on the research data. Respond with JSON in this format:
       {
         "market_opportunity": "Size and growth potential of market opportunity",
@@ -401,18 +557,41 @@ export class ComprehensiveResearchService {
         "execution_capability": "Team's ability to execute on vision"
       }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
+      // Ultra-Intelligent Commercial Analysis Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.85,
+        maxTokens: 2000,
+        temperature: 0.3,
+        responseFormat: { type: "json_object" }
+      };
 
-      return JSON.parse(response.choices[0].message.content || "{}");
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`💼 Ultra-Intelligent Business Intelligence: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return JSON.parse(response.content || "{}");
+    } catch (error) {
+      console.error(`❌ Business intelligence generation failed for ${data.companyName}:`, error);
+      return {
+        market_opportunity: "Analysis temporarily unavailable",
+        competitive_position: "Research in progress",
+        business_model_strength: "Assessment pending",
+        scalability: "Evaluation ongoing",
+        customer_traction: "Data collection in progress",
+        partnership_ecosystem: "Research ongoing",
+        technology_moat: "Analysis pending",
+        execution_capability: "Assessment unavailable"
+      };
+    }
   }
 
   private async generateInvestmentHighlights(data: CompanyResearchData, research: ResearchResult): Promise<any> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Generate investment highlights for "${data.companyName}". Respond with JSON in this format:
       {
         "key_strengths": ["Strength 1", "Strength 2", "Strength 3"],
@@ -425,18 +604,41 @@ export class ComprehensiveResearchService {
         "exit_potential": "Potential exit scenarios and timeline"
       }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
+      // Ultra-Intelligent Financial Analysis Configuration for Investment Highlights
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'financial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.90,
+        maxTokens: 2000,
+        temperature: 0.2,
+        responseFormat: { type: "json_object" }
+      };
 
-      return JSON.parse(response.choices[0].message.content || "{}");
-    });
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`📈 Ultra-Intelligent Investment Highlights: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return JSON.parse(response.content || "{}");
+    } catch (error) {
+      console.error(`❌ Investment highlights generation failed for ${data.companyName}:`, error);
+      return {
+        key_strengths: [],
+        market_opportunity: "Investment analysis temporarily unavailable",
+        competitive_advantages: [],
+        growth_potential: "Assessment pending",
+        team_quality: "Evaluation in progress",
+        traction_metrics: [],
+        strategic_value: "Analysis ongoing",
+        exit_potential: "Please try again later"
+      };
+    }
   }
 
   private async generateRiskFactors(data: CompanyResearchData, research: ResearchResult): Promise<any> {
-    return this.rateLimiter.executeWithLimit(async () => {
+    try {
       const prompt = `Generate risk assessment for "${data.companyName}". Respond with JSON in this format:
       {
         "market_risks": ["Risk 1", "Risk 2"],
@@ -450,89 +652,40 @@ export class ComprehensiveResearchService {
         "key_mitigating_factors": ["Factor 1", "Factor 2"]
       }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
-
-      return JSON.parse(response.choices[0].message.content || "{}");
-    });
-  }
-}
-
-class OpenAIRateLimiter {
-  private lastRequestTime = 0;
-  private minInterval = 1000; // 1 second between requests
-  private concurrentLimit = 3;
-  private activeRequests = 0;
-  private requestQueue: (() => void)[] = [];
-
-  async executeWithLimit<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const execute = async () => {
-        if (this.activeRequests >= this.concurrentLimit) {
-          this.requestQueue.push(execute);
-          return;
-        }
-
-        const now = Date.now();
-        const timeSinceLastRequest = now - this.lastRequestTime;
-        
-        if (timeSinceLastRequest < this.minInterval) {
-          setTimeout(execute, this.minInterval - timeSinceLastRequest);
-          return;
-        }
-
-        this.activeRequests++;
-        this.lastRequestTime = Date.now();
-
-        try {
-          const result = await this.executeWithRetry(fn);
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        } finally {
-          this.activeRequests--;
-          if (this.requestQueue.length > 0) {
-            const nextRequest = this.requestQueue.shift();
-            if (nextRequest) {
-              setTimeout(nextRequest, this.minInterval);
-            }
-          }
-        }
+      // Ultra-Intelligent Risk Assessment Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'financial',
+        complexity: 'high',
+        speedPriority: 'quality',
+        qualityThreshold: 0.90,
+        maxTokens: 2000,
+        temperature: 0.2,
+        responseFormat: { type: "json_object" }
       };
 
-      execute();
-    });
-  }
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
 
-  private async executeWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
-    let lastError: Error;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await fn();
-      } catch (error: any) {
-        lastError = error;
-        
-        if (error?.status === 429 || error?.code === 'rate_limit_exceeded') {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-          console.log(`Rate limit hit, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        
-        if (attempt === maxRetries) {
-          throw error;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-      }
+      console.log(`⚠️ Ultra-Intelligent Risk Assessment: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+      return JSON.parse(response.content || "{}");
+    } catch (error) {
+      console.error(`❌ Risk factors generation failed for ${data.companyName}:`, error);
+      return {
+        market_risks: [],
+        competitive_risks: [],
+        execution_risks: [],
+        financial_risks: [],
+        regulatory_risks: [],
+        technology_risks: [],
+        team_risks: [],
+        overall_risk_level: "Assessment unavailable",
+        key_mitigating_factors: []
+      };
     }
-    
-    throw lastError!;
   }
 }
+
 
 export const comprehensiveResearchService = new ComprehensiveResearchService();
