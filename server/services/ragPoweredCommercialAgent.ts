@@ -12,9 +12,8 @@ import { EmbeddingService } from './embeddingService';
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // CORRECT 12 COMMERCIAL QUESTIONS - Exactly matching frontend EnhancedAgentCard.tsx COMMERCIAL_QUESTIONS
 export const RAG_COMMERCIAL_QUESTIONS = [
@@ -383,16 +382,25 @@ Please provide your analysis in the following JSON format:
 Ensure your analysis is enterprise-grade, data-driven, and focused on commercial investment insights.`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [{ role: "user", content: synthesisPrompt }],
-        temperature: 0.3,
-        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
-      });
+      // Ultra-Intelligent Commercial Analysis Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'commercial',
+        complexity: 'high', // Commercial gets high vs ultra for speed
+        speedPriority: 'balanced',
+        qualityThreshold: 0.85,
+        maxTokens: 16384,
+        temperature: 0.3
+      };
 
-      const analysisResponse = completion.choices[0]?.message?.content;
+      const completion = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: synthesisPrompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`🚀 Ultra-Intelligent Commercial Analysis: ${completion.intelligenceLevel} | Quality: ${completion.qualityScore.toFixed(3)} | Model: ${completion.model}`);
+
+      const analysisResponse = completion.content;
       if (!analysisResponse) {
-        throw new Error('No analysis response received from OpenAI');
+        throw new Error('No analysis response received from Ultra-Intelligent AI');
       }
 
       // Parse JSON response

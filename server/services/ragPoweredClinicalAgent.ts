@@ -12,9 +12,8 @@ import { EmbeddingService } from './embeddingService';
 import { db } from '../db';
 import { agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // CORRECT 11 CLINICAL QUESTIONS - Exactly matching frontend EnhancedAgentCard.tsx
 export const RAG_CLINICAL_QUESTIONS = [
@@ -442,15 +441,21 @@ Focus on ENTERPRISE-GRADE ANALYSIS:
 Provide investment-relevant clinical intelligence, not generic summaries.`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
-      });
+      // Ultra-Intelligent Clinical Chunk Analysis Configuration  
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'clinical',
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.85,
+        maxTokens: 16384,
+        temperature: 0.1
+      };
+
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
       
-      const analysis = JSON.parse(response.choices[0].message.content || '{"findings": []}');
+      const analysis = JSON.parse(response.content || '{"findings": []}');
       return analysis.findings || [];
       
     } catch (error) {
@@ -517,15 +522,23 @@ ENTERPRISE REQUIREMENTS:
 - Quantify risks and opportunities where possible`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
-      });
+      // Ultra-Intelligent Clinical Analysis Configuration
+      const ultraIntelligentConfig: UltraIntelligentConfig = {
+        domain: 'clinical',
+        complexity: 'ultra',
+        speedPriority: 'quality',
+        qualityThreshold: 0.95,
+        maxTokens: 16384,
+        temperature: 0.1
+      };
+
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], ultraIntelligentConfig);
+
+      console.log(`🚀 Ultra-Intelligent Clinical Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
       
-      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      const analysis = JSON.parse(response.content || '{}');
       
       // Create detailed evidence array for frontend compatibility
       const detailedEvidence = evidenceBase.flatMap(evidence => 
