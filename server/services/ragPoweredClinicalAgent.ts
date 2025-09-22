@@ -377,15 +377,23 @@ export class RagPoweredClinicalAgent {
         12 // Get top 12 chunks for comprehensive coverage
       );
       
-      // Synthesize findings from chunks
-      const synthesizedFindings = await this.synthesizeChunkFindings(chunks, question.analysisPrompt);
+      // Map chunks to expected format first
+      const mappedChunks = chunks.map(chunk => ({
+        content: chunk.chunk,
+        documentName: chunk.metadata.documentName || 'Unknown Document',
+        similarity: chunk.similarity,
+        metadata: chunk.metadata
+      }));
+
+      // Synthesize findings from mapped chunks
+      const synthesizedFindings = await this.synthesizeChunkFindings(mappedChunks, question.analysisPrompt);
       
       const evidence: RagClinicalEvidence = {
         query,
-        chunks,
+        chunks: mappedChunks,
         synthesizedFindings,
-        confidenceScore: this.calculateConfidenceScore(chunks),
-        sourceDocuments: [...new Set(chunks.map(c => c.documentName))]
+        confidenceScore: this.calculateConfidenceScore(mappedChunks),
+        sourceDocuments: Array.from(new Set(mappedChunks.map(c => c.documentName)))
       };
       
       evidenceBase.push(evidence);
@@ -447,7 +455,7 @@ Provide investment-relevant clinical intelligence, not generic summaries.`;
       
     } catch (error) {
       console.error('Error synthesizing chunk findings:', error);
-      return [`Clinical analysis of ${chunks.length} documents from ${[...new Set(chunks.map(c => c.documentName))].length} sources`];
+      return [`Clinical analysis of ${chunks.length} documents from ${Array.from(new Set(chunks.map(c => c.documentName))).length} sources`];
     }
   }
 
@@ -464,7 +472,7 @@ Provide investment-relevant clinical intelligence, not generic summaries.`;
     
     // Aggregate all findings and source documents
     const allFindings = evidenceBase.flatMap(evidence => evidence.synthesizedFindings);
-    const allSourceDocuments = [...new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments))];
+    const allSourceDocuments = Array.from(new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments)));
     const totalChunks = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
     
     // Build comprehensive evidence summary
@@ -676,7 +684,7 @@ ENTERPRISE REQUIREMENTS:
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
       clinical_answers: clinicalAnswers, // Store with CORRECT question IDs (trial_1, regulatory_2, etc.)
-      documentSources: JSON.stringify([...new Set(Object.values(clinicalAnswers).flatMap(a => a.sources))]),
+      documentSources: JSON.stringify(Array.from(new Set(Object.values(clinicalAnswers).flatMap(a => a.sources)))),
       createdAt: new Date(),
       updatedAt: new Date()
     };
