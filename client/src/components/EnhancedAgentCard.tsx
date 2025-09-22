@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
+import { FormattedAnswer } from './FormattedAnswer';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -2007,14 +2008,14 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <FormattedAnswer text={answer.answer} />
                               </div>
 
                               {/* Enhanced Legal Assessment */}
                               {answer.legalAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Legal Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.legalAssessment}</p>
+                                  <FormattedAnswer text={answer.legalAssessment} />
                                 </div>
                               )}
 
@@ -2510,14 +2511,14 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <FormattedAnswer text={answer.answer} />
                               </div>
 
                               {/* Enhanced Clinical Assessment */}
                               {answer.clinicalAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Clinical Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.clinicalAssessment}</p>
+                                  <FormattedAnswer text={answer.clinicalAssessment} />
                                 </div>
                               )}
 
