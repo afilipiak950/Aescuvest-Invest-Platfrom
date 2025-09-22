@@ -236,7 +236,7 @@ class ComprehensiveLegalAnalysisService {
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
           const answer = await Promise.race([
             this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 600000)) // 600 second (10 minute) timeout - MASSIVE increase
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 1800000)) // 1800 second (30 minute) timeout - ULTRA MASSIVE for comprehensive analysis
           ]);
           legalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
