@@ -421,28 +421,24 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Extract evidence from RELEVANT documents for a specific question - OPTIMIZED VERSION
+   * Extract evidence from ALL documents for a specific question - COMPREHENSIVE VERSION
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 Starting optimized evidence extraction for: ${question.question}`);
+    console.log(`📄 Starting comprehensive evidence extraction from ALL ${documents.length} documents for: ${question.question}`);
     
-    // OPTIMIZATION: Filter documents relevant to the specific question first
-    const relevantDocuments = this.filterDocumentsForQuestion(documents, question);
-    const maxDocuments = Math.min(relevantDocuments.length, 50); // Limit to 50 most relevant documents
-    const finalDocuments = relevantDocuments.slice(0, maxDocuments);
+    // COMPREHENSIVE PROCESSING: Process ALL documents for complete analysis
+    console.log(`📊 Processing ALL ${documents.length} documents for comprehensive legal analysis of: ${question.question}`);
     
-    console.log(`📊 Processing ${finalDocuments.length} relevant documents (filtered from ${documents.length}) for: ${question.question}`);
-    
-    // OPTIMIZED BATCH PROCESSING: Smaller batches with rate limiting
-    const batchSize = 3; // Reduced batch size to prevent rate limiting
+    // BATCH PROCESSING: Smaller batches with rate limiting to prevent API overload
+    const batchSize = 3; // Keep small batch size to prevent rate limiting
     const evidence = [];
     
-    for (let i = 0; i < finalDocuments.length; i += batchSize) {
-      const batch = finalDocuments.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(finalDocuments.length / batchSize)} (${batch.length} documents)`);
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
       const batchResults = await Promise.all(
         batch.map(async (doc) => {
@@ -460,84 +456,16 @@ class ComprehensiveLegalAnalysisService {
       console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
       
       // Rate limiting between batches to prevent API throttling
-      if (i + batchSize < finalDocuments.length) {
+      if (i + batchSize < documents.length) {
         console.log(`⏱️ Rate limiting: waiting 2 seconds before next batch...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${finalDocuments.length} relevant documents`);
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents with comprehensive analysis`);
     return evidence;
   }
 
-  /**
-   * Filter documents to only those relevant to the specific legal question
-   */
-  private filterDocumentsForQuestion(documents: any[], question: any): any[] {
-    console.log(`🔍 Filtering ${documents.length} documents for question: ${question.question}`);
-    
-    // Score documents based on relevance to the question
-    const scoredDocs = documents.map(doc => {
-      let score = 0;
-      const docName = doc.name.toLowerCase();
-      const docContent = (doc.ocrText || '').toLowerCase();
-      const aiSummary = (doc.aiSummary?.executiveSummary || '').toLowerCase();
-      const allContent = `${docName} ${docContent} ${aiSummary}`;
-      
-      // Score based on question keywords
-      const keywords = question.keywords || [];
-      keywords.forEach(keyword => {
-        const keywordLower = keyword.toLowerCase();
-        if (allContent.includes(keywordLower)) {
-          score += 3; // Higher weight for exact keyword matches
-        }
-      });
-      
-      // Additional scoring based on question category
-      const categoryBonus = this.getCategorySpecificScore(allContent, question.category);
-      score += categoryBonus;
-      
-      // Boost score for documents with more content
-      if (doc.ocrText && doc.ocrText.length > 1000) {
-        score += 1;
-      }
-      
-      return { ...doc, relevanceScore: score };
-    });
-    
-    // Filter and sort by relevance score
-    const relevantDocs = scoredDocs
-      .filter(doc => doc.relevanceScore > 0) // Only include documents with some relevance
-      .sort((a, b) => b.relevanceScore - a.relevanceScore); // Sort by highest score first
-    
-    console.log(`🎯 Found ${relevantDocs.length} relevant documents (scores: ${relevantDocs.slice(0, 5).map(d => d.relevanceScore).join(', ')}...)`);
-    
-    return relevantDocs;
-  }
-
-  /**
-   * Get category-specific scoring bonuses
-   */
-  private getCategorySpecificScore(content: string, category: string): number {
-    const categoryKeywords = {
-      'Contracts & Agreements': ['contract', 'agreement', 'terms', 'conditions', 'commercial', 'revenue', 'payment'],
-      'Intellectual Property': ['patent', 'trademark', 'copyright', 'ip', 'intellectual property', 'license'],
-      'Corporate Governance': ['governance', 'board', 'shareholder', 'corporate', 'bylaws', 'charter'],
-      'Regulatory Compliance': ['regulatory', 'compliance', 'regulation', 'certification', 'approval'],
-      'Litigation & Legal Risks': ['litigation', 'lawsuit', 'legal dispute', 'claim', 'court', 'settlement']
-    };
-    
-    const keywords = categoryKeywords[category] || [];
-    let score = 0;
-    
-    keywords.forEach(keyword => {
-      if (content.includes(keyword)) {
-        score += 2; // Category-specific bonus
-      }
-    });
-    
-    return score;
-  }
 
   /**
    * Extract specific evidence from a single document - EXACT COPY from Clinical
