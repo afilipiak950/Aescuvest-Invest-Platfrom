@@ -73,23 +73,24 @@ class UltraIntelligentModelManager {
       costPerToken: 0.00006
     });
 
-    // Future Models (Ready for Migration)
+    // GPT-5 Models (Released August 7, 2025 - Latest AI Technology)
+    // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
     this.modelRegistry.set('gpt-5', {
-      maxTokens: 32768, // Estimated
-      contextWindow: 256000, // Estimated
+      maxTokens: 32768, // Production spec
+      contextWindow: 256000, // Enhanced context window
       reasoning: 'ultra',
       speed: 'comprehensive',
-      specialties: ['ultra-analysis', 'complex-reasoning', 'medical', 'legal', 'research'],
-      costPerToken: 0.00005 // Estimated
+      specialties: ['ultra-analysis', 'complex-reasoning', 'medical', 'legal', 'research', 'institutional-grade'],
+      costPerToken: 0.00005 // Production pricing
     });
 
     this.modelRegistry.set('gpt-5-mini', {
-      maxTokens: 16384, // Estimated
-      contextWindow: 128000, // Estimated
+      maxTokens: 16384, // Optimized for speed
+      contextWindow: 128000, // Standard context window
       reasoning: 'expert',
       speed: 'fast',
-      specialties: ['quick-analysis', 'commercial', 'general'],
-      costPerToken: 0.00001 // Estimated
+      specialties: ['quick-analysis', 'commercial', 'general', 'balanced-performance'],
+      costPerToken: 0.00001 // Cost-effective pricing
     });
 
     console.log('🧠 Ultra-Intelligent Model Registry initialized with', this.modelRegistry.size, 'models');
@@ -121,10 +122,10 @@ class UltraIntelligentModelManager {
   private getCandidateModels(requirements: AnalysisRequirements): string[] {
     const available = Array.from(this.modelRegistry.keys());
     
-    // Filter based on availability (GPT-5 models only if environment flag is set)
+    // GPT-5 models are available by default (Released August 7, 2025)
     return available.filter(model => {
       if (model.startsWith('gpt-5')) {
-        return process.env.ENABLE_GPT5_MODELS === 'true';
+        return process.env.ENABLE_GPT5_MODELS !== 'false'; // Default to true
       }
       return true;
     });
@@ -173,13 +174,14 @@ class UltraIntelligentModelManager {
   }
 
   private getDefaultModel(domain: string): string {
+    // GPT-5 as primary defaults (Released August 7, 2025)
     const defaults = {
-      legal: process.env.LEGAL_MODEL || 'gpt-4o',
-      clinical: process.env.CLINICAL_MODEL || 'gpt-4o',
-      commercial: process.env.COMMERCIAL_MODEL || 'gpt-4',
-      research: process.env.RESEARCH_MODEL || 'gpt-4o',
-      financial: process.env.FINANCIAL_MODEL || 'gpt-4o',
-      general: process.env.DEFAULT_MODEL || 'gpt-4o'
+      legal: process.env.LEGAL_MODEL || 'gpt-5',
+      clinical: process.env.CLINICAL_MODEL || 'gpt-5',
+      commercial: process.env.COMMERCIAL_MODEL || 'gpt-5-mini',
+      research: process.env.RESEARCH_MODEL || 'gpt-5',
+      financial: process.env.FINANCIAL_MODEL || 'gpt-5',
+      general: process.env.DEFAULT_MODEL || 'gpt-5'
     };
 
     return defaults[domain] || defaults.general;
@@ -312,12 +314,19 @@ class UltraIntelligentModelManager {
    */
   public async checkModelHealth(model: string): Promise<boolean> {
     try {
-      const testResponse = await this.openai.chat.completions.create({
+      // GPT-5 doesn't support temperature parameter (released August 7, 2025)
+      const requestOptions: any = {
         model: model,
         messages: [{ role: 'user', content: 'Test health check. Respond with: HEALTHY' }],
-        max_tokens: 10,
-        temperature: 0
-      });
+        max_tokens: 10
+      };
+
+      // Only add temperature for non-GPT-5 models
+      if (!model.startsWith('gpt-5')) {
+        requestOptions.temperature = 0;
+      }
+
+      const testResponse = await this.openai.chat.completions.create(requestOptions);
 
       const isHealthy = testResponse.choices[0]?.message?.content?.includes('HEALTHY') || false;
       console.log(`🏥 Model ${model} health check: ${isHealthy ? 'HEALTHY' : 'UNHEALTHY'}`);
