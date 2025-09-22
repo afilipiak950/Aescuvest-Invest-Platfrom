@@ -6,100 +6,99 @@ interface FormattedAnswerProps {
 export function FormattedAnswer({ text, className = "" }: FormattedAnswerProps) {
   if (!text) return <p className={className}>No analysis available</p>;
 
-  // Split text into paragraphs
-  const paragraphs = text.split(/\n\s*\n/);
-  
-  const formatParagraph = (paragraph: string, index: number) => {
-    // Handle bullet points
-    if (paragraph.includes('•') || paragraph.includes('-') || paragraph.includes('*')) {
-      const lines = paragraph.split('\n').filter(line => line.trim());
-      const bulletPoints = lines.filter(line => 
-        line.trim().startsWith('•') || 
-        line.trim().startsWith('-') || 
-        line.trim().startsWith('*') ||
-        line.match(/^\d+\./)
-      );
+  const formatText = (text: string): JSX.Element[] => {
+    // Clean the text
+    const cleanText = text.trim();
+    
+    // Split into sentences - look for periods followed by space and capital letter
+    let sentences = cleanText.split(/\.(?=\s+[A-Z])/);
+    
+    // If that doesn't work well, try other sentence endings
+    if (sentences.length === 1) {
+      sentences = cleanText.split(/[.!?]+(?=\s+[A-Z])/);
+    }
+    
+    // If still one big block, split by length
+    if (sentences.length === 1 && cleanText.length > 200) {
+      const words = cleanText.split(' ');
+      sentences = [];
+      let currentSentence = '';
       
-      if (bulletPoints.length > 0) {
-        return (
-          <div key={index} className="space-y-1">
-            {lines.map((line, lineIndex) => {
-              const trimmedLine = line.trim();
-              if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
-                return (
-                  <div key={lineIndex} className="flex items-start gap-2">
-                    <span className="text-green-400 text-xs mt-1">•</span>
-                    <span className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
-                      {trimmedLine.replace(/^[•\-*]\s*/, '')}
-                    </span>
-                  </div>
-                );
-              } else if (trimmedLine.match(/^\d+\./)) {
-                const number = trimmedLine.match(/^(\d+)\./)?.[1];
-                return (
-                  <div key={lineIndex} className="flex items-start gap-2">
-                    <span className="text-green-400 text-xs mt-1 font-medium">{number}.</span>
-                    <span className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
-                      {trimmedLine.replace(/^\d+\.\s*/, '')}
-                    </span>
-                  </div>
-                );
-              } else if (trimmedLine) {
-                return (
-                  <p key={lineIndex} className={`text-gray-300 text-sm leading-relaxed mb-2 ${className}`}>
-                    {trimmedLine}
-                  </p>
-                );
-              }
-              return null;
-            })}
-          </div>
-        );
+      for (const word of words) {
+        if (currentSentence.length + word.length > 200 && currentSentence.length > 0) {
+          sentences.push(currentSentence.trim());
+          currentSentence = word;
+        } else {
+          currentSentence += (currentSentence ? ' ' : '') + word;
+        }
+      }
+      if (currentSentence) {
+        sentences.push(currentSentence.trim());
       }
     }
 
-    // Handle questions and answers within the text
-    if (paragraph.includes('?:')) {
-      const parts = paragraph.split('?:');
-      if (parts.length === 2) {
-        return (
-          <div key={index} className="space-y-2">
-            <h6 className="text-green-400 text-sm font-medium">
-              {parts[0].trim()}?
+    const elements: JSX.Element[] = [];
+    
+    sentences.forEach((sentence, index) => {
+      const trimmedSentence = sentence.trim();
+      if (!trimmedSentence) return;
+      
+      // Add back the period if it was removed during splitting
+      const finalSentence = trimmedSentence.endsWith('.') || trimmedSentence.endsWith('!') || trimmedSentence.endsWith('?') 
+        ? trimmedSentence 
+        : trimmedSentence + '.';
+      
+      // Check if this looks like a question
+      if (finalSentence.includes('?') && finalSentence.length < 150) {
+        elements.push(
+          <div key={`question-${index}`} className="mb-3">
+            <h6 className="text-green-400 text-sm font-medium mb-1">
+              {finalSentence}
             </h6>
-            <p className={`text-gray-300 text-sm leading-relaxed ml-4 ${className}`}>
-              {parts[1].trim()}
-            </p>
           </div>
         );
       }
-    }
+      // Check if this is a short sentence (likely a key point)
+      else if (finalSentence.length < 100) {
+        elements.push(
+          <p key={`short-${index}`} className={`text-gray-300 text-sm leading-relaxed mb-2 font-medium ${className}`}>
+            {finalSentence}
+          </p>
+        );
+      }
+      // Long sentence - break into readable paragraph
+      else {
+        elements.push(
+          <p key={`long-${index}`} className={`text-gray-300 text-sm leading-relaxed mb-3 ${className}`}>
+            {finalSentence}
+          </p>
+        );
+      }
+    });
 
-    // Regular paragraph with better line breaks
-    const lines = paragraph.split('\n').filter(line => line.trim());
-    if (lines.length > 1) {
-      return (
-        <div key={index} className="space-y-2">
-          {lines.map((line, lineIndex) => (
-            <p key={lineIndex} className={`text-gray-300 text-sm leading-relaxed ${className}`}>
-              {line.trim()}
-            </p>
-          ))}
-        </div>
-      );
-    }
-
-    // Single paragraph
-    return (
-      <p key={index} className={`text-gray-300 text-sm leading-relaxed ${className}`}>
-        {paragraph.trim()}
-      </p>
-    );
+    return elements;
   };
 
+  // First check if we have explicit paragraphs (separated by double newlines)
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+  
+  if (paragraphs.length > 1) {
+    // Handle multiple paragraphs
+    return (
+      <div className="space-y-4">
+        {paragraphs.map((paragraph, index) => (
+          <div key={index} className="space-y-2">
+            {formatText(paragraph)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  
+  // Handle single block of text
   return (
-    <div className="space-y-3">
-      {paragraphs.map((paragraph, index) => formatParagraph(paragraph, index))}
+    <div className="space-y-2">
+      {formatText(text)}
     </div>
   );
 }
