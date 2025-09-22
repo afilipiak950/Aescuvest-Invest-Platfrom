@@ -6183,7 +6183,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Clinical Analysis Start Route - RAG-POWERED!
+  // Clinical Analysis Start Route - RAG-POWERED WITH PROGRESS TRACKING!
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -6191,30 +6191,105 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       console.log(`🧬 Starting RAG-powered comprehensive clinical analysis for deal ${dealId}`);
       console.log(`🚀 Revolutionary 15-30 second processing using correct 11 frontend questions!`);
       
-      // Import the new RAG-powered clinical agent
-      const { RagPoweredClinicalAgent } = await import('./services/ragPoweredClinicalAgent');
-      const ragAgent = new RagPoweredClinicalAgent(dealId);
+      // Create background job for progress tracking
+      const jobId = `rag_clinical_analysis_${dealId}_${Date.now()}`;
       
-      // Execute RAG-powered analysis (instant results!)
-      const results = await ragAgent.runComprehensiveAnalysis();
+      // Check for existing running jobs
+      const existingJobs = await storage.getRunningBackgroundJobs(dealId);
+      const existingClinicalJob = existingJobs.find(job => 
+        job.agentType?.toLowerCase() === 'clinical' || 
+        job.jobType?.includes('clinical')
+      );
       
-      console.log(`✅ RAG-powered clinical analysis completed in ${results.performance.totalTime}ms`);
+      if (existingClinicalJob) {
+        console.log(`⚠️ Clinical analysis already running for deal ${dealId}: ${existingClinicalJob.jobId}`);
+        return res.status(409).json({
+          success: false,
+          error: 'Clinical analysis already running for this deal',
+          existingJobId: existingClinicalJob.jobId
+        });
+      }
       
+      // Create background job for progress tracking
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'rag_clinical_analysis',
+        dealId,
+        agentType: 'clinical',
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Starting RAG-powered clinical analysis',
+        currentDocumentName: 'Initializing semantic search',
+        processedDocuments: 0,
+        totalDocuments: 11, // 11 questions
+        message: 'RAG-powered clinical analysis starting'
+      });
+      
+      console.log(`✅ Created background job ${jobId} for RAG clinical analysis`);
+      
+      // Start analysis asynchronously
+      (async () => {
+        try {
+          // Import the new RAG-powered clinical agent
+          const { RagPoweredClinicalAgent } = await import('./services/ragPoweredClinicalAgent');
+          const ragAgent = new RagPoweredClinicalAgent(dealId);
+          
+          // Set up progress callback
+          ragAgent.setProgressCallback(async (progress) => {
+            await storage.updateBackgroundJob(jobId, {
+              progress: progress.percentage,
+              currentStep: progress.currentStep,
+              currentDocumentName: progress.currentQuestion,
+              processedDocuments: progress.completedQuestions,
+              totalDocuments: 11,
+              message: `Processing question ${progress.completedQuestions + 1}/11: ${progress.currentQuestion}`
+            });
+          });
+          
+          // Execute RAG-powered analysis
+          const results = await ragAgent.runComprehensiveAnalysis();
+          
+          // Mark job as completed
+          await storage.updateBackgroundJob(jobId, {
+            status: 'completed',
+            progress: 100,
+            currentStep: 'Analysis completed',
+            currentDocumentName: 'All questions processed',
+            processedDocuments: 11,
+            totalDocuments: 11,
+            message: `RAG clinical analysis completed in ${results.performance.totalTime}ms`
+          });
+          
+          console.log(`✅ RAG-powered clinical analysis completed in ${results.performance.totalTime}ms`);
+          
+        } catch (error) {
+          console.error(`❌ RAG clinical analysis failed:`, error);
+          
+          // Mark job as failed
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            currentStep: 'Analysis failed',
+            message: error instanceof Error ? error.message : 'Unknown error occurred'
+          });
+        }
+      })();
+      
+      // Return immediately with job info
       res.json({
         success: true,
-        message: 'RAG-powered clinical analysis completed instantly',
-        results,
-        performance: results.performance,
+        message: 'RAG-powered clinical analysis started',
+        jobId,
         ragPowered: true,
-        questionsAnswered: 11,
-        correctFrontendQuestions: true
+        questionsTotal: 11,
+        estimatedTime: '15-30 seconds',
+        revolutionarySpeed: true
       });
       
     } catch (error) {
-      console.error(`❌ Failed to run RAG-powered clinical analysis:`, error);
+      console.error(`❌ Failed to start RAG-powered clinical analysis:`, error);
       res.status(500).json({ 
         success: false, 
-        error: 'Failed to run RAG-powered clinical analysis',
+        error: 'Failed to start RAG-powered clinical analysis',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }

@@ -257,9 +257,17 @@ interface RagClinicalAnswer {
 export class RagPoweredClinicalAgent {
   private dealId: number;
   private totalStartTime: number = 0;
+  private progressCallback?: (progress: any) => Promise<void>;
 
   constructor(dealId: number) {
     this.dealId = dealId;
+  }
+
+  /**
+   * Set progress callback for background job tracking
+   */
+  setProgressCallback(callback: (progress: any) => Promise<void>) {
+    this.progressCallback = callback;
   }
 
   /**
@@ -297,6 +305,19 @@ export class RagPoweredClinicalAgent {
         clinicalAnswers[question.id] = answer;
         
         console.log(`✅ Question ${i + 1} completed in ${processingTime}ms with ${evidenceBase.length} evidence layers`);
+        
+        // Update progress for background job tracking
+        if (this.progressCallback) {
+          const progressPercentage = Math.round(((i + 1) / RAG_CLINICAL_QUESTIONS.length) * 100);
+          await this.progressCallback({
+            percentage: progressPercentage,
+            currentStep: `Question ${i + 1}/${RAG_CLINICAL_QUESTIONS.length} completed`,
+            currentQuestion: question.question,
+            completedQuestions: i + 1,
+            category: question.category,
+            estimatedTimeRemaining: `${Math.round((RAG_CLINICAL_QUESTIONS.length - (i + 1)) * (processingTime / 1000))}s`
+          });
+        }
         
         // Brief pause to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 100));
