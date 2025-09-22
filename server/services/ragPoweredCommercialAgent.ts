@@ -247,12 +247,10 @@ interface EnterpriseCommercialAnalysis {
 export class RAGPoweredCommercialAgent {
   private dealId: number;
   private jobId: string;
-  private embeddingService: EmbeddingService;
 
   constructor(dealId: number, jobId: string) {
     this.dealId = dealId;
     this.jobId = jobId;
-    this.embeddingService = new EmbeddingService();
   }
 
   /**
@@ -273,7 +271,7 @@ export class RAGPoweredCommercialAgent {
     for (const query of ragQueries) {
       console.log(`  🔎 Layer ${layerNumber}/${ragQueries.length}: ${query}`);
       
-      const searchResults = await this.embeddingService.searchSimilarChunks(
+      const searchResults = await EmbeddingService.searchSimilarChunks(
         query,
         this.dealId,
         12 // Get 12 chunks per layer for comprehensive evidence
@@ -281,14 +279,14 @@ export class RAGPoweredCommercialAgent {
 
       const evidence: RagCommercialEvidence = {
         query,
-        chunks: searchResults.chunks.map(chunk => ({
-          content: chunk.content,
-          documentName: chunk.document_name,
-          similarity: chunk.similarity
+        chunks: searchResults.map(result => ({
+          content: result.content || result.chunk,
+          documentName: result.documentName || result.metadata?.documentName,
+          similarity: result.similarity
         })),
-        documentCount: searchResults.chunks.length > 0 ? 
-          new Set(searchResults.chunks.map(c => c.document_name)).size : 0,
-        totalChunks: searchResults.chunks.length
+        documentCount: searchResults.length > 0 ? 
+          new Set(searchResults.map(r => r.documentName || r.metadata?.documentName)).size : 0,
+        totalChunks: searchResults.length
       };
 
       evidenceLayers.push(evidence);
