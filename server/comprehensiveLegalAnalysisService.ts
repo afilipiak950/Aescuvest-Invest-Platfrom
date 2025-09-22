@@ -414,11 +414,8 @@ class ComprehensiveLegalAnalysisService {
       console.log(`📄 Documents with content available: ${legalDocuments.length}`);
     }
     
-    // Apply EXACT same document limits as Clinical
-    if (legalDocuments.length > 50) {
-      console.log(`📄 Limiting to first 50 documents for legal analysis efficiency (found ${legalDocuments.length})`);
-      legalDocuments = legalDocuments.slice(0, 50);
-    }
+    // ENTERPRISE FIX: Process all documents for comprehensive institutional analysis
+    console.log(`📊 Processing ALL ${legalDocuments.length} legal documents for comprehensive enterprise analysis`);
     
     return legalDocuments;
   }
@@ -432,8 +429,8 @@ class ComprehensiveLegalAnalysisService {
   ): Promise<any[]> {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // Process documents in batches to avoid overwhelming the system - EXACT Clinical approach
-    const batchSize = 10;
+    // ENTERPRISE BATCH PROCESSING: Optimized for large document sets
+    const batchSize = documents.length > 100 ? 8 : 10; // Smaller batches for large sets
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
@@ -635,7 +632,7 @@ Respond in JSON format:
       const answer = compiledAnswer.answer || 
         (evidence.length > 0 ? 
           `Based on analysis of ${evidence.length} documents, the following legal information was identified: ` + 
-          evidence.filter(e => e.documentSummary).slice(0, 3).map(e => e.documentSummary).join(' ')
+          evidence.filter(e => e.documentSummary).slice(0, 10).map(e => e.documentSummary).join(' ') // ENTERPRISE: More comprehensive summary
           : 'No relevant legal information found in available documentation');
 
       return {
@@ -644,7 +641,7 @@ Respond in JSON format:
         answer: answer,
         confidence: Math.max(compiledAnswer.confidence || 30, evidence.length > 0 ? 50 : 20),
         sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
-        keyFindings: compiledAnswer.keyFindings || evidence.flatMap(e => e.keyFindings || []).slice(0, 5),
+        keyFindings: compiledAnswer.keyFindings || evidence.flatMap(e => e.keyFindings || []).slice(0, 15), // ENTERPRISE: Show more findings
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || ['Consider obtaining additional legal documentation for comprehensive analysis'],
         legalAssessment: compiledAnswer.legalAssessment || `Analysis based on review of ${evidence.length} available documents`,

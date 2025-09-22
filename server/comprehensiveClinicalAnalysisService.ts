@@ -397,11 +397,8 @@ export class ComprehensiveClinicalAnalysisService {
       console.log(`📄 Documents with content available: ${clinicalDocuments.length}`);
     }
     
-    // Apply EXACT same document limits as Legal for efficiency
-    if (clinicalDocuments.length > 50) {
-      console.log(`📄 Limiting to first 50 documents for clinical analysis efficiency (found ${clinicalDocuments.length})`);
-      clinicalDocuments = clinicalDocuments.slice(0, 50);
-    }
+    // ENTERPRISE FIX: Process all documents for comprehensive institutional analysis
+    console.log(`📊 Processing ALL ${clinicalDocuments.length} clinical documents for comprehensive enterprise analysis`);
     
     return clinicalDocuments;
   }
@@ -415,8 +412,8 @@ export class ComprehensiveClinicalAnalysisService {
   ): Promise<any[]> {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // Process documents in batches to avoid overwhelming the system
-    const batchSize = 10;
+    // ENTERPRISE BATCH PROCESSING: Optimized for large document sets
+    const batchSize = documents.length > 100 ? 8 : 10; // Smaller batches for large sets
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
