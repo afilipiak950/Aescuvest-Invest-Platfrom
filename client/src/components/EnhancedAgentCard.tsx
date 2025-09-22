@@ -4130,7 +4130,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/comprehensive`, {
+      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/start`, {
         method: 'POST'
       });
       return response;
@@ -4181,7 +4181,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
           
           console.log(`Commercial analysis attempt ${attempts}...`);
           
-          if (data.success && data.commercialAnswers && Object.keys(data.commercialAnswers).length > 0) {
+          if (data.success && data.analysis && data.analysis.commercialAnswers && Object.keys(data.analysis.commercialAnswers).length > 0) {
             console.log('Commercial analysis completed!');
             
             queryClient.invalidateQueries({
