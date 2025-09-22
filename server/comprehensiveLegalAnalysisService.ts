@@ -458,26 +458,30 @@ class ComprehensiveLegalAnalysisService {
     const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to find ANY legal, regulatory, contractual, or compliance information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+CONTENT: ${content.substring(0, 12000)} ${content.length > 12000 ? '\n[Document continues with additional content...]' : ''}
 
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
 
 Instructions:
-- Look for DIRECT legal terms, contracts, agreements, regulatory filings, compliance matters
-- Look for INDIRECT references to intellectual property, corporate governance, litigation risks, regulatory requirements
-- Consider business documents that mention legal milestones, compliance matters, contractual obligations
-- Even general business context often has legal implications for investment due diligence
-- For companies, most business documents contain legal information relevant to investors
+- Extract ALL contractual terms, payment schedules, obligations, deliverables, performance requirements
+- Find ALL legal terms: warranties, liabilities, indemnification, termination clauses, governing law
+- Capture ALL regulatory requirements, compliance obligations, licensing terms, IP restrictions
+- Extract ALL financial terms: pricing, payment terms, penalties, revenue sharing, royalties
+- Include ALL corporate governance: board requirements, shareholder rights, voting provisions
+- Find ALL risk factors: litigation, disputes, regulatory violations, non-compliance issues
+- Be exhaustive - read the ENTIRE document content provided and extract every legal detail
 
 Respond in JSON format:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["Exact quote 1 with full context", "Exact quote 2 with full context", "Additional comprehensive quotes..."],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "legalContext": "How this document relates to legal/regulatory aspects of the business"
+  "keyFindings": ["Comprehensive finding 1", "Comprehensive finding 2", "All other relevant findings..."],
+  "documentSummary": "Detailed summary of ALL legal content in this document relevant to the question",
+  "legalContext": "Complete analysis of how this document relates to legal/regulatory aspects",
+  "allTermsFound": ["Every contractual term", "Every obligation", "Every legal provision found"],
+  "criticalDetails": ["All payment terms", "All performance requirements", "All compliance obligations"]
 }
 
 Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
@@ -488,7 +492,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 2500 // Increased for comprehensive extraction
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
