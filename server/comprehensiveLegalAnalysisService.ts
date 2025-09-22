@@ -458,7 +458,7 @@ class ComprehensiveLegalAnalysisService {
     const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to find ANY legal, regulatory, contractual, or compliance information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 12000)} ${content.length > 12000 ? '\n[Document continues with additional content...]' : ''}
+CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
 
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
@@ -470,7 +470,9 @@ Instructions:
 - Extract ALL financial terms: pricing, payment terms, penalties, revenue sharing, royalties
 - Include ALL corporate governance: board requirements, shareholder rights, voting provisions
 - Find ALL risk factors: litigation, disputes, regulatory violations, non-compliance issues
-- Be exhaustive - read the ENTIRE document content provided and extract every legal detail
+- Be exhaustive - read the ENTIRE document content provided (up to 100k characters) and extract every legal detail
+- Process the complete document content thoroughly - do not miss any terms, clauses, or obligations
+- This is full document analysis - capture everything of legal significance
 
 Respond in JSON format:
 {
@@ -492,7 +494,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500 // Increased for comprehensive extraction
+        max_tokens: 4000 // Increased for full document comprehensive extraction
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -505,7 +507,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        fullContent: content.substring(0, 2000) // Keep larger sample for reference
       };
       
     } catch (error) {
