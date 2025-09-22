@@ -17,9 +17,9 @@ interface TimeoutConfig {
 
 class AIProcessingTimeoutService {
   private config: TimeoutConfig = {
-    processingTimeout: 240 * 60 * 1000, // 240 minutes (4 hours) - extra long for legal analysis that gets stuck
-    checkInterval: 10 * 60 * 1000, // 10 minute check intervals - less aggressive monitoring
-    maxRetries: 3
+    processingTimeout: 2880 * 60 * 1000, // 2880 minutes (48 HOURS) - MASSIVE timeout for unlimited analysis time
+    checkInterval: 30 * 60 * 1000, // 30 minute check intervals - much less aggressive monitoring
+    maxRetries: 10
   };
   
   private intervalId: NodeJS.Timeout | null = null;

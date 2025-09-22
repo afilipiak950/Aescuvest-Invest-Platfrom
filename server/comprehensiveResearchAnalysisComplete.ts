@@ -577,7 +577,7 @@ Be thorough in finding relevance - most business documents have research implica
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('OpenAI API timeout after 5 minutes')), 300000) // 300 second (5 minute) timeout - MASSIVE increase
       );
       
       const response = await Promise.race([responsePromise, timeoutPromise]) as any;
@@ -682,7 +682,7 @@ Respond in JSON format:
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('OpenAI API timeout after 5 minutes')), 300000) // 300 second (5 minute) timeout - MASSIVE increase
       );
       
       const response = await Promise.race([responsePromise, timeoutPromise]) as any;
