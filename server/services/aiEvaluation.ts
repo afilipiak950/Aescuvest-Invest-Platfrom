@@ -844,13 +844,11 @@ export async function evaluateCompanyWebsite(
     const criteria = await storage.getAllEvaluationCriteria();
     const activeCriteria = criteria.filter(c => c.isActive);
 
-    // Perform AI evaluation
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert investment analyst specializing in healthcare technology investments. You work for Aescuvest, a venture capital firm focused on healthcare innovation.
+    // Perform AI evaluation using Ultra-Intelligent AI with GPT-5
+    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+      {
+        role: "system",
+        content: `You are an expert investment analyst specializing in healthcare technology investments. You work for Aescuvest, a venture capital firm focused on healthcare innovation.
 
 Analyze the company website content against these specific investment criteria:
 
@@ -882,18 +880,37 @@ Return your analysis in JSON format with this structure:
   "keyFindings": ["Most important positive discoveries"],
   "redFlags": ["Major concerns that need attention"]
 }`
-        },
-        {
-          role: "user",
-          content: `Analyze this company: ${companyName}
+      },
+      {
+        role: "user",
+        content: `Analyze this company: ${companyName}
 
 Website content:
 ${textContent}`
+      }
+    ], {
+      responseFormat: { type: "json_object" },
+      qualityThreshold: 0.90 // Investment-grade quality threshold
+    } as UltraIntelligentConfig);
+
+    console.log(`🤖 Ultra-Intelligent Company Website Evaluation: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+
+    // Clean response content and strip markdown code blocks before parsing
+    let cleanContent = response.content;
+    if (cleanContent.includes('```json')) {
+      cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+    }
+    if (cleanContent.includes('```')) {
+      cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
+    }
+
+    const completion = {
+      choices: [{
+        message: {
+          content: cleanContent
         }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1
-    });
+      }]
+    };
 
     const analysis = JSON.parse(completion.choices[0].message.content || '{}');
     

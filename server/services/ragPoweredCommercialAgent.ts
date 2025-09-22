@@ -613,7 +613,7 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
 
       console.log(`🗑️ Deleted existing commercial analysis for deal ${this.dealId}`);
 
-      // Insert new commercial analysis
+      // Insert new commercial analysis (EXACTLY like Clinical pattern)
       await db.insert(agentAnalyses).values({
         dealId: this.dealId,
         agentType: 'Commercial',
@@ -622,7 +622,7 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
         findings: analysis.criticalFindings,
         recommendations: analysis.recommendedActions,
         documentSources: analysis.documentsAnalyzed > 0 ? [analysis.documentsAnalyzed.toString()] : [],
-        commercialAnswers,
+        commercial_answers: commercialAnswers, // FIXED: Use correct snake_case field name like Clinical
         createdAt: new Date(),
         updatedAt: new Date()
       });
