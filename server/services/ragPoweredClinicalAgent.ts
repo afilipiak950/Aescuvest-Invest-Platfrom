@@ -514,7 +514,7 @@ ENTERPRISE REQUIREMENTS:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 4000
+        max_tokens: 16000  // ✅ FIXED: Increased from 4000 to 16000 for full answers
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -523,7 +523,7 @@ ENTERPRISE REQUIREMENTS:
       const detailedEvidence = evidenceBase.flatMap(evidence => 
         evidence.chunks.slice(0, 3).map(chunk => ({
           documentName: chunk.documentName,
-          relevantContent: [chunk.content.substring(0, 500)],
+          relevantContent: [chunk.content], // ✅ FIXED: No truncation - show full content
           keyFindings: evidence.synthesizedFindings.slice(0, 2),
           confidence: evidence.confidenceScore,
           documentSummary: `Clinical evidence from ${chunk.documentName}`
@@ -607,7 +607,7 @@ ENTERPRISE REQUIREMENTS:
         findings.push({
           id: findings.length + 1,
           type: 'positive',
-          content: `${answer.question}: ${answer.answer.substring(0, 200)}...`,
+          content: `${answer.question}: ${answer.answer}`, // ✅ FIXED: No truncation - show full answer
           source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
           confidence: answer.confidence / 100,
           category: answer.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
