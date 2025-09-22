@@ -3,104 +3,117 @@ import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { ENTERPRISE_AGENT_PROMPTS, ENTERPRISE_PROMPT_FRAMEWORK } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export const RESEARCH_QUESTIONS = [
-  // Competitive Intelligence
+export const STRATEGIC_INTELLIGENCE_QUESTIONS = [
+  // Technology Readiness Assessment (TRL Framework)
   { 
-    id: 'research_1', 
-    question: 'What competitive threats exist and how significant are they?', 
-    category: 'Competitive Intelligence',
-    analysisPrompt: 'Identify competitive threats, competitor analysis, market positioning, and competitive risk assessment.',
-    keywords: ['competitive threat', 'competitor', 'competition', 'competitive landscape', 'market share', 'competitive advantage', 'threat assessment', 'competitive risk']
-  },
-  { 
-    id: 'research_2', 
-    question: 'What is the patent landscape and IP positioning?', 
-    category: 'Competitive Intelligence',
-    analysisPrompt: 'Analyze patent landscape, IP positioning, intellectual property strategy, and freedom to operate assessments.',
-    keywords: ['patent landscape', 'ip position', 'intellectual property', 'patent portfolio', 'patent protection', 'ip strategy', 'patent analysis', 'freedom to operate']
-  },
-  { 
-    id: 'research_3', 
-    question: 'How defensible is the technology moat?', 
-    category: 'Competitive Intelligence',
-    analysisPrompt: 'Assess technology moat defensibility, competitive barriers, technological advantages, and proprietary differentiation.',
-    keywords: ['technology moat', 'defensibility', 'competitive moat', 'barrier to entry', 'technological advantage', 'proprietary technology', 'technical differentiation']
-  },
-  // Market Analysis
-  { 
-    id: 'research_4', 
-    question: 'What is the Total Addressable Market (TAM) size and growth?', 
-    category: 'Market Analysis',
-    analysisPrompt: 'Identify Total Addressable Market size, growth projections, market opportunity, and expansion potential.',
-    keywords: ['total addressable market', 'tam', 'market size', 'market growth', 'market opportunity', 'addressable market', 'market potential', 'market expansion']
-  },
-  { 
-    id: 'research_5', 
-    question: 'What are the key market trends and drivers?', 
-    category: 'Market Analysis',
-    analysisPrompt: 'Analyze market trends, growth drivers, industry dynamics, and market evolution factors.',
-    keywords: ['market trends', 'market drivers', 'industry trends', 'growth drivers', 'market dynamics', 'trend analysis', 'market forces', 'industry evolution']
-  },
-  { 
-    id: 'research_6', 
-    question: 'What is the regulatory environment and compliance requirements?', 
-    category: 'Market Analysis',
-    analysisPrompt: 'Examine regulatory environment, compliance requirements, regulatory frameworks, and industry standards.',
-    keywords: ['regulatory environment', 'compliance requirements', 'regulation', 'regulatory risk', 'compliance', 'regulatory framework', 'industry standards']
-  },
-  // Technology Assessment
-  { 
-    id: 'research_7', 
-    question: 'What is the technology maturity and scalability potential?', 
+    id: 'research_1_trl', 
+    question: 'What is the Technology Readiness Level (TRL) and development timeline?', 
     category: 'Technology Assessment',
-    analysisPrompt: 'Assess technology maturity, scalability potential, technological readiness, and technical risk factors.',
-    keywords: ['technology maturity', 'scalability', 'technological readiness', 'scale potential', 'technical scalability', 'platform scalability', 'technology risk']
+    analysisPrompt: 'Rate technology readiness level (TRL 1-9) with milestone timeline, assess technical risk and development probability, quantify competitive technical advantages with sustainability, calculate time-to-market with scenario analysis.',
+    keywords: ['technology readiness', 'trl level', 'development timeline', 'technical milestones', 'technology maturity', 'development risk', 'time to market', 'technical feasibility', 'prototype', 'proof of concept', 'scale up', 'demonstration'],
+    trlMapping: true
   },
   { 
-    id: 'research_8', 
-    question: 'What are the key technology dependencies and risks?', 
+    id: 'research_2_trl', 
+    question: 'What are the key technology dependencies and scalability risks?', 
     category: 'Technology Assessment',
-    analysisPrompt: 'Identify technology dependencies, technical risks, platform dependencies, and technology stack vulnerabilities.',
-    keywords: ['technology dependencies', 'technology risk', 'technical dependencies', 'platform dependencies', 'technology stack', 'technical risk assessment']
+    analysisPrompt: 'Identify technology dependencies, technical risks, platform dependencies, and technology stack vulnerabilities with quantified impact assessment.',
+    keywords: ['technology dependencies', 'technical risk', 'scalability', 'platform dependencies', 'technology stack', 'technical debt', 'infrastructure requirements', 'scaling bottlenecks'],
+    trlMapping: true
+  },
+  
+  // Market Timing Analysis (Adoption Curves)
+  { 
+    id: 'research_3_timing', 
+    question: 'What is the market adoption stage and timing opportunity?', 
+    category: 'Market Timing',
+    analysisPrompt: 'Analyze market adoption patterns and timing, assess competitive response probability and timeline, identify market disruption risks and opportunities with adoption curve analysis.',
+    keywords: ['market adoption', 'adoption curve', 'market timing', 'early adopters', 'mainstream market', 'market maturity', 'adoption rate', 'diffusion', 'market readiness', 'timing window'],
+    adoptionCurveAnalysis: true
   },
   { 
-    id: 'research_9', 
-    question: 'What data quality and validation has been performed?', 
-    category: 'Technology Assessment',
-    analysisPrompt: 'Review data quality processes, validation procedures, data integrity measures, and governance frameworks.',
-    keywords: ['data quality', 'data validation', 'data integrity', 'data accuracy', 'data governance', 'data verification', 'quality assurance', 'data standards']
+    id: 'research_4_timing', 
+    question: 'How does competitive landscape timing affect market opportunity?', 
+    category: 'Market Timing',
+    analysisPrompt: 'Assess competitive timing, first-mover advantages, market entry windows, and competitive response scenarios with quantified probability assessment.',
+    keywords: ['competitive timing', 'first mover advantage', 'competitive response', 'market entry', 'competitive window', 'market disruption', 'timing advantage'],
+    adoptionCurveAnalysis: true
   },
-  // Strategic Analysis
+
+  // Innovation Pipeline Evaluation (R&D Productivity)
   { 
-    id: 'research_10', 
-    question: 'What are the potential exit strategies and acquirer landscape?', 
-    category: 'Strategic Analysis',
-    analysisPrompt: 'Analyze potential exit strategies, acquirer landscape, strategic buyers, and M&A opportunities.',
-    keywords: ['exit strategy', 'acquirer', 'acquisition', 'strategic buyer', 'exit opportunity', 'merger', 'acquisition target', 'strategic partnership']
-  },
-  { 
-    id: 'research_11', 
-    question: 'What international expansion opportunities exist?', 
-    category: 'Strategic Analysis',
-    analysisPrompt: 'Evaluate international expansion opportunities, global market potential, geographic strategies, and market entry approaches.',
-    keywords: ['international expansion', 'global expansion', 'international market', 'geographic expansion', 'global opportunity', 'international strategy', 'market expansion']
+    id: 'research_5_innovation', 
+    question: 'What is the R&D productivity and innovation pipeline strength?', 
+    category: 'Innovation Pipeline',
+    analysisPrompt: 'Evaluate R&D productivity with spend-to-output ratios, assess innovation pipeline depth and commercial potential, calculate patent filing velocity and quality metrics.',
+    keywords: ['r&d productivity', 'innovation pipeline', 'research efficiency', 'development spend', 'innovation output', 'research metrics', 'patent velocity', 'innovation roi', 'research pipeline'],
+    innovationMetrics: true
   },
   { 
-    id: 'research_12', 
-    question: 'What are the ESG considerations and sustainability factors?', 
-    category: 'Strategic Analysis',
-    analysisPrompt: 'Assess ESG factors, sustainability initiatives, environmental impact, social responsibility, and governance practices.',
-    keywords: ['esg', 'sustainability', 'environmental impact', 'social responsibility', 'governance', 'sustainable business', 'environmental considerations', 'social impact']
+    id: 'research_6_innovation', 
+    question: 'What breakthrough potential and innovation edge exists?', 
+    category: 'Innovation Pipeline',
+    analysisPrompt: 'Assess breakthrough innovation potential, competitive innovation advantages, and sustained innovation capability with quantified metrics.',
+    keywords: ['breakthrough potential', 'innovation edge', 'disruptive innovation', 'innovation advantage', 'research breakthrough', 'innovation leadership', 'technology breakthrough'],
+    innovationMetrics: true
+  },
+
+  // Strategic Intelligence Scoring
+  { 
+    id: 'research_7_strategic', 
+    question: 'What is the strategic partnership value and ecosystem leverage?', 
+    category: 'Strategic Position',
+    analysisPrompt: 'Quantify strategic partnership value and synergies, assess ecosystem leverage and platform effects, evaluate strategic positioning strength.',
+    keywords: ['strategic partnerships', 'ecosystem leverage', 'platform effects', 'partnership value', 'strategic alliances', 'ecosystem position', 'network effects', 'strategic synergies'],
+    strategicScoring: true
   },
   { 
-    id: 'research_13', 
-    question: 'What customer validation and market traction evidence exists?', 
-    category: 'Strategic Analysis',
-    analysisPrompt: 'Review customer validation evidence, market traction metrics, product-market fit indicators, and adoption signals.',
-    keywords: ['customer validation', 'market traction', 'product market fit', 'customer feedback', 'market adoption', 'user engagement', 'customer retention', 'revenue traction', 'growth metrics']
+    id: 'research_8_strategic', 
+    question: 'What competitive intelligence and market disruption risks exist?', 
+    category: 'Strategic Position', 
+    analysisPrompt: 'Conduct competitive intelligence analysis, assess market disruption threats, evaluate defensive positioning and strategic moat sustainability.',
+    keywords: ['competitive intelligence', 'market disruption', 'competitive threats', 'strategic moat', 'competitive positioning', 'market defense', 'disruption risk', 'competitive dynamics'],
+    strategicScoring: true
+  },
+
+  // Comprehensive Strategic Analysis
+  { 
+    id: 'research_9_comprehensive', 
+    question: 'What is the Total Addressable Market (TAM) and market opportunity timing?', 
+    category: 'Market Intelligence',
+    analysisPrompt: 'Calculate TAM/SAM/SOM with market timing analysis, assess market opportunity windows, and quantify market capture potential with timeline projections.',
+    keywords: ['total addressable market', 'tam', 'sam', 'som', 'market size', 'market opportunity', 'market capture', 'market potential', 'addressable market'],
+    comprehensiveAnalysis: true
+  },
+  { 
+    id: 'research_10_comprehensive', 
+    question: 'What customer validation and market traction evidence supports strategic positioning?', 
+    category: 'Market Intelligence',
+    analysisPrompt: 'Review customer validation evidence, market traction metrics, product-market fit indicators, and strategic positioning validation with quantified metrics.',
+    keywords: ['customer validation', 'market traction', 'product market fit', 'market adoption', 'customer feedback', 'user engagement', 'revenue traction', 'growth metrics', 'validation metrics'],
+    comprehensiveAnalysis: true
+  },
+
+  // Risk and Regulatory Intelligence
+  { 
+    id: 'research_11_risk', 
+    question: 'What regulatory environment and compliance timeline affects market entry?', 
+    category: 'Risk Assessment',
+    analysisPrompt: 'Examine regulatory environment, compliance timeline, regulatory frameworks, and strategic risk factors with quantified impact assessment.',
+    keywords: ['regulatory environment', 'compliance timeline', 'regulatory risk', 'regulatory framework', 'compliance requirements', 'regulatory approval', 'market access'],
+    riskAssessment: true
+  },
+  { 
+    id: 'research_12_risk', 
+    question: 'What ESG and sustainability factors impact strategic positioning?', 
+    category: 'Risk Assessment',
+    analysisPrompt: 'Assess ESG strategic impact, sustainability market drivers, environmental compliance risks, and stakeholder expectations with strategic implications.',
+    keywords: ['esg impact', 'sustainability strategy', 'environmental compliance', 'social responsibility', 'governance risk', 'stakeholder expectations', 'sustainability market'],
+    riskAssessment: true
   }
 ];
 
@@ -134,56 +147,75 @@ export class ComprehensiveResearchAnalysisService {
       
       if (docs.length === 0) {
         console.log(`⚠️ No documents assigned to research for deal ${dealId}`);
-        await this.completeAnalysis(dealId, {}, [], [], 0);
+        const emptyScores = {
+          technologyReadiness: { trlLevel: 0, developmentRisk: 0, timeToMarket: 0, overallScore: 0 },
+          marketTiming: { adoptionStage: '', competitiveWindow: 0, marketReadiness: 0, overallScore: 0 },
+          innovationValue: { rdProductivity: 0, pipelineStrength: 0, breakthroughPotential: 0, overallScore: 0 },
+          strategicPosition: { partnershipValue: 0, ecosystemLeverage: 0, competitiveIntelligence: 0, overallScore: 0 }
+        };
+        await this.completeStrategicAnalysis(dealId, {}, [], [], 0, emptyScores);
         return;
       }
       
       await this.updateJobProgress(20, 'Processing documents');
       
-      // Process each research question - EXACT CLINICAL APPROACH
-      const researchAnswers: Record<string, any> = {};
+      // Process each strategic intelligence question with enterprise framework
+      const strategicIntelligence: Record<string, any> = {};
       const findings: string[] = [];
       const recommendations: string[] = [];
       
-      for (let i = 0; i < RESEARCH_QUESTIONS.length; i++) {
-        const question = RESEARCH_QUESTIONS[i];
-        const progress = 20 + (i / RESEARCH_QUESTIONS.length) * 60;
+      // Initialize strategic scoring components
+      const technologyReadiness = { trlLevel: 0, developmentRisk: 0, timeToMarket: 0 };
+      const marketTiming = { adoptionStage: '', competitiveWindow: 0, marketReadiness: 0 };
+      const innovationValue = { rdProductivity: 0, pipelineStrength: 0, breakthroughPotential: 0 };
+      const strategicPosition = { partnershipValue: 0, ecosystemLeverage: 0, competitiveIntelligence: 0 };
+      
+      for (let i = 0; i < STRATEGIC_INTELLIGENCE_QUESTIONS.length; i++) {
+        const question = STRATEGIC_INTELLIGENCE_QUESTIONS[i];
+        const progress = 20 + (i / STRATEGIC_INTELLIGENCE_QUESTIONS.length) * 60;
         
         await this.updateJobProgress(progress, `Analyzing: ${question.question}`);
         
         try {
-          // Extract evidence from documents - EXACT CLINICAL APPROACH
-          const evidence = await this.extractEvidence(docs, question);
+          // Extract evidence from documents using enterprise framework
+          const evidence = await this.extractStrategicEvidence(docs, question);
           
           if (evidence.length > 0) {
-            // Compile comprehensive answer - EXACT CLINICAL APPROACH  
-            const answer = await this.compileComprehensiveAnswer(question, evidence);
-            researchAnswers[question.id] = answer;
-            console.log(`✅ Research question ${question.id} answered with evidence from ${evidence.length} documents`);
+            // Compile strategic intelligence answer with enterprise analysis
+            const answer = await this.compileStrategicIntelligenceAnswer(question, evidence);
+            strategicIntelligence[question.id] = answer;
+            
+            // Update strategic scoring components based on question type
+            this.updateStrategicScoring(question, answer, technologyReadiness, marketTiming, innovationValue, strategicPosition);
+            
+            console.log(`✅ Strategic intelligence question ${question.id} analyzed with evidence from ${evidence.length} documents`);
           } else {
-            console.log(`⚠️ No evidence found for research question: ${question.question}`);
+            console.log(`⚠️ No strategic evidence found for question: ${question.question}`);
           }
         } catch (error) {
-          console.error(`❌ Error analyzing research question ${question.id}:`, error);
+          console.error(`❌ Error analyzing strategic intelligence question ${question.id}:`, error);
         }
         
         // Small delay to prevent API rate limits
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      await this.updateJobProgress(90, 'Generating findings and recommendations');
+      await this.updateJobProgress(90, 'Generating strategic intelligence findings');
       
-      // Generate findings and recommendations based on answers
-      if (Object.keys(researchAnswers).length > 0) {
-        const analysisResult = await this.generateFindingsAndRecommendations(researchAnswers);
+      // Generate strategic intelligence findings and recommendations
+      if (Object.keys(strategicIntelligence).length > 0) {
+        const analysisResult = await this.generateStrategicIntelligenceFindings(strategicIntelligence);
         findings.push(...analysisResult.findings);
         recommendations.push(...analysisResult.recommendations);
       }
       
-      await this.updateJobProgress(95, 'Saving results');
+      await this.updateJobProgress(95, 'Saving strategic intelligence results');
       
-      // Save the comprehensive analysis
-      await this.completeAnalysis(dealId, researchAnswers, findings, recommendations, docs.length);
+      // Calculate final strategic intelligence scores
+      const finalScores = this.calculateStrategicIntelligenceScores(technologyReadiness, marketTiming, innovationValue, strategicPosition);
+      
+      // Save the comprehensive strategic intelligence analysis
+      await this.completeStrategicAnalysis(dealId, strategicIntelligence, findings, recommendations, docs.length, finalScores);
       
       await this.updateJobProgress(100, 'Analysis completed');
       
@@ -196,9 +228,9 @@ export class ComprehensiveResearchAnalysisService {
   }
 
   /**
-   * Extract evidence from multiple documents for a question - EXACT CLINICAL APPROACH
+   * Extract strategic intelligence evidence using enterprise framework
    */
-  private async extractEvidence(
+  private async extractStrategicEvidence(
     documents: any[], 
     question: any
   ): Promise<any[]> {
@@ -214,8 +246,8 @@ export class ComprehensiveResearchAnalysisService {
       
       const batchResults = await Promise.all(
         batch.map(async (doc) => {
-          console.log(`🔎 Extracting evidence from: ${doc.name}`);
-          return this.extractEvidenceFromDocument(doc, question);
+          console.log(`🔎 Extracting strategic evidence from: ${doc.name}`);
+          return this.extractStrategicEvidenceFromDocument(doc, question);
         })
       );
       
@@ -233,39 +265,54 @@ export class ComprehensiveResearchAnalysisService {
   }
 
   /**
-   * Extract specific evidence from a single document - EXACT CLINICAL APPROACH
+   * Extract strategic intelligence evidence from a single document using enterprise framework
    */
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+  private async extractStrategicEvidenceFromDocument(document: any, question: any): Promise<any> {
     const content = document.ocrText || document.aiSummary?.executiveSummary || '';
     
     if (!content) return null;
     
-    const prompt = `You are an expert research analyst conducting comprehensive investment analysis. Your task is to find ANY research, market, competitive, strategic, or technological information, even if indirectly related.
+    const prompt = `${ENTERPRISE_AGENT_PROMPTS.RESEARCH.SYSTEM_PROMPT}
 
-DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
+${ENTERPRISE_AGENT_PROMPTS.RESEARCH.ANALYSIS_PROMPT}
 
-QUESTION: "${question.question}"
-ANALYSIS TASK: ${question.analysisPrompt}
+DOCUMENT ANALYSIS:
+Document: ${document.name}
+Content: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for strategic intelligence analysis...]' : ''}
 
-Instructions:
-- Look for DIRECT research terms: market analysis, competitive intelligence, technology assessment, strategic planning
-- Look for INDIRECT research information: business intelligence, market data, industry reports, strategic documents
-- Consider business documents that mention research findings, market insights, competitive analysis
-- Even general business context often has research implications for investment due diligence
-- For investment companies, most business documents contain research information relevant to investors
+STRATEGIC INTELLIGENCE QUESTION: "${question.question}"
+CATEGORY: ${question.category}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
-Respond in JSON format:
+SPECIAL ANALYSIS REQUIREMENTS:
+${question.trlMapping ? '• TRL ASSESSMENT: Rate technology readiness level (1-9) with development milestones and technical risk quantification' : ''}
+${question.adoptionCurveAnalysis ? '• ADOPTION CURVE: Identify market adoption stage (Innovators/Early Adopters/Early Majority/Late Majority/Laggards) with timing analysis' : ''}
+${question.innovationMetrics ? '• R&D PRODUCTIVITY: Calculate innovation efficiency ratios and pipeline depth metrics with commercial potential assessment' : ''}
+${question.strategicScoring ? '• STRATEGIC POSITIONING: Quantify partnership value, ecosystem leverage, and competitive intelligence with market impact scores' : ''}
+
+${ENTERPRISE_PROMPT_FRAMEWORK.QUANTITATIVE_FOCUS}
+
+Respond in enhanced JSON format:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["Exact quote 1", "Exact quote 2"],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "researchContext": "How this document relates to research/strategic aspects of the business"
+  "keyFindings": ["Strategic finding 1", "Strategic finding 2"],
+  "documentSummary": "Strategic intelligence summary",
+  "strategicContext": "How this relates to strategic intelligence and investment implications",
+  "quantitativeMetrics": {
+    "trlLevel": 0-9 or null,
+    "adoptionStage": "stage name or null",
+    "rdProductivityScore": 0-100 or null,
+    "strategicPositionScore": 0-100 or null,
+    "riskLevel": "HIGH/MEDIUM/LOW",
+    "confidenceInterval": "percentage range"
+  },
+  "investmentImplications": ["Direct impact on investment decision"],
+  "redFlags": ["Critical risks identified"]
 }
 
-Be thorough in finding relevance - most business documents have research implications for investment analysis.`;
+Apply institutional-grade analysis with quantitative emphasis and strategic intelligence focus.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -286,7 +333,11 @@ Be thorough in finding relevance - most business documents have research implica
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 2000) // Keep larger sample for reference
+        strategicContext: analysis.strategicContext || '',
+        quantitativeMetrics: analysis.quantitativeMetrics || {},
+        investmentImplications: analysis.investmentImplications || [],
+        redFlags: analysis.redFlags || [],
+        fullContent: content.substring(0, 2000)
       };
       
     } catch (error) {
@@ -298,16 +349,20 @@ Be thorough in finding relevance - most business documents have research implica
         hasRelevantInfo: false,
         confidence: 0,
         keyFindings: [],
-        documentSummary: 'Analysis failed',
+        documentSummary: 'Strategic analysis failed',
+        strategicContext: '',
+        quantitativeMetrics: {},
+        investmentImplications: [],
+        redFlags: ['Analysis error - manual review required'],
         fullContent: content.substring(0, 1000)
       };
     }
   }
 
   /**
-   * Compile comprehensive answer based on all evidence - EXACT CLINICAL APPROACH
+   * Compile strategic intelligence answer using enterprise framework
    */
-  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+  private async compileStrategicIntelligenceAnswer(question: any, evidence: any[]): Promise<any> {
     console.log(`🔍 Compiling answer for: ${question.question}`);
     console.log(`📊 Using evidence from ${evidence.length} documents`);
     
@@ -319,24 +374,57 @@ Content: ${doc.relevantContent.join(' | ')}
 Summary: ${doc.documentSummary}`;
     }).join('\n\n');
     
-    const prompt = `You are an expert research analyst providing comprehensive investment analysis. Based on the evidence extracted from documents, provide a detailed answer to the research question.
+    const prompt = `${ENTERPRISE_AGENT_PROMPTS.RESEARCH.SYSTEM_PROMPT}
+
+${ENTERPRISE_AGENT_PROMPTS.RESEARCH.ANALYSIS_PROMPT}
+
+STRATEGIC INTELLIGENCE SYNTHESIS:
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
-ANALYSIS TASK: ${question.analysisPrompt}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
 EVIDENCE FROM DOCUMENTS:
 ${evidenceSummary}
 
-Please provide a comprehensive analysis including:
-1. Direct answer to the question based on evidence
-2. Key insights and findings from the documents
-3. Data points, metrics, or specific evidence found
-4. Risk factors or concerns identified
-5. Confidence level in your analysis (0-100)
-6. Specific recommendations for investment consideration
+SPECIAL REQUIREMENTS:
+${question.trlMapping ? '• Provide TRL assessment (1-9) with development timeline and technical risk quantification' : ''}
+${question.adoptionCurveAnalysis ? '• Identify adoption stage and market timing with competitive window analysis' : ''}
+${question.innovationMetrics ? '• Calculate R&D productivity metrics and innovation pipeline strength scores' : ''}
+${question.strategicScoring ? '• Quantify strategic positioning value with ecosystem leverage assessment' : ''}
 
-Format your response to be detailed yet concise, focusing on actionable insights for investment decision-making.`;
+${ENTERPRISE_PROMPT_FRAMEWORK.QUANTITATIVE_FOCUS}
+${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}
+
+Respond in JSON format with enhanced strategic intelligence structure:
+{
+  "executiveSummary": {
+    "keyFinding": "Most critical strategic insight",
+    "quantitativeImpact": "Specific metrics and percentages",
+    "riskLevel": "HIGH/MEDIUM/LOW with rationale",
+    "investmentImplication": "Direct impact on investment decision",
+    "actionRequired": "Specific next steps"
+  },
+  "strategicAnalysis": {
+    "directAnswer": "Evidence-based response to question",
+    "keyInsights": ["Insight 1", "Insight 2"],
+    "quantitativeMetrics": {
+      "trlLevel": 1-9 or null,
+      "adoptionStage": "stage" or null,
+      "rdProductivityScore": 1-100 or null,
+      "strategicPositionScore": 1-100 or null,
+      "confidenceInterval": "percentage range"
+    },
+    "riskFactors": ["Risk 1", "Risk 2"],
+    "competitiveIntelligence": ["Competitive insight 1", "Competitive insight 2"]
+  },
+  "investmentRecommendations": ["Recommendation 1", "Recommendation 2"],
+  "dueDiligenceGaps": ["Information gap 1", "Information gap 2"],
+  "confidence": 1-100,
+  "evidenceStrength": "HIGH/MEDIUM/LOW"
+}
+
+Provide institutional-grade analysis with quantitative emphasis and strategic intelligence focus.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -349,30 +437,44 @@ Format your response to be detailed yet concise, focusing on actionable insights
       
       const answer = response.choices[0]?.message?.content || 'Unable to compile comprehensive answer';
       
+      const analysisResult = JSON.parse(answer);
+      
       return {
         question: question.question,
-        answer: answer,
-        confidence: this.calculateConfidence(evidence),
+        category: question.category,
+        executiveSummary: analysisResult.executiveSummary || {},
+        strategicAnalysis: analysisResult.strategicAnalysis || {},
+        investmentRecommendations: analysisResult.investmentRecommendations || [],
+        dueDiligenceGaps: analysisResult.dueDiligenceGaps || [],
+        confidence: analysisResult.confidence || this.calculateConfidence(evidence),
+        evidenceStrength: analysisResult.evidenceStrength || 'MEDIUM',
         sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,
-        keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 10),
-        evidenceSummary: `Analysis based on ${evidence.length} documents with ${evidence.reduce((acc, e) => acc + e.relevantContent.length, 0)} pieces of evidence`,
-        researchAssessment: this.generateResearchAssessment(evidence, answer),
-        recommendations: this.extractRecommendations(answer)
+        quantitativeMetrics: this.aggregateQuantitativeMetrics(evidence),
+        strategicIntelligence: this.generateStrategicIntelligenceScore(evidence, analysisResult),
+        redFlags: evidence.flatMap(e => e.redFlags).filter(flag => flag),
+        evidenceSummary: `Strategic analysis based on ${evidence.length} documents with ${evidence.reduce((acc, e) => acc + e.relevantContent.length, 0)} pieces of evidence`
       };
       
     } catch (error) {
       console.error(`Error compiling comprehensive answer:`, error);
       return {
         question: question.question,
-        answer: 'Error occurred during analysis compilation',
+        category: question.category,
+        executiveSummary: { 
+          keyFinding: 'Analysis error - manual review required',
+          riskLevel: 'HIGH',
+          investmentImplication: 'Unable to assess due to technical error'
+        },
+        strategicAnalysis: { directAnswer: 'Error occurred during strategic analysis compilation' },
         confidence: 0,
+        evidenceStrength: 'LOW',
         sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,
-        keyFindings: [],
-        evidenceSummary: 'Analysis compilation failed',
-        researchAssessment: 'Unable to generate research assessment',
-        recommendations: []
+        quantitativeMetrics: {},
+        strategicIntelligence: { overallScore: 0 },
+        redFlags: ['Strategic analysis compilation failed - manual review required'],
+        evidenceSummary: 'Strategic intelligence compilation failed'
       };
     }
   }
@@ -384,47 +486,94 @@ Format your response to be detailed yet concise, focusing on actionable insights
     return Math.min(Math.round(avgConfidence + documentBonus), 100);
   }
 
-  private generateResearchAssessment(evidence: any[], answer: string): string {
-    const docCount = evidence.length;
-    const totalFindings = evidence.reduce((acc, e) => acc + e.keyFindings.length, 0);
+  /**
+   * Aggregate quantitative metrics from evidence
+   */
+  private aggregateQuantitativeMetrics(evidence: any[]): any {
+    const metrics = evidence.map(e => e.quantitativeMetrics).filter(m => m && Object.keys(m).length > 0);
     
-    return `Research analysis based on ${docCount} documents with ${totalFindings} key findings. ${
-      docCount >= 3 ? 'Strong' : docCount >= 2 ? 'Moderate' : 'Limited'
-    } evidence base supports research conclusions.`;
+    if (metrics.length === 0) return {};
+    
+    return {
+      avgTrlLevel: this.calculateAverage(metrics.map(m => m.trlLevel).filter(t => t)),
+      predominantAdoptionStage: this.findMostCommon(metrics.map(m => m.adoptionStage).filter(s => s)),
+      avgRdProductivityScore: this.calculateAverage(metrics.map(m => m.rdProductivityScore).filter(s => s)),
+      avgStrategicPositionScore: this.calculateAverage(metrics.map(m => m.strategicPositionScore).filter(s => s)),
+      overallRiskLevel: this.determineOverallRisk(metrics.map(m => m.riskLevel).filter(r => r))
+    };
   }
 
-  private extractRecommendations(answer: string): string[] {
-    // Simple extraction of recommendation-like content
-    const recommendations = [];
-    const lines = answer.split(/[.\n]/).filter(line => 
-      line.toLowerCase().includes('recommend') || 
-      line.toLowerCase().includes('should') ||
-      line.toLowerCase().includes('consider') ||
-      line.toLowerCase().includes('suggest')
-    );
+  /**
+   * Generate strategic intelligence score
+   */
+  private generateStrategicIntelligenceScore(evidence: any[], analysisResult: any): any {
+    const metrics = this.aggregateQuantitativeMetrics(evidence);
     
-    recommendations.push(...lines.slice(0, 3).map(line => line.trim()));
+    return {
+      overallScore: this.calculateOverallStrategicScore(metrics),
+      technologyReadiness: metrics.avgTrlLevel || 0,
+      marketTiming: this.mapAdoptionStageToScore(metrics.predominantAdoptionStage),
+      innovationValue: metrics.avgRdProductivityScore || 0,
+      strategicPosition: metrics.avgStrategicPositionScore || 0,
+      confidenceLevel: analysisResult.confidence || 0,
+      evidenceQuality: evidence.length >= 3 ? 'HIGH' : evidence.length >= 2 ? 'MEDIUM' : 'LOW'
+    };
+  }
+
+  /**
+   * Update strategic scoring components based on question analysis
+   */
+  private updateStrategicScoring(
+    question: any, 
+    answer: any, 
+    technologyReadiness: any, 
+    marketTiming: any, 
+    innovationValue: any, 
+    strategicPosition: any
+  ): void {
+    const metrics = answer.quantitativeMetrics || {};
     
-    if (recommendations.length === 0) {
-      recommendations.push('Review detailed research analysis for investment decision making');
+    if (question.trlMapping && metrics.avgTrlLevel) {
+      technologyReadiness.trlLevel = Math.max(technologyReadiness.trlLevel, metrics.avgTrlLevel);
+      technologyReadiness.developmentRisk = this.calculateDevelopmentRisk(metrics.avgTrlLevel);
+      technologyReadiness.timeToMarket = this.estimateTimeToMarket(metrics.avgTrlLevel);
     }
     
-    return recommendations;
+    if (question.adoptionCurveAnalysis && metrics.predominantAdoptionStage) {
+      marketTiming.adoptionStage = metrics.predominantAdoptionStage;
+      marketTiming.competitiveWindow = this.calculateCompetitiveWindow(metrics.predominantAdoptionStage);
+      marketTiming.marketReadiness = this.assessMarketReadiness(metrics.predominantAdoptionStage);
+    }
+    
+    if (question.innovationMetrics && metrics.avgRdProductivityScore) {
+      innovationValue.rdProductivity = Math.max(innovationValue.rdProductivity, metrics.avgRdProductivityScore);
+      innovationValue.pipelineStrength = this.assessPipelineStrength(answer);
+      innovationValue.breakthroughPotential = this.assessBreakthroughPotential(answer);
+    }
+    
+    if (question.strategicScoring && metrics.avgStrategicPositionScore) {
+      strategicPosition.partnershipValue = this.assessPartnershipValue(answer);
+      strategicPosition.ecosystemLeverage = this.assessEcosystemLeverage(answer);
+      strategicPosition.competitiveIntelligence = Math.max(strategicPosition.competitiveIntelligence, metrics.avgStrategicPositionScore);
+    }
   }
 
-  private async generateFindingsAndRecommendations(researchAnswers: Record<string, string>) {
+  /**
+   * Generate strategic intelligence findings using enterprise framework
+   */
+  private async generateStrategicIntelligenceFindings(strategicIntelligence: Record<string, any>) {
     try {
-      const answersText = Object.entries(researchAnswers)
+      const analysisText = Object.entries(strategicIntelligence)
         .map(([questionId, answer]) => {
-          const question = RESEARCH_QUESTIONS.find(q => q.id === questionId);
-          return `${question?.question}: ${answer}`;
+          const question = STRATEGIC_INTELLIGENCE_QUESTIONS.find(q => q.id === questionId);
+          return `${question?.question}:\nExecutive Summary: ${JSON.stringify(answer.executiveSummary)}\nStrategic Analysis: ${JSON.stringify(answer.strategicAnalysis)}\nRecommendations: ${answer.investmentRecommendations?.join('; ')}`;
         })
         .join('\n\n');
 
-      const prompt = `Based on the following comprehensive research analysis, generate key findings and recommendations:
+      const prompt = `Based on the following comprehensive strategic intelligence analysis, generate key findings and recommendations:
 
-RESEARCH ANALYSIS:
-${answersText}
+STRATEGIC INTELLIGENCE ANALYSIS:
+${analysisText}
 
 Please provide:
 
@@ -468,7 +617,14 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         .filter(r => r.trim().length > 10)
         .map(r => r.trim()) || [];
 
-      return { findings, recommendations };
+      const result = JSON.parse(content);
+      
+      return {
+        findings: result.findings || findings,
+        recommendations: result.recommendations || recommendations,
+        redFlags: result.redFlags || [],
+        strategicIntelligence: result.strategicIntelligence || {}
+      };
       
     } catch (error) {
       console.error('Error generating findings and recommendations:', error);
@@ -479,7 +635,17 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
     }
   }
 
-  private async completeAnalysis(dealId: number, researchAnswers: Record<string, string>, findings: string[], recommendations: string[], docsProcessed: number) {
+  /**
+   * Complete strategic analysis with enhanced JSON format
+   */
+  private async completeStrategicAnalysis(
+    dealId: number, 
+    strategicIntelligence: Record<string, any>, 
+    findings: string[], 
+    recommendations: string[], 
+    docsProcessed: number,
+    finalScores: any
+  ) {
     try {
       // Delete any existing research analysis for this deal
       await db.delete(agentAnalyses)
@@ -502,7 +668,11 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
           category: 'research', 
           impact: 'medium' 
         })) : undefined,
-        research_answers: Object.keys(researchAnswers).length > 0 ? researchAnswers : undefined
+        research_answers: Object.keys(strategicIntelligence).length > 0 ? strategicIntelligence : undefined,
+        technologyReadiness: finalScores.technologyReadiness,
+        marketTiming: finalScores.marketTiming,
+        innovationValue: finalScores.innovationValue,
+        strategicPosition: finalScores.strategicPosition
       };
 
       await db.insert(agentAnalyses).values(insertData);
@@ -524,13 +694,170 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
     }
   }
 
+  /**
+   * Calculate strategic intelligence scores
+   */
+  private calculateStrategicIntelligenceScores(
+    technologyReadiness: any,
+    marketTiming: any,
+    innovationValue: any,
+    strategicPosition: any
+  ): any {
+    return {
+      technologyReadiness: {
+        trlLevel: technologyReadiness.trlLevel,
+        developmentRisk: technologyReadiness.developmentRisk,
+        timeToMarket: technologyReadiness.timeToMarket,
+        overallScore: this.calculateTRLScore(technologyReadiness.trlLevel)
+      },
+      marketTiming: {
+        adoptionStage: marketTiming.adoptionStage,
+        competitiveWindow: marketTiming.competitiveWindow,
+        marketReadiness: marketTiming.marketReadiness,
+        overallScore: this.calculateTimingScore(marketTiming.adoptionStage)
+      },
+      innovationValue: {
+        rdProductivity: innovationValue.rdProductivity,
+        pipelineStrength: innovationValue.pipelineStrength,
+        breakthroughPotential: innovationValue.breakthroughPotential,
+        overallScore: (innovationValue.rdProductivity + innovationValue.pipelineStrength + innovationValue.breakthroughPotential) / 3
+      },
+      strategicPosition: {
+        partnershipValue: strategicPosition.partnershipValue,
+        ecosystemLeverage: strategicPosition.ecosystemLeverage,
+        competitiveIntelligence: strategicPosition.competitiveIntelligence,
+        overallScore: (strategicPosition.partnershipValue + strategicPosition.ecosystemLeverage + strategicPosition.competitiveIntelligence) / 3
+      }
+    };
+  }
+
+  // Helper methods for strategic intelligence scoring
+  private calculateAverage(numbers: number[]): number {
+    return numbers.length > 0 ? numbers.reduce((sum, n) => sum + n, 0) / numbers.length : 0;
+  }
+
+  private findMostCommon(items: string[]): string {
+    if (items.length === 0) return '';
+    const frequency = items.reduce((acc, item) => {
+      acc[item] = (acc[item] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return Object.keys(frequency).reduce((a, b) => frequency[a] > frequency[b] ? a : b);
+  }
+
+  private determineOverallRisk(riskLevels: string[]): string {
+    if (riskLevels.includes('HIGH')) return 'HIGH';
+    if (riskLevels.includes('MEDIUM')) return 'MEDIUM';
+    return 'LOW';
+  }
+
+  private calculateOverallStrategicScore(metrics: any): number {
+    const scores = [
+      metrics.avgTrlLevel ? (metrics.avgTrlLevel / 9) * 100 : 0,
+      this.mapAdoptionStageToScore(metrics.predominantAdoptionStage),
+      metrics.avgRdProductivityScore || 0,
+      metrics.avgStrategicPositionScore || 0
+    ];
+    return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  }
+
+  private mapAdoptionStageToScore(stage: string): number {
+    const stageScores: Record<string, number> = {
+      'Innovators': 90,
+      'Early Adopters': 75,
+      'Early Majority': 60,
+      'Late Majority': 40,
+      'Laggards': 20
+    };
+    return stageScores[stage] || 50;
+  }
+
+  private calculateDevelopmentRisk(trlLevel: number): number {
+    return Math.max(0, (9 - trlLevel) * 10); // Higher TRL = lower risk
+  }
+
+  private estimateTimeToMarket(trlLevel: number): number {
+    const timeEstimates = [60, 48, 36, 24, 18, 12, 9, 6, 3]; // months
+    return timeEstimates[Math.max(0, Math.min(8, Math.round(trlLevel) - 1))] || 12;
+  }
+
+  private calculateCompetitiveWindow(adoptionStage: string): number {
+    const windowScores: Record<string, number> = {
+      'Innovators': 95,
+      'Early Adopters': 80,
+      'Early Majority': 60,
+      'Late Majority': 30,
+      'Laggards': 10
+    };
+    return windowScores[adoptionStage] || 50;
+  }
+
+  private assessMarketReadiness(adoptionStage: string): number {
+    const readinessScores: Record<string, number> = {
+      'Innovators': 20,
+      'Early Adopters': 40,
+      'Early Majority': 70,
+      'Late Majority': 90,
+      'Laggards': 95
+    };
+    return readinessScores[adoptionStage] || 50;
+  }
+
+  private assessPipelineStrength(answer: any): number {
+    // Extract pipeline strength indicators from analysis
+    const indicators = answer.strategicAnalysis?.keyInsights?.filter((insight: string) => 
+      insight.toLowerCase().includes('pipeline') || 
+      insight.toLowerCase().includes('innovation') ||
+      insight.toLowerCase().includes('r&d')
+    ).length || 0;
+    return Math.min(100, indicators * 25);
+  }
+
+  private assessBreakthroughPotential(answer: any): number {
+    // Extract breakthrough potential from analysis
+    const breakthroughIndicators = answer.strategicAnalysis?.keyInsights?.filter((insight: string) => 
+      insight.toLowerCase().includes('breakthrough') || 
+      insight.toLowerCase().includes('disruptive') ||
+      insight.toLowerCase().includes('revolutionary')
+    ).length || 0;
+    return Math.min(100, breakthroughIndicators * 30);
+  }
+
+  private assessPartnershipValue(answer: any): number {
+    // Extract partnership value from analysis
+    const partnershipIndicators = answer.strategicAnalysis?.keyInsights?.filter((insight: string) => 
+      insight.toLowerCase().includes('partnership') || 
+      insight.toLowerCase().includes('alliance') ||
+      insight.toLowerCase().includes('collaboration')
+    ).length || 0;
+    return Math.min(100, partnershipIndicators * 25);
+  }
+
+  private assessEcosystemLeverage(answer: any): number {
+    // Extract ecosystem leverage from analysis
+    const ecosystemIndicators = answer.strategicAnalysis?.keyInsights?.filter((insight: string) => 
+      insight.toLowerCase().includes('ecosystem') || 
+      insight.toLowerCase().includes('platform') ||
+      insight.toLowerCase().includes('network')
+    ).length || 0;
+    return Math.min(100, ecosystemIndicators * 30);
+  }
+
+  private calculateTRLScore(trlLevel: number): number {
+    return Math.round((trlLevel / 9) * 100);
+  }
+
+  private calculateTimingScore(adoptionStage: string): number {
+    return this.mapAdoptionStageToScore(adoptionStage);
+  }
+
   private async updateJobProgress(progress: number, step: string) {
     try {
       await this.storage.updateBackgroundJob(this.jobId, {
         progress: Math.round(progress),
         currentStep: step
       });
-      console.log(`🔬 Research Analysis Progress: ${Math.round(progress)}% - ${step}`);
+      console.log(`🎯 Strategic Intelligence Analysis Progress: ${Math.round(progress)}% - ${step}`);
     } catch (error) {
       console.error('Error updating job progress:', error);
     }

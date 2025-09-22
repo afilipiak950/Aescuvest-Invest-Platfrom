@@ -338,8 +338,8 @@ async function getAnalysisServiceForAgent(agentType: string): Promise<any> {
       return comprehensiveClinicalAnalysisService;
       
     case 'commercial':
-      const { comprehensiveCommercialAnalysisService } = await import('../comprehensiveCommercialAnalysisService.js');
-      return comprehensiveCommercialAnalysisService;
+      const { marketStrategyExpertService } = await import('../comprehensiveCommercialAnalysisService.js');
+      return marketStrategyExpertService;
       
     case 'hr':
       const { ComprehensiveHRAnalysisService } = await import('../comprehensiveHRAnalysisService.js');
