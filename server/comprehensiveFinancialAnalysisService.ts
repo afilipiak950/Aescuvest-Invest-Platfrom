@@ -10,6 +10,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
+import { ENTERPRISE_AGENT_PROMPTS } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -121,6 +122,9 @@ interface FinancialEvidence {
   relevantContent: string[];
   keyFindings: string[];
   confidence: number;
+  quantitativeMetrics: string[];
+  revenueData: string[];
+  marketData: string[];
 }
 
 interface FinancialAnswer {
@@ -133,6 +137,28 @@ interface FinancialAnswer {
   evidenceSummary: string;
   financialAssessment: string;
   recommendations: string[];
+  financialHealthScore: number;
+  revenueMetrics: {
+    ltv?: number;
+    cac?: number;
+    ltvCacRatio?: number;
+    recurringRevenue?: number;
+    churnRate?: number;
+    growthRate?: number;
+  };
+  marketSizing: {
+    tam?: number;
+    sam?: number;
+    som?: number;
+    marketShare?: number;
+    addressableMarket?: string;
+  };
+  investmentImplications: {
+    riskLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+    quantitativeImpact: string;
+    actionRequired: string;
+    dueDiligenceRecommendations: string[];
+  };
 }
 
 export class ComprehensiveFinancialAnalysisService {
@@ -431,13 +457,13 @@ export class ComprehensiveFinancialAnalysisService {
         return null;
       }
 
-      // Extract specific evidence using OpenAI with focused prompt
+      // Extract specific evidence using OpenAI with ENTERPRISE-GRADE financial analysis prompt
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are a financial analysis expert. Extract specific evidence related to the given question from the document content. Focus on quantitative data, financial metrics, and specific financial information.`
+            content: ENTERPRISE_AGENT_PROMPTS.FINANCIAL.SYSTEM_PROMPT
           },
           {
             role: "user",
@@ -447,17 +473,39 @@ export class ComprehensiveFinancialAnalysisService {
             Question: ${question.question}
             Analysis Focus: ${question.analysisPrompt}
             
-            Extract specific evidence, financial data, and key findings related to this question. Return in JSON format:
+            ${ENTERPRISE_AGENT_PROMPTS.FINANCIAL.ANALYSIS_PROMPT}
+            
+            CRITICAL: Extract enterprise-grade financial evidence with quantitative focus:
+            
+            1. REVENUE MODEL ANALYSIS:
+               - Quantify revenue streams with growth rates and sustainability metrics
+               - Extract LTV/CAC ratios, payback periods, contribution margins
+               - Identify recurring revenue percentages and churn rates
+               
+            2. MARKET OPPORTUNITY SIZING:
+               - Calculate TAM/SAM/SOM with bottom-up validation data
+               - Extract market share percentages and competitive positioning
+               - Quantify addressable market segments with timeframes
+               
+            3. UNIT ECONOMICS & MARGINS:
+               - Extract cost structure, gross margins, unit profitability
+               - Calculate customer acquisition metrics and retention costs
+               - Identify scalability factors and margin improvement opportunities
+            
+            Return comprehensive financial evidence in JSON format:
             {
-              "relevantContent": ["specific quotes or data points"],
-              "keyFindings": ["key financial insights"],
+              "relevantContent": ["specific quotes with dollar amounts and percentages"],
+              "keyFindings": ["quantitative financial insights with specific metrics"],
+              "quantitativeMetrics": ["specific numbers, percentages, dollar amounts"],
+              "revenueData": ["LTV, CAC, ARR, MRR, growth rates, churn rates"],
+              "marketData": ["TAM/SAM/SOM figures, market share %, competitive data"],
               "confidence": 0.0-1.0
             }`
           }
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500 // Increased for full document comprehensive extraction
+        max_tokens: 3500 // Increased for comprehensive enterprise analysis
       });
 
       let rawContent = response.choices[0].message.content || '{}';
@@ -494,7 +542,10 @@ export class ComprehensiveFinancialAnalysisService {
         documentSummary: typeof doc.aiSummary === 'string' ? doc.aiSummary : 'No summary available',
         relevantContent: result.relevantContent || [],
         keyFindings: result.keyFindings || [],
-        confidence: result.confidence || 0.5
+        confidence: result.confidence || 0.5,
+        quantitativeMetrics: result.quantitativeMetrics || [],
+        revenueData: result.revenueData || [],
+        marketData: result.marketData || []
       };
 
     } catch (error) {
@@ -517,7 +568,29 @@ export class ComprehensiveFinancialAnalysisService {
         keyFindings: ["No relevant financial evidence found"],
         evidenceSummary: "No financial evidence located",
         financialAssessment: "Unable to assess due to lack of data",
-        recommendations: ["Obtain additional financial documentation for comprehensive analysis"]
+        recommendations: ["Obtain additional financial documentation for comprehensive analysis"],
+        financialHealthScore: 0,
+        revenueMetrics: {
+          ltv: null,
+          cac: null,
+          ltvCacRatio: null,
+          recurringRevenue: null,
+          churnRate: null,
+          growthRate: null
+        },
+        marketSizing: {
+          tam: null,
+          sam: null,
+          som: null,
+          marketShare: null,
+          addressableMarket: "Insufficient data to determine market opportunity"
+        },
+        investmentImplications: {
+          riskLevel: 'HIGH' as const,
+          quantitativeImpact: "Cannot assess due to insufficient financial data",
+          actionRequired: "Obtain comprehensive financial documentation before proceeding",
+          dueDiligenceRecommendations: ["Secure detailed financial statements", "Obtain revenue and growth projections", "Assess market opportunity with quantitative data"]
+        }
       };
     }
 
@@ -527,13 +600,13 @@ export class ComprehensiveFinancialAnalysisService {
         `${e.documentName}: ${e.keyFindings.join(', ')}`
       ).join('\n');
 
-      // Generate comprehensive analysis using OpenAI
+      // Generate comprehensive analysis using ENTERPRISE-GRADE OpenAI synthesis
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are a senior financial analyst conducting comprehensive due diligence. Analyze the provided evidence to answer the financial question thoroughly. Provide specific, quantitative insights with clear financial implications.`
+            content: ENTERPRISE_AGENT_PROMPTS.FINANCIAL.SYSTEM_PROMPT
           },
           {
             role: "user",
@@ -541,29 +614,81 @@ export class ComprehensiveFinancialAnalysisService {
             Category: ${question.category}
             Analysis Focus: ${question.analysisPrompt}
             
+            ${ENTERPRISE_AGENT_PROMPTS.FINANCIAL.ANALYSIS_PROMPT}
+            
             Evidence from documents:
             ${evidenceSummary}
             
-            Detailed Evidence:
+            Detailed Evidence with Quantitative Data:
             ${evidence.map(e => `
             Document: ${e.documentName}
-            Findings: ${e.keyFindings.join('; ')}
+            Key Findings: ${e.keyFindings.join('; ')}
+            Quantitative Metrics: ${e.quantitativeMetrics.join('; ')}
+            Revenue Data: ${e.revenueData.join('; ')}
+            Market Data: ${e.marketData.join('; ')}
             Content: ${e.relevantContent.join('; ')}
             `).join('\n')}
             
-            Provide a comprehensive financial analysis in JSON format:
+            CRITICAL: Provide institutional-grade financial analysis with ENTERPRISE FRAMEWORK:
+            
+            **EXECUTIVE SUMMARY:**
+            • Key Finding: [Most critical insight in 1 sentence]
+            • Quantitative Impact: [Specific metrics, percentages, dollar amounts]
+            • Risk Level: [HIGH/MEDIUM/LOW with specific rationale]
+            • Investment Implication: [Direct impact on investment decision]
+            • Action Required: [Specific next steps for investors]
+
+            **DETAILED ANALYSIS:**
+            1. REVENUE MODEL ANALYSIS:
+               - Quantify revenue streams with growth rates and sustainability
+               - Calculate LTV/CAC ratios, payback periods, contribution margins
+               - Assess recurring revenue percentage and churn rates
+               
+            2. MARKET OPPORTUNITY SIZING:
+               - Calculate TAM/SAM/SOM with bottom-up validation
+               - Assess market share capture potential with timeframes
+               - Quantify competitive threats to market position
+               
+            3. UNIT ECONOMICS & FINANCIAL HEALTH:
+               - Extract cost structure, gross margins, unit profitability
+               - Calculate financial health score (1-100)
+               - Assess scalability factors and margin improvement
+            
+            Return comprehensive enterprise-grade analysis in JSON format:
             {
-              "answer": "detailed financial analysis with specific data points",
+              "answer": "detailed institutional-grade financial analysis with executive summary and specific data points",
               "confidence": 0.0-1.0,
-              "keyFindings": ["key financial insights"],
-              "financialAssessment": "overall financial assessment and implications",
-              "recommendations": ["specific financial recommendations"]
+              "keyFindings": ["quantitative financial insights with specific metrics and percentages"],
+              "financialAssessment": "overall investment-grade financial assessment with risk analysis",
+              "recommendations": ["specific institutional recommendations with actionable next steps"],
+              "financialHealthScore": 1-100,
+              "revenueMetrics": {
+                "ltv": number or null,
+                "cac": number or null,
+                "ltvCacRatio": number or null,
+                "recurringRevenue": number or null,
+                "churnRate": number or null,
+                "growthRate": number or null
+              },
+              "marketSizing": {
+                "tam": number or null,
+                "sam": number or null,
+                "som": number or null,
+                "marketShare": number or null,
+                "addressableMarket": "description of market opportunity"
+              },
+              "investmentImplications": {
+                "riskLevel": "HIGH|MEDIUM|LOW",
+                "quantitativeImpact": "specific metrics and dollar impact",
+                "actionRequired": "immediate next steps for investment decision",
+                "dueDiligenceRecommendations": ["specific areas requiring further investigation"]
+              }
             }`
           }
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 4000 // Increased for comprehensive financial analysis synthesis
+        max_tokens: 6000 // Increased for comprehensive enterprise analysis with all new fields
       });
 
       let rawContent = response.choices[0].message.content || '{}';
@@ -616,7 +741,29 @@ export class ComprehensiveFinancialAnalysisService {
         keyFindings: result.keyFindings || [],
         evidenceSummary: evidenceSummary,
         financialAssessment: result.financialAssessment || "Assessment unavailable",
-        recommendations: result.recommendations || []
+        recommendations: result.recommendations || [],
+        financialHealthScore: result.financialHealthScore || 50,
+        revenueMetrics: {
+          ltv: result.revenueMetrics?.ltv || null,
+          cac: result.revenueMetrics?.cac || null,
+          ltvCacRatio: result.revenueMetrics?.ltvCacRatio || null,
+          recurringRevenue: result.revenueMetrics?.recurringRevenue || null,
+          churnRate: result.revenueMetrics?.churnRate || null,
+          growthRate: result.revenueMetrics?.growthRate || null
+        },
+        marketSizing: {
+          tam: result.marketSizing?.tam || null,
+          sam: result.marketSizing?.sam || null,
+          som: result.marketSizing?.som || null,
+          marketShare: result.marketSizing?.marketShare || null,
+          addressableMarket: result.marketSizing?.addressableMarket || "Market opportunity assessment pending"
+        },
+        investmentImplications: {
+          riskLevel: result.investmentImplications?.riskLevel || 'MEDIUM',
+          quantitativeImpact: result.investmentImplications?.quantitativeImpact || "Quantitative impact assessment pending",
+          actionRequired: result.investmentImplications?.actionRequired || "Further analysis required",
+          dueDiligenceRecommendations: result.investmentImplications?.dueDiligenceRecommendations || ["Conduct deeper financial analysis"]
+        }
       };
 
     } catch (error) {
@@ -631,7 +778,29 @@ export class ComprehensiveFinancialAnalysisService {
         keyFindings: ["Analysis compilation failed"],
         evidenceSummary: "Analysis compilation failed",
         financialAssessment: "Assessment failed due to processing error",
-        recommendations: ["Retry analysis with technical support"]
+        recommendations: ["Retry analysis with technical support"],
+        financialHealthScore: 0,
+        revenueMetrics: {
+          ltv: null,
+          cac: null,
+          ltvCacRatio: null,
+          recurringRevenue: null,
+          churnRate: null,
+          growthRate: null
+        },
+        marketSizing: {
+          tam: null,
+          sam: null,
+          som: null,
+          marketShare: null,
+          addressableMarket: "Analysis failed - unable to assess market opportunity"
+        },
+        investmentImplications: {
+          riskLevel: 'HIGH' as const,
+          quantitativeImpact: "Analysis compilation error prevents assessment",
+          actionRequired: "Resolve technical issues and retry financial analysis",
+          dueDiligenceRecommendations: ["Technical debugging required", "Retry with system support", "Verify document processing pipeline"]
+        }
       };
     }
   }

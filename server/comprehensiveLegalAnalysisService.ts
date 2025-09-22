@@ -128,6 +128,12 @@ interface LegalEvidence {
   relevantContent: string[];
   keyFindings: string[];
   confidence: number;
+  legalRiskScore: number;
+  quantitativeMetrics: Record<string, any>;
+  redFlags: string[];
+  riskFactors: string[];
+  investmentImpact: string;
+  dueDiligenceRecommendations: string[];
 }
 
 interface LegalAnswer {
@@ -140,6 +146,12 @@ interface LegalAnswer {
   evidenceSummary: string;
   legalAssessment: string;
   recommendations: string[];
+  legalRiskScore: number;
+  quantitativeMetrics: Record<string, any>;
+  redFlags: string[];
+  riskFactors: string[];
+  investmentImpact: string;
+  dueDiligenceRecommendations: string[];
 }
 
 class ComprehensiveLegalAnalysisService {
@@ -456,38 +468,58 @@ class ComprehensiveLegalAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to find ANY legal, regulatory, contractual, or compliance information, even if indirectly related.
+    const prompt = `${ENTERPRISE_AGENT_PROMPTS.LEGAL.SYSTEM_PROMPT}
+
+${ENTERPRISE_AGENT_PROMPTS.LEGAL.ANALYSIS_PROMPT}
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
+CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for institutional-grade analysis...]' : ''}
 
 QUESTION: "${question.question}"
-ANALYSIS TASK: ${question.analysisPrompt}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
-Instructions:
-- Extract ALL contractual terms, payment schedules, obligations, deliverables, performance requirements
-- Find ALL legal terms: warranties, liabilities, indemnification, termination clauses, governing law
-- Capture ALL regulatory requirements, compliance obligations, licensing terms, IP restrictions
-- Extract ALL financial terms: pricing, payment terms, penalties, revenue sharing, royalties
-- Include ALL corporate governance: board requirements, shareholder rights, voting provisions
-- Find ALL risk factors: litigation, disputes, regulatory violations, non-compliance issues
-- Be exhaustive - read the ENTIRE document content provided (up to 100k characters) and extract every legal detail
-- Process the complete document content thoroughly - do not miss any terms, clauses, or obligations
-- This is full document analysis - capture everything of legal significance
+INSTITUTIONAL ANALYSIS REQUIREMENTS:
+• CONTRACT LIABILITY QUANTIFICATION: Extract specific dollar amounts, percentage terms, caps on liability
+• TERMINATION ANALYSIS: Identify notice periods, termination triggers, post-termination obligations
+• REGULATORY COMPLIANCE GAPS: Map compliance requirements with estimated remediation costs
+• INTELLECTUAL PROPERTY RISKS: Assess IP litigation exposure, licensing restrictions, freedom to operate
+• CORPORATE GOVERNANCE ISSUES: Evaluate fiduciary duties, conflicts of interest, board composition requirements
 
-Respond in JSON format:
+QUANTITATIVE EXTRACTION MANDATES:
+✓ Quote exact dollar amounts, percentages, timeframes from contracts
+✓ Identify liability caps, indemnification limits, penalty calculations
+✓ Extract payment terms, milestone schedules, performance metrics
+✓ Quantify regulatory compliance costs and timelines
+✓ Calculate termination notice periods and cure periods
+
+RISK SCORING CRITERIA (1-10 scale):
+• Contract Terms: Assess enforceability, liability exposure, termination risk
+• Regulatory Status: Evaluate compliance gaps, violation penalties, approval probability
+• IP Position: Analyze litigation risk, licensing dependencies, patent strength
+• Corporate Structure: Review governance adequacy, fiduciary compliance, transaction risks
+
+Respond in JSON format with enhanced institutional metrics:
 {
-  "relevantContent": ["Exact quote 1 with full context", "Exact quote 2 with full context", "Additional comprehensive quotes..."],
+  "relevantContent": ["Exact contractual quotes with $ amounts", "Specific regulatory requirements with timelines", "IP terms with licensing details"],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Comprehensive finding 1", "Comprehensive finding 2", "All other relevant findings..."],
-  "documentSummary": "Detailed summary of ALL legal content in this document relevant to the question",
-  "legalContext": "Complete analysis of how this document relates to legal/regulatory aspects",
-  "allTermsFound": ["Every contractual term", "Every obligation", "Every legal provision found"],
-  "criticalDetails": ["All payment terms", "All performance requirements", "All compliance obligations"]
+  "keyFindings": ["Quantified liability exposures", "Specific compliance gaps with costs", "Material contract risks"],
+  "documentSummary": "Executive summary of legal materiality to investment decision",
+  "legalRiskScore": 1-10,
+  "quantitativeMetrics": {
+    "liabilityExposure": "$ amount or percentage if specified",
+    "terminationNotice": "days/months required",
+    "complianceCosts": "estimated $ for gaps identified",
+    "contractValue": "$ value if specified",
+    "penaltyRisk": "maximum $ penalty exposure"
+  },
+  "redFlags": ["Deal-breaker legal issues", "Material litigation risks", "Regulatory violation exposure"],
+  "riskFactors": ["Specific legal risks with probability assessment", "Compliance timeline risks", "Contract enforceability concerns"],
+  "investmentImpact": "Direct impact on investment thesis and valuation",
+  "dueDiligenceRecommendations": ["Specific legal items requiring further investigation", "Expert consultations needed", "Additional documentation required"]
 }
 
-Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
+Apply institutional investment standards - prioritize material risks that impact valuation and deal structure.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -508,6 +540,12 @@ Be thorough in finding relevance - most business documents have legal implicatio
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
+        legalRiskScore: analysis.legalRiskScore || 0,
+        quantitativeMetrics: analysis.quantitativeMetrics || {},
+        redFlags: analysis.redFlags || [],
+        riskFactors: analysis.riskFactors || [],
+        investmentImpact: analysis.investmentImpact || '',
+        dueDiligenceRecommendations: analysis.dueDiligenceRecommendations || [],
         fullContent: content.substring(0, 2000) // Keep larger sample for reference
       };
       
@@ -521,6 +559,12 @@ Be thorough in finding relevance - most business documents have legal implicatio
         confidence: 0,
         keyFindings: [],
         documentSummary: 'Analysis failed',
+        legalRiskScore: 0,
+        quantitativeMetrics: {},
+        redFlags: ['Analysis failed - requires manual review'],
+        riskFactors: ['Technical error in document processing'],
+        investmentImpact: 'Unknown due to analysis failure',
+        dueDiligenceRecommendations: ['Manual legal review required', 'Retry automated analysis'],
         fullContent: content.substring(0, 1000)
       };
     }
