@@ -272,7 +272,7 @@ export class ComprehensiveHRAnalysisService {
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
           const answer = await Promise.race([
             this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 600000)) // 600 second (10 minute) timeout - MASSIVE increase
           ]);
           hr_answers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);

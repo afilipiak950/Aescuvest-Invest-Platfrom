@@ -407,7 +407,7 @@ export class ComprehensiveFinancialAnalysisService {
       try {
         // Add timeout for batch processing (15 seconds max)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Batch processing timeout')), 15000);
+          setTimeout(() => reject(new Error('Batch processing timeout')), 300000); // 300 second (5 minute) timeout - MASSIVE increase
         });
 
         const results = await Promise.race([
