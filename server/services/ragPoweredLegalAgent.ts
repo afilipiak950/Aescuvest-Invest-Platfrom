@@ -337,11 +337,11 @@ export class RAGPoweredLegalAgent {
       await db
         .update(backgroundJobs)
         .set({
-          progress,
+          progress: progress,
           processedDocuments: completedQuestions,
           currentStep: `Processing legal question ${completedQuestions}/${RAG_LEGAL_QUESTIONS.length}`,
           updatedAt: new Date()
-        })
+        } as any)
         .where(eq(backgroundJobs.jobId, this.jobId));
         
       console.log(`📊 Legal analysis progress: ${progress}% (${completedQuestions}/13 questions)`);
@@ -515,7 +515,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 16000  // ✅ FIXED: Increased from 2000 to 16000 for full enterprise answers
+        max_tokens: 100000  // ✅ ULTRA-SAFE: 100k tokens ensures no truncation of enterprise answers
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
