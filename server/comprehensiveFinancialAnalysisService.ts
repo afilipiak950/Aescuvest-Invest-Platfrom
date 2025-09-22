@@ -442,7 +442,7 @@ export class ComprehensiveFinancialAnalysisService {
           {
             role: "user",
             content: `Document: "${doc.name}"
-            Content: ${content.substring(0, 4000)}
+            Content: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
             
             Question: ${question.question}
             Analysis Focus: ${question.analysisPrompt}
@@ -457,7 +457,7 @@ export class ComprehensiveFinancialAnalysisService {
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 800
+        max_tokens: 2500 // Increased for full document comprehensive extraction
       });
 
       let rawContent = response.choices[0].message.content || '{}';
@@ -563,7 +563,7 @@ export class ComprehensiveFinancialAnalysisService {
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1200
+        max_tokens: 4000 // Increased for comprehensive financial analysis synthesis
       });
 
       let rawContent = response.choices[0].message.content || '{}';

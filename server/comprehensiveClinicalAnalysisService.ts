@@ -436,17 +436,19 @@ export class ComprehensiveClinicalAnalysisService {
     const prompt = `You are an expert clinical research analyst conducting comprehensive investment analysis. Your task is to find ANY clinical, regulatory, safety, or efficacy information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
 
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
 
 Instructions:
-- Look for DIRECT clinical terms, trial data, regulatory submissions, safety reports
-- Look for INDIRECT references to medical devices, therapeutics, patient outcomes, regulatory milestones
-- Consider business documents that mention clinical milestones, regulatory matters, safety data
-- Even general business context often has clinical implications for investment due diligence
-- For healthcare companies, most business documents contain clinical information relevant to investors
+- Extract ALL clinical trial data: endpoints, patient populations, efficacy results, safety profiles
+- Find ALL regulatory information: FDA approvals, CE marks, submission timelines, compliance status
+- Capture ALL safety data: adverse events, contraindications, risk assessments, monitoring requirements
+- Extract ALL efficacy data: clinical outcomes, statistical significance, comparative effectiveness
+- Include ALL market access: reimbursement, pricing, formulary coverage, payer negotiations
+- Find ALL research data: publications, studies, investigator relationships, academic partnerships
+- Be exhaustive - read the ENTIRE document content provided and extract every clinical detail
 
 Respond in JSON format:
 {
@@ -466,7 +468,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 2500 // Increased for full document comprehensive extraction
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -479,7 +481,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        fullContent: content.substring(0, 2000) // Keep larger sample for reference
       };
       
     } catch (error) {
@@ -492,7 +494,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         confidence: 0,
         keyFindings: [],
         documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 1000)
+        fullContent: content.substring(0, 2000) // Keep larger sample for reference
       };
     }
   }
@@ -565,7 +567,7 @@ Respond in JSON format:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2000
+        max_tokens: 4000 // Increased for comprehensive analysis synthesis
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
