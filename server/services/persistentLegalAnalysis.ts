@@ -174,8 +174,8 @@ export class PersistentLegalAnalysisService {
         dealId,
         jobId,
         progress: startProgress,
-        currentQuestionIndex: Math.floor(startProgress / 100 * 8), // 8 total legal questions
-        totalQuestions: 8,
+        currentQuestionIndex: Math.floor(startProgress / 100 * COMPREHENSIVE_LEGAL_QUESTIONS.length), // Use actual question count
+        totalQuestions: COMPREHENSIVE_LEGAL_QUESTIONS.length,
         currentBatch: 0,
         totalBatches: 0,
         currentStep: 'Processing legal analysis...',
@@ -254,6 +254,22 @@ export class PersistentLegalAnalysisService {
         this.jobIntervals.delete(jobId);
       }
       this.activeJobs.delete(jobId);
+      
+      // Final progress broadcast to show 100% completion
+      console.log(`📡 Broadcasting FINAL legal progress: 100% - Legal analysis completed`);
+      if (this.websocketManager) {
+        try {
+          this.websocketManager.broadcastJobProgress({
+            jobId: parseInt(jobId.replace('legal-analysis-', '')),
+            progress: 100,
+            status: 'completed',
+            currentStep: 'Legal analysis completed',
+            documentName: ''
+          }, jobState.dealId);
+        } catch (wsError) {
+          console.log(`⚠️ Final WebSocket broadcast failed: ${wsError.message}`);
+        }
+      }
 
       console.log(`✅ Legal analysis completed for deal ${dealId}`);
 
@@ -285,7 +301,7 @@ export class PersistentLegalAnalysisService {
     try {
       // Get current progress from database (the source of truth)
       const currentJob = await storage.getBackgroundJobById(jobId);
-      if (currentJob && this.activeJobs.has(jobId)) {
+      if (currentJob && currentJob.status === 'processing' && this.activeJobs.has(jobId)) {
         const jobData = this.activeJobs.get(jobId);
         if (jobData) {
           jobData.lastUpdate = new Date();
@@ -363,12 +379,16 @@ export class PersistentLegalAnalysisService {
       
       const isComplete = answeredQuestions >= legalQuestions.length;
       
-      // If complete but not marked as such, force finalization
+      // If complete but not marked as such, mark as completed
       if (isComplete && analysis.status !== 'completed') {
-        console.log(`🎯 Legal analysis complete! Forcing final findings generation for deal ${dealId}`);
+        console.log(`🎯 Legal analysis complete! Marking as finalized for deal ${dealId}`);
         
-        // Force completion by regenerating findings with structured format
-        await comprehensiveLegalAnalysisService.forceFinalizeAnalysis(dealId, analysis.legalAnswers);
+        // Mark as completed in database using the analysis ID
+        await storage.updateAgentAnalysis(analysis.id, {
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date()
+        });
         
         return true;
       }
