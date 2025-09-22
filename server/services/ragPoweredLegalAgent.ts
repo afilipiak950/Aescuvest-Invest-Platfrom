@@ -441,7 +441,7 @@ Provide investment-relevant legal intelligence, not generic summaries.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{"findings": []}');
@@ -515,7 +515,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 100000  // ✅ ULTRA-SAFE: 100k tokens ensures no truncation of enterprise answers
+        max_tokens: 16384  // ✅ MAXIMUM ALLOWED: GPT-4 max token limit of enterprise answers
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
