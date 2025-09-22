@@ -243,7 +243,7 @@ export class ComprehensiveResearchAnalysisService {
     const prompt = `You are an expert research analyst conducting comprehensive investment analysis. Your task is to find ANY research, market, competitive, strategic, or technological information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
 
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
@@ -273,7 +273,7 @@ Be thorough in finding relevance - most business documents have research implica
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 2500 // Increased for full document comprehensive extraction
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -286,7 +286,7 @@ Be thorough in finding relevance - most business documents have research implica
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        fullContent: content.substring(0, 2000) // Keep larger sample for reference
       };
       
     } catch (error) {
@@ -344,7 +344,7 @@ Format your response to be detailed yet concise, focusing on actionable insights
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1200
+        max_tokens: 4000 // Increased for comprehensive research analysis synthesis
       });
       
       const answer = response.choices[0]?.message?.content || 'Unable to compile comprehensive answer';
@@ -449,7 +449,7 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1000
+        max_tokens: 4000 // Increased for comprehensive research analysis
       });
 
       const content = response.choices[0]?.message?.content || '';

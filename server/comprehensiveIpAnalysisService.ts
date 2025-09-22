@@ -475,7 +475,7 @@ QUESTION: ${question.question}
 ANALYSIS FOCUS: ${question.analysisPrompt}
 
 DOCUMENT: ${doc.name}
-CONTENT: ${content.slice(0, 6000)}
+CONTENT: ${content.slice(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
 
 Extract specific IP-related evidence for this question. Provide exact quotes, specific findings, and numerical data where available.
 
@@ -496,7 +496,7 @@ If no relevant content is found, respond with:
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1200
+        max_tokens: 2500 // Increased for full document comprehensive extraction
       });
 
       const content_response = response.choices[0].message.content;
@@ -599,7 +599,7 @@ Requirements:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2000
+        max_tokens: 4000 // Increased for comprehensive IP analysis synthesis
       });
 
       const rawContent = response.choices[0].message.content || '{}';
