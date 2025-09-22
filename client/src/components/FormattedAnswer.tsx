@@ -6,99 +6,109 @@ interface FormattedAnswerProps {
 export function FormattedAnswer({ text, className = "" }: FormattedAnswerProps) {
   if (!text) return <p className={className}>No analysis available</p>;
 
-  const formatText = (text: string): JSX.Element[] => {
-    // Clean the text
+  const enhanceTextWithFormatting = (text: string): JSX.Element => {
+    // Bold key-value pairs and labels
+    let enhancedText = text
+      // Bold labels like "Trial:", "Study:", "Device:", etc.
+      .replace(/^([A-Z][\w\s\-/()]+):\s*/gm, '<strong>$1:</strong> ')
+      // Bold clinical terms at sentence start
+      .replace(/\b(Trial|Study|Design|Phase|Population|Endpoint|Enrollment|Location|Regulatory|Device|Safety|Efficacy|Approval|FDA|EMA|Clinical|Patient|Subject)(\s+[^:]*?):/gi, '<strong>$1$2:</strong>')
+      // Emphasize numbers, percentages, dates
+      .replace(/(\b\d{1,3}(,\d{3})*(\.\d+)?%?\b|\b(N=|n=)?\d+\b|\b20\d{2}\b|\bK\d+\b)/g, '<span class="font-semibold text-white">$1</span>');
+
+    return (
+      <span 
+        dangerouslySetInnerHTML={{ 
+          __html: enhancedText 
+        }} 
+      />
+    );
+  };
+
+  const formatTextToBullets = (text: string): JSX.Element[] => {
     const cleanText = text.trim();
     
-    // Split into sentences - look for periods followed by space and capital letter
-    let sentences = cleanText.split(/\.(?=\s+[A-Z])/);
+    // Split into sentences using multiple patterns
+    let sentences = cleanText.split(/[.!?]+\s+(?=[A-Z])/);
     
-    // If that doesn't work well, try other sentence endings
-    if (sentences.length === 1) {
-      sentences = cleanText.split(/[.!?]+(?=\s+[A-Z])/);
+    // If we get one big block, try splitting by common clinical phrases
+    if (sentences.length === 1 && cleanText.length > 200) {
+      sentences = cleanText.split(/\.\s+(?=The\s|It\s|This\s|A\s|An\s|Additionally|Furthermore|Moreover|However|Nevertheless)/);
     }
     
-    // If still one big block, split by length
+    // If still one block, split by length at logical points
     if (sentences.length === 1 && cleanText.length > 200) {
       const words = cleanText.split(' ');
       sentences = [];
-      let currentSentence = '';
+      let current = '';
       
       for (const word of words) {
-        if (currentSentence.length + word.length > 200 && currentSentence.length > 0) {
-          sentences.push(currentSentence.trim());
-          currentSentence = word;
+        if (current.length + word.length > 150 && current.includes(',')) {
+          sentences.push(current.trim());
+          current = word;
         } else {
-          currentSentence += (currentSentence ? ' ' : '') + word;
+          current += (current ? ' ' : '') + word;
         }
       }
-      if (currentSentence) {
-        sentences.push(currentSentence.trim());
-      }
+      if (current) sentences.push(current.trim());
     }
 
-    const elements: JSX.Element[] = [];
-    
-    sentences.forEach((sentence, index) => {
-      const trimmedSentence = sentence.trim();
-      if (!trimmedSentence) return;
-      
-      // Add back the period if it was removed during splitting
-      const finalSentence = trimmedSentence.endsWith('.') || trimmedSentence.endsWith('!') || trimmedSentence.endsWith('?') 
-        ? trimmedSentence 
-        : trimmedSentence + '.';
-      
-      // Check if this looks like a question
-      if (finalSentence.includes('?') && finalSentence.length < 150) {
-        elements.push(
-          <div key={`question-${index}`} className="mb-3">
-            <h6 className="text-green-400 text-sm font-medium mb-1">
-              {finalSentence}
-            </h6>
+    return sentences
+      .filter(sentence => sentence.trim().length > 10)
+      .map((sentence, index) => {
+        const trimmed = sentence.trim();
+        // Add period if missing
+        const finalSentence = trimmed.endsWith('.') || trimmed.endsWith('!') || trimmed.endsWith('?') 
+          ? trimmed 
+          : trimmed + '.';
+
+        return (
+          <div key={index} className="flex items-start gap-2 mb-2">
+            <span className="text-cyan-400 mt-1 text-xs">•</span>
+            <div className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
+              {enhanceTextWithFormatting(finalSentence)}
+            </div>
           </div>
         );
-      }
-      // Check if this is a short sentence (likely a key point)
-      else if (finalSentence.length < 100) {
-        elements.push(
-          <p key={`short-${index}`} className={`text-gray-300 text-sm leading-relaxed mb-2 font-medium ${className}`}>
-            {finalSentence}
-          </p>
-        );
-      }
-      // Long sentence - break into readable paragraph
-      else {
-        elements.push(
-          <p key={`long-${index}`} className={`text-gray-300 text-sm leading-relaxed mb-3 ${className}`}>
-            {finalSentence}
-          </p>
-        );
-      }
-    });
-
-    return elements;
+      });
   };
 
-  // First check if we have explicit paragraphs (separated by double newlines)
-  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+  // Check if text already has explicit formatting (bullets, numbers, etc.)
+  const hasExistingFormat = /^[\s]*[-•*]\s|^\s*\d+\.\s|^\s*[a-zA-Z]\.\s/m.test(text);
   
-  if (paragraphs.length > 1) {
-    // Handle multiple paragraphs
+  if (hasExistingFormat) {
+    // Preserve existing format but enhance with bold/emphasis
+    const lines = text.split('\n').filter(line => line.trim());
     return (
-      <div className="space-y-4">
-        {paragraphs.map((paragraph, index) => (
-          <div key={index} className="space-y-2">
-            {formatText(paragraph)}
-          </div>
-        ))}
+      <div className="space-y-1">
+        {lines.map((line, index) => {
+          const trimmed = line.trim();
+          if (trimmed.match(/^[-•*]\s/) || trimmed.match(/^\d+\.\s/)) {
+            return (
+              <div key={index} className="flex items-start gap-2">
+                <span className="text-cyan-400 mt-1 text-xs">•</span>
+                <div className={`text-gray-300 text-sm leading-relaxed flex-1 ${className}`}>
+                  {enhanceTextWithFormatting(trimmed.replace(/^[-•*\d.]\s*/, ''))}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div key={index} className={`text-gray-300 text-sm leading-relaxed mb-2 ${className}`}>
+              {enhanceTextWithFormatting(trimmed)}
+            </div>
+          );
+        })}
       </div>
     );
   }
+
+  // Auto-convert plain prose to bullets
+  const elements = formatTextToBullets(text);
   
-  // Handle single block of text
   return (
-    <div className="space-y-2">
-      {formatText(text)}
+    <div className="space-y-1">
+      {elements}
     </div>
   );
 }
