@@ -1,9 +1,7 @@
-import OpenAI from 'openai';
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import { storage } from '../storage';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// All OpenAI calls migrated to Ultra-Intelligent AI system with GPT-5
 
 export interface EnhancedResearchData {
   companyName: string;
@@ -527,34 +525,33 @@ export class EnhancedCompanyResearchService {
       };
     });
   }
-    });
-  }
 
   private async analyzeFinancials(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a senior financial analyst specializing in startup and growth company analysis. Provide comprehensive financial intelligence based on available market data."
-          },
-          {
-            role: "user",
-            content: `Analyze the financial profile of ${companyName} (website: ${website}). 
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        {
+          role: "system",
+          content: "You are a senior financial analyst specializing in startup and growth company analysis. Provide comprehensive financial intelligence based on available market data."
+        },
+        {
+          role: "user",
+          content: `Analyze the financial profile of ${companyName} (website: ${website}). 
 
-            Research and estimate:
-            1. Revenue metrics and growth trajectory
-            2. Funding history and investor landscape
-            3. Valuation trends and market position
-            4. Financial health indicators
-            
-            Provide realistic estimates based on company stage and market position.`
-          }
-        ],
-        max_tokens: 1500,
+          Research and estimate:
+          1. Revenue metrics and growth trajectory
+          2. Funding history and investor landscape
+          3. Valuation trends and market position
+          4. Financial health indicators
+          
+          Provide realistic estimates based on company stage and market position.`
+        }
+      ], {
+        qualityThreshold: 0.90,
+        maxTokens: 1500,
         temperature: 0.3
-      });
+      } as UltraIntelligentConfig);
+
+      console.log(`🤖 Ultra-Intelligent Financial Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
 
       return {
         revenue: "Estimated $2-5M ARR based on market positioning and customer traction",
@@ -583,29 +580,30 @@ export class EnhancedCompanyResearchService {
 
   private async analyzeMarket(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a market research expert and industry analyst with deep knowledge of technology markets, competitive landscapes, and market sizing."
-          },
-          {
-            role: "user",
-            content: `Analyze the market opportunity for ${companyName} (website: ${website}). 
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        {
+          role: "system",
+          content: "You are a market research expert and industry analyst with deep knowledge of technology markets, competitive landscapes, and market sizing."
+        },
+        {
+          role: "user",
+          content: `Analyze the market opportunity for ${companyName} (website: ${website}). 
 
-            Provide comprehensive market analysis including:
-            1. Total addressable market (TAM) and serviceable addressable market (SAM)
-            2. Competitive landscape and key competitors
-            3. Market positioning and differentiation
-            4. Customer segments and pricing strategies
-            
-            Focus on realistic market assessments and competitive advantages.`
-          }
-        ],
-        max_tokens: 1500,
+          Provide comprehensive market analysis including:
+          1. Total addressable market (TAM) and serviceable addressable market (SAM)
+          2. Competitive landscape and key competitors
+          3. Market positioning and differentiation
+          4. Customer segments and pricing strategies
+          
+          Focus on realistic market assessments and competitive advantages.`
+        }
+      ], {
+        qualityThreshold: 0.90,
+        maxTokens: 1500,
         temperature: 0.3
-      });
+      } as UltraIntelligentConfig);
+
+      console.log(`🤖 Ultra-Intelligent Market Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
 
       return {
         marketSize: "Global healthcare AI market valued at $15B+ with 35% CAGR, addressable segment estimated at $2.5B",
@@ -620,29 +618,30 @@ export class EnhancedCompanyResearchService {
 
   private async gatherBusinessIntelligence(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a business intelligence analyst specializing in technology companies. Provide comprehensive business intelligence including recent developments, partnerships, and market activity."
-          },
-          {
-            role: "user",
-            content: `Gather business intelligence for ${companyName} (website: ${website}). 
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        {
+          role: "system",
+          content: "You are a business intelligence analyst specializing in technology companies. Provide comprehensive business intelligence including recent developments, partnerships, and market activity."
+        },
+        {
+          role: "user",
+          content: `Gather business intelligence for ${companyName} (website: ${website}). 
 
-            Research and analyze:
-            1. Recent news and press coverage
-            2. Strategic partnerships and collaborations
-            3. Patent portfolio and intellectual property
-            4. Business model and technology architecture
-            
-            Provide current market intelligence and business developments.`
-          }
-        ],
-        max_tokens: 1500,
+          Research and analyze:
+          1. Recent news and press coverage
+          2. Strategic partnerships and collaborations
+          3. Patent portfolio and intellectual property
+          4. Business model and technology architecture
+          
+          Provide current market intelligence and business developments.`
+        }
+      ], {
+        qualityThreshold: 0.90,
+        maxTokens: 1500,
         temperature: 0.3
-      });
+      } as UltraIntelligentConfig);
+
+      console.log(`🤖 Ultra-Intelligent Business Intelligence: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
 
       return {
         recentNews: [
@@ -676,29 +675,30 @@ export class EnhancedCompanyResearchService {
 
   private async assessRisks(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a risk assessment expert specializing in technology companies and investment analysis. Provide comprehensive risk evaluation across multiple dimensions."
-          },
-          {
-            role: "user",
-            content: `Conduct comprehensive risk assessment for ${companyName} (website: ${website}). 
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        {
+          role: "system",
+          content: "You are a risk assessment expert specializing in technology companies and investment analysis. Provide comprehensive risk evaluation across multiple dimensions."
+        },
+        {
+          role: "user",
+          content: `Conduct comprehensive risk assessment for ${companyName} (website: ${website}). 
 
-            Analyze risks across:
-            1. Regulatory and compliance risks
-            2. Competitive market risks  
-            3. Financial and funding risks
-            4. Operational and technology risks
-            
-            Provide balanced risk evaluation with mitigation strategies.`
-          }
-        ],
-        max_tokens: 1500,
+          Analyze risks across:
+          1. Regulatory and compliance risks
+          2. Competitive market risks  
+          3. Financial and funding risks
+          4. Operational and technology risks
+          
+          Provide balanced risk evaluation with mitigation strategies.`
+        }
+      ], {
+        qualityThreshold: 0.90,
+        maxTokens: 1500,
         temperature: 0.3
-      });
+      } as UltraIntelligentConfig);
+
+      console.log(`🤖 Ultra-Intelligent Risk Assessment: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
 
       return {
         regulatory: [
@@ -728,29 +728,30 @@ export class EnhancedCompanyResearchService {
 
   private async generateInvestmentAnalysis(companyName: string, website: string) {
     return this.rateLimiter.executeWithLimit(async () => {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a senior venture capital partner with expertise in healthcare technology investments. Provide comprehensive investment analysis with specific recommendations."
-          },
-          {
-            role: "user",
-            content: `Generate investment analysis for ${companyName} (website: ${website}). 
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        {
+          role: "system",
+          content: "You are a senior venture capital partner with expertise in healthcare technology investments. Provide comprehensive investment analysis with specific recommendations."
+        },
+        {
+          role: "user",
+          content: `Generate investment analysis for ${companyName} (website: ${website}). 
 
-            Provide:
-            1. Investment thesis and key value drivers
-            2. Competitive advantages and differentiation
-            3. Growth metrics and traction indicators
-            4. Investment recommendation and next steps
-            
-            Focus on actionable investment insights and due diligence priorities.`
-          }
-        ],
-        max_tokens: 2000,
+          Provide:
+          1. Investment thesis and key value drivers
+          2. Competitive advantages and differentiation
+          3. Growth metrics and traction indicators
+          4. Investment recommendation and next steps
+          
+          Focus on actionable investment insights and due diligence priorities.`
+        }
+      ], {
+        qualityThreshold: 0.90,
+        maxTokens: 2000,
         temperature: 0.3
-      });
+      } as UltraIntelligentConfig);
+
+      console.log(`🤖 Ultra-Intelligent Investment Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
 
       return {
         highlights: {
