@@ -1,8 +1,4 @@
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 
 interface EvaluationCriterion {
   id: number;
@@ -95,24 +91,32 @@ Respond in JSON format:
 }
 `;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o', // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an expert investment analyst. Provide accurate, data-driven evaluations based on the information provided. Always respond in valid JSON format.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    response_format: { type: 'json_object' },
-    temperature: 0.3
-  });
+  // Ultra-Intelligent Financial Analysis Configuration for Direct Evaluation
+  const ultraIntelligentConfig: UltraIntelligentConfig = {
+    domain: 'financial',
+    complexity: 'high',
+    speedPriority: 'quality',
+    qualityThreshold: 0.90,
+    maxTokens: 800,
+    temperature: 0.3,
+    responseFormat: { type: 'json_object' }
+  };
+
+  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
+    {
+      role: 'system',
+      content: 'You are an expert investment analyst. Provide accurate, data-driven evaluations based on the information provided. Always respond in valid JSON format.'
+    },
+    {
+      role: 'user',
+      content: prompt
+    }
+  ], ultraIntelligentConfig);
+
+  console.log(`🎯 Ultra-Intelligent Direct Evaluation: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
 
   try {
-    const analysisResult = JSON.parse(response.choices[0].message.content || '{}');
+    const analysisResult = JSON.parse(response.content || '{}');
     
     return {
       criterionId: criterion.id,
