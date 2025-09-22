@@ -7,7 +7,7 @@
 import { RAGPoweredLegalAgent, RAG_LEGAL_QUESTIONS } from './ragPoweredLegalAgent';
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 
 interface LegalJobState {
   dealId: number;
@@ -149,7 +149,12 @@ export class PersistentLegalAnalysisService {
       console.log(`🔄 Resuming legal analysis job ${jobId} for deal ${dealId}`);
 
       // Get job state from database
-      const job = await storage.getBackgroundJobById(jobId);
+      const job = await db
+        .select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.jobId, jobId))
+        .limit(1)
+        .then(rows => rows[0] || null);
       if (!job) {
         console.error(`❌ Job ${jobId} not found in database`);
         return;
@@ -333,11 +338,14 @@ export class PersistentLegalAnalysisService {
    */
   private async updateJobProgress(jobId: string, progress: number, currentStep: string): Promise<void> {
     try {
-      await storage.updateBackgroundJob(jobId, {
-        progress,
-        currentStep,
-        updatedAt: new Date()
-      });
+      await db
+        .update(backgroundJobs)
+        .set({
+          progress,
+          currentStep,
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
     } catch (error) {
       console.error(`❌ Failed to update job progress for ${jobId}:`, error);
     }
@@ -349,7 +357,12 @@ export class PersistentLegalAnalysisService {
   private async broadcastProgress(jobId: string, jobState: LegalJobState): Promise<void> {
     try {
       // Get current progress from database (the source of truth)
-      const currentJob = await storage.getBackgroundJobById(jobId);
+      const currentJob = await db
+        .select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.jobId, jobId))
+        .limit(1)
+        .then(rows => rows[0] || null);
       if (currentJob && currentJob.status === 'processing' && this.activeJobs.has(jobId)) {
         const jobData = this.activeJobs.get(jobId);
         if (jobData) {
@@ -409,7 +422,17 @@ export class PersistentLegalAnalysisService {
    */
   private async isLegalAnalysisComplete(dealId: number): Promise<boolean> {
     try {
-      const analysis = await storage.getAgentAnalysis(dealId, 'Legal');
+      const analyses = await db
+        .select()
+        .from(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'Legal')
+        ))
+        .orderBy(desc(agentAnalyses.id))
+        .limit(1);
+      
+      const analysis = analyses[0] || null;
       if (!analysis) {
         return false;
       }
@@ -433,11 +456,14 @@ export class PersistentLegalAnalysisService {
         console.log(`🎯 Legal analysis complete! Marking as finalized for deal ${dealId}`);
         
         // Mark as completed in database using the analysis ID
-        await storage.updateAgentAnalysis(analysis.id, {
-          status: 'completed',
-          progress: 100,
-          updatedAt: new Date()
-        });
+        await db
+          .update(agentAnalyses)
+          .set({
+            status: 'completed',
+            progress: 100,
+            updatedAt: new Date()
+          })
+          .where(eq(agentAnalyses.id, analysis.id));
         
         return true;
       }
@@ -483,10 +509,13 @@ export class PersistentLegalAnalysisService {
       this.activeJobs.delete(jobId);
 
       // Update database
-      await storage.updateBackgroundJob(jobId, {
-        status: 'cancelled',
-        updatedAt: new Date()
-      });
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'cancelled',
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
 
       console.log(`✅ Legal analysis job ${jobId} stopped`);
 
