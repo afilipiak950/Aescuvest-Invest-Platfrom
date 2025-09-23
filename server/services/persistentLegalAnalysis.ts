@@ -135,7 +135,7 @@ export class PersistentLegalAnalysisService {
   }
 
   /**
-   * Resume an interrupted legal analysis job - IDENTICAL to Clinical
+   * Resume an interrupted legal analysis job - FIXED to force fresh start like Commercial
    */
   private async resumeLegalAnalysis(dealId: number, jobId: string): Promise<void> {
     try {
@@ -148,39 +148,31 @@ export class PersistentLegalAnalysisService {
         return;
       }
 
-      // Check if analysis is FULLY completed (all questions answered)
-      const existingAnalysis = await db
-        .select()
-        .from(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'Legal')
-        ))
-        .orderBy(agentAnalyses.createdAt)
-        .limit(1);
-      
-      const expectedQuestions = RAG_LEGAL_QUESTIONS;
-      const answeredQuestions = existingAnalysis.length > 0 && existingAnalysis[0].legalAnswers ? 
-        Object.keys(existingAnalysis[0].legalAnswers).length : 0;
-      
-      if (existingAnalysis.length > 0 && answeredQuestions >= expectedQuestions.length) {
-        console.log(`✅ Legal analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
-        await storage.updateBackgroundJob(jobId, {
-          status: 'completed',
-          progress: 100,
-          updatedAt: new Date()
-        });
-        return;
+      // CRITICAL FIX: Always clear existing analysis data to force fresh start (like Commercial agent)
+      console.log(`🧹 Clearing existing legal analysis data for fresh restart on deal ${dealId}`);
+      try {
+        await db
+          .delete(agentAnalyses)
+          .where(and(
+            eq(agentAnalyses.dealId, dealId),
+            eq(agentAnalyses.agentType, 'Legal')
+          ));
+        console.log(`✅ Successfully cleared existing legal analysis for fresh start on deal ${dealId}`);
+      } catch (error) {
+        console.log(`⚠️ No existing legal analysis to clear for deal ${dealId}: ${error.message}`);
       }
 
-      // Analysis is incomplete, continue from where we left off
-      console.log(`🔄 Legal analysis incomplete: ${answeredQuestions}/${expectedQuestions.length} questions answered. Continuing...`);
-      
-      const currentProgress = job.progress || 0;
-      console.log(`🔄 Resuming RAG legal analysis at ${currentProgress}% completion`);
+      // Reset job progress to start fresh analysis
+      console.log(`🔄 Starting FRESH legal analysis from 0% for deal ${dealId}`);
+      await storage.updateBackgroundJob(jobId, {
+        progress: 0,
+        processedDocuments: 0,
+        currentStep: 'Starting fresh legal analysis...',
+        updatedAt: new Date()
+      });
 
-      // Continue processing from current state
-      await this.processLegalAnalysis(dealId, jobId, currentProgress);
+      // Start fresh analysis from beginning
+      await this.processLegalAnalysis(dealId, jobId, 0);
 
     } catch (error) {
       console.error(`❌ Failed to resume legal analysis for deal ${dealId}:`, error);
@@ -399,9 +391,8 @@ export class PersistentLegalAnalysisService {
         await db
           .update(agentAnalyses)
           .set({
-            status: 'completed',
-            progress: 100,
-            updatedAt: new Date()
+            status: 'completed' as any,
+            progress: 100
           })
           .where(eq(agentAnalyses.id, analysis.id));
         
