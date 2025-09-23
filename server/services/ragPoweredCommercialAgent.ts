@@ -527,7 +527,7 @@ ENTERPRISE REQUIREMENTS:
       
       try {
         // Update progress in background job
-        await this.updateProgress(questionIndex, RAG_COMMERCIAL_QUESTIONS.length, `Processing commercial question ${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length}`);
+        await this.updateBackgroundJobProgress(questionIndex);
 
         // Execute multi-layer RAG search
         const evidenceLayers = await this.executeMultiLayerRagSearch(
@@ -755,15 +755,29 @@ Return only the JSON array of commercial findings.`;
   /**
    * Update progress in background job
    */
-  private async updateProgress(currentQuestion: number, totalQuestions: number, step: string): Promise<void> {
+  private async updateBackgroundJobProgress(currentQuestion: number): Promise<void> {
     try {
-      const progress = Math.round((currentQuestion / totalQuestions) * 100);
+      const progress = Math.round((currentQuestion / RAG_COMMERCIAL_QUESTIONS.length) * 100);
+      const currentStep = `Processing commercial question ${currentQuestion}/${RAG_COMMERCIAL_QUESTIONS.length}`;
       
-      // Progress update simplified to avoid TypeScript issues
-      console.log(`📊 Commercial analysis progress: ${progress}% (${step})`);
+      console.log(`🔍 DEBUG: Updating job ${this.jobId} with progress ${progress}%`);
+      
+      // Update database progress EXACTLY like Legal agent
+      const result = await db
+        .update(backgroundJobs)
+        .set({
+          progress: progress,
+          processedDocuments: currentQuestion,
+          currentStep: currentStep,
+          updatedAt: new Date()
+        } as any)
+        .where(eq(backgroundJobs.jobId, this.jobId));
+        
+      console.log(`📊 Commercial analysis progress: ${progress}% (${currentQuestion}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
+      console.log(`🔍 DEBUG: Updated rows: ${JSON.stringify(result)}`);
 
     } catch (error) {
-      console.error(`❌ Failed to update commercial progress:`, error);
+      console.error(`❌ Failed to update commercial progress for job ${this.jobId}:`, error);
       // Don't throw - progress updates shouldn't stop analysis
     }
   }
