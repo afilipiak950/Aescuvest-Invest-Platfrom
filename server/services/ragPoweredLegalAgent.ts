@@ -580,7 +580,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
     
     // If content doesn't start with { or [, try to find the JSON part
     if (!content.startsWith('{') && !content.startsWith('[')) {
-      const jsonMatch = content.match(/(\{.*\}|\[.*\])/s);
+      const jsonMatch = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/g);
       if (jsonMatch) {
         content = jsonMatch[1];
       }
