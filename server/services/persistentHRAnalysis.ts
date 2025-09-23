@@ -150,14 +150,7 @@ export class PersistentHRAnalysisService {
       
       if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
         console.log(`✅ HR analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
-        await db.update(backgroundJobs)
-          .set({
-            status: 'completed',
-            progress: 100,
-            completedAt: new Date(),
-            updatedAt: new Date()
-          })
-          .where(eq(backgroundJobs.jobId, jobId));
+        await storage.completeBackgroundJob(jobId, { analysisComplete: true });
         return;
       }
       
@@ -167,27 +160,18 @@ export class PersistentHRAnalysisService {
       const progress = job.progress || 0;
       console.log(`🔄 Resuming HR analysis at ${progress}% completion`);
 
-      // Update job status to processing if it was stuck - FIXED: Direct database update like Legal agent
-      await db.update(backgroundJobs)
-        .set({
-          status: 'processing',
-          currentStep: `Resuming analysis from ${progress}%...`,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Update job status to processing if it was stuck - FIXED: Use storage service
+      await storage.updateBackgroundJob(jobId, {
+        status: 'processing',
+        currentStep: `Resuming analysis from ${progress}%...`
+      });
 
       // Continue the analysis process
       await this.processHRAnalysis(dealId, jobId, progress);
 
     } catch (error) {
       console.error(`❌ Failed to resume HR analysis ${jobId}:`, error);
-      await db.update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: error.message,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.failBackgroundJob(jobId, error.message);
     }
   }
 
@@ -238,14 +222,8 @@ export class PersistentHRAnalysisService {
       }
       this.activeJobs.delete(jobId);
 
-      // Mark as failed - FIXED: Direct database update like Legal agent
-      await db.update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: error.message,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Mark as failed - FIXED: Use storage service
+      await storage.failBackgroundJob(jobId, error.message);
 
       throw error;
     }
@@ -282,15 +260,7 @@ export class PersistentHRAnalysisService {
       jobState.progress = 100;
       jobState.currentStep = 'HR analysis completed';
       
-      await db.update(backgroundJobs)
-        .set({
-          status: 'completed',
-          progress: 100,
-          currentStep: 'HR analysis completed',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.completeBackgroundJob(jobId, { hrAnalysisComplete: true });
 
       // Clean up
       const interval = this.jobIntervals.get(jobId);
@@ -313,14 +283,11 @@ export class PersistentHRAnalysisService {
    */
   private async updateJobProgress(jobId: string, progress: number, currentStep: string): Promise<void> {
     try {
-      // Update database - FIXED: Direct database update like Legal agent
-      await db.update(backgroundJobs)
-        .set({
-          progress,
-          currentStep,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Update database - FIXED: Use storage service
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        currentStep
+      });
 
       // Update memory
       const jobState = this.activeJobs.get(jobId);
@@ -403,13 +370,10 @@ export class PersistentHRAnalysisService {
       // Remove from active jobs
       this.activeJobs.delete(jobId);
 
-      // Update database - FIXED: Direct database update like Legal agent
-      await db.update(backgroundJobs)
-        .set({
-          status: 'cancelled',
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Update database - FIXED: Use storage service
+      await storage.updateBackgroundJob(jobId, {
+        status: 'cancelled'
+      });
 
       console.log(`✅ HR analysis job ${jobId} stopped`);
 
