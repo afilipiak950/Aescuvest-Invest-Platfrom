@@ -531,9 +531,13 @@ ENTERPRISE REQUIREMENTS:
 
         questionResults.push(questionResult);
         
+        // 🎯 CRITICAL FIX: Save each question result immediately (incremental saves)
+        await this.saveQuestionResultIncremental(questionResult, questionIndex);
+        
         const currentProgress = Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100);
         console.log(`📊 Commercial analysis progress: ${currentProgress}% (${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
         console.log(`✅ Question ${questionIndex} completed with commercial risk score ${questionResult.commercialRiskScore}/10`);
+        console.log(`💾 Question ${questionIndex} saved incrementally to database`);
 
         questionIndex++;
 
@@ -597,67 +601,137 @@ ENTERPRISE REQUIREMENTS:
   }
 
   /**
-   * Save commercial analysis to database
+   * 🎯 INCREMENTAL SAVE: Save individual question result immediately after processing
+   * This ensures users see progress and don't lose results if analysis fails partway through
+   */
+  private async saveQuestionResultIncremental(questionResult: CommercialQuestionResult, questionIndex: number): Promise<void> {
+    try {
+      console.log(`💾 Saving question ${questionIndex} result incrementally for deal ${this.dealId}`);
+
+      // Check if analysis record exists
+      const existingAnalysis = await db
+        .select()
+        .from(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, this.dealId),
+          eq(agentAnalyses.agentType, 'Commercial')
+        ))
+        .limit(1);
+
+      // Build the question result for commercialAnswers
+      const questionAnswer = {
+        question: questionResult.question,
+        category: questionResult.category,
+        answer: questionResult.answer,
+        commercialRiskScore: questionResult.commercialRiskScore,
+        riskFactors: questionResult.riskFactors,
+        keyFindings: questionResult.keyFindings,
+        recommendations: questionResult.recommendations,
+        confidenceScore: questionResult.confidenceScore,
+        documentSources: questionResult.documentSources,
+        evidenceCount: questionResult.evidence.reduce((sum, layer) => sum + layer.totalChunks, 0),
+        processingTime: Date.now() // Add timestamp for tracking
+      };
+
+      if (existingAnalysis.length === 0) {
+        // Create new analysis record with first question
+        const initialCommercialAnswers = {
+          [questionResult.questionId]: questionAnswer
+        };
+
+        await db.insert(agentAnalyses).values({
+          dealId: this.dealId,
+          agentType: 'Commercial' as const,
+          status: 'Processing' as const,
+          progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
+          findings: JSON.stringify([]),
+          recommendations: JSON.stringify([]),
+          commercialAnswers: initialCommercialAnswers,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        console.log(`✅ Created new Commercial analysis record with question ${questionIndex}`);
+      } else {
+        // Update existing record with new question result
+        const currentAnalysis = existingAnalysis[0];
+        const updatedCommercialAnswers = {
+          ...(currentAnalysis.commercialAnswers || {}),
+          [questionResult.questionId]: questionAnswer
+        };
+
+        await db
+          .update(agentAnalyses)
+          .set({
+            commercialAnswers: updatedCommercialAnswers,
+            progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
+            status: 'Processing' as const,
+            updatedAt: new Date()
+          })
+          .where(and(
+            eq(agentAnalyses.dealId, this.dealId),
+            eq(agentAnalyses.agentType, 'Commercial')
+          ));
+
+        console.log(`✅ Updated Commercial analysis with question ${questionIndex} (${Object.keys(updatedCommercialAnswers).length}/${RAG_COMMERCIAL_QUESTIONS.length} total)`);
+      }
+
+      console.log(`💾 Question ${questionIndex} ("${questionResult.question}") saved successfully`);
+
+    } catch (error) {
+      console.error(`❌ Failed to save question ${questionIndex} incrementally:`, error);
+      console.error(`❌ Question details:`, {
+        questionId: questionResult.questionId,
+        question: questionResult.question,
+        category: questionResult.category
+      });
+      // Don't throw error - log it but continue processing other questions
+      // This ensures one failed save doesn't stop the entire analysis
+    }
+  }
+
+  /**
+   * Final save: Update commercial analysis status to completed since incremental saves already handled question results
    */
   private async saveCommercialAnalysis(analysis: EnterpriseCommercialAnalysis): Promise<void> {
     try {
-      console.log(`💾 Saving commercial analysis to database for deal ${this.dealId}`);
+      console.log(`💾 Finalizing commercial analysis for deal ${this.dealId} (incremental saves already completed)`);
 
-      // Build commercialAnswers object
-      const commercialAnswers: Record<string, any> = {};
-      
-      analysis.questionResults.forEach(result => {
-        commercialAnswers[result.questionId] = {
-          question: result.question,
-          category: result.category,
-          answer: result.answer,
-          commercialRiskScore: result.commercialRiskScore,
-          riskFactors: result.riskFactors,
-          keyFindings: result.keyFindings,
-          recommendations: result.recommendations,
-          confidenceScore: result.confidenceScore,
-          documentSources: result.documentSources,
-          evidenceCount: result.evidence.reduce((sum, layer) => sum + layer.totalChunks, 0)
-        };
-      });
+      // Since we've been saving incrementally, just update the final status and summary data
+      const finalFindings = analysis.criticalFindings?.map((finding, index) => ({
+        id: index + 1,
+        content: finding,
+        type: 'commercial'
+      })) || [];
 
-      // Delete any existing commercial analysis first (EXACTLY like Clinical pattern)
+      const finalRecommendations = analysis.recommendedActions?.map((action, index) => ({
+        title: `Commercial Recommendation ${index + 1}`,
+        description: action,
+        priority: 'medium',
+        category: 'commercial',
+        impact: 'medium'
+      })) || [];
+
+      // Update existing record with final status and summary data
       await db
-        .delete(agentAnalyses)
+        .update(agentAnalyses)
+        .set({
+          status: 'Complete' as const,
+          progress: 100,
+          findings: JSON.stringify(finalFindings),
+          recommendations: JSON.stringify(finalRecommendations),
+          updatedAt: new Date()
+        })
         .where(and(
           eq(agentAnalyses.dealId, this.dealId),
           eq(agentAnalyses.agentType, 'Commercial')
         ));
 
-      console.log(`🗑️ Deleted existing commercial analysis for deal ${this.dealId}`);
-
-      // Insert new commercial analysis with correct schema INCLUDING commercialAnswers
-      const insertData = {
-        dealId: this.dealId,
-        agentType: 'Commercial' as const,
-        status: 'Complete' as const,
-        progress: 100,
-        findings: analysis.criticalFindings?.map((finding, index) => ({
-          id: index + 1,
-          content: finding,
-          type: 'commercial'
-        })) || [],
-        recommendations: analysis.recommendedActions?.map((action, index) => ({
-          title: `Commercial Recommendation ${index + 1}`,
-          description: action,
-          priority: 'medium',
-          category: 'commercial',
-          impact: 'medium'
-        })) || [],
-        commercialAnswers: commercialAnswers  // 🎯 CRITICAL FIX: Store the structured answers
-      };
-      
-      await db.insert(agentAnalyses).values(insertData);
-
-      console.log(`✅ Commercial analysis saved successfully with ${Object.keys(commercialAnswers).length} questions`);
+      console.log(`✅ Commercial analysis finalized - ${analysis.questionResults.length} questions completed with incremental saves`);
+      console.log(`📊 Final summary: ${finalFindings.length} findings, ${finalRecommendations.length} recommendations`);
 
     } catch (error) {
-      console.error(`❌ Failed to save commercial analysis:`, error);
+      console.error(`❌ Failed to finalize commercial analysis:`, error);
       throw error;
     }
   }

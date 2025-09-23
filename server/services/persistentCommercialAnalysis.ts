@@ -354,7 +354,7 @@ export class PersistentCommercialAnalysisService {
   }
 
   /**
-   * Broadcast progress updates via WebSocket - READS real progress from database
+   * Broadcast progress updates via WebSocket - ENHANCED for incremental saves tracking
    */
   private async broadcastProgress(jobId: string, jobState: CommercialJobState): Promise<void> {
     try {
@@ -370,35 +370,59 @@ export class PersistentCommercialAnalysisService {
         if (jobData) {
           jobData.lastUpdate = new Date();
           
-          // Use REAL progress from database, not our stale memory
-          const realProgress = currentJob[0].progress || 0;
-          const realCurrentStep = currentJob[0].currentStep || jobState.currentStep;
-          const realCurrentDocumentName = currentJob[0].currentDocumentName || '';
-          const realProcessedDocuments = currentJob[0].processedDocuments || 0;
-          const realTotalDocuments = currentJob[0].totalDocuments || 0;
+          // 🎯 ENHANCED: Check actual question completion from incremental saves
+          let realProgress = currentJob[0].progress || 0;
+          let questionsCompleted = 0;
+          let currentQuestionStep = 'Processing commercial analysis...';
+
+          // Check commercialAnswers to get real question completion status
+          const analysis = await db
+            .select()
+            .from(agentAnalyses)
+            .where(and(
+              eq(agentAnalyses.dealId, jobState.dealId),
+              eq(agentAnalyses.agentType, 'Commercial')
+            ))
+            .limit(1);
+
+          if (analysis.length > 0 && analysis[0].commercialAnswers) {
+            questionsCompleted = Object.keys(analysis[0].commercialAnswers).length;
+            realProgress = Math.round((questionsCompleted / RAG_COMMERCIAL_QUESTIONS.length) * 100);
+            
+            if (questionsCompleted > 0) {
+              const latestQuestionId = Object.keys(analysis[0].commercialAnswers).pop();
+              const latestQuestion = RAG_COMMERCIAL_QUESTIONS.find(q => q.id === latestQuestionId);
+              if (latestQuestion) {
+                currentQuestionStep = `Completed: ${latestQuestion.question}`;
+              }
+            }
+          }
           
-          // Update our memory with real values from comprehensive service
+          // Update job state with real data
           jobState.progress = realProgress;
-          jobState.currentStep = realCurrentStep;
-          jobState.documentsAnalyzed = realProcessedDocuments;
-          jobState.totalDocuments = realTotalDocuments;
+          jobState.currentStep = currentQuestionStep;
+          jobState.currentQuestionIndex = questionsCompleted;
+          jobState.documentsAnalyzed = questionsCompleted;
+          jobState.totalDocuments = RAG_COMMERCIAL_QUESTIONS.length;
           
-          // Broadcast real progress to WebSocket clients
+          // Broadcast enhanced progress to WebSocket clients
           try {
             if (this.websocketManager) {
-              // Use the correct method name and format to match WebSocket manager interface
               this.websocketManager.broadcastJobProgress({
                 jobId: parseInt(jobId.replace('commercial-analysis-', '')),
                 progress: realProgress,
                 status: 'processing',
-                currentStep: realCurrentStep,
-                documentName: realCurrentDocumentName
+                currentStep: currentQuestionStep,
+                documentName: `Question ${questionsCompleted}/${RAG_COMMERCIAL_QUESTIONS.length}`,
+                questionsCompleted: questionsCompleted,
+                totalQuestions: RAG_COMMERCIAL_QUESTIONS.length
               }, jobState.dealId);
             }
           } catch (wsError) {
             console.log(`⚠️ WebSocket broadcast failed, continuing with progress update`);
           }
-          console.log(`📡 Broadcasting REAL commercial progress: ${realProgress}% - ${realCurrentStep}`);
+          
+          console.log(`📡 Broadcasting ENHANCED commercial progress: ${realProgress}% (${questionsCompleted}/${RAG_COMMERCIAL_QUESTIONS.length} questions) - ${currentQuestionStep}`);
         }
       }
     } catch (error) {
