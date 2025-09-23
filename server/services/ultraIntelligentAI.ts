@@ -82,8 +82,14 @@ class UltraIntelligentAIService {
       const requestOptions: any = {
         model: selectedModel,
         messages: enhancedMessages,
-        max_tokens: optimizedTokens,
       };
+
+      // GPT-5 uses max_completion_tokens instead of max_tokens
+      if (selectedModel.startsWith('gpt-5')) {
+        requestOptions.max_completion_tokens = optimizedTokens;
+      } else {
+        requestOptions.max_tokens = optimizedTokens;
+      }
 
       // GPT-5 optimized parameters for maximum factual accuracy (45% fewer errors, 80% fewer hallucinations)
       if (selectedModel.startsWith('gpt-5')) {
@@ -151,8 +157,14 @@ class UltraIntelligentAIService {
         const fallbackOptions: any = {
           model: fallbackModel,
           messages: enhancedMessages,
-          max_tokens: Math.min(optimizedTokens, 16384),
         };
+
+        // GPT-5 uses max_completion_tokens instead of max_tokens
+        if (fallbackModel.startsWith('gpt-5')) {
+          fallbackOptions.max_completion_tokens = Math.min(optimizedTokens, 16384);
+        } else {
+          fallbackOptions.max_tokens = Math.min(optimizedTokens, 16384);
+        }
 
         // Optimize parameters based on fallback model type
         if (fallbackModel.startsWith('gpt-5')) {
