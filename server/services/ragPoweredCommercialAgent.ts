@@ -19,25 +19,42 @@ import OpenAI from 'openai';
  * Clean JSON response by removing markdown code fences and other formatting
  */
 /**
- * ROBUST JSON RESPONSE CLEANER
- * Enhanced version matching Legal agent's comprehensive cleaning approach
+ * TYPE-AWARE JSON RESPONSE CLEANER
+ * Fixes root cause of browser/server data inconsistency by extracting the correct JSON structure
  */
-function cleanJsonResponse(content: string): string {
-  // Remove markdown JSON code blocks
-  content = content.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '');
+function cleanJsonResponse(content: string, expectedType: 'array' | 'object' = 'array'): string {
+  // Remove markdown JSON code blocks with all variations
+  content = content.replace(/```json\s*/gi, '').replace(/```javascript\s*/gi, '').replace(/```\s*$/gi, '');
+  
+  // Remove common AI response prefixes
+  content = content.replace(/^(Here's the|Here are the|The|Response:|Analysis:|Results?:)\s*/gi, '');
   
   // Remove any leading/trailing whitespace
   content = content.trim();
   
-  // If content doesn't start with { or [, try to find the JSON part
-  if (!content.startsWith('{') && !content.startsWith('[')) {
-    const jsonMatch = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/g);
-    if (jsonMatch && jsonMatch.length > 0) {
-      content = jsonMatch[0];
+  // TYPE-AWARE extraction to prevent bracket collision with document references
+  if (expectedType === 'array' && !content.startsWith('[')) {
+    // Extract LAST bracket block containing quoted strings (not document references like [DocumentName])
+    const arrayMatches = content.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/gs);
+    if (arrayMatches && arrayMatches.length > 0) {
+      // Use the LAST array match to avoid document reference brackets
+      content = arrayMatches[arrayMatches.length - 1];
+    } else {
+      // Fallback: look for any array structure but prefer the last one
+      const genericArrays = content.match(/\[[\s\S]*?\]/g);
+      if (genericArrays && genericArrays.length > 0) {
+        content = genericArrays[genericArrays.length - 1];
+      }
+    }
+  } else if (expectedType === 'object' && !content.startsWith('{')) {
+    // For objects, use non-greedy regex and extract LAST balanced object
+    const objectMatches = content.match(/\{[\s\S]*?\}/g);
+    if (objectMatches && objectMatches.length > 0) {
+      content = objectMatches[objectMatches.length - 1];
     }
   }
   
-  // Additional cleanup: Remove any trailing non-JSON text after the closing brace
+  // Enhanced cleanup: Remove any trailing non-JSON text after the closing bracket/brace
   const lastBrace = content.lastIndexOf('}');
   const lastBracket = content.lastIndexOf(']');
   const lastClosing = Math.max(lastBrace, lastBracket);
@@ -46,14 +63,23 @@ function cleanJsonResponse(content: string): string {
     content = content.substring(0, lastClosing + 1);
   }
   
-  // Remove any control characters that might cause parsing issues
+  // Remove any control characters and common AI artifacts
   content = content.replace(/[\x00-\x1F\x7F]/g, '');
+  content = content.replace(/^[^[\{]*/, ''); // Remove any text before JSON starts
+  content = content.replace(/[^}\]]*$/, ''); // Remove any text after JSON ends
   
-  // Final safety check: if still empty or doesn't look like JSON, provide fallback JSON instead of throwing error
+  // TYPE-AWARE validation with proper error handling
   if (!content || (!content.trim().startsWith('{') && !content.trim().startsWith('['))) {
-    console.warn(`⚠️ Commercial JSON response is malformed, using fallback: ${content.substring(0, 100)}...`);
-    // Return a valid JSON structure instead of throwing error
-    return '{"findings": ["Analysis completed but response format was invalid"]}';
+    console.warn(`⚠️ Commercial ${expectedType} JSON response is malformed, using fallback: ${content.substring(0, 100)}...`);
+    console.warn(`⚠️ Original response pattern analysis: starts with "${content.substring(0, 20)}", contains JSON: ${content.includes('[') || content.includes('{')}`);
+    
+    // Return type-appropriate fallback - NEVER mix types
+    if (expectedType === 'array') {
+      return '["Analysis completed but response format was invalid - manual review required"]';
+    } else {
+      // For objects, throw to trigger retry instead of returning wrong type
+      throw new Error(`Object JSON response is malformed, expected ${expectedType} but got invalid format`);
+    }
   }
   
   return content;
@@ -753,17 +779,23 @@ ANALYSIS TASK: ${analysisPrompt}
 EVIDENCE FROM DOCUMENTS:
 ${combinedContent}
 
-Extract 2-4 specific commercial findings as a JSON array:
-["Commercial finding 1 with quantitative data", "Market insight 2 with metrics", "Revenue/sales finding 3"]
+CRITICAL INSTRUCTIONS:
+- Return ONLY a valid JSON array
+- No explanatory text, markdown formatting, or code blocks
+- No text before or after the JSON array
+- Each finding should be a complete sentence with specific data
+
+Extract 2-4 specific commercial findings as this exact JSON format:
+["Commercial finding 1 with quantitative data and specific metrics", "Market insight 2 with concrete numbers or percentages", "Revenue/sales finding 3 with measurable data"]
 
 Focus on:
 - Quantitative commercial metrics and data
-- Market size, competition, and positioning insights
+- Market size, competition, and positioning insights  
 - Sales performance and customer metrics
 - Revenue models and pricing strategies
 - Commercial risks and opportunities
 
-Return only the JSON array of commercial findings.`;
+RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT.`;
 
     try {
       const config: UltraIntelligentConfig = {
@@ -776,18 +808,47 @@ Return only the JSON array of commercial findings.`;
       };
 
       const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{ role: 'user', content: prompt }], config);
-      const cleanedResponse = cleanJsonResponse(response.content);
+      const cleanedResponse = cleanJsonResponse(response.content, 'array'); // Specify expected array type
       
-      // Bulletproof JSON parsing with schema-aware fallback
+      // Enhanced JSON parsing with comprehensive validation
       try {
         const findings = JSON.parse(cleanedResponse);
         
         if (Array.isArray(findings)) {
-          return findings;
+          // COMPREHENSIVE SCHEMA VALIDATION: Enforce 2-4 non-empty strings
+          const validFindings = findings
+            .filter(finding => typeof finding === 'string' && finding.trim().length > 0)
+            .map(finding => finding.trim()) // Normalize whitespace
+            .slice(0, 4); // Enforce maximum of 4 findings
+          
+          if (validFindings.length >= 2 && validFindings.length <= 4) {
+            console.log(`✅ Commercial JSON parsing successful: ${validFindings.length} valid findings extracted (schema compliant)`);
+            return validFindings;
+          } else if (validFindings.length === 1) {
+            console.warn(`⚠️ Commercial JSON array contained only 1 valid string, duplicating to meet 2-4 requirement`);
+            return [validFindings[0], `Additional analysis needed for: ${analysisPrompt}`];
+          } else if (validFindings.length > 4) {
+            console.warn(`⚠️ Commercial JSON array contained ${validFindings.length} strings, truncating to 4 as per schema`);
+            return validFindings.slice(0, 4);
+          } else {
+            console.warn(`⚠️ Commercial JSON array contained no valid strings (${findings.length} total items), using schema-compliant fallback`);
+            return [
+              `Commercial analysis extracted ${findings.length} items but none were valid strings`,
+              `Manual review required for: ${analysisPrompt}`
+            ];
+          }
         }
         
-        // If not an array, return fallback
-        return [`Commercial analysis completed: ${analysisPrompt}`];
+        // Handle single object responses by converting to array
+        if (typeof findings === 'object' && findings !== null) {
+          if (findings.findings && Array.isArray(findings.findings)) {
+            return findings.findings.filter(f => typeof f === 'string' && f.trim().length > 0);
+          }
+        }
+        
+        // If not an array or valid object, return descriptive fallback
+        console.warn(`⚠️ Commercial JSON response was not an array: ${typeof findings}`);
+        return [`Commercial analysis completed but returned ${typeof findings} instead of array - manual review needed for: ${analysisPrompt}`];
         
       } catch (parseError) {
         console.error('❌ Critical JSON parse failure in Commercial synthesizeChunkFindings:', parseError);
