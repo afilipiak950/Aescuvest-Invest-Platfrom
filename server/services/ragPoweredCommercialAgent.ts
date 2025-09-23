@@ -634,13 +634,13 @@ ENTERPRISE REQUIREMENTS:
 
       console.log(`🗑️ Deleted existing commercial analysis for deal ${this.dealId}`);
 
-      // Insert new commercial analysis with correct schema
-      await db.insert(agentAnalyses).values({
+      // Insert new commercial analysis with correct schema INCLUDING commercialAnswers
+      const insertData: typeof agentAnalyses.$inferInsert = {
         dealId: this.dealId,
-        agentType: 'commercial',
-        status: 'completed',
+        agentType: 'Commercial',
+        status: 'Complete',
         progress: 100,
-        findings: analysis.summaryFindings?.map((finding, index) => ({
+        findings: analysis.criticalFindings?.map((finding, index) => ({
           id: index + 1,
           content: finding,
           type: 'commercial'
@@ -651,8 +651,11 @@ ENTERPRISE REQUIREMENTS:
           priority: 'medium',
           category: 'commercial',
           impact: 'medium'
-        })) || []
-      });
+        })) || [],
+        commercialAnswers: commercialAnswers  // 🎯 CRITICAL FIX: Store the structured answers
+      };
+      
+      await db.insert(agentAnalyses).values(insertData);
 
       console.log(`✅ Commercial analysis saved successfully with ${Object.keys(commercialAnswers).length} questions`);
 
