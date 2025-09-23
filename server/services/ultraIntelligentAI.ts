@@ -111,14 +111,25 @@ class UltraIntelligentAIService {
         requestOptions.response_format = config.responseFormat;
       }
 
+      // Debug GPT-5 parameter issue - log exact parameters being sent
+      if (selectedModel.startsWith('gpt-5')) {
+        console.log(`🐛 DEBUG GPT-5 Request Options:`, JSON.stringify(requestOptions, null, 2));
+      }
+      
       const completion = await this.openai.chat.completions.create(requestOptions);
 
       const responseTime = Date.now() - startTime;
       const content = completion.choices[0]?.message?.content || '';
       const tokensUsed = completion.usage?.total_tokens || 0;
 
-      // Step 6: Sanitize JSON response if needed
-      const finalContent = this.sanitizeJSONResponse(content, config);
+      // Step 6: Enhanced JSON response sanitization with fallback
+      let finalContent = this.sanitizeJSONResponse(content, config);
+      
+      // Extra safety: if content starts with plain text instead of JSON, wrap it
+      if (config.responseFormat?.type === 'json_object' && !finalContent.trim().startsWith('{') && !finalContent.trim().startsWith('[')) {
+        console.log(`⚠️ AI returned plain text instead of JSON. Wrapping response...`);
+        finalContent = `{"error": "AI_RESPONSE_NOT_JSON", "content": ${JSON.stringify(finalContent)}}`;
+      }
 
       // Step 7: Assess quality and record performance
       const qualityScore = this.assessResponseQuality(finalContent, config);

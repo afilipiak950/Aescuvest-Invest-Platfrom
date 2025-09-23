@@ -455,7 +455,9 @@ Provide investment-relevant clinical intelligence, not generic summaries.`;
         { role: "user", content: prompt }
       ], ultraIntelligentConfig);
       
-      const analysis = JSON.parse(response.content || '{"findings": []}');
+      // Enhanced JSON parsing with robust cleaning (matching Legal agent approach)
+      const cleanedContent = this.cleanJsonResponse(response.content || '{"findings": []}');
+      const analysis = JSON.parse(cleanedContent);
       return analysis.findings || [];
       
     } catch (error) {
@@ -597,6 +599,46 @@ ENTERPRISE REQUIREMENTS:
         processingTime: 0
       };
     }
+  }
+
+  /**
+   * CLEAN JSON RESPONSE
+   * Remove markdown formatting from AI responses to fix JSON parsing errors
+   */
+  private cleanJsonResponse(content: string): string {
+    // Remove markdown JSON code blocks
+    content = content.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '');
+    
+    // Remove any leading/trailing whitespace
+    content = content.trim();
+    
+    // If content doesn't start with { or [, try to find the JSON part
+    if (!content.startsWith('{') && !content.startsWith('[')) {
+      const jsonMatch = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/g);
+      if (jsonMatch && jsonMatch.length > 0) {
+        content = jsonMatch[0];
+      }
+    }
+    
+    // Additional cleanup: Remove any trailing non-JSON text after the closing brace
+    const lastBrace = content.lastIndexOf('}');
+    const lastBracket = content.lastIndexOf(']');
+    const lastClosing = Math.max(lastBrace, lastBracket);
+    
+    if (lastClosing !== -1 && lastClosing < content.length - 1) {
+      content = content.substring(0, lastClosing + 1);
+    }
+    
+    // Remove any control characters that might cause parsing issues
+    content = content.replace(/[\x00-\x1F\x7F]/g, '');
+    
+    // Final safety check: if still empty or doesn't look like JSON, return minimal fallback
+    if (!content || (!content.trim().startsWith('{') && !content.trim().startsWith('['))) {
+      console.log(`⚠️ Clinical JSON response appears malformed, using fallback`);
+      return '{"findings": []}';
+    }
+    
+    return content;
   }
 
   /**
