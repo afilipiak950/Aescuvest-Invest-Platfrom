@@ -83,26 +83,45 @@ export class PersistentHRAnalysisService {
       await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
     }
 
-    // Create new background job record - FIXED: Direct database insert like Legal agent
-    await db.insert(backgroundJobs).values({
-      jobId,
-      dealId,
-      jobType: 'comprehensive_hr_analysis',
-      agentType: 'HR',
-      status: 'processing',
-      progress: 0,
-      processedDocuments: 0,
-      totalDocuments: 12, // 12 HR questions
-      currentStep: 'Initializing HR analysis...',
-      jobData: JSON.stringify({
-        startTime: Date.now(),
-        analysisType: 'comprehensive_rag_hr',
-        ragEnabled: true,
-        questionCount: 12,
-        expectedLayers: 48 // 12 questions × 4 RAG layers each
-      }),
-      startedAt: new Date()
-    });
+    // Create new background job record using storage service (like Financial/IP agents)
+    try {
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_hr_analysis',
+        dealId,
+        agentType: 'HR',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 12, // 12 HR questions
+        processedDocuments: 0,
+        currentStep: 'Initializing HR analysis...',
+        startedAt: new Date()
+      });
+      console.log(`✅ Created background job ${jobId} for HR analysis`);
+    } catch (error) {
+      // Handle duplicate key errors specifically
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log(`⚠️ Duplicate job key detected, attempting force cleanup for ${jobId}`);
+        await storage.deleteBackgroundJob(jobId);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'comprehensive_hr_analysis',
+          dealId,
+          agentType: 'HR',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 12,
+          processedDocuments: 0,
+          currentStep: 'Initializing HR analysis after cleanup...',
+          startedAt: new Date()
+        });
+        console.log(`✅ Successfully created job ${jobId} after cleanup`);
+      } else {
+        throw error;
+      }
+    }
 
     // Start the analysis process
     await this.processHRAnalysis(dealId, jobId);
