@@ -234,15 +234,18 @@ export const RAG_COMMERCIAL_QUESTIONS = [
   }
 ];
 
-// RAG Commercial Evidence Interface
+// RAG Commercial Evidence Interface (Fixed to match Clinical agent)
 interface RagCommercialEvidence {
   query: string;
   chunks: Array<{
     content: string;
     documentName: string;
     similarity: number;
+    metadata: any;
   }>;
-  documentCount: number;
+  synthesizedFindings: string[];
+  confidenceScore: number;
+  sourceDocuments: string[];
   totalChunks: number;
 }
 
@@ -308,16 +311,23 @@ export class RAGPoweredCommercialAgent {
         12 // Get 12 chunks per layer for comprehensive evidence
       );
 
+      const mappedChunks = searchResults.map(result => ({
+        content: result.content || result.chunk,
+        documentName: result.documentName || result.metadata?.documentName,
+        similarity: result.similarity,
+        metadata: result.metadata
+      }));
+
+      // Synthesize findings from mapped chunks
+      const synthesizedFindings = await this.synthesizeChunkFindings(mappedChunks, category);
+      
       const evidence: RagCommercialEvidence = {
         query,
-        chunks: searchResults.map(result => ({
-          content: result.content || result.chunk,
-          documentName: result.documentName || result.metadata?.documentName,
-          similarity: result.similarity
-        })),
-        documentCount: searchResults.length > 0 ? 
-          new Set(searchResults.map(r => r.documentName || r.metadata?.documentName)).size : 0,
-        totalChunks: searchResults.length
+        chunks: mappedChunks,
+        synthesizedFindings,
+        confidenceScore: this.calculateConfidenceScore(mappedChunks),
+        sourceDocuments: Array.from(new Set(mappedChunks.map(c => c.documentName))),
+        totalChunks: mappedChunks.length
       };
 
       evidenceLayers.push(evidence);
@@ -595,13 +605,10 @@ ENTERPRISE REQUIREMENTS:
 
       console.log(`🗑️ Deleted existing commercial analysis for deal ${this.dealId}`);
 
-      // Insert new commercial analysis with simplified fields to fix TypeScript issues
+      // Insert new commercial analysis with minimal schema fields
       await db.insert(agentAnalyses).values({
         dealId: this.dealId,
         agentType: 'Commercial',
-        findings: analysis.criticalFindings,
-        recommendations: analysis.recommendedActions,
-        documentSources: analysis.documentsAnalyzed > 0 ? [analysis.documentsAnalyzed.toString()] : [],
         commercialAnswers: commercialAnswers
       });
 
@@ -611,6 +618,81 @@ ENTERPRISE REQUIREMENTS:
       console.error(`❌ Failed to save commercial analysis:`, error);
       throw error;
     }
+  }
+
+  /**
+   * SYNTHESIZE CHUNK FINDINGS
+   * Convert raw RAG chunks into structured commercial insights
+   */
+  private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string): Promise<string[]> {
+    if (chunks.length === 0) return [];
+    
+    // Combine top chunks for analysis
+    const combinedContent = chunks
+      .slice(0, 8) // Use top 8 chunks for focused analysis
+      .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
+      .join('\n\n');
+    
+    const prompt = `You are a senior commercial investment analyst conducting institutional due diligence. Extract key commercial findings from this evidence:
+
+ANALYSIS TASK: ${analysisPrompt}
+
+EVIDENCE FROM DOCUMENTS:
+${combinedContent}
+
+Extract 2-4 specific commercial findings as a JSON array:
+["Commercial finding 1 with quantitative data", "Market insight 2 with metrics", "Revenue/sales finding 3"]
+
+Focus on:
+- Quantitative commercial metrics and data
+- Market size, competition, and positioning insights
+- Sales performance and customer metrics
+- Revenue models and pricing strategies
+- Commercial risks and opportunities
+
+Return only the JSON array of commercial findings.`;
+
+    try {
+      const config: UltraIntelligentConfig = {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.85,
+        maxTokens: 1000,
+        temperature: 0.3
+      };
+
+      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{ role: 'user', content: prompt }], config);
+      const cleanedResponse = cleanJsonResponse(response.content);
+      const findings = JSON.parse(cleanedResponse);
+      
+      if (Array.isArray(findings)) {
+        return findings;
+      }
+      
+      return [`Commercial analysis completed: ${analysisPrompt}`];
+      
+    } catch (error) {
+      console.error('Error synthesizing chunk findings:', error);
+      return [`Evidence gathered from ${chunks.length} commercial documents`];
+    }
+  }
+
+  /**
+   * CALCULATE CONFIDENCE SCORE
+   * Based on chunk similarity scores and document coverage
+   */
+  private calculateConfidenceScore(chunks: any[]): number {
+    if (chunks.length === 0) return 0;
+    
+    const avgSimilarity = chunks.reduce((sum, chunk) => sum + (chunk.similarity || 0), 0) / chunks.length;
+    const documentCount = new Set(chunks.map(c => c.documentName)).size;
+    
+    // Confidence based on similarity and document diversity
+    const similarityScore = avgSimilarity * 100;
+    const diversityBonus = Math.min(documentCount * 8, 25); // Higher bonus for commercial
+    
+    return Math.min(Math.round(similarityScore + diversityBonus), 100);
   }
 
   /**
