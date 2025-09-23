@@ -22,45 +22,57 @@ export const RAG_LEGAL_QUESTIONS = [
     id: 'contracts_1', 
     question: 'Are key commercial contracts clearly defined?', 
     category: 'Contracts & Agreements',
-    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables'],
-    ragQueries: [
-      'commercial contract terms payment deliverables scope clearly defined',
-      'contract agreement structure terms conditions payment schedule',  
-      'deliverable milestones payment terms billing invoicing contract',
-      'contract definition scope work statement SOW commercial agreement'
+    subQuestions: [
+      'What are the specific contract values and payment amounts?',
+      'Are termination clauses clearly defined with notice periods?',
+      'What liability caps and indemnification limits are specified?'
     ],
-    analysisPrompt: 'Analyze commercial contract clarity and definition. Focus on contract terms, payment structures, deliverable specifications, and contract clarity for investment assessment.',
-    evidenceTargets: ['contract_terms', 'payment_structure', 'deliverables', 'contract_clarity']
+    ragQueries: [
+      'contract value amount payment fee pricing commercial terms specific',
+      'termination clause notice period days breach default termination for convenience',  
+      'liability cap limitation indemnification maximum amount dollar limit',
+      'payment terms net 30 net 15 invoice billing due date amount'
+    ],
+    analysisPrompt: 'Extract specific contract amounts, termination notice periods, liability caps, and payment terms with exact figures and dates from contract documents.',
+    evidenceTargets: ['contract_amounts', 'termination_clauses', 'liability_caps', 'payment_schedules']
   },
   
   { 
     id: 'contracts_2', 
     question: 'What are the key contractual obligations and terms?', 
     category: 'Contracts & Agreements',
-    subQuestions: ['Obligations', 'Terms and conditions', 'Performance requirements'],
-    ragQueries: [
-      'contractual obligations duties responsibilities performance requirements',
-      'terms conditions requirements covenant agreement binding obligations',
-      'performance requirements KPI metrics deliverable standards obligations',
-      'contractual commitments duties obligations terms conditions binding'
+    subQuestions: [
+      'What specific performance milestones and KPIs are required?',
+      'Are there exclusivity clauses or non-compete restrictions?',
+      'What are the governing law and jurisdiction provisions?'
     ],
-    analysisPrompt: 'Evaluate contractual obligations and performance requirements. Focus on duties, responsibilities, performance standards, and binding commitments for legal risk assessment.',
-    evidenceTargets: ['contractual_obligations', 'performance_requirements', 'terms_conditions', 'binding_duties']
+    ragQueries: [
+      'performance milestone KPI deliverable requirement deadline specific target',
+      'exclusivity clause non-compete restriction exclusive dealing territory',
+      'governing law jurisdiction court venue dispute resolution arbitration',
+      'breach default cure period remedy damages specific performance'
+    ],
+    analysisPrompt: 'Extract specific performance milestones, exclusivity restrictions, governing law provisions, and breach remedies with exact terms and jurisdictions from contracts.',
+    evidenceTargets: ['performance_milestones', 'exclusivity_clauses', 'governing_law', 'breach_remedies']
   },
   
   { 
     id: 'contracts_3', 
     question: 'Are there any concerning contract provisions or risks?', 
     category: 'Contracts & Agreements',
-    subQuestions: ['Risk provisions', 'Liability clauses', 'Termination conditions'],
-    ragQueries: [
-      'risk provisions liability limitation indemnification concerning terms',
-      'termination clause breach default notice period unfavorable',
-      'liability exposure damages limitation caps indemnification risk',
-      'contract risk provision concerning unfavorable terms liability'
+    subQuestions: [
+      'What are the specific liability caps and damage limitations?',
+      'Are there onerous termination or penalty clauses?',
+      'What indemnification obligations exist with dollar amounts?'
     ],
-    analysisPrompt: 'Assess contract risks and concerning provisions. Focus on liability exposure, termination risks, unfavorable terms, and potential legal vulnerabilities.',
-    evidenceTargets: ['risk_provisions', 'liability_clauses', 'termination_risks', 'unfavorable_terms']
+    ragQueries: [
+      'liability cap maximum amount dollar limitation damages ceiling specific',
+      'termination penalty fee clause cost breach default specific amount',
+      'indemnification obligation duty amount limit defense hold harmless',
+      'penalty clause liquidated damages specific amount breach default'
+    ],
+    analysisPrompt: 'Extract specific liability caps, termination penalties, indemnification amounts, and concerning provisions with exact dollar figures and penalty structures.',
+    evidenceTargets: ['liability_amounts', 'termination_penalties', 'indemnification_limits', 'penalty_clauses']
   },
 
   // Corporate Governance (3 questions)
@@ -508,6 +520,18 @@ Provide institutional-grade legal analysis in JSON format:
   "complianceStatus": "Compliant/Non-Compliant/Partially Compliant/Under Review",
   "investmentImplications": "Direct impact on investment thesis and legal risk profile"
 }
+
+ENTERPRISE REQUIREMENTS:
+- Cite specific contractual terms, amounts, dates, and clauses from evidence with [Document, Section/Page] references
+- Extract concrete legal data: liability caps, termination notice periods, governing law, payment terms with specific amounts/dates
+- Provide institutional investment perspective focusing on legal risk exposure and deal structure impact
+- Include verbatim contract quotes (≤300 chars) with document citations for credibility
+- Reference multiple source documents for comprehensive legal assessment
+- Focus on actionable insights for investment committee decision-making
+- Use professional legal and commercial terminology with precise clause analysis
+- Quantify legal risks, liability exposure, and contractual obligations where possible
+- Extract specific parties, effective dates, termination conditions, and financial commitments
+- Identify concerning provisions with exact contractual language and potential impact
 
 LEGAL RISK SCORING (1-10):
 1-3: Low Risk (Strong legal position, minimal exposure)
