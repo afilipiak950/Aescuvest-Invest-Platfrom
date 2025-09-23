@@ -669,7 +669,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      legal_answers: legalAnswers, // Store with CORRECT question IDs (contracts_1, governance_1, etc.)
+      legalAnswers: legalAnswers, // Store with CORRECT question IDs (contracts_1, governance_1, etc.)
       documentSources: JSON.stringify(Array.from(new Set(Object.values(legalAnswers).flatMap(a => a.sources)))),
       createdAt: new Date(),
       updatedAt: new Date()
