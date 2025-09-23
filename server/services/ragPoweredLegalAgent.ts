@@ -665,7 +665,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
     const analysisData = {
       dealId: this.dealId,
       agentType: 'Legal' as const,
-      status: 'completed' as const,
+      status: 'Complete' as const,
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
