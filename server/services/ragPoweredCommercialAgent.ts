@@ -350,68 +350,57 @@ export class RAGPoweredCommercialAgent {
   /**
    * Synthesize enterprise commercial analysis from RAG evidence
    */
-  private async synthesizeEnterpriseCommercialAnswer(
-    questionId: string,
-    question: string,
-    category: string,
-    evidenceLayers: RagCommercialEvidence[],
-    analysisPrompt: string,
-    evidenceTargets: string[]
+  private async synthesizeEnterpriseAnswer(
+    question: any, 
+    evidenceBase: RagCommercialEvidence[]
   ): Promise<CommercialQuestionResult> {
-    console.log(`🧠 Synthesizing enterprise commercial answer for: ${question}`);
+    console.log(`🧠 Synthesizing enterprise commercial answer for: ${question.question}`);
+    
+    // Aggregate all findings and source documents (matching Clinical/Legal pattern)
+    const allFindings = evidenceBase.flatMap(evidence => evidence.synthesizedFindings);
+    const allSourceDocuments = Array.from(new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments)));
+    const totalChunks = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
+    
+    // Build comprehensive evidence summary
+    const evidenceSummary = evidenceBase.map((evidence, index) => 
+      `Layer ${index + 1}: "${evidence.query}" → ${evidence.synthesizedFindings.length} findings from ${evidence.sourceDocuments.length} documents`
+    ).join('\n');
 
-    // Collect all evidence chunks with source attribution
-    const allEvidence = evidenceLayers.flatMap(layer => 
-      layer.chunks.map(chunk => ({
-        content: chunk.content.substring(0, 2000), // Limit context length
-        source: chunk.documentName,
-        similarity: chunk.similarity,
-        query: layer.query
-      }))
-    );
+    const prompt = `You are a senior commercial investment analyst conducting institutional due diligence for a commercial investment. Provide an enterprise-grade commercial assessment.
 
-    // Sort by similarity and take top evidence
-    const topEvidence = allEvidence
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 20); // Top 20 pieces of evidence
+QUESTION: ${question.question}
+CATEGORY: ${question.category}
+SUB-QUESTIONS: ${question.subQuestions.join('; ')}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
-    const evidenceContext = topEvidence
-      .map((evidence, index) => 
-        `Evidence ${index + 1} (Score: ${evidence.similarity.toFixed(3)}, Source: ${evidence.source}):\n${evidence.content}`
-      )
-      .join('\n\n');
+COMPREHENSIVE EVIDENCE BASE:
+${evidenceSummary}
 
-    const synthesisPrompt = `You are an enterprise-grade commercial analyst conducting investment due diligence.
+ALL COMMERCIAL FINDINGS:
+${allFindings.map((finding, i) => `${i + 1}. ${finding}`).join('\n')}
 
-ANALYSIS QUESTION: ${question}
-CATEGORY: ${category}
-ANALYSIS FOCUS: ${analysisPrompt}
+SOURCE DOCUMENTS: ${allSourceDocuments.length} documents analyzed, ${totalChunks} content segments
 
-EVIDENCE TARGETS: ${evidenceTargets.join(', ')}
-
-DOCUMENT EVIDENCE:
-${evidenceContext}
-
-INSTRUCTIONS:
-1. Provide a comprehensive commercial analysis answering the specific question
-2. Focus on commercial viability, market positioning, and revenue optimization insights
-3. Include specific evidence from the documents with source attribution
-4. Assess commercial risk factors on a 1-10 scale (1=low risk, 10=high risk)
-5. Identify key findings that impact commercial success and investment attractiveness
-6. Provide actionable recommendations for commercial optimization
-
-Please provide your analysis in the following JSON format:
+Provide institutional-grade commercial analysis in JSON format:
 {
-  "answer": "Detailed commercial analysis with specific evidence and source citations",
-  "commercialRiskScore": 5,
-  "riskFactors": ["List of commercial risk factors identified"],
-  "keyFindings": ["Key commercial insights and findings"],
-  "recommendations": ["Specific actionable recommendations"],
-  "confidenceScore": 0.85,
-  "documentSources": ["List of key document sources referenced"]
+  "answer": "Comprehensive commercial analysis with specific quantitative data, market metrics, and investment implications",
+  "confidence": 0-100,
+  "sources": ["Document1.pdf", "Document2.pdf"],
+  "keyFindings": ["Quantified commercial finding 1", "Market opportunity 2", "Revenue data 3"],
+  "commercialAssessment": "Professional commercial assessment from institutional investment perspective",
+  "recommendations": ["Actionable investment recommendation 1", "Commercial optimization step 2"],
+  "commercialRiskScore": 1-10,
+  "investmentImplications": "Direct impact on investment thesis and commercial valuation"
 }
 
-Ensure your analysis is enterprise-grade, data-driven, and focused on commercial investment insights.`;
+ENTERPRISE REQUIREMENTS:
+- Cite specific quantitative commercial data from evidence
+- Provide institutional investment perspective
+- Include risk-adjusted commercial assessments  
+- Reference multiple source documents for credibility
+- Focus on actionable insights for investment committee
+- Use professional commercial and market terminology
+- Quantify commercial risks and opportunities where possible`;
 
     try {
       // Ultra-Intelligent Commercial Analysis Configuration
@@ -425,7 +414,7 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
       };
 
       const completion = await ultraIntelligentAI.createUltraIntelligentCompletion([
-        { role: "user", content: synthesisPrompt }
+        { role: "user", content: prompt }
       ], ultraIntelligentConfig);
 
       console.log(`🚀 Ultra-Intelligent Commercial Analysis: ${completion.intelligenceLevel} | Quality: ${completion.qualityScore.toFixed(3)} | Model: ${completion.model}`);
@@ -445,11 +434,11 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
       const analysisData = JSON.parse(cleanedResponse);
 
       const result: CommercialQuestionResult = {
-        questionId,
-        question,
-        category,
+        questionId: question.id,
+        question: question.question,
+        category: question.category,
         answer: analysisData.answer || 'Analysis completed but no specific answer provided',
-        evidence: evidenceLayers,
+        evidence: evidenceBase,
         commercialRiskScore: Math.min(10, Math.max(1, analysisData.commercialRiskScore || 5)),
         riskFactors: Array.isArray(analysisData.riskFactors) ? analysisData.riskFactors : [],
         keyFindings: Array.isArray(analysisData.keyFindings) ? analysisData.keyFindings : [],
@@ -458,28 +447,28 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
         documentSources: Array.isArray(analysisData.documentSources) ? analysisData.documentSources : []
       };
 
-      console.log(`✅ Commercial analysis synthesized for question: ${questionId}`);
+      console.log(`✅ Commercial analysis synthesized for question: ${question.id}`);
       console.log(`📊 Commercial risk score: ${result.commercialRiskScore}/10`);
       console.log(`🎯 Confidence score: ${(result.confidenceScore * 100).toFixed(1)}%`);
       
       return result;
 
     } catch (error) {
-      console.error(`❌ Failed to synthesize commercial analysis for question ${questionId}:`, error);
+      console.error(`❌ Failed to synthesize commercial analysis for question ${question.id}:`, error);
       
-      // Fallback analysis
+      // Fallback analysis (matching Clinical/Legal pattern)
       return {
-        questionId,
-        question,
-        category,
-        answer: `Commercial analysis completed for: ${question}. Evidence gathered from ${allEvidence.length} sources across ${new Set(allEvidence.map(e => e.source)).size} documents.`,
-        evidence: evidenceLayers,
+        questionId: question.id,
+        question: question.question,
+        category: question.category,
+        answer: `Commercial analysis completed for: ${question.question}. Evidence gathered from ${evidenceBase.length} layers across ${allSourceDocuments.length} documents.`,
+        evidence: evidenceBase,
         commercialRiskScore: 5,
         riskFactors: ['Analysis synthesis error - manual review required'],
-        keyFindings: [`Evidence collected from ${allEvidence.length} sources`],
+        keyFindings: [`Evidence collected from ${evidenceBase.length} layers`],
         recommendations: ['Detailed manual analysis recommended due to synthesis limitations'],
         confidenceScore: 0.6,
-        documentSources: Array.from(new Set(allEvidence.map(e => e.source)))
+        documentSources: allSourceDocuments.slice(0, 3)
       };
     }
   }
@@ -509,15 +498,8 @@ Ensure your analysis is enterprise-grade, data-driven, and focused on commercial
           questionData.ragQueries
         );
 
-        // Synthesize enterprise commercial analysis
-        const questionResult = await this.synthesizeEnterpriseCommercialAnswer(
-          questionData.id,
-          questionData.question,
-          questionData.category,
-          evidenceLayers,
-          questionData.analysisPrompt,
-          questionData.evidenceTargets
-        );
+        // Synthesize enterprise commercial analysis (using Clinical/Legal pattern)
+        const questionResult = await this.synthesizeEnterpriseAnswer(questionData, evidenceLayers);
 
         questionResults.push(questionResult);
         
