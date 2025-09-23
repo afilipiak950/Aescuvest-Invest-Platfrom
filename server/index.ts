@@ -14,6 +14,7 @@ import { persistentClinicalAnalysisService } from "./services/persistentClinical
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 import { persistentResearchAnalysisService } from "./services/persistentResearchAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
+import { persistentCommercialAnalysisService } from "./services/persistentCommercialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
 import { debug413Middleware, bypass413Middleware } from "./debug-413";
 
@@ -1269,6 +1270,12 @@ app.use((req, res, next) => {
     console.log('💰 Initializing Persistent Financial Analysis Service...');
     persistentFinancialAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent financial analysis:', err);
+    });
+
+    // Initialize Persistent Commercial Analysis Service  
+    console.log('🏢 Initializing Persistent Commercial Analysis Service...');
+    persistentCommercialAnalysisService.initialize().catch(err => {
+      console.error('❌ Failed to initialize persistent commercial analysis:', err);
     });
   });
 })();
