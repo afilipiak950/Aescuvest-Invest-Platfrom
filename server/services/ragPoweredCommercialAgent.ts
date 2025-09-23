@@ -635,10 +635,10 @@ ENTERPRISE REQUIREMENTS:
       console.log(`🗑️ Deleted existing commercial analysis for deal ${this.dealId}`);
 
       // Insert new commercial analysis with correct schema INCLUDING commercialAnswers
-      const insertData: typeof agentAnalyses.$inferInsert = {
+      const insertData = {
         dealId: this.dealId,
-        agentType: 'Commercial',
-        status: 'Complete',
+        agentType: 'Commercial' as const,
+        status: 'Complete' as const,
         progress: 100,
         findings: analysis.criticalFindings?.map((finding, index) => ({
           id: index + 1,
