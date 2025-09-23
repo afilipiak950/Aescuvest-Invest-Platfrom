@@ -605,10 +605,22 @@ Provide precise legal intelligence with specific contractual terms, compliance s
     // If content doesn't start with { or [, try to find the JSON part
     if (!content.startsWith('{') && !content.startsWith('[')) {
       const jsonMatch = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/g);
-      if (jsonMatch) {
-        content = jsonMatch[1];
+      if (jsonMatch && jsonMatch.length > 0) {
+        content = jsonMatch[0];
       }
     }
+    
+    // Additional cleanup: Remove any trailing non-JSON text after the closing brace
+    const lastBrace = content.lastIndexOf('}');
+    const lastBracket = content.lastIndexOf(']');
+    const lastClosing = Math.max(lastBrace, lastBracket);
+    
+    if (lastClosing !== -1 && lastClosing < content.length - 1) {
+      content = content.substring(0, lastClosing + 1);
+    }
+    
+    // Remove any control characters that might cause parsing issues
+    content = content.replace(/[\x00-\x1F\x7F]/g, '');
     
     return content;
   }
