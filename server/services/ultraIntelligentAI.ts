@@ -93,7 +93,7 @@ class UltraIntelligentAIService {
 
       // GPT-5 optimized parameters for maximum factual accuracy (45% fewer errors, 80% fewer hallucinations)
       if (selectedModel.startsWith('gpt-5')) {
-        requestOptions.top_p = 0.3; // Reduced for maximum factual accuracy
+        // GPT-5 doesn't support top_p parameter
         // No penalties for GPT-5 to maintain factual integrity
       } else {
         requestOptions.top_p = 0.95; // Standard for other models
@@ -168,7 +168,8 @@ class UltraIntelligentAIService {
 
         // Optimize parameters based on fallback model type
         if (fallbackModel.startsWith('gpt-5')) {
-          fallbackOptions.top_p = 0.3; // Maximum factual accuracy for GPT-5
+          // GPT-5 doesn't support top_p parameter
+          fallbackOptions.temperature = 0.1; // Low temperature for accuracy
         } else {
           fallbackOptions.temperature = optimizedTemperature;
           fallbackOptions.top_p = 0.95;
