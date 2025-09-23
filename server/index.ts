@@ -11,6 +11,7 @@ import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
+import { persistentHRAnalysisService } from "./services/persistentHRAnalysis";
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
 import { persistentResearchAnalysisService } from "./services/persistentResearchAnalysis";
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
@@ -1252,6 +1253,12 @@ app.use((req, res, next) => {
     console.log('🧬 Initializing Persistent Clinical Analysis Service...');
     persistentClinicalAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent clinical analysis:', err);
+    });
+    
+    // Initialize Persistent HR Analysis Service
+    console.log('👥 Initializing Persistent HR Analysis Service...');
+    persistentHRAnalysisService.initialize().catch(err => {
+      console.error('❌ Failed to initialize persistent HR analysis:', err);
     });
     
     // Initialize Persistent Legal Analysis Service

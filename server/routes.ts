@@ -43,7 +43,7 @@ import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
 import { persistentCommercialRoutes } from './routes/persistentCommercialRoutes';
-import { persistentHRRoutes } from './routes/persistentHRRoutes';
+import persistentHRRoutes from './routes/persistentHRRoutes';
 import { persistentResearchRoutes } from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
