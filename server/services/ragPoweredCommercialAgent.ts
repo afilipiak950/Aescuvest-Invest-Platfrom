@@ -49,10 +49,10 @@ function cleanJsonResponse(content: string): string {
   // Remove any control characters that might cause parsing issues
   content = content.replace(/[\x00-\x1F\x7F]/g, '');
   
-  // Final safety check: if still empty or doesn't look like JSON, return minimal fallback
+  // Final safety check: if still empty or doesn't look like JSON, throw error instead of silent failure
   if (!content || (!content.trim().startsWith('{') && !content.trim().startsWith('['))) {
-    console.log(`⚠️ JSON response appears malformed, using fallback`);
-    return '[]';
+    console.error(`❌ Commercial JSON response is malformed and cannot be parsed: ${content.substring(0, 100)}...`);
+    throw new Error(`Commercial agent received malformed JSON response - unable to parse analysis results`);
   }
   
   return content;
@@ -458,18 +458,17 @@ ENTERPRISE REQUIREMENTS:
       try {
         analysisData = JSON.parse(cleanedResponse);
       } catch (parseError) {
-        console.error('JSON parse failed in synthesizeCommercialAnswer:', parseError);
-        console.log('Problematic content (first 200 chars):', cleanedResponse.substring(0, 200));
+        console.error('❌ Critical JSON parse failure in Commercial agent:', parseError);
+        console.error('❌ Problematic content:', cleanedResponse.substring(0, 200));
+        console.error('❌ Full evidence context:', {
+          questionId: question.id,
+          evidenceLayersCount: evidenceBase.length,
+          totalChunks: evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0),
+          sourceDocuments: Array.from(new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments)))
+        });
         
-        // Schema-aware fallback for object-expected context
-        analysisData = {
-          answer: 'Commercial analysis completed with evidence extraction',
-          confidence: 70,
-          commercialRiskScore: 5,
-          keyFindings: [`Evidence analyzed from ${evidenceBase.length} commercial sources`],
-          recommendations: ['Continue commercial due diligence review'],
-          riskFactors: ['Limited analysis due to response formatting issues']
-        };
+        // Throw error instead of silent fallback to surface parsing issues
+        throw new Error(`Commercial agent analysis failed: JSON parsing error for question "${question.question}". Response format was invalid: ${parseError.message}`);
       }
 
       const result: CommercialQuestionResult = {
@@ -493,22 +492,12 @@ ENTERPRISE REQUIREMENTS:
       return result;
 
     } catch (error) {
-      console.error(`❌ Failed to synthesize commercial analysis for question ${question.id}:`, error);
+      console.error(`❌ Critical failure in Commercial agent synthesis for question ${question.id}:`, error);
+      console.error(`❌ Commercial analysis failed completely - question: "${question.question}"`);
+      console.error(`❌ Evidence context: ${evidenceBase.length} layers, ${allSourceDocuments.length} documents`);
       
-      // Fallback analysis (matching Clinical/Legal pattern)
-      return {
-        questionId: question.id,
-        question: question.question,
-        category: question.category,
-        answer: `Commercial analysis completed for: ${question.question}. Evidence gathered from ${evidenceBase.length} layers across ${allSourceDocuments.length} documents.`,
-        evidence: evidenceBase,
-        commercialRiskScore: 5,
-        riskFactors: ['Analysis synthesis error - manual review required'],
-        keyFindings: [`Evidence collected from ${evidenceBase.length} layers`],
-        recommendations: ['Detailed manual analysis recommended due to synthesis limitations'],
-        confidenceScore: 0.6,
-        documentSources: allSourceDocuments.slice(0, 3)
-      };
+      // Re-throw the error to ensure failures are visible and not hidden
+      throw new Error(`Commercial agent failed to analyze question "${question.question}" (${question.id}): ${error.message}. This indicates a critical issue with the commercial analysis pipeline that requires immediate attention.`);
     }
   }
 
@@ -549,9 +538,17 @@ ENTERPRISE REQUIREMENTS:
         questionIndex++;
 
       } catch (error) {
-        console.error(`❌ Failed to process commercial question ${questionIndex}:`, error);
-        // Continue with next question
-        questionIndex++;
+        console.error(`❌ Critical failure processing Commercial question ${questionIndex}:`, error);
+        console.error(`❌ Failed question:`, {
+          questionId: questionData.id,
+          question: questionData.question,
+          category: questionData.category,
+          errorMessage: error.message
+        });
+        
+        // Re-throw error to stop analysis instead of silently continuing
+        // This ensures Commercial agent failures are visible and not hidden
+        throw new Error(`Commercial agent failed at question ${questionIndex} ("${questionData.question}"): ${error.message}. Analysis cannot continue with failed questions.`);
       }
     }
 
@@ -722,16 +719,28 @@ Return only the JSON array of commercial findings.`;
         return [`Commercial analysis completed: ${analysisPrompt}`];
         
       } catch (parseError) {
-        console.error('JSON parse failed in synthesizeChunkFindings:', parseError);
-        console.log('Problematic content (first 200 chars):', cleanedResponse.substring(0, 200));
+        console.error('❌ Critical JSON parse failure in Commercial synthesizeChunkFindings:', parseError);
+        console.error('❌ Problematic content:', cleanedResponse.substring(0, 200));
+        console.error('❌ Context:', { 
+          analysisPrompt, 
+          chunkCount: chunks.length, 
+          documents: Array.from(new Set(chunks.map(c => c.documentName))) 
+        });
         
-        // Schema-aware fallback for array-expected context
-        return [`Evidence gathered from ${chunks.length} commercial documents`];
+        // Return meaningful fallback with actual evidence context instead of generic message
+        return [`Commercial analysis of ${chunks.length} document chunks identified relevant content but response parsing failed - manual review required for: ${analysisPrompt}`];
       }
       
     } catch (error) {
-      console.error('Error synthesizing chunk findings:', error);
-      return [`Evidence gathered from ${chunks.length} commercial documents`];
+      console.error('❌ Critical error in Commercial synthesizeChunkFindings:', error);
+      console.error('❌ Analysis context:', { 
+        analysisPrompt, 
+        chunkCount: chunks.length, 
+        documentSources: Array.from(new Set(chunks.map(c => c.documentName)))
+      });
+      
+      // Return meaningful error context instead of generic fallback
+      return [`Commercial chunk synthesis failed for "${analysisPrompt}" across ${chunks.length} chunks from ${Array.from(new Set(chunks.map(c => c.documentName))).length} documents - synthesis error: ${error.message}`];
     }
   }
 

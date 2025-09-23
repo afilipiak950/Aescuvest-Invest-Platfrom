@@ -100,17 +100,24 @@ export class PersistentLegalAnalysisService {
       }
     }
 
-    // Create new background job record
-    await storage.createBackgroundJob({
+    // Create new background job record - FIXED: Direct database insert like Commercial agent
+    await db.insert(backgroundJobs).values({
       jobId,
-      jobType: 'rag_legal_analysis',
       dealId,
+      jobType: 'rag_legal_analysis',
       agentType: 'Legal',
       status: 'processing',
       progress: 0,
-      totalDocuments: 13, // 13 legal questions
       processedDocuments: 0,
+      totalDocuments: 13, // 13 legal questions
       currentStep: 'Initializing RAG legal analysis...',
+      jobData: JSON.stringify({
+        startTime: Date.now(),
+        analysisType: 'comprehensive_rag_legal',
+        ragEnabled: true,
+        questionCount: 13,
+        expectedLayers: 52 // 13 questions × 4 RAG layers each
+      }),
       startedAt: new Date()
     });
 
@@ -141,8 +148,8 @@ export class PersistentLegalAnalysisService {
     try {
       console.log(`🔄 Resuming legal analysis job ${jobId} for deal ${dealId}`);
 
-      // Get job state from database
-      const job = await storage.getBackgroundJobById(jobId);
+      // Get job state from database - FIXED: Direct database query like Commercial agent
+      const [job] = await db.select().from(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
       if (!job) {
         console.error(`❌ Job ${jobId} not found in database`);
         return;
@@ -164,24 +171,28 @@ export class PersistentLegalAnalysisService {
 
       // Reset job progress to start fresh analysis
       console.log(`🔄 Starting FRESH legal analysis from 0% for deal ${dealId}`);
-      await storage.updateBackgroundJob(jobId, {
-        progress: 0,
-        processedDocuments: 0,
-        currentStep: 'Starting fresh legal analysis...',
-        updatedAt: new Date()
-      });
+      await db.update(backgroundJobs)
+        .set({
+          progress: 0,
+          processedDocuments: 0,
+          currentStep: 'Starting fresh legal analysis...',
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
 
       // Start fresh analysis from beginning
       await this.processLegalAnalysis(dealId, jobId, 0);
 
     } catch (error) {
       console.error(`❌ Failed to resume legal analysis for deal ${dealId}:`, error);
-      // Mark job as failed
-      await storage.updateBackgroundJob(jobId, {
-        status: 'failed',
-        error: error.message,
-        updatedAt: new Date()
-      });
+      // Mark job as failed - FIXED: Direct database update like Commercial agent
+      await db.update(backgroundJobs)
+        .set({
+          status: 'failed',
+          error: error.message,
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
     }
   }
 
@@ -439,11 +450,13 @@ export class PersistentLegalAnalysisService {
       // Remove from active jobs
       this.activeJobs.delete(jobId);
 
-      // Update database
-      await storage.updateBackgroundJob(jobId, {
-        status: 'cancelled',
-        updatedAt: new Date()
-      });
+      // Update database - FIXED: Direct database update like Commercial agent
+      await db.update(backgroundJobs)
+        .set({
+          status: 'cancelled',
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
 
       console.log(`✅ Legal analysis job ${jobId} stopped`);
 
