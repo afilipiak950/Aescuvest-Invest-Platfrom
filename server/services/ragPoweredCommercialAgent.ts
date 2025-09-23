@@ -642,14 +642,12 @@ ENTERPRISE REQUIREMENTS:
 
         await db.insert(agentAnalyses).values({
           dealId: this.dealId,
-          agentType: 'Commercial' as const,
-          status: 'Processing' as const,
+          agentType: 'Commercial',
+          status: 'Processing',
           progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
-          findings: JSON.stringify([]),
-          recommendations: JSON.stringify([]),
-          commercialAnswers: initialCommercialAnswers,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          findings: [],
+          recommendations: [],
+          commercialAnswers: initialCommercialAnswers
         });
 
         console.log(`✅ Created new Commercial analysis record with question ${questionIndex}`);
@@ -666,8 +664,7 @@ ENTERPRISE REQUIREMENTS:
           .set({
             commercialAnswers: updatedCommercialAnswers,
             progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
-            status: 'Processing' as const,
-            updatedAt: new Date()
+            status: 'Processing'
           })
           .where(and(
             eq(agentAnalyses.dealId, this.dealId),
@@ -717,11 +714,10 @@ ENTERPRISE REQUIREMENTS:
       await db
         .update(agentAnalyses)
         .set({
-          status: 'Complete' as const,
+          status: 'Complete',
           progress: 100,
-          findings: JSON.stringify(finalFindings),
-          recommendations: JSON.stringify(finalRecommendations),
-          updatedAt: new Date()
+          findings: finalFindings,
+          recommendations: finalRecommendations
         })
         .where(and(
           eq(agentAnalyses.dealId, this.dealId),
