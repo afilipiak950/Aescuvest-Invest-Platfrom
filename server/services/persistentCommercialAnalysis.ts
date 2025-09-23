@@ -4,7 +4,9 @@
  * Based on the proven clinical and legal analysis architecture
  */
 
+import { storage } from '../storage';
 import { RAGPoweredCommercialAgent, RAG_COMMERCIAL_QUESTIONS } from './ragPoweredCommercialAgent';
+import { websocketManager } from './websocketManager';
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
@@ -196,14 +198,7 @@ export class PersistentCommercialAnalysisService {
           console.log(`✅ Commercial analysis already complete for deal ${dealId}, marking job as completed`);
           
           // Mark job as completed in database
-          await db
-            .update(backgroundJobs)
-            .set({
-              status: 'completed',
-              progress: 100,
-              updatedAt: new Date()
-            })
-            .where(eq(backgroundJobs.jobId, jobId));
+          await storage.completeBackgroundJob(jobId, { commercialAnalysisComplete: true });
           return;
         }
       }
@@ -220,14 +215,7 @@ export class PersistentCommercialAnalysisService {
     } catch (error) {
       console.error(`❌ Failed to resume commercial analysis for deal ${dealId}:`, error);
       // Mark job as failed
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: error.message,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.failBackgroundJob(jobId, error.message);
     }
   }
 
@@ -280,14 +268,7 @@ export class PersistentCommercialAnalysisService {
       this.activeJobs.delete(jobId);
 
       // Mark as failed - EXACTLY like Clinical
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: error.message,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.failBackgroundJob(jobId, error.message);
 
       throw error;
     }
@@ -310,16 +291,10 @@ export class PersistentCommercialAnalysisService {
       jobState.progress = 100;
       jobState.currentStep = 'RAG commercial analysis completed';
       
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'completed',
-          progress: 100,
-          currentStep: 'RAG commercial analysis completed',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.completeBackgroundJob(jobId, { 
+        commercialAnalysisComplete: true,
+        currentStep: 'RAG commercial analysis completed' 
+      });
 
       // Clean up - EXACTLY like Clinical
       const interval = this.jobIntervals.get(jobId);
@@ -358,14 +333,10 @@ export class PersistentCommercialAnalysisService {
    */
   private async updateJobProgress(jobId: string, progress: number, currentStep: string): Promise<void> {
     try {
-      await db
-        .update(backgroundJobs)
-        .set({
-          progress,
-          currentStep,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        currentStep
+      });
     } catch (error) {
       console.error(`❌ Failed to update job progress for ${jobId}:`, error);
     }
