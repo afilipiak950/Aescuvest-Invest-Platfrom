@@ -100,27 +100,45 @@ export class PersistentCommercialAnalysisService {
       }
     }
 
-    // Create new background job record
-    await db.insert(backgroundJobs).values({
-      jobId,
-      dealId,
-      jobType: 'rag_commercial_analysis',
-      agentType: 'Commercial',
-      status: 'processing',
-      progress: 0,
-      processedDocuments: 0,
-      totalDocuments: 12, // 12 commercial questions
-      currentStep: 'Initializing RAG commercial analysis...',
-      metadata: JSON.stringify({
-        startTime: Date.now(),
-        analysisType: 'comprehensive_rag_commercial',
-        ragEnabled: true,
-        questionCount: 12,
-        expectedLayers: 48 // 12 questions × 4 RAG layers each
-      }),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
+    // Create new background job record using storage service (like Financial/IP agents)
+    try {
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'rag_commercial_analysis',
+        dealId,
+        agentType: 'Commercial',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 12, // 12 commercial questions
+        processedDocuments: 0,
+        currentStep: 'Initializing RAG commercial analysis...',
+        startedAt: new Date()
+      });
+      console.log(`✅ Created background job ${jobId} for Commercial analysis`);
+    } catch (error) {
+      // Handle duplicate key errors specifically
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log(`⚠️ Duplicate job key detected, attempting force cleanup for ${jobId}`);
+        await storage.deleteBackgroundJob(jobId);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'rag_commercial_analysis',
+          dealId,
+          agentType: 'Commercial',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 12,
+          processedDocuments: 0,
+          currentStep: 'Initializing RAG commercial analysis after cleanup...',
+          startedAt: new Date()
+        });
+        console.log(`✅ Successfully created job ${jobId} after cleanup`);
+      } else {
+        throw error;
+      }
+    }
 
     // CRITICAL FIX: Clear existing analysis data before starting fresh analysis
     console.log(`🧹 Clearing existing commercial analysis data for deal ${dealId}`);
