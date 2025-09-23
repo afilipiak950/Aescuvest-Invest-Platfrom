@@ -8,6 +8,7 @@ import { RAGPoweredLegalAgent, RAG_LEGAL_QUESTIONS } from './ragPoweredLegalAgen
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { storage } from '../storage';
 
 interface LegalJobState {
   dealId: number;
@@ -100,25 +101,17 @@ export class PersistentLegalAnalysisService {
     }
 
     // Create new background job record
-    await db.insert(backgroundJobs).values({
+    await storage.createBackgroundJob({
       jobId,
-      dealId,
       jobType: 'rag_legal_analysis',
+      dealId,
       agentType: 'Legal',
       status: 'processing',
       progress: 0,
-      processedDocuments: 0,
       totalDocuments: 13, // 13 legal questions
+      processedDocuments: 0,
       currentStep: 'Initializing RAG legal analysis...',
-      metadata: JSON.stringify({
-        startTime: Date.now(),
-        analysisType: 'comprehensive_rag_legal',
-        ragEnabled: true,
-        questionCount: 13,
-        expectedLayers: 52 // 13 questions × 4 RAG layers each
-      }),
-      createdAt: new Date(),
-      updatedAt: new Date()
+      startedAt: new Date()
     });
 
     // CRITICAL FIX: Clear existing analysis data before starting fresh analysis
@@ -149,12 +142,7 @@ export class PersistentLegalAnalysisService {
       console.log(`🔄 Resuming legal analysis job ${jobId} for deal ${dealId}`);
 
       // Get job state from database
-      const job = await db
-        .select()
-        .from(backgroundJobs)
-        .where(eq(backgroundJobs.jobId, jobId))
-        .limit(1)
-        .then(rows => rows[0] || null);
+      const job = await storage.getBackgroundJobById(jobId);
       if (!job) {
         console.error(`❌ Job ${jobId} not found in database`);
         return;
@@ -177,14 +165,11 @@ export class PersistentLegalAnalysisService {
       
       if (existingAnalysis.length > 0 && answeredQuestions >= expectedQuestions.length) {
         console.log(`✅ Legal analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
-        await db
-          .update(backgroundJobs)
-          .set({
-            status: 'completed',
-            progress: 100,
-            updatedAt: new Date()
-          })
-          .where(eq(backgroundJobs.jobId, jobId));
+        await storage.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date()
+        });
         return;
       }
 
@@ -200,14 +185,11 @@ export class PersistentLegalAnalysisService {
     } catch (error) {
       console.error(`❌ Failed to resume legal analysis for deal ${dealId}:`, error);
       // Mark job as failed
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'failed',
-          error: error.message,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        error: error.message,
+        updatedAt: new Date()
+      });
     }
   }
 
@@ -402,7 +384,7 @@ export class PersistentLegalAnalysisService {
       }
 
       // Check if all legal questions are answered
-      const legalQuestions = COMPREHENSIVE_LEGAL_QUESTIONS;
+      const legalQuestions = RAG_LEGAL_QUESTIONS;
       const answeredQuestions = analysis.legalAnswers ? Object.keys(analysis.legalAnswers).length : 0;
       
       console.log(`📊 Legal analysis completion check for deal ${dealId}: ${answeredQuestions}/${legalQuestions.length} questions answered`);
@@ -467,13 +449,10 @@ export class PersistentLegalAnalysisService {
       this.activeJobs.delete(jobId);
 
       // Update database
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'cancelled',
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      await storage.updateBackgroundJob(jobId, {
+        status: 'cancelled',
+        updatedAt: new Date()
+      });
 
       console.log(`✅ Legal analysis job ${jobId} stopped`);
 
@@ -500,7 +479,7 @@ export class PersistentLegalAnalysisService {
    * Get the standard legal questions for analysis
    */
   getLegalQuestions() {
-    return COMPREHENSIVE_LEGAL_QUESTIONS;
+    return RAG_LEGAL_QUESTIONS;
   }
 }
 
