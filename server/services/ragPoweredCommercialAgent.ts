@@ -641,7 +641,7 @@ ENTERPRISE REQUIREMENTS:
         .from(agentAnalyses)
         .where(and(
           eq(agentAnalyses.dealId, this.dealId),
-          eq(agentAnalyses.agentType, 'Commercial')
+          eq(agentAnalyses.agentType, 'commercial')
         ))
         .limit(1);
 
@@ -668,8 +668,8 @@ ENTERPRISE REQUIREMENTS:
 
         await db.insert(agentAnalyses).values({
           dealId: this.dealId,
-          agentType: 'Commercial',
-          status: 'Processing',
+          agentType: 'commercial',
+          status: 'processing',
           progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
           findings: [],
           recommendations: [],
@@ -690,11 +690,11 @@ ENTERPRISE REQUIREMENTS:
           .set({
             commercialAnswers: updatedCommercialAnswers,
             progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
-            status: 'Processing'
+            status: 'processing'
           })
           .where(and(
             eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'Commercial')
+            eq(agentAnalyses.agentType, 'commercial')
           ));
 
         console.log(`✅ Updated Commercial analysis with question ${questionIndex} (${Object.keys(updatedCommercialAnswers).length}/${RAG_COMMERCIAL_QUESTIONS.length} total)`);
@@ -740,14 +740,14 @@ ENTERPRISE REQUIREMENTS:
       await db
         .update(agentAnalyses)
         .set({
-          status: 'Complete',
+          status: 'completed',
           progress: 100,
           findings: finalFindings,
           recommendations: finalRecommendations
         })
         .where(and(
           eq(agentAnalyses.dealId, this.dealId),
-          eq(agentAnalyses.agentType, 'Commercial')
+          eq(agentAnalyses.agentType, 'commercial')
         ));
 
       console.log(`✅ Commercial analysis finalized - ${analysis.questionResults.length} questions completed with incremental saves`);
