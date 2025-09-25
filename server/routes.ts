@@ -8378,7 +8378,7 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
     // Check if a job already exists to prevent duplicates
     const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
     const existingJob = existingJobs.find(job => 
-      job.agentType.toLowerCase() === agentType.toLowerCase() && 
+      job.agentType?.toLowerCase() === agentType.toLowerCase() && 
       (job.status === 'processing' || job.status === 'pending')
     );
     
