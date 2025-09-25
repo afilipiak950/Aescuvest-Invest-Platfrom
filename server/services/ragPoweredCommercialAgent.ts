@@ -478,7 +478,7 @@ ENTERPRISE REQUIREMENTS:
         throw new Error('No valid JSON found in analysis response');
       }
 
-      const cleanedResponse = cleanJsonResponse(jsonMatch[0]);
+      const cleanedResponse = cleanJsonResponse(jsonMatch[0], 'object');
       
       // Bulletproof JSON parsing with schema-aware fallback for commercial analysis object
       let analysisData;
