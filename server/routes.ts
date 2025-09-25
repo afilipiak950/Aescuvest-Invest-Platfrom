@@ -6703,6 +6703,65 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         }
       }
 
+      // For Legal agent, get analysis with legal answers - EXACT CLINICAL APPROACH
+      if (agentType === 'legal') {
+        const analysis = await storage.getAgentAnalysis(dealId, 'legal');
+        
+        if (analysis) {
+          let legalAnswers = {};
+          let findings = [];
+          let recommendations = [];
+          
+          // Parse stored JSON data - EXACT Clinical approach with field name fallback
+          try {
+            // Fix field name mismatch: database uses legal_answers (snake_case) but storage returns legalAnswers (camelCase)
+            if (analysis.legal_answers) {
+              legalAnswers = typeof analysis.legal_answers === 'string' 
+                ? JSON.parse(analysis.legal_answers) 
+                : analysis.legal_answers;
+            } else if (analysis.legalAnswers) {
+              legalAnswers = typeof analysis.legalAnswers === 'string' 
+                ? JSON.parse(analysis.legalAnswers) 
+                : analysis.legalAnswers;
+            }
+            if (analysis.findings) {
+              findings = typeof analysis.findings === 'string' 
+                ? JSON.parse(analysis.findings) 
+                : analysis.findings;
+            }
+            if (analysis.recommendations) {
+              recommendations = typeof analysis.recommendations === 'string' 
+                ? JSON.parse(analysis.recommendations) 
+                : analysis.recommendations;
+            }
+          } catch (parseError) {
+            console.error('Error parsing comprehensive legal analysis data:', parseError);
+            console.error('Analysis data received:', analysis);
+          }
+
+          console.log(`✅ Found comprehensive legal analysis - ${Object.keys(legalAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
+
+          return res.json({
+            success: true,
+            analysis: {
+              ...analysis,
+              legalAnswers,
+              findings,
+              recommendations,
+              questionsAnswered: Object.keys(legalAnswers).length,
+              totalQuestions: 13, // Legal has 13 questions (matches our comprehensive service)
+              completionRate: Math.round((Object.keys(legalAnswers).length / 13) * 100)
+            }
+          });
+        } else {
+          console.log(`❌ No legal analysis found for deal ${dealId}`);
+          return res.json({
+            success: true,
+            analysis: null
+          });
+        }
+      }
+
       // For other agent types, use regular agent analysis
       const analysis = await storage.getAgentAnalysis(dealId, agentType);
       
