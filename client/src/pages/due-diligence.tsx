@@ -1419,20 +1419,36 @@ function DueDiligenceContent() {
                       if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'commercial') {
-                        if (!commercialAnalysisData?.analysis || Object.keys(commercialAnalysisData.analysis || {}).length === 0) return false;
+                        // 🎯 COMMERCIAL FIX: Check both comprehensive analysis AND commercialAnswers from analysis table
+                        // First try comprehensive analysis
+                        if (commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0) {
+                          const analysisValues = Object.values(commercialAnalysisData.analysis || {});
+                          const hasRealContent = analysisValues.some((item: any) => {
+                            const answer = item?.answer || item?.content || '';
+                            return answer && 
+                                   answer.trim().length > 50 && 
+                                   !answer.includes('Analysis completed but no specific answer provided') &&
+                                   !answer.includes('No information available') &&
+                                   !answer.includes('Unable to determine');
+                          });
+                          if (hasRealContent) return true;
+                        }
                         
-                        // 🎯 DEEP CONTENT VERIFICATION: Check comprehensive analysis for real content
-                        const analysisValues = Object.values(commercialAnalysisData.analysis || {});
-                        const hasRealContent = analysisValues.some((item: any) => {
-                          const answer = item?.answer || item?.content || '';
-                          return answer && 
-                                 answer.trim().length > 50 && 
-                                 !answer.includes('Analysis completed but no specific answer provided') &&
-                                 !answer.includes('No information available') &&
-                                 !answer.includes('Unable to determine');
-                        });
+                        // 🎯 FALLBACK: Check commercialAnswers from analyses table (same logic as above)
+                        const latestCommercialAnalysis = filteredAnalyses.find(a => a.agentType?.toLowerCase() === 'commercial');
+                        if (latestCommercialAnalysis?.commercialAnswers && Object.keys(latestCommercialAnalysis.commercialAnswers || {}).length > 0) {
+                          const answers = Object.values(latestCommercialAnalysis.commercialAnswers || {});
+                          return answers.some((answerObj: any) => {
+                            const answer = answerObj?.answer || '';
+                            return answer && 
+                                   answer.trim().length > 50 && 
+                                   !answer.includes('Analysis completed but no specific answer provided') &&
+                                   !answer.includes('No information available') &&
+                                   !answer.includes('Unable to determine');
+                          });
+                        }
                         
-                        return hasRealContent;
+                        return false;
                       }
                       if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'research') return researchAnalysisData?.results && Object.keys(researchAnalysisData.results || {}).length > 0;
