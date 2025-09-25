@@ -651,25 +651,25 @@ Provide precise legal intelligence with specific contractual terms, compliance s
   ): Promise<void> {
     console.log(`💾 Storing RAG-powered legal analysis results with correct question mapping...`);
     
-    // Delete existing legal analysis to ensure clean replacement
+    // Delete existing legal analysis to ensure clean replacement - EXACT CLINICAL PATTERN
     await db
       .delete(agentAnalyses)
       .where(and(
         eq(agentAnalyses.dealId, this.dealId),
-        eq(agentAnalyses.agentType, 'Legal')
+        eq(agentAnalyses.agentType, 'legal') // FIXED: Use lowercase like Clinical
       ));
     
     console.log(`🗑️ Cleared existing legal analysis for deal ${this.dealId}`);
     
-    // Create new analysis record with CORRECT question mapping
+    // Create new analysis record with CORRECT question mapping - EXACT CLINICAL PATTERN
     const analysisData = {
       dealId: this.dealId,
-      agentType: 'Legal' as const,
-      status: 'Complete' as const,
+      agentType: 'legal' as const, // FIXED: Use lowercase like Clinical 'clinical'
+      status: 'completed' as const, // FIXED: Use 'completed' like Clinical, not 'Complete' 
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      legalAnswers: legalAnswers, // Store with CORRECT question IDs (contracts_1, governance_1, etc.)
+      legalAnswers: legalAnswers, // FIXED: Use camelCase property name for Drizzle insert
       documentSources: JSON.stringify(Array.from(new Set(Object.values(legalAnswers).flatMap(a => a.sources)))),
       createdAt: new Date(),
       updatedAt: new Date()
