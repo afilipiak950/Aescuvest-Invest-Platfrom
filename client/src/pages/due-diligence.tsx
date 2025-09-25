@@ -1435,7 +1435,7 @@ function DueDiligenceContent() {
                         }
                         
                         // 🎯 FALLBACK: Check commercialAnswers from analyses table (same logic as above)
-                        const latestCommercialAnalysis = filteredAnalyses.find(a => a.agentType?.toLowerCase() === 'commercial');
+                        const latestCommercialAnalysis = analyses?.find(a => a.agentType?.toLowerCase() === 'commercial');
                         if (latestCommercialAnalysis?.commercialAnswers && Object.keys(latestCommercialAnalysis.commercialAnswers || {}).length > 0) {
                           const answers = Object.values(latestCommercialAnalysis.commercialAnswers || {});
                           return answers.some((answerObj: any) => {
