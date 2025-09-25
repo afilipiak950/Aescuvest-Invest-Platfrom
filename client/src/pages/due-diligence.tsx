@@ -1377,7 +1377,21 @@ function DueDiligenceContent() {
                         return a.clinicalAnswers && Object.keys(a.clinicalAnswers || {}).length > 0;
                       }
                       if (agentLower === 'commercial') {
-                        return a.commercialAnswers && Object.keys(a.commercialAnswers || {}).length > 0;
+                        if (!a.commercialAnswers || Object.keys(a.commercialAnswers || {}).length === 0) return false;
+                        
+                        // 🎯 DEEP CONTENT VERIFICATION: Check if answers contain real content vs placeholder text
+                        const answers = Object.values(a.commercialAnswers || {});
+                        const hasRealContent = answers.some((answerObj: any) => {
+                          const answer = answerObj?.answer || '';
+                          // Reject placeholder/empty content
+                          return answer && 
+                                 answer.trim().length > 50 && 
+                                 !answer.includes('Analysis completed but no specific answer provided') &&
+                                 !answer.includes('No information available') &&
+                                 !answer.includes('Unable to determine');
+                        });
+                        
+                        return hasRealContent;
                       }
                       if (agentLower === 'hr') {
                         return a.hrAnswers && Object.keys(a.hrAnswers || {}).length > 0;
@@ -1404,7 +1418,22 @@ function DueDiligenceContent() {
                       if (agentLower === 'legal') return legalAnalysisData?.analysis && Object.keys(legalAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'commercial') {
+                        if (!commercialAnalysisData?.analysis || Object.keys(commercialAnalysisData.analysis || {}).length === 0) return false;
+                        
+                        // 🎯 DEEP CONTENT VERIFICATION: Check comprehensive analysis for real content
+                        const analysisValues = Object.values(commercialAnalysisData.analysis || {});
+                        const hasRealContent = analysisValues.some((item: any) => {
+                          const answer = item?.answer || item?.content || '';
+                          return answer && 
+                                 answer.trim().length > 50 && 
+                                 !answer.includes('Analysis completed but no specific answer provided') &&
+                                 !answer.includes('No information available') &&
+                                 !answer.includes('Unable to determine');
+                        });
+                        
+                        return hasRealContent;
+                      }
                       if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'research') return researchAnalysisData?.results && Object.keys(researchAnalysisData.results || {}).length > 0;
                       if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis || {}).length > 0;
