@@ -324,6 +324,9 @@ export class RAGPoweredLegalAgent {
         processingTime: Date.now() - questionStartTime
       })));
       
+      // 🎯 SAVE QUESTION RESULT INCREMENTALLY - This shows progress in UI!
+      await this.saveQuestionResultIncremental(question, answer, i);
+      
       // Update progress
       const progress = Math.round(((i + 1) / RAG_LEGAL_QUESTIONS.length) * 100);
       await this.updateBackgroundJobProgress(progress, i + 1);
@@ -337,6 +340,93 @@ export class RAGPoweredLegalAgent {
     
     const totalTime = Date.now() - this.totalStartTime;
     console.log(`🏆 RAG-powered legal analysis completed in ${totalTime}ms for deal ${this.dealId}`);
+  }
+
+  /**
+   * 🎯 INCREMENTAL SAVE: Save individual question result immediately after processing
+   * This ensures users see progress and don't lose results if analysis fails partway through
+   */
+  private async saveQuestionResultIncremental(question: any, answer: any, questionIndex: number): Promise<void> {
+    try {
+      console.log(`💾 Saving legal question ${questionIndex + 1} result incrementally for deal ${this.dealId}`);
+
+      // Check if analysis record exists
+      const existingAnalysis = await db
+        .select()
+        .from(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, this.dealId),
+          eq(agentAnalyses.agentType, 'legal')
+        ))
+        .limit(1);
+
+      // Build the question result for legalAnswers
+      const questionAnswer = {
+        question: question.question,
+        category: question.category,
+        answer: answer.answer,
+        legalRiskScore: answer.legalRiskScore,
+        riskFactors: answer.riskFactors,
+        keyFindings: answer.keyFindings,
+        recommendations: answer.recommendations,
+        confidence: answer.confidence,
+        sources: answer.sources,
+        evidenceCount: answer.evidenceCount || 0,
+        processingTime: Date.now() // Add timestamp for tracking
+      };
+
+      if (existingAnalysis.length === 0) {
+        // Create new analysis record with first question
+        const initialLegalAnswers = {
+          [question.id]: questionAnswer
+        };
+
+        await db.insert(agentAnalyses).values({
+          dealId: this.dealId,
+          agentType: 'legal',
+          status: 'processing',
+          progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
+          findings: [],
+          recommendations: [],
+          legalAnswers: initialLegalAnswers
+        });
+
+        console.log(`✅ Created new Legal analysis record with question ${questionIndex + 1}`);
+      } else {
+        // Update existing record with new question result
+        const currentAnalysis = existingAnalysis[0];
+        const updatedLegalAnswers = {
+          ...(currentAnalysis.legalAnswers || {}),
+          [question.id]: questionAnswer
+        };
+
+        await db
+          .update(agentAnalyses)
+          .set({
+            legalAnswers: updatedLegalAnswers,
+            progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
+            status: 'processing'
+          })
+          .where(and(
+            eq(agentAnalyses.dealId, this.dealId),
+            eq(agentAnalyses.agentType, 'legal')
+          ));
+
+        console.log(`✅ Updated Legal analysis with question ${questionIndex + 1} (${Object.keys(updatedLegalAnswers).length}/${RAG_LEGAL_QUESTIONS.length} total)`);
+      }
+
+      console.log(`💾 Legal question ${questionIndex + 1} ("${question.question}") saved successfully`);
+
+    } catch (error) {
+      console.error(`❌ Failed to save legal question ${questionIndex + 1} incrementally:`, error);
+      console.error(`❌ Question details:`, {
+        questionId: question.id,
+        question: question.question,
+        category: question.category
+      });
+      // Don't throw error - log it but continue processing other questions
+      // This ensures one failed save doesn't stop the entire analysis
+    }
   }
 
   /**
