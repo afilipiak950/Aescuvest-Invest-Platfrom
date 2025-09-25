@@ -561,7 +561,7 @@ ENTERPRISE REQUIREMENTS:
         // 🎯 CRITICAL FIX: Save each question result immediately (incremental saves)
         await this.saveQuestionResultIncremental(questionResult, questionIndex);
         
-        const currentProgress = Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100);
+        const currentProgress = Math.round(((questionIndex + 1) / RAG_COMMERCIAL_QUESTIONS.length) * 100);
         console.log(`📊 Commercial analysis progress: ${currentProgress}% (${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
         console.log(`✅ Question ${questionIndex} completed with commercial risk score ${questionResult.commercialRiskScore}/10`);
         console.log(`💾 Question ${questionIndex} saved incrementally to database`);
@@ -670,7 +670,7 @@ ENTERPRISE REQUIREMENTS:
           dealId: this.dealId,
           agentType: 'commercial',
           status: 'processing',
-          progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
+          progress: Math.round(((questionIndex + 1) / RAG_COMMERCIAL_QUESTIONS.length) * 100),
           findings: [],
           recommendations: [],
           commercialAnswers: initialCommercialAnswers
@@ -689,7 +689,7 @@ ENTERPRISE REQUIREMENTS:
           .update(agentAnalyses)
           .set({
             commercialAnswers: updatedCommercialAnswers,
-            progress: Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100),
+            progress: Math.round(((questionIndex + 1) / RAG_COMMERCIAL_QUESTIONS.length) * 100),
             status: 'processing'
           })
           .where(and(
