@@ -1363,10 +1363,38 @@ function DueDiligenceContent() {
                       j.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
-                    // CRITICAL FIX: Check for completed analysis data first, then active jobs
-                    const completedAnalysis = analyses?.find(a => 
-                      a.agentType?.toLowerCase() === agentType.toLowerCase()
-                    );
+                    // CRITICAL FIX: Check for completed analysis with MEANINGFUL CONTENT (prevents stale data)
+                    const completedAnalysis = analyses?.find(a => {
+                      if (a.agentType?.toLowerCase() !== agentType.toLowerCase()) return false;
+                      if (a.status !== 'completed') return false;
+                      
+                      // 🎯 STALE DATA PREVENTION: Verify analysis has meaningful content
+                      const agentLower = agentType.toLowerCase();
+                      if (agentLower === 'legal') {
+                        return a.legalAnswers && Object.keys(a.legalAnswers || {}).length > 0;
+                      }
+                      if (agentLower === 'clinical') {
+                        return a.clinicalAnswers && Object.keys(a.clinicalAnswers || {}).length > 0;
+                      }
+                      if (agentLower === 'commercial') {
+                        return a.commercialAnswers && Object.keys(a.commercialAnswers || {}).length > 0;
+                      }
+                      if (agentLower === 'hr') {
+                        return a.hrAnswers && Object.keys(a.hrAnswers || {}).length > 0;
+                      }
+                      if (agentLower === 'financial') {
+                        return a.financialAnswers && Object.keys(a.financialAnswers || {}).length > 0;
+                      }
+                      if (agentLower === 'ip') {
+                        return a.ipAnswers && Object.keys(a.ipAnswers || {}).length > 0;
+                      }
+                      if (agentLower === 'research') {
+                        return a.researchAnswers && Object.keys(a.researchAnswers || {}).length > 0;
+                      }
+                      
+                      // Fallback: Check if it has findings or recommendations
+                      return (a.findings && a.findings.length > 0) || (a.recommendations && a.recommendations.length > 0);
+                    });
                     
                     // COMPREHENSIVE ANALYSIS FIX: Also check if comprehensive analysis exists
                     // by checking if the agent-specific results endpoint returns data
@@ -1383,12 +1411,12 @@ function DueDiligenceContent() {
                       return false;
                     })();
                     
-                    // FIXED: Prioritize active job progress, then check if this agent's analysis is completed
+                    // FIXED: Prioritize active job progress, then check if this agent's analysis is TRULY completed with content
                     const currentProgress = matchingJob?.status === 'processing'
                       ? (matchingJob?.progress || 0)  // Active job takes priority (allows reset)
-                      : (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
-                        ? 100  // Show completed when analysis is done (regardless of job presence)
-                        : 0;   // Default to 0% (new deals and non-completed analyses)
+                      : (completedAnalysis || hasComprehensiveAnalysis)
+                        ? 100  // Show completed only when analysis has meaningful content
+                        : 0;   // Default to 0% (new deals and empty/incomplete analyses)
                     
                     // CRITICAL FIX: Show "Currently Running" when job is processing, regardless of completion status
                     const isCurrentlyRunning = matchingJob?.status === 'processing';
