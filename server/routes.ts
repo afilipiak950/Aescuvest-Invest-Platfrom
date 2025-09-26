@@ -6008,18 +6008,35 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       // Debug: Log current running analyses
       console.log(`📊 Current running analyses:`, Array.from(runningAnalyses.keys()));
       
-      // Start agent-specific analysis in background with rate limiting
-      setImmediate(async () => {
-        try {
-          await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
-        } catch (error) {
-          console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
-        } finally {
-          // Remove from running analyses when complete
-          runningAnalyses.delete(analysisKey);
-          console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
-        }
-      });
+      // CRITICAL FIX: Use PersistentCommercialAnalysisService for commercial agents
+      if (agentType === 'commercial') {
+        console.log(`🏢 Using PersistentCommercialAnalysisService for deal ${dealId}`);
+        setImmediate(async () => {
+          try {
+            const { persistentCommercialAnalysisService } = await import('./services/persistentCommercialAnalysis.js');
+            await persistentCommercialAnalysisService.startCommercialAnalysis(dealId);
+          } catch (error) {
+            console.error(`❌ Error in commercial analysis for deal ${dealId}:`, error);
+          } finally {
+            // Remove from running analyses when complete
+            runningAnalyses.delete(analysisKey);
+            console.log(`✅ commercial analysis completed and removed from running queue for deal ${dealId}`);
+          }
+        });
+      } else {
+        // Start agent-specific analysis in background with rate limiting for non-commercial agents
+        setImmediate(async () => {
+          try {
+            await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+          } catch (error) {
+            console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
+          } finally {
+            // Remove from running analyses when complete
+            runningAnalyses.delete(analysisKey);
+            console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
+          }
+        });
+      }
 
       res.json({ 
         success: true, 
