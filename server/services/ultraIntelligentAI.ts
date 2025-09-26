@@ -63,10 +63,9 @@ class UltraIntelligentAIService {
       throw new Error(`Model capabilities not found for ${selectedModel}`);
     }
 
-    // Step 2: Optimize token allocation
-    const contextSize = this.calculateContextSize(messages);
-    const optimizedTokens = config.maxTokens || 
-      intelligentModelManager.optimizeTokenAllocation(selectedModel, config.domain, contextSize);
+    // Step 2: Smart token budgeting with context limits
+    const estimatedInputTokens = this.estimateTokenCount(messages);
+    const optimizedTokens = this.calculateSafeCompletionTokens(selectedModel, estimatedInputTokens, config.maxTokens);
 
     // Step 3: Enhance prompt for maximum intelligence
     const enhancedMessages = this.enhanceMessagesForIntelligence(messages, selectedModel, requirements);
@@ -190,11 +189,15 @@ class UltraIntelligentAIService {
           messages: enhancedMessages,
         };
 
+        // Calculate safe tokens for fallback model
+        const fallbackInputTokens = this.estimateTokenCount(enhancedMessages);
+        const fallbackSafeTokens = this.calculateSafeCompletionTokens(fallbackModel, fallbackInputTokens);
+
         // GPT-5 uses max_completion_tokens instead of max_tokens
         if (fallbackModel.startsWith('gpt-5')) {
-          fallbackOptions.max_completion_tokens = Math.min(optimizedTokens, 16384);
+          fallbackOptions.max_completion_tokens = fallbackSafeTokens;
         } else {
-          fallbackOptions.max_tokens = Math.min(optimizedTokens, 16384);
+          fallbackOptions.max_tokens = fallbackSafeTokens;
         }
 
         // Optimize parameters based on fallback model type
@@ -406,7 +409,7 @@ Remember: Your accuracy directly impacts critical investment decisions. Err on t
   }
 
   /**
-   * CALCULATE CONTEXT SIZE
+   * CALCULATE CONTEXT SIZE (Legacy method for compatibility)
    */
   private calculateContextSize(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): number {
     return messages.reduce((size, msg) => {
@@ -415,6 +418,66 @@ Remember: Your accuracy directly impacts critical investment decisions. Err on t
       }
       return size;
     }, 0);
+  }
+
+  /**
+   * ESTIMATE TOKEN COUNT
+   * More accurate token estimation using character-to-token ratio
+   */
+  private estimateTokenCount(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): number {
+    const totalChars = messages.reduce((count, msg) => {
+      if (typeof msg.content === 'string') {
+        return count + msg.content.length;
+      }
+      return count;
+    }, 0);
+    
+    // OpenAI token estimation: ~4 characters per token on average
+    const estimatedTokens = Math.ceil(totalChars / 4);
+    console.log(`🔢 Token estimation: ${totalChars} chars → ~${estimatedTokens} tokens`);
+    return estimatedTokens;
+  }
+
+  /**
+   * CALCULATE SAFE COMPLETION TOKENS
+   * Ensures total tokens (input + completion) never exceed model limit
+   */
+  private calculateSafeCompletionTokens(model: string, inputTokens: number, requestedTokens?: number): number {
+    // Real model context limits (conservative estimates)
+    const modelLimits = {
+      'gpt-4': 8192,
+      'gpt-4o': 128000,
+      'gpt-4o-mini': 128000,
+      'gpt-4-turbo': 128000,
+      'gpt-5': 256000,
+      'gpt-5-mini': 128000
+    };
+
+    // Find the actual model limit
+    let contextLimit = 8192; // Conservative fallback
+    for (const [modelName, limit] of Object.entries(modelLimits)) {
+      if (model.includes(modelName)) {
+        contextLimit = limit;
+        break;
+      }
+    }
+
+    // Reserve safety margin (10% of context)
+    const safetyMargin = Math.ceil(contextLimit * 0.1);
+    const availableForCompletion = contextLimit - inputTokens - safetyMargin;
+
+    // Use requested tokens if provided, otherwise use conservative default
+    const desiredCompletionTokens = requestedTokens || 1200;
+    
+    // Never exceed available space
+    const safeCompletionTokens = Math.min(
+      Math.max(availableForCompletion, 200), // Minimum 200 tokens for response
+      desiredCompletionTokens
+    );
+
+    console.log(`🛡️ Token Budget: ${inputTokens} input + ${safeCompletionTokens} completion = ${inputTokens + safeCompletionTokens}/${contextLimit} (${safetyMargin} safety)`);
+    
+    return safeCompletionTokens;
   }
 
   /**
