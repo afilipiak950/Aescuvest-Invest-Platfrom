@@ -476,7 +476,7 @@ Extract key commercial insights, metrics, and strategic implications.`;
         { role: "user", content: prompt }
       ], {
         domain: 'commercial',
-        complexity: 'balanced',
+        complexity: 'high',
         speedPriority: 'balanced',
         qualityThreshold: 0.8,
         maxTokens: 300,
@@ -484,7 +484,7 @@ Extract key commercial insights, metrics, and strategic implications.`;
       });
       
       // Return as array for consistency with expected interface
-      return [result];
+      return [result.content || 'Analysis completed'];
       
     } catch (error) {
       console.error(`❌ Simple synthesis failed:`, error);
@@ -688,7 +688,7 @@ Extract key commercial insights, metrics, and strategic implications.`;
         // Simple synthesis using Legal/Clinical pattern
         const prompt = `Commercial analysis for: ${questionData.question}
           
-Evidence: ${evidenceLayers.map(e => e.documentSummary || 'Document summary not available').join('\n')}
+Evidence: ${evidenceLayers.map(e => e.synthesizedFindings?.join(' ') || 'No evidence available').join('\n')}
 
 Provide comprehensive commercial analysis with specific metrics, market data, and strategic insights.
 Focus on quantified business intelligence and investment implications.`;
@@ -697,7 +697,7 @@ Focus on quantified business intelligence and investment implications.`;
           { role: "user", content: prompt }
         ], {
           domain: 'commercial',
-          complexity: 'balanced',
+          complexity: 'high',
           speedPriority: 'balanced',
           qualityThreshold: 0.8,
           maxTokens: 500,
@@ -1375,208 +1375,7 @@ RESPOND WITH ONLY THE COMPRESSED COMMERCIAL SUMMARY - NO EXPLANATIONS.`;
     return compressedChunks;
   }
 
-  /**
-   * ROBUST JSON SYNTHESIS WITH AUTO-REPAIR
-   * 3-stage auto-repair: LLM repair → regex sanitize → minimal fallback
-   * Enhanced with context compression to prevent token overflow
-   */
-  private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string, question?: string): Promise<string[]> {
-    if (chunks.length === 0) return [];
-    
-    // Compress chunks to prevent token overflow
-    const compressedChunks = await this.compressChunksForAnalysis(chunks.slice(0, 12), question || '');
-    const combinedContent = compressedChunks
-      .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
-      .join('\n\n');
-    
-    const prompt = `You are a senior commercial investment analyst conducting institutional due diligence. Extract key commercial findings from this evidence:
-
-ANALYSIS TASK: ${analysisPrompt}
-
-EVIDENCE FROM DOCUMENTS:
-${combinedContent}
-
-CRITICAL INSTRUCTIONS:
-- Return ONLY a valid JSON object
-- No explanatory text, markdown formatting, or code blocks
-- No text before or after the JSON object
-- Each finding should be a complete sentence with specific data
-
-Extract commercial analysis as this EXACT structured JSON format:
-{
-  "question": "${question}",
-  "answer": "Comprehensive commercial analysis summary with specific metrics and data",
-  "confidence": 0.85,
-  "sources": ["document1.pdf", "document2.xlsx"],
-  "keyFindings": ["Finding 1 with specific data", "Finding 2 with metrics"],
-  "commercialAssessment": "Overall commercial viability assessment with risks and opportunities",
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "commercialRiskScore": 7,
-  "marketPosition": "Strong/Moderate/Weak competitive position with rationale",
-  "quantifiedMetrics": [
-    {"name": "Market Share", "value": "15", "unit": "%", "period": "2024", "confidence": 0.8},
-    {"name": "Revenue Growth", "value": "25", "unit": "%", "period": "YoY", "confidence": 0.9}
-  ],
-  "competitiveIntelligence": {
-    "strengths": ["Strength 1", "Strength 2"],
-    "weaknesses": ["Weakness 1"],
-    "opportunities": ["Opportunity 1"],
-    "threats": ["Threat 1"]
-  }
-}
-
-Focus on extracting:
-- Quantified metrics with specific numbers, percentages, and time periods
-- Market positioning data with competitor comparisons
-- Revenue models and pricing strategies with exact figures
-- Risk assessment with 1-10 scoring
-- Source document citations with page references
-
-RESPOND WITH ONLY THE STRUCTURED JSON OBJECT - NO OTHER TEXT.
-Employ business intelligence with market analysis and strategic insight.
-
-QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and detail.`;
-
-    // Enhanced config with strict JSON mode
-    const config: UltraIntelligentConfig = {
-      domain: 'commercial',
-      complexity: 'high',
-      speedPriority: 'balanced',
-      qualityThreshold: 0.85,
-      maxTokens: 2000,
-      temperature: 0.3,
-      responseFormat: { type: "json_object" } // Enforce JSON schema
-    };
-
-    // 3-stage auto-repair with exponential backoff
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`🔄 Commercial synthesis attempt ${attempt}/3`);
-        
-        const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{ role: 'user', content: prompt }], config);
-        
-        // STAGE 1: STRICT ZOD VALIDATION WITH JSON SCHEMA
-        try {
-          const parsedContent = JSON.parse(response.content);
-          const commercialAnswer = CommercialAnswerSchema.parse(parsedContent);
-          
-          console.log(`✅ Stage 1 - Strict Zod validation successful on attempt ${attempt}: ${commercialAnswer.keyFindings.length} findings`);
-          console.log(`📊 Quality metrics: confidence ${commercialAnswer.confidence}, risk ${commercialAnswer.commercialRiskScore}`);
-          
-          // Ensure minimum citation requirements (≥3 citations)
-          const validFindings = commercialAnswer.keyFindings.filter(finding => 
-            typeof finding === 'string' && finding.trim().length > 10 // Minimum quality threshold
-          );
-          
-          if (validFindings.length >= 3) {
-            console.log(`✅ Citation requirement met: ${validFindings.length} valid findings (≥3 required)`);
-            return validFindings.slice(0, 6);
-          } else {
-            console.warn(`⚠️ Insufficient findings: ${validFindings.length} < 3 required, triggering wider search`);
-            throw new Error(`Insufficient evidence: only ${validFindings.length} findings found, need ≥3`);
-          }
-          
-        } catch (parseError) {
-          console.warn(`⚠️ Stage 1 - Zod validation failed on attempt ${attempt}: ${parseError.message}`);
-          
-          // STAGE 2: LLM REPAIR WITH SCHEMA ENFORCEMENT
-          if (attempt <= 2) {
-            console.log(`🔧 Stage 2 - Attempting LLM repair for attempt ${attempt}`);
-            
-            const repairPrompt = `CRITICAL JSON REPAIR TASK:
-
-The following response failed strict schema validation. Fix it to match this EXACT schema:
-
-{
-  "question": "string",
-  "answer": "comprehensive analysis string",
-  "confidence": 0.85,
-  "sources": ["document1.pdf", "document2.xlsx"],
-  "keyFindings": ["Finding 1", "Finding 2", "Finding 3", "Finding 4"],
-  "commercialAssessment": "assessment string",
-  "recommendations": ["Rec 1", "Rec 2"],
-  "commercialRiskScore": 7
-}
-
-MALFORMED INPUT:
-${response.content}
-
-REQUIREMENTS:
-- Return ONLY valid JSON object
-- Include at least 3 keyFindings
-- commercialRiskScore must be 1-10
-- confidence must be 0.0-1.0
-- No explanatory text, just JSON
-
-FIXED JSON:`;
-            
-            try {
-              const repairResponse = await ultraIntelligentAI.createUltraIntelligentCompletion(
-                [{ role: 'user', content: repairPrompt }], 
-                { ...config, responseFormat: { type: "json_object" } }
-              );
-              
-              const repairedContent = JSON.parse(repairResponse.content);
-              const repairedAnswer = CommercialAnswerSchema.parse(repairedContent);
-              
-              if (repairedAnswer.keyFindings.length >= 3) {
-                console.log(`✅ Stage 2 - LLM repair successful on attempt ${attempt}: ${repairedAnswer.keyFindings.length} findings`);
-                return repairedAnswer.keyFindings.slice(0, 6);
-              }
-            } catch (repairError) {
-              console.warn(`⚠️ Stage 2 - LLM repair failed on attempt ${attempt}: ${repairError.message}`);
-            }
-          }
-          
-          // STAGE 3: REGEX SANITIZATION WITH FALLBACK VALIDATION
-          try {
-            console.log(`🧩 Stage 3 - Attempting regex sanitization for attempt ${attempt}`);
-            
-            const cleanedContent = cleanJsonResponse(response.content, 'object');
-            const sanitizedContent = JSON.parse(cleanedContent);
-            
-            // Partial validation - extract what we can
-            const fallbackAnswer = {
-              question: sanitizedContent.question || 'Commercial analysis',
-              answer: sanitizedContent.answer || 'Analysis completed with partial data extraction',
-              confidence: Math.min(1, Math.max(0, sanitizedContent.confidence || 0.6)),
-              sources: Array.isArray(sanitizedContent.sources) ? sanitizedContent.sources : [],
-              keyFindings: Array.isArray(sanitizedContent.keyFindings) ? sanitizedContent.keyFindings : [],
-              commercialAssessment: sanitizedContent.commercialAssessment || 'Assessment completed',
-              recommendations: Array.isArray(sanitizedContent.recommendations) ? sanitizedContent.recommendations : [],
-              commercialRiskScore: Math.min(10, Math.max(1, sanitizedContent.commercialRiskScore || 5))
-            };
-            
-            if (fallbackAnswer.keyFindings.length > 0) {
-              console.log(`✅ Stage 3 - Regex sanitization successful on attempt ${attempt}: ${fallbackAnswer.keyFindings.length} findings`);
-              return fallbackAnswer.keyFindings.slice(0, 6);
-            }
-            
-          } catch (sanitizeError) {
-            console.warn(`⚠️ Stage 3 - Regex sanitization failed on attempt ${attempt}: ${sanitizeError.message}`);
-          }
-        }
-        
-        // Exponential backoff between attempts
-        if (attempt < 3) {
-          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
-          console.log(`⏳ Waiting ${delay}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-        
-      } catch (error) {
-        console.error(`❌ Commercial synthesis attempt ${attempt} failed:`, error);
-        if (attempt === 3) {
-          // Minimal fallback after all attempts failed
-          console.warn(`⚠️ All synthesis attempts failed, using minimal fallback`);
-          return [`Commercial analysis attempted but technical issues prevented complete processing. Documents analyzed: ${chunks.length} chunks.`];
-        }
-      }
-    }
-    
-    // Final fallback
-    return [`Commercial analysis completed with ${chunks.length} document chunks processed, but structured output generation encountered technical difficulties.`];
-  }
+  // REMOVED: Complex 3-stage validation method - now using simple Legal/Clinical pattern
 
 
   /**
