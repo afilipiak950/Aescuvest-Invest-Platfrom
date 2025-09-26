@@ -109,10 +109,10 @@ export const RAG_COMMERCIAL_QUESTIONS = [
     category: 'Competitive Analysis Decks',
     subQuestions: ['Price comparison', 'Feature comparison', 'Competitive analysis'],
     ragQueries: [
-      'price feature comparison matrix competitive analysis pricing',
-      'competitive comparison matrix features pricing cost analysis',
-      'comparison matrix price features competitor analysis evaluation',
-      'price feature matrix competitive evaluation analysis comparison'
+      'price comparison matrix $99 $199 $299 competitor pricing cost',
+      'competitive pricing analysis competitor vs our price percentage',
+      'price feature matrix competitor pricing $X vs $Y cost comparison',
+      'pricing analysis competitor price difference percentage cost comparison'
     ],
     analysisPrompt: 'Extract specific pricing data from comparison matrices: exact dollar amounts, percentage price differences vs competitors, feature count comparisons, pricing tiers, subscription costs, and implementation fees. Include competitor names, specific price points, and quantified feature advantages with document page references.',
     evidenceTargets: ['price_comparison', 'feature_comparison', 'competitive_matrix', 'pricing_analysis']
@@ -140,10 +140,10 @@ export const RAG_COMMERCIAL_QUESTIONS = [
     category: 'Pricing Models',
     subQuestions: ['Pricing model type', 'Revenue structure', 'Billing methodology'],
     ragQueries: [
-      'pricing model usage-based tiered per-seat subscription billing',
-      'pricing logic pricing strategy revenue model billing structure',
-      'pricing methodology billing model revenue structure pricing',
-      'usage-based pricing tiered pricing per-seat billing model'
+      'pricing model $10 $50 $100 per seat per user monthly annual',
+      'usage-based pricing per GB per API call per transaction dollar',
+      'tiered pricing starter professional enterprise $99 $299 $999',
+      'subscription billing monthly annual quarterly pricing model revenue'
     ],
     analysisPrompt: 'Extract specific pricing model data: exact dollar amounts per tier, usage-based rates, per-seat costs, subscription fees, setup charges, and billing frequencies. Include specific pricing tiers with exact figures, revenue per customer metrics, and pricing strategy details with document page citations.',
     evidenceTargets: ['pricing_model', 'revenue_structure', 'billing_methodology', 'pricing_strategy']
@@ -155,10 +155,10 @@ export const RAG_COMMERCIAL_QUESTIONS = [
     category: 'Pricing Models',
     subQuestions: ['Discount structure', 'Pricing policies', 'Revenue optimization'],
     ragQueries: [
-      'discount policy pricing discount structure policy documented',
-      'pricing discount policy documentation discount strategy policy',
-      'discount structure policy pricing discount documentation policy',
-      'discount policy pricing strategy discount documentation policy'
+      'discount policy 10% 15% 20% 25% volume discount enterprise pricing',
+      'pricing discount structure 5% early payment annual contract discount',
+      'discount documentation policy volume tier enterprise government pricing',
+      'discount strategy percentage rate annual multi-year contract pricing'
     ],
     analysisPrompt: 'Extract specific discount policy data: exact discount percentages, volume discount tiers, early payment discounts, contract length discounts, minimum commitment requirements, and penalty structures. Include specific discount amounts, qualification criteria, and policy terms with document references.',
     evidenceTargets: ['discount_policies', 'pricing_policies', 'discount_structure', 'revenue_optimization']
@@ -170,10 +170,10 @@ export const RAG_COMMERCIAL_QUESTIONS = [
     category: 'Pricing Models',
     subQuestions: ['Revenue retention', 'Customer expansion', 'Revenue metrics'],
     ragQueries: [
-      'net revenue retention NRR revenue retention tracking metrics',
-      'revenue retention customer expansion NRR tracking analysis',
-      'net revenue retention expansion revenue customer growth tracking',
-      'NRR revenue retention tracking customer expansion revenue'
+      'net revenue retention NRR percentage quarterly annual revenue growth',
+      'revenue retention 100% 110% 120% customer expansion upsell cross-sell',
+      'NRR revenue retention tracking monthly quarterly percentage metrics',
+      'customer expansion revenue growth NRR retention rate percentage dollar'
     ],
     analysisPrompt: 'Extract specific net revenue retention metrics: exact NRR percentages, expansion revenue figures, churn rates, upsell/cross-sell conversion rates, customer lifetime value amounts, and retention cohort data. Include specific percentage rates, dollar amounts, and time periods with source documentation.',
     evidenceTargets: ['revenue_retention', 'customer_expansion', 'nrr_tracking', 'revenue_metrics']
