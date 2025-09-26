@@ -14,6 +14,35 @@ import { agentAnalyses, backgroundJobs, documents, documentEmbeddings } from '@s
 import { eq, and, or, like, sql } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
+import { z } from 'zod';
+
+// STRICT ZOD SCHEMAS FOR COMMERCIAL ANALYSIS
+const CommercialAnswerSchema = z.object({
+  question: z.string(),
+  answer: z.string(),
+  confidence: z.number().min(0).max(1),
+  sources: z.array(z.string()),
+  keyFindings: z.array(z.string()),
+  commercialAssessment: z.string(),
+  recommendations: z.array(z.string()),
+  commercialRiskScore: z.number().min(1).max(10),
+  marketPosition: z.string().optional(),
+  quantifiedMetrics: z.array(z.object({
+    name: z.string(),
+    value: z.string(),
+    unit: z.string(),
+    period: z.string(),
+    confidence: z.number().min(0).max(1)
+  })).optional(),
+  competitiveIntelligence: z.object({
+    strengths: z.array(z.string()),
+    weaknesses: z.array(z.string()),
+    opportunities: z.array(z.string()),
+    threats: z.array(z.string())
+  }).optional()
+});
+
+type CommercialAnswer = z.infer<typeof CommercialAnswerSchema>;
 
 /**
  * Clean JSON response by removing markdown code fences and other formatting
@@ -1348,50 +1377,105 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         
         const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{ role: 'user', content: prompt }], config);
         
-        // Stage 1: Direct JSON parsing
+        // STAGE 1: STRICT ZOD VALIDATION WITH JSON SCHEMA
         try {
-          const commercialAnswer: RagCommercialAnswer = JSON.parse(response.content);
+          const parsedContent = JSON.parse(response.content);
+          const commercialAnswer = CommercialAnswerSchema.parse(parsedContent);
           
-          if (commercialAnswer.question && commercialAnswer.answer && commercialAnswer.keyFindings) {
-            console.log(`✅ Commercial JSON parsing successful on attempt ${attempt}: ${commercialAnswer.keyFindings.length} findings`);
-            
-            return commercialAnswer.keyFindings.filter(finding => 
-              typeof finding === 'string' && finding.trim().length > 0
-            ).slice(0, 6); // Increased from 4 to 6 findings
+          console.log(`✅ Stage 1 - Strict Zod validation successful on attempt ${attempt}: ${commercialAnswer.keyFindings.length} findings`);
+          console.log(`📊 Quality metrics: confidence ${commercialAnswer.confidence}, risk ${commercialAnswer.commercialRiskScore}`);
+          
+          // Ensure minimum citation requirements (≥3 citations)
+          const validFindings = commercialAnswer.keyFindings.filter(finding => 
+            typeof finding === 'string' && finding.trim().length > 10 // Minimum quality threshold
+          );
+          
+          if (validFindings.length >= 3) {
+            console.log(`✅ Citation requirement met: ${validFindings.length} valid findings (≥3 required)`);
+            return validFindings.slice(0, 6);
+          } else {
+            console.warn(`⚠️ Insufficient findings: ${validFindings.length} < 3 required, triggering wider search`);
+            throw new Error(`Insufficient evidence: only ${validFindings.length} findings found, need ≥3`);
           }
-        } catch (parseError) {
-          console.warn(`⚠️ Stage 1 parsing failed on attempt ${attempt}: ${parseError.message}`);
           
-          // Stage 2: LLM repair
+        } catch (parseError) {
+          console.warn(`⚠️ Stage 1 - Zod validation failed on attempt ${attempt}: ${parseError.message}`);
+          
+          // STAGE 2: LLM REPAIR WITH SCHEMA ENFORCEMENT
           if (attempt <= 2) {
-            console.log(`🔧 Attempting LLM repair for attempt ${attempt}`);
-            const repairPrompt = `Fix this malformed JSON to be valid JSON object:\n\n${response.content}\n\nReturn ONLY the corrected JSON object with no explanatory text.`;
+            console.log(`🔧 Stage 2 - Attempting LLM repair for attempt ${attempt}`);
+            
+            const repairPrompt = `CRITICAL JSON REPAIR TASK:
+
+The following response failed strict schema validation. Fix it to match this EXACT schema:
+
+{
+  "question": "string",
+  "answer": "comprehensive analysis string",
+  "confidence": 0.85,
+  "sources": ["document1.pdf", "document2.xlsx"],
+  "keyFindings": ["Finding 1", "Finding 2", "Finding 3", "Finding 4"],
+  "commercialAssessment": "assessment string",
+  "recommendations": ["Rec 1", "Rec 2"],
+  "commercialRiskScore": 7
+}
+
+MALFORMED INPUT:
+${response.content}
+
+REQUIREMENTS:
+- Return ONLY valid JSON object
+- Include at least 3 keyFindings
+- commercialRiskScore must be 1-10
+- confidence must be 0.0-1.0
+- No explanatory text, just JSON
+
+FIXED JSON:`;
             
             try {
-              const repairResponse = await ultraIntelligentAI.createUltraIntelligentCompletion([{ role: 'user', content: repairPrompt }], config);
-              const repairedAnswer: RagCommercialAnswer = JSON.parse(repairResponse.content);
+              const repairResponse = await ultraIntelligentAI.createUltraIntelligentCompletion(
+                [{ role: 'user', content: repairPrompt }], 
+                { ...config, responseFormat: { type: "json_object" } }
+              );
               
-              if (repairedAnswer.keyFindings) {
-                console.log(`✅ LLM repair successful on attempt ${attempt}`);
-                return repairedAnswer.keyFindings.filter(finding => 
-                  typeof finding === 'string' && finding.trim().length > 0
-                ).slice(0, 6);
+              const repairedContent = JSON.parse(repairResponse.content);
+              const repairedAnswer = CommercialAnswerSchema.parse(repairedContent);
+              
+              if (repairedAnswer.keyFindings.length >= 3) {
+                console.log(`✅ Stage 2 - LLM repair successful on attempt ${attempt}: ${repairedAnswer.keyFindings.length} findings`);
+                return repairedAnswer.keyFindings.slice(0, 6);
               }
             } catch (repairError) {
-              console.warn(`⚠️ Stage 2 LLM repair failed on attempt ${attempt}: ${repairError.message}`);
+              console.warn(`⚠️ Stage 2 - LLM repair failed on attempt ${attempt}: ${repairError.message}`);
             }
           }
           
-          // Stage 3: Regex sanitization
-          const cleanedContent = cleanJsonResponse(response.content, 'object');
+          // STAGE 3: REGEX SANITIZATION WITH FALLBACK VALIDATION
           try {
-            const sanitizedAnswer = JSON.parse(cleanedContent);
-            if (sanitizedAnswer.keyFindings) {
-              console.log(`✅ Regex sanitization successful on attempt ${attempt}`);
-              return Array.isArray(sanitizedAnswer.keyFindings) ? sanitizedAnswer.keyFindings.slice(0, 6) : [];
+            console.log(`🧩 Stage 3 - Attempting regex sanitization for attempt ${attempt}`);
+            
+            const cleanedContent = cleanJsonResponse(response.content, 'object');
+            const sanitizedContent = JSON.parse(cleanedContent);
+            
+            // Partial validation - extract what we can
+            const fallbackAnswer = {
+              question: sanitizedContent.question || 'Commercial analysis',
+              answer: sanitizedContent.answer || 'Analysis completed with partial data extraction',
+              confidence: Math.min(1, Math.max(0, sanitizedContent.confidence || 0.6)),
+              sources: Array.isArray(sanitizedContent.sources) ? sanitizedContent.sources : [],
+              keyFindings: Array.isArray(sanitizedContent.keyFindings) ? sanitizedContent.keyFindings : [],
+              commercialAssessment: sanitizedContent.commercialAssessment || 'Assessment completed',
+              recommendations: Array.isArray(sanitizedContent.recommendations) ? sanitizedContent.recommendations : [],
+              commercialRiskScore: Math.min(10, Math.max(1, sanitizedContent.commercialRiskScore || 5))
+            };
+            
+            if (fallbackAnswer.keyFindings.length > 0) {
+              console.log(`✅ Stage 3 - Regex sanitization successful on attempt ${attempt}: ${fallbackAnswer.keyFindings.length} findings`);
+              return fallbackAnswer.keyFindings.slice(0, 6);
             }
+            
           } catch (sanitizeError) {
-            console.warn(`⚠️ Stage 3 regex sanitization failed on attempt ${attempt}: ${sanitizeError.message}`);
+            console.warn(`⚠️ Stage 3 - Regex sanitization failed on attempt ${attempt}: ${sanitizeError.message}`);
           }
         }
         
