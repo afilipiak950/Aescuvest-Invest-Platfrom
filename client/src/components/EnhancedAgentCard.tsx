@@ -296,7 +296,7 @@ export default function EnhancedAgentCard({
 
     // Check for comprehensive commercial analysis progress
     const { data: commercialProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
-      queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
+      queryKey: [`/api/deals/${dealId}/agents/commercial/progress`],
       refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
@@ -4143,7 +4143,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
       }
       
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
+        queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
       });
       queryClient.invalidateQueries({
         queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
@@ -4174,7 +4174,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
         attempts++;
         
         try {
-          const response = await fetch(`/api/deals/${dealId}/commercial-analysis/comprehensive/results?_t=${Date.now()}`, {
+          const response = await fetch(`/api/deals/${dealId}/agents/commercial/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
@@ -4185,7 +4185,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
             console.log('Commercial analysis completed!');
             
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
+              queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
             });
             queryClient.invalidateQueries({
               queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
@@ -4983,7 +4983,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
 
   const { data: comprehensiveResults } = useQuery({
-    queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
