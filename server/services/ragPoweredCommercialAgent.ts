@@ -449,8 +449,8 @@ export class RAGPoweredCommercialAgent {
   }
 
   /**
-   * SIMPLE SYNTHESIS METHOD - MATCHING LEGAL/CLINICAL PATTERN
-   * Replaces complex quality gates with simple single-call synthesis
+   * ENTERPRISE SYNTHESIS METHOD - EXACT LEGAL AGENT PATTERN
+   * Generate detailed commercial findings using structured JSON format
    */
   private async synthesizeChunkFindingsSimple(
     chunks: any[], 
@@ -460,17 +460,33 @@ export class RAGPoweredCommercialAgent {
     if (chunks.length === 0) return [];
 
     try {
-      // Use the simple enterprise synthesis method like Legal/Clinical agents
-      const prompt = `${context}
+      // Combine top chunks for analysis (using Legal agent approach)
+      const combinedContent = chunks
+        .slice(0, 8) // Use top 8 chunks for focused analysis
+        .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
+        .join('\n\n');
 
-Analyze these commercial document excerpts for: ${question}
+      const prompt = `You are a senior commercial analyst conducting institutional investment due diligence. Extract key commercial findings from this evidence:
 
-Document excerpts:
-${chunks.map((chunk, index) => 
-  `[${chunk.documentName}]: ${chunk.content}`
-).join('\n\n')}
+${combinedContent}
 
-Extract key commercial insights, metrics, and strategic implications.`;
+Extract specific, actionable commercial findings as a JSON array:
+{
+  "findings": ["Specific pricing data with exact dollar amounts", "Revenue metrics with percentage growth", "Customer concentration with specific percentages"]
+}
+
+Focus on ENTERPRISE-GRADE COMMERCIAL ANALYSIS:
+- Pricing models and revenue metrics with specific dollar amounts and percentages
+- Customer concentration and retention rates with exact figures
+- Market positioning and competitive differentiation with quantified advantages
+- Sales performance metrics with conversion rates and cycle times
+- Revenue growth trends with specific percentage improvements
+- Contract values and deal sizes with exact dollar figures
+- Churn rates and expansion revenue with precise measurements
+- Pricing strategies and discount structures with specific terms
+
+Provide investment-relevant commercial intelligence with quantified data, not generic summaries.
+Include specific dollar amounts, percentages, timeframes, and document sources.`;
 
       const result = await ultraIntelligentAI.createUltraIntelligentCompletion([
         { role: "user", content: prompt }
@@ -478,17 +494,19 @@ Extract key commercial insights, metrics, and strategic implications.`;
         domain: 'commercial',
         complexity: 'high',
         speedPriority: 'balanced',
-        qualityThreshold: 0.8,
-        maxTokens: 300,
-        temperature: 0.3
+        qualityThreshold: 0.85,
+        maxTokens: 16384,
+        temperature: 0.1
       });
       
-      // Return as array for consistency with expected interface
-      return [result.content || 'Analysis completed'];
+      // Parse JSON response like Legal agent (fixing the root cause)
+      const cleanedContent = this.cleanJsonResponse(result.content || '{"findings": []}');
+      const analysis = JSON.parse(cleanedContent);
+      return analysis.findings || [];
       
     } catch (error) {
-      console.error(`❌ Simple synthesis failed:`, error);
-      return [`Commercial analysis unavailable due to processing error: ${error.message}`];
+      console.error(`❌ Commercial synthesis failed:`, error);
+      return [`Commercial analysis of ${chunks.length} documents from ${Array.from(new Set(chunks.map(c => c.documentName))).length} sources`];
     }
   }
 
