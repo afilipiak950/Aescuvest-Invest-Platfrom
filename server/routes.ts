@@ -8200,6 +8200,12 @@ function calculateDocumentRelevanceScore(document: any, agent: any): number {
 
 // Agent-specific analysis processing function with AI caching
 async function processAgentSpecificAnalysis(dealId: number, agentType: string, documents: any[], deal: any, forceRefresh = false) {
+  // CRITICAL: Exclude Commercial from generic orchestrator - handled by PersistentCommercialAnalysisService
+  if (agentType.toLowerCase() === 'commercial') {
+    console.log(`🏢 Commercial analysis delegated to PersistentCommercialAnalysisService for deal ${dealId} - skipping generic orchestrator`);
+    return;
+  }
+  
   console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
   
   // Create in-memory job tracking for progress updates
