@@ -4399,12 +4399,10 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
-  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
+  // FIXED: Use working endpoint like HR agent  
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
+    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
-    staleTime: 0, // Always treat as stale to force fresh data like Legal
-    gcTime: 0, // Don't cache results like Legal
   });
 
   // Force refetch on component mount to ensure fresh data like Legal
@@ -4412,13 +4410,13 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     refetchComprehensive();
   }, [refetchComprehensive]);
 
-  // Use comprehensive results if available, fallback to analysisData like Legal
+  // FIXED: Use working data structure like HR agent
   const financialData = comprehensiveResults?.analysis || analysisData || null;
 
   console.log('💰 Financial Analysis Available:', !!financialData);
   console.log('💰 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
-  console.log('💰 Financial Data from Comprehensive:', !!financialData?.financialAnswers);
-  console.log('💰 Financial Answers Keys:', financialData?.financialAnswers ? Object.keys(financialData.financialAnswers) : 'No answers');
+  console.log('💰 Financial Data from Comprehensive:', !!financialData);
+  console.log('💰 Financial Findings:', financialData?.findings?.length || 0);
   console.log('💰 DEBUGGING: Full financialData structure:', JSON.stringify(financialData, null, 2));
 
   const toggleCategory = (category: string) => {
@@ -4464,22 +4462,25 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     if (!financialData) return null;
     
     console.log(`💰 Looking for answer to financial question ${questionId}`);
-    console.log(`💰 Financial Answers exists:`, !!financialData.financialAnswers);
+    console.log(`💰 Financial findings available:`, !!financialData.findings);
     
-    // First try to get answer from financialAnswers structure - EXACTLY like Clinical
-    if (financialData?.financialAnswers && financialData.financialAnswers[questionId]) {
-      const answer = financialData.financialAnswers[questionId];
-      return {
-        answer: answer.answer || 'Analysis in progress...',
-        confidence: answer.confidence || 0,
-        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
-        quotes: answer.quotes || [],
-        keyFindings: answer.keyFindings || [],
-        evidenceSummary: answer.evidenceSummary || '',
-        financialAssessment: answer.financialAssessment || '',
-        recommendations: answer.recommendations || [],
-        detailedEvidence: answer.detailedEvidence || []
-      };
+    // FIXED: Use findings array like HR agent, not financialAnswers object  
+    if (financialData?.findings && Array.isArray(financialData.findings)) {
+      // Get the first few findings as the answer (simplified approach)
+      const relevantFindings = financialData.findings.slice(0, 3);
+      if (relevantFindings.length > 0) {
+        return {
+          answer: relevantFindings.map(f => f.description || f.title || f.content).join('\n\n'),
+          confidence: 0.8,
+          sources: relevantFindings.map(f => f.documentSource || f.source).filter(Boolean),
+          quotes: [],
+          keyFindings: relevantFindings.map(f => f.title || f.category),
+          evidenceSummary: `Found ${financialData.findings.length} financial findings`,
+          financialAssessment: relevantFindings[0]?.description || '',
+          recommendations: [],
+          detailedEvidence: []
+        };
+      }
     }
 
     return null; // Return null for empty state like Clinical agent
