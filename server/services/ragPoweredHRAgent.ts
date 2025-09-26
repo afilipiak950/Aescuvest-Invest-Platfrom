@@ -616,6 +616,70 @@ export class RagPoweredHRAgent {
   }
 
   /**
+   * COMPRESS CHUNKS FOR ANALYSIS
+   * Intelligent content compression to prevent token overflow while preserving key HR data
+   */
+  private async compressChunksForAnalysis(chunks: any[], analysisPrompt: string): Promise<any[]> {
+    console.log(`🗜️ Compressing ${chunks.length} HR chunks for analysis`);
+    
+    const compressedChunks = [];
+    
+    for (const chunk of chunks) {
+      // Skip compression if content is already short
+      if (chunk.content.length <= 800) {
+        compressedChunks.push(chunk);
+        continue;
+      }
+      
+      try {
+        // Extract key HR information from each chunk
+        const compressionPrompt = `Extract key HR data from this document excerpt for analysis of: "${analysisPrompt}"
+
+Document content:
+${chunk.content.substring(0, 3000)} ${chunk.content.length > 3000 ? '...[truncated]' : ''}
+
+Focus on: employment terms, compensation, benefits, policies, contracts, compliance, organizational structure, HR metrics.
+Keep specific names, numbers, and citations. Compress to 150-300 words maximum.
+
+RESPOND WITH ONLY THE COMPRESSED HR SUMMARY - NO EXPLANATIONS.`;
+
+        const compressionConfig: UltraIntelligentConfig = {
+          domain: 'general',
+          complexity: 'medium',
+          speedPriority: 'fastest',
+          qualityThreshold: 0.7,
+          maxTokens: 300,
+          temperature: 0.1
+        };
+
+        const response = await ultraIntelligentAI.createUltraIntelligentCompletion(
+          [{ role: 'user', content: compressionPrompt }], 
+          compressionConfig
+        );
+
+        compressedChunks.push({
+          ...chunk,
+          content: response.content.trim()
+        });
+
+        // Small delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`⚠️ Compression failed for chunk from ${chunk.documentName}:`, error);
+        // Fallback: simple truncation
+        compressedChunks.push({
+          ...chunk,
+          content: chunk.content.substring(0, 800) + (chunk.content.length > 800 ? '...[truncated]' : '')
+        });
+      }
+    }
+    
+    console.log(`✅ Compressed ${chunks.length} HR chunks`);
+    return compressedChunks;
+  }
+
+  /**
    * ENTERPRISE HYBRID HR SEARCH STRATEGY 
    * Execute 4 intelligent queries per question with BM25 + embeddings + MMR re-ranking
    */
@@ -669,14 +733,14 @@ export class RagPoweredHRAgent {
 
   /**
    * SYNTHESIZE CHUNK FINDINGS
-   * Convert raw RAG chunks into structured HR insights
+   * Convert raw RAG chunks into structured HR insights with context compression
    */
   private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string): Promise<string[]> {
     if (chunks.length === 0) return [];
     
-    // Combine top chunks for analysis
-    const combinedContent = chunks
-      .slice(0, 8) // Use top 8 chunks for focused analysis
+    // Compress chunks to prevent token overflow  
+    const compressedChunks = await this.compressChunksForAnalysis(chunks.slice(0, 8), analysisPrompt);
+    const combinedContent = compressedChunks
       .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
       .join('\n\n');
     
@@ -708,13 +772,13 @@ Apply HR expertise with employment law precision and risk assessment depth.
 QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and detail.`;
 
     try {
-      // Ultra-Intelligent HR Chunk Analysis Configuration  
+      // Ultra-Intelligent HR Chunk Analysis Configuration with safe token budgeting
       const ultraIntelligentConfig: UltraIntelligentConfig = {
-        domain: 'general', // HR falls under general domain for now
+        domain: 'general', // HR falls under general domain
         complexity: 'high',
         speedPriority: 'balanced',
         qualityThreshold: 0.85,
-        maxTokens: 16384,
+        maxTokens: 2000, // Safe token allocation to prevent overflow
         temperature: 0.1,
         responseFormat: { type: "json_object" }
       };
