@@ -21,11 +21,11 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
     // Clear any stuck jobs first
     await persistentJobManager.clearStuckJobs(dealId);
     
-    // Define all 7 agent types
+    // Define 6 agent types - Commercial handled by PersistentCommercialAnalysisService
     const agentTypes = [
       'Clinical',
       'Legal', 
-      'Commercial',
+      // 'Commercial', // EXCLUDED: Now handled by dedicated PersistentCommercialAnalysisService
       'HR',
       'Financial',
       'IP',
@@ -64,7 +64,7 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
     
     res.json({
       success: true,
-      message: `Started ${startedJobs.filter(job => job.status === 'started').length}/7 analyses`,
+      message: `Started ${startedJobs.filter(job => job.status === 'started').length}/6 analyses (Commercial handled separately)`,
       jobs: startedJobs
     });
     
