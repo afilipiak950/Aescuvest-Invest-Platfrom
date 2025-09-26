@@ -16,7 +16,7 @@ import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-// STRICT ZOD SCHEMAS FOR COMMERCIAL ANALYSIS
+// SIMPLIFIED ZOD SCHEMA FOR COMMERCIAL ANALYSIS (matching Legal/Clinical pattern)
 const CommercialAnswerSchema = z.object({
   question: z.string(),
   answer: z.string(),
@@ -33,86 +33,29 @@ const CommercialAnswerSchema = z.object({
     unit: z.string(),
     period: z.string(),
     confidence: z.number().min(0).max(1),
-    pageReference: z.string().optional() // Page-level citation
-  })).min(5, "Must provide at least 5 quantified metrics for enterprise analysis"),
+    pageReference: z.string().optional()
+  })).optional(), // REMOVED strict minimum requirement
   competitiveIntelligence: z.object({
-    strengths: z.array(z.string()).min(3, "Must provide at least 3 competitive strengths"),
-    weaknesses: z.array(z.string()).min(3, "Must provide at least 3 competitive weaknesses"),
-    opportunities: z.array(z.string()).min(3, "Must provide at least 3 market opportunities"),
-    threats: z.array(z.string()).min(3, "Must provide at least 3 competitive threats")
-  })
+    strengths: z.array(z.string()),
+    weaknesses: z.array(z.string()),
+    opportunities: z.array(z.string()),
+    threats: z.array(z.string())
+  }).optional() // REMOVED strict minimum requirements
 });
 
 type CommercialAnswer = z.infer<typeof CommercialAnswerSchema>;
 
 /**
- * Clean JSON response by removing markdown code fences and other formatting
+ * Simple JSON response cleaner (matching Legal/Clinical pattern)
  */
-/**
- * TYPE-AWARE JSON RESPONSE CLEANER
- * Fixes root cause of browser/server data inconsistency by extracting the correct JSON structure
- */
-function cleanJsonResponse(content: string, expectedType: 'array' | 'object' = 'array'): string {
-  // Remove markdown JSON code blocks with all variations
-  content = content.replace(/```json\s*/gi, '').replace(/```javascript\s*/gi, '').replace(/```\s*$/gi, '');
+function cleanJsonResponse(content: string): string {
+  // Remove markdown code blocks
+  content = content.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '');
   
   // Remove common AI response prefixes
   content = content.replace(/^(Here's the|Here are the|The|Response:|Analysis:|Results?:)\s*/gi, '');
   
-  // Remove any leading/trailing whitespace
-  content = content.trim();
-  
-  // TYPE-AWARE extraction to prevent bracket collision with document references
-  if (expectedType === 'array' && !content.startsWith('[')) {
-    // Extract LAST bracket block containing quoted strings (not document references like [DocumentName])
-    const arrayMatches = content.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/g);
-    if (arrayMatches && arrayMatches.length > 0) {
-      // Use the LAST array match to avoid document reference brackets
-      content = arrayMatches[arrayMatches.length - 1];
-    } else {
-      // Fallback: look for any array structure but prefer the last one
-      const genericArrays = content.match(/\[[\s\S]*?\]/g);
-      if (genericArrays && genericArrays.length > 0) {
-        content = genericArrays[genericArrays.length - 1];
-      }
-    }
-  } else if (expectedType === 'object' && !content.startsWith('{')) {
-    // For objects, use non-greedy regex and extract LAST balanced object
-    const objectMatches = content.match(/\{[\s\S]*?\}/g);
-    if (objectMatches && objectMatches.length > 0) {
-      content = objectMatches[objectMatches.length - 1];
-    }
-  }
-  
-  // Enhanced cleanup: Remove any trailing non-JSON text after the closing bracket/brace
-  const lastBrace = content.lastIndexOf('}');
-  const lastBracket = content.lastIndexOf(']');
-  const lastClosing = Math.max(lastBrace, lastBracket);
-  
-  if (lastClosing !== -1 && lastClosing < content.length - 1) {
-    content = content.substring(0, lastClosing + 1);
-  }
-  
-  // Remove any control characters and common AI artifacts
-  content = content.replace(/[\x00-\x1F\x7F]/g, '');
-  content = content.replace(/^[^[\{]*/, ''); // Remove any text before JSON starts
-  content = content.replace(/[^}\]]*$/, ''); // Remove any text after JSON ends
-  
-  // TYPE-AWARE validation with proper error handling
-  if (!content || (!content.trim().startsWith('{') && !content.trim().startsWith('['))) {
-    console.warn(`⚠️ Commercial ${expectedType} JSON response is malformed, using fallback: ${content.substring(0, 100)}...`);
-    console.warn(`⚠️ Original response pattern analysis: starts with "${content.substring(0, 20)}", contains JSON: ${content.includes('[') || content.includes('{')}`);
-    
-    // Return type-appropriate fallback - NEVER mix types
-    if (expectedType === 'array') {
-      return '["Analysis completed but response format was invalid - manual review required"]';
-    } else {
-      // For objects, throw to trigger retry instead of returning wrong type
-      throw new Error(`Object JSON response is malformed, expected ${expectedType} but got invalid format`);
-    }
-  }
-  
-  return content;
+  return content.trim();
 }
 
 // ENHANCED 12 COMMERCIAL QUESTIONS - With improved RAG queries and commercial terminology
