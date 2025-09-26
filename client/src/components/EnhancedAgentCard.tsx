@@ -21,6 +21,7 @@ import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
 import { FormattedAnswer } from './FormattedAnswer';
+import { ProfessionalFormattedContent } from './ProfessionalFormattedContent';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -5078,14 +5079,14 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Main Finding - Clinical style */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <ProfessionalFormattedContent content={answer.answer} className="text-gray-300" variant="small" />
                               </div>
 
                               {/* Enhanced Commercial Assessment */}
                               {answer.commercialAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-indigo-400 mb-2">Commercial Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.commercialAssessment}</p>
+                                  <ProfessionalFormattedContent content={answer.commercialAssessment} className="text-gray-300" variant="small" />
                                 </div>
                               )}
 
@@ -5125,7 +5126,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                  <ProfessionalFormattedContent content={answer.evidenceSummary} className="text-gray-300" variant="small" />
                                 </div>
                               )}
 
