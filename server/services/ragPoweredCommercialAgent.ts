@@ -449,6 +449,41 @@ export class RAGPoweredCommercialAgent {
   }
 
   /**
+   * SIMPLE SYNTHESIS METHOD - MATCHING LEGAL/CLINICAL PATTERN
+   * Replaces complex quality gates with simple single-call synthesis
+   */
+  private async synthesizeChunkFindingsSimple(
+    chunks: any[], 
+    context: string, 
+    question: string
+  ): Promise<string[]> {
+    if (chunks.length === 0) return [];
+
+    try {
+      // Use the simple enterprise synthesis method like Legal/Clinical agents
+      const prompt = `${context}
+
+Analyze these commercial document excerpts for: ${question}
+
+Document excerpts:
+${chunks.map((chunk, index) => 
+  `[${chunk.documentName}]: ${chunk.content}`
+).join('\n\n')}
+
+Extract key commercial insights, metrics, and strategic implications.`;
+
+      const result = await UltraIntelligentAI.synthesizeEnterpriseAnswer(prompt);
+      
+      // Return as array for consistency with expected interface
+      return [result];
+      
+    } catch (error) {
+      console.error(`❌ Simple synthesis failed:`, error);
+      return [`Commercial analysis unavailable due to processing error: ${error.message}`];
+    }
+  }
+
+  /**
    * FULL CORPUS PROCESSING WITH PAGINATION
    * Process all assigned commercial documents with checkpointing
    */
@@ -1043,8 +1078,8 @@ ENTERPRISE REQUIREMENTS:
     while (attempt <= MAX_ATTEMPTS) {
       console.log(`🔄 Commercial synthesis attempt ${attempt}/${MAX_ATTEMPTS}`);
       
-      // Standard synthesis with enhanced prompting
-      const synthesizedFindings = await this.synthesizeChunkFindings(
+      // Simple synthesis using Legal/Clinical pattern
+      const synthesizedFindings = await this.synthesizeChunkFindingsSimple(
         chunks, 
         context + " - CRITICAL: Provide minimum 5 quantified metrics with page citations and comprehensive competitive SWOT analysis.", 
         question
