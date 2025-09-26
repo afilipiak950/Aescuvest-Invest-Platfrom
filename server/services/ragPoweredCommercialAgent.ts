@@ -517,17 +517,19 @@ export class RAGPoweredCommercialAgent {
       // Get all commercial documents for this deal
       const commercialDocs = await db.select()
         .from(documents)
-        .where(and(
-          eq(documents.dealId, this.dealId),
-          or(
-            eq(documents.assignedAgent, 'commercial'),
-            like(documents.name, '%commercial%'),
-            like(documents.name, '%agreement%'),
-            like(documents.name, '%contract%'),
-            like(documents.name, '%pricing%'),
-            like(documents.name, '%revenue%')
+        .where(
+          and(
+            eq(documents.dealId, this.dealId),
+            or(
+              eq(documents.assignedAgent, 'commercial'),
+              like(documents.name, '%commercial%'),
+              like(documents.name, '%agreement%'),
+              like(documents.name, '%contract%'),
+              like(documents.name, '%pricing%'),
+              like(documents.name, '%revenue%')
+            )
           )
-        ))
+        )
         .orderBy(documents.name);
       
       console.log(`📄 Found ${commercialDocs.length} commercial documents to process`);
@@ -1063,7 +1065,7 @@ ENTERPRISE REQUIREMENTS:
     console.log(`🔍 Semantic results: ${semanticResults.length}, Keyword results: ${keywordResults.length}`);
     
     // Step 3: Fuse results using Reciprocal Rank Fusion (RRF)
-    const fusedResults = this.fuseSearchResults(semanticResults, keywordResults, limit * 2);
+    const fusedResults = this.fuseSearchResults(semanticResults, keywordResults, initialLimit * 2);
     console.log(`🔍 Fusion completed: ${fusedResults.length} fused results`);
     
     // Step 4: Apply commercial document boosting with explicit scoring
