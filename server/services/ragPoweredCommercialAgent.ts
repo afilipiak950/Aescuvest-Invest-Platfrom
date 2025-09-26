@@ -384,7 +384,7 @@ export class RAGPoweredCommercialAgent {
       }));
 
       // Synthesize findings from mapped chunks
-      const synthesizedFindings = await this.synthesizeChunkFindings(mappedChunks, category);
+      const synthesizedFindings = await this.synthesizeChunkFindings(mappedChunks, `Analyze ${category} evidence for: ${question}`, question);
       
       const evidence: RagCommercialEvidence = {
         query,
@@ -790,7 +790,7 @@ ENTERPRISE REQUIREMENTS:
    * SYNTHESIZE CHUNK FINDINGS
    * Convert raw RAG chunks into structured commercial insights
    */
-  private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string): Promise<string[]> {
+  private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string, question?: string): Promise<string[]> {
     if (chunks.length === 0) return [];
     
     // Combine top chunks for analysis
@@ -814,7 +814,7 @@ CRITICAL INSTRUCTIONS:
 
 Extract commercial analysis as this EXACT structured JSON format:
 {
-  "question": "Commercial Analysis Question",
+  "question": "${question}",
   "answer": "Comprehensive commercial analysis summary with specific metrics and data",
   "confidence": 0.85,
   "sources": ["document1.pdf", "document2.xlsx"],
