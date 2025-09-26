@@ -299,7 +299,7 @@ interface CommercialQuestionResult {
   keyFindings: string[];
   recommendations: string[];
   confidenceScore: number; // 0-1 scale
-  documentSources: string[];
+  sources: string[];
 }
 
 // Enterprise Commercial Analysis Result
@@ -509,7 +509,7 @@ ENTERPRISE REQUIREMENTS:
         keyFindings: Array.isArray(analysisData.keyFindings) ? analysisData.keyFindings : [],
         recommendations: Array.isArray(analysisData.recommendations) ? analysisData.recommendations : [],
         confidenceScore: Math.min(1, Math.max(0, analysisData.confidenceScore || 0.7)),
-        documentSources: Array.isArray(analysisData.documentSources) ? analysisData.documentSources : []
+        sources: Array.isArray(analysisData.sources) ? analysisData.sources : []
       };
 
       console.log(`✅ Commercial analysis synthesized for question: ${question.id}`);
@@ -589,7 +589,7 @@ ENTERPRISE REQUIREMENTS:
 
     const allKeyFindings = questionResults.flatMap(q => q.keyFindings);
     const allRecommendations = questionResults.flatMap(q => q.recommendations);
-    const allDocumentSources = Array.from(new Set(questionResults.flatMap(q => q.documentSources)));
+    const allDocumentSources = Array.from(new Set(questionResults.flatMap(q => q.sources)));
 
     // Generate key commercial insights
     const keyCommercialInsights = [
@@ -655,7 +655,7 @@ ENTERPRISE REQUIREMENTS:
         keyFindings: questionResult.keyFindings,
         recommendations: questionResult.recommendations,
         confidenceScore: questionResult.confidenceScore,
-        documentSources: questionResult.documentSources,
+        sources: questionResult.sources,
         evidenceCount: questionResult.evidence.reduce((sum, layer) => sum + layer.totalChunks, 0),
         processingTime: Date.now() // Add timestamp for tracking
       };
@@ -868,7 +868,7 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT.`;
       console.error('❌ Analysis context:', { 
         analysisPrompt, 
         chunkCount: chunks.length, 
-        documentSources: Array.from(new Set(chunks.map(c => c.documentName)))
+        sources: Array.from(new Set(chunks.map(c => c.documentName)))
       });
       
       // Return meaningful error context instead of generic fallback
