@@ -765,9 +765,6 @@ ENTERPRISE REQUIREMENTS:
       console.log(`\n⚖️ Enhanced Question ${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length}: ${questionData.question}`);
       
       try {
-        // Update progress in background job
-        await this.updateBackgroundJobProgress(questionIndex);
-
         // Execute multi-layer RAG search
         const evidenceLayers = await this.executeMultiLayerRagSearch(
           questionData.id,
@@ -784,7 +781,10 @@ ENTERPRISE REQUIREMENTS:
         // 🎯 CRITICAL FIX: Save each question result immediately (incremental saves)
         await this.saveQuestionResultIncremental(questionResult, questionIndex);
         
-        const currentProgress = Math.round(((questionIndex + 1) / RAG_COMMERCIAL_QUESTIONS.length) * 100);
+        // 🎯 CRITICAL FIX: Update progress AFTER completing question (like Legal agent)
+        const currentProgress = Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100);
+        await this.updateBackgroundJobProgress(currentProgress, questionIndex);
+        
         console.log(`📊 Commercial analysis progress: ${currentProgress}% (${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
         console.log(`✅ Question ${questionIndex} completed with commercial risk score ${questionResult.commercialRiskScore}/10`);
         console.log(`💾 Question ${questionIndex} saved incrementally to database`);
@@ -1638,12 +1638,12 @@ FIXED JSON:`;
 
 
   /**
-   * Update progress in background job
+   * UPDATE BACKGROUND JOB PROGRESS  
+   * Track real-time progress for UI updates (matching Legal agent pattern)
    */
-  private async updateBackgroundJobProgress(currentQuestion: number): Promise<void> {
+  private async updateBackgroundJobProgress(progress: number, completedQuestions: number): Promise<void> {
     try {
-      const progress = Math.round((currentQuestion / RAG_COMMERCIAL_QUESTIONS.length) * 100);
-      const currentStep = `Processing commercial question ${currentQuestion}/${RAG_COMMERCIAL_QUESTIONS.length}`;
+      const currentStep = `Processing commercial question ${completedQuestions}/${RAG_COMMERCIAL_QUESTIONS.length}`;
       
       console.log(`🔍 DEBUG: Updating job ${this.jobId} with progress ${progress}%`);
       
@@ -1652,13 +1652,13 @@ FIXED JSON:`;
         .update(backgroundJobs)
         .set({
           progress: progress,
-          processedDocuments: currentQuestion,
+          processedDocuments: completedQuestions,
           currentStep: currentStep,
           updatedAt: new Date()
         } as any)
         .where(eq(backgroundJobs.jobId, this.jobId));
         
-      console.log(`📊 Commercial analysis progress: ${progress}% (${currentQuestion}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
+      console.log(`📊 Commercial analysis progress: ${progress}% (${completedQuestions}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
       console.log(`🔍 DEBUG: Updated rows: ${JSON.stringify(result)}`);
 
     } catch (error) {
