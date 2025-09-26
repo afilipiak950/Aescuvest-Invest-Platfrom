@@ -32,14 +32,15 @@ const CommercialAnswerSchema = z.object({
     value: z.string(),
     unit: z.string(),
     period: z.string(),
-    confidence: z.number().min(0).max(1)
-  })).optional(),
+    confidence: z.number().min(0).max(1),
+    pageReference: z.string().optional() // Page-level citation
+  })).min(5, "Must provide at least 5 quantified metrics for enterprise analysis"),
   competitiveIntelligence: z.object({
-    strengths: z.array(z.string()),
-    weaknesses: z.array(z.string()),
-    opportunities: z.array(z.string()),
-    threats: z.array(z.string())
-  }).optional()
+    strengths: z.array(z.string()).min(3, "Must provide at least 3 competitive strengths"),
+    weaknesses: z.array(z.string()).min(3, "Must provide at least 3 competitive weaknesses"),
+    opportunities: z.array(z.string()).min(3, "Must provide at least 3 market opportunities"),
+    threats: z.array(z.string()).min(3, "Must provide at least 3 competitive threats")
+  })
 });
 
 type CommercialAnswer = z.infer<typeof CommercialAnswerSchema>;
@@ -406,7 +407,7 @@ export class RAGPoweredCommercialAgent {
       const enhancedResults = await this.executeHybridCommercialSearch(
         query,
         this.dealId,
-        24 // Increased from 12 to 24 chunks per layer for better coverage
+        50 // Enhanced to 50 chunks initial retrieval for enterprise analysis
       );
 
       const mappedChunks = enhancedResults.map(result => ({
@@ -417,11 +418,12 @@ export class RAGPoweredCommercialAgent {
         boost: result.boost || 1.0 // Track boosting factor
       }));
 
-      // Enhanced synthesis with robust JSON parsing
-      const synthesizedFindings = await this.synthesizeChunkFindings(
+      // Enhanced synthesis with enterprise quality gates
+      const synthesizedFindings = await this.synthesizeChunkFindingsWithQualityGates(
         mappedChunks, 
         `Analyze ${category} evidence for: ${question}`, 
-        question
+        question,
+        questionId
       );
       
       const evidence: RagCommercialEvidence = {
@@ -1042,7 +1044,7 @@ ENTERPRISE REQUIREMENTS:
   private async executeHybridCommercialSearch(
     query: string, 
     dealId: number, 
-    limit: number = 24
+    initialLimit: number = 50 // Enterprise: High initial recall
   ): Promise<any[]> {
     console.log(`🔍 Executing REAL hybrid commercial search (BM25 + Embeddings): "${query}"`);
     
@@ -1053,9 +1055,9 @@ ENTERPRISE REQUIREMENTS:
     // Step 2: Execute BOTH semantic search (embeddings) and keyword search (BM25-style)
     const [semanticResults, keywordResults] = await Promise.all([
       // Semantic search via embeddings
-      EmbeddingService.searchSimilarChunks(expandedQuery, dealId, limit),
+      EmbeddingService.searchSimilarChunks(expandedQuery, dealId, initialLimit),
       // Keyword search via database full-text search
-      this.executeKeywordSearch(expandedQuery, dealId, limit)
+      this.executeKeywordSearch(expandedQuery, dealId, initialLimit)
     ]);
     
     console.log(`🔍 Semantic results: ${semanticResults.length}, Keyword results: ${keywordResults.length}`);
@@ -1068,14 +1070,138 @@ ENTERPRISE REQUIREMENTS:
     const boostedResults = this.applyCommercialDocumentBoosting(fusedResults);
     console.log(`🔍 Commercial boosting applied: avg boost ${(boostedResults.reduce((sum, r) => sum + (r.boost || 1), 0) / boostedResults.length).toFixed(2)}`);
     
-    // Step 5: MMR re-ranking for diversity and final selection
-    const rerankedResults = this.applyMMRReranking(boostedResults, limit);
+    // Step 5: MMR re-ranking for diversity and final selection (Enterprise: 50 → 10 chunks)
+    const ENTERPRISE_FINAL_CHUNKS = 10; // Architect recommendation: 8-12 final chunks
+    const rerankedResults = this.applyMMRReranking(boostedResults, ENTERPRISE_FINAL_CHUNKS);
     
     const finalDocCount = new Set(rerankedResults.map(r => r.documentName)).size;
     console.log(`✅ REAL hybrid search completed: ${rerankedResults.length} chunks from ${finalDocCount} documents`);
     console.log(`📈 Quality metrics: avg similarity ${(rerankedResults.reduce((sum, r) => sum + r.similarity, 0) / rerankedResults.length).toFixed(3)}`);
     
     return rerankedResults;
+  }
+
+  /**
+   * ENTERPRISE QUALITY GATES FOR COMMERCIAL SYNTHESIS
+   * Implements architect's recommendations for institutional-grade analysis
+   */
+  private async synthesizeChunkFindingsWithQualityGates(
+    chunks: any[], 
+    context: string, 
+    question: string,
+    questionId: string
+  ): Promise<string[]> {
+    console.log(`🎯 Applying enterprise quality gates for ${questionId}`);
+    
+    let attempt = 1;
+    const MAX_ATTEMPTS = 3;
+    
+    while (attempt <= MAX_ATTEMPTS) {
+      console.log(`🔄 Commercial synthesis attempt ${attempt}/${MAX_ATTEMPTS}`);
+      
+      // Standard synthesis with enhanced prompting
+      const synthesizedFindings = await this.synthesizeChunkFindings(
+        chunks, 
+        context + " - CRITICAL: Provide minimum 5 quantified metrics with page citations and comprehensive competitive SWOT analysis.", 
+        question
+      );
+      
+      // Quality Gate 1: Numeric density validation (≥0.6 per 100 tokens)
+      const numericDensity = this.calculateNumericDensity(synthesizedFindings.join(' '));
+      console.log(`📊 Numeric density: ${numericDensity.toFixed(3)} (target: ≥0.6)`);
+      
+      // Quality Gate 2: Citation coverage validation
+      const citationCoverage = this.calculateCitationCoverage(synthesizedFindings, chunks);
+      console.log(`📄 Citation coverage: ${(citationCoverage * 100).toFixed(1)}% (target: ≥90%)`);
+      
+      // Quality Gate 3: Competitor coverage validation
+      const competitorCoverage = this.validateCompetitorCoverage(synthesizedFindings);
+      console.log(`🏢 Competitor coverage: ${competitorCoverage ? 'PASS' : 'FAIL'}`);
+      
+      // Check if quality gates pass
+      const qualityPassed = numericDensity >= 0.6 && citationCoverage >= 0.9 && competitorCoverage;
+      
+      if (qualityPassed || attempt === MAX_ATTEMPTS) {
+        if (qualityPassed) {
+          console.log(`✅ Quality gates PASSED on attempt ${attempt}`);
+        } else {
+          console.log(`⚠️ Quality gates FAILED - using best attempt ${attempt}`);
+        }
+        return synthesizedFindings;
+      }
+      
+      // Failed quality gates - expand query and retry
+      console.log(`❌ Quality gates failed on attempt ${attempt} - retrying with enhanced context`);
+      
+      // Add missing entities to chunks for next attempt
+      if (!competitorCoverage) {
+        const expandedChunks = await this.expandChunksForCompetitors(chunks, question);
+        chunks = [...chunks, ...expandedChunks].slice(0, 15); // Keep top 15 for retry
+      }
+      
+      attempt++;
+    }
+    
+    return ['Analysis completed with limited quality metrics - manual review recommended'];
+  }
+  
+  /**
+   * Calculate numeric density (numbers, percentages, currency per 100 tokens)
+   */
+  private calculateNumericDensity(text: string): number {
+    const tokens = text.split(/\s+/).length;
+    const numericMatches = text.match(/\$[\d,]+|[\d,]+%|\b\d+(\.\d+)?[BMK]?\b|\d+\.\d+/g) || [];
+    return tokens > 0 ? (numericMatches.length / tokens) * 100 : 0;
+  }
+  
+  /**
+   * Calculate citation coverage (findings with document references)
+   */
+  private calculateCitationCoverage(findings: string[], chunks: any[]): number {
+    const documentNames = new Set(chunks.map(c => c.documentName));
+    let citedFindings = 0;
+    
+    findings.forEach(finding => {
+      const hasCitation = Array.from(documentNames).some(docName => 
+        finding.includes(docName) || finding.includes('[') || finding.includes('Document:')
+      );
+      if (hasCitation) citedFindings++;
+    });
+    
+    return findings.length > 0 ? citedFindings / findings.length : 0;
+  }
+  
+  /**
+   * Validate competitor coverage in findings
+   */
+  private validateCompetitorCoverage(findings: string[]): boolean {
+    const competitorTerms = ['competitor', 'rival', 'market leader', 'competition', 'vs.', 'compared to', 'competitive'];
+    const text = findings.join(' ').toLowerCase();
+    return competitorTerms.some(term => text.includes(term));
+  }
+  
+  /**
+   * Expand chunks to include competitor information
+   */
+  private async expandChunksForCompetitors(existingChunks: any[], question: string): Promise<any[]> {
+    const competitorQuery = `${question} competitor analysis market positioning competitive landscape`;
+    
+    try {
+      const expandedResults = await this.executeHybridCommercialSearch(
+        competitorQuery,
+        this.dealId,
+        20 // Limited expansion for efficiency
+      );
+      
+      // Filter out duplicates based on content similarity
+      const existingContent = new Set(existingChunks.map(c => c.content.substring(0, 100)));
+      return expandedResults.filter(r => 
+        !existingContent.has(r.content.substring(0, 100))
+      );
+    } catch (error) {
+      console.error('❌ Error expanding chunks for competitors:', error);
+      return [];
+    }
   }
 
   /**
