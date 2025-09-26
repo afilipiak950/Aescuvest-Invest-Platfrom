@@ -361,12 +361,11 @@ export class RAGPoweredCommercialAgent {
         boost: result.boost || 1.0 // Track boosting factor
       }));
 
-      // Enhanced synthesis with enterprise quality gates
-      const synthesizedFindings = await this.synthesizeChunkFindingsWithQualityGates(
+      // Simple synthesis using Legal/Clinical pattern  
+      const synthesizedFindings = await this.synthesizeChunkFindingsSimple(
         mappedChunks, 
         `Analyze ${category} evidence for: ${question}`, 
-        question,
-        questionId
+        question
       );
       
       const evidence: RagCommercialEvidence = {
