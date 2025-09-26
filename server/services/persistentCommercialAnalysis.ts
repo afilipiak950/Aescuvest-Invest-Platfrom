@@ -71,7 +71,7 @@ export class PersistentCommercialAnalysisService {
    * Start a new persistent commercial analysis job - FORCES fresh start like Clinical
    */
   async startCommercialAnalysis(dealId: number): Promise<string> {
-    const jobId = `rag_commercial_analysis_${dealId}_${Date.now()}`;
+    const jobId = `commercial-analysis-${dealId}`;
     
     console.log(`🚀 Starting FRESH RAG-powered commercial analysis for deal ${dealId}`);
 
@@ -106,7 +106,7 @@ export class PersistentCommercialAnalysisService {
     try {
       await storage.createBackgroundJob({
         jobId,
-        jobType: 'rag_commercial_analysis',
+        jobType: 'agent_analysis',
         dealId,
         agentType: 'Commercial',
         status: 'processing',
@@ -126,7 +126,7 @@ export class PersistentCommercialAnalysisService {
         
         await storage.createBackgroundJob({
           jobId,
-          jobType: 'rag_commercial_analysis',
+          jobType: 'agent_analysis',
           dealId,
           agentType: 'Commercial',
           status: 'processing',
