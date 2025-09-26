@@ -232,6 +232,26 @@ export default function AgentCard({ analysis, isLoading = false }: AgentCardProp
               </>
             )}
             
+            {analysis.agentType?.toLowerCase() === 'hr' && (
+              <div className="bg-dark-lighter p-4 rounded-lg">
+                <div className="space-y-3">
+                  {analysis.findings && Array.isArray(analysis.findings) && analysis.findings.map((finding: any, index) => (
+                    <div key={index} className="flex items-start">
+                      <div className="min-w-[24px] h-6 flex items-center justify-center mt-0.5">
+                        {getFindingIcon(finding.type)}
+                      </div>
+                      <div className="ml-2">
+                        <p className="text-sm text-white">{finding.content}</p>
+                        {finding.source && (
+                          <p className="text-xs text-gray-400 mt-1">Source: {finding.source}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {(analysis.agentType === 'Medical' || analysis.agentType === 'Commercial') && (
               <div className="bg-dark-lighter p-4 rounded-lg">
                 <div className="space-y-3">
