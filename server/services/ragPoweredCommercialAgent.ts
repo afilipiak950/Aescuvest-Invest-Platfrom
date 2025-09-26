@@ -1427,15 +1427,80 @@ ENTERPRISE REQUIREMENTS:
   }
 
   /**
+   * COMPRESS CHUNKS FOR ANALYSIS
+   * Intelligent content compression to prevent token overflow while preserving key commercial data
+   */
+  private async compressChunksForAnalysis(chunks: any[], question: string): Promise<any[]> {
+    console.log(`🗜️ Compressing ${chunks.length} chunks for analysis`);
+    
+    const compressedChunks = [];
+    
+    for (const chunk of chunks) {
+      // Skip compression if content is already short
+      if (chunk.content.length <= 800) {
+        compressedChunks.push(chunk);
+        continue;
+      }
+      
+      try {
+        // Extract key commercial information from each chunk
+        const compressionPrompt = `Extract key commercial data from this document excerpt for analysis of: "${question}"
+
+Document content:
+${chunk.content.substring(0, 3000)} ${chunk.content.length > 3000 ? '...[truncated]' : ''}
+
+Focus on: financial figures, pricing, market data, revenue, costs, contracts, competitive info, business metrics.
+Keep citations and specific numbers. Compress to 150-300 words maximum.
+
+RESPOND WITH ONLY THE COMPRESSED COMMERCIAL SUMMARY - NO EXPLANATIONS.`;
+
+        const compressionConfig: UltraIntelligentConfig = {
+          domain: 'commercial',
+          complexity: 'medium',
+          speedPriority: 'fastest',
+          qualityThreshold: 0.7,
+          maxTokens: 300,
+          temperature: 0.1
+        };
+
+        const response = await ultraIntelligentAI.createUltraIntelligentCompletion(
+          [{ role: 'user', content: compressionPrompt }], 
+          compressionConfig
+        );
+
+        compressedChunks.push({
+          ...chunk,
+          content: response.content.trim()
+        });
+
+        // Small delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`⚠️ Compression failed for chunk from ${chunk.documentName}:`, error);
+        // Fallback: simple truncation
+        compressedChunks.push({
+          ...chunk,
+          content: chunk.content.substring(0, 800) + (chunk.content.length > 800 ? '...[truncated]' : '')
+        });
+      }
+    }
+    
+    console.log(`✅ Compressed ${chunks.length} chunks`);
+    return compressedChunks;
+  }
+
+  /**
    * ROBUST JSON SYNTHESIS WITH AUTO-REPAIR
    * 3-stage auto-repair: LLM repair → regex sanitize → minimal fallback
+   * Enhanced with context compression to prevent token overflow
    */
   private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string, question?: string): Promise<string[]> {
     if (chunks.length === 0) return [];
     
-    // Use top chunks for analysis (increased from 8 to 12)
-    const combinedContent = chunks
-      .slice(0, 12)
+    // Compress chunks to prevent token overflow
+    const compressedChunks = await this.compressChunksForAnalysis(chunks.slice(0, 12), question || '');
+    const combinedContent = compressedChunks
       .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
       .join('\n\n');
     
