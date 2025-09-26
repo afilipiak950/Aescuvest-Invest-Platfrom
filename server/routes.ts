@@ -6008,35 +6008,18 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       // Debug: Log current running analyses
       console.log(`📊 Current running analyses:`, Array.from(runningAnalyses.keys()));
       
-      // CRITICAL FIX: Use PersistentCommercialAnalysisService for commercial agents
-      if (agentType === 'commercial') {
-        console.log(`🏢 Using PersistentCommercialAnalysisService for deal ${dealId}`);
-        setImmediate(async () => {
-          try {
-            const { persistentCommercialAnalysisService } = await import('./services/persistentCommercialAnalysis.js');
-            await persistentCommercialAnalysisService.startCommercialAnalysis(dealId);
-          } catch (error) {
-            console.error(`❌ Error in commercial analysis for deal ${dealId}:`, error);
-          } finally {
-            // Remove from running analyses when complete
-            runningAnalyses.delete(analysisKey);
-            console.log(`✅ commercial analysis completed and removed from running queue for deal ${dealId}`);
-          }
-        });
-      } else {
-        // Start agent-specific analysis in background with rate limiting for non-commercial agents
-        setImmediate(async () => {
-          try {
-            await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
-          } catch (error) {
-            console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
-          } finally {
-            // Remove from running analyses when complete
-            runningAnalyses.delete(analysisKey);
-            console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
-          }
-        });
-      }
+      // Start agent-specific analysis in background with rate limiting (SAME PATH FOR ALL AGENTS)
+      setImmediate(async () => {
+        try {
+          await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+        } catch (error) {
+          console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
+        } finally {
+          // Remove from running analyses when complete
+          runningAnalyses.delete(analysisKey);
+          console.log(`✅ ${agentType} analysis completed and removed from running queue for deal ${dealId}`);
+        }
+      });
 
       res.json({ 
         success: true, 
@@ -8217,11 +8200,7 @@ function calculateDocumentRelevanceScore(document: any, agent: any): number {
 
 // Agent-specific analysis processing function with AI caching
 async function processAgentSpecificAnalysis(dealId: number, agentType: string, documents: any[], deal: any, forceRefresh = false) {
-  // CRITICAL: Exclude Commercial from generic orchestrator - handled by PersistentCommercialAnalysisService
-  if (agentType.toLowerCase() === 'commercial') {
-    console.log(`🏢 Commercial analysis delegated to PersistentCommercialAnalysisService for deal ${dealId} - skipping generic orchestrator`);
-    return;
-  }
+  // ALL AGENTS NOW USE SAME PROCESSING PATH - NO EXCLUSIONS
   
   console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
   
