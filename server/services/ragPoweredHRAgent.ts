@@ -10,10 +10,11 @@
 
 import { EmbeddingService } from './embeddingService';
 import { db } from '../db';
-import { agentAnalyses } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { agentAnalyses, documentEmbeddings, documents } from '@shared/schema';
+import { eq, and, or, like, sql } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
+import { z } from 'zod';
 
 // COMPREHENSIVE 12 HR QUESTIONS - Covering all HR domains for enterprise analysis
 export const RAG_HR_QUESTIONS = [
@@ -372,11 +373,254 @@ export class RagPoweredHRAgent {
   }
 
   /**
-   * MULTI-LAYER RAG SEARCH STRATEGY
-   * Execute 4 intelligent queries per question for comprehensive coverage
+   * ENTERPRISE HYBRID HR SEARCH
+   * Combines BM25 keyword matching + semantic embeddings + MMR re-ranking
+   * With HR-specific document boosting for superior evidence extraction
+   */
+  private async executeHybridHRSearch(query: string, dealId: number, limit: number): Promise<any[]> {
+    try {
+      console.log(`🎆 HYBRID HR SEARCH: "${query}" (limit: ${limit})`);
+      
+      // STEP 1: Keyword Search (BM25-style)
+      const keywordResults = await this.executeHRKeywordSearch(query, dealId, Math.ceil(limit * 0.6));
+      
+      // STEP 2: Semantic Search (Embeddings)
+      const semanticResults = await this.executeHRSemanticSearch(query, dealId, Math.ceil(limit * 0.8));
+      
+      // STEP 3: Combine and deduplicate results
+      const combinedResults = this.combineHRSearchResults(keywordResults, semanticResults);
+      
+      // STEP 4: Apply HR document type boosting
+      const boostedResults = this.applyHRDocumentBoosting(combinedResults);
+      
+      // STEP 5: MMR re-ranking for diversity
+      const rerankedResults = this.mmrRerankHRResults(boostedResults, query, limit);
+      
+      console.log(`🎯 Hybrid HR search completed: ${rerankedResults.length} results (${keywordResults.length} keyword + ${semanticResults.length} semantic)`);
+      
+      return rerankedResults;
+      
+    } catch (error) {
+      console.warn(`⚠️ HR hybrid search failed, falling back to semantic: ${error.message}`);
+      return await this.executeHRSemanticSearch(query, dealId, limit);
+    }
+  }
+  
+  /**
+   * HR KEYWORD SEARCH (BM25-STYLE)
+   * Full-text search with HR-specific term matching
+   */
+  private async executeHRKeywordSearch(query: string, dealId: number, limit: number): Promise<any[]> {
+    try {
+      const searchTerms = query.replace(/[^\w\s]/g, ' ').split(' ').filter(w => w.length > 2).join(' | ');
+      
+      if (!searchTerms) {
+        console.log(`🔍 No valid HR search terms`);
+        return [];
+      }
+      
+      const keywordChunks = await db.select({
+        id: documentEmbeddings.id,
+        content: documentEmbeddings.chunkText,
+        documentId: documentEmbeddings.documentId,
+        documentName: documents.name,
+        similarity: sql<number>`ts_rank(to_tsvector('english', ${documentEmbeddings.chunkText}), to_tsquery('english', ${searchTerms}))`.as('similarity')
+      })
+      .from(documentEmbeddings)
+      .innerJoin(documents, eq(documentEmbeddings.documentId, documents.id))
+      .where(
+        and(
+          eq(documents.dealId, dealId),
+          sql`to_tsvector('english', ${documentEmbeddings.chunkText}) @@ to_tsquery('english', ${searchTerms})`
+        )
+      )
+      .orderBy(sql`ts_rank(to_tsvector('english', ${documentEmbeddings.chunkText}), to_tsquery('english', ${searchTerms})) DESC`)
+      .limit(limit);
+      
+      console.log(`🔍 HR keyword search: ${keywordChunks.length} chunks`);
+      
+      return keywordChunks.map(chunk => ({
+        content: chunk.content,
+        documentName: chunk.documentName,
+        similarity: Math.min(1.0, (chunk.similarity || 0.1) * 2.5), // Boost HR keyword matches
+        metadata: { documentName: chunk.documentName },
+        searchType: 'keyword'
+      }));
+      
+    } catch (error) {
+      console.warn(`⚠️ HR keyword search failed: ${error.message}`);
+      return [];
+    }
+  }
+  
+  /**
+   * HR SEMANTIC SEARCH
+   * Enhanced embedding search with HR context
+   */
+  private async executeHRSemanticSearch(query: string, dealId: number, limit: number): Promise<any[]> {
+    try {
+      console.log(`🧠 HR semantic search: "${query}"`);
+      
+      const semanticChunks = await EmbeddingService.searchSimilarChunks(
+        query,
+        dealId,
+        limit
+      );
+      
+      console.log(`🧠 HR semantic search: ${semanticChunks.length} chunks`);
+      
+      return semanticChunks.map(chunk => ({
+        content: chunk.chunk,
+        documentName: chunk.metadata.documentName || 'Unknown Document',
+        similarity: chunk.similarity,
+        metadata: chunk.metadata,
+        searchType: 'semantic'
+      }));
+      
+    } catch (error) {
+      console.warn(`⚠️ HR semantic search failed: ${error.message}`);
+      return [];
+    }
+  }
+  
+  /**
+   * COMBINE HR SEARCH RESULTS
+   * Merge keyword and semantic results with deduplication
+   */
+  private combineHRSearchResults(keywordResults: any[], semanticResults: any[]): any[] {
+    const allResults = [...keywordResults, ...semanticResults];
+    const uniqueResults = new Map();
+    
+    for (const result of allResults) {
+      const key = `${result.documentName}_${result.content.substring(0, 100)}`;
+      if (!uniqueResults.has(key) || uniqueResults.get(key).similarity < result.similarity) {
+        uniqueResults.set(key, result);
+      }
+    }
+    
+    return Array.from(uniqueResults.values());
+  }
+  
+  /**
+   * HR DOCUMENT TYPE BOOSTING
+   * Prioritize employment contracts, policies, and compensation docs
+   */
+  private applyHRDocumentBoosting(results: any[]): any[] {
+    const hrBoostingMap = {
+      // High priority HR documents (3.0x boost)
+      'employment_contract': 3.0,
+      'employee_handbook': 3.0,
+      'offer_letter': 3.0,
+      'contractor_agreement': 3.0,
+      
+      // Medium priority HR documents (2.5x boost)
+      'hr_policy': 2.5,
+      'compensation_plan': 2.5,
+      'benefits_summary': 2.5,
+      'equity_plan': 2.5,
+      'salary_structure': 2.5,
+      
+      // Standard priority HR documents (2.0x boost)
+      'organizational_chart': 2.0,
+      'job_description': 2.0,
+      'performance_review': 2.0,
+      'training_material': 2.0
+    };
+    
+    return results.map(result => {
+      let boost = 1.0;
+      const docName = result.documentName.toLowerCase();
+      
+      // Apply HR-specific document boosting
+      for (const [keyword, multiplier] of Object.entries(hrBoostingMap)) {
+        if (docName.includes(keyword) || docName.includes(keyword.replace('_', ' '))) {
+          boost = Math.max(boost, multiplier);
+        }
+      }
+      
+      // Additional pattern-based boosting for HR docs
+      if (docName.includes('contract') || docName.includes('agreement')) boost = Math.max(boost, 2.8);
+      if (docName.includes('compensation') || docName.includes('salary')) boost = Math.max(boost, 2.6);
+      if (docName.includes('policy') || docName.includes('handbook')) boost = Math.max(boost, 2.4);
+      if (docName.includes('benefit') || docName.includes('equity')) boost = Math.max(boost, 2.2);
+      
+      return {
+        ...result,
+        similarity: Math.min(1.0, result.similarity * boost),
+        boost: boost
+      };
+    });
+  }
+  
+  /**
+   * MMR RE-RANKING FOR HR RESULTS
+   * Maximum Marginal Relevance to ensure diverse, high-quality results
+   */
+  private mmrRerankHRResults(results: any[], query: string, limit: number, lambda: number = 0.7): any[] {
+    if (results.length <= limit) return results.sort((a, b) => b.similarity - a.similarity);
+    
+    const selected: any[] = [];
+    const remaining = [...results].sort((a, b) => b.similarity - a.similarity);
+    
+    // Start with highest similarity result
+    if (remaining.length > 0) {
+      selected.push(remaining.shift()!);
+    }
+    
+    // MMR selection process
+    while (selected.length < limit && remaining.length > 0) {
+      let bestIndex = 0;
+      let bestScore = -Infinity;
+      
+      for (let i = 0; i < remaining.length; i++) {
+        const candidate = remaining[i];
+        
+        // Relevance score (similarity to query)
+        const relevanceScore = candidate.similarity;
+        
+        // Diversity score (minimum similarity to already selected)
+        let maxSimilarityToSelected = 0;
+        for (const selected_doc of selected) {
+          const similarity = this.calculateHRContentSimilarity(candidate.content, selected_doc.content);
+          maxSimilarityToSelected = Math.max(maxSimilarityToSelected, similarity);
+        }
+        
+        // MMR score: λ * relevance - (1-λ) * redundancy
+        const mmrScore = lambda * relevanceScore - (1 - lambda) * maxSimilarityToSelected;
+        
+        if (mmrScore > bestScore) {
+          bestScore = mmrScore;
+          bestIndex = i;
+        }
+      }
+      
+      selected.push(remaining.splice(bestIndex, 1)[0]);
+    }
+    
+    console.log(`🎯 MMR HR re-ranking: ${selected.length} diverse results selected`);
+    return selected;
+  }
+  
+  /**
+   * CALCULATE HR CONTENT SIMILARITY
+   * Simple token-based similarity for diversity measurement
+   */
+  private calculateHRContentSimilarity(content1: string, content2: string): number {
+    const tokens1 = new Set(content1.toLowerCase().split(/\W+/).filter(w => w.length > 2));
+    const tokens2 = new Set(content2.toLowerCase().split(/\W+/).filter(w => w.length > 2));
+    
+    const intersection = new Set(Array.from(tokens1).filter(x => tokens2.has(x)));
+    const union = new Set([...Array.from(tokens1), ...Array.from(tokens2)]);
+    
+    return union.size > 0 ? intersection.size / union.size : 0;
+  }
+
+  /**
+   * ENTERPRISE HYBRID HR SEARCH STRATEGY 
+   * Execute 4 intelligent queries per question with BM25 + embeddings + MMR re-ranking
    */
   private async executeMultiLayerRagSearch(question: any): Promise<RagHREvidence[]> {
-    console.log(`📡 Executing multi-layer RAG search for: ${question.category}`);
+    console.log(`📡 Executing ENHANCED multi-layer RAG search for: ${question.category}`);
     
     const evidenceBase: RagHREvidence[] = [];
     
@@ -385,10 +629,10 @@ export class RagPoweredHRAgent {
       const query = question.ragQueries[i];
       const queryStartTime = Date.now();
       
-      console.log(`  🔎 Layer ${i + 1}/4: ${query}`);
+      console.log(`  🔎 HYBRID Layer ${i + 1}/4: ${query}`);
       
-      // Perform semantic search across ALL documents
-      const chunks = await EmbeddingService.searchSimilarChunks(
+      // ENTERPRISE HYBRID SEARCH: BM25 + Embeddings + MMR re-ranking
+      const chunks = await this.executeHybridHRSearch(
         query,
         this.dealId,
         12 // Get top 12 chunks for comprehensive coverage
