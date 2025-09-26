@@ -968,128 +968,15 @@ Focus on quantified business intelligence and investment implications.`;
     return rerankedResults;
   }
 
-  /**
-   * ENTERPRISE QUALITY GATES FOR COMMERCIAL SYNTHESIS
-   * Implements architect's recommendations for institutional-grade analysis
-   */
-  private async synthesizeChunkFindingsWithQualityGates(
-    chunks: any[], 
-    context: string, 
-    question: string,
-    questionId: string
-  ): Promise<string[]> {
-    console.log(`🎯 Applying enterprise quality gates for ${questionId}`);
-    
-    let attempt = 1;
-    const MAX_ATTEMPTS = 3;
-    
-    while (attempt <= MAX_ATTEMPTS) {
-      console.log(`🔄 Commercial synthesis attempt ${attempt}/${MAX_ATTEMPTS}`);
-      
-      // Simple synthesis using Legal/Clinical pattern
-      const synthesizedFindings = await this.synthesizeChunkFindingsSimple(
-        chunks, 
-        context + " - CRITICAL: Provide minimum 5 quantified metrics with page citations and comprehensive competitive SWOT analysis.", 
-        question
-      );
-      
-      // Quality Gate 1: Numeric density validation (≥0.6 per 100 tokens)
-      const numericDensity = this.calculateNumericDensity(synthesizedFindings.join(' '));
-      console.log(`📊 Numeric density: ${numericDensity.toFixed(3)} (target: ≥0.6)`);
-      
-      // Quality Gate 2: Citation coverage validation
-      const citationCoverage = this.calculateCitationCoverage(synthesizedFindings, chunks);
-      console.log(`📄 Citation coverage: ${(citationCoverage * 100).toFixed(1)}% (target: ≥90%)`);
-      
-      // Quality Gate 3: Competitor coverage validation
-      const competitorCoverage = this.validateCompetitorCoverage(synthesizedFindings);
-      console.log(`🏢 Competitor coverage: ${competitorCoverage ? 'PASS' : 'FAIL'}`);
-      
-      // Check if quality gates pass
-      const qualityPassed = numericDensity >= 0.6 && citationCoverage >= 0.9 && competitorCoverage;
-      
-      if (qualityPassed || attempt === MAX_ATTEMPTS) {
-        if (qualityPassed) {
-          console.log(`✅ Quality gates PASSED on attempt ${attempt}`);
-        } else {
-          console.log(`⚠️ Quality gates FAILED - using best attempt ${attempt}`);
-        }
-        return synthesizedFindings;
-      }
-      
-      // Failed quality gates - expand query and retry
-      console.log(`❌ Quality gates failed on attempt ${attempt} - retrying with enhanced context`);
-      
-      // Add missing entities to chunks for next attempt
-      if (!competitorCoverage) {
-        const expandedChunks = await this.expandChunksForCompetitors(chunks, question);
-        chunks = [...chunks, ...expandedChunks].slice(0, 15); // Keep top 15 for retry
-      }
-      
-      attempt++;
-    }
-    
-    return ['Analysis completed with limited quality metrics - manual review recommended'];
-  }
+  // REMOVED: Complex Quality Gates method - now using simple Legal/Clinical pattern
   
-  /**
-   * Calculate numeric density (numbers, percentages, currency per 100 tokens)
-   */
-  private calculateNumericDensity(text: string): number {
-    const tokens = text.split(/\s+/).length;
-    const numericMatches = text.match(/\$[\d,]+|[\d,]+%|\b\d+(\.\d+)?[BMK]?\b|\d+\.\d+/g) || [];
-    return tokens > 0 ? (numericMatches.length / tokens) * 100 : 0;
-  }
+  // REMOVED: Complex numeric density validation
   
-  /**
-   * Calculate citation coverage (findings with document references)
-   */
-  private calculateCitationCoverage(findings: string[], chunks: any[]): number {
-    const documentNames = new Set(chunks.map(c => c.documentName));
-    let citedFindings = 0;
-    
-    findings.forEach(finding => {
-      const hasCitation = Array.from(documentNames).some(docName => 
-        finding.includes(docName) || finding.includes('[') || finding.includes('Document:')
-      );
-      if (hasCitation) citedFindings++;
-    });
-    
-    return findings.length > 0 ? citedFindings / findings.length : 0;
-  }
+  // REMOVED: Complex citation coverage validation
   
-  /**
-   * Validate competitor coverage in findings
-   */
-  private validateCompetitorCoverage(findings: string[]): boolean {
-    const competitorTerms = ['competitor', 'rival', 'market leader', 'competition', 'vs.', 'compared to', 'competitive'];
-    const text = findings.join(' ').toLowerCase();
-    return competitorTerms.some(term => text.includes(term));
-  }
+  // REMOVED: Complex competitor coverage validation
   
-  /**
-   * Expand chunks to include competitor information
-   */
-  private async expandChunksForCompetitors(existingChunks: any[], question: string): Promise<any[]> {
-    const competitorQuery = `${question} competitor analysis market positioning competitive landscape`;
-    
-    try {
-      const expandedResults = await this.executeHybridCommercialSearch(
-        competitorQuery,
-        this.dealId,
-        20 // Limited expansion for efficiency
-      );
-      
-      // Filter out duplicates based on content similarity
-      const existingContent = new Set(existingChunks.map(c => c.content.substring(0, 100)));
-      return expandedResults.filter(r => 
-        !existingContent.has(r.content.substring(0, 100))
-      );
-    } catch (error) {
-      console.error('❌ Error expanding chunks for competitors:', error);
-      return [];
-    }
-  }
+  // REMOVED: Complex competitor expansion method
 
   /**
    * KEYWORD SEARCH (BM25-STYLE)
