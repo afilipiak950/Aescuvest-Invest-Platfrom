@@ -106,9 +106,19 @@ class UltraIntelligentAIService {
         requestOptions.temperature = optimizedTemperature;
       }
 
-      // Add response format if specified (for JSON mode)
+      // Add response format if specified (for JSON mode) - ONLY for models that support it
       if (config.responseFormat) {
-        requestOptions.response_format = config.responseFormat;
+        // Only GPT-4o, GPT-4-turbo, GPT-5, and gpt-3.5-turbo support response_format
+        const supportsResponseFormat = [
+          'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-turbo-preview',
+          'gpt-3.5-turbo', 'gpt-3.5-turbo-1106', 'gpt-5', 'gpt-5-mini'
+        ].some(model => selectedModel.includes(model)) || selectedModel.startsWith('gpt-5');
+        
+        if (supportsResponseFormat) {
+          requestOptions.response_format = config.responseFormat;
+        } else {
+          console.log(`⚠️ Model ${selectedModel} doesn't support response_format. Skipping JSON mode.`);
+        }
       }
 
       // Debug GPT-5 parameter issue - log exact parameters being sent
@@ -159,8 +169,18 @@ class UltraIntelligentAIService {
     } catch (error) {
       console.error(`❌ Ultra-Intelligent AI Error with ${selectedModel}:`, error);
       
-      // Intelligent fallback to backup model
-      const fallbackModel = this.getFallbackModel(selectedModel, config.domain);
+      // Intelligent fallback to backup model - prioritize JSON-compatible models
+      let fallbackModel = this.getFallbackModel(selectedModel, config.domain);
+      
+      // If we need JSON mode and the fallback doesn't support it, force gpt-4o
+      if (config.responseFormat?.type === 'json_object' && fallbackModel) {
+        const supportsJson = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'].some(model => fallbackModel.includes(model));
+        if (!supportsJson) {
+          fallbackModel = 'gpt-4o-mini'; // Fast, reliable JSON support
+          console.log(`🔄 Forcing JSON-compatible fallback: ${fallbackModel}`);
+        }
+      }
+      
       if (fallbackModel && fallbackModel !== selectedModel) {
         console.log(`🔄 Falling back to ${fallbackModel}`);
         
