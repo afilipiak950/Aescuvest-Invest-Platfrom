@@ -671,7 +671,160 @@ Include specific dollar amounts, percentages, timeframes, and document sources.`
     return score;
   }
 
-  // REMOVED: Complex synthesizeEnterpriseAnswer method - now using simple synthesis pattern
+  /**
+   * SYNTHESIZE ENTERPRISE ANSWER - RESTORED FROM LEGAL AGENT
+   * Combine all evidence layers into institutional-grade commercial assessment
+   */
+  private async synthesizeEnterpriseAnswer(
+    question: any, 
+    evidenceBase: RagCommercialEvidence[]
+  ): Promise<RagCommercialAnswer> {
+    
+    console.log(`🧠 Synthesizing enterprise commercial answer for: ${question.question}`);
+    
+    // Aggregate all findings and source documents
+    const allFindings = evidenceBase.flatMap(evidence => evidence.synthesizedFindings);
+    const allSourceDocuments = Array.from(new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments)));
+    const totalChunks = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
+    
+    // Build comprehensive evidence summary
+    const evidenceSummary = evidenceBase.map((evidence, index) => 
+      `Layer ${index + 1}: "${evidence.query}" → ${evidence.synthesizedFindings.length} findings from ${evidence.sourceDocuments.length} documents`
+    ).join('\n');
+    
+    const prompt = `You are a senior commercial investment analyst conducting institutional due diligence. Provide enterprise-grade commercial assessment.
+
+QUESTION: ${question.question}
+CATEGORY: ${question.category}
+SUB-QUESTIONS: ${question.subQuestions.join('; ')}
+ANALYSIS FOCUS: ${question.analysisPrompt}
+
+COMPREHENSIVE EVIDENCE BASE:
+${evidenceSummary}
+
+ALL COMMERCIAL FINDINGS:
+${allFindings.map((finding, i) => `${i + 1}. ${finding}`).join('\n')}
+
+SOURCE DOCUMENTS: ${allSourceDocuments.length} documents analyzed, ${totalChunks} content segments
+
+Provide institutional-grade commercial analysis in JSON format:
+{
+  "answer": "Comprehensive commercial analysis with specific revenue data, market metrics, and investment implications",
+  "confidence": 0-100,
+  "sources": ["Document1.pdf", "Document2.pdf"],
+  "keyFindings": ["Quantified commercial finding 1", "Revenue metric 2", "Market position 3"],
+  "commercialAssessment": "Professional commercial assessment from institutional investment perspective",
+  "recommendations": ["Actionable commercial recommendation 1", "Due diligence next step 2"],
+  "commercialRiskScore": 1-10,
+  "marketPosition": "Strong/Moderate/Weak/Unknown",
+  "investmentImplications": "Direct impact on investment thesis and commercial risk profile"
+}
+
+ENTERPRISE REQUIREMENTS:
+- Cite specific revenue amounts, growth rates, customer data, and market metrics from evidence with [Document, Section/Page] references
+- Extract concrete commercial data: pricing models, revenue figures, customer metrics, market share with specific amounts/percentages
+- Provide institutional investment perspective focusing on commercial viability and growth potential
+- Include verbatim data quotes (≤300 chars) with document citations for credibility
+- Reference multiple source documents for comprehensive commercial assessment`;
+
+    try {
+      console.log(`🎯 Ultra-Smart Model Selection for commercial (high complexity)`);
+      const selectedModel = await ultraIntelligentAI.selectOptimalModel(prompt, {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.8
+      });
+      console.log(`🚀 Selected model: ${selectedModel.model} (Intelligence Score: ${selectedModel.intelligence})`);
+
+      const result = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.8,
+        maxTokens: 16384,
+        temperature: 0.3
+      });
+
+      let parsedResponse;
+      try {
+        // First try direct JSON parsing
+        parsedResponse = JSON.parse(result.content);
+      } catch (error) {
+        console.log('🔄 Direct JSON parsing failed, trying extraction...');
+        
+        // Extract JSON from wrapped text
+        const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedResponse = JSON.parse(jsonMatch[0]);
+        } else {
+          // Fallback structure
+          console.log('⚠️ Using fallback structure for commercial answer');
+          parsedResponse = {
+            answer: result.content || 'Commercial analysis completed',
+            confidence: 75,
+            sources: allSourceDocuments.slice(0, 3),
+            keyFindings: [`Commercial insight: ${(result.content || 'Analysis completed').slice(0, 100)}...`],
+            commercialAssessment: 'Professional commercial assessment pending',
+            recommendations: ['Review commercial strategy based on findings'],
+            commercialRiskScore: 5,
+            marketPosition: 'Under Review',
+            investmentImplications: 'Analysis in progress'
+          };
+        }
+      }
+
+      // Build comprehensive commercial answer
+      const answer: RagCommercialAnswer = {
+        question: question.question,
+        answer: parsedResponse.answer,
+        confidence: parsedResponse.confidence / 100,
+        sources: parsedResponse.sources || allSourceDocuments.slice(0, 5),
+        keyFindings: parsedResponse.keyFindings || [],
+        commercialAssessment: parsedResponse.commercialAssessment,
+        recommendations: parsedResponse.recommendations || [],
+        commercialRiskScore: parsedResponse.commercialRiskScore || 5,
+        marketPosition: parsedResponse.marketPosition || 'Under Review',
+        evidenceBase: evidenceBase.slice(0, 3),
+        quantifiedMetrics: [],
+        competitiveIntelligence: {
+          strengths: [],
+          weaknesses: [],
+          opportunities: [],
+          threats: []
+        }
+      };
+
+      console.log(`✅ Enterprise commercial answer synthesized: ${answer.keyFindings.length} findings, confidence ${Math.round(answer.confidence * 100)}%`);
+      return answer;
+
+    } catch (error) {
+      console.error(`❌ Error synthesizing commercial answer:`, error);
+      
+      // Return fallback answer
+      return {
+        question: question.question,
+        answer: 'Commercial analysis encountered processing issues',
+        confidence: 0.5,
+        sources: allSourceDocuments.slice(0, 3),
+        keyFindings: ['Commercial analysis processing error'],
+        commercialAssessment: 'Unable to complete assessment',
+        recommendations: ['Retry analysis'],
+        commercialRiskScore: 8,
+        marketPosition: 'Unknown',
+        evidenceBase: evidenceBase.slice(0, 1),
+        quantifiedMetrics: [],
+        competitiveIntelligence: {
+          strengths: [],
+          weaknesses: [],
+          opportunities: [],
+          threats: []
+        }
+      };
+    }
+  }
 
   /**
    * EXECUTE COMPREHENSIVE ENHANCED RAG ANALYSIS
@@ -703,37 +856,21 @@ Include specific dollar amounts, percentages, timeframes, and document sources.`
           questionData.ragQueries
         );
 
-        // Simple synthesis using Legal/Clinical pattern
-        const prompt = `Commercial analysis for: ${questionData.question}
-          
-Evidence: ${evidenceLayers.map(e => e.synthesizedFindings?.join(' ') || 'No evidence available').join('\n')}
-
-Provide comprehensive commercial analysis with specific metrics, market data, and strategic insights.
-Focus on quantified business intelligence and investment implications.`;
-
-        const result = await ultraIntelligentAI.createUltraIntelligentCompletion([
-          { role: "user", content: prompt }
-        ], {
-          domain: 'commercial',
-          complexity: 'high',
-          speedPriority: 'balanced',
-          qualityThreshold: 0.8,
-          maxTokens: 500,
-          temperature: 0.3
-        });
+        // Synthesize enterprise-grade commercial answer (FIXED - using restored method)
+        const answer = await this.synthesizeEnterpriseAnswer(questionData, evidenceLayers);
 
         const questionResult: CommercialQuestionResult = {
           questionId: questionData.id,
           question: questionData.question,
           category: questionData.category,
-          answer: result.content || 'Analysis completed',
+          answer: answer.answer,
           evidence: evidenceLayers.slice(0, 5),
-          commercialRiskScore: 6,
-          riskFactors: ['Standard commercial risk assessment pending'],
-          keyFindings: [`Commercial insight: ${(result.content || 'Analysis completed').slice(0, 100)}...`],
-          recommendations: [`Review commercial strategy based on findings`],
-          confidenceScore: 0.8,
-          sources: evidenceLayers.map(e => e.sourceDocuments || []).flat().slice(0, 5)
+          commercialRiskScore: answer.commercialRiskScore,
+          riskFactors: [`Commercial risk score: ${answer.commercialRiskScore}/10`],
+          keyFindings: answer.keyFindings,
+          recommendations: answer.recommendations,
+          confidenceScore: answer.confidence,
+          sources: answer.sources
         };
 
         questionResults.push(questionResult);
