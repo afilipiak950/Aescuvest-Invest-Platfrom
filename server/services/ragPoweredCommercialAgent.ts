@@ -35,7 +35,7 @@ function cleanJsonResponse(content: string, expectedType: 'array' | 'object' = '
   // TYPE-AWARE extraction to prevent bracket collision with document references
   if (expectedType === 'array' && !content.startsWith('[')) {
     // Extract LAST bracket block containing quoted strings (not document references like [DocumentName])
-    const arrayMatches = content.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/gs);
+    const arrayMatches = content.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/g);
     if (arrayMatches && arrayMatches.length > 0) {
       // Use the LAST array match to avoid document reference brackets
       content = arrayMatches[arrayMatches.length - 1];
@@ -285,6 +285,33 @@ interface RagCommercialEvidence {
   confidenceScore: number;
   sourceDocuments: string[];
   totalChunks: number;
+}
+
+// STRUCTURED COMMERCIAL ANSWER SCHEMA - Matching Legal/Clinical Quality
+interface RagCommercialAnswer {
+  question: string;
+  answer: string;
+  confidence: number;
+  sources: string[];
+  keyFindings: string[];
+  commercialAssessment: string;
+  recommendations: string[];
+  commercialRiskScore: number; // 1-10 scale
+  marketPosition: string;
+  evidenceBase: RagCommercialEvidence[];
+  quantifiedMetrics: Array<{
+    name: string;
+    value: string;
+    unit: string;
+    period: string;
+    confidence: number;
+  }>;
+  competitiveIntelligence: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
 }
 
 // Commercial Question Analysis Result
@@ -785,17 +812,37 @@ CRITICAL INSTRUCTIONS:
 - No text before or after the JSON array
 - Each finding should be a complete sentence with specific data
 
-Extract 2-4 specific commercial findings as this exact JSON format:
-["Commercial finding 1 with quantitative data and specific metrics", "Market insight 2 with concrete numbers or percentages", "Revenue/sales finding 3 with measurable data"]
+Extract commercial analysis as this EXACT structured JSON format:
+{
+  "question": "Commercial Analysis Question",
+  "answer": "Comprehensive commercial analysis summary with specific metrics and data",
+  "confidence": 0.85,
+  "sources": ["document1.pdf", "document2.xlsx"],
+  "keyFindings": ["Finding 1 with specific data", "Finding 2 with metrics"],
+  "commercialAssessment": "Overall commercial viability assessment with risks and opportunities",
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "commercialRiskScore": 7,
+  "marketPosition": "Strong/Moderate/Weak competitive position with rationale",
+  "quantifiedMetrics": [
+    {"name": "Market Share", "value": "15", "unit": "%", "period": "2024", "confidence": 0.8},
+    {"name": "Revenue Growth", "value": "25", "unit": "%", "period": "YoY", "confidence": 0.9}
+  ],
+  "competitiveIntelligence": {
+    "strengths": ["Strength 1", "Strength 2"],
+    "weaknesses": ["Weakness 1"],
+    "opportunities": ["Opportunity 1"],
+    "threats": ["Threat 1"]
+  }
+}
 
-Focus on:
-- Quantitative commercial metrics and data
-- Market size, competition, and positioning insights  
-- Sales performance and customer metrics
-- Revenue models and pricing strategies
-- Commercial risks and opportunities
+Focus on extracting:
+- Quantified metrics with specific numbers, percentages, and time periods
+- Market positioning data with competitor comparisons
+- Revenue models and pricing strategies with exact figures
+- Risk assessment with 1-10 scoring
+- Source document citations with page references
 
-RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT.`;
+RESPOND WITH ONLY THE STRUCTURED JSON OBJECT - NO OTHER TEXT.`;
 
     try {
       const config: UltraIntelligentConfig = {
@@ -803,56 +850,44 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT.`;
         complexity: 'high',
         speedPriority: 'balanced',
         qualityThreshold: 0.85,
-        maxTokens: 1000,
-        temperature: 0.3
+        maxTokens: 2000, // Increased for structured response
+        temperature: 0.3,
+        responseFormat: { type: "json_object" } // ✅ FIXED: Enforce JSON schema like Legal/Clinical
       };
 
       const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{ role: 'user', content: prompt }], config);
-      const cleanedResponse = cleanJsonResponse(response.content, 'array'); // Specify expected array type
       
-      // Enhanced JSON parsing with comprehensive validation
+      // ✅ FIXED: Parse structured RagCommercialAnswer instead of generic array
       try {
-        const findings = JSON.parse(cleanedResponse);
+        const commercialAnswer: RagCommercialAnswer = JSON.parse(response.content);
         
-        if (Array.isArray(findings)) {
-          // COMPREHENSIVE SCHEMA VALIDATION: Enforce 2-4 non-empty strings
-          const validFindings = findings
-            .filter(finding => typeof finding === 'string' && finding.trim().length > 0)
-            .map(finding => finding.trim()) // Normalize whitespace
-            .slice(0, 4); // Enforce maximum of 4 findings
+        // STRUCTURED SCHEMA VALIDATION: Ensure all required fields exist
+        if (commercialAnswer.question && commercialAnswer.answer && commercialAnswer.keyFindings) {
+          console.log(`✅ Commercial structured JSON parsing successful: ${commercialAnswer.keyFindings.length} findings, confidence: ${commercialAnswer.confidence}`);
           
-          if (validFindings.length >= 2 && validFindings.length <= 4) {
-            console.log(`✅ Commercial JSON parsing successful: ${validFindings.length} valid findings extracted (schema compliant)`);
-            return validFindings;
-          } else if (validFindings.length === 1) {
-            console.warn(`⚠️ Commercial JSON array contained only 1 valid string, duplicating to meet 2-4 requirement`);
-            return [validFindings[0], `Additional analysis needed for: ${analysisPrompt}`];
-          } else if (validFindings.length > 4) {
-            console.warn(`⚠️ Commercial JSON array contained ${validFindings.length} strings, truncating to 4 as per schema`);
-            return validFindings.slice(0, 4);
-          } else {
-            console.warn(`⚠️ Commercial JSON array contained no valid strings (${findings.length} total items), using schema-compliant fallback`);
-            return [
-              `Commercial analysis extracted ${findings.length} items but none were valid strings`,
-              `Manual review required for: ${analysisPrompt}`
-            ];
+          // Return structured findings for backward compatibility with current system
+          return commercialAnswer.keyFindings.filter(finding => 
+            typeof finding === 'string' && finding.trim().length > 0
+          ).slice(0, 4); // Maintain 2-4 findings constraint
+          
+        } else {
+          console.warn(`⚠️ Commercial structured response missing required fields`, {
+            hasQuestion: !!commercialAnswer.question,
+            hasAnswer: !!commercialAnswer.answer,
+            hasKeyFindings: !!commercialAnswer.keyFindings
+          });
+          
+          // Fallback to keyFindings if available, otherwise create from answer
+          if (commercialAnswer.keyFindings && Array.isArray(commercialAnswer.keyFindings)) {
+            return commercialAnswer.keyFindings.slice(0, 4);
+          } else if (commercialAnswer.answer) {
+            return [commercialAnswer.answer, `Additional analysis needed for: ${analysisPrompt}`];
           }
         }
-        
-        // Handle single object responses by converting to array
-        if (typeof findings === 'object' && findings !== null) {
-          if (findings.findings && Array.isArray(findings.findings)) {
-            return findings.findings.filter(f => typeof f === 'string' && f.trim().length > 0);
-          }
-        }
-        
-        // If not an array or valid object, return descriptive fallback
-        console.warn(`⚠️ Commercial JSON response was not an array: ${typeof findings}`);
-        return [`Commercial analysis completed but returned ${typeof findings} instead of array - manual review needed for: ${analysisPrompt}`];
         
       } catch (parseError) {
         console.error('❌ Critical JSON parse failure in Commercial synthesizeChunkFindings:', parseError);
-        console.error('❌ Problematic content:', cleanedResponse.substring(0, 200));
+        console.error('❌ Problematic content:', response.content.substring(0, 200));
         console.error('❌ Context:', { 
           analysisPrompt, 
           chunkCount: chunks.length, 
