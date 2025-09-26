@@ -383,7 +383,7 @@ export class RAGPoweredCommercialAgent {
       // Enhanced telemetry and logging
       if (evidence.chunks.length > 0) {
         const avgSimilarity = evidence.chunks.reduce((sum, c) => sum + c.similarity, 0) / evidence.chunks.length;
-        const boostedChunks = evidence.chunks.filter(c => c.boost && c.boost > 1.0).length;
+        const boostedChunks = evidence.chunks.filter(c => (c as any).boost && (c as any).boost > 1.0).length;
         
         console.log(`✅ Found ${evidence.totalChunks} relevant chunks (${boostedChunks} boosted)`);
         console.log(`📊 Avg similarity: ${avgSimilarity.toFixed(3)}, Top scores: ${evidence.chunks.slice(0, 3).map(c => c.similarity.toFixed(3)).join(', ')}`);
@@ -431,7 +431,7 @@ export class RAGPoweredCommercialAgent {
     
     const avgSimilarity = chunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / chunks.length;
     const documentDiversity = new Set(chunks.map(c => c.documentName)).size / Math.max(1, chunks.length);
-    const boostedRatio = chunks.filter(c => c.boost && c.boost > 1.0).length / chunks.length;
+    const boostedRatio = chunks.filter(c => (c as any).boost && (c as any).boost > 1.0).length / chunks.length;
     
     // Enhanced confidence formula
     const baseConfidence = avgSimilarity;
@@ -1166,20 +1166,20 @@ ENTERPRISE REQUIREMENTS:
       // Use PostgreSQL full-text search on documentEmbeddings content
       const keywordChunks = await db.select({
         id: documentEmbeddings.id,
-        content: documentEmbeddings.content,
+        content: documentEmbeddings.chunkText,
         documentId: documentEmbeddings.documentId,
         documentName: documents.name,
-        similarity: sql<number>`ts_rank(to_tsvector('english', ${documentEmbeddings.content}), to_tsquery('english', ${searchTerms}))`.as('similarity')
+        similarity: sql<number>`ts_rank(to_tsvector('english', ${documentEmbeddings.chunkText}), to_tsquery('english', ${searchTerms}))`.as('similarity')
       })
       .from(documentEmbeddings)
       .innerJoin(documents, eq(documentEmbeddings.documentId, documents.id))
       .where(
         and(
           eq(documents.dealId, dealId),
-          sql`to_tsvector('english', ${documentEmbeddings.content}) @@ to_tsquery('english', ${searchTerms})`
+          sql`to_tsvector('english', ${documentEmbeddings.chunkText}) @@ to_tsquery('english', ${searchTerms})`
         )
       )
-      .orderBy(sql`ts_rank(to_tsvector('english', ${documentEmbeddings.content}), to_tsquery('english', ${searchTerms})) DESC`)
+      .orderBy(sql`ts_rank(to_tsvector('english', ${documentEmbeddings.chunkText}), to_tsquery('english', ${searchTerms})) DESC`)
       .limit(limit);
       
       console.log(`🔍 Keyword search found ${keywordChunks.length} chunks`);
@@ -1636,22 +1636,6 @@ FIXED JSON:`;
     return [`Commercial analysis completed with ${chunks.length} document chunks processed, but structured output generation encountered technical difficulties.`];
   }
 
-  /**
-   * CALCULATE CONFIDENCE SCORE
-   * Based on chunk similarity scores and document coverage
-   */
-  private calculateConfidenceScore(chunks: any[]): number {
-    if (chunks.length === 0) return 0;
-    
-    const avgSimilarity = chunks.reduce((sum, chunk) => sum + (chunk.similarity || 0), 0) / chunks.length;
-    const documentCount = new Set(chunks.map(c => c.documentName)).size;
-    
-    // Confidence based on similarity and document diversity
-    const similarityScore = avgSimilarity * 100;
-    const diversityBonus = Math.min(documentCount * 8, 25); // Higher bonus for commercial
-    
-    return Math.min(Math.round(similarityScore + diversityBonus), 100);
-  }
 
   /**
    * Update progress in background job
