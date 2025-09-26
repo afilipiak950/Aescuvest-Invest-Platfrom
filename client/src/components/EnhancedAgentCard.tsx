@@ -4130,7 +4130,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/agents/commercial/start`, {
+      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/start`, {
         method: 'POST'
       });
       return response;
