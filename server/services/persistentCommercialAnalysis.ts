@@ -5,7 +5,7 @@
  */
 
 import { storage } from '../storage';
-import { RAGPoweredCommercialAgent, RAG_COMMERCIAL_QUESTIONS } from './ragPoweredCommercialAgent';
+import { RAGPoweredCommercialAgent, RAG_COMMERCIAL_QUESTIONS } from './ragPoweredCommercialAgent.js';
 import { websocketManager } from './websocketManager';
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs } from '@shared/schema';

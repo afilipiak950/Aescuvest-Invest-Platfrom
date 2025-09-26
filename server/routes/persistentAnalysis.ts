@@ -338,8 +338,8 @@ async function getAnalysisServiceForAgent(agentType: string): Promise<any> {
       return comprehensiveClinicalAnalysisService;
       
     case 'commercial':
-      const { marketStrategyExpertService } = await import('../comprehensiveCommercialAnalysisService.js');
-      return marketStrategyExpertService;
+      const { RAGPoweredCommercialAgent } = await import('../services/ragPoweredCommercialAgent.js');
+      return new RAGPoweredCommercialAgent();
       
     case 'hr':
       const { ComprehensiveHRAnalysisService } = await import('../comprehensiveHRAnalysisService.js');

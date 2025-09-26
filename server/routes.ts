@@ -6807,27 +6807,9 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         totalDocuments: 0
       });
       
-      // Import and run service in background - EXACT Clinical approach
-      (async () => {
-        try {
-          console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
-          const { MarketStrategyExpertService } = await import('./comprehensiveCommercialAnalysisService');
-          
-          const commercialService = new MarketStrategyExpertService();
-          await commercialService.runComprehensiveAnalysis(dealId, storage, jobId);
-          
-          console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
-        } catch (error) {
-          console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
-          
-          // Mark job as failed - EXACT Clinical approach
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            error: error.message,
-            currentStep: 'Analysis failed'
-          });
-        }
-      })();
+      // DISABLED: Commercial analysis now handled by PersistentCommercialAnalysisService
+      // to prevent dual execution conflicts. See architect analysis for details.
+      console.log(`🏢 Commercial analysis delegated to PersistentCommercialAnalysisService for deal ${dealId}`);
       
       res.json({
         success: true,
