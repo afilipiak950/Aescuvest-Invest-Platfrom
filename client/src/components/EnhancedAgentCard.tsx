@@ -887,10 +887,12 @@ export default function EnhancedAgentCard({
   };
 
   const positiveInsights = (findings || []).filter((f: any) => 
-    f.severity === 'positive' || f.type === 'positive' || f.category === 'positive'
+    f.severity === 'positive' || f.type === 'positive' || f.category === 'positive' ||
+    f.type === 'organizational_strength' // ✅ FIXED: HR agent specific positive findings
   ).length;
   const riskFactors = (findings || []).filter((f: any) => 
-    f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk'
+    f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk' ||
+    f.type === 'organizational_risk' // ✅ FIXED: HR agent specific risk findings
   ).length;
   
   // Debug KPI calculations for verification
@@ -4267,7 +4269,7 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/comprehensive`, {
+      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/persistent/start`, {
         method: 'POST'
       });
       return response;
@@ -4280,10 +4282,10 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
       }
       
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
+        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+        queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`]
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
@@ -4311,21 +4313,21 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
         attempts++;
         
         try {
-          const response = await fetch(`/api/deals/${dealId}/hr-analysis/comprehensive/results?_t=${Date.now()}`, {
+          const response = await fetch(`/api/deals/${dealId}/agents/hr/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
           
           console.log(`HR analysis attempt ${attempts}...`);
           
-          if (data.success && data.hrAnswers && Object.keys(data.hrAnswers).length > 0) {
+          if (data.success && data.analysis && data.analysis.questions && data.analysis.questions.length > 0) {
             console.log('HR analysis completed!');
             
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
+              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
             });
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+              queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`]
             });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
@@ -5312,8 +5314,9 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   }, {} as Record<string, typeof HR_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    if (!comprehensiveResults?.analysis?.hrAnswers) return null;
-    return comprehensiveResults.analysis.hrAnswers[questionId] || null;
+    // FIXED: Use the correct data structure from working endpoint
+    if (!comprehensiveResults?.analysis?.questions) return null;
+    return comprehensiveResults.analysis.questions.find((q: any) => q.questionId === questionId) || null;
   };
 
   return (
@@ -5364,7 +5367,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Analysis Response - Commercial style matching */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <ProfessionalFormattedContent content={answer.answer} className="text-gray-300" variant="small" />
                               </div>
 
                               {/* Enhanced HR Assessment - mimic Commercial's commercialAssessment */}
