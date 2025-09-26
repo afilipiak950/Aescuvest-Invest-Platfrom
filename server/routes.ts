@@ -6008,10 +6008,15 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       // Debug: Log current running analyses
       console.log(`📊 Current running analyses:`, Array.from(runningAnalyses.keys()));
       
-      // Start agent-specific analysis in background with rate limiting (SAME PATH FOR ALL AGENTS)
+      // Start agent-specific analysis in background with rate limiting 
       setImmediate(async () => {
         try {
-          await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+          // SKIP processAgentSpecificAnalysis for Commercial - it uses PersistentCommercialAnalysis service
+          if (agentType.toLowerCase() !== 'commercial') {
+            await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+          } else {
+            console.log(`🔄 Skipping processAgentSpecificAnalysis for Commercial - handled by PersistentCommercialAnalysis service`);
+          }
         } catch (error) {
           console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
         } finally {
@@ -8359,16 +8364,20 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
     // Create initial job progress entry for real-time tracking using unified pattern
     const trackingJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
     
-    // Check if a job already exists to prevent duplicates
-    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-    const existingJob = existingJobs.find(job => 
-      job.agentType?.toLowerCase() === agentType.toLowerCase() && 
-      (job.status === 'processing' || job.status === 'pending')
-    );
-    
-    if (existingJob) {
-      console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
-      throw new Error(`${agentType} analysis already running for deal ${dealId}`);
+    // Check if a job already exists to prevent duplicates (SKIP for Commercial as it manages its own jobs)
+    if (agentType.toLowerCase() !== 'commercial') {
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingJob = existingJobs.find(job => 
+        job.agentType?.toLowerCase() === agentType.toLowerCase() && 
+        (job.status === 'processing' || job.status === 'pending')
+      );
+      
+      if (existingJob) {
+        console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
+        throw new Error(`${agentType} analysis already running for deal ${dealId}`);
+      }
+    } else {
+      console.log(`🔄 Skipping duplicate check for Commercial - managed by PersistentCommercialAnalysis service`);
     }
     
     try {
