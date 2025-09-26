@@ -99,7 +99,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'market differentiation competitive positioning unique benefits',
       'differentiation strategy competitive edge value differentiation'
     ],
-    analysisPrompt: 'Analyze competitive differentiation clarity and unique value propositions. Focus on competitive advantages, market positioning, and differentiation articulation for commercial assessment.',
+    analysisPrompt: 'Extract specific competitive differentiation metrics: market share percentages, pricing premiums vs competitors, feature superiority counts, unique value proposition statements with quantified benefits. Cite exact figures, dollar amounts, percentage advantages, and customer acquisition metrics with document sources.',
     evidenceTargets: ['differentiation_clarity', 'unique_value_props', 'competitive_positioning', 'market_advantages']
   },
   
@@ -114,7 +114,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'comparison matrix price features competitor analysis evaluation',
       'price feature matrix competitive evaluation analysis comparison'
     ],
-    analysisPrompt: 'Evaluate competitive comparison matrices focusing on price and feature analysis. Assess competitive positioning, pricing comparison, and feature differentiation for commercial intelligence.',
+    analysisPrompt: 'Extract specific pricing data from comparison matrices: exact dollar amounts, percentage price differences vs competitors, feature count comparisons, pricing tiers, subscription costs, and implementation fees. Include competitor names, specific price points, and quantified feature advantages with document page references.',
     evidenceTargets: ['price_comparison', 'feature_comparison', 'competitive_matrix', 'pricing_analysis']
   },
   
@@ -129,7 +129,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'switching barrier cost analysis competitor migration switching',
       'switching cost evaluation competitive barrier customer retention'
     ],
-    analysisPrompt: 'Assess switching costs and competitive barriers. Focus on customer lock-in mechanisms, migration costs, competitive switching barriers, and customer retention advantages.',
+    analysisPrompt: 'Extract specific switching cost data: exact migration costs in dollars, implementation time in weeks/months, training hours required, data transfer costs, contract termination penalties, and competitive moat strength percentages. Include specific barrier types, cost breakdowns, and retention metrics with source citations.',
     evidenceTargets: ['switching_costs', 'customer_lock_in', 'competitive_barriers', 'migration_costs']
   },
 
@@ -145,7 +145,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'pricing methodology billing model revenue structure pricing',
       'usage-based pricing tiered pricing per-seat billing model'
     ],
-    analysisPrompt: 'Analyze pricing model structure and revenue methodology. Focus on pricing logic, billing approaches, revenue optimization, and pricing strategy for commercial viability assessment.',
+    analysisPrompt: 'Extract specific pricing model data: exact dollar amounts per tier, usage-based rates, per-seat costs, subscription fees, setup charges, and billing frequencies. Include specific pricing tiers with exact figures, revenue per customer metrics, and pricing strategy details with document page citations.',
     evidenceTargets: ['pricing_model', 'revenue_structure', 'billing_methodology', 'pricing_strategy']
   },
   
@@ -160,7 +160,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'discount structure policy pricing discount documentation policy',
       'discount policy pricing strategy discount documentation policy'
     ],
-    analysisPrompt: 'Evaluate discount policies and pricing documentation. Focus on discount structures, pricing policies, revenue optimization strategies, and discount policy documentation.',
+    analysisPrompt: 'Extract specific discount policy data: exact discount percentages, volume discount tiers, early payment discounts, contract length discounts, minimum commitment requirements, and penalty structures. Include specific discount amounts, qualification criteria, and policy terms with document references.',
     evidenceTargets: ['discount_policies', 'pricing_policies', 'discount_structure', 'revenue_optimization']
   },
   
@@ -175,7 +175,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'net revenue retention expansion revenue customer growth tracking',
       'NRR revenue retention tracking customer expansion revenue'
     ],
-    analysisPrompt: 'Assess net revenue retention tracking and customer expansion metrics. Focus on revenue retention rates, customer growth, expansion revenue, and revenue tracking for commercial performance.',
+    analysisPrompt: 'Extract specific net revenue retention metrics: exact NRR percentages, expansion revenue figures, churn rates, upsell/cross-sell conversion rates, customer lifetime value amounts, and retention cohort data. Include specific percentage rates, dollar amounts, and time periods with source documentation.',
     evidenceTargets: ['revenue_retention', 'customer_expansion', 'nrr_tracking', 'revenue_metrics']
   },
 
@@ -191,7 +191,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'win loss analysis sales performance conversion win rate',
       'sales conversion win rate loss analysis pipeline metrics'
     ],
-    analysisPrompt: 'Analyze sales win/loss rates and pipeline performance. Focus on conversion rates, sales efficiency, pipeline metrics, and sales performance for commercial assessment.',
+    analysisPrompt: 'Extract specific win/loss metrics: exact win rate percentages, loss rate percentages, conversion rates by stage, average deal sizes, pipeline velocity metrics, and sales efficiency ratios. Include specific percentage rates, dollar amounts, and time periods with source document citations.',
     evidenceTargets: ['win_rates', 'loss_analysis', 'sales_performance', 'conversion_metrics']
   },
   
@@ -206,7 +206,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'deal velocity sales cycle segment analysis time close',
       'sales cycle segment deal velocity sales time cycle'
     ],
-    analysisPrompt: 'Evaluate sales cycle length and segment performance. Focus on deal velocity, segment-specific sales cycles, time to close, and sales efficiency across segments.',
+    analysisPrompt: 'Extract specific sales cycle data: exact cycle length in days/weeks by segment, average time to close, deal velocity metrics, segment-specific conversion rates, and pipeline stage durations. Include specific timeframes, percentage improvements, and segment breakdowns with document references.',
     evidenceTargets: ['sales_cycle', 'segment_performance', 'deal_velocity', 'time_to_close']
   },
   
@@ -221,7 +221,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'sales conversion trend improving stable optimization pipeline',
       'conversion rate analysis trend improving stable sales'
     ],
-    analysisPrompt: 'Assess conversion rate trends and pipeline optimization. Focus on conversion stability, improvement trends, sales optimization, and pipeline efficiency for commercial growth.',
+    analysisPrompt: 'Extract specific conversion rate data: exact conversion percentages by period, month-over-month improvement rates, pipeline efficiency metrics, optimization impact percentages, and trend analysis figures. Include specific percentage changes, baseline metrics, and performance improvements with source citations.',
     evidenceTargets: ['conversion_trends', 'pipeline_efficiency', 'sales_optimization', 'conversion_stability']
   },
 
@@ -237,7 +237,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'customer revenue concentration top customers key account share',
       'top customer revenue share concentration key account analysis'
     ],
-    analysisPrompt: 'Analyze customer concentration and revenue distribution. Focus on key account dependency, revenue concentration risks, customer diversification, and concentration risk assessment.',
+    analysisPrompt: 'Extract specific customer concentration metrics: exact revenue percentages from top 10 customers, key account dependency ratios, customer diversification indices, concentration risk percentages, and revenue distribution breakdowns. Include specific percentage figures, dollar amounts, and risk metrics with document page references.',
     evidenceTargets: ['customer_concentration', 'revenue_distribution', 'key_account_risk', 'concentration_analysis']
   },
   
@@ -252,7 +252,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'customer churn 12 months retention churn analysis rate',
       'churn analysis customer retention rate 12 month churn'
     ],
-    analysisPrompt: 'Evaluate customer churn and retention metrics. Focus on churn rates, retention analysis, customer lifecycle, and churn patterns for commercial stability assessment.',
+    analysisPrompt: 'Extract specific churn and retention data: exact churn rate percentages over 12 months, monthly/quarterly churn rates, customer retention percentages, revenue churn vs customer churn, and cohort retention analysis. Include specific percentage rates, time periods, and retention metrics with source documentation.',
     evidenceTargets: ['customer_churn', 'retention_rates', 'churn_analysis', 'retention_metrics']
   },
   
@@ -267,7 +267,7 @@ export const RAG_COMMERCIAL_QUESTIONS = [
       'customer satisfaction survey NPS tracking customer feedback',
       'net promoter score NPS customer satisfaction tracking'
     ],
-    analysisPrompt: 'Assess customer satisfaction tracking and NPS metrics. Focus on customer feedback systems, satisfaction measurements, NPS tracking, and customer experience for commercial quality.',
+    analysisPrompt: 'Extract specific customer satisfaction data: exact NPS scores, customer satisfaction percentages, CSAT ratings, survey response rates, satisfaction trend analysis, and feedback metrics. Include specific numerical scores, percentage improvements, satisfaction categories, and benchmarking data with document sources.',
     evidenceTargets: ['customer_satisfaction', 'nps_tracking', 'customer_feedback', 'satisfaction_metrics']
   }
 ];
