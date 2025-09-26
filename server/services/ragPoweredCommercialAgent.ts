@@ -138,10 +138,10 @@ export const RAG_COMMERCIAL_QUESTIONS = [
     category: 'Competitive Analysis Decks',
     subQuestions: ['Price comparison', 'Feature comparison', 'Competitive analysis'],
     ragQueries: [
-      'price comparison matrix $99 $199 $299 competitor pricing cost',
-      'competitive pricing analysis competitor vs our price percentage',
-      'price feature matrix competitor pricing $X vs $Y cost comparison',
-      'pricing analysis competitor price difference percentage cost comparison'
+      'price comparison matrix pricing table $99 $199 $299 competitor cost subscription annual monthly license fee rate tariff',
+      'competitive pricing analysis competitor versus our price percentage premium discount enterprise SMB startup tier',
+      'feature comparison matrix competitor features functionality capabilities checklist grid table advantages superiority',
+      'pricing feature matrix competitor cost vs benefit value ROI total cost of ownership TCO implementation services'
     ],
     analysisPrompt: 'Extract specific pricing data from comparison matrices: exact dollar amounts, percentage price differences vs competitors, feature count comparisons, pricing tiers, subscription costs, and implementation fees. Include competitor names, specific price points, and quantified feature advantages with document page references.',
     evidenceTargets: ['price_comparison', 'feature_comparison', 'competitive_matrix', 'pricing_analysis']
