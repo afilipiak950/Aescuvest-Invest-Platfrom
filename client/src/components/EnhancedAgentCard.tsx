@@ -565,6 +565,16 @@ export default function EnhancedAgentCard({
     runMistralAnalysisMutation.mutate();
   };
 
+  // Normalize status to handle case variations and common aliases
+  const normalizeStatus = (status?: string): string => {
+    if (!status) return '';
+    const normalized = status.toLowerCase().trim();
+    // Handle common status variations
+    if (normalized === 'complete') return 'completed';
+    if (normalized === 'in progress') return 'processing';
+    return normalized;
+  };
+
   // Check if analysis is currently processing by looking at status and recent activity
   const isAnalysisCurrentlyRunning = () => {
     // Check if all analyses are running from parent component
@@ -572,9 +582,9 @@ export default function EnhancedAgentCard({
       return true;
     }
     
-    // Check if we have a processing status
-    const status = analysisData?.status;
-    if (status === 'Processing' || status === 'In Progress') {
+    // Check if we have a processing status (case-insensitive)
+    const normalizedStatus = normalizeStatus(analysisData?.status);
+    if (normalizedStatus === 'processing') {
       return true;
     }
     
@@ -595,9 +605,9 @@ export default function EnhancedAgentCard({
       return false;
     }
     
-    // Show processing UI for individual agent runs (exclude the bulk analysis check)
-    const status = analysisData?.status;
-    if (status === 'Processing' || status === 'In Progress') {
+    // Show processing UI for individual agent runs (case-insensitive)
+    const normalizedStatus = normalizeStatus(analysisData?.status);
+    if (normalizedStatus === 'processing') {
       return true;
     }
     
@@ -895,20 +905,23 @@ export default function EnhancedAgentCard({
     f.type === 'organizational_risk' // ✅ FIXED: HR agent specific risk findings
   ).length;
   
+  // Check if we have any analysis data (robust logic with proper array checks)
+  const normalizedStatus = normalizeStatus(analysisData?.status);
+  const hasAnalysis = (findings && findings.length > 0) || 
+                     (recommendations && recommendations.length > 0) || 
+                     ['completed', 'complete'].includes(normalizedStatus);
+
   // Debug KPI calculations for verification
   console.log(`🔢 ${agentType} Agent KPIs:`, {
     totalDocuments: documents?.length || 0,
     assignedDocuments: assignedDocuments,
-    hasAnalysis: !!analysisData && analysisData.status === 'Completed',
+    hasAnalysis: hasAnalysis,
+    normalizedStatus: normalizedStatus,
     findingsCount: (findings || []).length,
+    recommendationsCount: (recommendations || []).length,
     positiveInsights,
     riskFactors
   });
-  
-  // Check if we have any analysis data (findings, recommendations, or status indicating completion)
-  const hasAnalysis = (findings || []).length > 0 || (recommendations || []).length > 0 || 
-                     (analysisData && analysisData.status === 'Completed') ||
-                     (analysisData && (analysisData.findings || analysisData.recommendations));
 
   if (isLoading) {
     return (
@@ -930,14 +943,14 @@ export default function EnhancedAgentCard({
         </div>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant="outline" className={
-            status === 'Completed' ? 'text-green-400 border-green-400' :
-            status === 'Processing' ? 'text-blue-400 border-blue-400' :
-            status === 'Failed' ? 'text-red-400 border-red-400' :
+            ['completed', 'complete'].includes(normalizedStatus) ? 'text-green-400 border-green-400' :
+            normalizedStatus === 'processing' ? 'text-blue-400 border-blue-400' :
+            normalizedStatus === 'failed' ? 'text-red-400 border-red-400' :
             'text-gray-400 border-gray-400'
           }>
             {status}
           </Badge>
-          {status === 'Processing' && (
+          {normalizedStatus === 'processing' && (
             <span className="text-xs text-gray-400">{progress}% complete</span>
           )}
         </div>
