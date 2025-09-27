@@ -22,6 +22,7 @@ import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
 import { FormattedAnswer } from './FormattedAnswer';
 import { ProfessionalFormattedContent } from './ProfessionalFormattedContent';
+import { UnifiedQuestionsSection } from './unified/UnifiedQuestionsSection';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -1034,98 +1035,14 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Comprehensive Questions for Legal and Clinical Agents */}
-        {agentType.toLowerCase() === 'legal' ? (
-          <LegalQuestionsSection 
+        {/* Unified Questions Section for All Agents */}
+        {['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'].includes(agentType.toLowerCase()) ? (
+          <UnifiedQuestionsSection 
+            agentType={agentType.toLowerCase()}
             dealId={dealId}
-            analysisData={analysisData} 
-            findings={findings} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
+            analysisData={analysisData}
+            className="mt-4"
           />
-        ) : agentType.toLowerCase() === 'clinical' ? (
-          <ClinicalQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            findings={findings} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-            onClinicalAnalysisStart={onClinicalAnalysisStart}
-          />
-        ) : agentType.toLowerCase() === 'commercial' ? (
-          <CommercialQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : agentType.toLowerCase() === 'hr' ? (
-          <HrQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : agentType.toLowerCase() === 'financial' ? (
-          <FinancialQuestionsSection 
-            dealId={dealId}
-            analysisData={analysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : agentType.toLowerCase() === 'ip' ? (
-          <IpQuestionsSection 
-            dealId={dealId}
-            analysisData={actualAnalysisData} 
-            assignedDocuments={assignedDocuments}
-            documents={documents || []}
-            handleDocumentClick={handleDocumentClick}
-            quoteViewerOpen={quoteViewerOpen}
-            setQuoteViewerOpen={setQuoteViewerOpen}
-            selectedQuoteData={selectedQuoteData}
-            setSelectedQuoteData={setSelectedQuoteData}
-          />
-        ) : (console.log('🔍 Checking agentType for conditional:', { agentType, lowercase: agentType.toLowerCase(), isResearch: agentType.toLowerCase() === 'research' }), agentType.toLowerCase() === 'research') ? (
-          <>
-            {console.log('🎯 RENDERING ResearchQuestionsSection for agentType:', agentType)}
-            <ResearchQuestionsSection 
-              dealId={dealId}
-              analysisData={actualAnalysisData} 
-              assignedDocuments={assignedDocuments}
-              documents={documents || []}
-              handleDocumentClick={handleDocumentClick}
-              quoteViewerOpen={quoteViewerOpen}
-              setQuoteViewerOpen={setQuoteViewerOpen}
-              selectedQuoteData={selectedQuoteData}
-              setSelectedQuoteData={setSelectedQuoteData}
-              onResearchAnalysisStart={onResearchAnalysisStart}
-            />
-          </>
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
