@@ -244,8 +244,8 @@ export class PersistentLegalAnalysisService {
       }
       this.activeJobs.delete(jobId);
 
-      // Mark as failed - simplified to avoid TypeScript issues
-      console.log(`❌ Legal analysis failed for job ${jobId}: ${error.message}`);
+      // Mark as failed - EXACTLY like Commercial agent
+      await storage.failBackgroundJob(jobId, error.message);
 
       throw error;
     }
@@ -286,6 +286,13 @@ export class PersistentLegalAnalysisService {
 
     } catch (error) {
       console.error(`❌ Persistent legal analysis failed:`, error);
+      
+      // CRITICAL FIX: Mark job as failed when OpenAI quota exceeded
+      if (error.message && (error.message.includes('429') || error.message.includes('quota'))) {
+        console.log(`🚫 Legal analysis failed due to OpenAI quota limits`);
+        await storage.failBackgroundJob(jobId, `OpenAI quota exceeded: ${error.message}`);
+      }
+      
       throw error;
     }
   }
