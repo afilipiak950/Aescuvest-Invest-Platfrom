@@ -274,107 +274,86 @@ interface RagHRAnswer {
 
 export class RagPoweredHRAgent {
   private dealId: number;
-  private totalStartTime: number = 0;
-  private progressCallback?: (progress: any) => Promise<void>;
+  private jobId: string;  // ✅ FIXED: Added missing jobId property
+  private totalStartTime: number;
 
-  constructor(dealId: number) {
+  constructor(dealId: number, jobId?: string) {  // ✅ FIXED: Added jobId parameter like Legal agent
     this.dealId = dealId;
+    this.jobId = jobId || `rag_hr_analysis_${dealId}_${Date.now()}`;  // ✅ FIXED: Set jobId like Legal agent
+    this.totalStartTime = Date.now();  // ✅ FIXED: Initialize immediately like Legal agent
   }
 
   /**
-   * Set progress callback for background job tracking
+   * RUN COMPREHENSIVE HR ANALYSIS
+   * Execute RAG-powered analysis for all 12 HR questions
    */
-  setProgressCallback(callback: (progress: any) => Promise<void>) {
-    this.progressCallback = callback;
-  }
-
-  /**
-   * MAIN ENTRY POINT: Run comprehensive RAG-powered HR analysis
-   * Uses comprehensive 12 HR questions for complete employment analysis
-   */
-  async runComprehensiveAnalysis(): Promise<any> {
-    this.totalStartTime = Date.now();
+  async runComprehensiveAnalysis(): Promise<void> {  // ✅ FIXED: Match Legal agent return type
     console.log(`👥 Starting RAG-powered HR analysis for deal ${this.dealId}`);
-    console.log(`🚀 Processing ${RAG_HR_QUESTIONS.length} comprehensive HR questions with multi-layer RAG queries...`);
+    console.log(`📋 Processing ${RAG_HR_QUESTIONS.length} HR questions with 4-layer RAG evidence gathering`);
 
     try {
-      // Ensure documents are embedded for RAG search
+      // Ensure documents are embedded for RAG search - FIXED: Like Clinical agent
       await EmbeddingService.embedMissingDocuments(this.dealId);
 
       const hrAnswers: Record<string, RagHRAnswer> = {};
+    const allFindings: any[] = [];
+    const allRecommendations: any[] = [];
+
+    // Process all 12 HR questions sequentially with progress tracking
+    for (let i = 0; i < RAG_HR_QUESTIONS.length; i++) {
+      const question = RAG_HR_QUESTIONS[i];
+      const questionStartTime = Date.now();
       
-      // Process each of the 12 comprehensive HR questions with intelligent RAG queries
-      for (let i = 0; i < RAG_HR_QUESTIONS.length; i++) {
-        const question = RAG_HR_QUESTIONS[i];
-        const questionStartTime = Date.now();
-        
-        console.log(`\n🔍 Question ${i + 1}/${RAG_HR_QUESTIONS.length}: ${question.question}`);
-        console.log(`📂 Category: ${question.category}`);
-        
-        // Execute multi-layer RAG strategy for this question
-        const evidenceBase = await this.executeMultiLayerRagSearch(question);
-        
-        // Synthesize comprehensive enterprise-grade answer
-        const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
-        
-        const processingTime = Date.now() - questionStartTime;
-        answer.processingTime = processingTime;
-        
-        hrAnswers[question.id] = answer;
-        
-        // 🎯 SAVE QUESTION RESULT INCREMENTALLY - This shows progress in UI!
-        await this.saveQuestionResultIncremental(question, answer, i);
-        
-        console.log(`✅ Question ${i + 1} completed in ${processingTime}ms with ${evidenceBase.length} evidence layers`);
-        
-        // Update progress for background job tracking
-        const progress = Math.round(((i + 1) / RAG_HR_QUESTIONS.length) * 100);
-        await this.updateBackgroundJobProgress(progress, i + 1);
-        
-        if (this.progressCallback) {
-          await this.progressCallback({
-            percentage: progress,
-            currentStep: `Question ${i + 1}/${RAG_HR_QUESTIONS.length} completed`,
-            currentQuestion: question.question,
-            completedQuestions: i + 1,
-            category: question.category,
-            estimatedTimeRemaining: `${Math.round((RAG_HR_QUESTIONS.length - (i + 1)) * (processingTime / 1000))}s`
-          });
-        }
-        
-        // Brief pause to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // Generate comprehensive findings and recommendations
-      const findings = this.generateComprehensiveFindings(hrAnswers);
-      const recommendations = this.generateIntelligentRecommendations(hrAnswers);
-
-      // Store final comprehensive results in database
-      await this.storeRagHRResults(hrAnswers, findings, recommendations);
-
-      const totalTime = Date.now() - this.totalStartTime;
-      console.log(`\n🎉 RAG-powered HR analysis completed in ${totalTime}ms`);
-      console.log(`📊 Performance: ${Math.round(totalTime / RAG_HR_QUESTIONS.length)}ms average per question`);
-      console.log(`🎯 Enterprise-grade HR analysis using comprehensive employment questions`);
-
-      return {
-        success: true,
-        answers: hrAnswers,
-        findings,
-        recommendations,
-        performance: {
-          totalTime,
-          averagePerQuestion: Math.round(totalTime / RAG_HR_QUESTIONS.length),
-          questionsProcessed: RAG_HR_QUESTIONS.length,
-          documentsAnalyzed: 'All documents via RAG search'
-        }
-      };
-
-    } catch (error) {
-      console.error(`❌ RAG-powered HR analysis failed:`, error);
-      throw error;
+      console.log(`👥 Question ${i + 1}/12: ${question.question}`);
+      console.log(`📂 Category: ${question.category}`);
+      
+      // Execute multi-layer RAG search for comprehensive evidence
+      const evidenceBase = await this.executeMultiLayerRagSearch(question);
+      
+      // Synthesize enterprise-grade HR answer
+      const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
+      
+      // Store question answer
+      hrAnswers[question.id] = answer;
+      allFindings.push(...answer.keyFindings.map(finding => ({
+        id: i + 1,
+        type: 'hr',
+        content: `${question.question}: ${finding}`,
+        source: answer.sources[0] || 'HR Analysis',
+        confidence: answer.confidence,
+        category: question.category,
+        evidenceCount: evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0),
+        hrRiskScore: answer.hrRiskScore,
+        processingTime: Date.now() - questionStartTime
+      })));
+      
+      allRecommendations.push(...answer.recommendations.map(rec => ({
+        title: `${question.category}: HR Intelligence`,
+        description: rec,
+        priority: answer.hrRiskScore > 7 ? 'high' : 'medium',
+        category: 'hr',
+        impact: 'significant',
+        evidenceBase: evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0),
+        hrRisk: answer.hrRiskScore,
+        processingTime: Date.now() - questionStartTime
+      })));
+      
+      // 🎯 SAVE QUESTION RESULT INCREMENTALLY - This shows progress in UI!
+      await this.saveQuestionResultIncremental(question, answer, i);
+      
+      // Update progress
+      const progress = Math.round(((i + 1) / RAG_HR_QUESTIONS.length) * 100);
+      await this.updateBackgroundJobProgress(progress, i + 1);
+      
+      const questionTime = Date.now() - questionStartTime;
+      console.log(`✅ Question ${i + 1} completed in ${questionTime}ms with HR risk score ${answer.hrRiskScore}/10`);
     }
+
+    // Store comprehensive results in database
+    await this.storeRagHRResults(hrAnswers, allFindings, allRecommendations);
+    
+    const totalTime = Date.now() - this.totalStartTime;
+    console.log(`🏆 RAG-powered HR analysis completed in ${totalTime}ms for deal ${this.dealId}`);
   }
 
   /**
@@ -988,7 +967,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
           progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
           findings: [],
           recommendations: [],
-          hrAnswers: initialHRAnswers  // ✅ FIXED: Using correct camelCase 'hrAnswers'
+          hr_answers: initialHRAnswers  // ✅ FIXED: Using correct snake_case 'hr_answers'
         });
 
         console.log(`✅ Created new HR analysis record with question ${questionIndex + 1}`);
@@ -996,14 +975,14 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         // Update existing record with new question result
         const currentAnalysis = existingAnalysis[0];
         const updatedHRAnswers = {
-          ...(currentAnalysis.hrAnswers || {}),
+          ...(currentAnalysis.hr_answers || {}),
           [question.id]: questionAnswer
         };
 
         await db
           .update(agentAnalyses)
           .set({
-            hrAnswers: updatedHRAnswers,  // ✅ FIXED: Using correct camelCase 'hrAnswers'
+            hr_answers: updatedHRAnswers,  // ✅ FIXED: Using correct snake_case 'hr_answers'
             progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
             status: 'processing'
           })
