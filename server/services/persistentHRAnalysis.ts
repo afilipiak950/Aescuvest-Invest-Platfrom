@@ -146,7 +146,7 @@ export class PersistentHRAnalysisService {
       // Check if analysis is FULLY completed (all questions answered)
       const existingAnalysis = await storage.getAgentAnalysis(dealId, 'hr');
       const expectedQuestions = this.getHRQuestions();
-      const answeredQuestions = existingAnalysis?.hrAnswers ? Object.keys(existingAnalysis.hrAnswers).length : 0;
+      const answeredQuestions = existingAnalysis?.hr_answers ? Object.keys(existingAnalysis.hr_answers).length : 0;
       
       if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
         console.log(`✅ HR analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
@@ -238,23 +238,11 @@ export class PersistentHRAnalysisService {
       jobState.currentStep = 'Running comprehensive HR analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
-      // Create RAG-powered HR agent instance
-      const ragHRAgent = new RagPoweredHRAgent(dealId);
+      // Create RAG-powered HR agent instance - FIXED: Pass jobId like Legal agent
+      const ragHRAgent = new RagPoweredHRAgent(dealId, jobId);
       
-      // Set up progress callback for real-time updates
-      ragHRAgent.setProgressCallback(async (progress: any) => {
-        const newProgress = progress.percentage || 0;
-        const newStep = progress.currentStep || 'Processing HR question...';
-        
-        jobState.progress = newProgress;
-        jobState.currentStep = newStep;
-        jobState.currentQuestionIndex = progress.completedQuestions || 0;
-        
-        await this.updateJobProgress(jobId, newProgress, newStep);
-      });
-
-      // Call the RAG-powered HR analysis service
-      const result = await ragHRAgent.runComprehensiveAnalysis();
+      // Call the RAG-powered HR analysis service - FIXED: No setProgressCallback, no return value
+      await ragHRAgent.runComprehensiveAnalysis();
 
       // Mark as completed
       jobState.progress = 100;
