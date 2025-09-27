@@ -7,7 +7,6 @@ import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
-import { UnifiedDueDiligenceAgents } from '@/components/unified/UnifiedDueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
@@ -1943,11 +1942,6 @@ function DueDiligenceContent() {
                 <TabsContent value="ai-agents">
                   <div className="pt-4">
                     <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
-                  </div>
-                  {/* Unified Agent Analysis Section - Duplicate with improved architecture */}
-                  <div className="pt-8 border-t mt-8">
-                    <h2 className="text-2xl font-bold mb-4">Unified Agent Analysis (Duplicate Section)</h2>
-                    <UnifiedDueDiligenceAgents dealId={parseInt(selectedDeal)} />
                   </div>
                 </TabsContent>
               </Tabs>

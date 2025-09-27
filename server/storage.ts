@@ -13,7 +13,7 @@ import {
   dataRoomConnections, DataRoomConnection, InsertDataRoomConnection,
   microsoftEmailConnections, MicrosoftEmailConnection, InsertMicrosoftEmailConnection,
   backgroundJobs, BackgroundJob, InsertBackgroundJob,
-  comprehensiveAnalyses, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
+  comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult,
   researchJobs, ResearchJob, InsertResearchJob
