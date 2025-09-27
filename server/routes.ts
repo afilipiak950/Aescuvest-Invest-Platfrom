@@ -47,6 +47,7 @@ import persistentHRRoutes from './routes/persistentHRRoutes';
 import { persistentResearchRoutes } from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
+import unifiedAgentRoutes from './routes/unifiedAgentRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { safeString, safeTruncate, safeContentExcerpt } from './utils/safeString';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
@@ -546,6 +547,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🔄 Registering persistent analysis routes...');
   app.use('/', persistentAnalysisRoutes);
   console.log('✅ Persistent analysis routes registered');
+  
+  // Register unified agent analysis routes (new architecture)
+  console.log('🎯 Registering unified agent analysis routes...');
+  app.use(unifiedAgentRoutes);
+  console.log('✅ Unified agent analysis routes registered');
   
   // 🚨 CRITICAL: Register 413 bypass routes
   console.log('🔧 Registering 413 bypass test routes...');
