@@ -22,7 +22,6 @@ import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
 import { FormattedAnswer } from './FormattedAnswer';
 import { ProfessionalFormattedContent } from './ProfessionalFormattedContent';
-import { UnifiedQuestionsSection } from './unified/UnifiedQuestionsSection';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -1035,14 +1034,98 @@ export default function EnhancedAgentCard({
           </div>
         </div>
 
-        {/* Unified Questions Section for All Agents */}
-        {['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'].includes(agentType.toLowerCase()) ? (
-          <UnifiedQuestionsSection 
-            agentType={agentType.toLowerCase()}
+        {/* Comprehensive Questions for Legal and Clinical Agents */}
+        {agentType.toLowerCase() === 'legal' ? (
+          <LegalQuestionsSection 
             dealId={dealId}
-            analysisData={analysisData}
-            className="mt-4"
+            analysisData={analysisData} 
+            findings={findings} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
           />
+        ) : agentType.toLowerCase() === 'clinical' ? (
+          <ClinicalQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            findings={findings} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+            onClinicalAnalysisStart={onClinicalAnalysisStart}
+          />
+        ) : agentType.toLowerCase() === 'commercial' ? (
+          <CommercialQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+          />
+        ) : agentType.toLowerCase() === 'hr' ? (
+          <HrQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+          />
+        ) : agentType.toLowerCase() === 'financial' ? (
+          <FinancialQuestionsSection 
+            dealId={dealId}
+            analysisData={analysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+          />
+        ) : agentType.toLowerCase() === 'ip' ? (
+          <IpQuestionsSection 
+            dealId={dealId}
+            analysisData={actualAnalysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+          />
+        ) : (console.log('🔍 Checking agentType for conditional:', { agentType, lowercase: agentType.toLowerCase(), isResearch: agentType.toLowerCase() === 'research' }), agentType.toLowerCase() === 'research') ? (
+          <>
+            {console.log('🎯 RENDERING ResearchQuestionsSection for agentType:', agentType)}
+            <ResearchQuestionsSection 
+              dealId={dealId}
+              analysisData={actualAnalysisData} 
+              assignedDocuments={assignedDocuments}
+              documents={documents || []}
+              handleDocumentClick={handleDocumentClick}
+              quoteViewerOpen={quoteViewerOpen}
+              setQuoteViewerOpen={setQuoteViewerOpen}
+              selectedQuoteData={selectedQuoteData}
+              setSelectedQuoteData={setSelectedQuoteData}
+              onResearchAnalysisStart={onResearchAnalysisStart}
+            />
+          </>
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
@@ -1265,10 +1348,320 @@ export default function EnhancedAgentCard({
 
 // Removed duplicate progress display - using only the main global progress bar at top of page
 
+// Legal Questions Section Component
+interface LegalQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  findings: any[];
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
 
+interface LegalQuestion {
+  id: string;
+  category: string;
+  question: string;
+  subQuestions?: string[];
+  answer?: string;
+  confidence?: number;
+  sources?: string[];
+}
 
+interface ClinicalQuestion {
+  id: string;
+  category: string;
+  question: string;
+  subQuestions?: string[];
+  answer?: string;
+  confidence?: number;
+  sources?: string[];
+}
 
+const CLINICAL_QUESTIONS: ClinicalQuestion[] = [
+  // Clinical Trial Protocols
+  { 
+    id: 'trial_1', 
+    question: 'Are trial phases and designs clearly defined?', 
+    category: 'Clinical Trial Protocols',
+    subQuestions: [
+      'What phase is the current trial (Phase I, II, III)?',
+      'Is the study design (randomized, controlled, blinded) specified?',
+      'Are patient enrollment targets clearly defined?'
+    ]
+  },
+  { 
+    id: 'trial_2', 
+    question: 'What are primary and secondary endpoints?', 
+    category: 'Clinical Trial Protocols',
+    subQuestions: [
+      'Are primary efficacy endpoints clearly measured?',
+      'What secondary endpoints are being tracked?',
+      'Are endpoint measurement timelines specified?'
+    ]
+  },
+  { 
+    id: 'trial_3', 
+    question: 'How is efficacy/safety assessed?', 
+    category: 'Clinical Trial Protocols',
+    subQuestions: [
+      'What safety monitoring procedures are in place?',
+      'How is treatment efficacy being measured?',
+      'Are there defined stopping rules for safety?'
+    ]
+  },
+  // Regulatory Filings
+  { 
+    id: 'regulatory_1', 
+    question: 'What is current approval status?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    subQuestions: [
+      'What regulatory submissions have been made?',
+      'What is the current FDA/EMA approval status?',
+      'Are there any regulatory holds or delays?'
+    ]
+  },
+  { 
+    id: 'regulatory_2', 
+    question: 'Are fast-track or orphan designations received?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    subQuestions: [
+      'Has breakthrough therapy designation been granted?',
+      'Are there any orphan drug designations?',
+      'What regulatory incentives have been secured?'
+    ]
+  },
+  { 
+    id: 'regulatory_3', 
+    question: 'Are adverse events disclosed?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    subQuestions: [
+      'Are all adverse events properly documented?',
+      'What serious adverse events have occurred?',
+      'Are there patterns in adverse event reporting?'
+    ]
+  },
+  // Investigator Brochures & Study Reports
+  { 
+    id: 'study_1', 
+    question: 'Are inclusion/exclusion criteria consistent?', 
+    category: 'Investigator Brochures & Study Reports',
+    subQuestions: [
+      'Are patient selection criteria clearly defined?',
+      'Are exclusion criteria medically justified?',
+      'Is the target patient population appropriate?'
+    ]
+  },
+  { 
+    id: 'study_2', 
+    question: 'What patient population is used?', 
+    category: 'Investigator Brochures & Study Reports',
+    subQuestions: [
+      'What are the demographic characteristics?',
+      'What is the disease stage or severity?',
+      'Are there any special population considerations?'
+    ]
+  },
+  { 
+    id: 'study_3', 
+    question: 'Are SAE (Serious Adverse Events) tracked?', 
+    category: 'Investigator Brochures & Study Reports',
+    subQuestions: [
+      'What SAE reporting procedures are in place?',
+      'How are SAEs classified and analyzed?',
+      'Are there any concerning safety signals?'
+    ]
+  },
+  // Scientific Advisory Board Notes
+  { 
+    id: 'advisory_1', 
+    question: 'Are trial results debated by experts?', 
+    category: 'Scientific Advisory Board Notes',
+    subQuestions: [
+      'What do independent experts think of the data?',
+      'Are there any concerns raised by advisors?',
+      'What recommendations have been made?'
+    ]
+  },
+  { 
+    id: 'advisory_2', 
+    question: 'Are post-trial steps (e.g. Phase 3 readiness) described?', 
+    category: 'Scientific Advisory Board Notes',
+    subQuestions: [
+      'What are the next planned development steps?',
+      'Is the company ready for Phase 3 trials?',
+      'What regulatory strategy is recommended?'
+    ]
+  }
+];
 
+interface ResearchQuestion {
+  id: string;
+  category: string;
+  question: string;
+  subQuestions?: string[];
+  answer?: string;
+  confidence?: number;
+  sources?: string[];
+}
+
+const RESEARCH_QUESTIONS: ResearchQuestion[] = [
+  // Market Research Reports
+  {
+    id: 'market_1',
+    category: 'Market Research Reports',
+    question: 'Are TAM/SAM/SOM defined with assumptions?',
+    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
+  },
+  {
+    id: 'market_2',
+    category: 'Market Research Reports',
+    question: 'What competitive landscape analysis is provided?',
+    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
+  },
+  {
+    id: 'market_3',
+    category: 'Market Research Reports',
+    question: 'Are market growth projections validated?',
+    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
+  },
+  // Technical Whitepapers
+  {
+    id: 'technical_1',
+    category: 'Technical Whitepapers',
+    question: 'What technical approach/architecture is described?',
+    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
+  },
+  {
+    id: 'technical_2',
+    category: 'Technical Whitepapers',
+    question: 'Are technical risks and mitigation strategies outlined?',
+    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
+  },
+  {
+    id: 'technical_3',
+    category: 'Technical Whitepapers',
+    question: 'What scalability and performance benchmarks are provided?',
+    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
+  },
+  // Academic Publications
+  {
+    id: 'academic_1',
+    category: 'Academic Publications',
+    question: 'What peer-reviewed research supports the technology?',
+    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
+  },
+  {
+    id: 'academic_2',
+    category: 'Academic Publications',
+    question: 'Are there collaborations with research institutions?',
+    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
+  },
+  {
+    id: 'academic_3',
+    category: 'Academic Publications',
+    question: 'What scientific evidence validates the approach?',
+    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
+  },
+  // Patent Landscape
+  {
+    id: 'patent_1',
+    category: 'Patent Landscape',
+    question: 'What patent portfolio exists and what gaps are identified?',
+    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
+  },
+  {
+    id: 'patent_2',
+    category: 'Patent Landscape',
+    question: 'Are there freedom-to-operate risks?',
+    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
+  }
+];
+
+const LEGAL_QUESTIONS: LegalQuestion[] = [
+  {
+    id: 'contracts_1',
+    category: 'Contracts & Agreements',
+    question: 'Are key commercial contracts clearly defined?',
+    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
+  },
+  {
+    id: 'contracts_2',
+    category: 'Contracts & Agreements',
+    question: 'What are the key contractual obligations and terms?',
+    subQuestions: ['Obligations', 'Terms and conditions', 'Performance requirements']
+  },
+  {
+    id: 'contracts_3',
+    category: 'Contracts & Agreements',
+    question: 'Are there any concerning contract provisions or risks?',
+    subQuestions: ['Risk provisions', 'Liability clauses', 'Termination conditions']
+  },
+  {
+    id: 'governance_1',
+    category: 'Corporate Governance',
+    question: 'What is the corporate governance structure?',
+    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes']
+  },
+  {
+    id: 'governance_2',
+    category: 'Corporate Governance',
+    question: 'Are there adequate governance controls and oversight?',
+    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks']
+  },
+  {
+    id: 'governance_3',
+    category: 'Corporate Governance',
+    question: 'What are the key governance risks and mitigation strategies?',
+    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses']
+  },
+  {
+    id: 'ip_1',
+    category: 'Intellectual Property',
+    question: 'What is the intellectual property portfolio?',
+    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights']
+  },
+  {
+    id: 'ip_2',
+    category: 'Intellectual Property',
+    question: 'Are there any IP ownership or infringement issues?',
+    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate']
+  },
+  {
+    id: 'ip_3',
+    category: 'Intellectual Property',
+    question: 'What IP protection and enforcement strategies are in place?',
+    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy']
+  },
+  {
+    id: 'litigation_1',
+    category: 'Litigation & Legal Risks',
+    question: 'Are there any pending or threatened litigations?',
+    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes']
+  },
+  {
+    id: 'litigation_2',
+    category: 'Litigation & Legal Risks',
+    question: 'What are the key legal risks and potential exposures?',
+    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities']
+  },
+  {
+    id: 'regulatory_1',
+    category: 'Regulatory Compliance',
+    question: 'What regulatory requirements apply to the business?',
+    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations']
+  },
+  {
+    id: 'regulatory_2',
+    category: 'Regulatory Compliance',
+    question: 'Are there any regulatory compliance issues or violations?',
+    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings']
+  }
+];
 
 function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -4003,3 +4396,1521 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
   );
 }
 
+// Financial Questions Section Component  
+interface FinancialQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
+
+function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
+
+  // FIXED: Use working endpoint like HR agent  
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  // Force refetch on component mount to ensure fresh data like Legal
+  useEffect(() => {
+    refetchComprehensive();
+  }, [refetchComprehensive]);
+
+  // FIXED: Use working data structure like HR agent
+  const financialData = comprehensiveResults?.analysis || analysisData || null;
+
+  console.log('💰 Financial Analysis Available:', !!financialData);
+  console.log('💰 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
+  console.log('💰 Financial Data from Comprehensive:', !!financialData);
+  console.log('💰 Financial Findings:', financialData?.findings?.length || 0);
+  console.log('💰 DEBUGGING: Full financialData structure:', JSON.stringify(financialData, null, 2));
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // CRITICAL FIX: Use EXACT same question IDs as backend comprehensiveFinancialAnalysisService.ts
+  const FINANCIAL_QUESTIONS = [
+    // Financial Performance & KPIs
+    { id: 'performance_1', question: 'What are the key financial performance metrics and KPIs?', category: 'Financial Performance & KPIs' },
+    { id: 'performance_2', question: 'How has financial performance trended over time?', category: 'Financial Performance & KPIs' },
+    { id: 'performance_3', question: 'What are the unit economics and scalability metrics?', category: 'Financial Performance & KPIs' },
+    // Cash Flow & Burn Rate
+    { id: 'cashflow_1', question: 'What is the current cash position and runway?', category: 'Cash Flow & Burn Rate' },
+    { id: 'cashflow_2', question: 'How is working capital managed?', category: 'Cash Flow & Burn Rate' },
+    { id: 'cashflow_3', question: 'What are the seasonal or cyclical cash flow patterns?', category: 'Cash Flow & Burn Rate' },
+    // Funding & Investment History
+    { id: 'funding_1', question: 'What is the funding history and investment rounds?', category: 'Funding & Investment History' },
+    { id: 'funding_2', question: 'How are funds allocated and what is the use of proceeds?', category: 'Funding & Investment History' },
+    // Financial Controls & Reporting
+    { id: 'controls_1', question: 'What financial controls and reporting systems are in place?', category: 'Financial Controls & Reporting' },
+    { id: 'controls_2', question: 'Are there any audit findings or compliance issues?', category: 'Financial Controls & Reporting' },
+    // Revenue Model & Monetization
+    { id: 'revenue_1', question: 'What is the revenue model and monetization strategy?', category: 'Revenue Model & Monetization' },
+    { id: 'revenue_2', question: 'How predictable and recurring is the revenue?', category: 'Revenue Model & Monetization' }
+  ];
+
+  const categorizedQuestions = FINANCIAL_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof FINANCIAL_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    if (!financialData) return null;
+    
+    console.log(`💰 Looking for answer to financial question ${questionId}`);
+    console.log(`💰 Financial findings available:`, !!financialData.findings);
+    
+    // FIXED: Use findings array like HR agent, not financialAnswers object  
+    if (financialData?.findings && Array.isArray(financialData.findings)) {
+      // Get the first few findings as the answer (simplified approach)
+      const relevantFindings = financialData.findings.slice(0, 3);
+      if (relevantFindings.length > 0) {
+        return {
+          answer: relevantFindings.map(f => f.description || f.title || f.content).join('\n\n'),
+          confidence: 0.8,
+          sources: relevantFindings.map(f => f.documentSource || f.source).filter(Boolean),
+          quotes: [],
+          keyFindings: relevantFindings.map(f => f.title || f.category),
+          evidenceSummary: `Found ${financialData.findings.length} financial findings`,
+          financialAssessment: relevantFindings[0]?.description || '',
+          recommendations: [],
+          detailedEvidence: []
+        };
+      }
+    }
+
+    return null; // Return null for empty state like Clinical agent
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-green-500/5 to-green-600/5 border border-green-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Financial Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} financial documents across 4 categories with 12 detailed questions
+          </p>
+        </div>
+        <PersistentFinancialButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
+            onClick={() => toggleCategory(category)}
+          >
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {questions && Array.isArray(questions) && questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
+
+                return (
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-green-400 mb-2">Financial Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                              </div>
+
+                              {/* Enhanced Financial Assessment */}
+                              {answer.financialAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-emerald-400 mb-2">Financial Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.financialAssessment}</p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
+                                          >
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {safeRender(quote.relevance, 'Medium')}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{safeRender(quote.text, 'No quote text available')}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-green-400 text-xs mt-1">•</span>
+                                        {safeRender(finding, 'No finding available')}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-green-400 border-green-400">
+                                  Confidence: {normalizeConfidence(answer.confidence || 0.8)}%
+                                </Badge>
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No financial analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}
+
+// Persistent Financial Analysis Button - matches Clinical button architecture exactly
+function PersistentFinancialButton({ dealId }: { dealId: number }) {
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+
+  // Check for existing background jobs - EXACTLY like Clinical button
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s // Only poll for job status like Clinical
+  });
+
+  // Check if financial analysis is already running - EXACTLY like Clinical button
+  const isAnalysisRunning = (() => {
+    if (jobProgress?.jobs) {
+      const financialJob = jobProgress.jobs.find((job: any) => job.agentType === 'financial');
+      return !!financialJob && financialJob.status === 'processing';
+    }
+    return false;
+  })();
+
+  const queryClient = useQueryClient();
+
+  const handleStartPersistentAnalysis = async () => {
+    setIsStarting(true);
+    try {
+      console.log(`💰 Starting persistent financial analysis for deal ${dealId}...`);
+      
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/persistent/start`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Persistent financial analysis started:`, data);
+        
+        // CRITICAL FIX: Use removeQueries() for complete cache purging like other agents
+        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
+        
+        // Also invalidate for immediate UI refresh
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ Persistent financial analysis failed:`, errorData);
+      }
+    } catch (error) {
+      console.error(`❌ Error starting persistent financial analysis:`, error);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleStopPersistentAnalysis = async () => {
+    setIsStopping(true);
+    try {
+      console.log(`🛑 Stopping persistent financial analysis for deal ${dealId}...`);
+      
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/persistent/stop`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Persistent financial analysis stopped:`, data);
+        
+        // CRITICAL FIX: Use removeQueries() for complete cache purging like other agents
+        queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.removeQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.removeQueries({ queryKey: [`/api/analyses/${dealId}`] });
+        
+        // Also invalidate for immediate UI refresh
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/analyses/${dealId}`] });
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ Failed to stop persistent financial analysis:`, errorData);
+      }
+    } catch (error) {
+      console.error(`❌ Error stopping persistent financial analysis:`, error);
+    } finally {
+      setIsStopping(false);
+    }
+  };
+
+  // EXACTLY like Clinical button render logic
+  if (isAnalysisRunning) {
+    return (
+      <Button
+        onClick={handleStopPersistentAnalysis}
+        disabled={isStopping}
+        size="sm"
+        variant="destructive"
+        className="bg-red-600 hover:bg-red-700 text-white"
+      >
+        {isStopping ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Stopping...
+          </>
+        ) : (
+          <>
+            <Square className="h-4 w-4 mr-2" />
+            Stop Financial Analysis
+          </>
+        )}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      onClick={handleStartPersistentAnalysis}
+      disabled={isStarting}
+      size="sm"
+      className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+    >
+      {isStarting ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Starting...
+        </>
+      ) : (
+        <>
+          <PlayCircle className="h-4 w-4 mr-2" />
+          Run Financial Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
+// Comprehensive IP Analysis Button
+function ComprehensiveIPAnalysisButton({ dealId }: { dealId: number }) {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const { data: jobProgress } = useQuery({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
+  });
+
+  const { data: progressData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
+    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
+  });
+
+  const isAlreadyRunning = (progressData as any)?.isRunning || 
+    (jobProgress as any)?.jobs?.some((job: any) => 
+      job.jobType === 'comprehensive_ip_analysis' && job.status === 'processing'
+    );
+
+  const queryClient = useQueryClient();
+  
+  const comprehensiveAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      console.log('Starting comprehensive IP analysis for deal', dealId);
+      const response = await apiRequest(`/api/deals/${dealId}/ip-analysis/comprehensive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      console.log('✅ Comprehensive IP analysis started successfully');
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+    },
+    onError: (error) => {
+      console.error('❌ Error starting comprehensive IP analysis:', error);
+      setIsRunning(false);
+    }
+  });
+
+  const handleRunAnalysis = async () => {
+    setIsRunning(true);
+    console.log('Starting comprehensive IP analysis for deal', dealId);
+    
+    // Clear previous analysis data immediately to prevent stale data display
+    queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+    queryClient.removeQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+    queryClient.removeQueries({ queryKey: ['/api/analyses', dealId] });
+    
+    // Force clear all IP-related caches to ensure fresh data display
+    queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+    
+    try {
+      await comprehensiveAnalysisMutation.mutateAsync();
+      
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkForResults = async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/deals/${dealId}/ip-analysis/comprehensive/results?_t=${Date.now()}`, {
+            cache: 'no-cache'
+          });
+          const data = await response.json();
+          
+          console.log(`🔐 IP analysis attempt ${attempts}...`);
+          
+          if (data.success && data.results && data.results.ipAnswers && Object.keys(data.results.ipAnswers).length > 0) {
+            console.log('✅ IP analysis completed!');
+            
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/deals/${dealId}/agents/ip/results`]
+            });
+            queryClient.invalidateQueries({
+              queryKey: ['/api/analyses', dealId]
+            });
+            queryClient.invalidateQueries({
+              queryKey: [`/api/background-jobs/${dealId}`]
+            });
+            
+            setTimeout(() => {
+              setIsRunning(false);
+            }, 1000);
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for IP results:', error);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkForResults, 3000);
+        } else {
+          setIsRunning(false);
+        }
+      };
+      
+      setTimeout(checkForResults, 5000);
+      
+    } catch (error) {
+      console.error('Error starting IP analysis:', error);
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleRunAnalysis}
+      disabled={isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning}
+      size="sm"
+      className="bg-purple-600 hover:bg-purple-700 text-white border-purple-500"
+    >
+      {isRunning || comprehensiveAnalysisMutation.isPending || isAlreadyRunning ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          {isAlreadyRunning ? 'IP Analysis Running...' : isRunning ? 'IP Analysis Running...' : 'Starting Analysis...'}
+        </>
+      ) : (
+        <>
+          <Zap className="h-4 w-4 mr-2" />
+          Run IP Analysis
+        </>
+      )}
+    </Button>
+  );
+}
+
+// Commercial Questions Section Component  
+interface CommercialQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
+
+function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: CommercialQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
+
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  // Use comprehensive results if available, fallback to analysisData (SAME AS LEGAL)
+  const commercialData = comprehensiveResults?.analysis || analysisData || null;
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // Commercial questions structure matching the backend service
+  const COMMERCIAL_QUESTIONS = [
+    { id: 'competitive_1', question: 'Is the differentiation clearly articulated?', category: 'Competitive Analysis Decks' },
+    { id: 'competitive_2', question: 'Are comparison matrices based on price/features?', category: 'Competitive Analysis Decks' },
+    { id: 'competitive_3', question: 'Is switching cost vs. competitors assessed?', category: 'Competitive Analysis Decks' },
+    { id: 'pricing_1', question: 'What pricing logic is used (usage-based, tiered, per-seat)?', category: 'Pricing Models' },
+    { id: 'pricing_2', question: 'Are discount policies documented?', category: 'Pricing Models' },
+    { id: 'pricing_3', question: 'Is net revenue retention tracked?', category: 'Pricing Models' },
+    { id: 'sales_1', question: 'What are win/loss rates?', category: 'Sales Pipeline & CRM Data' },
+    { id: 'sales_2', question: 'What\'s the sales cycle per segment?', category: 'Sales Pipeline & CRM Data' },
+    { id: 'sales_3', question: 'Are conversion rates stable or improving?', category: 'Sales Pipeline & CRM Data' },
+    { id: 'customer_1', question: 'What share of revenue is concentrated on top 10 customers?', category: 'Customer Lists / Key Account Summaries' },
+    { id: 'customer_2', question: 'What is churn over last 12 months?', category: 'Customer Lists / Key Account Summaries' },
+    { id: 'customer_3', question: 'Are customer satisfaction/NPS tracked?', category: 'Customer Lists / Key Account Summaries' }
+  ];
+
+  const categorizedQuestions = COMMERCIAL_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    // FIXED: Use commercialData instead of comprehensiveResults directly (SAME AS LEGAL)
+    if (!commercialData?.commercialAnswers) return null;
+    return commercialData.commercialAnswers[questionId] || null;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Commercial Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} commercial documents across 4 categories with 12 detailed questions
+          </p>
+        </div>
+        <ComprehensiveCommercialAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
+            onClick={() => toggleCategory(category)}
+          >
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {questions && Array.isArray(questions) && questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
+
+                return (
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              {/* Main Finding - Clinical style */}
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
+                                <FormattedAnswer text={answer.answer} />
+                              </div>
+
+                              {/* Enhanced Commercial Assessment */}
+                              {answer.commercialAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-indigo-400 mb-2">Commercial Assessment</h5>
+                                  <FormattedAnswer text={answer.commercialAssessment} />
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
+                                          >
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {safeRender(quote.relevance, 'Medium')}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{safeRender(quote.text, 'No quote text available')}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
+                                  <ProfessionalFormattedContent content={answer.evidenceSummary} className="text-gray-300" variant="small" />
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-purple-400 text-xs mt-1">•</span>
+                                        {typeof finding === 'string' ? finding : 
+                                         typeof finding === 'object' ? JSON.stringify(finding, null, 2) :
+                                         String(finding)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-purple-400 border-purple-400">
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
+                                </Badge>
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No commercial analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}
+// HR Questions Section Component  
+interface HrQuestionsSectionProps {
+  dealId: number;
+  analysisData: any;
+  assignedDocuments: number;
+  documents: any[];
+  handleDocumentClick: (sourceName: string) => void;
+  quoteViewerOpen: boolean;
+  setQuoteViewerOpen: (open: boolean) => void;
+  selectedQuoteData: any;
+  setSelectedQuoteData: (data: any) => void;
+}
+
+function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Team Structure & Leadership"]));
+
+  const { data: comprehensiveResults } = useQuery({
+    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  const { data: hrProgress } = useQuery({
+    queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // HR questions structure grouped into fewer categories like Commercial agent
+  const HR_QUESTIONS = [
+    // Team Structure & Leadership (4 questions)
+    { id: 'hr_1', question: 'What is the current team size and organizational structure?', category: 'Team Structure & Leadership' },
+    { id: 'hr_2', question: 'Are there key person dependencies or single points of failure?', category: 'Team Structure & Leadership' },
+    { id: 'hr_3', question: 'What is the leadership experience and track record?', category: 'Team Structure & Leadership' },
+    { id: 'hr_4', question: 'Are there gaps in the leadership team?', category: 'Team Structure & Leadership' },
+    
+    // Employee Relations & Retention (4 questions)
+    { id: 'hr_5', question: 'What is the employee retention and turnover rate?', category: 'Employee Relations & Retention' },
+    { id: 'hr_6', question: 'Are compensation and equity structures competitive?', category: 'Employee Relations & Retention' },
+    { id: 'hr_7', question: 'What is the company culture and employee engagement?', category: 'Employee Relations & Retention' },
+    { id: 'hr_8', question: 'What are the talent acquisition and hiring strategies?', category: 'Employee Relations & Retention' },
+    
+    // HR Operations & Development (4 questions)
+    { id: 'hr_9', question: 'Are there documented HR policies and procedures?', category: 'HR Operations & Development' },
+    { id: 'hr_10', question: 'What performance management systems are in place?', category: 'HR Operations & Development' },
+    { id: 'hr_11', question: 'Are there skills development and training programs?', category: 'HR Operations & Development' },
+    { id: 'hr_12', question: 'What is the workforce diversity and inclusion status?', category: 'HR Operations & Development' }
+  ];
+
+  const categorizedQuestions = HR_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof HR_QUESTIONS>);
+
+  const getAnswerForQuestion = (questionId: string) => {
+    // FIXED: Use the correct data structure from working endpoint
+    if (!comprehensiveResults?.analysis?.questions) return null;
+    return comprehensiveResults.analysis.questions.find((q: any) => q.questionId === questionId) || null;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-orange-500/5 to-orange-600/5 border border-orange-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive HR Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} HR documents across 3 categories with 12 detailed questions
+          </p>
+        </div>
+        <ComprehensiveHrAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
+            onClick={() => toggleCategory(category)}
+          >
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {questions && Array.isArray(questions) && questions.map(question => {
+                const answer = getAnswerForQuestion(question.id);
+
+                return (
+                  <div key={question.id} className="p-4 border-b border-dark-lighter last:border-b-0">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          
+                          {answer ? (
+                            <div className="mt-3 space-y-3">
+                              {/* Main Analysis Response - Commercial style matching */}
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
+                                <ProfessionalFormattedContent content={answer.answer} className="text-gray-300" variant="small" />
+                              </div>
+
+                              {/* Enhanced HR Assessment - mimic Commercial's commercialAssessment */}
+                              <div className="bg-dark/30 rounded p-3">
+                                <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">
+                                  {answer.hrAssessment || 
+                                    `Based on HR document analysis, this finding indicates ${
+                                      answer.confidence > 0.8 ? 'strong evidence' : 
+                                      answer.confidence > 0.6 ? 'moderate evidence' : 'limited evidence'
+                                    } regarding team structure and organizational capabilities. ${
+                                      answer.confidence > 0.7 ? 'Recommended for further due diligence review.' : 'Requires additional investigation.'
+                                    }`
+                                  }
+                                </p>
+                              </div>
+
+                              {/* Document Quotes - mimic Commercial's sources */}
+                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 ? (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.sources.length})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.sources.map((source: string, index: number) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(source)}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${source}`}
+                                          >
+                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
+                                          </button>
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{answer.answer}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">📖 Document Analysis</h5>
+                                  <p className="text-gray-300 text-xs">Analysis based on comprehensive review of HR documentation and organizational records.</p>
+                                </div>
+                              )}
+
+                              {/* Key HR Findings - mimic Commercial's keyFindings */}
+                              <div className="bg-dark/30 rounded p-3">
+                                <h5 className="text-xs font-medium text-orange-400 mb-2">🔍 Key HR Findings</h5>
+                                <ul className="space-y-1">
+                                  <li className="text-gray-300 text-xs flex items-start gap-2">
+                                    <span className="text-orange-400 text-xs mt-1">•</span>
+                                    Team composition: {answer.answer.includes('contractor') || answer.answer.includes('independent') ? 'Mixed employee-contractor model' : 
+                                                     answer.answer.includes('full-time') ? 'Full-time employee focus' : 'Organizational structure identified'}
+                                  </li>
+                                  <li className="text-gray-300 text-xs flex items-start gap-2">
+                                    <span className="text-orange-400 text-xs mt-1">•</span>
+                                    Analysis confidence: {answer.confidence > 0.8 ? 'High reliability' : answer.confidence > 0.6 ? 'Moderate reliability' : 'Requires verification'} ({Math.round((answer.confidence || 0) * 100)}%)
+                                  </li>
+                                </ul>
+                              </div>
+
+                              {/* HR Recommendations - mimic Commercial's recommendations */}
+                              <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                <h5 className="text-xs font-medium text-red-400 mb-2">💡 HR Recommendations</h5>
+                                <ul className="space-y-1">
+                                  <li className="text-gray-300 text-xs flex items-start gap-2">
+                                    <span className="text-red-400 text-xs mt-1">⚠</span>
+                                    {answer.confidence < 0.7 ? 'Conduct additional HR documentation review' : 'Standard HR due diligence recommended'}
+                                  </li>
+                                  <li className="text-gray-300 text-xs flex items-start gap-2">
+                                    <span className="text-red-400 text-xs mt-1">⚠</span>
+                                    Verify organizational structure and key personnel roles
+                                  </li>
+                                </ul>
+                              </div>
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-orange-400 border-orange-400">
+                                  Confidence: {normalizeConfidence(answer.confidence)}%
+                                </Badge>
+                                <Badge variant="outline" className="text-gray-400 border-gray-400">
+                                  HR Analysis
+                                </Badge>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No HR analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}
+
+// IP Questions Section Component - Structured questions with Clinical-style display
+function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Portfolio"]));
+
+  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Financial agent
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
+    queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`],
+    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+    staleTime: 0, // Always treat as stale to force fresh data like Financial
+    gcTime: 0, // Don't cache results like Financial
+  });
+
+  // Force refetch on component mount to ensure fresh data like Financial
+  useEffect(() => {
+    refetchComprehensive();
+  }, [refetchComprehensive]);
+
+  // Use comprehensive results if available, fallback to analysisData like Financial
+  const ipData = comprehensiveResults?.results || analysisData || null;
+
+  console.log('🔒 IP Analysis Available:', !!ipData);
+  console.log('🔒 Comprehensive Results Available:', !!comprehensiveResults?.results);  
+  console.log('🔒 IP Data from Comprehensive:', !!ipData?.ipAnswers);
+  console.log('🔒 IP Answers Keys:', ipData?.ipAnswers ? Object.keys(ipData.ipAnswers) : 'No answers');
+  console.log('🔒 DEBUGGING: Full ipData structure:', JSON.stringify(ipData, null, 2));
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // IP questions structure EXACTLY matching the backend service - comprehensiveIpAnalysisService.ts
+  const IP_QUESTIONS = [
+    // Patent Portfolio - 3 questions 
+    { id: "patents_1", question: "What patents are owned or pending?", category: "Patent Portfolio" },
+    { id: "patents_2", question: "Are core technologies protected?", category: "Patent Portfolio" },
+    { id: "patents_3", question: "What is the patent landscape analysis?", category: "Patent Portfolio" },
+    
+    // Trademarks & Branding - 2 questions
+    { id: "trademarks_1", question: "Are trademarks registered and protected?", category: "Trademarks & Branding" },
+    { id: "trademarks_2", question: "Is brand identity legally secure?", category: "Trademarks & Branding" },
+    
+    // Technology Licensing - 2 questions  
+    { id: "licensing_1", question: "What licensing agreements are in place?", category: "Technology Licensing" },
+    { id: "licensing_2", question: "Are there any IP infringement risks?", category: "Technology Licensing" },
+    
+    // IP Strategy & Valuation - 2 questions
+    { id: "strategy_1", question: "What is the IP strategy and roadmap?", category: "IP Strategy & Valuation" },
+    { id: "strategy_2", question: "How is IP valued and monetized?", category: "IP Strategy & Valuation" },
+    
+    // Trade Secrets & Confidentiality - 2 questions
+    { id: "secrets_1", question: "What trade secrets are protected?", category: "Trade Secrets & Confidentiality" },
+    { id: "secrets_2", question: "Are confidentiality measures adequate?", category: "Trade Secrets & Confidentiality" },
+    
+    // Competitive IP Position - 1 question
+    { id: "competitive_1", question: "What is the competitive IP landscape?", category: "Competitive IP Position" }
+  ];
+
+  const categorizedQuestions = IP_QUESTIONS.reduce((acc, question) => {
+    if (!acc[question.category]) {
+      acc[question.category] = [];
+    }
+    acc[question.category].push(question);
+    return acc;
+  }, {} as Record<string, typeof IP_QUESTIONS>);
+
+  // Get findings and recommendations from IP analysis - FIXED: Backend returns them in results, not analysis
+  const findings = (comprehensiveResults as any)?.results?.findings || [];
+  const recommendations = (comprehensiveResults as any)?.results?.recommendations || [];
+
+  const getAnswerForQuestion = (questionId: string) => {
+    // CRITICAL FIX: Backend returns ipAnswers in comprehensiveResults.results.ipAnswers (line 5089 in server/routes.ts)
+    console.log(`🔍 Looking for IP answer for question: ${questionId}`);
+    console.log(`🔍 Comprehensive results structure:`, comprehensiveResults ? Object.keys(comprehensiveResults) : 'No comprehensive results');
+    console.log(`🔍 Results structure:`, comprehensiveResults?.results ? Object.keys(comprehensiveResults.results) : 'No results');
+    console.log(`🔍 IP Answers available:`, !!comprehensiveResults?.results?.ipAnswers);
+    console.log(`🔍 IP Answers keys:`, comprehensiveResults?.results?.ipAnswers ? Object.keys(comprehensiveResults.results.ipAnswers) : 'No ipAnswers');
+    
+    // EXACT MATCH: Backend returns ipAnswers at comprehensiveResults.results.ipAnswers (server/routes.ts line 5089)
+    if (comprehensiveResults?.results?.ipAnswers && comprehensiveResults.results.ipAnswers[questionId]) {
+      console.log(`✅ Found IP answer for ${questionId} in comprehensiveResults.results.ipAnswers`);
+      return comprehensiveResults.results.ipAnswers[questionId];
+    }
+    
+    // Fallback: Check if ipData has ipAnswers directly
+    if (ipData?.ipAnswers && ipData.ipAnswers[questionId]) {
+      console.log(`✅ Found IP answer for ${questionId} in ipData.ipAnswers fallback`);
+      return ipData.ipAnswers[questionId];
+    }
+    
+    console.log(`❌ No IP answer found for ${questionId} - checked comprehensiveResults.results.ipAnswers and ipData.ipAnswers`);
+    return null;
+
+    // Fallback: Try to map findings to questions based on content similarity
+    if (findings.length > 0) {
+      // Find the most relevant finding for this question
+      const relevantFinding = findings.find((finding: any) => {
+        const questionKeywords = {
+          'patents_1': ['patent', 'patent application', 'intellectual property', 'patent pending', 'patent portfolio'],
+          'patents_2': ['technology protection', 'core technology', 'proprietary technology', 'patent protection'],
+          'patents_3': ['patent landscape', 'prior art', 'patent search', 'freedom to operate'],
+          'trademarks_1': ['trademark', 'service mark', 'brand protection', 'trademark registration'],
+          'trademarks_2': ['brand identity', 'brand protection', 'logo protection', 'brand security'],
+          'licensing_1': ['licensing agreement', 'technology license', 'ip license', 'licensing deal'],
+          'licensing_2': ['ip infringement', 'patent infringement', 'trademark infringement', 'ip risk'],
+          'strategy_1': ['ip strategy', 'intellectual property strategy', 'ip roadmap', 'ip development', 'patent strategy'],
+          'strategy_2': ['ip valuation', 'ip value', 'ip monetization', 'intellectual property value', 'patent value'],
+          'secrets_1': ['trade secret', 'confidential information', 'proprietary information', 'know-how', 'confidentiality'],
+          'secrets_2': ['confidentiality agreement', 'nda', 'non-disclosure', 'information security', 'data protection'],
+          'competitive_1': ['competitive landscape', 'competitor patents', 'market analysis', 'ip competition', 'patent analysis']
+        };
+        
+        const keywords = questionKeywords[questionId as keyof typeof questionKeywords] || [];
+        return keywords.some((keyword: string) => 
+          finding.finding?.toLowerCase().includes(keyword.toLowerCase())
+        );
+      });
+
+      if (relevantFinding) {
+        return {
+          answer: relevantFinding.finding,
+          confidence: Math.round((relevantFinding.confidence || 0.5) * 100),
+          sources: relevantFinding.sources || [],
+          category: relevantFinding.category || 'IP Analysis',
+          severity: typeof relevantFinding.severity === 'string' ? relevantFinding.severity : 
+                   typeof relevantFinding.severity === 'object' ? JSON.stringify(relevantFinding.severity, null, 2) :
+                   String(relevantFinding.severity || 'Medium')
+        };
+      }
+      
+      // Fallback: If no exact match, return the first finding with some basic relevance
+      if (findings.length > 0 && questionId.startsWith('patents_')) {
+        const patentFinding = findings.find((finding: any) => 
+          finding.finding?.toLowerCase().includes('patent') ||
+          finding.finding?.toLowerCase().includes('IP') ||
+          finding.finding?.toLowerCase().includes('intellectual property')
+        );
+        
+        if (patentFinding) {
+          return {
+            answer: patentFinding.finding,
+            confidence: Math.round((patentFinding.confidence || 0.5) * 100),
+            sources: patentFinding.sources || [],
+            category: patentFinding.category || 'IP Analysis',
+            severity: typeof patentFinding.severity === 'string' ? patentFinding.severity : 
+                     typeof patentFinding.severity === 'object' ? JSON.stringify(patentFinding.severity, null, 2) :
+                     String(patentFinding.severity || 'Medium')
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Comprehensive IP Analysis</h3>
+          <p className="text-gray-300 text-sm">
+            Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
+          </p>
+        </div>
+        <ComprehensiveIPAnalysisButton dealId={dealId} />
+      </div>
+
+      {Object.entries(categorizedQuestions).map(([category, questions]) => (
+        <div key={category} className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div 
+            className="flex items-center justify-between p-4 bg-dark-light hover:bg-dark cursor-pointer transition-colors"
+            onClick={() => toggleCategory(category)}
+          >
+            <h4 className="font-medium text-white">{category}</h4>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {questions && Array.isArray(questions) ? questions.length : 0} questions
+              </Badge>
+              {expandedCategories.has(category) ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {expandedCategories.has(category) && (
+            <div className="border-t border-dark-lighter">
+              {questions && Array.isArray(questions) && questions.map((question) => {
+                const answer = getAnswerForQuestion(question.id);
+                const hasAnswer = answer !== null;
+                
+                return (
+                  <div key={question.id} className="border border-dark-lighter/50 rounded-lg">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          hasAnswer ? 'bg-green-400' : 'bg-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          
+                          {hasAnswer ? (
+                            <div className="mt-3 space-y-3">
+                              {/* Main Answer */}
+                              <div className="bg-dark/50 rounded p-3">
+                                <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
+                                <p className="text-gray-300 text-sm leading-relaxed">
+                                  {typeof answer.answer === 'string' ? answer.answer : 
+                                   typeof answer.answer === 'object' ? JSON.stringify(answer.answer, null, 2) :
+                                   String(answer.answer || 'No analysis available')}
+                                </p>
+                              </div>
+
+                              {/* Enhanced IP Assessment */}
+                              {answer.ipAssessment && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">IP Assessment</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">
+                                    {typeof answer.ipAssessment === 'string' ? answer.ipAssessment : 
+                                     typeof answer.ipAssessment === 'object' ? JSON.stringify(answer.ipAssessment, null, 2) :
+                                     String(answer.ipAssessment || 'No assessment available')}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Document Quotes */}
+                              {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
+                                    📖 Document Quotes ({answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0})
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote, index) => (
+                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <button
+                                            onClick={() => handleDocumentClick(safeRender(quote.document, 'Unknown Document'))}
+                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                            title={`View document: ${safeRender(quote.document, 'Unknown Document')}`}
+                                          >
+                                            📄 {(() => { const docName = safeRender(quote.document, 'Unknown Document'); return docName.length > 25 ? `${docName.substring(0, 25)}...` : docName; })()}
+                                          </button>
+                                          {quote.relevance && (
+                                            <Badge variant="outline" className="text-xs text-gray-400 border-gray-400">
+                                              {safeRender(quote.relevance, 'Medium')}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
+                                          "{safeRender(quote.text, 'No quote text available')}"
+                                        </blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evidence Summary */}
+                              {answer.evidenceSummary && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Evidence Summary</h5>
+                                  <p className="text-gray-300 text-sm leading-relaxed">
+                                    {typeof answer.evidenceSummary === 'string' ? answer.evidenceSummary : 
+                                     typeof answer.evidenceSummary === 'object' ? JSON.stringify(answer.evidenceSummary, null, 2) :
+                                     String(answer.evidenceSummary || 'No evidence summary available')}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Key Findings */}
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-purple-400 mb-2">Key Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-purple-400 text-xs mt-1">•</span>
+                                        {typeof finding === 'string' ? finding : 
+                                         typeof finding === 'object' ? JSON.stringify(finding, null, 2) :
+                                         String(finding || 'No finding available')}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Recommendations */}
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec, index) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {typeof rec === 'string' ? rec : 
+                                         typeof rec === 'object' ? JSON.stringify(rec, null, 2) :
+                                         String(rec || 'No recommendation available')}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-purple-400 border-purple-400">
+                                  Confidence: {normalizeConfidence(answer.confidence || 0.8)}%
+                                </Badge>
+                                {answer.quotes && Array.isArray(answer.quotes) && answer.quotes.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-yellow-400 border-yellow-400 cursor-pointer hover:bg-yellow-400/10"
+                                    onClick={() => {
+                                      setSelectedQuoteData({
+                                        quotes: answer.quotes && Array.isArray(answer.quotes) && answer.quotes.map((quote: string) => ({
+                                          text: quote,
+                                          documentName: answer.sources?.[0] || 'Unknown Document',
+                                          confidence: answer.confidence || 0.8
+                                        })),
+                                        sources: [],
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0} quote{answer.quotes && Array.isArray(answer.quotes) ? answer.quotes.length : 0 > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: [answer.answer || 'No specific section identified'],
+                                        extractedText: answer.answer
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources && Array.isArray(answer.sources) ? answer.sources.length : 0} source{answer.sources && Array.isArray(answer.sources) && answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-700">
+                              <p className="text-gray-400 text-xs">No IP analysis available for this question yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Additional Recommendations Section */}
+      {recommendations && Array.isArray(recommendations) && recommendations.length > 0 && (
+        <div className="border border-dark-lighter rounded-lg overflow-hidden">
+          <div className="p-4 bg-dark-light">
+            <h4 className="font-medium text-white">Additional IP Recommendations ({recommendations && Array.isArray(recommendations) ? recommendations.length : 0})</h4>
+          </div>
+          <div className="border-t border-dark-lighter p-4">
+            <div className="space-y-3">
+              {recommendations.map((rec: any, index: number) => (
+                <div key={index} className="bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-blue-400 font-bold text-xs mt-1">•</span>
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      {safeRender(rec.content || rec.recommendation || rec, 'No recommendation available')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <DocumentQuoteViewer
+        isOpen={quoteViewerOpen}
+        onClose={() => setQuoteViewerOpen(false)}
+        quotes={selectedQuoteData.quotes}
+        sources={selectedQuoteData.sources}
+        title={selectedQuoteData.title}
+        documents={documents}
+      />
+    </div>
+  );
+}

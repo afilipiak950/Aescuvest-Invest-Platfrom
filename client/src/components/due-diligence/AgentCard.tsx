@@ -16,8 +16,6 @@ import {
   Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { UnifiedAgentIcon } from '../unified/UnifiedAgentIcon';
-import { UnifiedAgentStatus } from '../unified/UnifiedAgentStatus';
 
 interface FindingItem {
   id: number;
@@ -126,9 +124,19 @@ export default function AgentCard({ analysis, isLoading }: AgentCardProps) {
     );
   }
 
-  // Unified agent icon using configuration system
   const getAgentIcon = (agentType: string) => {
-    return <UnifiedAgentIcon agentType={agentType} size={20} />;
+    switch (agentType.toLowerCase()) {
+      case 'legal':
+        return <Shield className="w-5 h-5 text-blue-400" />;
+      case 'finance':
+        return <DollarSign className="w-5 h-5 text-green-400" />;
+      case 'medical':
+        return <Activity className="w-5 h-5 text-red-400" />;
+      case 'commercial':
+        return <TrendingUp className="w-5 h-5 text-purple-400" />;
+      default:
+        return <Brain className="w-5 h-5 text-gray-400" />;
+    }
   };
 
   return (
@@ -139,15 +147,13 @@ export default function AgentCard({ analysis, isLoading }: AgentCardProps) {
             {getAgentIcon(analysis.agentType)}
             {analysis.agentType} Analysis
           </CardTitle>
-          <UnifiedAgentStatus 
-            agentType={analysis.agentType} 
-            status={analysis.status} 
-            progress={analysis.progress}
-            showIcon={false}
-            size="sm"
-          />
+          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+            {analysis.status} ({analysis.progress}%)
+          </Badge>
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-400">
+          <span>Progress: {analysis.progress}%</span>
+          <Progress value={analysis.progress} className="w-24 h-2" />
           <span>Findings: {analysis.findings.length} items</span>
         </div>
       </CardHeader>
