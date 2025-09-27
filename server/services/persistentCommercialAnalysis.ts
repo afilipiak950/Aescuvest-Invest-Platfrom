@@ -324,6 +324,13 @@ export class PersistentCommercialAnalysisService {
 
     } catch (error) {
       console.error(`❌ Persistent commercial analysis failed:`, error);
+      
+      // CRITICAL FIX: Mark job as failed when OpenAI quota exceeded
+      if (error.message && (error.message.includes('429') || error.message.includes('quota'))) {
+        console.log(`🚫 Commercial analysis failed due to OpenAI quota limits`);
+        await storage.failBackgroundJob(jobId, `OpenAI quota exceeded: ${error.message}`);
+      }
+      
       throw error;
     }
   }

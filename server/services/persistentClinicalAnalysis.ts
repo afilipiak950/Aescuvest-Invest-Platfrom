@@ -249,6 +249,13 @@ export class PersistentClinicalAnalysisService {
 
     } catch (error) {
       console.error(`❌ Persistent clinical analysis failed:`, error);
+      
+      // CRITICAL FIX: Mark job as failed when OpenAI quota exceeded
+      if (error.message && (error.message.includes('429') || error.message.includes('quota'))) {
+        console.log(`🚫 Clinical analysis failed due to OpenAI quota limits`);
+        await storage.failBackgroundJob(jobId, `OpenAI quota exceeded: ${error.message}`);
+      }
+      
       throw error;
     }
   }
