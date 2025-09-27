@@ -4,13 +4,13 @@ import { agentAnalyses } from '@shared/schema';
 
 // Define the types of due diligence agents
 export type AgentType = 
-  | 'Clinical'
-  | 'Legal'
-  | 'Commercial'
-  | 'HR'
-  | 'Financial'
-  | 'IP'
-  | 'Research';
+  | 'clinical'
+  | 'legal'
+  | 'commercial'
+  | 'hr'
+  | 'financial'
+  | 'ip'
+  | 'research';
 
 // Map agent types to their specialties and focus areas
 const agentSpecialties: Record<AgentType, { 
@@ -18,7 +18,7 @@ const agentSpecialties: Record<AgentType, {
   focusAreas: string[],
   expectedOutput: string 
 }> = {
-  Clinical: {
+  clinical: {
     specialty: "Clinical and regulatory assessment",
     focusAreas: [
       "Clinical trial design and results",
@@ -29,7 +29,7 @@ const agentSpecialties: Record<AgentType, {
     ],
     expectedOutput: "Evaluation of clinical evidence, regulatory risks, and pathway to approval"
   },
-  Legal: {
+  legal: {
     specialty: "Legal structure and risk assessment",
     focusAreas: [
       "Cap table structure and cleanliness",
@@ -40,7 +40,7 @@ const agentSpecialties: Record<AgentType, {
     ],
     expectedOutput: "Analysis of legal risks, governance issues, and structural concerns"
   },
-  Commercial: {
+  commercial: {
     specialty: "Business model and market assessment",
     focusAreas: [
       "Business model sustainability",
@@ -52,7 +52,7 @@ const agentSpecialties: Record<AgentType, {
     ],
     expectedOutput: "Evaluation of commercial viability, scalability, and market positioning"
   },
-  HR: {
+  hr: {
     specialty: "Team and organizational assessment",
     focusAreas: [
       "Founder and management team background",
@@ -64,7 +64,7 @@ const agentSpecialties: Record<AgentType, {
     ],
     expectedOutput: "Analysis of team strengths, retention risks, and organizational structure"
   },
-  Financial: {
+  financial: {
     specialty: "Financial assessment",
     focusAreas: [
       "Financial statements and projections",
@@ -76,7 +76,7 @@ const agentSpecialties: Record<AgentType, {
     ],
     expectedOutput: "Evaluation of financial health, forecasts, and investment risks"
   },
-  IP: {
+  ip: {
     specialty: "Intellectual property assessment",
     focusAreas: [
       "Patent portfolio and strategy",
@@ -88,7 +88,7 @@ const agentSpecialties: Record<AgentType, {
     ],
     expectedOutput: "Analysis of IP strength, protection strategy, and competitive moat"
   },
-  Research: {
+  research: {
     specialty: "Market and industry research",
     focusAreas: [
       "Industry trends and dynamics",
@@ -178,7 +178,7 @@ export async function createAgentAnalysis(
   const analysisData: typeof agentAnalyses.$inferInsert = {
     dealId,
     agentType,
-    status: "In Progress",
+    status: "processing",
     findings: analysisResults.findings,
     recommendations: analysisResults.recommendations
   };
@@ -193,7 +193,7 @@ export async function createAgentAnalysis(
 export async function updateAnalysisProgress(
   analysisId: number,
   progress: number,
-  status: "In Progress" | "Complete" | "Waiting" = "In Progress"
+  status: "processing" | "completed" | "waiting" = "processing"
 ): Promise<void> {
   await storage.updateAgentAnalysis(analysisId, { progress, status });
 }
@@ -203,7 +203,7 @@ export async function updateAnalysisProgress(
  */
 export async function generateDueDiligenceReport(
   dealId: number,
-  includeAgentTypes: AgentType[] = ['Clinical', 'Legal', 'Commercial', 'Financial', 'IP']
+  includeAgentTypes: AgentType[] = ['clinical', 'legal', 'commercial', 'financial', 'ip']
 ): Promise<{
   executiveSummary: string;
   keyRisks: string[];
@@ -214,7 +214,7 @@ export async function generateDueDiligenceReport(
   // Fetch all completed analyses for this deal
   const analyses = await storage.getAnalysesByDealId(dealId);
   const completedAnalyses = analyses.filter(analysis => 
-    analysis.status === "Complete" && 
+    analysis.status === "completed" && 
     includeAgentTypes.includes(analysis.agentType as AgentType)
   );
 
