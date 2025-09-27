@@ -1284,5 +1284,13 @@ app.use((req, res, next) => {
     persistentCommercialAnalysisService.initialize().catch(err => {
       console.error('❌ Failed to initialize persistent commercial analysis:', err);
     });
+    
+    // Initialize Unified Agent Questions
+    console.log('🎯 Initializing Unified Agent Questions...');
+    import('./utils/initializeUnifiedQuestions').then(({ initializeUnifiedQuestions }) => {
+      initializeUnifiedQuestions().catch(err => {
+        console.error('❌ Failed to initialize unified agent questions:', err);
+      });
+    });
   });
 })();
