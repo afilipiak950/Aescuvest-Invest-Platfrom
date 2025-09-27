@@ -146,6 +146,14 @@ export class PersistentHRAnalysisService {
       // Check if analysis is FULLY completed (all questions answered)
       const existingAnalysis = await storage.getAgentAnalysis(dealId, 'hr');
       const expectedQuestions = this.getHRQuestions();
+      
+      // CRITICAL FIX: Add null check to prevent "Cannot read properties of undefined" error
+      if (!expectedQuestions || !Array.isArray(expectedQuestions)) {
+        console.log(`⚠️ HR questions not loaded properly, forcing fresh analysis for deal ${dealId}`);
+        await this.processHRAnalysis(dealId, jobId);
+        return;
+      }
+      
       const answeredQuestions = existingAnalysis?.hr_answers ? Object.keys(existingAnalysis.hr_answers).length : 0;
       
       if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
