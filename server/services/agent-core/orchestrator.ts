@@ -21,7 +21,7 @@ import {
   selfCheckAnswer,
   getAgentSchema 
 } from "./validator";
-import { websocketManager } from "../../websocketManager";
+import { websocketManager } from "../websocketManager";
 import { v4 as uuidv4 } from "uuid";
 
 export interface OrchestratorOptions {
