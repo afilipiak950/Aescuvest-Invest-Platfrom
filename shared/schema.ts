@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json, bigint, vector, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, numeric, boolean, timestamp, json, bigint, vector, real, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1162,3 +1162,163 @@ export const insertAiQueryCacheSchema = createInsertSchema(aiQueryCache).omit({
 
 export type AiQueryCache = typeof aiQueryCache.$inferSelect;
 export type InsertAiQueryCache = z.infer<typeof insertAiQueryCacheSchema>;
+
+// ===== UNIFIED AGENT SYSTEM - All agents use identical structure =====
+
+// Unified Agent Jobs - tracks processing jobs for any agent type
+export const unifiedAgentJobs = pgTable("unified_agent_jobs", {
+  id: serial("id").primaryKey(),
+  jobKey: text("job_key").notNull().unique(), // Format: "{dealId}:{agentType}:{scope}"
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  agentType: text("agent_type").notNull(), // Validated at API layer
+  status: text("status").notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
+  progress: integer("progress").notNull().default(0), // 0-100 percentage
+  processedDocuments: integer("processed_documents").notNull().default(0),
+  totalDocuments: integer("total_documents").notNull().default(0),
+  currentDocument: text("current_document"), // Current document being processed
+  currentStep: text("current_step"), // Current processing step
+  error: text("error"), // Error message if failed
+  result: json("result"), // Final result data
+  metadata: json("metadata"), // Additional job metadata
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  dealAgentIdx: index("unified_agent_jobs_deal_agent_idx").on(table.dealId, table.agentType),
+  statusIdx: index("unified_agent_jobs_status_idx").on(table.status),
+}));
+
+export const insertUnifiedAgentJobSchema = createInsertSchema(unifiedAgentJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UnifiedAgentJob = typeof unifiedAgentJobs.$inferSelect;
+export type InsertUnifiedAgentJob = z.infer<typeof insertUnifiedAgentJobSchema>;
+
+// Unified Agent Findings - standardized finding structure for all agents
+export const unifiedAgentFindings = pgTable("unified_agent_findings", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  agentType: text("agent_type").notNull(), // Validated at API layer
+  type: text("type").notNull(), // 'Positive', 'Negative', 'Warning', 'Info'
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  confidence: integer("confidence").notNull().default(75), // 0-100 confidence score
+  evidence: json("evidence").$type<Array<{
+    quote: string;
+    documentId: number;
+    documentName?: string;
+    page?: number;
+    snippet?: string;
+  }>>().default([]),
+  category: text("category"), // Agent-specific category
+  priority: text("priority").notNull().default("medium"), // 'low', 'medium', 'high', 'critical'
+  impact: text("impact"), // Business impact description
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  dealAgentIdx: index("unified_agent_findings_deal_agent_idx").on(table.dealId, table.agentType),
+  typeIdx: index("unified_agent_findings_type_idx").on(table.type),
+  priorityIdx: index("unified_agent_findings_priority_idx").on(table.priority),
+}));
+
+export const insertUnifiedAgentFindingSchema = createInsertSchema(unifiedAgentFindings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type UnifiedAgentFinding = typeof unifiedAgentFindings.$inferSelect;
+export type InsertUnifiedAgentFinding = z.infer<typeof insertUnifiedAgentFindingSchema>;
+
+// Unified Agent Analysis - replaces all agent-specific analysis tables
+export const unifiedAgentAnalyses = pgTable("unified_agent_analyses", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  agentType: text("agent_type").notNull(), // Validated at API layer
+  status: text("status").notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
+  progress: integer("progress").notNull().default(0), // 0-100 percentage
+  
+  // Universal question-answer structure (replaces agent-specific answer fields)
+  answers: json("answers").$type<Record<string, {
+    question: string;
+    answer: string;
+    confidence: number; // 0-100
+    sources: string[];
+    evidence?: Array<{
+      quote: string;
+      documentId: number;
+      documentName?: string;
+      page?: number;
+    }>;
+    metadata?: Record<string, any>;
+  }>>().default({}),
+  
+  // Standardized findings and recommendations
+  findings: json("findings").$type<Array<{
+    id: string;
+    type: 'Positive' | 'Negative' | 'Warning' | 'Info';
+    title: string;
+    description: string;
+    confidence: number;
+    evidence: Array<{
+      quote: string;
+      documentId: number;
+      documentName?: string;
+      page?: number;
+    }>;
+    priority?: 'low' | 'medium' | 'high' | 'critical';
+    category?: string;
+  }>>().default([]),
+  
+  recommendations: json("recommendations").$type<Array<{
+    id: string;
+    title: string;
+    description: string;
+    priority: 'low' | 'medium' | 'high' | 'critical';
+    category: string;
+    impact: string;
+    actionRequired?: boolean;
+  }>>().default([]),
+  
+  // Analysis metadata
+  documentSources: json("document_sources").$type<string[]>().default([]),
+  processedDocumentCount: integer("processed_document_count").notNull().default(0),
+  totalQuestions: integer("total_questions").notNull().default(0),
+  averageConfidence: integer("average_confidence").notNull().default(0), // 0-100
+  
+  // Analysis summary
+  executiveSummary: text("executive_summary"),
+  keyRisks: json("key_risks").$type<string[]>().default([]),
+  keyOpportunities: json("key_opportunities").$type<string[]>().default([]),
+  
+  // Processing metadata
+  analysisStartedAt: timestamp("analysis_started_at"),
+  analysisCompletedAt: timestamp("analysis_completed_at"),
+  lastProcessedDocumentId: integer("last_processed_document_id"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  // CRITICAL: Unique constraint prevents duplicate analyses for same deal+agent
+  dealAgentUnique: uniqueIndex("unified_agent_analyses_deal_agent_unique").on(table.dealId, table.agentType),
+  statusIdx: index("unified_agent_analyses_status_idx").on(table.status),
+  progressIdx: index("unified_agent_analyses_progress_idx").on(table.progress),
+}));
+
+export const insertUnifiedAgentAnalysisSchema = createInsertSchema(unifiedAgentAnalyses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UnifiedAgentAnalysis = typeof unifiedAgentAnalyses.$inferSelect;
+export type InsertUnifiedAgentAnalysis = z.infer<typeof insertUnifiedAgentAnalysisSchema>;
+
+// Validation schemas for unified agent system
+export const agentTypeSchema = z.enum(['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research']);
+export const findingTypeSchema = z.enum(['Positive', 'Negative', 'Warning', 'Info']);
+export const prioritySchema = z.enum(['low', 'medium', 'high', 'critical']);
+export const jobStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
+export const analysisStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
