@@ -4,9 +4,8 @@
  */
 
 import { storage } from '../storage';
-
-const AGENT_TYPES = ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'] as const;
-type AgentType = typeof AGENT_TYPES[number];
+import { universalAgentEngine } from './universalAgentEngine';
+import { AGENT_TYPES, type AgentType } from '../../shared/agents';
 
 export class PersistentUnifiedAgentService {
   
@@ -20,7 +19,7 @@ export class PersistentUnifiedAgentService {
       for (const agentType of AGENT_TYPES) {
         try {
           // Get latest analysis for this agent type
-          const analyses = await storage.getAnalysesByDeal(dealId);
+          const analyses = await storage.getAnalysesByDealId(dealId);
           const agentAnalyses = analyses.filter(a => 
             a.agentType?.toLowerCase() === agentType.toLowerCase()
           );
@@ -101,7 +100,7 @@ export class PersistentUnifiedAgentService {
    */
   async getAgentAnalysis(dealId: number, agentType: string) {
     try {
-      const analyses = await storage.getAnalysesByDeal(dealId);
+      const analyses = await storage.getAnalysesByDealId(dealId);
       const agentAnalyses = analyses.filter(a => 
         a.agentType?.toLowerCase() === agentType.toLowerCase()
       );
@@ -135,20 +134,22 @@ export class PersistentUnifiedAgentService {
   }
   
   /**
-   * Start analysis for a specific agent
+   * Start analysis for a specific agent using Universal Agent Engine
    */
   async startAgentAnalysis(dealId: number, agentType: string, forceRerun: boolean = false) {
     try {
-      // For now, return a placeholder response since we're using the existing analysis system
-      // In a full implementation, this would trigger the unified analysis service
-      console.log(`Starting unified ${agentType} analysis for deal ${dealId} (forceRerun: ${forceRerun})`);
+      console.log(`🚀 Starting Universal Agent Engine ${agentType} analysis for deal ${dealId} (forceRerun: ${forceRerun})`);
+      
+      // Delegate to Universal Agent Engine
+      const jobKey = await universalAgentEngine.startAgentAnalysis(dealId, agentType, forceRerun);
       
       return {
         success: true,
         message: `${agentType} analysis started for deal ${dealId}`,
         dealId,
         agentType,
-        forceRerun
+        forceRerun,
+        jobKey
       };
     } catch (error) {
       console.error(`Error starting ${agentType} analysis:`, error);
