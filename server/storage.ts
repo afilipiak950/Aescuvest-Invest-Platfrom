@@ -16,7 +16,11 @@ import {
   comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult,
-  researchJobs, ResearchJob, InsertResearchJob
+  researchJobs, ResearchJob, InsertResearchJob,
+  // Unified agent system imports
+  unifiedAgentJobs, UnifiedAgentJob, InsertUnifiedAgentJob,
+  unifiedAgentAnalyses, UnifiedAgentAnalysis, InsertUnifiedAgentAnalysis,
+  unifiedAgentFindings, UnifiedAgentFinding, InsertUnifiedAgentFinding
 } from "@shared/schema";
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
@@ -171,6 +175,27 @@ export interface IStorage {
   getResearchJobById(id: number): Promise<ResearchJob | undefined>;
   getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined>;
   getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined>;
+  
+  // ===== UNIFIED AGENT SYSTEM METHODS =====
+  
+  // Unified Agent Job methods - tracks processing jobs for any agent type
+  startAgentJob(dealId: number, agentType: string, scope?: string): Promise<UnifiedAgentJob>;
+  getJobByKey(jobKey: string): Promise<UnifiedAgentJob | undefined>;
+  updateJob(jobKey: string, updates: Partial<UnifiedAgentJob>): Promise<UnifiedAgentJob | undefined>;
+  listJobs(dealId: number, agentType?: string): Promise<UnifiedAgentJob[]>;
+  completeJob(jobKey: string, result?: any): Promise<UnifiedAgentJob | undefined>;
+  failJob(jobKey: string, error: string): Promise<UnifiedAgentJob | undefined>;
+  
+  // Unified Agent Analysis methods - replaces agent-specific analysis tables
+  getUnifiedAnalysis(dealId: number, agentType: string): Promise<UnifiedAgentAnalysis | undefined>;
+  upsertUnifiedAnalysis(dealId: number, agentType: string, data: Partial<UnifiedAgentAnalysis>): Promise<UnifiedAgentAnalysis>;
+  setUnifiedAnalysisStatus(dealId: number, agentType: string, status: string, progress?: number): Promise<UnifiedAgentAnalysis | undefined>;
+  
+  // Unified Agent Finding methods - standardized findings for all agents
+  createFinding(dealId: number, agentType: string, finding: Omit<InsertUnifiedAgentFinding, 'dealId' | 'agentType'>): Promise<UnifiedAgentFinding>;
+  getFindingsByDeal(dealId: number, agentType?: string): Promise<UnifiedAgentFinding[]>;
+  
+  // Note: Use existing getDocumentsByDealId for document access (includes caching)
 }
 
 // Database storage implementation
@@ -2568,6 +2593,249 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
   }
+
+  // ===== UNIFIED AGENT SYSTEM IMPLEMENTATIONS =====
+
+  // Unified Agent Job methods
+  async startAgentJob(dealId: number, agentType: string, scope: string = 'comprehensive'): Promise<UnifiedAgentJob> {
+    try {
+      const jobKey = `${dealId}:${agentType}:${scope}`;
+      console.log(`🚀 Starting unified agent job: ${jobKey}`);
+      
+      const jobData: InsertUnifiedAgentJob = {
+        jobKey,
+        dealId,
+        agentType,
+        status: 'processing', // Start as processing immediately
+        progress: 0,
+        processedDocuments: 0,
+        totalDocuments: 0,
+        startedAt: new Date(),
+        metadata: { scope }
+      };
+      
+      // Use onConflictDoUpdate for idempotency - restart job if exists
+      const [job] = await db.insert(unifiedAgentJobs)
+        .values(jobData)
+        .onConflictDoUpdate({
+          target: unifiedAgentJobs.jobKey,
+          set: {
+            status: 'processing',
+            progress: 0,
+            processedDocuments: 0,
+            startedAt: new Date(),
+            finishedAt: null,
+            error: null,
+            result: null,
+            updatedAt: new Date(),
+            metadata: jobData.metadata
+          }
+        })
+        .returning();
+      
+      console.log(`✅ Started/restarted unified agent job ${job.id} for ${agentType} on deal ${dealId}`);
+      return job;
+    } catch (error) {
+      console.error(`Error starting agent job for ${agentType} on deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  async getJobByKey(jobKey: string): Promise<UnifiedAgentJob | undefined> {
+    try {
+      const [job] = await db.select().from(unifiedAgentJobs)
+        .where(eq(unifiedAgentJobs.jobKey, jobKey));
+      return job || undefined;
+    } catch (error) {
+      console.error(`Error fetching job by key ${jobKey}:`, error);
+      return undefined;
+    }
+  }
+
+  async updateJob(jobKey: string, updates: Partial<UnifiedAgentJob>): Promise<UnifiedAgentJob | undefined> {
+    try {
+      const [updatedJob] = await db.update(unifiedAgentJobs)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(unifiedAgentJobs.jobKey, jobKey))
+        .returning();
+      
+      if (updatedJob) {
+        console.log(`📊 Updated job ${jobKey}: ${updates.status || 'status unchanged'}, progress: ${updates.progress || 'unchanged'}%`);
+      }
+      return updatedJob || undefined;
+    } catch (error) {
+      console.error(`Error updating job ${jobKey}:`, error);
+      throw error;
+    }
+  }
+
+  async listJobs(dealId: number, agentType?: string): Promise<UnifiedAgentJob[]> {
+    try {
+      let query = db.select().from(unifiedAgentJobs)
+        .where(eq(unifiedAgentJobs.dealId, dealId));
+      
+      if (agentType) {
+        query = query.where(and(
+          eq(unifiedAgentJobs.dealId, dealId),
+          eq(unifiedAgentJobs.agentType, agentType)
+        ));
+      }
+      
+      const jobs = await query.orderBy(desc(unifiedAgentJobs.createdAt));
+      return jobs;
+    } catch (error) {
+      console.error(`Error listing jobs for deal ${dealId}, agent ${agentType}:`, error);
+      return [];
+    }
+  }
+
+  async completeJob(jobKey: string, result?: any): Promise<UnifiedAgentJob | undefined> {
+    try {
+      return await this.updateJob(jobKey, {
+        status: 'completed',
+        progress: 100,
+        finishedAt: new Date(),
+        result
+      });
+    } catch (error) {
+      console.error(`Error completing job ${jobKey}:`, error);
+      throw error;
+    }
+  }
+
+  async failJob(jobKey: string, error: string): Promise<UnifiedAgentJob | undefined> {
+    try {
+      return await this.updateJob(jobKey, {
+        status: 'failed',
+        finishedAt: new Date(),
+        error
+      });
+    } catch (error) {
+      console.error(`Error failing job ${jobKey}:`, error);
+      throw error;
+    }
+  }
+
+  // Unified Agent Analysis methods
+  async getUnifiedAnalysis(dealId: number, agentType: string): Promise<UnifiedAgentAnalysis | undefined> {
+    try {
+      const [analysis] = await db.select().from(unifiedAgentAnalyses)
+        .where(and(
+          eq(unifiedAgentAnalyses.dealId, dealId),
+          eq(unifiedAgentAnalyses.agentType, agentType)
+        ));
+      return analysis || undefined;
+    } catch (error) {
+      console.error(`Error fetching unified analysis for ${agentType} on deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
+
+  async upsertUnifiedAnalysis(dealId: number, agentType: string, data: Partial<UnifiedAgentAnalysis>): Promise<UnifiedAgentAnalysis> {
+    try {
+      // Prepare complete data with defaults for insert
+      const analysisData: InsertUnifiedAgentAnalysis = {
+        dealId,
+        agentType,
+        status: 'pending',
+        progress: 0,
+        answers: {},
+        findings: [],
+        recommendations: [],
+        documentSources: [],
+        processedDocumentCount: 0,
+        totalQuestions: 0,
+        averageConfidence: 0,
+        keyRisks: [],
+        keyOpportunities: [],
+        ...data
+      };
+      
+      // Use atomic upsert with onConflictDoUpdate
+      const [result] = await db.insert(unifiedAgentAnalyses)
+        .values(analysisData)
+        .onConflictDoUpdate({
+          target: [unifiedAgentAnalyses.dealId, unifiedAgentAnalyses.agentType],
+          set: {
+            ...data,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
+      
+      console.log(`📊 Upserted unified analysis for ${agentType} on deal ${dealId}`);
+      return result;
+    } catch (error) {
+      console.error(`Error upserting unified analysis for ${agentType} on deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  // Findings are stored in separate unifiedAgentFindings table - no append method needed
+
+  async setUnifiedAnalysisStatus(dealId: number, agentType: string, status: string, progress?: number): Promise<UnifiedAgentAnalysis | undefined> {
+    try {
+      const updateData: Partial<UnifiedAgentAnalysis> = { status };
+      if (progress !== undefined) {
+        updateData.progress = progress;
+      }
+      
+      if (status === 'completed') {
+        updateData.analysisCompletedAt = new Date();
+        updateData.progress = 100;
+      } else if (status === 'processing' && !updateData.analysisStartedAt) {
+        updateData.analysisStartedAt = new Date();
+      }
+      
+      return await this.upsertUnifiedAnalysis(dealId, agentType, updateData);
+    } catch (error) {
+      console.error(`Error setting analysis status for ${agentType} on deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  // Unified Agent Finding methods
+  async createFinding(dealId: number, agentType: string, finding: Omit<InsertUnifiedAgentFinding, 'dealId' | 'agentType'>): Promise<UnifiedAgentFinding> {
+    try {
+      const findingData: InsertUnifiedAgentFinding = {
+        dealId,
+        agentType,
+        ...finding
+      };
+      
+      const [created] = await db.insert(unifiedAgentFindings)
+        .values(findingData)
+        .returning();
+      
+      console.log(`🔍 Created finding for ${agentType} on deal ${dealId}: ${finding.title}`);
+      return created;
+    } catch (error) {
+      console.error(`Error creating finding for ${agentType} on deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  async getFindingsByDeal(dealId: number, agentType?: string): Promise<UnifiedAgentFinding[]> {
+    try {
+      let query = db.select().from(unifiedAgentFindings)
+        .where(eq(unifiedAgentFindings.dealId, dealId));
+      
+      if (agentType) {
+        query = query.where(and(
+          eq(unifiedAgentFindings.dealId, dealId),
+          eq(unifiedAgentFindings.agentType, agentType)
+        ));
+      }
+      
+      const findings = await query.orderBy(desc(unifiedAgentFindings.createdAt));
+      return findings;
+    } catch (error) {
+      console.error(`Error fetching findings for deal ${dealId}, agent ${agentType}:`, error);
+      return [];
+    }
+  }
+
+  // Note: Document access uses existing getDocumentsByDealId method with caching
 }
 
 export const storage = new DatabaseStorage();

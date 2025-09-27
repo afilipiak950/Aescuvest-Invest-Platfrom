@@ -1943,20 +1943,17 @@ function DueDiligenceContent() {
                   <div className="pt-4 space-y-8">
                     <DueDiligenceAgents dealId={parseInt(selectedDeal)} />
                     
-                    {/* Unified Agent Analysis Section */}
+                    {/* Unified Agent Analysis Section - Coming Soon */}
                     <div className="border-t border-dark-lighter pt-8">
                       <div className="mb-6">
                         <h3 className="text-xl font-semibold text-white mb-2">
                           Unified Agent Analysis (New Architecture)
                         </h3>
                         <p className="text-dark-secondary text-sm">
-                          Enhanced institutional-grade analysis with consistent architecture across all agents
+                          Enhanced institutional-grade analysis with consistent architecture across all agents - Coming Soon
                         </p>
                       </div>
-                      <UnifiedDueDiligenceAgents 
-                        dealId={parseInt(selectedDeal)} 
-                        documents={documents || []} 
-                      />
+                      {/* UnifiedDueDiligenceAgents component will be implemented in task 3 */}
                     </div>
                   </div>
                 </TabsContent>

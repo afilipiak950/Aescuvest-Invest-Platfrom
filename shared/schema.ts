@@ -1255,23 +1255,7 @@ export const unifiedAgentAnalyses = pgTable("unified_agent_analyses", {
     metadata?: Record<string, any>;
   }>>().default({}),
   
-  // Standardized findings and recommendations
-  findings: json("findings").$type<Array<{
-    id: string;
-    type: 'Positive' | 'Negative' | 'Warning' | 'Info';
-    title: string;
-    description: string;
-    confidence: number;
-    evidence: Array<{
-      quote: string;
-      documentId: number;
-      documentName?: string;
-      page?: number;
-    }>;
-    priority?: 'low' | 'medium' | 'high' | 'critical';
-    category?: string;
-  }>>().default([]),
-  
+  // Recommendations (findings stored in separate unifiedAgentFindings table)
   recommendations: json("recommendations").$type<Array<{
     id: string;
     title: string;
