@@ -422,73 +422,95 @@ export class RAGPoweredCommercialAgent {
   }
 
   /**
-   * ENTERPRISE-GRADE CONFIDENCE SCORING SYSTEM
-   * Transforms raw similarity scores into institutional investment confidence levels
+   * BALANCED ENTERPRISE CONFIDENCE SCORING SYSTEM
+   * Calibrated to achieve 80%+ only for high-quality evidence while preserving discrimination
    */
   private calculateEnhancedConfidenceScore(chunks: any[]): number {
     if (chunks.length === 0) return 0;
     
     // === SIMILARITY QUALITY ASSESSMENT ===
-    const similarities = chunks.map(c => c.similarity);
+    const similarities = chunks.map(c => c.similarity).sort((a, b) => b - a); // Sort descending
     const avgSimilarity = similarities.reduce((sum, sim) => sum + sim, 0) / similarities.length;
-    const maxSimilarity = Math.max(...similarities);
-    const minSimilarity = Math.min(...similarities);
+    const maxSimilarity = similarities[0];
+    const medianSimilarity = similarities[Math.floor(similarities.length / 2)];
+    const top5Similarity = similarities.slice(0, Math.min(5, similarities.length));
+    const avgTop5 = top5Similarity.reduce((sum, sim) => sum + sim, 0) / top5Similarity.length;
     
-    // Transform raw similarity (0.1-0.6 typical) to enterprise baseline (0.6-0.9)
-    const enhancedBaseline = Math.min(0.9, Math.max(0.6, 
-      0.6 + (avgSimilarity - 0.1) * 1.2 // Scale 0.1-0.6 range to 0.6-0.9
-    ));
-    
-    // === EVIDENCE STRENGTH MULTIPLIERS ===
-    const documentDiversity = new Set(chunks.map(c => c.documentName)).size;
-    const boostedChunks = chunks.filter(c => (c as any).boost && (c as any).boost > 1.0).length;
-    const highRelevanceChunks = chunks.filter(c => c.similarity > 0.3).length;
-    
-    // Document diversity bonus (multiple sources = higher confidence)
-    const diversityMultiplier = Math.min(1.15, 1.0 + (documentDiversity - 1) * 0.03);
-    
-    // Boosted content bonus (financial tables, metrics = higher confidence)
-    const boostMultiplier = boostedChunks > 0 ? Math.min(1.1, 1.0 + (boostedChunks / chunks.length) * 0.2) : 1.0;
-    
-    // High-relevance content bonus (very relevant chunks = higher confidence)
-    const relevanceMultiplier = highRelevanceChunks > 0 ? Math.min(1.08, 1.0 + (highRelevanceChunks / chunks.length) * 0.15) : 1.0;
-    
-    // === EVIDENCE VOLUME ASSESSMENT ===
-    let volumeMultiplier = 1.0;
-    if (chunks.length >= 10) volumeMultiplier = 1.05; // Substantial evidence
-    if (chunks.length >= 20) volumeMultiplier = 1.1;  // Comprehensive evidence
-    if (chunks.length >= 30) volumeMultiplier = 1.12; // Exhaustive evidence
-    
-    // === CONSISTENCY BONUS ===
-    // Lower variance in similarity scores indicates consistent relevance
-    const variance = similarities.reduce((sum, sim) => sum + Math.pow(sim - avgSimilarity, 2), 0) / similarities.length;
-    const consistencyMultiplier = Math.max(1.0, 1.05 - variance * 2); // Penalize high variance
-    
-    // === ENTERPRISE CONFIDENCE CALCULATION ===
-    const enterpriseConfidence = enhancedBaseline * 
-      diversityMultiplier * 
-      boostMultiplier * 
-      relevanceMultiplier * 
-      volumeMultiplier * 
-      consistencyMultiplier;
-    
-    // === QUALITY THRESHOLDS ===
-    let finalConfidence = Math.min(1.0, enterpriseConfidence);
-    
-    // Apply enterprise quality thresholds
-    if (documentDiversity >= 3 && boostedChunks >= 2 && chunks.length >= 15) {
-      finalConfidence = Math.max(finalConfidence, 0.82); // Premium tier
-    } else if (documentDiversity >= 2 && chunks.length >= 10) {
-      finalConfidence = Math.max(finalConfidence, 0.75); // Professional tier
-    } else if (chunks.length >= 5) {
-      finalConfidence = Math.max(finalConfidence, 0.68); // Standard tier
+    // === CALIBRATED BASELINE MAPPING ===
+    // Piecewise-linear mapping for better discrimination
+    let calibratedBaseline: number;
+    if (avgSimilarity <= 0.15) {
+      calibratedBaseline = 0.25 + (avgSimilarity - 0.1) * 2; // 0.1→0.35, 0.15→0.45
+    } else if (avgSimilarity <= 0.35) {
+      calibratedBaseline = 0.45 + (avgSimilarity - 0.15) * 0.5; // 0.15→0.45, 0.35→0.55
+    } else if (avgSimilarity <= 0.55) {
+      calibratedBaseline = 0.55 + (avgSimilarity - 0.35) * 1.0; // 0.35→0.55, 0.55→0.75
+    } else {
+      calibratedBaseline = 0.75 + (avgSimilarity - 0.55) * 0.65; // 0.55→0.75, 0.8→0.91
     }
     
-    console.log(`🎯 ENTERPRISE CONFIDENCE SCORING:
-    📊 Raw similarity: ${avgSimilarity.toFixed(3)} → Enhanced baseline: ${enhancedBaseline.toFixed(3)}
-    📄 Evidence: ${chunks.length} chunks from ${documentDiversity} documents (${boostedChunks} boosted)
-    ⭐ Multipliers: Diversity=${diversityMultiplier.toFixed(3)}, Boost=${boostMultiplier.toFixed(3)}, Relevance=${relevanceMultiplier.toFixed(3)}
-    🏆 FINAL ENTERPRISE CONFIDENCE: ${(finalConfidence * 100).toFixed(1)}%`);
+    // === EVIDENCE QUALITY GATING ===
+    const documentDiversity = new Set(chunks.map(c => c.documentName)).size;
+    const boostedChunks = chunks.filter(c => (c as any).boost && (c as any).boost > 1.0).length;
+    const highRelevanceChunks = chunks.filter(c => c.similarity > 0.35).length;
+    const highRelevanceRatio = highRelevanceChunks / chunks.length;
+    
+    // Quality penalties for poor evidence
+    let qualityMultiplier = 1.0;
+    
+    // Penalize low top-5 average or low median
+    if (avgTop5 < 0.25) qualityMultiplier *= 0.85;
+    if (medianSimilarity < 0.2) qualityMultiplier *= 0.9;
+    
+    // Penalize high variance (inconsistent relevance)
+    const variance = similarities.reduce((sum, sim) => sum + Math.pow(sim - avgSimilarity, 2), 0) / similarities.length;
+    const consistencyMultiplier = Math.max(0.85, 1.05 - variance * 3);
+    
+    // Penalize dominance by single document (low diversity)
+    const singleDocDominance = chunks.filter(c => c.documentName === chunks[0].documentName).length / chunks.length;
+    if (singleDocDominance > 0.7) qualityMultiplier *= 0.9;
+    
+    // === CONSERVATIVE BONUSES ===
+    // Document diversity bonus (capped to prevent over-inflation)
+    const diversityBonus = documentDiversity >= 3 ? 1.08 : documentDiversity >= 2 ? 1.04 : 1.0;
+    
+    // High-relevance bonus (requires substantial high-quality evidence)
+    const relevanceBonus = highRelevanceRatio > 0.4 ? 1.06 : highRelevanceRatio > 0.2 ? 1.03 : 1.0;
+    
+    // Boosted content bonus (conservative)
+    const boostBonus = boostedChunks >= 3 ? 1.05 : boostedChunks >= 1 ? 1.02 : 1.0;
+    
+    // === BALANCED CONFIDENCE CALCULATION ===
+    const rawConfidence = calibratedBaseline * 
+      qualityMultiplier * 
+      consistencyMultiplier * 
+      diversityBonus * 
+      relevanceBonus * 
+      boostBonus;
+    
+    // === ENTERPRISE QUALITY GATES (STRICT REQUIREMENTS) ===
+    let finalConfidence = Math.min(0.95, rawConfidence);
+    
+    // Premium tier: Requires excellent evidence across all dimensions
+    if (avgTop5 >= 0.45 && medianSimilarity >= 0.35 && documentDiversity >= 3 && 
+        highRelevanceRatio >= 0.3 && boostedChunks >= 2 && chunks.length >= 15) {
+      finalConfidence = Math.max(finalConfidence, 0.82);
+    }
+    // Professional tier: Good evidence with some corroboration
+    else if (avgTop5 >= 0.35 && medianSimilarity >= 0.25 && documentDiversity >= 2 && 
+             highRelevanceRatio >= 0.2 && chunks.length >= 10) {
+      finalConfidence = Math.max(finalConfidence, 0.70);
+    }
+    // Standard tier: Basic evidence requirements
+    else if (avgTop5 >= 0.25 && chunks.length >= 8) {
+      finalConfidence = Math.max(finalConfidence, 0.55);
+    }
+    
+    console.log(`🎯 BALANCED ENTERPRISE CONFIDENCE:
+    📊 Similarity: avg=${avgSimilarity.toFixed(3)}, top5=${avgTop5.toFixed(3)}, median=${medianSimilarity.toFixed(3)}
+    📄 Evidence: ${chunks.length} chunks, ${documentDiversity} docs, ${boostedChunks} boosted, ${highRelevanceRatio.toFixed(2)} high-rel ratio
+    🔍 Quality: base=${calibratedBaseline.toFixed(3)}, quality×=${qualityMultiplier.toFixed(3)}, consistency×=${consistencyMultiplier.toFixed(3)}
+    🏆 FINAL CONFIDENCE: ${(finalConfidence * 100).toFixed(1)}% ${finalConfidence >= 0.82 ? '(PREMIUM)' : finalConfidence >= 0.70 ? '(PROFESSIONAL)' : finalConfidence >= 0.55 ? '(STANDARD)' : ''}`);
     
     return finalConfidence;
   }
