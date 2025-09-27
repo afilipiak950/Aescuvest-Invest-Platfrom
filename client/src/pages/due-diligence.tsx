@@ -7,7 +7,7 @@ import PageHeader from '@/components/layout/page-header';
 import { DataRoomExplorer } from '@/components/DataRoomExplorer';
 import EnhancedAgentCard from '@/components/EnhancedAgentCard';
 import DueDiligenceAgents from '@/components/ai/DueDiligenceAgents';
-import UnifiedDueDiligenceAgents from '@/components/unified/UnifiedDueDiligenceAgents';
+import { UnifiedDueDiligenceAgents } from '@/components/unified/UnifiedDueDiligenceAgents';
 import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
