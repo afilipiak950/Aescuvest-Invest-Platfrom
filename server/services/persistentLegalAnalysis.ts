@@ -268,8 +268,11 @@ export class PersistentLegalAnalysisService {
       jobState.progress = 100;
       jobState.currentStep = 'RAG legal analysis completed';
       
-      // Progress update simplified to avoid TypeScript issues
-      console.log(`📊 Legal analysis completed: 100% (RAG legal analysis completed)`);
+      // CRITICAL FIX: Update database status to completed
+      await storage.completeBackgroundJob(jobId, { 
+        legalAnalysisComplete: true,
+        currentStep: 'RAG legal analysis completed' 
+      });
 
       // Clean up - EXACTLY like Clinical
       const interval = this.jobIntervals.get(jobId);
