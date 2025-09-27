@@ -1110,22 +1110,11 @@ export default function EnhancedAgentCard({
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
           />
-        ) : (console.log('🔍 Checking agentType for conditional:', { agentType, lowercase: agentType.toLowerCase(), isResearch: agentType.toLowerCase() === 'research' }), agentType.toLowerCase() === 'research') ? (
-          <>
-            {console.log('🎯 RENDERING ResearchQuestionsSection for agentType:', agentType)}
-            <ResearchQuestionsSection 
-              dealId={dealId}
-              analysisData={actualAnalysisData} 
-              assignedDocuments={assignedDocuments}
-              documents={documents || []}
-              handleDocumentClick={handleDocumentClick}
-              quoteViewerOpen={quoteViewerOpen}
-              setQuoteViewerOpen={setQuoteViewerOpen}
-              selectedQuoteData={selectedQuoteData}
-              setSelectedQuoteData={setSelectedQuoteData}
-              onResearchAnalysisStart={onResearchAnalysisStart}
-            />
-          </>
+        ) : agentType.toLowerCase() === 'research' ? (
+          /* Removed: ResearchQuestionsSection - using UnifiedQuestionsSection */
+          <div className="bg-dark border border-dark-lighter rounded-lg p-4">
+            <p className="text-gray-400 text-center">Research analysis results will be displayed here</p>
+          </div>
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
