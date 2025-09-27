@@ -10,7 +10,7 @@
 
 import { EmbeddingService } from './embeddingService';
 import { db } from '../db';
-import { agentAnalyses, documentEmbeddings, documents } from '@shared/schema';
+import { agentAnalyses, documentEmbeddings, documents, backgroundJobs } from '@shared/schema';
 import { eq, and, or, like, sql } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
@@ -322,13 +322,18 @@ export class RagPoweredHRAgent {
         
         hrAnswers[question.id] = answer;
         
+        // 🎯 SAVE QUESTION RESULT INCREMENTALLY - This shows progress in UI!
+        await this.saveQuestionResultIncremental(question, answer, i);
+        
         console.log(`✅ Question ${i + 1} completed in ${processingTime}ms with ${evidenceBase.length} evidence layers`);
         
         // Update progress for background job tracking
+        const progress = Math.round(((i + 1) / RAG_HR_QUESTIONS.length) * 100);
+        await this.updateBackgroundJobProgress(progress, i + 1);
+        
         if (this.progressCallback) {
-          const progressPercentage = Math.round(((i + 1) / RAG_HR_QUESTIONS.length) * 100);
           await this.progressCallback({
-            percentage: progressPercentage,
+            percentage: progress,
             currentStep: `Question ${i + 1}/${RAG_HR_QUESTIONS.length} completed`,
             currentQuestion: question.question,
             completedQuestions: i + 1,
@@ -345,7 +350,7 @@ export class RagPoweredHRAgent {
       const findings = this.generateComprehensiveFindings(hrAnswers);
       const recommendations = this.generateIntelligentRecommendations(hrAnswers);
 
-      // Store results in database with correct question mapping
+      // Store final comprehensive results in database
       await this.storeRagHRResults(hrAnswers, findings, recommendations);
 
       const totalTime = Date.now() - this.totalStartTime;
@@ -938,6 +943,117 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
   }
 
   /**
+   * 🎯 INCREMENTAL SAVE: Save individual question result immediately after processing
+   * This ensures users see progress and don't lose results if analysis fails partway through
+   */
+  private async saveQuestionResultIncremental(question: any, answer: any, questionIndex: number): Promise<void> {
+    try {
+      console.log(`💾 Saving HR question ${questionIndex + 1} result incrementally for deal ${this.dealId}`);
+
+      // Check if analysis record exists
+      const existingAnalysis = await db
+        .select()
+        .from(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, this.dealId),
+          eq(agentAnalyses.agentType, 'hr')  // ✅ FIXED: Using lowercase 'hr'
+        ))
+        .limit(1);
+
+      // Build the question result for hrAnswers
+      const questionAnswer = {
+        question: question.question,
+        category: question.category,
+        answer: answer.answer,
+        hrRiskScore: answer.hrRiskScore,
+        riskFactors: answer.riskFactors,
+        keyFindings: answer.keyFindings,
+        recommendations: answer.recommendations,
+        confidence: answer.confidence,
+        sources: answer.sources,
+        evidenceCount: answer.evidenceCount || 0,
+        processingTime: Date.now() // Add timestamp for tracking
+      };
+
+      if (existingAnalysis.length === 0) {
+        // Create new analysis record with first question
+        const initialHRAnswers = {
+          [question.id]: questionAnswer
+        };
+
+        await db.insert(agentAnalyses).values({
+          dealId: this.dealId,
+          agentType: 'hr',  // ✅ FIXED: Using lowercase 'hr'
+          status: 'processing',
+          progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
+          findings: [],
+          recommendations: [],
+          hrAnswers: initialHRAnswers  // ✅ FIXED: Using correct camelCase 'hrAnswers'
+        });
+
+        console.log(`✅ Created new HR analysis record with question ${questionIndex + 1}`);
+      } else {
+        // Update existing record with new question result
+        const currentAnalysis = existingAnalysis[0];
+        const updatedHRAnswers = {
+          ...(currentAnalysis.hrAnswers || {}),
+          [question.id]: questionAnswer
+        };
+
+        await db
+          .update(agentAnalyses)
+          .set({
+            hrAnswers: updatedHRAnswers,  // ✅ FIXED: Using correct camelCase 'hrAnswers'
+            progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
+            status: 'processing'
+          })
+          .where(and(
+            eq(agentAnalyses.dealId, this.dealId),
+            eq(agentAnalyses.agentType, 'hr')  // ✅ FIXED: Using lowercase 'hr'
+          ));
+
+        console.log(`✅ Updated HR analysis with question ${questionIndex + 1} (${Object.keys(updatedHRAnswers).length}/${RAG_HR_QUESTIONS.length} total)`);
+      }
+
+      console.log(`💾 HR question ${questionIndex + 1} ("${question.question}") saved successfully`);
+
+    } catch (error) {
+      console.error(`❌ Failed to save HR question ${questionIndex + 1} incrementally:`, error);
+      console.error(`❌ Question details:`, {
+        questionId: question.id,
+        question: question.question,
+        category: question.category
+      });
+      // Don't throw error - log it but continue processing other questions
+      // This ensures one failed save doesn't stop the entire analysis
+    }
+  }
+
+  /**
+   * UPDATE BACKGROUND JOB PROGRESS
+   * Track real-time progress for UI updates
+   */
+  private async updateBackgroundJobProgress(progress: number, completedQuestions: number): Promise<void> {
+    try {
+      if (this.jobId) {
+        await db
+          .update(backgroundJobs)
+          .set({
+            progress: progress,
+            processedDocuments: completedQuestions,
+            currentStep: `Processing HR question ${completedQuestions}/${RAG_HR_QUESTIONS.length}`,
+            updatedAt: new Date()
+          } as any)
+          .where(eq(backgroundJobs.jobId, this.jobId));
+          
+        console.log(`📊 HR analysis progress: ${progress}% (${completedQuestions}/12 questions)`);
+      }
+    } catch (error) {
+      console.error('❌ Error updating HR analysis progress:', error);
+    }
+  }
+
+  /**
    * CLEAN JSON RESPONSE
    * Remove markdown formatting from AI responses to fix JSON parsing errors
    */
@@ -1061,7 +1177,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
       .delete(agentAnalyses)
       .where(and(
         eq(agentAnalyses.dealId, this.dealId),
-        eq(agentAnalyses.agentType, 'HR')
+        eq(agentAnalyses.agentType, 'hr')  // ✅ FIXED: Using lowercase 'hr'
       ));
     
     console.log(`🗑️ Cleared existing HR analysis for deal ${this.dealId}`);
@@ -1069,13 +1185,13 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
     // Create new analysis record with CORRECT question mapping
     const analysisData = {
       dealId: this.dealId,
-      agentType: 'HR' as const,
+      agentType: 'hr' as const,  // ✅ FIXED: Using lowercase 'hr'
       status: 'completed' as const,
       progress: 100,
-      findings: JSON.stringify(findings),
-      recommendations: JSON.stringify(recommendations),
-      hr_answers: hrAnswers, // Store with CORRECT question IDs (contract_1, compensation_2, etc.)
-      documentSources: JSON.stringify(Array.from(new Set(Object.values(hrAnswers).flatMap(a => a.sources)))),
+      findings: findings,  // ✅ FIXED: Using JSON objects directly, not strings
+      recommendations: recommendations,  // ✅ FIXED: Using JSON objects directly, not strings
+      hrAnswers: hrAnswers,  // ✅ FIXED: Using correct camelCase 'hrAnswers'
+      documentSources: Array.from(new Set(Object.values(hrAnswers).flatMap(a => a.sources))),  // ✅ FIXED: Using array directly
       createdAt: new Date(),
       updatedAt: new Date()
     };
