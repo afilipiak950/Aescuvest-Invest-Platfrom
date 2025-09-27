@@ -613,6 +613,12 @@ export class RagPoweredHRAgent {
     const compressedChunks = [];
     
     for (const chunk of chunks) {
+      // CRITICAL FIX: Add null check to prevent "Cannot read properties of undefined" error
+      if (!chunk || !chunk.content) {
+        console.log(`⚠️ HR chunk missing content, skipping...`);
+        continue;
+      }
+      
       // Skip compression if content is already short
       if (chunk.content.length <= 800) {
         compressedChunks.push(chunk);
