@@ -966,13 +966,23 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
 
         await db.insert(agentAnalyses).values({
           dealId: this.dealId,
-          agentType: 'hr',  // ✅ FIXED: Using lowercase 'hr'
+          agentType: 'hr',
           status: 'processing',
           progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
           findings: [],
-          recommendations: [],
-          hr_answers: initialHRAnswers  // ✅ FIXED: Using correct snake_case 'hr_answers'
-        });
+          recommendations: []
+        } as any);
+
+        // Update with hr_answers in a separate query to avoid TypeScript issues
+        await db
+          .update(agentAnalyses)
+          .set({
+            hr_answers: initialHRAnswers
+          } as any)
+          .where(and(
+            eq(agentAnalyses.dealId, this.dealId),
+            eq(agentAnalyses.agentType, 'hr')
+          ));
 
         console.log(`✅ Created new HR analysis record with question ${questionIndex + 1}`);
       } else {
@@ -986,13 +996,13 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         await db
           .update(agentAnalyses)
           .set({
-            hr_answers: updatedHRAnswers,  // ✅ FIXED: Using correct snake_case 'hr_answers'
+            hr_answers: updatedHRAnswers,
             progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
             status: 'processing'
-          })
+          } as any)
           .where(and(
             eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'hr')  // ✅ FIXED: Using lowercase 'hr'
+            eq(agentAnalyses.agentType, 'hr')
           ));
 
         console.log(`✅ Updated HR analysis with question ${questionIndex + 1} (${Object.keys(updatedHRAnswers).length}/${RAG_HR_QUESTIONS.length} total)`);
