@@ -1251,9 +1251,9 @@ RESPOND WITH ONLY THE COMPRESSED COMMERCIAL SUMMARY - NO EXPLANATIONS.`;
       const finalData = {
         status: 'completed',
         progress: 100,
-        findings: allFindings,
-        recommendations: allRecommendations,
-        commercialAnswers: commercialAnswers,
+        findings: JSON.stringify(allFindings), // JSON.stringify() like Legal/Clinical
+        recommendations: JSON.stringify(allRecommendations), // JSON.stringify() like Legal/Clinical
+        commercialAnswers: commercialAnswers, // Keep as objects (like legalAnswers)
         updatedAt: new Date()
       };
 
