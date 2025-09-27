@@ -352,8 +352,12 @@ export class RagPoweredHRAgent {
     // Store comprehensive results in database
     await this.storeRagHRResults(hrAnswers, allFindings, allRecommendations);
     
-    const totalTime = Date.now() - this.totalStartTime;
-    console.log(`🏆 RAG-powered HR analysis completed in ${totalTime}ms for deal ${this.dealId}`);
+      const totalTime = Date.now() - this.totalStartTime;
+      console.log(`🏆 RAG-powered HR analysis completed in ${totalTime}ms for deal ${this.dealId}`);
+    } catch (error) {
+      console.error(`❌ HR analysis failed for deal ${this.dealId}:`, error);
+      throw error;
+    }
   }
 
   /**
