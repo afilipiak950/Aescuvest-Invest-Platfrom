@@ -94,6 +94,26 @@ async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 /**
+ * Calculate cosine similarity between two vectors
+ */
+function cosineSimilarity(vec1: number[], vec2: number[]): number {
+  if (vec1.length !== vec2.length) return 0;
+  
+  let dotProduct = 0;
+  let norm1 = 0;
+  let norm2 = 0;
+  
+  for (let i = 0; i < vec1.length; i++) {
+    dotProduct += vec1[i] * vec2[i];
+    norm1 += vec1[i] * vec1[i];
+    norm2 += vec2[i] * vec2[i];
+  }
+  
+  const denominator = Math.sqrt(norm1) * Math.sqrt(norm2);
+  return denominator !== 0 ? dotProduct / denominator : 0;
+}
+
+/**
  * Retrieve relevant documents using semantic search
  */
 async function semanticSearch(
@@ -104,7 +124,7 @@ async function semanticSearch(
 ): Promise<EvidenceChunk[]> {
   const embedding = await generateEmbedding(query);
   
-  // Use pgvector for similarity search
+  // Fetch all embeddings for the deal
   const results = await db.execute(sql`
     SELECT 
       de.id,
@@ -112,25 +132,38 @@ async function semanticSearch(
       de.chunk_index,
       de.chunk_text,
       de.metadata,
-      d.file_name,
-      1 - (de.embedding <=> ${JSON.stringify(embedding)}::vector) as similarity
+      de.embedding,
+      d.file_name
     FROM document_embeddings de
     JOIN documents d ON de.document_id = d.id
     WHERE de.deal_id = ${dealId}
-      AND 1 - (de.embedding <=> ${JSON.stringify(embedding)}::vector) > ${minSimilarity}
-    ORDER BY similarity DESC
-    LIMIT ${topK}
   `);
+  
+  // Calculate similarity for each chunk
+  const chunksWithSimilarity = results
+    .map((row: any) => {
+      // Parse embedding from JSON if needed
+      const chunkEmbedding = typeof row.embedding === 'string' 
+        ? JSON.parse(row.embedding) 
+        : row.embedding;
+      
+      const similarity = cosineSimilarity(embedding, chunkEmbedding);
+      
+      return {
+        documentId: row.document_id,
+        documentName: row.file_name,
+        chunkId: `${row.document_id}_${row.chunk_index}`,
+        chunkText: row.chunk_text,
+        similarity,
+        page: row.metadata?.page,
+        metadata: row.metadata,
+      };
+    })
+    .filter(chunk => chunk.similarity > minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, topK);
 
-  return results.map((row: any) => ({
-    documentId: row.document_id,
-    documentName: row.file_name,
-    chunkId: `${row.document_id}_${row.chunk_index}`,
-    chunkText: row.chunk_text,
-    similarity: row.similarity,
-    page: row.metadata?.page,
-    metadata: row.metadata,
-  }));
+  return chunksWithSimilarity;
 }
 
 /**
