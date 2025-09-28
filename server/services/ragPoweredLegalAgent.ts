@@ -15,218 +15,126 @@ import { eq, and } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
 
-// CORRECT 13 LEGAL QUESTIONS - Exactly matching frontend EnhancedAgentCard.tsx LEGAL_QUESTIONS
+// SIMPLIFIED 6 LEGAL QUESTIONS - Focused on critical investment legal areas for institutional-grade analysis
 export const RAG_LEGAL_QUESTIONS = [
-  // Contracts & Agreements (3 questions)
+  // Core Commercial Agreements (Question 1 - Critical for valuation)
   { 
-    id: 'contracts_1', 
-    question: 'Are key commercial contracts clearly defined?', 
-    category: 'Contracts & Agreements',
+    id: 'contracts_commercial', 
+    question: 'What are the key commercial contract terms and financial obligations?', 
+    category: 'Commercial Contracts',
     subQuestions: [
-      'What are the specific contract values and payment amounts?',
-      'Are termination clauses clearly defined with notice periods?',
-      'What liability caps and indemnification limits are specified?'
+      'What are the specific contract values, revenue commitments, and payment terms?',
+      'Are there termination clauses, liability caps, or penalty provisions?',
+      'What customer contracts, partnerships, or licensing agreements exist?'
     ],
     ragQueries: [
-      'contract value amount payment fee pricing commercial terms specific',
-      'termination clause notice period days breach default termination for convenience',  
-      'liability cap limitation indemnification maximum amount dollar limit',
-      'payment terms net 30 net 15 invoice billing due date amount'
+      'contract value amount revenue payment fee pricing commercial customer agreement',
+      'termination clause liability cap limitation penalty breach indemnification',  
+      'customer agreement partnership license reseller distribution revenue',
+      'payment terms net 30 billing invoice collection revenue recognition'
     ],
-    analysisPrompt: 'Extract specific contract amounts, termination notice periods, liability caps, and payment terms with exact figures and dates from contract documents.',
-    evidenceTargets: ['contract_amounts', 'termination_clauses', 'liability_caps', 'payment_schedules']
+    analysisPrompt: 'Extract all commercial contract details including specific revenue amounts, payment terms, customer agreements, liability limits, and termination provisions. Focus on financial commitments and revenue-generating contracts.',
+    evidenceTargets: ['revenue_contracts', 'customer_agreements', 'liability_limits', 'payment_terms']
   },
   
+  // Corporate Governance & Structure (Question 2 - Essential for risk assessment)
   { 
-    id: 'contracts_2', 
-    question: 'What are the key contractual obligations and terms?', 
-    category: 'Contracts & Agreements',
+    id: 'governance_structure', 
+    question: 'What are the corporate governance structure and legal compliance status?', 
+    category: 'Corporate Governance',
     subQuestions: [
-      'What specific performance milestones and KPIs are required?',
-      'Are there exclusivity clauses or non-compete restrictions?',
-      'What are the governing law and jurisdiction provisions?'
+      'What is the board composition and governance oversight structure?',
+      'Are there adequate internal controls and compliance frameworks?',
+      'What regulatory compliance status and governance risks exist?'
     ],
     ragQueries: [
-      'performance milestone KPI deliverable requirement deadline specific target',
-      'exclusivity clause non-compete restriction exclusive dealing territory',
-      'governing law jurisdiction court venue dispute resolution arbitration',
-      'breach default cure period remedy damages specific performance'
+      'board composition directors governance oversight structure compliance',
+      'internal controls audit compliance framework regulatory oversight',
+      'governance risk regulatory compliance violation legal issue',
+      'corporate structure bylaws charter governance policy procedure'
     ],
-    analysisPrompt: 'Extract specific performance milestones, exclusivity restrictions, governing law provisions, and breach remedies with exact terms and jurisdictions from contracts.',
-    evidenceTargets: ['performance_milestones', 'exclusivity_clauses', 'governing_law', 'breach_remedies']
+    analysisPrompt: 'Analyze corporate governance structure, board oversight, internal controls, regulatory compliance status, and governance risks. Focus on governance adequacy and compliance issues.',
+    evidenceTargets: ['board_structure', 'internal_controls', 'compliance_status', 'governance_risks']
   },
   
+  // Intellectual Property & Assets (Question 3 - Critical for technology companies)
   { 
-    id: 'contracts_3', 
-    question: 'Are there any concerning contract provisions or risks?', 
-    category: 'Contracts & Agreements',
+    id: 'intellectual_property', 
+    question: 'What is the intellectual property portfolio and protection status?', 
+    category: 'Intellectual Property',
     subQuestions: [
-      'What are the specific liability caps and damage limitations?',
-      'Are there onerous termination or penalty clauses?',
-      'What indemnification obligations exist with dollar amounts?'
+      'What patents, trademarks, and IP assets exist in the portfolio?',
+      'Are there IP ownership issues, disputes, or infringement risks?',
+      'What IP protection strategies and enforcement mechanisms are in place?'
     ],
     ragQueries: [
-      'liability cap maximum amount dollar limitation damages ceiling specific',
-      'termination penalty fee clause cost breach default specific amount',
-      'indemnification obligation duty amount limit defense hold harmless',
-      'penalty clause liquidated damages specific amount breach default'
+      'patent portfolio intellectual property trademark copyright IP assets',
+      'IP ownership dispute infringement risk freedom to operate FTO',
+      'IP protection strategy enforcement patent prosecution trademark',
+      'intellectual property licensing agreement royalty IP revenue'
     ],
-    analysisPrompt: 'Extract specific liability caps, termination penalties, indemnification amounts, and concerning provisions with exact dollar figures and penalty structures.',
-    evidenceTargets: ['liability_amounts', 'termination_penalties', 'indemnification_limits', 'penalty_clauses']
+    analysisPrompt: 'Analyze intellectual property portfolio, ownership clarity, infringement risks, and protection strategies. Focus on IP value, disputes, and competitive protection.',
+    evidenceTargets: ['ip_portfolio', 'ownership_clarity', 'infringement_risks', 'protection_strategy']
   },
 
-  // Corporate Governance (3 questions)
+  // Legal Risk & Litigation (Question 4 - Essential for investment risk assessment)
   { 
-    id: 'governance_1', 
-    question: 'What is the corporate governance structure?', 
-    category: 'Corporate Governance',
-    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes'],
-    ragQueries: [
-      'board composition directors independent governance structure oversight',
-      'governance policies procedures bylaws charter corporate structure',
-      'decision making process authority delegation approval governance',
-      'corporate governance structure board oversight management reporting'
+    id: 'legal_risks', 
+    question: 'What legal risks, litigation, and regulatory issues exist?', 
+    category: 'Legal Risk Assessment',
+    subQuestions: [
+      'Are there active litigation, disputes, or legal proceedings?',
+      'What regulatory violations, compliance issues, or investigations exist?',
+      'What potential legal liabilities and risk exposures are identified?'
     ],
-    analysisPrompt: 'Analyze corporate governance structure and board composition. Focus on board independence, governance policies, decision-making authority, and oversight mechanisms.',
-    evidenceTargets: ['board_composition', 'governance_policies', 'decision_processes', 'oversight_structure']
-  },
-  
-  { 
-    id: 'governance_2', 
-    question: 'Are there adequate governance controls and oversight?', 
-    category: 'Corporate Governance',
-    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks'],
     ragQueries: [
-      'internal controls audit oversight compliance monitoring framework',
-      'governance oversight mechanisms board committees audit control',
-      'compliance framework control environment procedures oversight',
-      'governance controls oversight adequacy internal audit compliance'
+      'litigation lawsuit legal proceeding dispute court case settlement',
+      'regulatory violation compliance investigation enforcement action',
+      'legal liability exposure risk potential lawsuit claim dispute',
+      'legal issue regulatory compliance violation investigation fine'
     ],
-    analysisPrompt: 'Evaluate governance controls and oversight adequacy. Focus on internal controls, audit functions, compliance frameworks, and control effectiveness.',
-    evidenceTargets: ['internal_controls', 'oversight_mechanisms', 'compliance_frameworks', 'control_adequacy']
-  },
-  
-  { 
-    id: 'governance_3', 
-    question: 'What are the key governance risks and mitigation strategies?', 
-    category: 'Corporate Governance',
-    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses'],
-    ragQueries: [
-      'governance risk mitigation strategy control weakness management',
-      'board risk oversight management risk appetite governance failure',
-      'governance failure risk control deficiency weakness mitigation',
-      'risk mitigation governance strategy control improvement oversight'
-    ],
-    analysisPrompt: 'Assess governance risks and mitigation strategies. Focus on control weaknesses, risk oversight, governance failures, and improvement strategies.',
-    evidenceTargets: ['governance_risks', 'risk_mitigation', 'control_weaknesses', 'risk_oversight']
+    analysisPrompt: 'Identify all legal risks including litigation, regulatory issues, compliance violations, and potential legal liabilities. Focus on materiality and financial impact.',
+    evidenceTargets: ['litigation_status', 'regulatory_issues', 'legal_liabilities', 'compliance_violations']
   },
 
-  // Intellectual Property (3 questions)
+  // Employment & Labor Law (Question 5 - Important for operational risk)
   { 
-    id: 'ip_1', 
-    question: 'What is the intellectual property portfolio?', 
-    category: 'Intellectual Property',
-    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights'],
-    ragQueries: [
-      'patent portfolio intellectual property IP patents pending filed',
-      'trademark registration brand protection IP portfolio trademarks',
-      'trade secret confidential proprietary information protection',
-      'copyright intellectual property portfolio protection copyrights'
+    id: 'employment_law', 
+    question: 'What employment law compliance and labor-related legal issues exist?', 
+    category: 'Employment & Labor Law',
+    subQuestions: [
+      'Are there employment law violations, discrimination claims, or labor disputes?',
+      'What workplace safety, benefits compliance, and HR policy issues exist?',
+      'Are employee agreements, non-competes, and confidentiality provisions adequate?'
     ],
-    analysisPrompt: 'Analyze IP portfolio composition and strength. Focus on patents, trademarks, trade secrets, copyright protection, and IP asset valuation.',
-    evidenceTargets: ['patent_portfolio', 'trademark_protection', 'trade_secrets', 'copyright_assets']
-  },
-  
-  { 
-    id: 'ip_2', 
-    question: 'Are there any IP ownership or infringement issues?', 
-    category: 'Intellectual Property',
-    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate'],
     ragQueries: [
-      'IP ownership infringement dispute patent litigation ownership',
-      'freedom to operate FTO analysis patent clearance infringement',
-      'IP infringement risk assessment third party patents FTO',
-      'intellectual property ownership dispute assignment infringement'
+      'employment law violation discrimination harassment workplace safety',
+      'labor dispute union collective bargaining employment agreement',
+      'employee non-compete confidentiality agreement employment terms',
+      'workplace safety compliance OSHA benefits employment policy HR'
     ],
-    analysisPrompt: 'Evaluate IP ownership clarity and infringement risks. Focus on ownership disputes, FTO analysis, infringement exposure, and IP clearance status.',
-    evidenceTargets: ['ip_ownership', 'infringement_risks', 'fto_analysis', 'ownership_disputes']
-  },
-  
-  { 
-    id: 'ip_3', 
-    question: 'What IP protection and enforcement strategies are in place?', 
-    category: 'Intellectual Property',
-    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy'],
-    ragQueries: [
-      'IP protection strategy enforcement patent prosecution filing',
-      'intellectual property enforcement litigation protection strategy',
-      'IP strategy patent filing trademark enforcement prosecution',
-      'IP protection enforcement mechanism strategy portfolio management'
-    ],
-    analysisPrompt: 'Assess IP protection and enforcement strategies. Focus on prosecution strategy, enforcement mechanisms, portfolio management, and IP strategic value.',
-    evidenceTargets: ['ip_protection', 'enforcement_strategy', 'prosecution_strategy', 'portfolio_management']
+    analysisPrompt: 'Assess employment law compliance, labor relations, workplace policies, and employee agreement adequacy. Focus on compliance risks and HR legal issues.',
+    evidenceTargets: ['employment_compliance', 'labor_relations', 'employee_agreements', 'workplace_policies']
   },
 
-  // Litigation & Legal Risks (2 questions)
+  // Data Privacy & Regulatory Compliance (Question 6 - Critical for modern businesses)
   { 
-    id: 'litigation_1', 
-    question: 'Are there any pending or threatened litigations?', 
-    category: 'Litigation & Legal Risks',
-    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes'],
-    ragQueries: [
-      'litigation lawsuit pending active legal dispute proceeding',
-      'threatened litigation legal threat notice demand letter',
-      'legal dispute conflict resolution arbitration mediation litigation',
-      'pending litigation active lawsuit legal proceedings dispute'
+    id: 'data_privacy_compliance', 
+    question: 'What data privacy, cybersecurity, and regulatory compliance issues exist?', 
+    category: 'Data Privacy & Compliance',
+    subQuestions: [
+      'Are there GDPR, CCPA, or other data privacy compliance requirements and violations?',
+      'What cybersecurity incidents, data breaches, or information security issues exist?',
+      'What industry-specific regulatory compliance requirements and status apply?'
     ],
-    analysisPrompt: 'Identify pending and threatened litigation. Focus on active lawsuits, legal threats, dispute resolution status, and litigation timeline.',
-    evidenceTargets: ['active_litigation', 'threatened_litigation', 'legal_disputes', 'dispute_resolution']
-  },
-  
-  { 
-    id: 'litigation_2', 
-    question: 'What are the key legal risks and potential exposures?', 
-    category: 'Litigation & Legal Risks',
-    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities'],
     ragQueries: [
-      'legal risk exposure liability financial impact damages',
-      'contingent liability legal exposure financial risk potential',
-      'legal risk assessment exposure potential damages financial',
-      'liability exposure legal risk financial contingent damages'
+      'data privacy GDPR CCPA compliance violation data protection personal',
+      'cybersecurity breach data security incident information protection',
+      'regulatory compliance industry regulation FDA SEC FTC HIPAA',
+      'data privacy policy cybersecurity information security breach notification'
     ],
-    analysisPrompt: 'Assess legal risks and financial exposure. Focus on liability exposure, contingent liabilities, financial impact, and risk quantification.',
-    evidenceTargets: ['legal_risks', 'financial_exposure', 'contingent_liabilities', 'liability_assessment']
-  },
-
-  // Regulatory Compliance (2 questions)
-  { 
-    id: 'regulatory_1', 
-    question: 'What regulatory requirements apply to the business?', 
-    category: 'Regulatory Compliance',
-    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations'],
-    ragQueries: [
-      'regulatory requirements compliance framework industry regulation applicable',
-      'regulatory framework applicable laws regulations compliance obligations',
-      'industry regulation sector specific compliance requirements regulatory',
-      'regulatory requirement business compliance framework obligations'
-    ],
-    analysisPrompt: 'Identify applicable regulatory requirements and frameworks. Focus on industry regulations, compliance obligations, regulatory scope, and framework applicability.',
-    evidenceTargets: ['regulatory_framework', 'compliance_requirements', 'industry_regulations', 'regulatory_scope']
-  },
-  
-  { 
-    id: 'regulatory_2', 
-    question: 'Are there any regulatory compliance issues or violations?', 
-    category: 'Regulatory Compliance',
-    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings'],
-    ragQueries: [
-      'compliance violation regulatory breach enforcement action penalty',
-      'regulatory violation penalty fine enforcement proceeding action',
-      'compliance issue regulatory problem violation breach non-compliance',
-      'regulatory enforcement action penalty violation compliance breach'
-    ],
-    analysisPrompt: 'Assess regulatory compliance status and violations. Focus on compliance breaches, enforcement actions, regulatory penalties, and compliance status.',
-    evidenceTargets: ['compliance_violations', 'regulatory_actions', 'enforcement_proceedings', 'compliance_status']
+    analysisPrompt: 'Analyze data privacy compliance, cybersecurity posture, and regulatory requirements. Focus on compliance violations, security incidents, and regulatory risk exposure.',
+    evidenceTargets: ['privacy_compliance', 'security_incidents', 'regulatory_requirements', 'compliance_violations']
   }
 ];
 
@@ -386,9 +294,9 @@ export class RAGPoweredLegalAgent {
           agentType: 'legal',
           status: 'processing',
           progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
-          findings: [],
-          recommendations: [],
-          legalAnswers: initialLegalAnswers
+          findings: JSON.stringify([]),
+          recommendations: JSON.stringify([]),
+          legalAnswers: JSON.stringify(initialLegalAnswers)
         });
 
         console.log(`✅ Created new Legal analysis record with question ${questionIndex + 1}`);
@@ -403,7 +311,7 @@ export class RAGPoweredLegalAgent {
         await db
           .update(agentAnalyses)
           .set({
-            legalAnswers: updatedLegalAnswers,
+            legalAnswers: JSON.stringify(updatedLegalAnswers),
             progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
             status: 'processing'
           })
