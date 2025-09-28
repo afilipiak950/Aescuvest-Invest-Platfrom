@@ -65,63 +65,73 @@ export class PersistentHRAnalysisService {
    * Start a new persistent HR analysis job
    */
   async startHRAnalysis(dealId: number): Promise<string> {
-    const jobId = `hr-analysis-${dealId}`;
+    const jobId = `rag_hr_analysis_${dealId}_${Date.now()}`;
     
     console.log(`👥 Starting persistent HR analysis for deal ${dealId}`);
 
-    // Check if job already exists and is running - FIXED: Direct database query like Legal agent
-    const [existingJob] = await db.select().from(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
-    if (existingJob && existingJob.status === 'processing') {
-      console.log(`🔄 HR analysis already running for deal ${dealId}, resuming...`);
-      await this.resumeHRAnalysis(dealId, jobId);
-      return jobId;
-    }
+    console.log(`👥 Starting FRESH RAG-powered HR analysis for deal ${dealId}`);
 
-    // Clean up any old completed or failed jobs for this deal
-    if (existingJob && existingJob.status !== 'processing') {
-      console.log(`🧹 Found old job for deal ${dealId} with status ${existingJob.status}, deleting it...`);
-      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
-    }
-
-    // Create new background job record using storage service (like Financial/IP agents)
-    try {
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'comprehensive_hr_analysis',
-        dealId,
-        agentType: 'HR',
-        status: 'processing',
-        progress: 0,
-        totalDocuments: 12, // 12 HR questions
-        processedDocuments: 0,
-        currentStep: 'Initializing HR analysis...',
-        startedAt: new Date()
-      });
-      console.log(`✅ Created background job ${jobId} for HR analysis`);
-    } catch (error) {
-      // Handle duplicate key errors specifically
-      if (error instanceof Error && error.message.includes('duplicate key')) {
-        console.log(`⚠️ Duplicate job key detected, attempting force cleanup for ${jobId}`);
-        await storage.deleteBackgroundJob(jobId);
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        await storage.createBackgroundJob({
-          jobId,
-          jobType: 'comprehensive_hr_analysis',
-          dealId,
-          agentType: 'HR',
-          status: 'processing',
-          progress: 0,
-          totalDocuments: 12,
-          processedDocuments: 0,
-          currentStep: 'Initializing HR analysis after cleanup...',
-          startedAt: new Date()
-        });
-        console.log(`✅ Successfully created job ${jobId} after cleanup`);
-      } else {
-        throw error;
+    // ALWAYS delete existing job to force fresh start - EXACT Legal behavior
+    const existingJobs = await db
+      .select()
+      .from(backgroundJobs)
+      .where(and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.agentType, 'HR')
+      ));
+    
+    for (const job of existingJobs) {
+      console.log(`🧹 FORCE DELETING existing job ${job.jobId} for deal ${dealId} with status ${job.status} to start fresh...`);
+      await db
+        .delete(backgroundJobs)
+        .where(eq(backgroundJobs.jobId, job.jobId));
+      
+      // Also clear from memory if running
+      if (this.activeJobs.has(job.jobId)) {
+        this.activeJobs.delete(job.jobId);
+      }
+      
+      const interval = this.jobIntervals.get(job.jobId);
+      if (interval) {
+        clearInterval(interval);
+        this.jobIntervals.delete(job.jobId);
       }
     }
+
+    // CRITICAL FIX: Clear existing analysis data before starting fresh analysis
+    console.log(`🧹 Clearing existing HR analysis data for deal ${dealId}`);
+    try {
+      await db
+        .delete(agentAnalyses)
+        .where(and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'HR')
+        ));
+      console.log(`✅ Successfully cleared existing HR analysis for deal ${dealId}`);
+    } catch (error) {
+      console.log(`⚠️ No existing HR analysis to clear for deal ${dealId}: ${error.message}`);
+    }
+
+    // Create new background job record - FIXED: Direct database insert like Legal agent
+    await db.insert(backgroundJobs).values({
+      jobId,
+      dealId,
+      jobType: 'rag_hr_analysis',
+      agentType: 'HR',
+      status: 'processing',
+      progress: 0,
+      processedDocuments: 0,
+      totalDocuments: 12, // 12 HR questions
+      currentStep: 'Initializing simplified RAG HR analysis...',
+      jobData: {
+        startTime: Date.now(),
+        analysisType: 'simplified_rag_hr',
+        ragEnabled: true,
+        questionCount: 12,
+        expectedLayers: 12 // 12 questions × 1 direct search each
+      },
+      startedAt: new Date()
+    });
 
     // Start the analysis process
     await this.processHRAnalysis(dealId, jobId);
