@@ -832,7 +832,7 @@ Provide institutional-grade HR analysis in JSON format:
 {
   "answer": "Comprehensive HR analysis with specific employment data, compliance status, and investment implications",
   "confidence": 0-100,
-  "sources": ["Document1.pdf", "Document2.pdf"],
+  "sources": ["Document1.pdf", "Document2.pdf", "Document3.pdf", ...], // MINIMUM 15 UNIQUE SOURCES REQUIRED
   "keyFindings": ["Quantified HR finding 1", "Employment compliance status 2", "Compensation structure 3"],
   "hrAssessment": "Professional HR assessment from institutional investment perspective",
   "recommendations": ["Actionable investment recommendation 1", "HR risk mitigation step 2"],
@@ -840,10 +840,16 @@ Provide institutional-grade HR analysis in JSON format:
   "investmentImplications": "Direct impact on investment thesis and human capital valuation"
 }
 
-ENTERPRISE REQUIREMENTS:
-- Cite specific quantitative HR data from evidence
-- Provide institutional investment perspective
-- Include risk-adjusted HR assessments  
+CRITICAL ANALYSIS REQUIREMENTS:
+- MINIMUM SOURCE DIVERSITY: Cite at least 15 unique source documents in the sources array
+- EXTRACT ALL AVAILABLE INFORMATION: Use any directly supported facts from the evidence base - DO NOT default to "Insufficient evidence" unless zero supporting facts exist
+- FLEXIBLE CITATION FORMAT: Use [Document Name + Chunk Reference] when specific page numbers are unavailable (e.g., "Employment_Agreement.pdf chunk 4")
+- CITE SPECIFIC QUANTITATIVE HR DATA: Employee counts, compensation figures, benefit costs, turnover percentages, compliance metrics when available
+- PROVIDE INSTITUTIONAL INVESTMENT PERSPECTIVE: Risk-adjusted human capital assessments with investment implications
+- INCLUDE RISK-ADJUSTED HR ASSESSMENTS: Evidence-based workforce analysis and employment risk scoring
+
+EVIDENCE EXTRACTION MANDATE:
+You MUST extract and analyze ANY available information from the provided evidence base. Only state "insufficient evidence" if literally zero supporting facts exist. When page numbers are unavailable, cite documents with chunk references. Always prioritize extracting actionable HR insights over claiming insufficient data.  
 - Reference multiple source documents for credibility
 - Focus on actionable insights for investment committee
 - Use professional HR and employment law terminology
@@ -889,7 +895,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         category: question.category,
         answer: analysis.answer || `Comprehensive HR analysis based on ${totalChunks} content segments from ${allSourceDocuments.length} documents. ${question.category} assessment completed with multi-layer evidence synthesis.`,
         confidence: Math.max(analysis.confidence || 75, allFindings.length > 0 ? 80 : 40),
-        sources: allSourceDocuments,
+        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
         keyFindings: analysis.keyFindings || allFindings.slice(0, 5),
         hrAssessment: analysis.hrAssessment || `${question.category}: HR assessment based on comprehensive document analysis with focus on ${question.analysisPrompt}`,
         recommendations: analysis.recommendations || ['Comprehensive HR review completed - detailed analysis available'],
@@ -919,7 +925,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         category: question.category,
         answer: `${question.category} analysis completed through comprehensive review of ${allSourceDocuments.length} documents with ${totalChunks} content segments. HR assessment focused on ${question.analysisPrompt}`,
         confidence: allFindings.length > 0 ? 70 : 30,
-        sources: allSourceDocuments,
+        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
         keyFindings: allFindings.slice(0, 5),
         hrAssessment: `${question.category}: Comprehensive HR analysis completed based on multi-layer evidence synthesis`,
         recommendations: ['HR analysis completed - enterprise-grade assessment available'],
