@@ -44,10 +44,14 @@ export class PersistentHRAnalysisService {
     try {
       console.log('👥 Initializing Persistent HR Analysis Service...');
       
-      // Temporarily reduce initialization load to prevent crashes
-      // Only check for actively running jobs to minimize startup queries
-      const hrJobs = [];
-      console.log('🔄 Skipping expensive job recovery during startup to prevent crashes');
+      // Query for incomplete jobs that need to be resumed - IDENTICAL to Legal agent
+      const hrJobs = await db
+        .select()
+        .from(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.agentType, 'HR'),
+          eq(backgroundJobs.status, 'processing')
+        ));
 
       console.log(`🔄 Found ${hrJobs.length} incomplete HR analysis jobs`);
 
@@ -121,14 +125,14 @@ export class PersistentHRAnalysisService {
       status: 'processing',
       progress: 0,
       processedDocuments: 0,
-      totalDocuments: 12, // 12 HR questions
+      totalDocuments: this.getHRQuestions()?.length || 12, // Dynamic HR question count
       currentStep: 'Initializing simplified RAG HR analysis...',
       jobData: {
         startTime: Date.now(),
         analysisType: 'simplified_rag_hr',
         ragEnabled: true,
-        questionCount: 12,
-        expectedLayers: 12 // 12 questions × 1 direct search each
+        questionCount: this.getHRQuestions()?.length || 12,
+        expectedLayers: this.getHRQuestions()?.length || 12 // Dynamic question count × 1 direct search each
       },
       startedAt: new Date()
     });
@@ -153,39 +157,32 @@ export class PersistentHRAnalysisService {
         return;
       }
 
-      // Check if analysis is FULLY completed (all questions answered)
-      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'hr');
-      const expectedQuestions = this.getHRQuestions();
-      
-      // CRITICAL FIX: Add null check to prevent "Cannot read properties of undefined" error
-      if (!expectedQuestions || !Array.isArray(expectedQuestions)) {
-        console.log(`⚠️ HR questions not loaded properly, forcing fresh analysis for deal ${dealId}`);
-        await this.processHRAnalysis(dealId, jobId);
-        return;
+      // FORCE CLEAR existing analysis data and reset job to 0% - IDENTICAL to Legal
+      console.log(`🧹 FORCE CLEARING existing HR analysis data for deal ${dealId}`);
+      try {
+        await db
+          .delete(agentAnalyses)
+          .where(and(
+            eq(agentAnalyses.dealId, dealId),
+            eq(agentAnalyses.agentType, 'HR')
+          ));
+        console.log(`✅ Successfully cleared existing HR analysis for deal ${dealId}`);
+      } catch (error) {
+        console.log(`⚠️ No existing HR analysis to clear for deal ${dealId}: ${error.message}`);
       }
-      
-      const answeredQuestions = existingAnalysis?.hr_answers ? Object.keys(existingAnalysis.hr_answers).length : 0;
-      
-      if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
-        console.log(`✅ HR analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
-        await storage.completeBackgroundJob(jobId, { analysisComplete: true });
-        return;
-      }
-      
-      console.log(`🔄 HR analysis incomplete: ${answeredQuestions}/${expectedQuestions.length} questions answered. Continuing...`);
 
-      // Resume from where it left off
-      const progress = job.progress || 0;
-      console.log(`🔄 Resuming HR analysis at ${progress}% completion`);
+      // Reset job progress to 0% - IDENTICAL to Legal
+      await db
+        .update(backgroundJobs)
+        .set({
+          progress: 0,
+          processedDocuments: 0,
+          currentStep: 'Restarting HR analysis from beginning...',
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
 
-      // Update job status to processing if it was stuck - FIXED: Use storage service
-      await storage.updateBackgroundJob(jobId, {
-        status: 'processing',
-        currentStep: `Resuming analysis from ${progress}%...`
-      });
-
-      // Continue the analysis process
-      await this.processHRAnalysis(dealId, jobId, progress);
+      // Start fresh analysis process
+      await this.processHRAnalysis(dealId, jobId);
 
     } catch (error) {
       console.error(`❌ Failed to resume HR analysis ${jobId}:`, error);
@@ -203,8 +200,8 @@ export class PersistentHRAnalysisService {
         dealId,
         jobId,
         progress: startProgress,
-        currentQuestionIndex: Math.floor(startProgress / 100 * 12), // 12 total questions
-        totalQuestions: 12,
+        currentQuestionIndex: Math.floor(startProgress / 100 * (this.getHRQuestions()?.length || 12)), // Dynamic total questions
+        totalQuestions: this.getHRQuestions()?.length || 12,
         currentBatch: 0,
         totalBatches: 0,
         currentStep: 'Processing HR analysis...',
