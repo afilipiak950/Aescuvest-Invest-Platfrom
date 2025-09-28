@@ -294,10 +294,10 @@ export class RAGPoweredLegalAgent {
           agentType: 'legal',
           status: 'processing',
           progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
-          findings: JSON.stringify([]),
-          recommendations: JSON.stringify([]),
-          legalAnswers: JSON.stringify(initialLegalAnswers)
-        });
+          findings: [],
+          recommendations: [],
+          legalAnswers: initialLegalAnswers
+        } as any);
 
         console.log(`✅ Created new Legal analysis record with question ${questionIndex + 1}`);
       } else {
@@ -311,10 +311,10 @@ export class RAGPoweredLegalAgent {
         await db
           .update(agentAnalyses)
           .set({
-            legalAnswers: JSON.stringify(updatedLegalAnswers),
+            legalAnswers: updatedLegalAnswers,
             progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
             status: 'processing'
-          })
+          } as any)
           .where(and(
             eq(agentAnalyses.dealId, this.dealId),
             eq(agentAnalyses.agentType, 'legal')
