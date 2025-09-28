@@ -1582,84 +1582,67 @@ const RESEARCH_QUESTIONS: ResearchQuestion[] = [
   }
 ];
 
+// UPDATED: Legal questions to match simplified 6-question backend structure
 const LEGAL_QUESTIONS: LegalQuestion[] = [
   {
-    id: 'contracts_1',
-    category: 'Contracts & Agreements',
-    question: 'Are key commercial contracts clearly defined?',
-    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
+    id: 'contracts_commercial',
+    category: 'Commercial Contracts',
+    question: 'What are the key commercial contract terms and financial obligations?',
+    subQuestions: [
+      'What are the specific contract values, revenue commitments, and payment terms?',
+      'Are there termination clauses, liability caps, or penalty provisions?',
+      'What customer contracts, partnerships, or licensing agreements exist?'
+    ]
   },
   {
-    id: 'contracts_2',
-    category: 'Contracts & Agreements',
-    question: 'What are the key contractual obligations and terms?',
-    subQuestions: ['Obligations', 'Terms and conditions', 'Performance requirements']
-  },
-  {
-    id: 'contracts_3',
-    category: 'Contracts & Agreements',
-    question: 'Are there any concerning contract provisions or risks?',
-    subQuestions: ['Risk provisions', 'Liability clauses', 'Termination conditions']
-  },
-  {
-    id: 'governance_1',
+    id: 'governance_structure',
     category: 'Corporate Governance',
-    question: 'What is the corporate governance structure?',
-    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes']
+    question: 'What are the corporate governance structure and legal compliance status?',
+    subQuestions: [
+      'What is the board composition and governance oversight structure?',
+      'Are there adequate internal controls and compliance frameworks?',
+      'What regulatory compliance status and governance risks exist?'
+    ]
   },
   {
-    id: 'governance_2',
-    category: 'Corporate Governance',
-    question: 'Are there adequate governance controls and oversight?',
-    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks']
-  },
-  {
-    id: 'governance_3',
-    category: 'Corporate Governance',
-    question: 'What are the key governance risks and mitigation strategies?',
-    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses']
-  },
-  {
-    id: 'ip_1',
+    id: 'intellectual_property',
     category: 'Intellectual Property',
-    question: 'What is the intellectual property portfolio?',
-    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights']
+    question: 'What is the intellectual property portfolio and protection status?',
+    subQuestions: [
+      'What patents, trademarks, and IP assets exist in the portfolio?',
+      'Are there IP ownership issues, disputes, or infringement risks?',
+      'What IP protection strategies and enforcement mechanisms are in place?'
+    ]
   },
   {
-    id: 'ip_2',
-    category: 'Intellectual Property',
-    question: 'Are there any IP ownership or infringement issues?',
-    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate']
+    id: 'legal_risks',
+    category: 'Legal Risk Assessment',
+    question: 'What legal risks, litigation, and regulatory issues exist?',
+    subQuestions: [
+      'Are there active litigation, disputes, or legal proceedings?',
+      'What regulatory violations, compliance issues, or investigations exist?',
+      'What potential legal liabilities and risk exposures are identified?'
+    ]
   },
   {
-    id: 'ip_3',
-    category: 'Intellectual Property',
-    question: 'What IP protection and enforcement strategies are in place?',
-    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy']
+    id: 'employment_law',
+    category: 'Employment & Labor Law',
+    question: 'What employment law compliance and labor-related legal issues exist?',
+    subQuestions: [
+      'Are there employment law violations, discrimination claims, or labor disputes?',
+      'What workplace safety, benefits compliance, and HR policy issues exist?',
+      'Are employee agreements, non-competes, and confidentiality provisions adequate?'
+    ]
   },
   {
-    id: 'litigation_1',
-    category: 'Litigation & Legal Risks',
-    question: 'Are there any pending or threatened litigations?',
-    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes']
-  },
-  {
-    id: 'litigation_2',
-    category: 'Litigation & Legal Risks',
-    question: 'What are the key legal risks and potential exposures?',
-    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities']
-  },
-  {
-    id: 'regulatory_1',
-    category: 'Regulatory Compliance',
-    question: 'What regulatory requirements apply to the business?',
-    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations']
-  },
-  {
-    id: 'regulatory_2',
-    category: 'Regulatory Compliance',
-    question: 'Are there any regulatory compliance issues or violations?',
-    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings']
+    id: 'data_privacy_compliance',
+    category: 'Data Privacy & Compliance',
+    question: 'What data privacy, cybersecurity, and regulatory compliance issues exist?',
+    subQuestions: [
+      'Are there GDPR, CCPA, or other data privacy compliance requirements and violations?',
+      'What cybersecurity incidents, data breaches, or information security issues exist?',
+      'What industry-specific regulatory compliance requirements and status apply?'
+    ]
   }
 ];
 
