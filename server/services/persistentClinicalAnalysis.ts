@@ -4,7 +4,6 @@
  */
 
 import { storage } from '../storage';
-import { comprehensiveClinicalAnalysisService, COMPREHENSIVE_CLINICAL_QUESTIONS } from '../comprehensiveClinicalAnalysisService';
 import { websocketManager } from './websocketManager';
 
 interface ClinicalJobState {
@@ -227,17 +226,19 @@ export class PersistentClinicalAnalysisService {
       const staggeringService = AgentStaggeringService.getInstance();
       await staggeringService.waitForAgentStartup('Clinical');
 
-      // Call the existing comprehensive clinical analysis service
-      const result = await comprehensiveClinicalAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
+      // Call the new RAG-powered clinical analysis agent
+      const { RAGPoweredClinicalAgent } = await import('./ragPoweredClinicalAgent');
+      const ragAgent = new RAGPoweredClinicalAgent(dealId, jobId);
+      await ragAgent.runComprehensiveAnalysis();
 
       // Mark as completed
       jobState.progress = 100;
-      jobState.currentStep = 'Clinical analysis completed';
+      jobState.currentStep = 'RAG clinical analysis completed';
       
       await storage.updateBackgroundJob(jobId, {
         status: 'completed',
         progress: 100,
-        currentStep: 'Clinical analysis completed',
+        currentStep: 'RAG clinical analysis completed',
         completedAt: new Date(),
         updatedAt: new Date()
       });
