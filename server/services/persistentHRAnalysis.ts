@@ -249,6 +249,11 @@ export class PersistentHRAnalysisService {
       // Create RAG-powered HR agent instance - FIXED: Pass jobId like Legal agent
       const ragHRAgent = new RagPoweredHRAgent(dealId, jobId);
       
+      // ⚡ STAGGERED STARTUP - HR agent waits 45s to avoid API conflicts
+      const { AgentStaggeringService } = await import('./agentStaggeringService');
+      const staggeringService = AgentStaggeringService.getInstance();
+      await staggeringService.waitForAgentStartup('HR');
+
       // Call the RAG-powered HR analysis service - FIXED: No setProgressCallback, no return value
       await ragHRAgent.runComprehensiveAnalysis();
 

@@ -222,6 +222,11 @@ export class PersistentClinicalAnalysisService {
       jobState.currentStep = 'Running comprehensive clinical analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
+      // ⚡ STAGGERED STARTUP - Clinical agent waits 15s to avoid API conflicts
+      const { AgentStaggeringService } = await import('./agentStaggeringService');
+      const staggeringService = AgentStaggeringService.getInstance();
+      await staggeringService.waitForAgentStartup('Clinical');
+
       // Call the existing comprehensive clinical analysis service
       const result = await comprehensiveClinicalAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
 

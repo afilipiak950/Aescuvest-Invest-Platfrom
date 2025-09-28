@@ -260,6 +260,11 @@ export class PersistentLegalAnalysisService {
       jobState.currentStep = 'Running comprehensive legal analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
+      // ⚡ STAGGERED STARTUP - Legal agent starts immediately (priority)
+      const { AgentStaggeringService } = await import('./agentStaggeringService');
+      const staggeringService = AgentStaggeringService.getInstance();
+      await staggeringService.waitForAgentStartup('Legal');
+
       // Call the new RAG-powered legal analysis agent
       const ragAgent = new RAGPoweredLegalAgent(dealId, jobId);
       await ragAgent.runComprehensiveAnalysis();
