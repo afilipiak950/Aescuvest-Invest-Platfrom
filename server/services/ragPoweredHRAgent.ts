@@ -272,7 +272,7 @@ interface RagHRAnswer {
   processingTime: number;
 }
 
-export class RagPoweredHRAgent {
+export class RAGPoweredHRAgent {
   private dealId: number;
   private jobId: string;  // ✅ FIXED: Added missing jobId property
   private totalStartTime: number;

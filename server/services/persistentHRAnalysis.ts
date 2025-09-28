@@ -4,7 +4,7 @@
  */
 
 import { storage } from '../storage';
-import { RagPoweredHRAgent, RAG_HR_QUESTIONS } from './ragPoweredHRAgent';
+import { RAG_HR_QUESTIONS } from './ragPoweredHRAgent';
 import { websocketManager } from './websocketManager';
 import { db } from '../db';
 import { backgroundJobs, agentAnalyses } from '@shared/schema';
@@ -246,8 +246,9 @@ export class PersistentHRAnalysisService {
       jobState.currentStep = 'Running comprehensive HR analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
-      // Create RAG-powered HR agent instance - FIXED: Pass jobId like Legal agent
-      const ragHRAgent = new RagPoweredHRAgent(dealId, jobId);
+      // Create RAG-powered HR agent instance - EXACT SAME AS LEGAL AGENT
+      const { RAGPoweredHRAgent } = await import('./ragPoweredHRAgent');
+      const ragHRAgent = new RAGPoweredHRAgent(dealId, jobId);
       
       // ⚡ STAGGERED STARTUP - HR agent waits 45s to avoid API conflicts
       const { AgentStaggeringService } = await import('./agentStaggeringService');
@@ -259,7 +260,7 @@ export class PersistentHRAnalysisService {
 
       // Mark as completed
       jobState.progress = 100;
-      jobState.currentStep = 'HR analysis completed';
+      jobState.currentStep = 'RAG HR analysis completed';
       
       await storage.completeBackgroundJob(jobId, { hrAnalysisComplete: true });
 
