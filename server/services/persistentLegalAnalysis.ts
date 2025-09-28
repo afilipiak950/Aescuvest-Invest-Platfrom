@@ -111,13 +111,13 @@ export class PersistentLegalAnalysisService {
       processedDocuments: 0,
       totalDocuments: 13, // 13 legal questions
       currentStep: 'Initializing RAG legal analysis...',
-      jobData: JSON.stringify({
+      jobData: {
         startTime: Date.now(),
         analysisType: 'comprehensive_rag_legal',
         ragEnabled: true,
         questionCount: 13,
         expectedLayers: 52 // 13 questions × 4 RAG layers each
-      }),
+      },
       startedAt: new Date()
     });
 
