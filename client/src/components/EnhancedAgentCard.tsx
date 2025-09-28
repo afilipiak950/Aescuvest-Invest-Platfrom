@@ -956,14 +956,7 @@ export default function EnhancedAgentCard({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Progress Bars - Show individual progress for each agent */}
-        {agentType.toLowerCase() === 'legal' && <LegalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'commercial' && <CommercialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'hr' && <HrAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'clinical' && <ClinicalAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'financial' && <FinancialAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'ip' && <IpAnalysisProgress dealId={dealId} />}
-        {agentType.toLowerCase() === 'research' && <ResearchAnalysisProgress dealId={dealId} />}
+        {/* Progress tracking components will be implemented in future versions */}
         
         {/* KPI Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
