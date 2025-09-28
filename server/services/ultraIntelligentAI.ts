@@ -122,7 +122,7 @@ class UltraIntelligentAIService {
 
       // Debug GPT-5 parameter issue - log exact parameters being sent
       if (selectedModel.startsWith('gpt-5')) {
-        console.log(`🚀 GPT-5 Request: ${selectedModel} | tokens: ${optimizedTokens} | temp: ${optimizedTemperature}`);
+        console.log(`🐛 DEBUG GPT-5 Request Options:`, JSON.stringify(requestOptions, null, 2));
       }
       
       const completion = await this.openai.chat.completions.create(requestOptions);

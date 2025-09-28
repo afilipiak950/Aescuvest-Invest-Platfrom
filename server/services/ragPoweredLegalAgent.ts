@@ -294,10 +294,10 @@ export class RAGPoweredLegalAgent {
           agentType: 'legal',
           status: 'processing',
           progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
-          findings: [],
-          recommendations: [],
-          legalAnswers: initialLegalAnswers
-        } as any);
+          findings: JSON.stringify([]),
+          recommendations: JSON.stringify([]),
+          legalAnswers: JSON.stringify(initialLegalAnswers)
+        });
 
         console.log(`✅ Created new Legal analysis record with question ${questionIndex + 1}`);
       } else {
@@ -311,10 +311,10 @@ export class RAGPoweredLegalAgent {
         await db
           .update(agentAnalyses)
           .set({
-            legalAnswers: updatedLegalAnswers,
+            legalAnswers: JSON.stringify(updatedLegalAnswers),
             progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
             status: 'processing'
-          } as any)
+          })
           .where(and(
             eq(agentAnalyses.dealId, this.dealId),
             eq(agentAnalyses.agentType, 'legal')
@@ -378,7 +378,7 @@ export class RAGPoweredLegalAgent {
     const chunks = await EmbeddingService.searchSimilarChunks(
       combinedQuery,
       this.dealId,
-      40 // Increased from 20 to 40 for more comprehensive legal coverage
+      20 // Get top 20 chunks for comprehensive coverage with single search
     );
     
     // Map chunks to expected format
@@ -389,9 +389,8 @@ export class RAGPoweredLegalAgent {
       metadata: chunk.metadata
     }));
 
-    // LOWERED similarity threshold from 0.3 to 0.25 for better legal document coverage
-    // Legal documents often have lower similarity scores but contain critical information
-    const highQualityChunks = mappedChunks.filter(chunk => chunk.similarity > 0.25);
+    // Filter for high-quality results (similarity > 0.3 for legal relevance)
+    const highQualityChunks = mappedChunks.filter(chunk => chunk.similarity > 0.3);
     console.log(`  📊 Filtered ${highQualityChunks.length}/${mappedChunks.length} high-quality chunks`);
 
     // Synthesize findings from high-quality chunks
@@ -421,45 +420,42 @@ export class RAGPoweredLegalAgent {
   private async synthesizeChunkFindings(chunks: any[], analysisPrompt: string): Promise<string[]> {
     if (chunks.length === 0) return [];
     
-    // Combine top chunks for analysis - INCREASED from 8 to 15 for more comprehensive evidence
+    // Combine top chunks for analysis
     const combinedContent = chunks
-      .slice(0, 15) // Use top 15 chunks for more comprehensive legal analysis
+      .slice(0, 8) // Use top 8 chunks for focused analysis
       .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
       .join('\n\n');
     
-    const prompt = `You are a senior legal analyst conducting institutional investment due diligence for a $50M+ transaction. Extract comprehensive legal intelligence from the provided evidence.
+    const prompt = `You are a senior legal analyst conducting institutional investment due diligence. Apply rigorous legal analysis to extract precise, actionable findings from this evidence:
 
-DOCUMENT EVIDENCE:
 ${combinedContent}
-
-CRITICAL INSTRUCTION: Always provide substantive legal analysis. If specific contractual terms are not found, analyze the available legal content and provide professional legal assessment based on standard industry practices and regulatory frameworks.
 
 ENHANCED ANALYSIS REQUIREMENTS:
 1. Extract SPECIFIC contractual terms: exact amounts, dates, notice periods, liability caps
-2. If specific terms unavailable, provide INDUSTRY STANDARD analysis: typical legal risks, standard contract provisions, regulatory compliance requirements
-3. Cite document references when available: [Document Name] for findings
+2. Identify QUANTIFIED legal risks: potential exposure amounts, penalty calculations, compliance costs
+3. Cite EXACT document references: [Document Name, Section/Page] for all findings
 4. Assess MATERIALITY: distinguish between critical vs. minor legal issues for investment decisions
 5. Provide INVESTMENT CONTEXT: how legal findings impact deal valuation, structure, and risk profile
 
-Extract findings as JSON array with comprehensive structure:
+Extract findings as JSON array with enhanced structure:
 {
   "findings": [
-    "Standard commercial contract provisions require review: Payment terms, liability caps, and termination clauses should align with institutional investment standards [Available Documents]",
-    "Regulatory compliance framework: Industry-standard legal requirements apply including data protection, employment law, and corporate governance standards",
-    "Legal risk assessment: Standard due diligence protocols recommend evaluation of IP protection, litigation exposure, and contractual obligations"
+    "Contract liability cap: $2.5M maximum exposure per FTC Agreement Section 4.3 [FTC_Agreement.pdf, Section 4.3]",
+    "Termination clause: 90-day notice required with $500K penalty for early termination [Service_Agreement.pdf, Section 8.1]",
+    "Regulatory compliance: GDPR violations carry €20M maximum fine exposure under current framework [Privacy_Policy.pdf]"
   ]
 }
 
-ENTERPRISE-GRADE LEGAL INTELLIGENCE FRAMEWORK:
-- CONTRACT ECONOMICS: Payment terms, revenue commitments, liability limits (analyze available terms or provide standard frameworks)
-- LEGAL RISK EXPOSURE: Quantified penalties, maximum damages, insurance gaps (identify standard risks if specifics unavailable)
-- REGULATORY COMPLIANCE: Compliance frameworks, enforcement risks (evaluate against industry standards)
-- IP PROTECTION VALUE: Patent portfolios, licensing revenue, infringement risks (assess available IP documentation)
-- LITIGATION MATERIALITY: Legal proceedings, damages, settlement exposure (review available legal documents)
-- GOVERNANCE ADEQUACY: Board structure, controls, fiduciary responsibilities (evaluate governance frameworks)
-- DEAL STRUCTURE IMPACT: Valuation effects, legal protections, exit strategies (provide investment-focused legal analysis)
+INSTITUTIONAL-GRADE LEGAL INTELLIGENCE FOCUS:
+- CONTRACT ECONOMICS: Payment terms, revenue commitments, liability limits with specific dollar amounts
+- LEGAL RISK EXPOSURE: Quantified penalties, maximum damages, insurance coverage gaps  
+- REGULATORY COMPLIANCE: Specific violations, enforcement actions, compliance costs with timelines
+- IP PROTECTION VALUE: Patent portfolio valuation, licensing revenue, infringement exposure amounts
+- LITIGATION MATERIALITY: Case status, potential damages, settlement amounts, legal fee exposure
+- GOVERNANCE ADEQUACY: Board structure effectiveness, control weaknesses, fiduciary risk assessment
+- DEAL STRUCTURE IMPACT: How legal terms affect valuation multiples, deal protections, and exit strategies
 
-MANDATORY OUTPUT: Always provide minimum 3-5 substantive legal findings. Never respond with "insufficient evidence" - instead analyze available content and supplement with industry-standard legal frameworks and best practices for institutional investment due diligence.`;
+Deliver PRECISE legal intelligence with quantified risk assessment and specific document citations.`;
 
     try {
       // Ultra-Intelligent Legal Chunk Analysis Configuration
