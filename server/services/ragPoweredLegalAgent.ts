@@ -182,27 +182,27 @@ export class RAGPoweredLegalAgent {
   }
 
   /**
-   * RUN COMPREHENSIVE LEGAL ANALYSIS
-   * Execute RAG-powered analysis for all 13 legal questions
+   * RUN SIMPLIFIED LEGAL ANALYSIS
+   * Execute streamlined RAG-powered analysis for 6 focused legal questions
    */
   async runComprehensiveAnalysis(): Promise<void> {
-    console.log(`⚖️ Starting RAG-powered legal analysis for deal ${this.dealId}`);
-    console.log(`📋 Processing ${RAG_LEGAL_QUESTIONS.length} legal questions with 4-layer RAG evidence gathering`);
+    console.log(`⚖️ Starting simplified RAG-powered legal analysis for deal ${this.dealId}`);
+    console.log(`📋 Processing ${RAG_LEGAL_QUESTIONS.length} focused legal questions with direct document analysis`);
     
     const legalAnswers: Record<string, RagLegalAnswer> = {};
     const allFindings: any[] = [];
     const allRecommendations: any[] = [];
 
-    // Process all 13 legal questions sequentially with progress tracking
+    // Process all 6 legal questions sequentially with progress tracking
     for (let i = 0; i < RAG_LEGAL_QUESTIONS.length; i++) {
       const question = RAG_LEGAL_QUESTIONS[i];
       const questionStartTime = Date.now();
       
-      console.log(`⚖️ Question ${i + 1}/13: ${question.question}`);
+      console.log(`⚖️ Question ${i + 1}/6: ${question.question}`);
       console.log(`📂 Category: ${question.category}`);
       
-      // Execute multi-layer RAG search for comprehensive evidence
-      const evidenceBase = await this.executeMultiLayerRagSearch(question);
+      // Execute simplified direct document search for reliable evidence
+      const evidenceBase = await this.executeDirectDocumentSearch(question);
       
       // Synthesize enterprise-grade legal answer
       const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
@@ -360,54 +360,56 @@ export class RAGPoweredLegalAgent {
   }
 
   /**
-   * MULTI-LAYER RAG SEARCH STRATEGY
-   * Execute 4 intelligent queries per question for comprehensive coverage
+   * DIRECT DOCUMENT SEARCH STRATEGY
+   * Simplified, reliable RAG search with focused evidence gathering for better consistency
    */
-  private async executeMultiLayerRagSearch(question: any): Promise<RagLegalEvidence[]> {
-    console.log(`📡 Executing multi-layer RAG search for: ${question.category}`);
+  private async executeDirectDocumentSearch(question: any): Promise<RagLegalEvidence[]> {
+    console.log(`📡 Executing direct document search for: ${question.category}`);
     
     const evidenceBase: RagLegalEvidence[] = [];
     
-    // Execute all 4 RAG queries for this legal question
-    for (let i = 0; i < question.ragQueries.length; i++) {
-      const query = question.ragQueries[i];
-      const queryStartTime = Date.now();
-      
-      console.log(`  🔎 Layer ${i + 1}/4: ${query}`);
-      
-      // Perform semantic search across ALL documents
-      const chunks = await EmbeddingService.searchSimilarChunks(
-        query,
-        this.dealId,
-        12 // Get top 12 chunks for comprehensive coverage
-      );
-      
-      // Map chunks to expected format first (TypeScript fix from clinical)
-      const mappedChunks = chunks.map(chunk => ({
-        content: chunk.chunk,
-        documentName: chunk.metadata.documentName || 'Unknown Document',
-        similarity: chunk.similarity,
-        metadata: chunk.metadata
-      }));
-
-      // Synthesize findings from mapped chunks
-      const synthesizedFindings = await this.synthesizeChunkFindings(mappedChunks, question.analysisPrompt);
-      
-      const evidence: RagLegalEvidence = {
-        query,
-        chunks: mappedChunks,
-        synthesizedFindings,
-        confidenceScore: this.calculateConfidenceScore(mappedChunks),
-        sourceDocuments: Array.from(new Set(mappedChunks.map(c => c.documentName)))
-      };
-      
-      evidenceBase.push(evidence);
-      
-      const queryTime = Date.now() - queryStartTime;
-      console.log(`    ✅ Found ${mappedChunks.length} chunks from ${evidence.sourceDocuments.length} documents (${queryTime}ms)`);
-    }
+    // Create a single, comprehensive search query by combining key terms
+    const combinedQuery = question.ragQueries.join(' ');
+    console.log(`  🎯 Unified search: ${combinedQuery.substring(0, 100)}...`);
     
-    console.log(`🎯 Multi-layer search completed: ${evidenceBase.length} evidence layers`);
+    const queryStartTime = Date.now();
+    
+    // Perform one focused semantic search across ALL documents with higher limit
+    const chunks = await EmbeddingService.searchSimilarChunks(
+      combinedQuery,
+      this.dealId,
+      20 // Get top 20 chunks for comprehensive coverage with single search
+    );
+    
+    // Map chunks to expected format
+    const mappedChunks = chunks.map(chunk => ({
+      content: chunk.chunk,
+      documentName: chunk.metadata.documentName || 'Unknown Document',
+      similarity: chunk.similarity,
+      metadata: chunk.metadata
+    }));
+
+    // Filter for high-quality results (similarity > 0.3 for legal relevance)
+    const highQualityChunks = mappedChunks.filter(chunk => chunk.similarity > 0.3);
+    console.log(`  📊 Filtered ${highQualityChunks.length}/${mappedChunks.length} high-quality chunks`);
+
+    // Synthesize findings from high-quality chunks
+    const synthesizedFindings = await this.synthesizeChunkFindings(highQualityChunks, question.analysisPrompt);
+    
+    const evidence: RagLegalEvidence = {
+      query: combinedQuery,
+      chunks: highQualityChunks,
+      synthesizedFindings,
+      confidenceScore: this.calculateConfidenceScore(highQualityChunks),
+      sourceDocuments: Array.from(new Set(highQualityChunks.map(c => c.documentName)))
+    };
+    
+    evidenceBase.push(evidence);
+    
+    const queryTime = Date.now() - queryStartTime;
+    console.log(`    ✅ Found ${highQualityChunks.length} relevant chunks from ${evidence.sourceDocuments.length} documents (${queryTime}ms)`);
+    
+    console.log(`🎯 Direct search completed: Simplified single-layer evidence gathering`);
     return evidenceBase;
   }
 
