@@ -341,7 +341,7 @@ export class EmbeddingService {
     if (words1.size === 0 || words2.size === 0) return 0;
     
     let intersection = 0;
-    for (const word of words1) {
+    for (const word of Array.from(words1)) {
       if (words2.has(word)) intersection++;
     }
     
