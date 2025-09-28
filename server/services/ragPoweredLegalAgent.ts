@@ -426,25 +426,36 @@ export class RAGPoweredLegalAgent {
       .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
       .join('\n\n');
     
-    const prompt = `You are a senior legal analyst conducting institutional investment due diligence. Extract key legal findings from this evidence:
+    const prompt = `You are a senior legal analyst conducting institutional investment due diligence. Apply rigorous legal analysis to extract precise, actionable findings from this evidence:
 
 ${combinedContent}
 
-Extract specific, actionable legal findings as a JSON array:
+ENHANCED ANALYSIS REQUIREMENTS:
+1. Extract SPECIFIC contractual terms: exact amounts, dates, notice periods, liability caps
+2. Identify QUANTIFIED legal risks: potential exposure amounts, penalty calculations, compliance costs
+3. Cite EXACT document references: [Document Name, Section/Page] for all findings
+4. Assess MATERIALITY: distinguish between critical vs. minor legal issues for investment decisions
+5. Provide INVESTMENT CONTEXT: how legal findings impact deal valuation, structure, and risk profile
+
+Extract findings as JSON array with enhanced structure:
 {
-  "findings": ["Specific legal finding with quantitative data", "Contractual risk with specific terms", "Compliance status with specific requirements"]
+  "findings": [
+    "Contract liability cap: $2.5M maximum exposure per FTC Agreement Section 4.3 [FTC_Agreement.pdf, Section 4.3]",
+    "Termination clause: 90-day notice required with $500K penalty for early termination [Service_Agreement.pdf, Section 8.1]",
+    "Regulatory compliance: GDPR violations carry €20M maximum fine exposure under current framework [Privacy_Policy.pdf]"
+  ]
 }
 
-Focus on ENTERPRISE-GRADE LEGAL ANALYSIS:
-- Contractual terms and obligations with specific details
-- Legal risks and liability exposure with quantified impact
-- Compliance status with regulatory requirements and timelines
-- IP protection and enforcement mechanisms with portfolio details
-- Litigation risks and financial exposure with case specifics
-- Governance structure and control effectiveness with assessment
-- Risk mitigation strategies and legal recommendations
+INSTITUTIONAL-GRADE LEGAL INTELLIGENCE FOCUS:
+- CONTRACT ECONOMICS: Payment terms, revenue commitments, liability limits with specific dollar amounts
+- LEGAL RISK EXPOSURE: Quantified penalties, maximum damages, insurance coverage gaps  
+- REGULATORY COMPLIANCE: Specific violations, enforcement actions, compliance costs with timelines
+- IP PROTECTION VALUE: Patent portfolio valuation, licensing revenue, infringement exposure amounts
+- LITIGATION MATERIALITY: Case status, potential damages, settlement amounts, legal fee exposure
+- GOVERNANCE ADEQUACY: Board structure effectiveness, control weaknesses, fiduciary risk assessment
+- DEAL STRUCTURE IMPACT: How legal terms affect valuation multiples, deal protections, and exit strategies
 
-Provide investment-relevant legal intelligence, not generic summaries.`;
+Deliver PRECISE legal intelligence with quantified risk assessment and specific document citations.`;
 
     try {
       // Ultra-Intelligent Legal Chunk Analysis Configuration
@@ -493,12 +504,12 @@ Provide investment-relevant legal intelligence, not generic summaries.`;
       `Layer ${index + 1}: "${evidence.query}" → ${evidence.synthesizedFindings.length} findings from ${evidence.sourceDocuments.length} documents`
     ).join('\n');
     
-    const prompt = `You are a senior legal investment analyst conducting institutional due diligence for a legal investment. Provide an enterprise-grade legal assessment.
+    const prompt = `You are a partner-level legal analyst at a top-tier investment firm conducting institutional due diligence for a $50M+ transaction. Apply Goldman Sachs-level legal analysis rigor.
 
-QUESTION: ${question.question}
-CATEGORY: ${question.category}
-SUB-QUESTIONS: ${question.subQuestions.join('; ')}
-ANALYSIS FOCUS: ${question.analysisPrompt}
+LEGAL ASSESSMENT MANDATE: ${question.question}
+ANALYSIS CATEGORY: ${question.category}
+INVESTIGATION SCOPE: ${question.subQuestions.join(' | ')}
+ANALYTICAL DIRECTIVE: ${question.analysisPrompt}
 
 COMPREHENSIVE EVIDENCE BASE:
 ${evidenceSummary}
@@ -521,17 +532,15 @@ Provide institutional-grade legal analysis in JSON format:
   "investmentImplications": "Direct impact on investment thesis and legal risk profile"
 }
 
-ENTERPRISE REQUIREMENTS:
-- Cite specific contractual terms, amounts, dates, and clauses from evidence with [Document, Section/Page] references
-- Extract concrete legal data: liability caps, termination notice periods, governing law, payment terms with specific amounts/dates
-- Provide institutional investment perspective focusing on legal risk exposure and deal structure impact
-- Include verbatim contract quotes (≤300 chars) with document citations for credibility
-- Reference multiple source documents for comprehensive legal assessment
-- Focus on actionable insights for investment committee decision-making
-- Use professional legal and commercial terminology with precise clause analysis
-- Quantify legal risks, liability exposure, and contractual obligations where possible
-- Extract specific parties, effective dates, termination conditions, and financial commitments
-- Identify concerning provisions with exact contractual language and potential impact
+INSTITUTIONAL INVESTMENT REQUIREMENTS:
+- QUANTIFY ALL LEGAL EXPOSURES: Maximum liability amounts, penalty calculations, potential damages with specific dollar figures
+- EXTRACT CONTRACTUAL ECONOMICS: Revenue commitments, payment terms, termination costs, liability caps with exact amounts and dates
+- CITE PRECISE DOCUMENT EVIDENCE: [Document Name, Section/Page] for every finding with verbatim quotes (≤200 chars)
+- ASSESS INVESTMENT MATERIALITY: Distinguish deal-breaker vs. manageable legal issues for $50M+ transactions
+- EVALUATE RISK-RETURN IMPACT: How legal terms affect valuation multiples, deal protections, exit strategies, and IRR projections
+- PROVIDE ACTIONABLE INTELLIGENCE: Specific legal recommendations for investment committee approval process
+- IDENTIFY RED FLAGS: Contract terms, compliance gaps, or legal exposures that could derail the transaction
+- BENCHMARK AGAINST MARKET: Compare terms to industry standards for institutional investment best practices
 
 LEGAL RISK SCORING (1-10):
 1-3: Low Risk (Strong legal position, minimal exposure)
