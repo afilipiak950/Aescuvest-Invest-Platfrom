@@ -255,7 +255,14 @@ export default function EnhancedAgentCard({
     refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
-  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, or Financial agent and we have the data
+  // Fetch comprehensive Legal analysis data directly for Legal agents
+  const { data: legalAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
+    queryKey: [`/api/deals/${dealId}/agents/legal/results`],
+    enabled: agentType.toLowerCase() === 'legal',
+    refetchInterval: 20000, // Reduced from 2s to 20s
+  });
+
+  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, Financial, or Legal agent and we have the data
   const actualAnalysisData = (() => {
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
@@ -272,6 +279,9 @@ export default function EnhancedAgentCard({
     if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
       // CRITICAL FIX: Use same simple pattern as Clinical agent - no complex conditionals
       return financialAnalysisData.analysis;
+    }
+    if (agentType.toLowerCase() === 'legal' && legalAnalysisData && typeof legalAnalysisData === 'object' && 'analysis' in legalAnalysisData) {
+      return legalAnalysisData.analysis;
     }
     return analysis || {};
   })();
