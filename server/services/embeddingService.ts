@@ -414,53 +414,78 @@ export class EmbeddingService {
     console.log(`💾 Cached response for query (expires in ${ttlMinutes} minutes)`);
   }
 
-  // New method for auto-embedding missing documents for specific deal
+  // SIMPLIFIED: Non-blocking embedding for instant analysis start
   static async embedMissingDocuments(dealId: number): Promise<void> {
     try {
-      console.log(`🚀 Auto-embedding missing documents for deal ${dealId}...`);
+      console.log(`⚡ Quick check: embedding status for deal ${dealId}...`);
       
-      // Get documents for this deal that don't have embeddings
-      const documentsToEmbed = await db.execute(sql`
-        SELECT d.id, d.deal_id, d.name, d.ocr_text, d.agent_type
+      // Just count missing embeddings without blocking
+      const missingCount = await db.execute(sql`
+        SELECT COUNT(*) as missing
         FROM documents d
         LEFT JOIN document_embeddings de ON d.id = de.document_id
         WHERE d.deal_id = ${dealId}
         AND de.document_id IS NULL 
         AND d.ocr_text IS NOT NULL 
         AND LENGTH(d.ocr_text) > 100
-        ORDER BY d.id
       `);
       
-      console.log(`Found ${documentsToEmbed.rows.length} documents to embed for deal ${dealId}`);
+      const missing = (missingCount.rows[0] as any)?.missing || 0;
       
-      if (documentsToEmbed.rows.length === 0) {
+      if (missing === 0) {
         console.log(`✅ All documents already embedded for deal ${dealId}`);
         return;
       }
 
-      // Process documents in batches to avoid rate limits
-      for (const doc of documentsToEmbed.rows) {
-        try {
-          await this.embedDocument(
-            doc.id as number,
-            doc.deal_id as number,
-            doc.name as string,
-            doc.ocr_text as string,
-            doc.agent_type as string
-          );
-          
-          // Small delay to respect rate limits
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error) {
-          console.error(`❌ Failed to embed document ${doc.id}:`, error);
-        }
-      }
+      console.log(`⚡ ${missing} documents need embedding - starting background process`);
       
-      console.log(`✅ Completed auto-embedding for deal ${dealId}`);
+      // Start background embedding WITHOUT blocking analysis
+      this.startBackgroundEmbedding(dealId).catch(error => {
+        console.error(`❌ Background embedding failed for deal ${dealId}:`, error);
+      });
+      
+      console.log(`✅ Analysis can proceed immediately with existing embeddings`);
     } catch (error) {
-      console.error(`❌ Auto-embedding failed for deal ${dealId}:`, error);
-      throw error;
+      console.error(`❌ Embedding check failed for deal ${dealId}:`, error);
+      // Don't throw - allow analysis to continue even if embedding check fails
     }
+  }
+
+  // Background embedding process - non-blocking
+  private static async startBackgroundEmbedding(dealId: number): Promise<void> {
+    console.log(`🔄 Background embedding started for deal ${dealId}`);
+    
+    const documentsToEmbed = await db.execute(sql`
+      SELECT d.id, d.deal_id, d.name, d.ocr_text, d.agent_type
+      FROM documents d
+      LEFT JOIN document_embeddings de ON d.id = de.document_id
+      WHERE d.deal_id = ${dealId}
+      AND de.document_id IS NULL 
+      AND d.ocr_text IS NOT NULL 
+      AND LENGTH(d.ocr_text) > 100
+      ORDER BY d.id
+      LIMIT 20
+    `);
+    
+    // Process only first 20 documents to avoid overwhelming the system
+    for (const doc of documentsToEmbed.rows) {
+      try {
+        await this.embedDocument(
+          doc.id as number,
+          doc.deal_id as number,
+          doc.name as string,
+          doc.ocr_text as string,
+          doc.agent_type as string
+        );
+        
+        // Shorter delay for background processing
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`❌ Background embed failed for document ${doc.id}:`, error);
+      }
+    }
+    
+    console.log(`✅ Background embedding batch completed for deal ${dealId}`);
   }
 
   // Get embedding statistics for a deal

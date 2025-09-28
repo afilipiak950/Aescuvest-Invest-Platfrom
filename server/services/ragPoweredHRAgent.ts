@@ -292,8 +292,8 @@ export class RagPoweredHRAgent {
     console.log(`📋 Processing ${RAG_HR_QUESTIONS.length} HR questions with 4-layer RAG evidence gathering`);
 
     try {
-      // Ensure documents are embedded for RAG search - FIXED: Like Clinical agent
-      await EmbeddingService.embedMissingDocuments(this.dealId);
+      // ⚡ SIMPLIFIED: Start analysis immediately without blocking on embeddings
+      console.log(`⚡ Skipping embedding wait - starting analysis with existing data`);
 
       const hrAnswers: Record<string, RagHRAnswer> = {};
     const allFindings: any[] = [];
