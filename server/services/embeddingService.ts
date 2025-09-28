@@ -5,11 +5,11 @@ import { eq, and, sql, desc } from 'drizzle-orm';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Chunk size for splitting documents
-const CHUNK_SIZE = 500; // tokens
-const CHUNK_OVERLAP = 50; // tokens
-const EMBEDDING_MODEL = 'text-embedding-3-small';
-const TOP_K_RESULTS = 10; // Number of relevant chunks to retrieve
+// Optimized chunk size for legal content analysis
+const CHUNK_SIZE = 300; // tokens - smaller chunks for precise legal clause matching
+const CHUNK_OVERLAP = 100; // tokens - higher overlap to preserve clause context
+const EMBEDDING_MODEL = 'text-embedding-3-large'; // Higher-quality embeddings for better legal recall
+const TOP_K_RESULTS = 50; // Increased retrieval for source diversity (15-25 unique sources)
 
 interface ChunkMetadata {
   documentId: number;
