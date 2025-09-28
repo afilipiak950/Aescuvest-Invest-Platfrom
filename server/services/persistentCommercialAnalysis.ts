@@ -283,6 +283,11 @@ export class PersistentCommercialAnalysisService {
       jobState.currentStep = 'Running comprehensive commercial analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
+      // ⚡ STAGGERED STARTUP - Commercial agent waits 30s to avoid API conflicts
+      const { AgentStaggeringService } = await import('./agentStaggeringService');
+      const staggeringService = AgentStaggeringService.getInstance();
+      await staggeringService.waitForAgentStartup('Commercial');
+
       // Call the RAG-powered commercial analysis agent
       const ragAgent = new RAGPoweredCommercialAgent(dealId, jobId);
       await ragAgent.runComprehensiveAnalysis();
