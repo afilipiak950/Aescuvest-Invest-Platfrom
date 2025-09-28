@@ -1582,66 +1582,145 @@ const RESEARCH_QUESTIONS: ResearchQuestion[] = [
   }
 ];
 
-// UPDATED: Legal questions to match simplified 6-question backend structure
+// COMPREHENSIVE 13 LEGAL QUESTIONS - Complete institutional-grade legal due diligence across 5 categories
 const LEGAL_QUESTIONS: LegalQuestion[] = [
+  // ========== CONTRACTS & AGREEMENTS (3 questions) ==========
   {
-    id: 'contracts_commercial',
-    category: 'Commercial Contracts',
-    question: 'What are the key commercial contract terms and financial obligations?',
+    id: 'contracts_1',
+    category: 'Contracts & Agreements',
+    question: 'Are key commercial contracts clearly defined?',
     subQuestions: [
-      'What are the specific contract values, revenue commitments, and payment terms?',
-      'Are there termination clauses, liability caps, or penalty provisions?',
-      'What customer contracts, partnerships, or licensing agreements exist?'
+      'What are the main revenue-generating contracts and their terms?',
+      'Are contract obligations, deliverables, and payment terms clearly specified?',
+      'What are the key customer contracts, partnerships, and licensing agreements?'
     ]
   },
   {
-    id: 'governance_structure',
+    id: 'contracts_2',
+    category: 'Contracts & Agreements',
+    question: 'What are the key contractual obligations and terms?',
+    subQuestions: [
+      'What specific obligations and performance requirements exist?',
+      'Are there warranty, indemnification, or liability provisions?',
+      'What are the contract renewal, modification, and assignment terms?'
+    ]
+  },
+  {
+    id: 'contracts_3',
+    category: 'Contracts & Agreements',
+    question: 'Are there any concerning contract provisions or risks?',
+    subQuestions: [
+      'Are there termination clauses, penalties, or restrictive provisions?',
+      'What liability caps, exclusions, and risk allocation mechanisms exist?',
+      'Are there any unfavorable terms or potential contract disputes?'
+    ]
+  },
+
+  // ========== CORPORATE GOVERNANCE (3 questions) ==========
+  {
+    id: 'governance_1',
     category: 'Corporate Governance',
-    question: 'What are the corporate governance structure and legal compliance status?',
+    question: 'What is the corporate governance structure?',
     subQuestions: [
-      'What is the board composition and governance oversight structure?',
-      'Are there adequate internal controls and compliance frameworks?',
-      'What regulatory compliance status and governance risks exist?'
+      'What is the board composition and director qualifications?',
+      'What are the governance policies and decision-making processes?',
+      'How are shareholder rights and voting mechanisms structured?'
     ]
   },
   {
-    id: 'intellectual_property',
+    id: 'governance_2',
+    category: 'Corporate Governance',
+    question: 'Are there adequate governance controls and oversight?',
+    subQuestions: [
+      'What internal controls and compliance frameworks exist?',
+      'Are there audit committees and oversight mechanisms?',
+      'How are conflicts of interest and related party transactions managed?'
+    ]
+  },
+  {
+    id: 'governance_3',
+    category: 'Corporate Governance',
+    question: 'What are the key governance risks and mitigation strategies?',
+    subQuestions: [
+      'What governance weaknesses or control deficiencies exist?',
+      'Are there regulatory compliance issues or governance violations?',
+      'What risk mitigation strategies and corrective measures are in place?'
+    ]
+  },
+
+  // ========== INTELLECTUAL PROPERTY (3 questions) ==========
+  {
+    id: 'ip_1',
     category: 'Intellectual Property',
-    question: 'What is the intellectual property portfolio and protection status?',
+    question: 'What is the intellectual property portfolio?',
     subQuestions: [
-      'What patents, trademarks, and IP assets exist in the portfolio?',
-      'Are there IP ownership issues, disputes, or infringement risks?',
-      'What IP protection strategies and enforcement mechanisms are in place?'
+      'What patents, trademarks, copyrights, and trade secrets exist?',
+      'What is the scope and coverage of the IP portfolio?',
+      'Are there any valuable or strategic intellectual property assets?'
     ]
   },
   {
-    id: 'legal_risks',
-    category: 'Legal Risk Assessment',
-    question: 'What legal risks, litigation, and regulatory issues exist?',
+    id: 'ip_2',
+    category: 'Intellectual Property',
+    question: 'Are there any IP ownership or infringement issues?',
     subQuestions: [
-      'Are there active litigation, disputes, or legal proceedings?',
-      'What regulatory violations, compliance issues, or investigations exist?',
-      'What potential legal liabilities and risk exposures are identified?'
+      'Are there IP ownership disputes or unclear title issues?',
+      'What infringement risks or freedom to operate concerns exist?',
+      'Are there any pending IP litigation or disputes?'
     ]
   },
   {
-    id: 'employment_law',
-    category: 'Employment & Labor Law',
-    question: 'What employment law compliance and labor-related legal issues exist?',
+    id: 'ip_3',
+    category: 'Intellectual Property',
+    question: 'What IP protection and enforcement strategies are in place?',
     subQuestions: [
-      'Are there employment law violations, discrimination claims, or labor disputes?',
-      'What workplace safety, benefits compliance, and HR policy issues exist?',
-      'Are employee agreements, non-competes, and confidentiality provisions adequate?'
+      'What strategies protect and enforce intellectual property rights?',
+      'Are there IP licensing agreements and monetization strategies?',
+      'How are trade secrets and confidential information protected?'
+    ]
+  },
+
+  // ========== LITIGATION & LEGAL RISKS (2 questions) ==========
+  {
+    id: 'litigation_1',
+    category: 'Litigation & Legal Risks',
+    question: 'Are there any pending or threatened litigations?',
+    subQuestions: [
+      'What active litigation, lawsuits, or legal proceedings exist?',
+      'Are there threatened litigation or potential legal disputes?',
+      'What is the financial exposure and potential impact of legal matters?'
     ]
   },
   {
-    id: 'data_privacy_compliance',
-    category: 'Data Privacy & Compliance',
-    question: 'What data privacy, cybersecurity, and regulatory compliance issues exist?',
+    id: 'litigation_2',
+    category: 'Litigation & Legal Risks',
+    question: 'What are the key legal risks and potential exposures?',
     subQuestions: [
-      'Are there GDPR, CCPA, or other data privacy compliance requirements and violations?',
-      'What cybersecurity incidents, data breaches, or information security issues exist?',
-      'What industry-specific regulatory compliance requirements and status apply?'
+      'What potential legal liabilities and contingent obligations exist?',
+      'Are there regulatory investigation or enforcement actions?',
+      'What operational legal risks could impact the business?'
+    ]
+  },
+
+  // ========== REGULATORY COMPLIANCE (2 questions) ==========
+  {
+    id: 'regulatory_1',
+    category: 'Regulatory Compliance',
+    question: 'What regulatory requirements apply to the business?',
+    subQuestions: [
+      'What industry-specific regulations and compliance requirements exist?',
+      'Are there data privacy, cybersecurity, or information security regulations?',
+      'What licensing, permits, or regulatory approvals are required?'
+    ]
+  },
+  {
+    id: 'regulatory_2',
+    category: 'Regulatory Compliance',
+    question: 'Are there any regulatory compliance issues or violations?',
+    subQuestions: [
+      'What compliance violations, fines, or regulatory actions exist?',
+      'Are there ongoing regulatory investigations or enforcement proceedings?',
+      'What corrective measures and compliance improvements are in place?'
     ]
   }
 ];
