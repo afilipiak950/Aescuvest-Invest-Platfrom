@@ -279,8 +279,8 @@ export class RagPoweredClinicalAgent {
     console.log(`🚀 Processing ${RAG_CLINICAL_QUESTIONS.length} CORRECT frontend questions with multi-layer RAG queries...`);
 
     try {
-      // Ensure documents are embedded for RAG search
-      await EmbeddingService.embedMissingDocuments(this.dealId);
+      // ⚡ SIMPLIFIED: Start analysis immediately without blocking on embeddings  
+      console.log(`⚡ Skipping embedding wait - starting analysis with existing data`);
 
       const clinicalAnswers: Record<string, RagClinicalAnswer> = {};
       
