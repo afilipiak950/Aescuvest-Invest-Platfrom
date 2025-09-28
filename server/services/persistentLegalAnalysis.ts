@@ -109,14 +109,14 @@ export class PersistentLegalAnalysisService {
       status: 'processing',
       progress: 0,
       processedDocuments: 0,
-      totalDocuments: 13, // 13 legal questions
-      currentStep: 'Initializing RAG legal analysis...',
+      totalDocuments: 6, // 6 simplified legal questions
+      currentStep: 'Initializing simplified RAG legal analysis...',
       jobData: {
         startTime: Date.now(),
-        analysisType: 'comprehensive_rag_legal',
+        analysisType: 'simplified_rag_legal',
         ragEnabled: true,
-        questionCount: 13,
-        expectedLayers: 52 // 13 questions × 4 RAG layers each
+        questionCount: 6,
+        expectedLayers: 6 // 6 questions × 1 direct search each
       },
       startedAt: new Date()
     });

@@ -353,7 +353,7 @@ export class RAGPoweredLegalAgent {
         } as any)
         .where(eq(backgroundJobs.jobId, this.jobId));
         
-      console.log(`📊 Legal analysis progress: ${progress}% (${completedQuestions}/13 questions)`);
+      console.log(`📊 Legal analysis progress: ${progress}% (${completedQuestions}/${RAG_LEGAL_QUESTIONS.length} questions)`);
     } catch (error) {
       console.error('❌ Error updating legal analysis progress:', error);
     }
