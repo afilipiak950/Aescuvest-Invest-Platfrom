@@ -239,7 +239,113 @@ export class EmbeddingService {
       console.log(`⚠️ No relevant chunks found for query`);
     }
     
-    return topResults;
+    // Apply MMR (Maximal Marginal Relevance) for source diversity
+    const diverseResults = this.applyMMRDiversity(topResults, queryEmbedding, {
+      lambda: 0.7, // Balance relevance vs diversity (0.7 = 70% relevance, 30% diversity)
+      maxPerDocument: 3, // Maximum 3 chunks per document for source diversity
+      targetSources: 25 // Target 15-25 unique sources
+    });
+
+    console.log(`🎯 MMR Diversity applied: ${diverseResults.length} chunks from ${new Set(diverseResults.map(r => r.documentName)).size} unique sources`);
+    console.log(`📊 Filtered similarity scores: ${diverseResults.slice(0, 3).map(r => r.similarity?.toFixed(3) || 'N/A').join(', ')}`);
+
+    return diverseResults;
+  }
+
+  // Apply Maximal Marginal Relevance (MMR) for source diversity
+  static applyMMRDiversity(
+    results: Array<{ chunk: string; metadata: ChunkMetadata; similarity: number; content?: string; documentName?: string; dealId?: number }>,
+    queryEmbedding: number[],
+    options: { lambda: number; maxPerDocument: number; targetSources: number }
+  ): Array<{ chunk: string; metadata: ChunkMetadata; similarity: number; content?: string; documentName?: string; dealId?: number }> {
+    if (results.length === 0) return results;
+
+    const { lambda, maxPerDocument, targetSources } = options;
+    const selected: typeof results = [];
+    const remaining = [...results];
+    const documentCounts = new Map<string, number>();
+
+    // Select first result (highest similarity)
+    if (remaining.length > 0) {
+      const first = remaining.shift()!;
+      selected.push(first);
+      documentCounts.set(first.documentName || 'Unknown', 1);
+    }
+
+    // Iteratively select results balancing relevance and diversity
+    while (selected.length < targetSources && remaining.length > 0) {
+      let bestScore = -1;
+      let bestIndex = -1;
+
+      for (let i = 0; i < remaining.length; i++) {
+        const candidate = remaining[i];
+        const docName = candidate.documentName || 'Unknown';
+        
+        // Skip if document already has max chunks
+        if ((documentCounts.get(docName) || 0) >= maxPerDocument) {
+          continue;
+        }
+
+        // Calculate relevance score (similarity to query)
+        const relevanceScore = candidate.similarity || 0;
+
+        // Calculate diversity score (minimum similarity to already selected chunks)
+        let minSimilarityToSelected = 1.0;
+        
+        for (const selectedChunk of selected) {
+          try {
+            // For diversity calculation, we approximate with a simple text overlap metric
+            // In a full implementation, you'd compare embeddings directly
+            const textOverlap = this.calculateTextOverlap(candidate.chunk, selectedChunk.chunk);
+            if (textOverlap < minSimilarityToSelected) {
+              minSimilarityToSelected = textOverlap;
+            }
+          } catch (error) {
+            // Fallback to document name comparison if text comparison fails
+            minSimilarityToSelected = docName === (selectedChunk.documentName || 'Unknown') ? 0.5 : 0.1;
+          }
+        }
+
+        const diversityScore = 1 - minSimilarityToSelected;
+
+        // MMR score: λ * relevance + (1-λ) * diversity
+        const mmrScore = lambda * relevanceScore + (1 - lambda) * diversityScore;
+
+        if (mmrScore > bestScore) {
+          bestScore = mmrScore;
+          bestIndex = i;
+        }
+      }
+
+      // Add best result
+      if (bestIndex >= 0) {
+        const selected_result = remaining.splice(bestIndex, 1)[0];
+        selected.push(selected_result);
+        const docName = selected_result.documentName || 'Unknown';
+        documentCounts.set(docName, (documentCounts.get(docName) || 0) + 1);
+      } else {
+        break; // No more valid candidates
+      }
+    }
+
+    return selected;
+  }
+
+  // Simple text overlap calculation for diversity scoring
+  static calculateTextOverlap(text1: string, text2: string): number {
+    if (!text1 || !text2) return 0;
+    
+    const words1 = new Set(text1.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    const words2 = new Set(text2.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    
+    if (words1.size === 0 || words2.size === 0) return 0;
+    
+    let intersection = 0;
+    for (const word of words1) {
+      if (words2.has(word)) intersection++;
+    }
+    
+    return intersection / Math.min(words1.size, words2.size);
   }
 
   // Check if a similar query has been cached
