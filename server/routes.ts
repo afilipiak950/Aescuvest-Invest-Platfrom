@@ -6011,14 +6011,11 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       // Start agent-specific analysis in background with rate limiting 
       setImmediate(async () => {
         try {
-          // Commercial uses PersistentCommercialAnalysis service, others use processAgentSpecificAnalysis
-          if (agentType.toLowerCase() === 'commercial') {
-            console.log(`🔬 Starting PERSISTENT commercial analysis for deal ${dealId}`);
-            const { persistentCommercialAnalysisService } = await import('./services/persistentCommercialAnalysis');
-            await persistentCommercialAnalysisService.startCommercialAnalysis(dealId);
-            console.log(`✅ Persistent commercial analysis completed for deal ${dealId}`);
-          } else {
+          // SKIP processAgentSpecificAnalysis for Commercial - it uses PersistentCommercialAnalysis service
+          if (agentType.toLowerCase() !== 'commercial') {
             await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
+          } else {
+            console.log(`🔄 Skipping processAgentSpecificAnalysis for Commercial - handled by PersistentCommercialAnalysis service`);
           }
         } catch (error) {
           console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
