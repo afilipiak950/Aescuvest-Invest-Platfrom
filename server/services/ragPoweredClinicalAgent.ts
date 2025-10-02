@@ -279,8 +279,8 @@ export class RagPoweredClinicalAgent {
     console.log(`🚀 Processing ${RAG_CLINICAL_QUESTIONS.length} CORRECT frontend questions with multi-layer RAG queries...`);
 
     try {
-      // ⚡ SIMPLIFIED: Start analysis immediately without blocking on embeddings  
-      console.log(`⚡ Skipping embedding wait - starting analysis with existing data`);
+      // Ensure documents are embedded for RAG search
+      await EmbeddingService.embedMissingDocuments(this.dealId);
 
       const clinicalAnswers: Record<string, RagClinicalAnswer> = {};
       
@@ -506,7 +506,7 @@ Provide institutional-grade clinical analysis in JSON format:
 {
   "answer": "Comprehensive clinical analysis with specific quantitative data, regulatory status, and investment implications",
   "confidence": 0-100,
-  "sources": ["Document1.pdf", "Document2.pdf", "Document3.pdf", ...], // MINIMUM 15 UNIQUE SOURCES REQUIRED
+  "sources": ["Document1.pdf", "Document2.pdf"],
   "keyFindings": ["Quantified finding 1", "Regulatory milestone 2", "Safety data 3"],
   "clinicalAssessment": "Professional clinical assessment from institutional investment perspective",
   "recommendations": ["Actionable investment recommendation 1", "Due diligence next step 2"],
@@ -514,16 +514,10 @@ Provide institutional-grade clinical analysis in JSON format:
   "investmentImplications": "Direct impact on investment thesis and valuation"
 }
 
-CRITICAL ANALYSIS REQUIREMENTS:
-- MINIMUM SOURCE DIVERSITY: Cite at least 15 unique source documents in the sources array
-- EXTRACT ALL AVAILABLE INFORMATION: Use any directly supported facts from the evidence base - DO NOT default to "Insufficient evidence" unless zero supporting facts exist
-- FLEXIBLE CITATION FORMAT: Use [Document Name + Chunk Reference] when specific page numbers are unavailable (e.g., "Protocol_Study.pdf chunk 7")
-- CITE SPECIFIC QUANTITATIVE CLINICAL DATA: Patient numbers, efficacy percentages, safety metrics, timeline data when available
-- PROVIDE INSTITUTIONAL INVESTMENT PERSPECTIVE: Risk-adjusted clinical assessments with investment implications
-- INCLUDE RISK-ADJUSTED CLINICAL ASSESSMENTS: Evidence-based risk scoring and recommendations
-
-EVIDENCE EXTRACTION MANDATE:
-You MUST extract and analyze ANY available information from the provided evidence base. Only state "insufficient evidence" if literally zero supporting facts exist. When page numbers are unavailable, cite documents with chunk references. Always prioritize extracting actionable clinical insights over claiming insufficient data.  
+ENTERPRISE REQUIREMENTS:
+- Cite specific quantitative clinical data from evidence
+- Provide institutional investment perspective
+- Include risk-adjusted clinical assessments  
 - Reference multiple source documents for credibility
 - Focus on actionable insights for investment committee
 - Use professional clinical and regulatory terminology
@@ -565,7 +559,7 @@ You MUST extract and analyze ANY available information from the provided evidenc
         category: question.category,
         answer: analysis.answer || `Comprehensive clinical analysis based on ${totalChunks} content segments from ${allSourceDocuments.length} documents. ${question.category} assessment completed with multi-layer evidence synthesis.`,
         confidence: Math.max(analysis.confidence || 75, allFindings.length > 0 ? 80 : 40),
-        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
+        sources: allSourceDocuments,
         keyFindings: analysis.keyFindings || allFindings.slice(0, 5),
         clinicalAssessment: analysis.clinicalAssessment || `${question.category}: Clinical assessment based on comprehensive document analysis with focus on ${question.analysisPrompt}`,
         recommendations: analysis.recommendations || ['Comprehensive clinical review completed - detailed analysis available'],
@@ -595,7 +589,7 @@ You MUST extract and analyze ANY available information from the provided evidenc
         category: question.category,
         answer: `${question.category} analysis completed through comprehensive review of ${allSourceDocuments.length} documents with ${totalChunks} content segments. Clinical assessment focused on ${question.analysisPrompt}`,
         confidence: allFindings.length > 0 ? 70 : 30,
-        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
+        sources: allSourceDocuments,
         keyFindings: allFindings.slice(0, 5),
         clinicalAssessment: `${question.category}: Comprehensive clinical analysis completed based on multi-layer evidence synthesis`,
         recommendations: ['Clinical analysis completed - enterprise-grade assessment available'],

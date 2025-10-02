@@ -361,8 +361,8 @@ export class RAGPoweredCommercialAgent {
         boost: result.boost || 1.0 // Track boosting factor
       }));
 
-      // Hierarchical synthesis using enterprise map-reduce pipeline
-      const synthesizedFindings = await this.synthesizeChunkFindingsHierarchical(
+      // Simple synthesis using Legal/Clinical pattern  
+      const synthesizedFindings = await this.synthesizeChunkFindingsSimple(
         mappedChunks, 
         `Analyze ${category} evidence for: ${question}`, 
         question
@@ -422,97 +422,22 @@ export class RAGPoweredCommercialAgent {
   }
 
   /**
-   * BALANCED ENTERPRISE CONFIDENCE SCORING SYSTEM
-   * Calibrated to achieve 80%+ only for high-quality evidence while preserving discrimination
+   * ENHANCED CONFIDENCE SCORE CALCULATION
+   * Factor in document boosting and diversity
    */
   private calculateEnhancedConfidenceScore(chunks: any[]): number {
     if (chunks.length === 0) return 0;
     
-    // === SIMILARITY QUALITY ASSESSMENT ===
-    const similarities = chunks.map(c => c.similarity).sort((a, b) => b - a); // Sort descending
-    const avgSimilarity = similarities.reduce((sum, sim) => sum + sim, 0) / similarities.length;
-    const maxSimilarity = similarities[0];
-    const medianSimilarity = similarities[Math.floor(similarities.length / 2)];
-    const top5Similarity = similarities.slice(0, Math.min(5, similarities.length));
-    const avgTop5 = top5Similarity.reduce((sum, sim) => sum + sim, 0) / top5Similarity.length;
+    const avgSimilarity = chunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / chunks.length;
+    const documentDiversity = new Set(chunks.map(c => c.documentName)).size / Math.max(1, chunks.length);
+    const boostedRatio = chunks.filter(c => (c as any).boost && (c as any).boost > 1.0).length / chunks.length;
     
-    // === CALIBRATED BASELINE MAPPING ===
-    // Piecewise-linear mapping for better discrimination
-    let calibratedBaseline: number;
-    if (avgSimilarity <= 0.15) {
-      calibratedBaseline = 0.25 + (avgSimilarity - 0.1) * 2; // 0.1→0.35, 0.15→0.45
-    } else if (avgSimilarity <= 0.35) {
-      calibratedBaseline = 0.45 + (avgSimilarity - 0.15) * 0.5; // 0.15→0.45, 0.35→0.55
-    } else if (avgSimilarity <= 0.55) {
-      calibratedBaseline = 0.55 + (avgSimilarity - 0.35) * 1.0; // 0.35→0.55, 0.55→0.75
-    } else {
-      calibratedBaseline = 0.75 + (avgSimilarity - 0.55) * 0.65; // 0.55→0.75, 0.8→0.91
-    }
+    // Enhanced confidence formula
+    const baseConfidence = avgSimilarity;
+    const diversityBonus = documentDiversity * 0.1;
+    const commercialBonus = boostedRatio * 0.1;
     
-    // === EVIDENCE QUALITY GATING ===
-    const documentDiversity = new Set(chunks.map(c => c.documentName)).size;
-    const boostedChunks = chunks.filter(c => (c as any).boost && (c as any).boost > 1.0).length;
-    const highRelevanceChunks = chunks.filter(c => c.similarity > 0.35).length;
-    const highRelevanceRatio = highRelevanceChunks / chunks.length;
-    
-    // Quality penalties for poor evidence
-    let qualityMultiplier = 1.0;
-    
-    // Penalize low top-5 average or low median
-    if (avgTop5 < 0.25) qualityMultiplier *= 0.85;
-    if (medianSimilarity < 0.2) qualityMultiplier *= 0.9;
-    
-    // Penalize high variance (inconsistent relevance)
-    const variance = similarities.reduce((sum, sim) => sum + Math.pow(sim - avgSimilarity, 2), 0) / similarities.length;
-    const consistencyMultiplier = Math.max(0.85, 1.05 - variance * 3);
-    
-    // Penalize dominance by single document (low diversity)
-    const singleDocDominance = chunks.filter(c => c.documentName === chunks[0].documentName).length / chunks.length;
-    if (singleDocDominance > 0.7) qualityMultiplier *= 0.9;
-    
-    // === CONSERVATIVE BONUSES ===
-    // Document diversity bonus (capped to prevent over-inflation)
-    const diversityBonus = documentDiversity >= 3 ? 1.08 : documentDiversity >= 2 ? 1.04 : 1.0;
-    
-    // High-relevance bonus (requires substantial high-quality evidence)
-    const relevanceBonus = highRelevanceRatio > 0.4 ? 1.06 : highRelevanceRatio > 0.2 ? 1.03 : 1.0;
-    
-    // Boosted content bonus (conservative)
-    const boostBonus = boostedChunks >= 3 ? 1.05 : boostedChunks >= 1 ? 1.02 : 1.0;
-    
-    // === BALANCED CONFIDENCE CALCULATION ===
-    const rawConfidence = calibratedBaseline * 
-      qualityMultiplier * 
-      consistencyMultiplier * 
-      diversityBonus * 
-      relevanceBonus * 
-      boostBonus;
-    
-    // === ENTERPRISE QUALITY GATES (STRICT REQUIREMENTS) ===
-    let finalConfidence = Math.min(0.95, rawConfidence);
-    
-    // Premium tier: Requires excellent evidence across all dimensions
-    if (avgTop5 >= 0.45 && medianSimilarity >= 0.35 && documentDiversity >= 3 && 
-        highRelevanceRatio >= 0.3 && boostedChunks >= 2 && chunks.length >= 15) {
-      finalConfidence = Math.max(finalConfidence, 0.82);
-    }
-    // Professional tier: Good evidence with some corroboration
-    else if (avgTop5 >= 0.35 && medianSimilarity >= 0.25 && documentDiversity >= 2 && 
-             highRelevanceRatio >= 0.2 && chunks.length >= 10) {
-      finalConfidence = Math.max(finalConfidence, 0.70);
-    }
-    // Standard tier: Basic evidence requirements
-    else if (avgTop5 >= 0.25 && chunks.length >= 8) {
-      finalConfidence = Math.max(finalConfidence, 0.55);
-    }
-    
-    console.log(`🎯 BALANCED ENTERPRISE CONFIDENCE:
-    📊 Similarity: avg=${avgSimilarity.toFixed(3)}, top5=${avgTop5.toFixed(3)}, median=${medianSimilarity.toFixed(3)}
-    📄 Evidence: ${chunks.length} chunks, ${documentDiversity} docs, ${boostedChunks} boosted, ${highRelevanceRatio.toFixed(2)} high-rel ratio
-    🔍 Quality: base=${calibratedBaseline.toFixed(3)}, quality×=${qualityMultiplier.toFixed(3)}, consistency×=${consistencyMultiplier.toFixed(3)}
-    🏆 FINAL CONFIDENCE: ${(finalConfidence * 100).toFixed(1)}% ${finalConfidence >= 0.82 ? '(PREMIUM)' : finalConfidence >= 0.70 ? '(PROFESSIONAL)' : finalConfidence >= 0.55 ? '(STANDARD)' : ''}`);
-    
-    return finalConfidence;
+    return Math.min(1, baseConfidence + diversityBonus + commercialBonus);
   }
 
   /**
@@ -524,74 +449,10 @@ export class RAGPoweredCommercialAgent {
   }
 
   /**
-   * SIMPLE SYNTHESIS METHOD - MATCHING LEGAL/CLINICAL PATTERN
-   * Replaces complex quality gates with simple single-call synthesis
+   * ENTERPRISE SYNTHESIS METHOD - EXACT LEGAL AGENT PATTERN
+   * Generate detailed commercial findings using structured JSON format
    */
-  /**
-   * ENTERPRISE OUTPUT VALIDATION SYSTEM
-   * Strict quality control with fail-closed enforcement for institutional analysis
-   */
-  private validateEnterpriseOutput(
-    content: string | null, 
-    mappedInsightsCount: number, 
-    totalChunks: number
-  ): { isValid: boolean; errors: string[]; processedContent: string[] } {
-    const errors: string[] = [];
-    
-    if (!content || content.trim().length === 0) {
-      errors.push('Empty content output');
-      return { isValid: false, errors, processedContent: [] };
-    }
-    
-    const trimmedContent = content.trim();
-    
-    // ENTERPRISE QUALITY GATES - 300+ WORD MINIMUM
-    const wordCount = trimmedContent.split(/\s+/).filter(word => word.length > 0).length;
-    if (wordCount < 300) {
-      errors.push(`Content too short: ${wordCount} words (minimum 300 words required)`);
-    }
-    
-    if (trimmedContent.toLowerCase().includes('unknown based on available data') ||
-        trimmedContent.toLowerCase().includes('not provided') ||
-        trimmedContent.toLowerCase().includes('insufficient evidence')) {
-      errors.push('Contains prohibited generic language');
-    }
-    
-    // Count quantified insights (numbers, percentages, dollar amounts)
-    const quantifiedMatches = trimmedContent.match(/\d+%|\$[\d,]+|\d+[\s-]+(months?|years?|days?)|[\d,.]+\s*(million|billion|thousand)/gi) || [];
-    if (quantifiedMatches.length < 3) {
-      errors.push(`Insufficient quantified data: ${quantifiedMatches.length} metrics (minimum 3 required)`);
-    }
-    
-    // Check for source citations
-    const citationMatches = trimmedContent.match(/\[(.*?\.(pdf|docx?|xlsx?).*?)\]/gi) || [];
-    if (citationMatches.length < 2) {
-      errors.push(`Insufficient source citations: ${citationMatches.length} citations (minimum 2 required)`);
-    }
-    
-    // Check for investment-grade structure
-    const structuredSections = [
-      /PRICING|CONTRACT|REVENUE|COMPETITIVE|INVESTMENT/gi.test(trimmedContent),
-      /INTELLIGENCE|ANALYSIS|IMPLICATIONS/gi.test(trimmedContent)
-    ];
-    if (!structuredSections.some(Boolean)) {
-      errors.push('Missing institutional analysis structure');
-    }
-    
-    if (errors.length === 0) {
-      // Process into structured insights
-      const processedContent = trimmedContent.split('\n').filter(line => line.trim().length > 0);
-      return { isValid: true, errors: [], processedContent };
-    }
-    
-    return { isValid: false, errors, processedContent: [] };
-  }
-
-  /**
-   * HIERARCHICAL MAP-REDUCE SYNTHESIS PIPELINE
-   * Replaces shallow 300-token analysis with institutional-grade multi-stage processing
-   */
-  private async synthesizeChunkFindingsHierarchical(
+  private async synthesizeChunkFindingsSimple(
     chunks: any[], 
     context: string, 
     question: string
@@ -599,153 +460,53 @@ export class RAGPoweredCommercialAgent {
     if (chunks.length === 0) return [];
 
     try {
-      console.log(`🧠 HIERARCHICAL SYNTHESIS: Processing ${chunks.length} chunks for institutional analysis`);
-      
-      // STAGE 1: MAP - Extract structured insights from batches
-      const batchSize = 10; // Optimal for detailed analysis
-      const mappedInsights: string[] = [];
-      
-      for (let i = 0; i < chunks.length; i += batchSize) {
-        const batch = chunks.slice(i, i + batchSize);
-        const batchPrompt = `COMMERCIAL INTELLIGENCE EXTRACTION - STAGE 1: MAPPING
+      // Combine top chunks for analysis (using Legal agent approach)
+      const combinedContent = chunks
+        .slice(0, 8) // Use top 8 chunks for focused analysis
+        .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
+        .join('\n\n');
 
-You are extracting institutional-grade commercial insights for a $50M+ venture capital investment.
+      const prompt = `You are a senior commercial analyst conducting institutional investment due diligence. Extract key commercial findings from this evidence:
 
-QUESTION: ${question}
-ANALYSIS CONTEXT: ${context}
+${combinedContent}
 
-DOCUMENT BATCH (${i + 1}-${Math.min(i + batchSize, chunks.length)} of ${chunks.length}):
-${batch.map((chunk, idx) => 
-  `[DOC ${i + idx + 1}] ${chunk.documentName}:\n${chunk.content}`
-).join('\n\n')}
+Extract specific, actionable commercial findings as a JSON array:
+{
+  "findings": ["Specific pricing data with exact dollar amounts", "Revenue metrics with percentage growth", "Customer concentration with specific percentages"]
+}
 
-MANDATORY EXTRACTION REQUIREMENTS:
-1. **QUANTIFIED METRICS**: Extract specific numbers, percentages, dollar amounts, time periods
-2. **CONTRACT INTELLIGENCE**: Pricing terms, contract lengths, payment structures, penalties
-3. **COMPETITIVE SIGNALS**: Comparisons, market positioning, differentiation claims
-4. **REVENUE PATTERNS**: Customer segments, deal sizes, pricing models, retention data
-5. **SOURCE CITATIONS**: Include document name and specific content for each insight
+Focus on ENTERPRISE-GRADE COMMERCIAL ANALYSIS:
+- Pricing models and revenue metrics with specific dollar amounts and percentages
+- Customer concentration and retention rates with exact figures
+- Market positioning and competitive differentiation with quantified advantages
+- Sales performance metrics with conversion rates and cycle times
+- Revenue growth trends with specific percentage improvements
+- Contract values and deal sizes with exact dollar figures
+- Churn rates and expansion revenue with precise measurements
+- Pricing strategies and discount structures with specific terms
 
-OUTPUT FORMAT (one insight per line):
-METRIC: [Specific quantified finding with source document]
-CONTRACT: [Pricing/terms insight with source document] 
-COMPETITIVE: [Market positioning insight with source document]
-REVENUE: [Revenue pattern with source document]
+Provide investment-relevant commercial intelligence with quantified data, not generic summaries.
+Include specific dollar amounts, percentages, timeframes, and document sources.`;
 
-**CRITICAL**: No generic statements. Every line must contain specific data or patterns.`;
-
-        const mappedResult = await ultraIntelligentAI.createUltraIntelligentCompletion([
-          { role: "user", content: batchPrompt }
-        ], {
-          domain: 'commercial',
-          complexity: 'ultra',
-          speedPriority: 'quality',
-          qualityThreshold: 0.95,
-          maxTokens: 2048, // Much higher for detailed extraction
-          temperature: 0.1
-        });
-        
-        if (mappedResult.content && mappedResult.content.trim() && 
-            !mappedResult.content.toLowerCase().includes('unknown') &&
-            !mappedResult.content.toLowerCase().includes('not provided')) {
-          mappedInsights.push(mappedResult.content.trim());
-        }
-      }
-      
-      // STAGE 2: REDUCE - Synthesize patterns into institutional insights
-      if (mappedInsights.length === 0) {
-        return [`INSTITUTIONAL ANALYSIS: Pattern analysis across ${chunks.length} documents indicates limited quantifiable commercial intelligence. Requires additional structured data for investment-grade assessment.`];
-      }
-      
-      const reducePrompt = `COMMERCIAL INTELLIGENCE SYNTHESIS - STAGE 2: REDUCTION
-
-You are synthesizing commercial insights for institutional investment committee review.
-
-EXTRACTED COMMERCIAL INTELLIGENCE:
-${mappedInsights.map((insight, idx) => `[BATCH ${idx + 1}]\n${insight}`).join('\n\n')}
-
-SYNTHESIS REQUIREMENTS:
-1. **PATTERN RECOGNITION**: Identify recurring themes across batches (pricing patterns, contract terms, competitive positioning)
-2. **QUANTITATIVE SYNTHESIS**: Calculate averages, ranges, trends from extracted metrics
-3. **INVESTMENT IMPLICATIONS**: What these patterns mean for revenue quality, market position, and competitive moat
-4. **SOURCE DENSITY**: Cite specific documents supporting each synthesized pattern
-
-OUTPUT FORMAT (3-5 institutional-grade insights):
-[INSIGHT TYPE]: [Synthesized quantitative pattern with investment implications and source citations]
-
-**MANDATORY**: Each insight must be specific, quantified, and directly relevant to $50M+ investment decisions.`;
-
-      const reducedResult = await ultraIntelligentAI.createUltraIntelligentCompletion([
-        { role: "user", content: reducePrompt }
+      const result = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
       ], {
         domain: 'commercial',
-        complexity: 'ultra',
-        speedPriority: 'quality',
-        qualityThreshold: 0.95,
-        maxTokens: 1536,
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.85,
+        maxTokens: 16384,
         temperature: 0.1
       });
       
-      // STAGE 3: ENTERPRISE VALIDATION WITH FAIL-CLOSED ENFORCEMENT
-      const validationResult = this.validateEnterpriseOutput(reducedResult.content, mappedInsights.length, chunks.length);
-      
-      if (!validationResult.isValid) {
-        console.log(`🚨 ENTERPRISE VALIDATION FAILED: ${validationResult.errors.join(', ')}`);
-        
-        // CORRECTIVE RETRY with enhanced prompt
-        const correctionPrompt = `ENTERPRISE CORRECTION REQUIRED - PREVIOUS OUTPUT FAILED VALIDATION
-
-VALIDATION FAILURES: ${validationResult.errors.join('; ')}
-
-EXTRACTED INSIGHTS TO SYNTHESIZE:
-${mappedInsights.map((insight, idx) => `[BATCH ${idx + 1}]\n${insight}`).join('\n\n')}
-
-MANDATORY CORRECTION REQUIREMENTS:
-1. **MINIMUM 300 WORDS**: Provide comprehensive institutional analysis
-2. **NO GENERIC LANGUAGE**: Absolutely no "unknown", "not provided", "insufficient data"
-3. **QUANTIFIED INSIGHTS**: Include specific percentages, dollar amounts, time periods from evidence
-4. **SOURCE CITATIONS**: Reference specific document names supporting each finding
-5. **INVESTMENT STRUCTURE**: Format as institutional investment memo sections
-
-CORRECTED OUTPUT FORMAT:
-PRICING INTELLIGENCE: [Quantified pricing patterns with source citations]
-CONTRACT ANALYSIS: [Specific contract terms and commercial implications]
-COMPETITIVE POSITIONING: [Market positioning insights with competitive metrics]
-REVENUE QUALITY: [Revenue patterns and customer concentration analysis]
-INVESTMENT IMPLICATIONS: [Strategic recommendations for $50M+ investment decision]
-
-**CRITICAL**: This must pass enterprise validation or analysis will fail.`;
-
-        const correctionResult = await ultraIntelligentAI.createUltraIntelligentCompletion([
-          { role: "user", content: correctionPrompt }
-        ], {
-          domain: 'commercial',
-          complexity: 'ultra',
-          speedPriority: 'quality',
-          qualityThreshold: 0.98,
-          maxTokens: 2048,
-          temperature: 0.05 // Even more conservative for correction
-        });
-        
-        const correctedValidation = this.validateEnterpriseOutput(correctionResult.content || '', mappedInsights.length, chunks.length);
-        
-        if (!correctedValidation.isValid) {
-          // Final fail-safe with guaranteed institutional content
-          return [
-            `INSTITUTIONAL COMMERCIAL ANALYSIS: Systematic review of ${chunks.length} document segments across ${mappedInsights.length} analytical layers reveals quantifiable commercial intelligence patterns. CONTRACT INTELLIGENCE: Document portfolio analysis indicates pricing structures, engagement terms, and customer relationship patterns requiring institutional validation. COMPETITIVE POSITIONING: Market positioning signals extracted from customer agreements and commercial materials suggest competitive dynamics meriting strategic assessment. REVENUE QUALITY: Customer concentration and contract term analysis provides foundation for revenue quality evaluation supporting investment decision framework. INVESTMENT IMPLICATIONS: Commercial intelligence synthesis requires comprehensive validation against institutional investment criteria for $50M+ capital allocation decisions.`
-          ];
-        }
-        
-        console.log(`✅ ENTERPRISE CORRECTION SUCCESSFUL: Validation passed after retry`);
-        return correctedValidation.processedContent;
-      }
-      
-      console.log(`✅ HIERARCHICAL SYNTHESIS: Generated institutional-grade insights from ${chunks.length} chunks`);
-      return validationResult.processedContent;
+      // Parse JSON response like Legal agent (fixing the root cause)
+      const cleanedContent = this.cleanJsonResponse(result.content || '{"findings": []}');
+      const analysis = JSON.parse(cleanedContent);
+      return analysis.findings || [];
       
     } catch (error) {
-      console.error(`❌ Hierarchical synthesis failed:`, error);
-      return [`COMMERCIAL ANALYSIS: Processing error in institutional synthesis pipeline. Document evidence extraction requires system optimization. Error: ${error.message}`];
+      console.error(`❌ Commercial synthesis failed:`, error);
+      return [`Commercial analysis of ${chunks.length} documents from ${Array.from(new Set(chunks.map(c => c.documentName))).length} sources`];
     }
   }
 
@@ -910,7 +671,281 @@ INVESTMENT IMPLICATIONS: [Strategic recommendations for $50M+ investment decisio
     return score;
   }
 
-  // REMOVED: Complex synthesizeEnterpriseAnswer method - now using simple synthesis pattern
+  /**
+   * SYNTHESIZE ENTERPRISE ANSWER - RESTORED FROM LEGAL AGENT
+   * Combine all evidence layers into institutional-grade commercial assessment
+   */
+  private async synthesizeEnterpriseAnswer(
+    question: any, 
+    evidenceBase: RagCommercialEvidence[]
+  ): Promise<RagCommercialAnswer> {
+    
+    console.log(`🧠 Synthesizing enterprise commercial answer for: ${question.question}`);
+    
+    // Aggregate all findings and source documents
+    const allFindings = evidenceBase.flatMap(evidence => evidence.synthesizedFindings);
+    const allSourceDocuments = Array.from(new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments)));
+    const totalChunks = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
+    
+    // Build comprehensive evidence summary
+    const evidenceSummary = evidenceBase.map((evidence, index) => 
+      `Layer ${index + 1}: "${evidence.query}" → ${evidence.synthesizedFindings.length} findings from ${evidence.sourceDocuments.length} documents`
+    ).join('\n');
+    
+    const prompt = `You are a senior commercial investment analyst conducting institutional due diligence. Provide enterprise-grade commercial assessment.
+
+QUESTION: ${question.question}
+CATEGORY: ${question.category}
+SUB-QUESTIONS: ${question.subQuestions.join('; ')}
+ANALYSIS FOCUS: ${question.analysisPrompt}
+
+COMPREHENSIVE EVIDENCE BASE:
+${evidenceSummary}
+
+ALL COMMERCIAL FINDINGS:
+${allFindings.map((finding, i) => `${i + 1}. ${finding}`).join('\n')}
+
+SOURCE DOCUMENTS: ${allSourceDocuments.length} documents analyzed, ${totalChunks} content segments
+
+Provide institutional-grade commercial analysis in JSON format:
+{
+  "answer": "Comprehensive commercial analysis with specific revenue data, market metrics, and investment implications",
+  "confidence": 0-100,
+  "sources": ["Document1.pdf", "Document2.pdf"],
+  "keyFindings": ["Quantified commercial finding 1", "Revenue metric 2", "Market position 3"],
+  "commercialAssessment": "Professional commercial assessment from institutional investment perspective",
+  "recommendations": ["Actionable commercial recommendation 1", "Due diligence next step 2"],
+  "commercialRiskScore": 1-10,
+  "marketPosition": "Strong/Moderate/Weak/Unknown",
+  "investmentImplications": "Direct impact on investment thesis and commercial risk profile"
+}
+
+ENTERPRISE REQUIREMENTS:
+- Cite specific revenue amounts, growth rates, customer data, and market metrics from evidence with [Document, Section/Page] references
+- Extract concrete commercial data: pricing models, revenue figures, customer metrics, market share with specific amounts/percentages
+- Provide institutional investment perspective focusing on commercial viability and growth potential
+- Include verbatim data quotes (≤300 chars) with document citations for credibility
+- Reference multiple source documents for comprehensive commercial assessment`;
+
+    try {
+      console.log(`🎯 Ultra-Smart Model Selection for commercial (high complexity)`);
+      const selectedModel = await ultraIntelligentAI.selectOptimalModel(prompt, {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.8
+      });
+      console.log(`🚀 Selected model: ${selectedModel.model} (Intelligence Score: ${selectedModel.intelligence})`);
+
+      const result = await ultraIntelligentAI.createUltraIntelligentCompletion([
+        { role: "user", content: prompt }
+      ], {
+        domain: 'commercial',
+        complexity: 'high',
+        speedPriority: 'balanced',
+        qualityThreshold: 0.8,
+        maxTokens: 16384,
+        temperature: 0.3
+      });
+
+      let parsedResponse;
+      try {
+        // First try direct JSON parsing
+        parsedResponse = JSON.parse(result.content);
+      } catch (error) {
+        console.log('🔄 Direct JSON parsing failed, trying extraction...');
+        
+        // Extract JSON from wrapped text
+        const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedResponse = JSON.parse(jsonMatch[0]);
+        } else {
+          // Fallback structure
+          console.log('⚠️ Using fallback structure for commercial answer');
+          parsedResponse = {
+            answer: result.content || 'Commercial analysis completed',
+            confidence: 75,
+            sources: allSourceDocuments.slice(0, 3),
+            keyFindings: [`Commercial insight: ${(result.content || 'Analysis completed').slice(0, 100)}...`],
+            commercialAssessment: 'Professional commercial assessment pending',
+            recommendations: ['Review commercial strategy based on findings'],
+            commercialRiskScore: 5,
+            marketPosition: 'Under Review',
+            investmentImplications: 'Analysis in progress'
+          };
+        }
+      }
+
+      // Build comprehensive commercial answer
+      const answer: RagCommercialAnswer = {
+        question: question.question,
+        answer: parsedResponse.answer,
+        confidence: parsedResponse.confidence / 100,
+        sources: parsedResponse.sources || allSourceDocuments.slice(0, 5),
+        keyFindings: parsedResponse.keyFindings || [],
+        commercialAssessment: parsedResponse.commercialAssessment,
+        recommendations: parsedResponse.recommendations || [],
+        commercialRiskScore: parsedResponse.commercialRiskScore || 5,
+        marketPosition: parsedResponse.marketPosition || 'Under Review',
+        evidenceBase: evidenceBase.slice(0, 3),
+        quantifiedMetrics: [],
+        competitiveIntelligence: {
+          strengths: [],
+          weaknesses: [],
+          opportunities: [],
+          threats: []
+        }
+      };
+
+      console.log(`✅ Enterprise commercial answer synthesized: ${answer.keyFindings.length} findings, confidence ${Math.round(answer.confidence * 100)}%`);
+      return answer;
+
+    } catch (error) {
+      console.error(`❌ Error synthesizing commercial answer:`, error);
+      
+      // Return fallback answer
+      return {
+        question: question.question,
+        answer: 'Commercial analysis encountered processing issues',
+        confidence: 0.5,
+        sources: allSourceDocuments.slice(0, 3),
+        keyFindings: ['Commercial analysis processing error'],
+        commercialAssessment: 'Unable to complete assessment',
+        recommendations: ['Retry analysis'],
+        commercialRiskScore: 8,
+        marketPosition: 'Unknown',
+        evidenceBase: evidenceBase.slice(0, 1),
+        quantifiedMetrics: [],
+        competitiveIntelligence: {
+          strengths: [],
+          weaknesses: [],
+          opportunities: [],
+          threats: []
+        }
+      };
+    }
+  }
+
+  /**
+   * EXECUTE COMPREHENSIVE ENHANCED RAG ANALYSIS
+   * Full corpus processing with hybrid search and robust JSON parsing
+   */
+  public async runComprehensiveAnalysis(): Promise<EnterpriseCommercialAnalysis> {
+    console.log(`🚀 Starting ENHANCED RAG-powered commercial analysis for deal ${this.dealId}`);
+    const startTime = Date.now();
+
+    // Pre-analysis: Full corpus processing for maximum coverage
+    console.log(`📊 Pre-analysis: Processing full commercial document corpus...`);
+    const corpusStats = await this.processFullCommercialCorpus();
+    console.log(`📈 Corpus processing completed: ${corpusStats.documentsProcessed} docs, ${corpusStats.chunksAnalyzed} chunks`);
+
+    const questionResults: CommercialQuestionResult[] = [];
+    let questionIndex = 1;
+    let totalFindings = 0;
+    let totalRecommendations = 0;
+
+    for (const questionData of RAG_COMMERCIAL_QUESTIONS) {
+      console.log(`\n⚖️ Enhanced Question ${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length}: ${questionData.question}`);
+      
+      try {
+        // Execute multi-layer RAG search
+        const evidenceLayers = await this.executeMultiLayerRagSearch(
+          questionData.id,
+          questionData.question,
+          questionData.category,
+          questionData.ragQueries
+        );
+
+        // Synthesize enterprise-grade commercial answer (FIXED - using restored method)
+        const answer = await this.synthesizeEnterpriseAnswer(questionData, evidenceLayers);
+
+        const questionResult: CommercialQuestionResult = {
+          questionId: questionData.id,
+          question: questionData.question,
+          category: questionData.category,
+          answer: answer.answer,
+          evidence: evidenceLayers.slice(0, 5),
+          commercialRiskScore: answer.commercialRiskScore,
+          riskFactors: [`Commercial risk score: ${answer.commercialRiskScore}/10`],
+          keyFindings: answer.keyFindings,
+          recommendations: answer.recommendations,
+          confidenceScore: answer.confidence,
+          sources: answer.sources
+        };
+
+        questionResults.push(questionResult);
+        
+        // 🎯 CRITICAL FIX: Save each question result immediately (incremental saves)
+        await this.saveQuestionResultIncremental(questionResult, questionIndex);
+        
+        // 🎯 CRITICAL FIX: Update progress AFTER completing question (like Legal agent)
+        const currentProgress = Math.round((questionIndex / RAG_COMMERCIAL_QUESTIONS.length) * 100);
+        await this.updateBackgroundJobProgress(currentProgress, questionIndex);
+        
+        console.log(`📊 Commercial analysis progress: ${currentProgress}% (${questionIndex}/${RAG_COMMERCIAL_QUESTIONS.length} questions)`);
+        console.log(`✅ Question ${questionIndex} completed with commercial risk score ${questionResult.commercialRiskScore}/10`);
+        console.log(`💾 Question ${questionIndex} saved incrementally to database`);
+
+        questionIndex++;
+
+      } catch (error) {
+        console.error(`❌ Critical failure processing Commercial question ${questionIndex}:`, error);
+        console.error(`❌ Failed question:`, {
+          questionId: questionData.id,
+          question: questionData.question,
+          category: questionData.category,
+          errorMessage: error.message
+        });
+        
+        // Re-throw error to stop analysis instead of silently continuing
+        // This ensures Commercial agent failures are visible and not hidden
+        throw new Error(`Commercial agent failed at question ${questionIndex} ("${questionData.question}"): ${error.message}. Analysis cannot continue with failed questions.`);
+      }
+    }
+
+    // Calculate overall commercial metrics
+    const overallCommercialRisk = questionResults.length > 0 ? 
+      Math.round(questionResults.reduce((sum, q) => sum + q.commercialRiskScore, 0) / questionResults.length) : 5;
+
+    const allKeyFindings = questionResults.flatMap(q => q.keyFindings);
+    const allRecommendations = questionResults.flatMap(q => q.recommendations);
+    const allDocumentSources = Array.from(new Set(questionResults.flatMap(q => q.sources)));
+
+    // Generate key commercial insights
+    const keyCommercialInsights = [
+      `Commercial analysis completed across ${RAG_COMMERCIAL_QUESTIONS.length} key areas`,
+      `Average commercial risk score: ${overallCommercialRisk}/10`,
+      `Evidence gathered from ${allDocumentSources.length} commercial documents`,
+      `Analysis covers competitive positioning, pricing strategy, sales performance, and customer metrics`
+    ];
+
+    const criticalFindings = allKeyFindings.slice(0, 5); // Top 5 findings
+
+    const result: EnterpriseCommercialAnalysis = {
+      dealId: this.dealId,
+      jobId: this.jobId,
+      questionResults,
+      overallCommercialRisk,
+      keyCommercialInsights,
+      criticalFindings,
+      recommendedActions: allRecommendations.slice(0, 10),
+      analysisCompletedAt: new Date(),
+      documentsAnalyzed: allDocumentSources.length,
+      totalEvidenceChunks: questionResults.reduce((sum, q) => 
+        sum + q.evidence.reduce((layerSum, layer) => layerSum + layer.totalChunks, 0), 0
+      )
+    };
+
+    // Save to database
+    await this.saveCommercialAnalysis(result);
+
+    const duration = Date.now() - startTime;
+    console.log(`🎉 RAG commercial analysis completed in ${Math.round(duration / 1000)}s`);
+    console.log(`📊 Overall commercial risk: ${overallCommercialRisk}/10`);
+    console.log(`🎯 ${questionResults.length}/${RAG_COMMERCIAL_QUESTIONS.length} questions analyzed successfully`);
+
+    return result;
+  }
 
   /**
    * 🎯 INCREMENTAL SAVE: Save individual question result immediately after processing
@@ -1349,8 +1384,8 @@ INVESTMENT IMPLICATIONS: [Strategic recommendations for $50M+ investment decisio
     const words1 = new Set(text1.toLowerCase().split(/\s+/));
     const words2 = new Set(text2.toLowerCase().split(/\s+/));
     
-    const intersection = new Set(Array.from(words1).filter(word => words2.has(word)));
-    const union = new Set([...Array.from(words1), ...Array.from(words2)]);
+    const intersection = new Set([...words1].filter(word => words2.has(word)));
+    const union = new Set([...words1, ...words2]);
     
     return intersection.size / union.size;
   }
@@ -1421,505 +1456,6 @@ RESPOND WITH ONLY THE COMPRESSED COMMERCIAL SUMMARY - NO EXPLANATIONS.`;
 
   // REMOVED: Complex 3-stage validation method - now using simple Legal/Clinical pattern
 
-  /**
-   * 🎯 MISSING METHOD 1: GENERATE COMPREHENSIVE FINDINGS
-   * Extract keyFindings from all commercial questions (matching Legal/Clinical pattern)
-   */
-  private generateComprehensiveFindings(commercialAnswers: Record<string, any>): any[] {
-    console.log(`📋 Generating comprehensive commercial findings from ${Object.keys(commercialAnswers).length} questions`);
-    
-    const allFindings: any[] = [];
-    let findingId = 1;
-    
-    // Extract keyFindings from each question's answer
-    for (const [questionId, answer] of Object.entries(commercialAnswers)) {
-      if (answer && answer.keyFindings && Array.isArray(answer.keyFindings)) {
-        answer.keyFindings.forEach((finding: string) => {
-          allFindings.push({
-            id: findingId++,
-            type: 'commercial',
-            content: finding,
-            source: answer.sources?.[0] || 'Commercial Analysis',
-            confidence: answer.confidence || 0.8,
-            category: answer.category || 'Commercial Intelligence',
-            commercialRiskScore: answer.commercialRiskScore || 5,
-            questionId: questionId
-          });
-        });
-      }
-    }
-    
-    console.log(`✅ Generated ${allFindings.length} commercial findings from keyFindings aggregation`);
-    return allFindings;
-  }
-
-  /**
-   * 🎯 MISSING METHOD 2: GENERATE INTELLIGENT RECOMMENDATIONS  
-   * Extract recommendations from all commercial questions (matching Clinical pattern)
-   */
-  private generateIntelligentRecommendations(commercialAnswers: Record<string, any>): any[] {
-    console.log(`📋 Generating intelligent commercial recommendations from ${Object.keys(commercialAnswers).length} questions`);
-    
-    const allRecommendations: any[] = [];
-    
-    // Extract recommendations from each question's answer
-    for (const [questionId, answer] of Object.entries(commercialAnswers)) {
-      if (answer && answer.recommendations && Array.isArray(answer.recommendations)) {
-        answer.recommendations.forEach((rec: string) => {
-          allRecommendations.push({
-            title: `${answer.category || 'Commercial'}: Strategic Intelligence`,
-            description: rec,
-            priority: (answer.commercialRiskScore || 5) > 7 ? 'high' : 'medium',
-            category: 'commercial',
-            impact: 'significant',
-            commercialRisk: answer.commercialRiskScore || 5,
-            questionId: questionId
-          });
-        });
-      }
-    }
-    
-    console.log(`✅ Generated ${allRecommendations.length} commercial recommendations`);
-    return allRecommendations;
-  }
-
-  /**
-   * 🎯 MISSING METHOD 3: STORE RAG COMMERCIAL RESULTS
-   * Final aggregation and database storage (matching Legal/Clinical finalization pattern)
-   */
-  private async storeRagCommercialResults(
-    commercialAnswers: Record<string, any>, 
-    allFindings: any[], 
-    allRecommendations: any[]
-  ): Promise<void> {
-    console.log(`💾 Storing comprehensive commercial analysis with ${allFindings.length} findings and ${allRecommendations.length} recommendations`);
-    
-    try {
-      // Check if analysis record exists
-      const existingAnalysis = await db
-        .select()
-        .from(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, this.dealId),
-          eq(agentAnalyses.agentType, 'commercial')
-        ))
-        .limit(1);
-
-      const finalData = {
-        status: 'completed',
-        progress: 100,
-        findings: JSON.stringify(allFindings), // JSON.stringify() like Legal/Clinical
-        recommendations: JSON.stringify(allRecommendations), // JSON.stringify() like Legal/Clinical
-        commercialAnswers: commercialAnswers, // Keep as objects (like legalAnswers)
-        updatedAt: new Date()
-      };
-
-      if (existingAnalysis.length === 0) {
-        // Create new analysis record  
-        await db.insert(agentAnalyses).values({
-          dealId: this.dealId,
-          agentType: 'commercial',
-          ...finalData
-        });
-        console.log(`✅ Created new Commercial analysis record with ${allFindings.length} findings`);
-      } else {
-        // Update existing record with aggregated findings
-        await db
-          .update(agentAnalyses)
-          .set(finalData)
-          .where(and(
-            eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'commercial')
-          ));
-        console.log(`✅ Updated Commercial analysis with ${allFindings.length} aggregated findings`);
-      }
-
-      console.log(`🎯 Commercial analysis finalization completed successfully`);
-      
-    } catch (error) {
-      console.error(`❌ Failed to store commercial results:`, error);
-      // Try graceful fallback - mark as completed even if storage fails
-      try {
-        await db
-          .update(agentAnalyses)
-          .set({ status: 'completed', progress: 100 })
-          .where(and(
-            eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'commercial')
-          ));
-        console.log(`⚠️ Fallback: Marked commercial analysis as completed despite storage error`);
-      } catch (fallbackError) {
-        console.error(`❌ Critical: Both primary and fallback storage failed:`, fallbackError);
-        throw error; // Re-throw original error
-      }
-    }
-  }
-
-  /**
-   * 🎯 MISSING METHOD 4: RUN COMPREHENSIVE ANALYSIS (MAIN ENTRY POINT)
-   * Execute complete RAG-powered commercial analysis with proper finalization
-   */
-  async runComprehensiveAnalysis(): Promise<void> {
-    console.log(`💼 Starting RAG-powered commercial analysis for deal ${this.dealId}`);
-    console.log(`📋 Processing ${RAG_COMMERCIAL_QUESTIONS.length} commercial questions with 4-layer RAG evidence gathering`);
-    
-    const commercialAnswers: Record<string, any> = {};
-    
-    try {
-      // Process all 12 commercial questions sequentially with progress tracking
-      for (let i = 0; i < RAG_COMMERCIAL_QUESTIONS.length; i++) {
-        const question = RAG_COMMERCIAL_QUESTIONS[i];
-        const questionStartTime = Date.now();
-        
-        console.log(`💼 Question ${i + 1}/12: ${question.question}`);
-        console.log(`📂 Category: ${question.category}`);
-        
-        // Execute multi-layer RAG search for comprehensive evidence
-        const evidenceBase = await this.executeMultiLayerRagSearch(
-          question.id,
-          question.question, 
-          question.category,
-          question.ragQueries
-        );
-        
-        // Synthesize enterprise-grade commercial answer
-        const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
-        
-        // Store question answer
-        commercialAnswers[question.id] = answer;
-        
-        // Update progress
-        const progress = Math.round(((i + 1) / RAG_COMMERCIAL_QUESTIONS.length) * 100);
-        await this.updateBackgroundJobProgress(progress, i + 1);
-        
-        const questionTime = Date.now() - questionStartTime;
-        console.log(`✅ Question ${i + 1} completed in ${questionTime}ms with commercial risk score ${answer.commercialRiskScore || 5}/10`);
-      }
-
-      // 🎯 CRITICAL: Generate comprehensive findings and recommendations (FIXED!)
-      const allFindings = this.generateComprehensiveFindings(commercialAnswers);
-      const allRecommendations = this.generateIntelligentRecommendations(commercialAnswers);
-
-      // 🎯 CRITICAL: Store comprehensive results with proper aggregation (FIXED!)
-      await this.storeRagCommercialResults(commercialAnswers, allFindings, allRecommendations);
-      
-      console.log(`🏆 RAG-powered commercial analysis completed successfully for deal ${this.dealId}`);
-      console.log(`📊 Final results: ${allFindings.length} findings, ${allRecommendations.length} recommendations`);
-      
-    } catch (error) {
-      console.error(`❌ Commercial analysis failed:`, error);
-      // Graceful fallback - mark as completed to prevent UI hanging
-      try {
-        await db
-          .update(agentAnalyses)
-          .set({ 
-            status: 'completed', 
-            progress: 100,
-            findings: JSON.stringify([{ 
-              id: 1, 
-              content: 'Commercial analysis encountered processing issues but has been completed.', 
-              type: 'commercial' 
-            }]),
-            recommendations: JSON.stringify([{
-              title: 'Analysis Recovery',
-              description: 'Commercial analysis completed with processing issues resolved.',
-              priority: 'medium',
-              category: 'commercial',
-              impact: 'minimal'
-            }])
-          })
-          .where(and(
-            eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'commercial')
-          ));
-        console.log(`⚠️ Graceful fallback: Marked commercial analysis as completed despite error`);
-      } catch (fallbackError) {
-        console.error(`❌ Critical: Commercial analysis completely failed:`, fallbackError);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * ENTERPRISE INTELLIGENCE HELPER METHODS
-   * Advanced pattern recognition and synthesis for institutional-grade analysis
-   */
-  
-  private categorizeDocumentTypes(documents: string[]): { contracts: number; pricing: number; competitive: number; revenue: number } {
-    let contracts = 0, pricing = 0, competitive = 0, revenue = 0;
-    
-    documents.forEach(doc => {
-      const docLower = doc.toLowerCase();
-      if (docLower.includes('agreement') || docLower.includes('contract') || docLower.includes('msa') || docLower.includes('sow') || docLower.includes('executed')) {
-        contracts++;
-      }
-      if (docLower.includes('pricing') || docLower.includes('price') || docLower.includes('cost') || docLower.includes('proposal') || docLower.includes('quote')) {
-        pricing++;
-      }
-      if (docLower.includes('competitive') || docLower.includes('competitor') || docLower.includes('analysis') || docLower.includes('market') || docLower.includes('comparison')) {
-        competitive++;
-      }
-      if (docLower.includes('revenue') || docLower.includes('financial') || docLower.includes('roi') || docLower.includes('order') || docLower.includes('invoice')) {
-        revenue++;
-      }
-    });
-    
-    return { contracts, pricing, competitive, revenue };
-  }
-  
-  private async calculateEvidenceMetrics(evidenceBase: RagCommercialEvidence[]): Promise<{ averageFindings: number; documentCoverage: number; dataPoints: number; totalDocuments: number }> {
-    const totalFindings = evidenceBase.reduce((sum, evidence) => sum + evidence.synthesizedFindings.length, 0);
-    const averageFindings = evidenceBase.length > 0 ? Math.round(totalFindings / evidenceBase.length) : 0;
-    const uniqueDocuments = new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments));
-    
-    // Get dynamic document count for this deal instead of hardcoded 378
-    const totalDocuments = await db.select({ count: sql<number>`count(*)` })
-      .from(documents)
-      .where(eq(documents.dealId, this.dealId))
-      .then(result => result[0]?.count || 0);
-    
-    const documentCoverage = totalDocuments > 0 ? Math.round((uniqueDocuments.size / totalDocuments) * 100) : 0;
-    const dataPoints = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
-    
-    return { averageFindings, documentCoverage, dataPoints, totalDocuments };
-  }
-  
-  private extractContractPatterns(findings: string[]): string[] {
-    const patterns: string[] = [];
-    
-    // Extract pricing patterns from contract findings
-    const pricingFindings = findings.filter(f => 
-      f.toLowerCase().includes('price') || f.toLowerCase().includes('cost') || f.toLowerCase().includes('$') || 
-      f.toLowerCase().includes('fee') || f.toLowerCase().includes('payment') || f.toLowerCase().includes('subscription')
-    );
-    if (pricingFindings.length > 0) {
-      patterns.push(`CONTRACT PRICING: Identified ${pricingFindings.length} pricing references across agreements`);
-    }
-    
-    // Extract term patterns
-    const termFindings = findings.filter(f => 
-      f.toLowerCase().includes('term') || f.toLowerCase().includes('month') || f.toLowerCase().includes('year') || 
-      f.toLowerCase().includes('renewal') || f.toLowerCase().includes('contract')
-    );
-    if (termFindings.length > 0) {
-      patterns.push(`CONTRACT TERMS: Found ${termFindings.length} contract term references indicating engagement patterns`);
-    }
-    
-    // Extract service patterns
-    const serviceFindings = findings.filter(f => 
-      f.toLowerCase().includes('service') || f.toLowerCase().includes('support') || f.toLowerCase().includes('implementation') || 
-      f.toLowerCase().includes('consulting') || f.toLowerCase().includes('professional')
-    );
-    if (serviceFindings.length > 0) {
-      patterns.push(`SERVICE DELIVERY: Identified ${serviceFindings.length} service-related contract provisions`);
-    }
-    
-    return patterns;
-  }
-  
-  private extractCompetitiveIntelligence(findings: string[]): string[] {
-    const intelligence: string[] = [];
-    
-    // Extract competitive mentions
-    const competitiveFindings = findings.filter(f => 
-      f.toLowerCase().includes('competitor') || f.toLowerCase().includes('competitive') || f.toLowerCase().includes('versus') || 
-      f.toLowerCase().includes('comparison') || f.toLowerCase().includes('alternative') || f.toLowerCase().includes('market share')
-    );
-    if (competitiveFindings.length > 0) {
-      intelligence.push(`COMPETITIVE REFERENCES: ${competitiveFindings.length} competitive positioning indicators across documents`);
-    }
-    
-    // Extract differentiation signals
-    const differentiationFindings = findings.filter(f => 
-      f.toLowerCase().includes('unique') || f.toLowerCase().includes('advantage') || f.toLowerCase().includes('superior') || 
-      f.toLowerCase().includes('differentiat') || f.toLowerCase().includes('exclusive') || f.toLowerCase().includes('proprietary')
-    );
-    if (differentiationFindings.length > 0) {
-      intelligence.push(`DIFFERENTIATION SIGNALS: ${differentiationFindings.length} unique value proposition references identified`);
-    }
-    
-    // Extract market positioning
-    const positioningFindings = findings.filter(f => 
-      f.toLowerCase().includes('market') || f.toLowerCase().includes('industry') || f.toLowerCase().includes('segment') || 
-      f.toLowerCase().includes('customer') || f.toLowerCase().includes('client') || f.toLowerCase().includes('enterprise')
-    );
-    if (positioningFindings.length > 0) {
-      intelligence.push(`MARKET POSITIONING: ${positioningFindings.length} market and customer segment references analyzed`);
-    }
-    
-    return intelligence;
-  }
-
-  /**
-   * 🎯 MISSING METHOD 5: SYNTHESIZE ENTERPRISE ANSWER
-   * Combine all evidence layers into institutional-grade commercial assessment 
-   */
-  private async synthesizeEnterpriseAnswer(
-    question: any, 
-    evidenceBase: RagCommercialEvidence[]
-  ): Promise<any> {
-    console.log(`🧠 Synthesizing enterprise commercial answer for: ${question.question}`);
-    
-    // Aggregate all findings and source documents
-    const allFindings = evidenceBase.flatMap(evidence => evidence.synthesizedFindings);
-    const allSourceDocuments = Array.from(new Set(evidenceBase.flatMap(evidence => evidence.sourceDocuments)));
-    const totalChunks = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
-    
-    // Build comprehensive evidence summary
-    const evidenceSummary = evidenceBase.map((evidence, index) => 
-      `Layer ${index + 1}: "${evidence.query}" → ${evidence.synthesizedFindings.length} findings from ${evidence.sourceDocuments.length} documents`
-    ).join('\n');
-    
-    // 🎯 ENTERPRISE-GRADE COMMERCIAL INTELLIGENCE SYNTHESIS
-    // Build advanced evidence context for pattern recognition
-    const documentTypes = this.categorizeDocumentTypes(allSourceDocuments);
-    const evidenceMetrics = await this.calculateEvidenceMetrics(evidenceBase);
-    const contractPatterns = this.extractContractPatterns(allFindings);
-    const competitiveSignals = this.extractCompetitiveIntelligence(allFindings);
-    
-    const prompt = `INSTITUTIONAL INVESTMENT ANALYSIS - COMMERCIAL INTELLIGENCE SYNTHESIS
-
-You are conducting enterprise-grade due diligence for a $50M+ venture capital investment. Your analysis will inform the investment committee decision. Apply institutional rigor comparable to Goldman Sachs Research Division.
-
-=== COMMERCIAL INTELLIGENCE BRIEF ===
-QUESTION: ${question.question}
-ANALYSIS DOMAIN: ${question.category}
-EVIDENCE SCOPE: ${allSourceDocuments.length} documents, ${totalChunks} data points, ${evidenceBase.length} analytical layers
-
-=== DOCUMENT INTELLIGENCE ===
-Document Portfolio: ${documentTypes.contracts} contracts, ${documentTypes.pricing} pricing docs, ${documentTypes.competitive} competitive materials, ${documentTypes.revenue} revenue sources
-Evidence Depth: ${evidenceMetrics.averageFindings} findings/layer, ${evidenceMetrics.documentCoverage}% coverage, ${evidenceMetrics.dataPoints} quantitative signals
-
-=== RAW COMMERCIAL EVIDENCE ===
-${allFindings.map((finding, i) => `[${i + 1}] ${finding}`).join('\n')}
-
-=== CONTRACT PATTERN ANALYSIS ===
-${contractPatterns.length > 0 ? contractPatterns.join('\n') : 'Pattern analysis requires contract review'}
-
-=== COMPETITIVE INTELLIGENCE SIGNALS ===
-${competitiveSignals.length > 0 ? competitiveSignals.join('\n') : 'Competitive positioning analysis in progress'}
-
-=== MANDATORY INSTITUTIONAL OUTPUT FORMAT ===
-
-**CRITICAL INSTRUCTIONS - NO GENERIC RESPONSES ALLOWED:**
-1. **PATTERN SYNTHESIS REQUIRED**: Even with incomplete data, extract and synthesize patterns from contract terms, pricing structures, customer relationships, and competitive positioning
-2. **QUANTITATIVE ANALYSIS MANDATORY**: Calculate percentages, averages, ranges from available data points - DO NOT say "unknown" when you can derive insights
-3. **INVESTMENT-GRADE INTELLIGENCE**: Provide actionable commercial insights that inform $50M+ investment decisions with institutional rigor
-4. **COMPETITIVE POSITIONING**: Extract competitive dynamics from sales materials, contracts, and market positioning evidence
-5. **REVENUE QUALITY ASSESSMENT**: Analyze contract terms, pricing models, customer concentration, and retention patterns
-
-JSON Response Format:
-{
-  "question": "${question.question}",
-  "category": "${question.category}",
-  "answer": "INSTITUTIONAL ANALYSIS: [Synthesize specific commercial intelligence from evidence patterns - minimum 200 words with quantitative insights extracted from document analysis]",
-  "confidence": [Enhanced confidence score 0.0-1.0 based on evidence quality],
-  "sources": ["Document1.pdf", "Document2.pdf", "Document3.pdf", ...], // MINIMUM 15 UNIQUE SOURCES REQUIRED
-  "keyFindings": [
-    "QUANTIFIED FINDING 1: [Extract specific metrics, percentages, or patterns from contracts/pricing]",
-    "COMPETITIVE INSIGHT 2: [Synthesize positioning vs competitors from sales materials/agreements]", 
-    "REVENUE INTELLIGENCE 3: [Calculate pricing patterns, contract terms, or customer metrics]"
-  ],
-  "commercialAssessment": "INVESTMENT THESIS: [Professional assessment of commercial viability, market position, and revenue quality with specific risk factors and opportunities - minimum 150 words]",
-  "recommendations": [
-    "TACTICAL: [Immediate actionable steps for commercial validation]",
-    "STRATEGIC: [Long-term competitive positioning recommendations]",
-    "DILIGENCE: [Specific follow-up investigation priorities]"
-  ],
-  "commercialRiskScore": [1-10 scale based on evidence quality and commercial strength],
-  "marketPosition": "COMPETITIVE DYNAMICS: [Synthesize market positioning, differentiation, and competitive moat from available evidence]",
-  "investmentImplications": "CAPITAL ALLOCATION: [How commercial findings impact investment decision, valuation, and terms]"
-}
-
-**ENTERPRISE SYNTHESIS REQUIREMENTS:**
-- MINIMUM SOURCE DIVERSITY: Cite at least 15 unique source documents in the sources array
-- EXTRACT ALL AVAILABLE INFORMATION: Use any directly supported facts from the evidence base - DO NOT default to "Insufficient evidence" unless zero supporting facts exist
-- FLEXIBLE CITATION FORMAT: Use [Document Name + Chunk Reference] when specific page numbers are unavailable (e.g., "Commercial_Agreement.pdf chunk 8")
-- Extract quantitative insights even from qualitative evidence patterns
-- Calculate implied metrics from contract terms, pricing data, customer relationships  
-- Synthesize competitive positioning from sales materials and market documents
-- Provide investment-grade commercial intelligence for $50M+ decisions
-- NO "unknown" or "insufficient data" responses - synthesize insights from available patterns
-- Minimum 400 words total content across answer + commercialAssessment + marketPosition
-
-EVIDENCE EXTRACTION MANDATE:
-You MUST extract and analyze ANY available information from the provided evidence base. Only state "insufficient evidence" if literally zero supporting facts exist. When page numbers are unavailable, cite documents with chunk references. Always prioritize extracting actionable commercial insights over claiming insufficient data.`;
-
-    try {
-      const ultraIntelligentConfig: UltraIntelligentConfig = {
-        domain: 'commercial',
-        complexity: 'ultra',
-        speedPriority: 'quality',
-        qualityThreshold: 0.95,
-        maxTokens: 16384,
-        temperature: 0.1
-      };
-
-      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-        { role: "user", content: prompt }
-      ], ultraIntelligentConfig);
-
-      console.log(`🚀 Ultra-Intelligent Commercial Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore?.toFixed(3)} | Model: ${response.model}`);
-      
-      // Clean and parse JSON response
-      const cleanedContent = cleanJsonResponse(response.content || '{}');
-      const analysis = JSON.parse(cleanedContent);
-      
-      // Apply enterprise confidence scoring to AI-generated confidence
-      const rawConfidence = analysis.confidence || 0.5;
-      const allChunks = evidenceBase.flatMap(evidence => evidence.chunks);
-      const enhancedConfidence = this.calculateEnhancedConfidenceScore(allChunks);
-      const finalConfidence = (rawConfidence + enhancedConfidence) / 2; // Blend AI + RAG confidence
-      
-      // Ensure required fields with enterprise-grade defaults
-      const result = {
-        question: analysis.question || question.question,
-        category: analysis.category || question.category,
-        answer: analysis.answer || 'INSTITUTIONAL ANALYSIS: Commercial intelligence synthesis based on document portfolio analysis with pattern recognition across contract terms, competitive positioning, and revenue indicators.',
-        confidence: finalConfidence,
-        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
-        keyFindings: Array.isArray(analysis.keyFindings) ? analysis.keyFindings : [
-          `DOCUMENT PORTFOLIO: Analysis of ${allSourceDocuments.length} commercial documents`,
-          `EVIDENCE SYNTHESIS: ${allFindings.length} findings across ${evidenceBase.length} analytical layers`,
-          `PATTERN RECOGNITION: Contract and competitive intelligence extraction completed`
-        ],
-        commercialAssessment: analysis.commercialAssessment || 'INVESTMENT THESIS: Commercial viability assessment based on document portfolio analysis with institutional due diligence standards applied to available evidence base.',
-        recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations : [
-          'TACTICAL: Validate quantitative metrics through targeted contract analysis',
-          'STRATEGIC: Conduct competitive positioning verification against market benchmarks',
-          'DILIGENCE: Execute comprehensive revenue quality assessment'
-        ],
-        commercialRiskScore: analysis.commercialRiskScore || 6,
-        marketPosition: analysis.marketPosition || 'COMPETITIVE DYNAMICS: Market positioning assessment based on available competitive intelligence and contract portfolio analysis.',
-        investmentImplications: analysis.investmentImplications || 'CAPITAL ALLOCATION: Investment decision impact requires validation of commercial metrics and competitive positioning strength.',
-        evidenceBase: evidenceBase,
-        processingTime: Date.now(),
-        enhancedConfidence: enhancedConfidence,
-        rawAIConfidence: rawConfidence
-      };
-      
-      console.log(`✅ Enterprise commercial answer synthesized: ${result.keyFindings.length} findings, risk score ${result.commercialRiskScore}/10`);
-      return result;
-      
-    } catch (error) {
-      console.error('Error synthesizing enterprise commercial answer:', error);
-      // Graceful fallback with safe defaults
-      return {
-        question: question.question,
-        category: question.category,
-        answer: 'Commercial analysis completed with available evidence.',
-        confidence: 0.7,
-        sources: allSourceDocuments.slice(0, 3),
-        keyFindings: allFindings.slice(0, 3),
-        commercialAssessment: 'Commercial analysis based on document evidence.',
-        recommendations: ['Continue commercial due diligence analysis.'],
-        commercialRiskScore: 5,
-        marketPosition: 'Market position requires further analysis.',
-        evidenceBase: evidenceBase,
-        processingTime: Date.now()
-      };
-    }
-  }
 
   /**
    * UPDATE BACKGROUND JOB PROGRESS  

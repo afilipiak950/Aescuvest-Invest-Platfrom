@@ -45,7 +45,18 @@ export const users = pgTable("users", {
 });
 
 // We'll extend this schema with validation in the registration component
-export const insertUserSchema = createInsertSchema(users).omit({
+export const insertUserSchema = createInsertSchema(users, {
+  emailNotifications: z.boolean().optional(),
+  dealNotifications: z.boolean().optional(),
+  aiNotifications: z.boolean().optional(),
+  weeklyReports: z.boolean().optional(),
+  browserNotifications: z.boolean().optional(),
+  matchNotifications: z.boolean().optional(),
+  reportNotifications: z.boolean().optional(),
+  showEmail: z.boolean().optional(),
+  showPhone: z.boolean().optional(),
+  publicProfile: z.boolean().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -224,7 +235,9 @@ export const agentAssignmentRules = pgTable("agent_assignment_rules", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertAgentAssignmentRuleSchema = createInsertSchema(agentAssignmentRules).omit({
+export const insertAgentAssignmentRuleSchema = createInsertSchema(agentAssignmentRules, {
+  isActive: z.boolean().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -323,7 +336,9 @@ export const agentAnalyses = pgTable("agent_analyses", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertAgentAnalysisSchema = createInsertSchema(agentAnalyses).omit({
+export const insertAgentAnalysisSchema = createInsertSchema(agentAnalyses, {
+  isComplete: z.boolean().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -403,7 +418,10 @@ export const automations = pgTable("automations", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertAutomationSchema = createInsertSchema(automations).omit({
+export const insertAutomationSchema = createInsertSchema(automations, {
+  isActive: z.boolean().optional(),
+  isOneTime: z.boolean().optional(),
+}).omit({
   id: true,
   executionCount: true,
   lastExecutedAt: true,
@@ -468,7 +486,9 @@ export const evaluationCriteria = pgTable("evaluation_criteria", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertEvaluationCriteriaSchema = createInsertSchema(evaluationCriteria).omit({
+export const insertEvaluationCriteriaSchema = createInsertSchema(evaluationCriteria, {
+  isActive: z.boolean().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -586,7 +606,9 @@ export const dataRoomConnections = pgTable("data_room_connections", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertDataRoomConnectionSchema = createInsertSchema(dataRoomConnections).omit({
+export const insertDataRoomConnectionSchema = createInsertSchema(dataRoomConnections, {
+  isActive: z.boolean().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -607,7 +629,9 @@ export const microsoftEmailConnections = pgTable("microsoft_email_connections", 
   lastUsedAt: timestamp("last_used_at").defaultNow(),
 });
 
-export const insertMicrosoftEmailConnectionSchema = createInsertSchema(microsoftEmailConnections).omit({
+export const insertMicrosoftEmailConnectionSchema = createInsertSchema(microsoftEmailConnections, {
+  authenticated: z.boolean().optional(),
+}).omit({
   id: true,
 });
 

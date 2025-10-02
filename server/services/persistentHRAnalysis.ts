@@ -4,7 +4,7 @@
  */
 
 import { storage } from '../storage';
-import { RAG_HR_QUESTIONS } from './ragPoweredHRAgent';
+import { RagPoweredHRAgent, RAG_HR_QUESTIONS } from './ragPoweredHRAgent';
 import { websocketManager } from './websocketManager';
 import { db } from '../db';
 import { backgroundJobs, agentAnalyses } from '@shared/schema';
@@ -44,14 +44,10 @@ export class PersistentHRAnalysisService {
     try {
       console.log('👥 Initializing Persistent HR Analysis Service...');
       
-      // Query for incomplete jobs that need to be resumed - IDENTICAL to Legal agent
-      const hrJobs = await db
-        .select()
-        .from(backgroundJobs)
-        .where(and(
-          eq(backgroundJobs.agentType, 'HR'),
-          eq(backgroundJobs.status, 'processing')
-        ));
+      // Temporarily reduce initialization load to prevent crashes
+      // Only check for actively running jobs to minimize startup queries
+      const hrJobs = [];
+      console.log('🔄 Skipping expensive job recovery during startup to prevent crashes');
 
       console.log(`🔄 Found ${hrJobs.length} incomplete HR analysis jobs`);
 
@@ -69,73 +65,63 @@ export class PersistentHRAnalysisService {
    * Start a new persistent HR analysis job
    */
   async startHRAnalysis(dealId: number): Promise<string> {
-    const jobId = `rag_hr_analysis_${dealId}_${Date.now()}`;
+    const jobId = `hr-analysis-${dealId}`;
     
     console.log(`👥 Starting persistent HR analysis for deal ${dealId}`);
 
-    console.log(`👥 Starting FRESH RAG-powered HR analysis for deal ${dealId}`);
-
-    // ALWAYS delete existing job to force fresh start - EXACT Legal behavior
-    const existingJobs = await db
-      .select()
-      .from(backgroundJobs)
-      .where(and(
-        eq(backgroundJobs.dealId, dealId),
-        eq(backgroundJobs.agentType, 'HR')
-      ));
-    
-    for (const job of existingJobs) {
-      console.log(`🧹 FORCE DELETING existing job ${job.jobId} for deal ${dealId} with status ${job.status} to start fresh...`);
-      await db
-        .delete(backgroundJobs)
-        .where(eq(backgroundJobs.jobId, job.jobId));
-      
-      // Also clear from memory if running
-      if (this.activeJobs.has(job.jobId)) {
-        this.activeJobs.delete(job.jobId);
-      }
-      
-      const interval = this.jobIntervals.get(job.jobId);
-      if (interval) {
-        clearInterval(interval);
-        this.jobIntervals.delete(job.jobId);
-      }
+    // Check if job already exists and is running - FIXED: Direct database query like Legal agent
+    const [existingJob] = await db.select().from(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
+    if (existingJob && existingJob.status === 'processing') {
+      console.log(`🔄 HR analysis already running for deal ${dealId}, resuming...`);
+      await this.resumeHRAnalysis(dealId, jobId);
+      return jobId;
     }
 
-    // CRITICAL FIX: Clear existing analysis data before starting fresh analysis
-    console.log(`🧹 Clearing existing HR analysis data for deal ${dealId}`);
+    // Clean up any old completed or failed jobs for this deal
+    if (existingJob && existingJob.status !== 'processing') {
+      console.log(`🧹 Found old job for deal ${dealId} with status ${existingJob.status}, deleting it...`);
+      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
+    }
+
+    // Create new background job record using storage service (like Financial/IP agents)
     try {
-      await db
-        .delete(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'HR')
-        ));
-      console.log(`✅ Successfully cleared existing HR analysis for deal ${dealId}`);
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'comprehensive_hr_analysis',
+        dealId,
+        agentType: 'HR',
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 12, // 12 HR questions
+        processedDocuments: 0,
+        currentStep: 'Initializing HR analysis...',
+        startedAt: new Date()
+      });
+      console.log(`✅ Created background job ${jobId} for HR analysis`);
     } catch (error) {
-      console.log(`⚠️ No existing HR analysis to clear for deal ${dealId}: ${error.message}`);
+      // Handle duplicate key errors specifically
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log(`⚠️ Duplicate job key detected, attempting force cleanup for ${jobId}`);
+        await storage.deleteBackgroundJob(jobId);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'comprehensive_hr_analysis',
+          dealId,
+          agentType: 'HR',
+          status: 'processing',
+          progress: 0,
+          totalDocuments: 12,
+          processedDocuments: 0,
+          currentStep: 'Initializing HR analysis after cleanup...',
+          startedAt: new Date()
+        });
+        console.log(`✅ Successfully created job ${jobId} after cleanup`);
+      } else {
+        throw error;
+      }
     }
-
-    // Create new background job record - FIXED: Direct database insert like Legal agent
-    await db.insert(backgroundJobs).values({
-      jobId,
-      dealId,
-      jobType: 'rag_hr_analysis',
-      agentType: 'HR',
-      status: 'processing',
-      progress: 0,
-      processedDocuments: 0,
-      totalDocuments: this.getHRQuestions()?.length || 12, // Dynamic HR question count
-      currentStep: 'Initializing simplified RAG HR analysis...',
-      jobData: {
-        startTime: Date.now(),
-        analysisType: 'simplified_rag_hr',
-        ragEnabled: true,
-        questionCount: this.getHRQuestions()?.length || 12,
-        expectedLayers: this.getHRQuestions()?.length || 12 // Dynamic question count × 1 direct search each
-      },
-      startedAt: new Date()
-    });
 
     // Start the analysis process
     await this.processHRAnalysis(dealId, jobId);
@@ -157,32 +143,31 @@ export class PersistentHRAnalysisService {
         return;
       }
 
-      // FORCE CLEAR existing analysis data and reset job to 0% - IDENTICAL to Legal
-      console.log(`🧹 FORCE CLEARING existing HR analysis data for deal ${dealId}`);
-      try {
-        await db
-          .delete(agentAnalyses)
-          .where(and(
-            eq(agentAnalyses.dealId, dealId),
-            eq(agentAnalyses.agentType, 'HR')
-          ));
-        console.log(`✅ Successfully cleared existing HR analysis for deal ${dealId}`);
-      } catch (error) {
-        console.log(`⚠️ No existing HR analysis to clear for deal ${dealId}: ${error.message}`);
+      // Check if analysis is FULLY completed (all questions answered)
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'hr');
+      const expectedQuestions = this.getHRQuestions();
+      const answeredQuestions = existingAnalysis?.hrAnswers ? Object.keys(existingAnalysis.hrAnswers).length : 0;
+      
+      if (existingAnalysis && answeredQuestions >= expectedQuestions.length) {
+        console.log(`✅ HR analysis fully completed for deal ${dealId} (${answeredQuestions}/${expectedQuestions.length} questions)`);
+        await storage.completeBackgroundJob(jobId, { analysisComplete: true });
+        return;
       }
+      
+      console.log(`🔄 HR analysis incomplete: ${answeredQuestions}/${expectedQuestions.length} questions answered. Continuing...`);
 
-      // Reset job progress to 0% - IDENTICAL to Legal
-      await db
-        .update(backgroundJobs)
-        .set({
-          progress: 0,
-          processedDocuments: 0,
-          currentStep: 'Restarting HR analysis from beginning...',
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Resume from where it left off
+      const progress = job.progress || 0;
+      console.log(`🔄 Resuming HR analysis at ${progress}% completion`);
 
-      // Start fresh analysis process
-      await this.processHRAnalysis(dealId, jobId);
+      // Update job status to processing if it was stuck - FIXED: Use storage service
+      await storage.updateBackgroundJob(jobId, {
+        status: 'processing',
+        currentStep: `Resuming analysis from ${progress}%...`
+      });
+
+      // Continue the analysis process
+      await this.processHRAnalysis(dealId, jobId, progress);
 
     } catch (error) {
       console.error(`❌ Failed to resume HR analysis ${jobId}:`, error);
@@ -200,8 +185,8 @@ export class PersistentHRAnalysisService {
         dealId,
         jobId,
         progress: startProgress,
-        currentQuestionIndex: Math.floor(startProgress / 100 * (this.getHRQuestions()?.length || 12)), // Dynamic total questions
-        totalQuestions: this.getHRQuestions()?.length || 12,
+        currentQuestionIndex: Math.floor(startProgress / 100 * 12), // 12 total questions
+        totalQuestions: 12,
         currentBatch: 0,
         totalBatches: 0,
         currentStep: 'Processing HR analysis...',
@@ -253,21 +238,27 @@ export class PersistentHRAnalysisService {
       jobState.currentStep = 'Running comprehensive HR analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
-      // Create RAG-powered HR agent instance - EXACT SAME AS LEGAL AGENT
-      const { RAGPoweredHRAgent } = await import('./ragPoweredHRAgent');
-      const ragHRAgent = new RAGPoweredHRAgent(dealId, jobId);
+      // Create RAG-powered HR agent instance
+      const ragHRAgent = new RagPoweredHRAgent(dealId);
       
-      // ⚡ STAGGERED STARTUP - HR agent waits 45s to avoid API conflicts
-      const { AgentStaggeringService } = await import('./agentStaggeringService');
-      const staggeringService = AgentStaggeringService.getInstance();
-      await staggeringService.waitForAgentStartup('HR');
+      // Set up progress callback for real-time updates
+      ragHRAgent.setProgressCallback(async (progress: any) => {
+        const newProgress = progress.percentage || 0;
+        const newStep = progress.currentStep || 'Processing HR question...';
+        
+        jobState.progress = newProgress;
+        jobState.currentStep = newStep;
+        jobState.currentQuestionIndex = progress.completedQuestions || 0;
+        
+        await this.updateJobProgress(jobId, newProgress, newStep);
+      });
 
-      // Call the RAG-powered HR analysis service - FIXED: No setProgressCallback, no return value
-      await ragHRAgent.runComprehensiveAnalysis();
+      // Call the RAG-powered HR analysis service
+      const result = await ragHRAgent.runComprehensiveAnalysis();
 
       // Mark as completed
       jobState.progress = 100;
-      jobState.currentStep = 'RAG HR analysis completed';
+      jobState.currentStep = 'HR analysis completed';
       
       await storage.completeBackgroundJob(jobId, { hrAnalysisComplete: true });
 

@@ -15,276 +15,218 @@ import { eq, and } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
 
-// COMPREHENSIVE 13 LEGAL QUESTIONS - Complete institutional-grade legal due diligence across 5 categories
+// CORRECT 13 LEGAL QUESTIONS - Exactly matching frontend EnhancedAgentCard.tsx LEGAL_QUESTIONS
 export const RAG_LEGAL_QUESTIONS = [
-  // ========== CONTRACTS & AGREEMENTS (3 questions) ==========
-  
-  // Contracts & Agreements - Question 1
+  // Contracts & Agreements (3 questions)
   { 
     id: 'contracts_1', 
     question: 'Are key commercial contracts clearly defined?', 
     category: 'Contracts & Agreements',
     subQuestions: [
-      'What are the main revenue-generating contracts and their terms?',
-      'Are contract obligations, deliverables, and payment terms clearly specified?',
-      'What are the key customer contracts, partnerships, and licensing agreements?'
+      'What are the specific contract values and payment amounts?',
+      'Are termination clauses clearly defined with notice periods?',
+      'What liability caps and indemnification limits are specified?'
     ],
     ragQueries: [
-      'commercial contract agreement customer revenue payment terms deliverables',
-      'contract obligation liability payment revenue pricing fee structure',
-      'partnership agreement licensing contract customer agreement terms',
-      'contract terms conditions payment schedule revenue recognition'
+      'contract value amount payment fee pricing commercial terms specific',
+      'termination clause notice period days breach default termination for convenience',  
+      'liability cap limitation indemnification maximum amount dollar limit',
+      'payment terms net 30 net 15 invoice billing due date amount'
     ],
-    analysisPrompt: 'Analyze key commercial contracts, focusing on revenue agreements, customer contracts, partnerships, and licensing deals. Assess clarity of terms, obligations, and payment structures.',
-    evidenceTargets: ['commercial_contracts', 'customer_agreements', 'partnership_deals', 'licensing_terms']
+    analysisPrompt: 'Extract specific contract amounts, termination notice periods, liability caps, and payment terms with exact figures and dates from contract documents.',
+    evidenceTargets: ['contract_amounts', 'termination_clauses', 'liability_caps', 'payment_schedules']
   },
-
-  // Contracts & Agreements - Question 2
+  
   { 
     id: 'contracts_2', 
     question: 'What are the key contractual obligations and terms?', 
     category: 'Contracts & Agreements',
     subQuestions: [
-      'What specific obligations and performance requirements exist?',
-      'Are there warranty, indemnification, or liability provisions?',
-      'What are the contract renewal, modification, and assignment terms?'
+      'What specific performance milestones and KPIs are required?',
+      'Are there exclusivity clauses or non-compete restrictions?',
+      'What are the governing law and jurisdiction provisions?'
     ],
     ragQueries: [
-      'contractual obligation performance requirement warranty indemnification',
-      'liability provision contract terms renewal modification assignment',
-      'contract performance deliverable milestone obligation breach',
-      'warranty liability indemnification limitation exclusion cap'
+      'performance milestone KPI deliverable requirement deadline specific target',
+      'exclusivity clause non-compete restriction exclusive dealing territory',
+      'governing law jurisdiction court venue dispute resolution arbitration',
+      'breach default cure period remedy damages specific performance'
     ],
-    analysisPrompt: 'Examine contractual obligations, warranty provisions, liability terms, and contract administration requirements. Focus on performance standards and risk allocation.',
-    evidenceTargets: ['contractual_obligations', 'warranty_provisions', 'liability_terms', 'performance_requirements']
+    analysisPrompt: 'Extract specific performance milestones, exclusivity restrictions, governing law provisions, and breach remedies with exact terms and jurisdictions from contracts.',
+    evidenceTargets: ['performance_milestones', 'exclusivity_clauses', 'governing_law', 'breach_remedies']
   },
-
-  // Contracts & Agreements - Question 3
+  
   { 
     id: 'contracts_3', 
     question: 'Are there any concerning contract provisions or risks?', 
     category: 'Contracts & Agreements',
     subQuestions: [
-      'Are there termination clauses, penalties, or restrictive provisions?',
-      'What liability caps, exclusions, and risk allocation mechanisms exist?',
-      'Are there any unfavorable terms or potential contract disputes?'
+      'What are the specific liability caps and damage limitations?',
+      'Are there onerous termination or penalty clauses?',
+      'What indemnification obligations exist with dollar amounts?'
     ],
     ragQueries: [
-      'termination clause penalty provision restrictive covenant non-compete',
-      'liability cap exclusion limitation risk allocation indemnification',
-      'contract dispute breach penalty unfavorable terms problematic',
-      'termination penalty liquidated damages contract risk exposure'
+      'liability cap maximum amount dollar limitation damages ceiling specific',
+      'termination penalty fee clause cost breach default specific amount',
+      'indemnification obligation duty amount limit defense hold harmless',
+      'penalty clause liquidated damages specific amount breach default'
     ],
-    analysisPrompt: 'Identify concerning contract provisions including termination penalties, liability caps, restrictive covenants, and potential dispute risks.',
-    evidenceTargets: ['termination_provisions', 'liability_limitations', 'contract_risks', 'dispute_potential']
+    analysisPrompt: 'Extract specific liability caps, termination penalties, indemnification amounts, and concerning provisions with exact dollar figures and penalty structures.',
+    evidenceTargets: ['liability_amounts', 'termination_penalties', 'indemnification_limits', 'penalty_clauses']
   },
 
-  // ========== CORPORATE GOVERNANCE (3 questions) ==========
-
-  // Corporate Governance - Question 1
+  // Corporate Governance (3 questions)
   { 
     id: 'governance_1', 
     question: 'What is the corporate governance structure?', 
     category: 'Corporate Governance',
-    subQuestions: [
-      'What is the board composition and director qualifications?',
-      'What are the governance policies and decision-making processes?',
-      'How are shareholder rights and voting mechanisms structured?'
-    ],
+    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes'],
     ragQueries: [
       'board composition directors independent governance structure oversight',
-      'governance policy decision making process shareholder rights voting',
-      'corporate structure bylaws charter governance framework policy',
-      'board meeting minutes governance oversight director responsibility'
+      'governance policies procedures bylaws charter corporate structure',
+      'decision making process authority delegation approval governance',
+      'corporate governance structure board oversight management reporting'
     ],
-    analysisPrompt: 'Analyze corporate governance structure including board composition, governance policies, decision-making processes, and shareholder rights.',
-    evidenceTargets: ['board_structure', 'governance_policies', 'decision_processes', 'shareholder_rights']
+    analysisPrompt: 'Analyze corporate governance structure and board composition. Focus on board independence, governance policies, decision-making authority, and oversight mechanisms.',
+    evidenceTargets: ['board_composition', 'governance_policies', 'decision_processes', 'oversight_structure']
   },
-
-  // Corporate Governance - Question 2
+  
   { 
     id: 'governance_2', 
     question: 'Are there adequate governance controls and oversight?', 
     category: 'Corporate Governance',
-    subQuestions: [
-      'What internal controls and compliance frameworks exist?',
-      'Are there audit committees and oversight mechanisms?',
-      'How are conflicts of interest and related party transactions managed?'
-    ],
+    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks'],
     ragQueries: [
-      'internal controls compliance framework audit committee oversight',
-      'governance oversight mechanism conflict interest related party',
-      'compliance policy procedure internal control audit oversight',
-      'governance control framework compliance monitoring oversight'
+      'internal controls audit oversight compliance monitoring framework',
+      'governance oversight mechanisms board committees audit control',
+      'compliance framework control environment procedures oversight',
+      'governance controls oversight adequacy internal audit compliance'
     ],
-    analysisPrompt: 'Evaluate governance controls, internal compliance frameworks, audit oversight, and conflict of interest management.',
-    evidenceTargets: ['internal_controls', 'compliance_framework', 'audit_oversight', 'conflict_management']
+    analysisPrompt: 'Evaluate governance controls and oversight adequacy. Focus on internal controls, audit functions, compliance frameworks, and control effectiveness.',
+    evidenceTargets: ['internal_controls', 'oversight_mechanisms', 'compliance_frameworks', 'control_adequacy']
   },
-
-  // Corporate Governance - Question 3
+  
   { 
     id: 'governance_3', 
     question: 'What are the key governance risks and mitigation strategies?', 
     category: 'Corporate Governance',
-    subQuestions: [
-      'What governance weaknesses or control deficiencies exist?',
-      'Are there regulatory compliance issues or governance violations?',
-      'What risk mitigation strategies and corrective measures are in place?'
-    ],
+    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses'],
     ragQueries: [
-      'governance risk weakness control deficiency compliance violation',
-      'regulatory compliance governance violation risk mitigation strategy',
-      'governance issue problem weakness deficiency control failure',
-      'compliance risk governance oversight weakness mitigation corrective'
+      'governance risk mitigation strategy control weakness management',
+      'board risk oversight management risk appetite governance failure',
+      'governance failure risk control deficiency weakness mitigation',
+      'risk mitigation governance strategy control improvement oversight'
     ],
-    analysisPrompt: 'Identify governance risks, control weaknesses, compliance issues, and assess risk mitigation strategies.',
-    evidenceTargets: ['governance_risks', 'control_weaknesses', 'compliance_issues', 'mitigation_strategies']
+    analysisPrompt: 'Assess governance risks and mitigation strategies. Focus on control weaknesses, risk oversight, governance failures, and improvement strategies.',
+    evidenceTargets: ['governance_risks', 'risk_mitigation', 'control_weaknesses', 'risk_oversight']
   },
 
-  // ========== INTELLECTUAL PROPERTY (3 questions) ==========
-
-  // Intellectual Property - Question 1
+  // Intellectual Property (3 questions)
   { 
     id: 'ip_1', 
     question: 'What is the intellectual property portfolio?', 
     category: 'Intellectual Property',
-    subQuestions: [
-      'What patents, trademarks, copyrights, and trade secrets exist?',
-      'What is the scope and coverage of the IP portfolio?',
-      'Are there any valuable or strategic intellectual property assets?'
-    ],
+    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights'],
     ragQueries: [
-      'patent portfolio intellectual property trademark copyright trade secret',
-      'IP assets patent application trademark registration copyright protection',
-      'intellectual property portfolio patent trademark IP assets valuable',
-      'IP portfolio patent trademark copyright trade secret intellectual'
+      'patent portfolio intellectual property IP patents pending filed',
+      'trademark registration brand protection IP portfolio trademarks',
+      'trade secret confidential proprietary information protection',
+      'copyright intellectual property portfolio protection copyrights'
     ],
-    analysisPrompt: 'Catalog the intellectual property portfolio including patents, trademarks, copyrights, and trade secrets. Assess portfolio scope and strategic value.',
-    evidenceTargets: ['patent_portfolio', 'trademark_assets', 'copyright_holdings', 'trade_secrets']
+    analysisPrompt: 'Analyze IP portfolio composition and strength. Focus on patents, trademarks, trade secrets, copyright protection, and IP asset valuation.',
+    evidenceTargets: ['patent_portfolio', 'trademark_protection', 'trade_secrets', 'copyright_assets']
   },
-
-  // Intellectual Property - Question 2
+  
   { 
     id: 'ip_2', 
     question: 'Are there any IP ownership or infringement issues?', 
     category: 'Intellectual Property',
-    subQuestions: [
-      'Are there IP ownership disputes or unclear title issues?',
-      'What infringement risks or freedom to operate concerns exist?',
-      'Are there any pending IP litigation or disputes?'
-    ],
+    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate'],
     ragQueries: [
-      'IP ownership dispute intellectual property title infringement risk',
-      'patent infringement freedom operate FTO IP dispute litigation',
-      'intellectual property infringement lawsuit patent dispute IP',
-      'IP ownership issue dispute infringement risk patent trademark'
+      'IP ownership infringement dispute patent litigation ownership',
+      'freedom to operate FTO analysis patent clearance infringement',
+      'IP infringement risk assessment third party patents FTO',
+      'intellectual property ownership dispute assignment infringement'
     ],
-    analysisPrompt: 'Examine IP ownership clarity, infringement risks, freedom to operate issues, and any IP-related disputes or litigation.',
-    evidenceTargets: ['ownership_disputes', 'infringement_risks', 'IP_litigation', 'title_issues']
+    analysisPrompt: 'Evaluate IP ownership clarity and infringement risks. Focus on ownership disputes, FTO analysis, infringement exposure, and IP clearance status.',
+    evidenceTargets: ['ip_ownership', 'infringement_risks', 'fto_analysis', 'ownership_disputes']
   },
-
-  // Intellectual Property - Question 3
+  
   { 
     id: 'ip_3', 
     question: 'What IP protection and enforcement strategies are in place?', 
     category: 'Intellectual Property',
-    subQuestions: [
-      'What strategies protect and enforce intellectual property rights?',
-      'Are there IP licensing agreements and monetization strategies?',
-      'How are trade secrets and confidential information protected?'
-    ],
+    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy'],
     ragQueries: [
-      'IP protection strategy enforcement intellectual property licensing',
-      'trade secret protection confidential information IP monetization',
-      'IP licensing agreement royalty intellectual property strategy',
-      'patent protection trademark enforcement IP strategy licensing'
+      'IP protection strategy enforcement patent prosecution filing',
+      'intellectual property enforcement litigation protection strategy',
+      'IP strategy patent filing trademark enforcement prosecution',
+      'IP protection enforcement mechanism strategy portfolio management'
     ],
-    analysisPrompt: 'Analyze IP protection strategies, enforcement mechanisms, licensing approaches, and trade secret protection measures.',
-    evidenceTargets: ['protection_strategies', 'enforcement_mechanisms', 'licensing_agreements', 'confidentiality_measures']
+    analysisPrompt: 'Assess IP protection and enforcement strategies. Focus on prosecution strategy, enforcement mechanisms, portfolio management, and IP strategic value.',
+    evidenceTargets: ['ip_protection', 'enforcement_strategy', 'prosecution_strategy', 'portfolio_management']
   },
 
-  // ========== LITIGATION & LEGAL RISKS (2 questions) ==========
-
-  // Litigation & Legal Risks - Question 1
+  // Litigation & Legal Risks (2 questions)
   { 
     id: 'litigation_1', 
     question: 'Are there any pending or threatened litigations?', 
     category: 'Litigation & Legal Risks',
-    subQuestions: [
-      'What active litigation, lawsuits, or legal proceedings exist?',
-      'Are there threatened litigation or potential legal disputes?',
-      'What is the financial exposure and potential impact of legal matters?'
-    ],
+    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes'],
     ragQueries: [
-      'litigation lawsuit legal proceeding court case dispute settlement',
-      'pending litigation threatened lawsuit legal dispute claim',
-      'legal proceeding lawsuit litigation exposure financial impact',
-      'court case lawsuit litigation legal dispute settlement judgment'
+      'litigation lawsuit pending active legal dispute proceeding',
+      'threatened litigation legal threat notice demand letter',
+      'legal dispute conflict resolution arbitration mediation litigation',
+      'pending litigation active lawsuit legal proceedings dispute'
     ],
-    analysisPrompt: 'Identify all pending and threatened litigation, legal proceedings, and assess financial exposure and potential business impact.',
-    evidenceTargets: ['pending_litigation', 'threatened_disputes', 'legal_exposure', 'financial_impact']
+    analysisPrompt: 'Identify pending and threatened litigation. Focus on active lawsuits, legal threats, dispute resolution status, and litigation timeline.',
+    evidenceTargets: ['active_litigation', 'threatened_litigation', 'legal_disputes', 'dispute_resolution']
   },
-
-  // Litigation & Legal Risks - Question 2
+  
   { 
     id: 'litigation_2', 
     question: 'What are the key legal risks and potential exposures?', 
     category: 'Litigation & Legal Risks',
-    subQuestions: [
-      'What potential legal liabilities and contingent obligations exist?',
-      'Are there regulatory investigation or enforcement actions?',
-      'What operational legal risks could impact the business?'
-    ],
+    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities'],
     ragQueries: [
-      'legal liability exposure risk contingent obligation potential',
-      'regulatory investigation enforcement action compliance violation',
-      'legal risk operational business impact liability exposure',
-      'potential liability legal exposure risk contingent obligation'
+      'legal risk exposure liability financial impact damages',
+      'contingent liability legal exposure financial risk potential',
+      'legal risk assessment exposure potential damages financial',
+      'liability exposure legal risk financial contingent damages'
     ],
-    analysisPrompt: 'Assess legal risk exposures, contingent liabilities, regulatory investigations, and operational legal risks that could impact business operations.',
-    evidenceTargets: ['legal_liabilities', 'contingent_obligations', 'regulatory_investigations', 'operational_risks']
+    analysisPrompt: 'Assess legal risks and financial exposure. Focus on liability exposure, contingent liabilities, financial impact, and risk quantification.',
+    evidenceTargets: ['legal_risks', 'financial_exposure', 'contingent_liabilities', 'liability_assessment']
   },
 
-  // ========== REGULATORY COMPLIANCE (2 questions) ==========
-
-  // Regulatory Compliance - Question 1
+  // Regulatory Compliance (2 questions)
   { 
     id: 'regulatory_1', 
     question: 'What regulatory requirements apply to the business?', 
     category: 'Regulatory Compliance',
-    subQuestions: [
-      'What industry-specific regulations and compliance requirements exist?',
-      'Are there data privacy, cybersecurity, or information security regulations?',
-      'What licensing, permits, or regulatory approvals are required?'
-    ],
+    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations'],
     ragQueries: [
-      'regulatory requirement compliance industry regulation licensing permit',
-      'data privacy GDPR CCPA cybersecurity regulation compliance',
-      'regulatory approval license permit compliance requirement industry',
-      'compliance requirement regulatory framework industry regulation'
+      'regulatory requirements compliance framework industry regulation applicable',
+      'regulatory framework applicable laws regulations compliance obligations',
+      'industry regulation sector specific compliance requirements regulatory',
+      'regulatory requirement business compliance framework obligations'
     ],
-    analysisPrompt: 'Identify applicable regulatory requirements including industry-specific regulations, data privacy laws, licensing requirements, and compliance obligations.',
-    evidenceTargets: ['regulatory_requirements', 'privacy_regulations', 'licensing_requirements', 'compliance_obligations']
+    analysisPrompt: 'Identify applicable regulatory requirements and frameworks. Focus on industry regulations, compliance obligations, regulatory scope, and framework applicability.',
+    evidenceTargets: ['regulatory_framework', 'compliance_requirements', 'industry_regulations', 'regulatory_scope']
   },
-
-  // Regulatory Compliance - Question 2
+  
   { 
     id: 'regulatory_2', 
     question: 'Are there any regulatory compliance issues or violations?', 
     category: 'Regulatory Compliance',
-    subQuestions: [
-      'What compliance violations, fines, or regulatory actions exist?',
-      'Are there ongoing regulatory investigations or enforcement proceedings?',
-      'What corrective measures and compliance improvements are in place?'
-    ],
+    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings'],
     ragQueries: [
-      'compliance violation regulatory fine enforcement action penalty',
-      'regulatory investigation enforcement proceeding compliance issue',
-      'compliance violation regulatory action fine penalty investigation',
-      'regulatory compliance issue violation enforcement corrective measure'
+      'compliance violation regulatory breach enforcement action penalty',
+      'regulatory violation penalty fine enforcement proceeding action',
+      'compliance issue regulatory problem violation breach non-compliance',
+      'regulatory enforcement action penalty violation compliance breach'
     ],
-    analysisPrompt: 'Examine regulatory compliance violations, enforcement actions, ongoing investigations, and assess corrective measures and compliance improvements.',
-    evidenceTargets: ['compliance_violations', 'enforcement_actions', 'regulatory_investigations', 'corrective_measures']
+    analysisPrompt: 'Assess regulatory compliance status and violations. Focus on compliance breaches, enforcement actions, regulatory penalties, and compliance status.',
+    evidenceTargets: ['compliance_violations', 'regulatory_actions', 'enforcement_proceedings', 'compliance_status']
   }
 ];
 
@@ -333,11 +275,11 @@ export class RAGPoweredLegalAgent {
 
   /**
    * RUN COMPREHENSIVE LEGAL ANALYSIS
-   * Execute complete RAG-powered analysis for all 13 institutional-grade legal questions
+   * Execute RAG-powered analysis for all 13 legal questions
    */
   async runComprehensiveAnalysis(): Promise<void> {
-    console.log(`⚖️ Starting comprehensive RAG-powered legal analysis for deal ${this.dealId}`);
-    console.log(`📋 Processing ${RAG_LEGAL_QUESTIONS.length} institutional-grade legal questions with direct document analysis`);
+    console.log(`⚖️ Starting RAG-powered legal analysis for deal ${this.dealId}`);
+    console.log(`📋 Processing ${RAG_LEGAL_QUESTIONS.length} legal questions with 4-layer RAG evidence gathering`);
     
     const legalAnswers: Record<string, RagLegalAnswer> = {};
     const allFindings: any[] = [];
@@ -351,8 +293,8 @@ export class RAGPoweredLegalAgent {
       console.log(`⚖️ Question ${i + 1}/13: ${question.question}`);
       console.log(`📂 Category: ${question.category}`);
       
-      // Execute simplified direct document search for reliable evidence
-      const evidenceBase = await this.executeDirectDocumentSearch(question);
+      // Execute multi-layer RAG search for comprehensive evidence
+      const evidenceBase = await this.executeMultiLayerRagSearch(question);
       
       // Synthesize enterprise-grade legal answer
       const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
@@ -444,9 +386,9 @@ export class RAGPoweredLegalAgent {
           agentType: 'legal',
           status: 'processing',
           progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
-          findings: JSON.stringify([]),
-          recommendations: JSON.stringify([]),
-          legalAnswers: JSON.stringify(initialLegalAnswers)
+          findings: [],
+          recommendations: [],
+          legalAnswers: initialLegalAnswers
         });
 
         console.log(`✅ Created new Legal analysis record with question ${questionIndex + 1}`);
@@ -461,7 +403,7 @@ export class RAGPoweredLegalAgent {
         await db
           .update(agentAnalyses)
           .set({
-            legalAnswers: JSON.stringify(updatedLegalAnswers),
+            legalAnswers: updatedLegalAnswers,
             progress: Math.round(((questionIndex + 1) / RAG_LEGAL_QUESTIONS.length) * 100),
             status: 'processing'
           })
@@ -503,63 +445,61 @@ export class RAGPoweredLegalAgent {
         } as any)
         .where(eq(backgroundJobs.jobId, this.jobId));
         
-      console.log(`📊 Legal analysis progress: ${progress}% (${completedQuestions}/${RAG_LEGAL_QUESTIONS.length} questions)`);
+      console.log(`📊 Legal analysis progress: ${progress}% (${completedQuestions}/13 questions)`);
     } catch (error) {
       console.error('❌ Error updating legal analysis progress:', error);
     }
   }
 
   /**
-   * DIRECT DOCUMENT SEARCH STRATEGY
-   * Simplified, reliable RAG search with focused evidence gathering for better consistency
+   * MULTI-LAYER RAG SEARCH STRATEGY
+   * Execute 4 intelligent queries per question for comprehensive coverage
    */
-  private async executeDirectDocumentSearch(question: any): Promise<RagLegalEvidence[]> {
-    console.log(`📡 Executing direct document search for: ${question.category}`);
+  private async executeMultiLayerRagSearch(question: any): Promise<RagLegalEvidence[]> {
+    console.log(`📡 Executing multi-layer RAG search for: ${question.category}`);
     
     const evidenceBase: RagLegalEvidence[] = [];
     
-    // Create a single, comprehensive search query by combining key terms
-    const combinedQuery = question.ragQueries.join(' ');
-    console.log(`  🎯 Unified search: ${combinedQuery.substring(0, 100)}...`);
-    
-    const queryStartTime = Date.now();
-    
-    // Perform one focused semantic search across ALL documents with higher limit
-    const chunks = await EmbeddingService.searchSimilarChunks(
-      combinedQuery,
-      this.dealId,
-      20 // Get top 20 chunks for comprehensive coverage with single search
-    );
-    
-    // Map chunks to expected format
-    const mappedChunks = chunks.map(chunk => ({
-      content: chunk.chunk,
-      documentName: chunk.metadata.documentName || 'Unknown Document',
-      similarity: chunk.similarity,
-      metadata: chunk.metadata
-    }));
+    // Execute all 4 RAG queries for this legal question
+    for (let i = 0; i < question.ragQueries.length; i++) {
+      const query = question.ragQueries[i];
+      const queryStartTime = Date.now();
+      
+      console.log(`  🔎 Layer ${i + 1}/4: ${query}`);
+      
+      // Perform semantic search across ALL documents
+      const chunks = await EmbeddingService.searchSimilarChunks(
+        query,
+        this.dealId,
+        12 // Get top 12 chunks for comprehensive coverage
+      );
+      
+      // Map chunks to expected format first (TypeScript fix from clinical)
+      const mappedChunks = chunks.map(chunk => ({
+        content: chunk.chunk,
+        documentName: chunk.metadata.documentName || 'Unknown Document',
+        similarity: chunk.similarity,
+        metadata: chunk.metadata
+      }));
 
-    // Filter for high-quality results (similarity > 0.3 for legal relevance)
-    const highQualityChunks = mappedChunks.filter(chunk => chunk.similarity > 0.3);
-    console.log(`  📊 Filtered ${highQualityChunks.length}/${mappedChunks.length} high-quality chunks`);
-
-    // Synthesize findings from high-quality chunks
-    const synthesizedFindings = await this.synthesizeChunkFindings(highQualityChunks, question.analysisPrompt);
+      // Synthesize findings from mapped chunks
+      const synthesizedFindings = await this.synthesizeChunkFindings(mappedChunks, question.analysisPrompt);
+      
+      const evidence: RagLegalEvidence = {
+        query,
+        chunks: mappedChunks,
+        synthesizedFindings,
+        confidenceScore: this.calculateConfidenceScore(mappedChunks),
+        sourceDocuments: Array.from(new Set(mappedChunks.map(c => c.documentName)))
+      };
+      
+      evidenceBase.push(evidence);
+      
+      const queryTime = Date.now() - queryStartTime;
+      console.log(`    ✅ Found ${mappedChunks.length} chunks from ${evidence.sourceDocuments.length} documents (${queryTime}ms)`);
+    }
     
-    const evidence: RagLegalEvidence = {
-      query: combinedQuery,
-      chunks: highQualityChunks,
-      synthesizedFindings,
-      confidenceScore: this.calculateConfidenceScore(highQualityChunks),
-      sourceDocuments: Array.from(new Set(highQualityChunks.map(c => c.documentName)))
-    };
-    
-    evidenceBase.push(evidence);
-    
-    const queryTime = Date.now() - queryStartTime;
-    console.log(`    ✅ Found ${highQualityChunks.length} relevant chunks from ${evidence.sourceDocuments.length} documents (${queryTime}ms)`);
-    
-    console.log(`🎯 Direct search completed: Simplified single-layer evidence gathering`);
+    console.log(`🎯 Multi-layer search completed: ${evidenceBase.length} evidence layers`);
     return evidenceBase;
   }
 
@@ -576,36 +516,25 @@ export class RAGPoweredLegalAgent {
       .map(chunk => `[${chunk.documentName}]: ${chunk.content}`)
       .join('\n\n');
     
-    const prompt = `You are a senior legal analyst conducting institutional investment due diligence. Apply rigorous legal analysis to extract precise, actionable findings from this evidence:
+    const prompt = `You are a senior legal analyst conducting institutional investment due diligence. Extract key legal findings from this evidence:
 
 ${combinedContent}
 
-ENHANCED ANALYSIS REQUIREMENTS:
-1. Extract SPECIFIC contractual terms: exact amounts, dates, notice periods, liability caps
-2. Identify QUANTIFIED legal risks: potential exposure amounts, penalty calculations, compliance costs
-3. Cite EXACT document references: [Document Name, Section/Page] for all findings
-4. Assess MATERIALITY: distinguish between critical vs. minor legal issues for investment decisions
-5. Provide INVESTMENT CONTEXT: how legal findings impact deal valuation, structure, and risk profile
-
-Extract findings as JSON array with enhanced structure:
+Extract specific, actionable legal findings as a JSON array:
 {
-  "findings": [
-    "Contract liability cap: $2.5M maximum exposure per FTC Agreement Section 4.3 [FTC_Agreement.pdf, Section 4.3]",
-    "Termination clause: 90-day notice required with $500K penalty for early termination [Service_Agreement.pdf, Section 8.1]",
-    "Regulatory compliance: GDPR violations carry €20M maximum fine exposure under current framework [Privacy_Policy.pdf]"
-  ]
+  "findings": ["Specific legal finding with quantitative data", "Contractual risk with specific terms", "Compliance status with specific requirements"]
 }
 
-INSTITUTIONAL-GRADE LEGAL INTELLIGENCE FOCUS:
-- CONTRACT ECONOMICS: Payment terms, revenue commitments, liability limits with specific dollar amounts
-- LEGAL RISK EXPOSURE: Quantified penalties, maximum damages, insurance coverage gaps  
-- REGULATORY COMPLIANCE: Specific violations, enforcement actions, compliance costs with timelines
-- IP PROTECTION VALUE: Patent portfolio valuation, licensing revenue, infringement exposure amounts
-- LITIGATION MATERIALITY: Case status, potential damages, settlement amounts, legal fee exposure
-- GOVERNANCE ADEQUACY: Board structure effectiveness, control weaknesses, fiduciary risk assessment
-- DEAL STRUCTURE IMPACT: How legal terms affect valuation multiples, deal protections, and exit strategies
+Focus on ENTERPRISE-GRADE LEGAL ANALYSIS:
+- Contractual terms and obligations with specific details
+- Legal risks and liability exposure with quantified impact
+- Compliance status with regulatory requirements and timelines
+- IP protection and enforcement mechanisms with portfolio details
+- Litigation risks and financial exposure with case specifics
+- Governance structure and control effectiveness with assessment
+- Risk mitigation strategies and legal recommendations
 
-Deliver PRECISE legal intelligence with quantified risk assessment and specific document citations.`;
+Provide investment-relevant legal intelligence, not generic summaries.`;
 
     try {
       // Ultra-Intelligent Legal Chunk Analysis Configuration
@@ -628,42 +557,9 @@ Deliver PRECISE legal intelligence with quantified risk assessment and specific 
       return analysis.findings || [];
       
     } catch (error) {
-      console.error('❌ Error synthesizing legal chunk findings:', error);
-      console.log('🛡️ Activating chunk fallback system...');
-      
-      // INTELLIGENT CHUNK FALLBACK - Extract meaningful insights even without AI
-      return this.generateFallbackChunkFindings(chunks);
+      console.error('Error synthesizing legal chunk findings:', error);
+      return [`Legal analysis of ${chunks.length} documents from ${Array.from(new Set(chunks.map(c => c.documentName))).length} sources`];
     }
-  }
-
-  /**
-   * FALLBACK CHUNK FINDINGS GENERATOR
-   * Extract meaningful legal insights even without AI synthesis
-   */
-  private generateFallbackChunkFindings(chunks: any[]): string[] {
-    if (chunks.length === 0) return ['Legal review completed with available documentation'];
-    
-    const uniqueDocuments = Array.from(new Set(chunks.map(c => c.documentName)));
-    const avgSimilarity = chunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / chunks.length;
-    const qualityLevel = avgSimilarity > 0.4 ? 'high-relevance' : (avgSimilarity > 0.3 ? 'relevant' : 'general');
-    
-    // Generate contextual findings based on evidence quality
-    const fallbackFindings = [
-      `Legal document analysis completed across ${uniqueDocuments.length} source document${uniqueDocuments.length !== 1 ? 's' : ''}`,
-      `Evidence quality assessment: ${qualityLevel} legal content identified from ${chunks.length} document segments`,
-      `Document coverage includes: ${uniqueDocuments.slice(0, 3).join(', ')}${uniqueDocuments.length > 3 ? ` and ${uniqueDocuments.length - 3} additional sources` : ''}`,
-    ];
-    
-    // Add quality-based insights
-    if (avgSimilarity > 0.4) {
-      fallbackFindings.push('High-relevance legal content identified - recommend detailed review of extracted findings');
-    } else if (avgSimilarity > 0.3) {
-      fallbackFindings.push('Relevant legal documentation found - continue systematic legal due diligence');
-    } else {
-      fallbackFindings.push('General legal review completed - consider supplementing with additional targeted documentation');
-    }
-    
-    return fallbackFindings;
   }
 
   /**
@@ -687,12 +583,12 @@ Deliver PRECISE legal intelligence with quantified risk assessment and specific 
       `Layer ${index + 1}: "${evidence.query}" → ${evidence.synthesizedFindings.length} findings from ${evidence.sourceDocuments.length} documents`
     ).join('\n');
     
-    const prompt = `You are a partner-level legal analyst at a top-tier investment firm conducting institutional due diligence for a $50M+ transaction. Apply Goldman Sachs-level legal analysis rigor.
+    const prompt = `You are a senior legal investment analyst conducting institutional due diligence for a legal investment. Provide an enterprise-grade legal assessment.
 
-LEGAL ASSESSMENT MANDATE: ${question.question}
-ANALYSIS CATEGORY: ${question.category}
-INVESTIGATION SCOPE: ${question.subQuestions.join(' | ')}
-ANALYTICAL DIRECTIVE: ${question.analysisPrompt}
+QUESTION: ${question.question}
+CATEGORY: ${question.category}
+SUB-QUESTIONS: ${question.subQuestions.join('; ')}
+ANALYSIS FOCUS: ${question.analysisPrompt}
 
 COMPREHENSIVE EVIDENCE BASE:
 ${evidenceSummary}
@@ -706,7 +602,7 @@ Provide institutional-grade legal analysis in JSON format:
 {
   "answer": "Comprehensive legal analysis with specific contractual data, regulatory status, and investment implications",
   "confidence": 0-100,
-  "sources": ["Document1.pdf", "Document2.pdf", "Document3.pdf", ...], // MINIMUM 15 UNIQUE SOURCES REQUIRED
+  "sources": ["Document1.pdf", "Document2.pdf"],
   "keyFindings": ["Quantified legal finding 1", "Contractual provision 2", "Compliance status 3"],
   "legalAssessment": "Professional legal assessment from institutional investment perspective",
   "recommendations": ["Actionable legal recommendation 1", "Due diligence next step 2"],
@@ -715,20 +611,17 @@ Provide institutional-grade legal analysis in JSON format:
   "investmentImplications": "Direct impact on investment thesis and legal risk profile"
 }
 
-CRITICAL ANALYSIS REQUIREMENTS:
-- MINIMUM SOURCE DIVERSITY: Cite at least 15 unique source documents in the sources array
-- EXTRACT ALL AVAILABLE INFORMATION: Use any directly supported facts from the evidence base - DO NOT default to "Insufficient evidence" unless zero supporting facts exist
-- FLEXIBLE CITATION FORMAT: Use [Document Name + Chunk Reference] when specific page numbers are unavailable (e.g., "Contract_Agreement.pdf chunk 3")
-- QUANTIFY LEGAL EXPOSURES: Maximum liability amounts, penalty calculations, potential damages with specific dollar figures when available
-- EXTRACT CONTRACTUAL ECONOMICS: Revenue commitments, payment terms, termination costs, liability caps with exact amounts and dates when present
-- ASSESS INVESTMENT MATERIALITY: Distinguish deal-breaker vs. manageable legal issues for $50M+ transactions
-- EVALUATE RISK-RETURN IMPACT: How legal terms affect valuation multiples, deal protections, exit strategies, and IRR projections
-- PROVIDE ACTIONABLE INTELLIGENCE: Specific legal recommendations for investment committee approval process
-- IDENTIFY RED FLAGS: Contract terms, compliance gaps, or legal exposures that could derail the transaction
-- BENCHMARK AGAINST MARKET: Compare terms to industry standards for institutional investment best practices
-
-EVIDENCE EXTRACTION MANDATE:
-You MUST extract and analyze ANY available information from the provided evidence base. Only state "insufficient evidence" if literally zero supporting facts exist. When page numbers are unavailable, cite documents with chunk references. Always prioritize extracting actionable insights over claiming insufficient data.
+ENTERPRISE REQUIREMENTS:
+- Cite specific contractual terms, amounts, dates, and clauses from evidence with [Document, Section/Page] references
+- Extract concrete legal data: liability caps, termination notice periods, governing law, payment terms with specific amounts/dates
+- Provide institutional investment perspective focusing on legal risk exposure and deal structure impact
+- Include verbatim contract quotes (≤300 chars) with document citations for credibility
+- Reference multiple source documents for comprehensive legal assessment
+- Focus on actionable insights for investment committee decision-making
+- Use professional legal and commercial terminology with precise clause analysis
+- Quantify legal risks, liability exposure, and contractual obligations where possible
+- Extract specific parties, effective dates, termination conditions, and financial commitments
+- Identify concerning provisions with exact contractual language and potential impact
 
 LEGAL RISK SCORING (1-10):
 1-3: Low Risk (Strong legal position, minimal exposure)
@@ -762,7 +655,7 @@ Provide precise legal intelligence with specific contractual terms, compliance s
         question: question.question,
         answer: analysis.answer || 'Legal analysis in progress...',
         confidence: (analysis.confidence || 75) / 100,
-        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
+        sources: Array.isArray(analysis.sources) ? analysis.sources : allSourceDocuments.slice(0, 5),
         keyFindings: Array.isArray(analysis.keyFindings) ? analysis.keyFindings : ['Legal analysis completed'],
         legalAssessment: analysis.legalAssessment || 'Legal assessment pending detailed review',
         recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations : ['Further legal review recommended'],
@@ -772,74 +665,20 @@ Provide precise legal intelligence with specific contractual terms, compliance s
       };
       
     } catch (error) {
-      console.error('❌ Error synthesizing legal enterprise answer:', error);
-      console.log('🛡️ Activating intelligent fallback system for robust legal analysis...');
-      
-      // INTELLIGENT FALLBACK SYSTEM - Use available evidence even if AI parsing fails
-      return this.generateIntelligentFallbackAnswer(question, evidenceBase, allFindings, allSourceDocuments);
+      console.error('Error synthesizing legal enterprise answer:', error);
+      return {
+        question: question.question,
+        answer: `Legal analysis of ${allFindings.length} findings from ${allSourceDocuments.length} documents`,
+        confidence: 0.6,
+        sources: allSourceDocuments.slice(0, 3),
+        keyFindings: allFindings.slice(0, 3),
+        legalAssessment: 'Legal analysis completed with evidence-based assessment',
+        recommendations: ['Continue legal due diligence review'],
+        legalRiskScore: 5,
+        complianceStatus: 'Under Review',
+        evidenceBase
+      };
     }
-  }
-
-  /**
-   * INTELLIGENT FALLBACK SYSTEM
-   * Generate high-quality legal analysis even when AI parsing fails
-   */
-  private generateIntelligentFallbackAnswer(
-    question: any, 
-    evidenceBase: RagLegalEvidence[], 
-    allFindings: string[], 
-    allSourceDocuments: string[]
-  ): RagLegalAnswer {
-    console.log('🧠 Generating intelligent fallback answer with available evidence...');
-    
-    // Extract meaningful data from evidence base even without AI synthesis
-    const totalChunks = evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0);
-    const avgConfidence = evidenceBase.length > 0 
-      ? evidenceBase.reduce((sum, evidence) => sum + evidence.confidenceScore, 0) / evidenceBase.length 
-      : 50;
-    
-    // Create comprehensive answer using available findings
-    const answerComponents = [
-      `Legal analysis completed for: ${question.question}`,
-      `Evidence reviewed: ${totalChunks} document segments from ${allSourceDocuments.length} source documents`,
-      allFindings.length > 0 ? `Key findings identified: ${Math.min(allFindings.length, 10)} legal insights extracted` : 'Comprehensive legal review conducted',
-      `Document coverage: ${allSourceDocuments.slice(0, 3).join(', ')}${allSourceDocuments.length > 3 ? ` and ${allSourceDocuments.length - 3} additional documents` : ''}`
-    ];
-    
-    // Generate contextual legal assessment based on question category
-    const assessmentMap: Record<string, string> = {
-      'Commercial Contracts': 'Commercial contract analysis completed with focus on payment terms, liability provisions, and termination conditions',
-      'Corporate Governance': 'Corporate governance review conducted covering board structure, decision-making processes, and fiduciary responsibilities',
-      'Intellectual Property': 'Intellectual property assessment completed including patent protection, trademark rights, and licensing agreements',
-      'Legal Risk Assessment': 'Comprehensive legal risk evaluation performed with analysis of potential exposures and mitigation strategies',
-      'Employment Law': 'Employment law compliance review conducted covering workforce protections and regulatory requirements',
-      'Data Privacy & Compliance': 'Data privacy and regulatory compliance assessment completed with focus on current framework adherence'
-    };
-    
-    const contextualAssessment = assessmentMap[question.category] || 'Comprehensive legal analysis completed with institutional investment focus';
-    
-    // Generate intelligent recommendations based on available data
-    const intelligentRecommendations = [
-      `Continue detailed legal review for ${question.category.toLowerCase()} aspects`,
-      allFindings.length > 5 ? 'Prioritize review of identified high-impact legal findings' : 'Conduct focused legal due diligence in this area',
-      allSourceDocuments.length > 3 ? 'Cross-reference findings across multiple source documents for validation' : 'Seek additional supporting documentation for comprehensive assessment'
-    ];
-    
-    // Calculate smart confidence score based on evidence quality
-    const smartConfidence = Math.max(0.5, Math.min(0.85, (avgConfidence / 100) + (allFindings.length > 0 ? 0.2 : 0) + (allSourceDocuments.length > 1 ? 0.1 : 0)));
-    
-    return {
-      question: question.question,
-      answer: answerComponents.join('. ') + '.',
-      confidence: smartConfidence,
-      sources: allSourceDocuments.slice(0, 5),
-      keyFindings: allFindings.length > 0 ? allFindings.slice(0, 8) : [`${question.category} review completed with available documentation`],
-      legalAssessment: contextualAssessment,
-      recommendations: intelligentRecommendations,
-      legalRiskScore: Math.min(7, Math.max(3, Math.round(5 - (avgConfidence / 100) * 2))), // Score 3-7 based on evidence quality
-      complianceStatus: allFindings.length > 3 ? 'Under Review' : (allFindings.length > 0 ? 'Partially Compliant' : 'Under Review'),
-      evidenceBase
-    };
   }
 
   /**
