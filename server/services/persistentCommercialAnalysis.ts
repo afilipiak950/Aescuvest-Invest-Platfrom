@@ -5,7 +5,7 @@
  */
 
 import { storage } from '../storage';
-import { RAGPoweredCommercialAgent, RAG_COMMERCIAL_QUESTIONS } from './ragPoweredCommercialAgent';
+import { RAGPoweredCommercialAgent, RAG_COMMERCIAL_QUESTIONS } from './ragPoweredCommercialAgent.js';
 import { websocketManager } from './websocketManager';
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs } from '@shared/schema';
@@ -71,7 +71,7 @@ export class PersistentCommercialAnalysisService {
    * Start a new persistent commercial analysis job - FORCES fresh start like Clinical
    */
   async startCommercialAnalysis(dealId: number): Promise<string> {
-    const jobId = `rag_commercial_analysis_${dealId}_${Date.now()}`;
+    const jobId = `commercial-analysis-${dealId}`;
     
     console.log(`🚀 Starting FRESH RAG-powered commercial analysis for deal ${dealId}`);
 
@@ -106,7 +106,7 @@ export class PersistentCommercialAnalysisService {
     try {
       await storage.createBackgroundJob({
         jobId,
-        jobType: 'rag_commercial_analysis',
+        jobType: 'agent_analysis',
         dealId,
         agentType: 'Commercial',
         status: 'processing',
@@ -126,7 +126,7 @@ export class PersistentCommercialAnalysisService {
         
         await storage.createBackgroundJob({
           jobId,
-          jobType: 'rag_commercial_analysis',
+          jobType: 'agent_analysis',
           dealId,
           agentType: 'Commercial',
           status: 'processing',
@@ -283,11 +283,6 @@ export class PersistentCommercialAnalysisService {
       jobState.currentStep = 'Running comprehensive commercial analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
-      // ⚡ STAGGERED STARTUP - Commercial agent waits 30s to avoid API conflicts
-      const { AgentStaggeringService } = await import('./agentStaggeringService');
-      const staggeringService = AgentStaggeringService.getInstance();
-      await staggeringService.waitForAgentStartup('Commercial');
-
       // Call the RAG-powered commercial analysis agent
       const ragAgent = new RAGPoweredCommercialAgent(dealId, jobId);
       await ragAgent.runComprehensiveAnalysis();
@@ -329,13 +324,6 @@ export class PersistentCommercialAnalysisService {
 
     } catch (error) {
       console.error(`❌ Persistent commercial analysis failed:`, error);
-      
-      // CRITICAL FIX: Mark job as failed when OpenAI quota exceeded
-      if (error.message && (error.message.includes('429') || error.message.includes('quota'))) {
-        console.log(`🚫 Commercial analysis failed due to OpenAI quota limits`);
-        await storage.failBackgroundJob(jobId, `OpenAI quota exceeded: ${error.message}`);
-      }
-      
       throw error;
     }
   }

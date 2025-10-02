@@ -255,14 +255,7 @@ export default function EnhancedAgentCard({
     refetchInterval: 20000, // Reduced from 2s to 20s
   });
 
-  // Fetch comprehensive Legal analysis data directly for Legal agents
-  const { data: legalAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/legal/results`],
-    enabled: agentType.toLowerCase() === 'legal',
-    refetchInterval: 20000, // Reduced from 2s to 20s
-  });
-
-  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, Financial, or Legal agent and we have the data
+  // Use comprehensive analysis data if this is an HR, IP, Research, Clinical, or Financial agent and we have the data
   const actualAnalysisData = (() => {
     if (agentType.toLowerCase() === 'hr' && hrAnalysisData && typeof hrAnalysisData === 'object' && 'analysis' in hrAnalysisData) {
       return hrAnalysisData.analysis;
@@ -279,9 +272,6 @@ export default function EnhancedAgentCard({
     if (agentType.toLowerCase() === 'financial' && financialAnalysisData && typeof financialAnalysisData === 'object' && 'analysis' in financialAnalysisData) {
       // CRITICAL FIX: Use same simple pattern as Clinical agent - no complex conditionals
       return financialAnalysisData.analysis;
-    }
-    if (agentType.toLowerCase() === 'legal' && legalAnalysisData && typeof legalAnalysisData === 'object' && 'analysis' in legalAnalysisData) {
-      return legalAnalysisData.analysis;
     }
     return analysis || {};
   })();
@@ -575,16 +565,6 @@ export default function EnhancedAgentCard({
     runMistralAnalysisMutation.mutate();
   };
 
-  // Normalize status to handle case variations and common aliases
-  const normalizeStatus = (status?: string): string => {
-    if (!status) return '';
-    const normalized = status.toLowerCase().trim();
-    // Handle common status variations
-    if (normalized === 'complete') return 'completed';
-    if (normalized === 'in progress') return 'processing';
-    return normalized;
-  };
-
   // Check if analysis is currently processing by looking at status and recent activity
   const isAnalysisCurrentlyRunning = () => {
     // Check if all analyses are running from parent component
@@ -592,9 +572,9 @@ export default function EnhancedAgentCard({
       return true;
     }
     
-    // Check if we have a processing status (case-insensitive)
-    const normalizedStatus = normalizeStatus(analysisData?.status);
-    if (normalizedStatus === 'processing') {
+    // Check if we have a processing status
+    const status = analysisData?.status;
+    if (status === 'Processing' || status === 'In Progress') {
       return true;
     }
     
@@ -615,9 +595,9 @@ export default function EnhancedAgentCard({
       return false;
     }
     
-    // Show processing UI for individual agent runs (case-insensitive)
-    const normalizedStatus = normalizeStatus(analysisData?.status);
-    if (normalizedStatus === 'processing') {
+    // Show processing UI for individual agent runs (exclude the bulk analysis check)
+    const status = analysisData?.status;
+    if (status === 'Processing' || status === 'In Progress') {
       return true;
     }
     
@@ -915,23 +895,20 @@ export default function EnhancedAgentCard({
     f.type === 'organizational_risk' // ✅ FIXED: HR agent specific risk findings
   ).length;
   
-  // Check if we have any analysis data (robust logic with proper array checks)
-  const normalizedStatus = normalizeStatus(analysisData?.status);
-  const hasAnalysis = (findings && findings.length > 0) || 
-                     (recommendations && recommendations.length > 0) || 
-                     ['completed', 'complete'].includes(normalizedStatus);
-
   // Debug KPI calculations for verification
   console.log(`🔢 ${agentType} Agent KPIs:`, {
     totalDocuments: documents?.length || 0,
     assignedDocuments: assignedDocuments,
-    hasAnalysis: hasAnalysis,
-    normalizedStatus: normalizedStatus,
+    hasAnalysis: !!analysisData && analysisData.status === 'Completed',
     findingsCount: (findings || []).length,
-    recommendationsCount: (recommendations || []).length,
     positiveInsights,
     riskFactors
   });
+  
+  // Check if we have any analysis data (findings, recommendations, or status indicating completion)
+  const hasAnalysis = (findings || []).length > 0 || (recommendations || []).length > 0 || 
+                     (analysisData && analysisData.status === 'Completed') ||
+                     (analysisData && (analysisData.findings || analysisData.recommendations));
 
   if (isLoading) {
     return (
@@ -953,14 +930,14 @@ export default function EnhancedAgentCard({
         </div>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant="outline" className={
-            ['completed', 'complete'].includes(normalizedStatus) ? 'text-green-400 border-green-400' :
-            normalizedStatus === 'processing' ? 'text-blue-400 border-blue-400' :
-            normalizedStatus === 'failed' ? 'text-red-400 border-red-400' :
+            status === 'Completed' ? 'text-green-400 border-green-400' :
+            status === 'Processing' ? 'text-blue-400 border-blue-400' :
+            status === 'Failed' ? 'text-red-400 border-red-400' :
             'text-gray-400 border-gray-400'
           }>
             {status}
           </Badge>
-          {normalizedStatus === 'processing' && (
+          {status === 'Processing' && (
             <span className="text-xs text-gray-400">{progress}% complete</span>
           )}
         </div>
@@ -1592,146 +1569,84 @@ const RESEARCH_QUESTIONS: ResearchQuestion[] = [
   }
 ];
 
-// COMPREHENSIVE 13 LEGAL QUESTIONS - Complete institutional-grade legal due diligence across 5 categories
 const LEGAL_QUESTIONS: LegalQuestion[] = [
-  // ========== CONTRACTS & AGREEMENTS (3 questions) ==========
   {
     id: 'contracts_1',
     category: 'Contracts & Agreements',
     question: 'Are key commercial contracts clearly defined?',
-    subQuestions: [
-      'What are the main revenue-generating contracts and their terms?',
-      'Are contract obligations, deliverables, and payment terms clearly specified?',
-      'What are the key customer contracts, partnerships, and licensing agreements?'
-    ]
+    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
   },
   {
     id: 'contracts_2',
     category: 'Contracts & Agreements',
     question: 'What are the key contractual obligations and terms?',
-    subQuestions: [
-      'What specific obligations and performance requirements exist?',
-      'Are there warranty, indemnification, or liability provisions?',
-      'What are the contract renewal, modification, and assignment terms?'
-    ]
+    subQuestions: ['Obligations', 'Terms and conditions', 'Performance requirements']
   },
   {
     id: 'contracts_3',
     category: 'Contracts & Agreements',
     question: 'Are there any concerning contract provisions or risks?',
-    subQuestions: [
-      'Are there termination clauses, penalties, or restrictive provisions?',
-      'What liability caps, exclusions, and risk allocation mechanisms exist?',
-      'Are there any unfavorable terms or potential contract disputes?'
-    ]
+    subQuestions: ['Risk provisions', 'Liability clauses', 'Termination conditions']
   },
-
-  // ========== CORPORATE GOVERNANCE (3 questions) ==========
   {
     id: 'governance_1',
     category: 'Corporate Governance',
     question: 'What is the corporate governance structure?',
-    subQuestions: [
-      'What is the board composition and director qualifications?',
-      'What are the governance policies and decision-making processes?',
-      'How are shareholder rights and voting mechanisms structured?'
-    ]
+    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes']
   },
   {
     id: 'governance_2',
     category: 'Corporate Governance',
     question: 'Are there adequate governance controls and oversight?',
-    subQuestions: [
-      'What internal controls and compliance frameworks exist?',
-      'Are there audit committees and oversight mechanisms?',
-      'How are conflicts of interest and related party transactions managed?'
-    ]
+    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks']
   },
   {
     id: 'governance_3',
     category: 'Corporate Governance',
     question: 'What are the key governance risks and mitigation strategies?',
-    subQuestions: [
-      'What governance weaknesses or control deficiencies exist?',
-      'Are there regulatory compliance issues or governance violations?',
-      'What risk mitigation strategies and corrective measures are in place?'
-    ]
+    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses']
   },
-
-  // ========== INTELLECTUAL PROPERTY (3 questions) ==========
   {
     id: 'ip_1',
     category: 'Intellectual Property',
     question: 'What is the intellectual property portfolio?',
-    subQuestions: [
-      'What patents, trademarks, copyrights, and trade secrets exist?',
-      'What is the scope and coverage of the IP portfolio?',
-      'Are there any valuable or strategic intellectual property assets?'
-    ]
+    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights']
   },
   {
     id: 'ip_2',
     category: 'Intellectual Property',
     question: 'Are there any IP ownership or infringement issues?',
-    subQuestions: [
-      'Are there IP ownership disputes or unclear title issues?',
-      'What infringement risks or freedom to operate concerns exist?',
-      'Are there any pending IP litigation or disputes?'
-    ]
+    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate']
   },
   {
     id: 'ip_3',
     category: 'Intellectual Property',
     question: 'What IP protection and enforcement strategies are in place?',
-    subQuestions: [
-      'What strategies protect and enforce intellectual property rights?',
-      'Are there IP licensing agreements and monetization strategies?',
-      'How are trade secrets and confidential information protected?'
-    ]
+    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy']
   },
-
-  // ========== LITIGATION & LEGAL RISKS (2 questions) ==========
   {
     id: 'litigation_1',
     category: 'Litigation & Legal Risks',
     question: 'Are there any pending or threatened litigations?',
-    subQuestions: [
-      'What active litigation, lawsuits, or legal proceedings exist?',
-      'Are there threatened litigation or potential legal disputes?',
-      'What is the financial exposure and potential impact of legal matters?'
-    ]
+    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes']
   },
   {
     id: 'litigation_2',
     category: 'Litigation & Legal Risks',
     question: 'What are the key legal risks and potential exposures?',
-    subQuestions: [
-      'What potential legal liabilities and contingent obligations exist?',
-      'Are there regulatory investigation or enforcement actions?',
-      'What operational legal risks could impact the business?'
-    ]
+    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities']
   },
-
-  // ========== REGULATORY COMPLIANCE (2 questions) ==========
   {
     id: 'regulatory_1',
     category: 'Regulatory Compliance',
     question: 'What regulatory requirements apply to the business?',
-    subQuestions: [
-      'What industry-specific regulations and compliance requirements exist?',
-      'Are there data privacy, cybersecurity, or information security regulations?',
-      'What licensing, permits, or regulatory approvals are required?'
-    ]
+    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations']
   },
   {
     id: 'regulatory_2',
     category: 'Regulatory Compliance',
     question: 'Are there any regulatory compliance issues or violations?',
-    subQuestions: [
-      'What compliance violations, fines, or regulatory actions exist?',
-      'Are there ongoing regulatory investigations or enforcement proceedings?',
-      'What corrective measures and compliance improvements are in place?'
-    ]
+    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings']
   }
 ];
 

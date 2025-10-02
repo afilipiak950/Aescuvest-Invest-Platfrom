@@ -4,6 +4,7 @@
  */
 
 import { storage } from '../storage';
+import { comprehensiveClinicalAnalysisService, COMPREHENSIVE_CLINICAL_QUESTIONS } from '../comprehensiveClinicalAnalysisService';
 import { websocketManager } from './websocketManager';
 
 interface ClinicalJobState {
@@ -221,24 +222,17 @@ export class PersistentClinicalAnalysisService {
       jobState.currentStep = 'Running comprehensive clinical analysis...';
       await this.updateJobProgress(jobId, jobState.progress, jobState.currentStep);
 
-      // ⚡ STAGGERED STARTUP - Clinical agent waits 15s to avoid API conflicts
-      const { AgentStaggeringService } = await import('./agentStaggeringService');
-      const staggeringService = AgentStaggeringService.getInstance();
-      await staggeringService.waitForAgentStartup('Clinical');
-
-      // Call the new RAG-powered clinical analysis agent
-      const { RAGPoweredClinicalAgent } = await import('./ragPoweredClinicalAgent');
-      const ragAgent = new RAGPoweredClinicalAgent(dealId, jobId);
-      await ragAgent.runComprehensiveAnalysis();
+      // Call the existing comprehensive clinical analysis service
+      const result = await comprehensiveClinicalAnalysisService.runComprehensiveAnalysis(dealId, storage, jobId);
 
       // Mark as completed
       jobState.progress = 100;
-      jobState.currentStep = 'RAG clinical analysis completed';
+      jobState.currentStep = 'Clinical analysis completed';
       
       await storage.updateBackgroundJob(jobId, {
         status: 'completed',
         progress: 100,
-        currentStep: 'RAG clinical analysis completed',
+        currentStep: 'Clinical analysis completed',
         completedAt: new Date(),
         updatedAt: new Date()
       });
@@ -255,13 +249,6 @@ export class PersistentClinicalAnalysisService {
 
     } catch (error) {
       console.error(`❌ Persistent clinical analysis failed:`, error);
-      
-      // CRITICAL FIX: Mark job as failed when OpenAI quota exceeded
-      if (error.message && (error.message.includes('429') || error.message.includes('quota'))) {
-        console.log(`🚫 Clinical analysis failed due to OpenAI quota limits`);
-        await storage.failBackgroundJob(jobId, `OpenAI quota exceeded: ${error.message}`);
-      }
-      
       throw error;
     }
   }

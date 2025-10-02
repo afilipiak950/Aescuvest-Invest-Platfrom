@@ -10,7 +10,7 @@
 
 import { EmbeddingService } from './embeddingService';
 import { db } from '../db';
-import { agentAnalyses, documentEmbeddings, documents, backgroundJobs } from '@shared/schema';
+import { agentAnalyses, documentEmbeddings, documents } from '@shared/schema';
 import { eq, and, or, like, sql } from 'drizzle-orm';
 import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
 import OpenAI from 'openai';
@@ -272,90 +272,102 @@ interface RagHRAnswer {
   processingTime: number;
 }
 
-export class RAGPoweredHRAgent {
+export class RagPoweredHRAgent {
   private dealId: number;
-  private jobId: string;  // ✅ FIXED: Added missing jobId property
-  private totalStartTime: number;
+  private totalStartTime: number = 0;
+  private progressCallback?: (progress: any) => Promise<void>;
 
-  constructor(dealId: number, jobId?: string) {  // ✅ FIXED: Added jobId parameter like Legal agent
+  constructor(dealId: number) {
     this.dealId = dealId;
-    this.jobId = jobId || `rag_hr_analysis_${dealId}_${Date.now()}`;  // ✅ FIXED: Set jobId like Legal agent
-    this.totalStartTime = Date.now();  // ✅ FIXED: Initialize immediately like Legal agent
   }
 
   /**
-   * RUN COMPREHENSIVE HR ANALYSIS
-   * Execute RAG-powered analysis for all 12 HR questions
+   * Set progress callback for background job tracking
    */
-  async runComprehensiveAnalysis(): Promise<void> {  // ✅ FIXED: Match Legal agent return type
+  setProgressCallback(callback: (progress: any) => Promise<void>) {
+    this.progressCallback = callback;
+  }
+
+  /**
+   * MAIN ENTRY POINT: Run comprehensive RAG-powered HR analysis
+   * Uses comprehensive 12 HR questions for complete employment analysis
+   */
+  async runComprehensiveAnalysis(): Promise<any> {
+    this.totalStartTime = Date.now();
     console.log(`👥 Starting RAG-powered HR analysis for deal ${this.dealId}`);
-    console.log(`📋 Processing ${RAG_HR_QUESTIONS.length} HR questions with 4-layer RAG evidence gathering`);
+    console.log(`🚀 Processing ${RAG_HR_QUESTIONS.length} comprehensive HR questions with multi-layer RAG queries...`);
 
     try {
-      // ⚡ SIMPLIFIED: Start analysis immediately without blocking on embeddings
-      console.log(`⚡ Skipping embedding wait - starting analysis with existing data`);
+      // Ensure documents are embedded for RAG search
+      await EmbeddingService.embedMissingDocuments(this.dealId);
 
       const hrAnswers: Record<string, RagHRAnswer> = {};
-    const allFindings: any[] = [];
-    const allRecommendations: any[] = [];
+      
+      // Process each of the 12 comprehensive HR questions with intelligent RAG queries
+      for (let i = 0; i < RAG_HR_QUESTIONS.length; i++) {
+        const question = RAG_HR_QUESTIONS[i];
+        const questionStartTime = Date.now();
+        
+        console.log(`\n🔍 Question ${i + 1}/${RAG_HR_QUESTIONS.length}: ${question.question}`);
+        console.log(`📂 Category: ${question.category}`);
+        
+        // Execute multi-layer RAG strategy for this question
+        const evidenceBase = await this.executeMultiLayerRagSearch(question);
+        
+        // Synthesize comprehensive enterprise-grade answer
+        const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
+        
+        const processingTime = Date.now() - questionStartTime;
+        answer.processingTime = processingTime;
+        
+        hrAnswers[question.id] = answer;
+        
+        console.log(`✅ Question ${i + 1} completed in ${processingTime}ms with ${evidenceBase.length} evidence layers`);
+        
+        // Update progress for background job tracking
+        if (this.progressCallback) {
+          const progressPercentage = Math.round(((i + 1) / RAG_HR_QUESTIONS.length) * 100);
+          await this.progressCallback({
+            percentage: progressPercentage,
+            currentStep: `Question ${i + 1}/${RAG_HR_QUESTIONS.length} completed`,
+            currentQuestion: question.question,
+            completedQuestions: i + 1,
+            category: question.category,
+            estimatedTimeRemaining: `${Math.round((RAG_HR_QUESTIONS.length - (i + 1)) * (processingTime / 1000))}s`
+          });
+        }
+        
+        // Brief pause to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
-    // Process all 12 HR questions sequentially with progress tracking
-    for (let i = 0; i < RAG_HR_QUESTIONS.length; i++) {
-      const question = RAG_HR_QUESTIONS[i];
-      const questionStartTime = Date.now();
-      
-      console.log(`👥 Question ${i + 1}/12: ${question.question}`);
-      console.log(`📂 Category: ${question.category}`);
-      
-      // Execute multi-layer RAG search for comprehensive evidence
-      const evidenceBase = await this.executeMultiLayerRagSearch(question);
-      
-      // Synthesize enterprise-grade HR answer
-      const answer = await this.synthesizeEnterpriseAnswer(question, evidenceBase);
-      
-      // Store question answer
-      hrAnswers[question.id] = answer;
-      allFindings.push(...answer.keyFindings.map(finding => ({
-        id: i + 1,
-        type: 'hr',
-        content: `${question.question}: ${finding}`,
-        source: answer.sources[0] || 'HR Analysis',
-        confidence: answer.confidence,
-        category: question.category,
-        evidenceCount: evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0),
-        hrRiskScore: answer.hrRiskScore,
-        processingTime: Date.now() - questionStartTime
-      })));
-      
-      allRecommendations.push(...answer.recommendations.map(rec => ({
-        title: `${question.category}: HR Intelligence`,
-        description: rec,
-        priority: answer.hrRiskScore > 7 ? 'high' : 'medium',
-        category: 'hr',
-        impact: 'significant',
-        evidenceBase: evidenceBase.reduce((sum, evidence) => sum + evidence.chunks.length, 0),
-        hrRisk: answer.hrRiskScore,
-        processingTime: Date.now() - questionStartTime
-      })));
-      
-      // 🎯 SAVE QUESTION RESULT INCREMENTALLY - This shows progress in UI!
-      await this.saveQuestionResultIncremental(question, answer, i);
-      
-      // Update progress
-      const progress = Math.round(((i + 1) / RAG_HR_QUESTIONS.length) * 100);
-      await this.updateBackgroundJobProgress(progress, i + 1);
-      
-      const questionTime = Date.now() - questionStartTime;
-      console.log(`✅ Question ${i + 1} completed in ${questionTime}ms with HR risk score ${answer.hrRiskScore}/10`);
-    }
+      // Generate comprehensive findings and recommendations
+      const findings = this.generateComprehensiveFindings(hrAnswers);
+      const recommendations = this.generateIntelligentRecommendations(hrAnswers);
 
-    // Store comprehensive results in database
-    await this.storeRagHRResults(hrAnswers, allFindings, allRecommendations);
-    
+      // Store results in database with correct question mapping
+      await this.storeRagHRResults(hrAnswers, findings, recommendations);
+
       const totalTime = Date.now() - this.totalStartTime;
-      console.log(`🏆 RAG-powered HR analysis completed in ${totalTime}ms for deal ${this.dealId}`);
+      console.log(`\n🎉 RAG-powered HR analysis completed in ${totalTime}ms`);
+      console.log(`📊 Performance: ${Math.round(totalTime / RAG_HR_QUESTIONS.length)}ms average per question`);
+      console.log(`🎯 Enterprise-grade HR analysis using comprehensive employment questions`);
+
+      return {
+        success: true,
+        answers: hrAnswers,
+        findings,
+        recommendations,
+        performance: {
+          totalTime,
+          averagePerQuestion: Math.round(totalTime / RAG_HR_QUESTIONS.length),
+          questionsProcessed: RAG_HR_QUESTIONS.length,
+          documentsAnalyzed: 'All documents via RAG search'
+        }
+      };
+
     } catch (error) {
-      console.error(`❌ HR analysis failed for deal ${this.dealId}:`, error);
+      console.error(`❌ RAG-powered HR analysis failed:`, error);
       throw error;
     }
   }
@@ -613,12 +625,6 @@ export class RAGPoweredHRAgent {
     const compressedChunks = [];
     
     for (const chunk of chunks) {
-      // CRITICAL FIX: Add null check to prevent "Cannot read properties of undefined" error
-      if (!chunk || !chunk.content) {
-        console.log(`⚠️ HR chunk missing content, skipping...`);
-        continue;
-      }
-      
       // Skip compression if content is already short
       if (chunk.content.length <= 800) {
         compressedChunks.push(chunk);
@@ -832,7 +838,7 @@ Provide institutional-grade HR analysis in JSON format:
 {
   "answer": "Comprehensive HR analysis with specific employment data, compliance status, and investment implications",
   "confidence": 0-100,
-  "sources": ["Document1.pdf", "Document2.pdf", "Document3.pdf", ...], // MINIMUM 15 UNIQUE SOURCES REQUIRED
+  "sources": ["Document1.pdf", "Document2.pdf"],
   "keyFindings": ["Quantified HR finding 1", "Employment compliance status 2", "Compensation structure 3"],
   "hrAssessment": "Professional HR assessment from institutional investment perspective",
   "recommendations": ["Actionable investment recommendation 1", "HR risk mitigation step 2"],
@@ -840,16 +846,10 @@ Provide institutional-grade HR analysis in JSON format:
   "investmentImplications": "Direct impact on investment thesis and human capital valuation"
 }
 
-CRITICAL ANALYSIS REQUIREMENTS:
-- MINIMUM SOURCE DIVERSITY: Cite at least 15 unique source documents in the sources array
-- EXTRACT ALL AVAILABLE INFORMATION: Use any directly supported facts from the evidence base - DO NOT default to "Insufficient evidence" unless zero supporting facts exist
-- FLEXIBLE CITATION FORMAT: Use [Document Name + Chunk Reference] when specific page numbers are unavailable (e.g., "Employment_Agreement.pdf chunk 4")
-- CITE SPECIFIC QUANTITATIVE HR DATA: Employee counts, compensation figures, benefit costs, turnover percentages, compliance metrics when available
-- PROVIDE INSTITUTIONAL INVESTMENT PERSPECTIVE: Risk-adjusted human capital assessments with investment implications
-- INCLUDE RISK-ADJUSTED HR ASSESSMENTS: Evidence-based workforce analysis and employment risk scoring
-
-EVIDENCE EXTRACTION MANDATE:
-You MUST extract and analyze ANY available information from the provided evidence base. Only state "insufficient evidence" if literally zero supporting facts exist. When page numbers are unavailable, cite documents with chunk references. Always prioritize extracting actionable HR insights over claiming insufficient data.  
+ENTERPRISE REQUIREMENTS:
+- Cite specific quantitative HR data from evidence
+- Provide institutional investment perspective
+- Include risk-adjusted HR assessments  
 - Reference multiple source documents for credibility
 - Focus on actionable insights for investment committee
 - Use professional HR and employment law terminology
@@ -895,7 +895,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         category: question.category,
         answer: analysis.answer || `Comprehensive HR analysis based on ${totalChunks} content segments from ${allSourceDocuments.length} documents. ${question.category} assessment completed with multi-layer evidence synthesis.`,
         confidence: Math.max(analysis.confidence || 75, allFindings.length > 0 ? 80 : 40),
-        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
+        sources: allSourceDocuments,
         keyFindings: analysis.keyFindings || allFindings.slice(0, 5),
         hrAssessment: analysis.hrAssessment || `${question.category}: HR assessment based on comprehensive document analysis with focus on ${question.analysisPrompt}`,
         recommendations: analysis.recommendations || ['Comprehensive HR review completed - detailed analysis available'],
@@ -925,7 +925,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         category: question.category,
         answer: `${question.category} analysis completed through comprehensive review of ${allSourceDocuments.length} documents with ${totalChunks} content segments. HR assessment focused on ${question.analysisPrompt}`,
         confidence: allFindings.length > 0 ? 70 : 30,
-        sources: Array.isArray(analysis.sources) && analysis.sources.length >= 15 ? analysis.sources : allSourceDocuments.slice(0, Math.max(15, Math.min(25, allSourceDocuments.length))),
+        sources: allSourceDocuments,
         keyFindings: allFindings.slice(0, 5),
         hrAssessment: `${question.category}: Comprehensive HR analysis completed based on multi-layer evidence synthesis`,
         recommendations: ['HR analysis completed - enterprise-grade assessment available'],
@@ -934,127 +934,6 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
         detailedEvidence,
         processingTime: 0
       };
-    }
-  }
-
-  /**
-   * 🎯 INCREMENTAL SAVE: Save individual question result immediately after processing
-   * This ensures users see progress and don't lose results if analysis fails partway through
-   */
-  private async saveQuestionResultIncremental(question: any, answer: any, questionIndex: number): Promise<void> {
-    try {
-      console.log(`💾 Saving HR question ${questionIndex + 1} result incrementally for deal ${this.dealId}`);
-
-      // Check if analysis record exists
-      const existingAnalysis = await db
-        .select()
-        .from(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, this.dealId),
-          eq(agentAnalyses.agentType, 'hr')  // ✅ FIXED: Using lowercase 'hr'
-        ))
-        .limit(1);
-
-      // Build the question result for hrAnswers
-      const questionAnswer = {
-        question: question.question,
-        category: question.category,
-        answer: answer.answer,
-        hrRiskScore: answer.hrRiskScore,
-        riskFactors: answer.riskFactors,
-        keyFindings: answer.keyFindings,
-        recommendations: answer.recommendations,
-        confidence: answer.confidence,
-        sources: answer.sources,
-        evidenceCount: answer.evidenceCount || 0,
-        processingTime: Date.now() // Add timestamp for tracking
-      };
-
-      if (existingAnalysis.length === 0) {
-        // Create new analysis record with first question
-        const initialHRAnswers = {
-          [question.id]: questionAnswer
-        };
-
-        await db.insert(agentAnalyses).values({
-          dealId: this.dealId,
-          agentType: 'hr',
-          status: 'processing',
-          progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
-          findings: [],
-          recommendations: []
-        } as any);
-
-        // Update with hr_answers in a separate query to avoid TypeScript issues
-        await db
-          .update(agentAnalyses)
-          .set({
-            hr_answers: initialHRAnswers
-          } as any)
-          .where(and(
-            eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'hr')
-          ));
-
-        console.log(`✅ Created new HR analysis record with question ${questionIndex + 1}`);
-      } else {
-        // Update existing record with new question result
-        const currentAnalysis = existingAnalysis[0];
-        const updatedHRAnswers = {
-          ...(currentAnalysis.hr_answers || {}),
-          [question.id]: questionAnswer
-        };
-
-        await db
-          .update(agentAnalyses)
-          .set({
-            hr_answers: updatedHRAnswers,
-            progress: Math.round(((questionIndex + 1) / RAG_HR_QUESTIONS.length) * 100),
-            status: 'processing'
-          } as any)
-          .where(and(
-            eq(agentAnalyses.dealId, this.dealId),
-            eq(agentAnalyses.agentType, 'hr')
-          ));
-
-        console.log(`✅ Updated HR analysis with question ${questionIndex + 1} (${Object.keys(updatedHRAnswers).length}/${RAG_HR_QUESTIONS.length} total)`);
-      }
-
-      console.log(`💾 HR question ${questionIndex + 1} ("${question.question}") saved successfully`);
-
-    } catch (error) {
-      console.error(`❌ Failed to save HR question ${questionIndex + 1} incrementally:`, error);
-      console.error(`❌ Question details:`, {
-        questionId: question.id,
-        question: question.question,
-        category: question.category
-      });
-      // Don't throw error - log it but continue processing other questions
-      // This ensures one failed save doesn't stop the entire analysis
-    }
-  }
-
-  /**
-   * UPDATE BACKGROUND JOB PROGRESS
-   * Track real-time progress for UI updates
-   */
-  private async updateBackgroundJobProgress(progress: number, completedQuestions: number): Promise<void> {
-    try {
-      if (this.jobId) {
-        await db
-          .update(backgroundJobs)
-          .set({
-            progress: progress,
-            processedDocuments: completedQuestions,
-            currentStep: `Processing HR question ${completedQuestions}/${RAG_HR_QUESTIONS.length}`,
-            updatedAt: new Date()
-          } as any)
-          .where(eq(backgroundJobs.jobId, this.jobId));
-          
-        console.log(`📊 HR analysis progress: ${progress}% (${completedQuestions}/12 questions)`);
-      }
-    } catch (error) {
-      console.error('❌ Error updating HR analysis progress:', error);
     }
   }
 
@@ -1182,7 +1061,7 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
       .delete(agentAnalyses)
       .where(and(
         eq(agentAnalyses.dealId, this.dealId),
-        eq(agentAnalyses.agentType, 'hr')  // ✅ FIXED: Using lowercase 'hr'
+        eq(agentAnalyses.agentType, 'HR')
       ));
     
     console.log(`🗑️ Cleared existing HR analysis for deal ${this.dealId}`);
@@ -1190,13 +1069,13 @@ QUALITY REQUIREMENT: Provide professional-grade analysis with high accuracy and 
     // Create new analysis record with CORRECT question mapping
     const analysisData = {
       dealId: this.dealId,
-      agentType: 'hr' as const,  // ✅ FIXED: Using lowercase 'hr'
+      agentType: 'HR' as const,
       status: 'completed' as const,
       progress: 100,
-      findings: findings,  // ✅ FIXED: Using JSON objects directly, not strings
-      recommendations: recommendations,  // ✅ FIXED: Using JSON objects directly, not strings
-      hrAnswers: hrAnswers,  // ✅ FIXED: Using correct camelCase 'hrAnswers'
-      documentSources: Array.from(new Set(Object.values(hrAnswers).flatMap(a => a.sources))),  // ✅ FIXED: Using array directly
+      findings: JSON.stringify(findings),
+      recommendations: JSON.stringify(recommendations),
+      hr_answers: hrAnswers, // Store with CORRECT question IDs (contract_1, compensation_2, etc.)
+      documentSources: JSON.stringify(Array.from(new Set(Object.values(hrAnswers).flatMap(a => a.sources)))),
       createdAt: new Date(),
       updatedAt: new Date()
     };
