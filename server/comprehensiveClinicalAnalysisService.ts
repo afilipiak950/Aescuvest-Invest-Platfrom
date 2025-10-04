@@ -651,26 +651,23 @@ interface ClinicalAnswer {
 export class ComprehensiveClinicalAnalysisService {
   
   /**
-   * BUILD COMPREHENSIVE CONTENT WITH FULL OCR TEXT
-   * ✅ FIX: Always includes FULL OCR text alongside AI summary to preserve all quantitative data
+   * BUILD COMPREHENSIVE CONTENT FROM FULL AI SUMMARY ONLY
+   * Uses ONLY the structured AI summary (all 5 sections) - NO OCR text
+   * Preserves all quantitative data from AI summaries (N=XX, $XXX, ±X%, etc.)
    */
   private buildComprehensiveContent(document: any): string {
     const parts = [];
     
-    // PRIORITY 1: FULL OCR TEXT (PRIMARY SOURCE - contains ALL data including numbers and keywords)
-    if (document.ocrText) {
-      console.log(`📝 Using FULL OCR text for ${document.name} - ${document.ocrText.length} characters`);
-      parts.push(`=== FULL DOCUMENT TEXT (OCR) ===\n${document.ocrText}`);
-    }
-    
-    // PRIORITY 2: AI Summary (SUPPLEMENTAL CONTEXT - for structured insights)
+    // Use ONLY AI Summary - all 5 sections with quantitative data preservation
     if (document.aiSummary) {
-      console.log(`📝 Adding AI Summary for ${document.name} - Supplemental structured analysis`);
+      console.log(`📝 Using FULL AI Summary for ${document.name} - All 5 sections`);
       
+      // Section 1: Executive Summary
       if (document.aiSummary.executiveSummary) {
         parts.push(`=== EXECUTIVE SUMMARY ===\n${document.aiSummary.executiveSummary}`);
       }
       
+      // Section 2: Critical Information (preserves trial phases, patient numbers)
       if (document.aiSummary.criticalInformation) {
         const criticalInfo = typeof document.aiSummary.criticalInformation === 'string' 
           ? document.aiSummary.criticalInformation 
@@ -678,6 +675,7 @@ export class ComprehensiveClinicalAnalysisService {
         parts.push(`=== CRITICAL INFORMATION ===\n${criticalInfo}`);
       }
       
+      // Section 3: Key Financial Data (preserves $XXX, N=XX, cost metrics)
       if (document.aiSummary.keyFinancialData) {
         const financialData = typeof document.aiSummary.keyFinancialData === 'string'
           ? document.aiSummary.keyFinancialData
@@ -685,6 +683,7 @@ export class ComprehensiveClinicalAnalysisService {
         parts.push(`=== KEY FINANCIAL DATA ===\n${financialData}`);
       }
       
+      // Section 4: Risk Assessment
       if (document.aiSummary.riskAssessment) {
         const riskData = typeof document.aiSummary.riskAssessment === 'string'
           ? document.aiSummary.riskAssessment
@@ -692,17 +691,23 @@ export class ComprehensiveClinicalAnalysisService {
         parts.push(`=== RISK ASSESSMENT ===\n${riskData}`);
       }
       
+      // Section 5: Background Information
       if (document.aiSummary.backgroundInformation) {
         parts.push(`=== BACKGROUND INFORMATION ===\n${document.aiSummary.backgroundInformation}`);
       }
       
+      // Section 6: Document Type (metadata)
       if (document.aiSummary.documentType) {
         parts.push(`=== DOCUMENT TYPE ===\n${document.aiSummary.documentType}`);
       }
+    } else {
+      // Document has no AI summary - log warning
+      console.log(`⚠️ No AI Summary available for ${document.name} - skipping document`);
+      parts.push(`=== DOCUMENT UNAVAILABLE ===\nNo AI summary available for this document.`);
     }
     
     const content = parts.join('\n\n');
-    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} sections (OCR + AI Summary)`);
+    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} AI Summary sections`);
     return content;
   }
   
