@@ -1852,7 +1852,10 @@ export class DatabaseStorage implements IStorage {
           eq(agentAnalyses.dealId, dealId), 
           eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))
         ));
-      console.log(`🗑️ Cleared existing ${agentType} analysis for deal ${dealId}`);
+      
+      // CRITICAL: Also clear in-memory cache to force fresh analysis
+      analysesCache.delete(dealId);
+      console.log(`🗑️ Cleared existing ${agentType} analysis for deal ${dealId} (DB + cache)`);
     } catch (error) {
       console.error('Error clearing agent analysis:', error);
       throw error;
